@@ -1,0 +1,114 @@
+{
+  "generated_at": "2026-04-09T13:21:00.705956+00:00",
+  "mismatch_count": 18,
+  "mismatches": [
+    {
+      "corpus_id": "manuals_eval_20260403_193601",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_193908",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_194132",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_195801",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_195942",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_205255",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 56634
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_205759",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 7065
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_213507",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 12227
+    },
+    {
+      "corpus_id": "manuals_eval_20260404_001432",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "manuals_eval_20260404_001533",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "manuals_eval_20260404_024402",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "manuals_eval_20260404_030848",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "pipeline_health_062b2d3ab4f7",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "pipeline_health_07580d7a30c8",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "pipeline_health_08cae42a68c4",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "pipeline_health_3750d2d896e7",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "pipeline_health_6c29c85754ba",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    },
+    {
+      "corpus_id": "pipeline_health_8abccdf3a62c",
+      "collection_dim": 768,
+      "expected_dim": 1024,
+      "chunk_count": 0
+    }
+  ]
+}

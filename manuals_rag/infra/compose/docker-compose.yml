@@ -1,0 +1,212 @@
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/python-service.Dockerfile
+    working_dir: /workspace/manuals_rag
+    command: >
+      python -m uvicorn apps.api.main:app --host 0.0.0.0 --port 8600
+    environment:
+      PYTHONPATH: /workspace/manuals_rag/packages/common/src:/workspace/manuals_rag/packages/schemas/src:/workspace/manuals_rag/packages/parsers/src:/workspace/manuals_rag/packages/normalizers/src:/workspace/manuals_rag/packages/chunking/src:/workspace/manuals_rag/packages/retrieval/src:/workspace/manuals_rag/packages/answering/src:/workspace/manuals_rag/packages/permissions/src:/workspace/manuals_rag/packages/observability/src:/workspace/manuals_rag/packages/evals/src:/workspace/manuals_rag/apps
+      POSTGRES_DSN: postgresql://manuals:manuals@postgres:5432/manuals_rag
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: http://qdrant:6333
+      MINIO_ENDPOINT: minio:9000
+      MINIO_PUBLIC_ENDPOINT: 127.0.0.1:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_SECURE: "false"
+      MINIO_PUBLIC_SECURE: "false"
+      OLLAMA_URL: http://host.docker.internal:11434
+      OLLAMA_EMBED_MODEL: qwen3-embedding:0.6b
+      OLLAMA_METADATA_MODEL: tinyllama:1.1b
+      OLLAMA_ANSWER_MODEL: qwen3.5:9b
+      LOCAL_ADMIN_TOKEN: admin-token
+      LOCAL_OPERATOR_TOKEN: operator-token
+      LOCAL_END_USER_TOKEN: user-token
+      LOCAL_AUDITOR_TOKEN: auditor-token
+      DEFAULT_CORPUS_ID: manuals_vendor_keyence
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      HAYSTACK_RERANK_MODEL: cross-encoder/ms-marco-MiniLM-L-12-v2
+      HAYSTACK_RERANK_DEVICE: cuda:0
+    volumes:
+      - ../..:/workspace/manuals_rag
+    ports:
+      - "8600:8600"
+    gpus: all
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      qdrant:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  worker-ingest:
+    build:
+      context: ../..
+      dockerfile: infra/docker/python-service.Dockerfile
+    working_dir: /workspace/manuals_rag
+    command: >
+      python apps/worker_ingest/main.py
+    environment: &shared_env
+      PYTHONPATH: /workspace/manuals_rag/packages/common/src:/workspace/manuals_rag/packages/schemas/src:/workspace/manuals_rag/packages/parsers/src:/workspace/manuals_rag/packages/normalizers/src:/workspace/manuals_rag/packages/chunking/src:/workspace/manuals_rag/packages/retrieval/src:/workspace/manuals_rag/packages/answering/src:/workspace/manuals_rag/packages/permissions/src:/workspace/manuals_rag/packages/observability/src:/workspace/manuals_rag/packages/evals/src:/workspace/manuals_rag/apps
+      POSTGRES_DSN: postgresql://manuals:manuals@postgres:5432/manuals_rag
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: http://qdrant:6333
+      MINIO_ENDPOINT: minio:9000
+      MINIO_PUBLIC_ENDPOINT: 127.0.0.1:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_SECURE: "false"
+      MINIO_PUBLIC_SECURE: "false"
+      OLLAMA_URL: http://host.docker.internal:11434
+      OLLAMA_EMBED_MODEL: qwen3-embedding:0.6b
+      OLLAMA_METADATA_MODEL: tinyllama:1.1b
+      OLLAMA_ANSWER_MODEL: qwen3.5:9b
+      DEFAULT_CORPUS_ID: manuals_vendor_keyence
+      DOCLING_DEVICE: cuda
+      DOCLING_ENABLE_TABLE_STRUCTURE: "true"
+      DOCLING_TABLEFORMER_MODE: accurate
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      HAYSTACK_RERANK_MODEL: cross-encoder/ms-marco-MiniLM-L-12-v2
+      HAYSTACK_RERANK_DEVICE: cuda:0
+    volumes:
+      - ../..:/workspace/manuals_rag
+    gpus: all
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  worker-embed:
+    build:
+      context: ../..
+      dockerfile: infra/docker/python-service.Dockerfile
+    working_dir: /workspace/manuals_rag
+    command: >
+      python apps/worker_embed/main.py
+    environment: *shared_env
+    volumes:
+      - ../..:/workspace/manuals_rag
+    gpus: all
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      qdrant:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  worker-reindex:
+    build:
+      context: ../..
+      dockerfile: infra/docker/python-service.Dockerfile
+    working_dir: /workspace/manuals_rag
+    command: >
+      python apps/worker_reindex/main.py
+    environment: *shared_env
+    volumes:
+      - ../..:/workspace/manuals_rag
+    gpus: all
+    depends_on:
+      redis:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  ui:
+    image: python:3.12-slim
+    working_dir: /workspace/manuals_rag/apps/ui
+    command: python -m http.server 8601 --bind 0.0.0.0
+    volumes:
+      - ../..:/workspace/manuals_rag
+    ports:
+      - "8601:8601"
+    depends_on:
+      api:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: manuals_rag
+      POSTGRES_USER: manuals
+      POSTGRES_PASSWORD: manuals
+    ports:
+      - "5433:5432"
+    volumes:
+      - manuals_pgdata:/var/lib/postgresql/data
+      - ../migrations/init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U manuals -d manuals_rag"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - manuals_minio:/data
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - manuals_qdrant:/qdrant/storage
+
+  prometheus:
+    image: prom/prometheus:latest
+    command: --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      api:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      prometheus:
+        condition: service_started
+
+volumes:
+  manuals_pgdata:
+  manuals_minio:
+  manuals_qdrant:

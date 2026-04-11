@@ -1,0 +1,758 @@
+from types import SimpleNamespace
+
+from manuals_rag_retrieval.qdrant_store import QdrantStore
+from manuals_rag_retrieval import retriever
+from manuals_rag_retrieval.retriever import _resolve_rerank_device, fuse_results, rerank_results, run_dense_search, run_sparse_search
+from manuals_rag_retrieval.query_analysis import analyze_query
+from manuals_rag_schemas.documents import SearchResult
+from qdrant_client.http.exceptions import UnexpectedResponse
+
+
+def test_fuse_rrf_prefers_documents_present_in_multiple_result_sets():
+    dense = [
+        SearchResult(
+            chunk_id="shared",
+            score=0.1,
+            title="Doc",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Section"],
+            content="shared result",
+            metadata={},
+        ),
+        SearchResult(
+            chunk_id="dense-only",
+            score=0.2,
+            title="Doc",
+            document_version_id="ver-1",
+            source_document_id="doc-2",
+            pages=[1],
+            section_path=["Section"],
+            content="dense result",
+            metadata={},
+        ),
+    ]
+    sparse = [
+        SearchResult(
+            chunk_id="shared",
+            score=0.05,
+            title="Doc",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Section"],
+            content="shared result",
+            metadata={},
+        )
+    ]
+    fused = QdrantStore.fuse_rrf([dense, sparse], limit=2)
+    assert fused[0].chunk_id == "shared"
+
+
+def test_rerank_results_uses_haystack_ranker_order(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="first",
+            score=0.09,
+            title="Doc 1",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Section"],
+            content="first",
+            metadata={},
+        ),
+        SearchResult(
+            chunk_id="second",
+            score=0.08,
+            title="Doc 2",
+            document_version_id="ver-1",
+            source_document_id="doc-2",
+            pages=[1],
+            section_path=["Section"],
+            content="second",
+            metadata={},
+        ),
+    ]
+
+    class FakeRanker:
+        def run(self, query: str, documents: list[object]) -> dict[str, list[object]]:
+            assert query == "test query"
+            assert [document.id for document in documents] == ["first", "second"]
+            return {
+                "documents": [
+                    SimpleNamespace(id="second", score=0.91, meta={"chunk_id": "second"}),
+                    SimpleNamespace(id="first", score=0.55, meta={"chunk_id": "first"}),
+                ]
+            }
+
+    monkeypatch.setattr(retriever, "_to_rerank_documents", lambda items: [SimpleNamespace(id=item.chunk_id) for item in items])
+    monkeypatch.setattr(retriever, "_get_reranker", lambda: FakeRanker())
+
+    reranked = rerank_results(results, "test query", limit=2)
+    assert [item.chunk_id for item in reranked] == ["second", "first"]
+    assert reranked[0].metadata["rerank_score"] == 0.91
+    assert reranked[0].score > reranked[1].score
+
+
+def test_rerank_results_falls_back_to_fused_order_when_ranker_fails(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="first",
+            score=0.09,
+            title="Doc 1",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Section"],
+            content="first",
+            metadata={},
+        ),
+        SearchResult(
+            chunk_id="second",
+            score=0.08,
+            title="Doc 2",
+            document_version_id="ver-1",
+            source_document_id="doc-2",
+            pages=[1],
+            section_path=["Section"],
+            content="second",
+            metadata={},
+        ),
+    ]
+
+    monkeypatch.setattr(retriever, "_to_rerank_documents", lambda items: (_ for _ in ()).throw(RuntimeError("boom")))
+
+    reranked = rerank_results(results, "test query", limit=2)
+    assert [item.chunk_id for item in reranked] == ["first", "second"]
+
+
+def test_resolve_rerank_device_prefers_cuda_when_available(monkeypatch):
+    monkeypatch.setattr(retriever, "settings", SimpleNamespace(haystack_rerank_device="auto"))
+    monkeypatch.setattr(retriever, "torch", SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: True)))
+
+    class FakeComponentDevice:
+        @staticmethod
+        def from_str(value: str) -> str:
+            return value
+
+    import sys
+
+    monkeypatch.setitem(sys.modules, "haystack.utils", SimpleNamespace(ComponentDevice=FakeComponentDevice))
+    assert _resolve_rerank_device() == "cuda:0"
+
+
+def test_resolve_rerank_device_returns_cpu_when_cuda_unavailable(monkeypatch):
+    monkeypatch.setattr(retriever, "settings", SimpleNamespace(haystack_rerank_device="auto"))
+    monkeypatch.setattr(retriever, "torch", SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: False)))
+    assert _resolve_rerank_device() is None
+
+
+def test_query_analysis_prefers_section_windows_for_command_flow_queries():
+    analysis = analyze_query("What does the manual say about command timing and handshake flags?")
+    assert "operational_flow" in analysis.query_types
+    assert "section_window" in analysis.preferred_chunk_types
+
+
+def test_query_analysis_handles_revision_history_queries():
+    analysis = analyze_query("What is the latest revision history for LJ-X8000?")
+    assert "revision_history" in analysis.query_types
+    assert analysis.preferred_metadata_filters["version_signal"] == "true"
+
+
+def test_dedupe_results_keeps_distinct_chunks_in_same_section():
+    analysis = analyze_query("What does LJ-X8000 say about trigger timing?")
+    first = SearchResult(
+        chunk_id="chunk-1",
+        score=0.8,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Timing"],
+        content="First content",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    second = SearchResult(
+        chunk_id="chunk-2",
+        score=0.7,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Timing"],
+        content="Second content",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    deduped = retriever._dedupe_results([first, second], analysis)
+    assert [item.chunk_id for item in deduped] == ["chunk-1", "chunk-2"]
+
+
+def test_family_scoring_promotes_spec_chunks_for_spec_queries():
+    analysis = analyze_query("What voltage specification is listed?")
+    atomic = SearchResult(
+        chunk_id="atomic",
+        score=0.5,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Specs"],
+        content="Voltage",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    spec = SearchResult(
+        chunk_id="spec",
+        score=0.48,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Specs"],
+        content="Voltage: 24 V",
+        metadata={"chunk_type": "spec_record"},
+    )
+    rescored = retriever._apply_family_scoring([atomic, spec], analysis, stage="family_scored")
+    assert [item.chunk_id for item in rescored][:1] == ["spec"]
+
+
+def test_family_scoring_demotes_spec_chunks_for_general_prose_queries():
+    analysis = analyze_query("Where does the manual discuss command completion and successful execution?")
+    prose = SearchResult(
+        chunk_id="prose",
+        score=0.5,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Command Execution"],
+        content="When the command is successful, the completion flag remains off.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    spec = SearchResult(
+        chunk_id="spec",
+        score=0.52,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Specifications"],
+        content="Successful command bit: OFF",
+        metadata={"chunk_type": "spec_record"},
+    )
+    rescored = retriever._apply_family_scoring([spec, prose], analysis, stage="family_scored")
+    assert rescored[0].chunk_id == "prose"
+
+
+def test_query_alignment_promotes_candidate_with_better_query_term_coverage():
+    analysis = analyze_query("Where does the manual discuss command completion and successful execution?")
+    partial = SearchResult(
+        chunk_id="partial",
+        score=0.5,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Command"],
+        content="The command remains off.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    aligned = SearchResult(
+        chunk_id="aligned",
+        score=0.49,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Command Execution"],
+        content="When the command is successful, the completion signal remains off after execution.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    rescored = retriever._apply_query_alignment([partial, aligned], analysis, stage="query_aligned")
+    assert rescored[0].chunk_id == "aligned"
+
+
+def test_family_selection_excludes_spec_family_for_general_queries():
+    analysis = analyze_query("Where does the manual discuss command completion and successful execution?")
+    candidates = [
+        SearchResult(
+            chunk_id="spec",
+            score=0.9,
+            title="Doc",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Specifications"],
+            content="Completion output",
+            metadata={"family_bucket": "spec", "chunk_type": "spec_record"},
+        ),
+        SearchResult(
+            chunk_id="prose",
+            score=0.7,
+            title="Doc",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Command Execution"],
+            content="When the command is successful, the completion signal remains off.",
+            metadata={"family_bucket": "prose", "chunk_type": "atomic_text"},
+        ),
+    ]
+    selected = retriever._select_family_candidates(candidates, analysis, limit=5)
+    assert [item.chunk_id for item in selected] == ["prose"]
+
+
+def test_dense_search_returns_empty_on_vector_dimension_mismatch(monkeypatch):
+    store = QdrantStore()
+    monkeypatch.setattr("manuals_rag_retrieval.qdrant_store.embed_dense", lambda texts: [[0.1, 0.2, 0.3, 0.4]])
+
+    class FailingClient:
+        def search(self, **_kwargs):
+            raise UnexpectedResponse(status_code=400, reason_phrase="Bad Request", content=b"Vector dimension error: expected dim: 768, got 1024", headers={})
+
+    store.client = FailingClient()
+    results = store.search_dense("manuals_eval_legacy", "test query", {"is_active": True}, limit=5)
+    assert results == []
+
+
+def test_enrich_candidates_for_rerank_adds_grouped_procedure_context(monkeypatch):
+    result = SearchResult(
+        chunk_id="step-1",
+        score=0.7,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[3],
+        section_path=["Procedure"],
+        content="Step 1: Connect cable",
+        metadata={"chunk_type": "procedure_record", "content_for_rerank": "Step 1: Connect cable"},
+    )
+    monkeypatch.setattr(
+        retriever,
+        "fetch_all",
+        lambda *_args, **_kwargs: [
+            {
+                "document_version_id": "ver-1",
+                "section_path_text": "Procedure",
+                "chunk_type": "procedure_record",
+                "chunk_level": 2,
+                "page_from": 3,
+                "page_to": 4,
+                "content": "Step 1: Connect cable\nStep 2: Enable power",
+                "metadata_json": {"grouped_procedure": True},
+            },
+            {
+                "document_version_id": "ver-1",
+                "section_path_text": "Procedure",
+                "chunk_type": "parent_section",
+                "chunk_level": 3,
+                "page_from": 3,
+                "page_to": 5,
+                "content": "Full procedure block",
+                "metadata_json": {},
+            },
+        ],
+    )
+    enriched = retriever.enrich_candidates_for_rerank([result], analyze_query("How do I connect the cable?"), limit=5)
+    rerank_document = enriched[0].metadata["rerank_document"]
+    assert "Enable power" in rerank_document
+    assert "Full procedure block" in rerank_document
+
+
+def test_semantic_completeness_penalizes_heading_like_fragments():
+    result = SearchResult(
+        chunk_id="heading",
+        score=0.6,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Section"],
+        content="External Input/Output Settings",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    annotated = retriever._annotate_completeness([result])[0]
+    assert annotated.metadata["is_heading_like"] is True
+    assert annotated.metadata["semantic_completeness_score"] < 0
+
+
+def test_select_family_candidates_prefers_procedure_family_for_how_to_queries():
+    analysis = analyze_query("How do I configure the communication settings?")
+    procedure = SearchResult(
+        chunk_id="proc",
+        score=0.6,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[2],
+        section_path=["Setup"],
+        content="Step 1: Open Settings",
+        metadata={"chunk_type": "procedure_record", "family_bucket": "procedure"},
+    )
+    section = SearchResult(
+        chunk_id="ctx",
+        score=0.7,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[2],
+        section_path=["Setup"],
+        content="Communication Settings",
+        metadata={"chunk_type": "section_window", "family_bucket": "context"},
+    )
+    chosen = retriever._select_family_candidates([section, procedure], analysis, limit=4)
+    assert chosen[0].chunk_id == "proc"
+
+
+def test_select_family_candidates_prefers_spec_family_for_spec_queries():
+    analysis = analyze_query("What voltage specification is listed for the module?")
+    prose = SearchResult(
+        chunk_id="prose",
+        score=0.7,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Specs"],
+        content="Voltage",
+        metadata={"chunk_type": "atomic_text", "family_bucket": "prose"},
+    )
+    spec = SearchResult(
+        chunk_id="spec",
+        score=0.6,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Specs"],
+        content="Voltage: 24 V",
+        metadata={"chunk_type": "spec_record", "family_bucket": "spec"},
+    )
+    chosen = retriever._select_family_candidates([prose, spec], analysis, limit=4)
+    assert chosen[0].chunk_id == "spec"
+
+
+def test_run_dense_search_queries_each_corpus_and_returns_dense_hits():
+    calls: list[tuple[str, str, dict[str, object], int]] = []
+
+    class FakeStore:
+        def search_dense(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            calls.append((corpus_id, query, filters, limit))
+            return [
+                SearchResult(
+                    chunk_id=f"dense-{corpus_id}",
+                    score=0.7,
+                    title=f"Doc {corpus_id}",
+                    document_version_id="ver-1",
+                    source_document_id=f"src-{corpus_id}",
+                    pages=[1],
+                    section_path=["Specs"],
+                    content="Voltage: 24 V",
+                    metadata={"chunk_type": "spec_record", "retrieval_stage": "dense"},
+                )
+            ]
+
+    results = run_dense_search(FakeStore(), "voltage spec", ["c1", "c2"], {"product_model": "LJ-X8000"}, limit=5)
+
+    assert [item.chunk_id for item in results] == ["dense-c1", "dense-c2"]
+    assert calls == [
+        ("c1", "voltage spec", {"product_model": "LJ-X8000"}, 5),
+        ("c2", "voltage spec", {"product_model": "LJ-X8000"}, 5),
+    ]
+
+
+def test_run_sparse_search_queries_each_corpus_and_returns_sparse_hits():
+    calls: list[tuple[str, str, dict[str, object], int]] = []
+
+    class FakeStore:
+        def search_sparse(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            calls.append((corpus_id, query, filters, limit))
+            return [
+                SearchResult(
+                    chunk_id=f"sparse-{corpus_id}",
+                    score=0.65,
+                    title=f"Doc {corpus_id}",
+                    document_version_id="ver-1",
+                    source_document_id=f"src-{corpus_id}",
+                    pages=[2],
+                    section_path=["Timing"],
+                    content="Command timing and handshake flags",
+                    metadata={"chunk_type": "atomic_text", "retrieval_stage": "sparse"},
+                )
+            ]
+
+    results = run_sparse_search(FakeStore(), "handshake flags", ["c1", "c2"], {"document_kind": "manual"}, limit=4)
+
+    assert [item.chunk_id for item in results] == ["sparse-c1", "sparse-c2"]
+    assert calls == [
+        ("c1", "handshake flags", {"document_kind": "manual"}, 4),
+        ("c2", "handshake flags", {"document_kind": "manual"}, 4),
+    ]
+
+
+def test_qdrant_store_search_sparse_uses_bm25_ranking(monkeypatch):
+    class FakePoint:
+        def __init__(self, point_id: str, payload: dict[str, object]) -> None:
+            self.id = point_id
+            self.payload = payload
+
+    class FakeClient:
+        def __init__(self, url: str) -> None:
+            self.url = url
+
+        def scroll(
+            self,
+            *,
+            collection_name: str,
+            scroll_filter: dict[str, object] | None,
+            limit: int,
+            offset: object,
+            with_payload: bool,
+            with_vectors: bool,
+        ) -> tuple[list[FakePoint], None]:
+            assert collection_name == "manuals_corpus-1"
+            assert scroll_filter == {"must": [{"key": "document_kind", "match": {"value": "manual"}}]}
+            return (
+                [
+                    FakePoint(
+                        "identity",
+                        {
+                            "title": "CA-EN100U Datasheet",
+                            "document_version_id": "ver-1",
+                            "source_document_id": "doc-1",
+                            "page_from": 1,
+                            "page_to": 1,
+                            "section_path": ["Overview"],
+                            "content": "CA-EN100U encoder relay unit",
+                            "chunk_type": "datasheet_record",
+                            "priority_score": 0.0,
+                            "document_kind": "manual",
+                        },
+                    ),
+                    FakePoint(
+                        "contact",
+                        {
+                            "title": "KEYENCE AMERICA",
+                            "document_version_id": "ver-1",
+                            "source_document_id": "doc-1",
+                            "page_from": 1,
+                            "page_to": 1,
+                            "section_path": ["Contact"],
+                            "content": "https://www.keyence.com Phone 1-888-539-3623",
+                            "chunk_type": "atomic_text",
+                            "priority_score": 0.0,
+                            "document_kind": "manual",
+                        },
+                    ),
+                ],
+                None,
+            )
+
+    monkeypatch.setattr("manuals_rag_retrieval.qdrant_store.QdrantClient", FakeClient)
+    store = QdrantStore()
+    results = store.search_sparse("corpus-1", "What product is the CA-EN100U?", {"document_kind": "manual"}, limit=2)
+    assert [item.chunk_id for item in results] == ["identity"]
+
+
+def test_qdrant_payload_matching_supports_list_metadata_filters(monkeypatch):
+    class FakeClient:
+        def __init__(self, url: str) -> None:
+            self.url = url
+
+    monkeypatch.setattr("manuals_rag_retrieval.qdrant_store.QdrantClient", FakeClient)
+    store = QdrantStore()
+    payload = {
+        "product_model": "LJ-X8000",
+        "product_models": ["LJ-X8000", "LJ-X8080"],
+        "product_families": ["LJ", "LJ-X"],
+        "part_numbers": ["OP-88310"],
+    }
+
+    assert store._payload_matches(payload, {"product_models": "LJ-X8080"})
+    assert store._payload_matches(payload, {"product_model": "LJ-X8080"})
+    assert store._payload_matches(payload, {"product_families": "LJ-X", "part_numbers": "OP-88310"})
+    assert not store._payload_matches(payload, {"product_models": "KV-8000"})
+
+
+def test_qdrant_store_delete_document_chunks_uses_document_filters(monkeypatch):
+    deleted: dict[str, object] = {}
+
+    class FakeClient:
+        def __init__(self, url: str) -> None:
+            self.url = url
+
+        def collection_exists(self, name: str) -> bool:
+            return name == "manuals_corpus-1"
+
+        def delete(self, *, collection_name: str, points_selector: object, wait: bool) -> None:
+            deleted["collection_name"] = collection_name
+            deleted["points_selector"] = points_selector
+            deleted["wait"] = wait
+
+    monkeypatch.setattr("manuals_rag_retrieval.qdrant_store.QdrantClient", FakeClient)
+    store = QdrantStore()
+    store.delete_document_chunks("corpus-1", source_document_id="doc-1", document_version_id="ver-1")
+    assert deleted["collection_name"] == "manuals_corpus-1"
+    assert deleted["wait"] is True
+    selector = deleted["points_selector"]
+    assert [condition.key for condition in selector.filter.must] == ["source_document_id", "document_version_id"]
+
+
+def test_fuse_results_combines_dense_and_sparse_candidates_via_rrf():
+    dense = [
+        SearchResult(
+            chunk_id="shared",
+            score=0.9,
+            title="Doc",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Specs"],
+            content="Voltage: 24 V",
+            metadata={"chunk_type": "spec_record"},
+        ),
+        SearchResult(
+            chunk_id="dense-only",
+            score=0.8,
+            title="Doc",
+            document_version_id="ver-1",
+            source_document_id="doc-2",
+            pages=[1],
+            section_path=["Specs"],
+            content="Current: 1 A",
+            metadata={"chunk_type": "spec_record"},
+        ),
+    ]
+    sparse = [
+        SearchResult(
+            chunk_id="shared",
+            score=0.7,
+            title="Doc",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Specs"],
+            content="Voltage: 24 V",
+            metadata={"chunk_type": "spec_record"},
+        ),
+        SearchResult(
+            chunk_id="sparse-only",
+            score=0.6,
+            title="Doc",
+            document_version_id="ver-1",
+            source_document_id="doc-3",
+            pages=[2],
+            section_path=["Timing"],
+            content="Handshake flags",
+            metadata={"chunk_type": "atomic_text"},
+        ),
+    ]
+
+    class FakeStore:
+        @staticmethod
+        def fuse_rrf(result_sets: list[list[SearchResult]], *, limit: int, k: int = 60) -> list[SearchResult]:
+            return QdrantStore.fuse_rrf(result_sets, limit=limit, k=k)
+
+    fused = fuse_results(FakeStore(), [dense, sparse], limit=3)
+
+    assert [item.chunk_id for item in fused] == ["shared", "dense-only", "sparse-only"]
+
+
+def test_rerank_results_reorders_fused_candidates_using_rerank_documents(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="dense-best",
+            score=0.09,
+            title="Doc 1",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Specs"],
+            content="Voltage",
+            metadata={"rerank_document": "Voltage heading only"},
+        ),
+        SearchResult(
+            chunk_id="sparse-best",
+            score=0.08,
+            title="Doc 2",
+            document_version_id="ver-1",
+            source_document_id="doc-2",
+            pages=[2],
+            section_path=["Specs"],
+            content="Voltage: 24 V",
+            metadata={"rerank_document": "Voltage: 24 V nominal input specification"},
+        ),
+    ]
+
+    class FakeRanker:
+        def run(self, query: str, documents: list[object]) -> dict[str, list[object]]:
+            assert query == "What is the voltage?"
+            assert [document.id for document in documents] == ["dense-best", "sparse-best"]
+            return {
+                "documents": [
+                    SimpleNamespace(id="sparse-best", score=0.97, meta={"chunk_id": "sparse-best"}),
+                    SimpleNamespace(id="dense-best", score=0.31, meta={"chunk_id": "dense-best"}),
+                ]
+            }
+
+    monkeypatch.setattr(
+        retriever,
+        "_to_rerank_documents",
+        lambda items: [SimpleNamespace(id=item.chunk_id, content=item.metadata.get("rerank_document")) for item in items],
+    )
+    monkeypatch.setattr(retriever, "_get_reranker", lambda: FakeRanker())
+
+    reranked = rerank_results(results, "What is the voltage?", limit=2)
+
+    assert [item.chunk_id for item in reranked] == ["sparse-best", "dense-best"]
+    assert reranked[0].metadata["rerank_score"] == 0.97
+
+
+def test_rerank_results_keeps_query_aligned_candidate_ahead_of_unrelated_cross_encoder_hit(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="aligned",
+            score=0.08,
+            title="Doc 1",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Tools"],
+            content="Defect Tool settings and operation",
+            metadata={"rerank_document": "Defect Tool settings and operation"},
+        ),
+        SearchResult(
+            chunk_id="unrelated",
+            score=0.07,
+            title="Doc 2",
+            document_version_id="ver-1",
+            source_document_id="doc-2",
+            pages=[2],
+            section_path=["Output"],
+            content="Judge output status monitor",
+            metadata={"rerank_document": "Judge output status monitor"},
+        ),
+    ]
+
+    class FakeRanker:
+        def run(self, query: str, documents: list[object]) -> dict[str, list[object]]:
+            assert query == "Defect Tool"
+            return {
+                "documents": [
+                    SimpleNamespace(id="unrelated", score=0.99, meta={"chunk_id": "unrelated"}),
+                    SimpleNamespace(id="aligned", score=0.51, meta={"chunk_id": "aligned"}),
+                ]
+            }
+
+    monkeypatch.setattr(
+        retriever,
+        "_to_rerank_documents",
+        lambda items: [SimpleNamespace(id=item.chunk_id, content=item.metadata.get("rerank_document")) for item in items],
+    )
+    monkeypatch.setattr(retriever, "_get_reranker", lambda: FakeRanker())
+
+    reranked = rerank_results(results, "Defect Tool", limit=2)
+
+    assert [item.chunk_id for item in reranked] == ["aligned"]
+    assert reranked[0].metadata["rerank_query_alignment"] > 0

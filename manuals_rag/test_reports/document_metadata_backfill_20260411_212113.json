@@ -1,0 +1,286 @@
+[
+  {
+    "document_id": "6eab2cdd-1dbf-49d6-8bcb-a2b310cdfe4d",
+    "version_id": "8300d278-0e7a-424f-ab80-263bb93d2371",
+    "source_filename": "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM_A61GB_WW_GB_2072_2.pdf",
+    "status": "applied",
+    "metadata": {
+      "manufacturer": "Vision Sensor",
+      "companies": [],
+      "product_family": "IV: HG Series",
+      "product_model": "IV-H2000MA",
+      "product_families": [],
+      "product_models": [],
+      "devices": [
+        "IV-HG500CA",
+        "IV-HG150MA",
+        "IV-HG300CA",
+        "IV-HG600MA"
+      ],
+      "part_numbers": [],
+      "protocol_terms": [],
+      "settings": [],
+      "parameters": [],
+      "menu_labels": [],
+      "document_topics": [],
+      "title": "AS 114922 IV-H2000MA IV-H500CA IV-H500MA UM A61GB WW GB 2072 2",
+      "document_kind": "manual",
+      "revision_date": null,
+      "effective_date": null
+    },
+    "error": null,
+    "chunk_count": 11145,
+    "embed_enqueued": true
+  },
+  {
+    "document_id": "84f6173b-2740-4815-ac13-cf2a83a9a5a3",
+    "version_id": "a59ee722-efd3-4a5e-a243-b7ef8ac42d31",
+    "source_filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+    "status": "applied",
+    "metadata": {
+      "manufacturer": "LJ: X8000 Series - 3D",
+      "companies": [],
+      "product_family": "LJ-X8000",
+      "product_model": "LJ-X8000",
+      "product_families": [
+        "LJ-X8000"
+      ],
+      "product_models": [
+        "LJ-X8000"
+      ],
+      "devices": [
+        "1. Connecting over EtherNet/IP"
+      ],
+      "part_numbers": [],
+      "protocol_terms": [
+        "ethernet/ip"
+      ],
+      "settings": [],
+      "parameters": [],
+      "menu_labels": [],
+      "document_topics": [],
+      "title": "EtherNet/IP\u2122 Edition (Allen-Brauldly CompactLogix/ControlLogix Series)",
+      "document_kind": "manual",
+      "revision_date": null,
+      "effective_date": null
+    },
+    "error": null,
+    "chunk_count": 958,
+    "embed_enqueued": true
+  },
+  {
+    "document_id": "e0beedb6-d099-4418-add0-f60e56e3cae2",
+    "version_id": "865199fa-cff6-4b7e-b13f-d9b53cadfe04",
+    "source_filename": "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf",
+    "status": "applied",
+    "metadata": {
+      "manufacturer": "LJ",
+      "companies": [],
+      "product_family": "X8000 Series",
+      "product_model": "LJ-X8000",
+      "product_families": [],
+      "product_models": [
+        "LJ-X8000"
+      ],
+      "devices": [],
+      "part_numbers": [],
+      "protocol_terms": [],
+      "settings": [],
+      "parameters": [],
+      "menu_labels": [],
+      "document_topics": [],
+      "title": "Dimension inspection | | Appearance inspection | | Shape Inspection | | Height difference | Volume | Burrs | Dents | Presence detection | Orientations detection | Incorrect seatings",
+      "document_kind": "installation_guide",
+      "revision_date": null,
+      "effective_date": null
+    },
+    "error": null,
+    "chunk_count": 1573,
+    "embed_enqueued": true
+  },
+  {
+    "document_id": "b97d2a51-01f0-4ec4-9156-868b5b4144af",
+    "version_id": "98413c50-d7d1-4ef0-881c-30b5f81837d6",
+    "source_filename": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf",
+    "status": "applied",
+    "metadata": {
+      "manufacturer": "Keyence",
+      "companies": [
+        "Keyence"
+      ],
+      "product_family": "XG-X Series",
+      "product_model": null,
+      "product_families": [],
+      "product_models": [],
+      "devices": [],
+      "part_numbers": [],
+      "protocol_terms": [],
+      "settings": [],
+      "parameters": [],
+      "menu_labels": [],
+      "document_topics": [],
+      "title": "Classify Title",
+      "document_kind": "manual",
+      "revision_date": null,
+      "effective_date": null
+    },
+    "error": null,
+    "chunk_count": 37278,
+    "embed_enqueued": true
+  },
+  {
+    "document_id": "97bd313d-98f2-438a-9e39-85d00187a06e",
+    "version_id": "b5556aa6-a513-45f9-9a60-de3e4e8b124c",
+    "source_filename": "AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf",
+    "status": "applied",
+    "metadata": {
+      "manufacturer": "KEYENCE",
+      "companies": [
+        "KEYENCE"
+      ],
+      "product_family": null,
+      "product_model": "IV4-G600CA",
+      "product_families": [],
+      "product_models": [],
+      "devices": [],
+      "part_numbers": [],
+      "protocol_terms": [],
+      "settings": [],
+      "parameters": [],
+      "menu_labels": [],
+      "document_topics": [],
+      "title": "AS 149551 IV4 UM K80GB WW GB 2124 1",
+      "document_kind": "manual",
+      "revision_date": null,
+      "effective_date": null
+    },
+    "error": null,
+    "chunk_count": 28045,
+    "embed_enqueued": true
+  },
+  {
+    "document_id": "d46c44a1-6c42-4384-a5b0-43019ba79409",
+    "version_id": "2986fa32-c9d0-4cbf-8f5d-638a248e60b8",
+    "source_filename": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf",
+    "status": "applied",
+    "metadata": {
+      "manufacturer": "Cautions",
+      "companies": [
+        "Cautions"
+      ],
+      "product_family": "LJ: X8000 Series",
+      "product_model": "User's Manual (3D mode)",
+      "product_families": [],
+      "product_models": [],
+      "devices": [],
+      "part_numbers": [],
+      "protocol_terms": [],
+      "settings": [],
+      "parameters": [],
+      "menu_labels": [],
+      "document_topics": [],
+      "title": "AS 147290 LJ-X8000 UM I64US KA GB 2094 3",
+      "document_kind": "manual",
+      "revision_date": null,
+      "effective_date": null
+    },
+    "error": null,
+    "chunk_count": 36680,
+    "embed_enqueued": true
+  },
+  {
+    "document_id": "8563db0e-b6e8-4cea-b5d7-3009e292f77d",
+    "version_id": "fc34c64d-3d10-44db-8f3e-04d90011f0f4",
+    "source_filename": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf",
+    "status": "applied",
+    "metadata": {
+      "manufacturer": "Keyence Corporation",
+      "companies": [],
+      "product_family": "CV-X Series",
+      "product_model": "CV-X482",
+      "product_families": [],
+      "product_models": [],
+      "devices": [],
+      "part_numbers": [],
+      "protocol_terms": [],
+      "settings": [],
+      "parameters": [],
+      "menu_labels": [],
+      "document_topics": [],
+      "title": "AS 152507 CV-X UM C81US KA GB 2045 5",
+      "document_kind": "manual",
+      "revision_date": null,
+      "effective_date": null
+    },
+    "error": null,
+    "chunk_count": 48131,
+    "embed_enqueued": true
+  },
+  {
+    "document_id": "92a3573b-bdc8-4637-8ac3-beed128f6c65",
+    "version_id": "88038d00-42fe-4e90-af5c-41a2aa2923e1",
+    "source_filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+    "status": "applied",
+    "metadata": {
+      "manufacturer": "KEYENCE",
+      "companies": [
+        "KEYENCE"
+      ],
+      "product_family": "LJ-S8000 Series",
+      "product_model": "LJ: S8000 Series",
+      "product_families": [],
+      "product_models": [],
+      "devices": [],
+      "part_numbers": [],
+      "protocol_terms": [],
+      "settings": [],
+      "parameters": [],
+      "menu_labels": [],
+      "document_topics": [],
+      "title": "Indicate a hazardous situation which, if not avoided, will result in death or serious injury.",
+      "document_kind": "manual",
+      "revision_date": null,
+      "effective_date": null
+    },
+    "error": null,
+    "chunk_count": 34442,
+    "embed_enqueued": true
+  },
+  {
+    "document_id": "fe5d4398-b3f1-4312-a768-bc09a2fc94b6",
+    "version_id": "bd9d3c8e-60d9-42ef-83e7-9f4a04f911db",
+    "source_filename": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49_CA-EN100U_Datasheet.pdf",
+    "status": "applied",
+    "metadata": {
+      "manufacturer": "KEYENCE",
+      "companies": [
+        "KEYENCE",
+        "KEYENCE AMERICA"
+      ],
+      "product_family": "CA-EN",
+      "product_model": "CA-EN100U",
+      "product_families": [
+        "CA-EN"
+      ],
+      "product_models": [
+        "CA-EN100U"
+      ],
+      "devices": [
+        "CA-EN100U"
+      ],
+      "part_numbers": [],
+      "protocol_terms": [],
+      "settings": [],
+      "parameters": [],
+      "menu_labels": [],
+      "document_topics": [],
+      "title": "Data Sheet",
+      "document_kind": "datasheet",
+      "revision_date": "2026-01-12",
+      "effective_date": "2026-01-12"
+    },
+    "error": null,
+    "chunk_count": 4,
+    "embed_enqueued": true
+  }
+]

@@ -1,0 +1,79 @@
+:root {
+  --bg: #f2efe8;
+  --panel: rgba(255, 255, 255, 0.74);
+  --ink: #1d2a33;
+  --accent: #005f73;
+  --accent-2: #ca6702;
+  --line: rgba(29, 42, 51, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(202, 103, 2, 0.12), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(0, 95, 115, 0.15), transparent 24%),
+    linear-gradient(180deg, #f8f6f1, var(--bg));
+}
+
+.shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 20px 60px;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow: 0 16px 60px rgba(29, 42, 51, 0.08);
+}
+
+.hero {
+  padding: 28px;
+  margin-bottom: 20px;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+  font-family: "IBM Plex Serif", Georgia, serif;
+  font-size: clamp(2.3rem, 5vw, 4rem);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  padding: 24px;
+}
+
+textarea,
+input,
+button {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  font: inherit;
+}
+
+button {
+  margin-top: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: white;
+  cursor: pointer;
+}
+
+pre {
+  min-height: 240px;
+  white-space: pre-wrap;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--line);
+}

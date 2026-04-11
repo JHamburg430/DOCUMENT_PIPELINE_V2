@@ -1,0 +1,2344 @@
+{
+  "generated_at": "2026-04-05T12:23:24",
+  "corpus_ids": [
+    "manuals_vendor_keyence"
+  ],
+  "top_k": 5,
+  "query_count": 4,
+  "cases": [
+    {
+      "query": "What product is described in the CA-EN100U datasheet?",
+      "filters": {
+        "document_kind": "datasheet",
+        "product_model": "CA-EN100U",
+        "is_active": true
+      },
+      "query_types": [
+        "spec_lookup"
+      ],
+      "preferred_chunk_types": [
+        "datasheet_record",
+        "spec_record",
+        "table_record"
+      ],
+      "stages": [
+        {
+          "name": "dense",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.721727,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.655727,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.638642,
+              "chunk_type": "section_window",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.638642,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "sparse",
+          "count": 1,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 1.148442,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "sparse",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "special",
+          "count": 0,
+          "results": []
+        },
+        {
+          "name": "fused",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.032787,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.016129,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.015873,
+              "chunk_type": "section_window",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.015625,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "family_scored",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.022787,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.015873,
+              "chunk_type": "section_window",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.015625,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.006129,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "completeness_scored",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.045287,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.043373,
+              "chunk_type": "section_window",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.043125,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.028629,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "family_selected",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.045287,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.028629,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.043373,
+              "chunk_type": "section_window",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.043125,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "reranked",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.996823,
+              "chunk_type": "section_window",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 3,
+              "post_rerank_rank": 1,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.996823,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 4,
+              "post_rerank_rank": 2,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.995406,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 2,
+              "post_rerank_rank": 3,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.983383,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 4,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "assembled",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.996823,
+              "chunk_type": "section_window",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 3,
+              "post_rerank_rank": 1,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.996823,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 4,
+              "post_rerank_rank": 2,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.995406,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 2,
+              "post_rerank_rank": 3,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.983383,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 4,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        }
+      ],
+      "diagnostics": {
+        "low_information_top_stages": [],
+        "structured_low_information_top_stages": [],
+        "special_empty": true,
+        "rerank_promoted_low_information": false,
+        "family_selection_changed_top_chunk": false,
+        "rerank_changed_top_chunk": true
+      }
+    },
+    {
+      "query": "What does the datasheet say about the encoder relay unit?",
+      "filters": {
+        "document_kind": "datasheet",
+        "is_active": true
+      },
+      "query_types": [
+        "spec_lookup"
+      ],
+      "preferred_chunk_types": [
+        "datasheet_record",
+        "spec_record",
+        "table_record"
+      ],
+      "stages": [
+        {
+          "name": "dense",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.635544,
+              "chunk_type": "section_window",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.635544,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.598127,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.409832,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "sparse",
+          "count": 0,
+          "results": []
+        },
+        {
+          "name": "special",
+          "count": 0,
+          "results": []
+        },
+        {
+          "name": "fused",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.016393,
+              "chunk_type": "section_window",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.016129,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.015873,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.015625,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "family_scored",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.016393,
+              "chunk_type": "section_window",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.016129,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.005873,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.005625,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "completeness_scored",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.043893,
+              "chunk_type": "section_window",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.043629,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.028373,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.028125,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "family_selected",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.028373,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.028125,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.043893,
+              "chunk_type": "section_window",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.043629,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "reranked",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.971191,
+              "chunk_type": "section_window",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 3,
+              "post_rerank_rank": 1,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.971191,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 4,
+              "post_rerank_rank": 2,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.96616,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 3,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.000606,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 2,
+              "post_rerank_rank": 4,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "assembled",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.971191,
+              "chunk_type": "section_window",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 3,
+              "post_rerank_rank": 1,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.971191,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 4,
+              "post_rerank_rank": 2,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.96616,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 3,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.000606,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 2,
+              "post_rerank_rank": 4,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        }
+      ],
+      "diagnostics": {
+        "low_information_top_stages": [],
+        "structured_low_information_top_stages": [],
+        "special_empty": true,
+        "rerank_promoted_low_information": false,
+        "family_selection_changed_top_chunk": true,
+        "rerank_changed_top_chunk": true
+      }
+    },
+    {
+      "query": "What revision date is listed for CA-EN100U?",
+      "filters": {
+        "product_model": "CA-EN100U",
+        "version_signal": "true",
+        "is_active": true
+      },
+      "query_types": [
+        "revision_history"
+      ],
+      "preferred_chunk_types": [
+        "table_record"
+      ],
+      "stages": [
+        {
+          "name": "dense",
+          "count": 2,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.604775,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.584371,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "sparse",
+          "count": 0,
+          "results": []
+        },
+        {
+          "name": "special",
+          "count": 0,
+          "results": []
+        },
+        {
+          "name": "fused",
+          "count": 2,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.016393,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.016129,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "family_scored",
+          "count": 2,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.066393,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.066129,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "completeness_scored",
+          "count": 2,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.088893,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.088629,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "family_selected",
+          "count": 2,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.088893,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.088629,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "reranked",
+          "count": 2,
+          "results": [
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.089589,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 2,
+              "post_rerank_rank": 1,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.087353,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 2,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "assembled",
+          "count": 2,
+          "results": [
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.089589,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 2,
+              "post_rerank_rank": 1,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.087353,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 2,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        }
+      ],
+      "diagnostics": {
+        "low_information_top_stages": [],
+        "structured_low_information_top_stages": [],
+        "special_empty": true,
+        "rerank_promoted_low_information": false,
+        "family_selection_changed_top_chunk": false,
+        "rerank_changed_top_chunk": true
+      }
+    },
+    {
+      "query": "Which document section mentions KEYENCE AMERICA?",
+      "filters": {
+        "manufacturer": "Keyence",
+        "is_active": true
+      },
+      "query_types": [
+        "general"
+      ],
+      "preferred_chunk_types": [],
+      "stages": [
+        {
+          "name": "dense",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.448164,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.401513,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.290567,
+              "chunk_type": "section_window",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.290567,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "sparse",
+          "count": 0,
+          "results": []
+        },
+        {
+          "name": "special",
+          "count": 0,
+          "results": []
+        },
+        {
+          "name": "fused",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.016393,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.016129,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.015873,
+              "chunk_type": "section_window",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.015625,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "family_scored",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.016393,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.016129,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.015873,
+              "chunk_type": "section_window",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.015625,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "completeness_scored",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.038893,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.038629,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.043373,
+              "chunk_type": "section_window",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.043125,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "family_selected",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.038893,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.038629,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.043373,
+              "chunk_type": "section_window",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.043125,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "reranked",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 1.3e-05,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 2,
+              "post_rerank_rank": 1,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 1.2e-05,
+              "chunk_type": "section_window",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 3,
+              "post_rerank_rank": 2,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 1.2e-05,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 4,
+              "post_rerank_rank": 3,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 1.2e-05,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 4,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "assembled",
+          "count": 4,
+          "results": [
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 1.3e-05,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 2,
+              "post_rerank_rank": 1,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 1.2e-05,
+              "chunk_type": "section_window",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 3,
+              "post_rerank_rank": 2,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 1.2e-05,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 4,
+              "post_rerank_rank": 3,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 1.2e-05,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 4,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        }
+      ],
+      "diagnostics": {
+        "low_information_top_stages": [],
+        "structured_low_information_top_stages": [],
+        "special_empty": true,
+        "rerank_promoted_low_information": false,
+        "family_selection_changed_top_chunk": false,
+        "rerank_changed_top_chunk": true
+      }
+    }
+  ],
+  "summary": {
+    "cases_with_low_information_top_hit": 0,
+    "cases_with_structured_low_information_top_hit": 0,
+    "cases_with_empty_special_stage": 4,
+    "cases_where_rerank_promoted_low_information": 0,
+    "cases_where_family_selection_changed_top_chunk": 1,
+    "cases_where_rerank_changed_top_chunk": 4
+  }
+}

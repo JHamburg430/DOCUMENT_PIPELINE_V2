@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manuals RAG</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel hero">
+        <h1>Manuals RAG</h1>
+        <p>Grounded answers over technical manuals, datasheets, and service documents.</p>
+      </section>
+      <section class="panel grid">
+        <div>
+          <h2>Search</h2>
+          <textarea id="query" rows="5" placeholder="How do I configure DHCP on model X?"></textarea>
+          <button id="run-query">Run Query</button>
+          <pre id="answer"></pre>
+        </div>
+        <div>
+          <h2>Admin Upload</h2>
+          <input id="file" type="file" multiple />
+          <button id="upload">Upload</button>
+          <pre id="upload-result"></pre>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+  </html>

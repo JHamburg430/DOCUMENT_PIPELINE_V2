@@ -1,0 +1,434 @@
+{
+  "generated_at": "2026-04-09T10:41:48.589917",
+  "default_corpus_id": "manuals_vendor_keyence",
+  "group_count": 6,
+  "duplicate_document_count": 27,
+  "groups": [
+    {
+      "sha256": "0a6360680fce769d076ce36b218285e4a96a1b03a6abe0c33b9e534bf3806c3f",
+      "canonical": {
+        "id": "5d3ea6e7-5bc8-43b2-bd94-e7ac70ff043d",
+        "corpus_id": "manuals_eval_20260404_030848",
+        "source_filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+        "title": "AS 128241 LJ-X8000 SG D48GB WW GB 2072 1",
+        "ingest_status": "indexed",
+        "updated_at": "2026-04-05 12:42:44.474295+00:00",
+        "current_version_id": "1f7121fb-df54-4d70-8b0c-9bee679a5d86",
+        "version_count": 1,
+        "chunk_count": 346,
+        "run_count": 3
+      },
+      "duplicates": [
+        {
+          "id": "84f6173b-2740-4815-ac13-cf2a83a9a5a3",
+          "corpus_id": "manuals_eval_20260404_075738",
+          "source_filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+          "title": "AS 128241 LJ-X8000 SG D48GB WW GB 2072 1",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-08 15:07:46.542240+00:00",
+          "current_version_id": "a59ee722-efd3-4a5e-a243-b7ef8ac42d31",
+          "version_count": 1,
+          "chunk_count": 673,
+          "run_count": 3
+        },
+        {
+          "id": "0aab984b-29ea-4281-8210-603c2c55e3c7",
+          "corpus_id": "manuals_eval_20260404_001533",
+          "source_filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+          "title": "AS 128241 LJ-X8000 SG D48GB WW GB 2072 1",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.550172+00:00",
+          "current_version_id": "c9428db5-f090-4c63-b09b-3c8bc1c4ba46",
+          "version_count": 1,
+          "chunk_count": 346,
+          "run_count": 3
+        },
+        {
+          "id": "b321ab08-76bb-4616-a210-1e1e31d3908d",
+          "corpus_id": "manuals_eval_20260404_001432",
+          "source_filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+          "title": "AS 128241 LJ-X8000 SG D48GB WW GB 2072 1",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.484114+00:00",
+          "current_version_id": "ced46a7f-01e6-40c6-916f-4a18b6efcce9",
+          "version_count": 1,
+          "chunk_count": 346,
+          "run_count": 3
+        }
+      ]
+    },
+    {
+      "sha256": "0d0956b57226a845b77919cfe093ecfca37ffe8f5434c5204db574c257d63288",
+      "canonical": {
+        "id": "18d932c5-967d-48b6-9219-20b96dcd2355",
+        "corpus_id": "manuals_eval_20260403_195801",
+        "source_filename": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf",
+        "title": "AS 147290 LJ-X8000 UM I64US KA GB 2094 3",
+        "ingest_status": "indexed",
+        "updated_at": "2026-04-05 12:42:43.842419+00:00",
+        "current_version_id": "19e37e19-b643-44fe-a9f7-7fb38969afea",
+        "version_count": 1,
+        "chunk_count": 12227,
+        "run_count": 3
+      },
+      "duplicates": [
+        {
+          "id": "d46c44a1-6c42-4384-a5b0-43019ba79409",
+          "corpus_id": "manuals_eval_20260403_213507",
+          "source_filename": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf",
+          "title": "AS 147290 LJ-X8000 UM I64US KA GB 2094 3",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.024612+00:00",
+          "current_version_id": "2986fa32-c9d0-4cbf-8f5d-638a248e60b8",
+          "version_count": 1,
+          "chunk_count": 12227,
+          "run_count": 3
+        },
+        {
+          "id": "ffc4e47d-5df7-4663-a390-67d592f3aed6",
+          "corpus_id": "manuals_eval_20260403_205759",
+          "source_filename": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf",
+          "title": "AS 147290 LJ-X8000 UM I64US KA GB 2094 3",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.005373+00:00",
+          "current_version_id": "250345db-3e36-4487-8e99-1e7fe313be53",
+          "version_count": 1,
+          "chunk_count": 12227,
+          "run_count": 3
+        },
+        {
+          "id": "bcbe35f9-d10c-4b0a-9bd5-35f62d7a4ca5",
+          "corpus_id": "manuals_eval_20260403_194132",
+          "source_filename": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf",
+          "title": "AS 147290 LJ-X8000 UM I64US KA GB 2094 3",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:43.965740+00:00",
+          "current_version_id": "624eb482-3dc9-4c2e-a125-2f2d3bb55866",
+          "version_count": 1,
+          "chunk_count": 12227,
+          "run_count": 3
+        }
+      ]
+    },
+    {
+      "sha256": "85fb2978445fe988057ace057b6a04c2b7693b76cab92ebe67b26e0f072683c3",
+      "canonical": {
+        "id": "96133d4b-8de1-4edd-8e11-728787262b5b",
+        "corpus_id": "manuals_eval_20260403_194132",
+        "source_filename": "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM_A61GB_WW_GB_2072_2.pdf",
+        "title": "AS 114922 IV-H2000MA IV-H500CA IV-H500MA UM A61GB WW GB 2072 2",
+        "ingest_status": "indexed",
+        "updated_at": "2026-04-05 12:42:43.738000+00:00",
+        "current_version_id": "67e9b712-dac2-47d4-8aac-5315f5d074dd",
+        "version_count": 1,
+        "chunk_count": 7064,
+        "run_count": 3
+      },
+      "duplicates": [
+        {
+          "id": "6eab2cdd-1dbf-49d6-8bcb-a2b310cdfe4d",
+          "corpus_id": "manuals_eval_20260403_205759",
+          "source_filename": "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM_A61GB_WW_GB_2072_2.pdf",
+          "title": "AS 114922 IV-H2000MA IV-H500CA IV-H500MA UM A61GB WW GB 2072 2",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.227554+00:00",
+          "current_version_id": "8300d278-0e7a-424f-ab80-263bb93d2371",
+          "version_count": 1,
+          "chunk_count": 7065,
+          "run_count": 3
+        },
+        {
+          "id": "f8dccc9e-06ca-4cb3-8910-97b85de6dd54",
+          "corpus_id": "manuals_eval_20260403_213507",
+          "source_filename": "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM_A61GB_WW_GB_2072_2.pdf",
+          "title": "AS 114922 IV-H2000MA IV-H500CA IV-H500MA UM A61GB WW GB 2072 2",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.208025+00:00",
+          "current_version_id": "76a64bd6-0210-45d6-8b40-07f880615cf9",
+          "version_count": 1,
+          "chunk_count": 7064,
+          "run_count": 3
+        }
+      ]
+    },
+    {
+      "sha256": "b1c6ab38fec3124fec6dcd3f82bc5fc9dcead8f595f02e06bc033b9c2dc01b53",
+      "canonical": {
+        "id": "21db54d7-ea8f-4eb6-ac1b-2f164a34ce4a",
+        "corpus_id": "manuals_eval_20260403_195942",
+        "source_filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+        "title": "AS 149726 LJ-S8000 UM L02US KA GB 2035 2",
+        "ingest_status": "indexed",
+        "updated_at": "2026-04-05 12:42:43.956223+00:00",
+        "current_version_id": "76733e38-8b19-4d07-b722-4b8a7438fd55",
+        "version_count": 1,
+        "chunk_count": 12085,
+        "run_count": 3
+      },
+      "duplicates": [
+        {
+          "id": "92a3573b-bdc8-4637-8ac3-beed128f6c65",
+          "corpus_id": "manuals_eval_20260404_134758",
+          "source_filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+          "title": "AS 149726 LJ-S8000 UM L02US KA GB 2035 2",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-08 15:07:32.956366+00:00",
+          "current_version_id": "88038d00-42fe-4e90-af5c-41a2aa2923e1",
+          "version_count": 1,
+          "chunk_count": 18460,
+          "run_count": 2
+        },
+        {
+          "id": "27f28d53-a00c-4ba6-a48a-3048098c3eb2",
+          "corpus_id": "manuals_eval_20260404_024402",
+          "source_filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+          "title": "AS 149726 LJ-S8000 UM L02US KA GB 2035 2",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.440322+00:00",
+          "current_version_id": "10b83e47-6a7a-4457-a833-ebb5ad5d840d",
+          "version_count": 1,
+          "chunk_count": 12085,
+          "run_count": 3
+        },
+        {
+          "id": "3d3b7248-5cbb-45ea-a867-ed8e7cd11ab6",
+          "corpus_id": "manuals_eval_20260403_205759",
+          "source_filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+          "title": "AS 149726 LJ-S8000 UM L02US KA GB 2035 2",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.218126+00:00",
+          "current_version_id": "84d80711-7130-4e5a-95cf-d61002989c64",
+          "version_count": 1,
+          "chunk_count": 12085,
+          "run_count": 3
+        },
+        {
+          "id": "9d31b6a3-75bf-4b5e-bcb2-5f2f1861062b",
+          "corpus_id": "manuals_eval_20260403_213507",
+          "source_filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+          "title": "AS 149726 LJ-S8000 UM L02US KA GB 2035 2",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.015310+00:00",
+          "current_version_id": "902b2fff-5165-4555-8250-c82867300ed2",
+          "version_count": 1,
+          "chunk_count": 12085,
+          "run_count": 3
+        },
+        {
+          "id": "c6f48df2-ccb8-40a5-afb7-bd6dd5d9577f",
+          "corpus_id": "manuals_eval_20260403_195801",
+          "source_filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+          "title": "AS 149726 LJ-S8000 UM L02US KA GB 2035 2",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:43.996016+00:00",
+          "current_version_id": "ba07d537-26de-4ed5-b693-3e4fb2d106d0",
+          "version_count": 1,
+          "chunk_count": 12085,
+          "run_count": 3
+        },
+        {
+          "id": "fa5aa04e-cd05-4908-9dc8-6d88f7c81cc6",
+          "corpus_id": "manuals_eval_20260403_194132",
+          "source_filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+          "title": "AS 149726 LJ-S8000 UM L02US KA GB 2035 2",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:43.986266+00:00",
+          "current_version_id": "e25e7aff-677d-4e78-8921-a94a35cb34d9",
+          "version_count": 1,
+          "chunk_count": 12085,
+          "run_count": 3
+        },
+        {
+          "id": "3fd276b9-7fd5-4853-a3ac-b0faf02356ba",
+          "corpus_id": "manuals_eval_20260403_193908",
+          "source_filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+          "title": "AS 149726 LJ-S8000 UM L02US KA GB 2035 2",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:43.974810+00:00",
+          "current_version_id": "d32ee296-8d5e-4975-b60b-7612cfdaddff",
+          "version_count": 1,
+          "chunk_count": 12084,
+          "run_count": 3
+        }
+      ]
+    },
+    {
+      "sha256": "c680ab815324f82fb80483af792de754d7ce50f0a64ad3808258d5471fef7cbd",
+      "canonical": {
+        "id": "fe5d4398-b3f1-4312-a768-bc09a2fc94b6",
+        "corpus_id": "manuals_vendor_keyence",
+        "source_filename": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49_CA-EN100U_Datasheet.pdf",
+        "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+        "ingest_status": "indexed",
+        "updated_at": "2026-04-05 12:45:17.328239+00:00",
+        "current_version_id": "bd9d3c8e-60d9-42ef-83e7-9f4a04f911db",
+        "version_count": 1,
+        "chunk_count": 4,
+        "run_count": 11
+      },
+      "duplicates": [
+        {
+          "id": "fd80be26-c439-43da-88b8-15b6f150ed0a",
+          "corpus_id": "pipeline_health_bb838969a1c1",
+          "source_filename": "CA-EN100U_Datasheet.pdf",
+          "title": "CA-EN100U Datasheet",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 13:39:21.879068+00:00",
+          "current_version_id": "89b1a4a8-4692-4dfb-ad34-6c62bcf45b45",
+          "version_count": 1,
+          "chunk_count": 4,
+          "run_count": 1
+        },
+        {
+          "id": "8ae09be2-7d15-43cb-a6f3-8d62e2091856",
+          "corpus_id": "dedupe-edd5104e-6280-4ec9-98eb-9ccd459ff3a8",
+          "source_filename": "CA-EN100U_Datasheet.pdf",
+          "title": "CA-EN100U Datasheet",
+          "ingest_status": "uploaded",
+          "updated_at": "2026-04-05 12:45:10.828681+00:00",
+          "current_version_id": "3bca7564-6f70-4e38-8630-820d887e6331",
+          "version_count": 1,
+          "chunk_count": 0,
+          "run_count": 0
+        },
+        {
+          "id": "8a106a64-5472-4892-bbc2-1468caa0d6e3",
+          "corpus_id": "pipeline_health_e6cafb70e50d",
+          "source_filename": "CA-EN100U_Datasheet.pdf",
+          "title": "CA-EN100U Datasheet",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.635312+00:00",
+          "current_version_id": "61138487-ca51-46b7-aee4-95f0ca440988",
+          "version_count": 1,
+          "chunk_count": 9,
+          "run_count": 1
+        },
+        {
+          "id": "eefda81e-cb6e-486a-ad7c-ba425dfc1dd4",
+          "corpus_id": "pipeline_health_08cae42a68c4",
+          "source_filename": "CA-EN100U_Datasheet.pdf",
+          "title": "CA-EN100U Datasheet",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.625903+00:00",
+          "current_version_id": "55929570-af4e-47ae-8b81-9667874ebb59",
+          "version_count": 1,
+          "chunk_count": 10,
+          "run_count": 1
+        },
+        {
+          "id": "bd951ba1-ccd8-4fca-a4ac-44e14e3d0629",
+          "corpus_id": "pipeline_health_1af9bb023fd9",
+          "source_filename": "CA-EN100U_Datasheet.pdf",
+          "title": "CA-EN100U Datasheet",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.616475+00:00",
+          "current_version_id": "94b4e147-b83d-40ee-9599-a0393f23a6c0",
+          "version_count": 1,
+          "chunk_count": 9,
+          "run_count": 1
+        },
+        {
+          "id": "0bcae096-6cee-4861-b8f4-5922fc5f8627",
+          "corpus_id": "pipeline_health_07580d7a30c8",
+          "source_filename": "CA-EN100U_Datasheet.pdf",
+          "title": "CA-EN100U Datasheet",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.606970+00:00",
+          "current_version_id": "85329aff-c6af-4722-ad51-53241caae480",
+          "version_count": 1,
+          "chunk_count": 10,
+          "run_count": 1
+        },
+        {
+          "id": "57277d24-9ae7-4f80-8871-b8d657d95e42",
+          "corpus_id": "pipeline_health_3750d2d896e7",
+          "source_filename": "CA-EN100U_Datasheet.pdf",
+          "title": "CA-EN100U Datasheet",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.588609+00:00",
+          "current_version_id": "3e03ade3-b048-4f50-9883-bd06b6d32cda",
+          "version_count": 1,
+          "chunk_count": 3,
+          "run_count": 1
+        },
+        {
+          "id": "ada1b98e-2474-4bb9-adc2-6391bd32eb67",
+          "corpus_id": "pipeline_health_6c29c85754ba",
+          "source_filename": "CA-EN100U_Datasheet.pdf",
+          "title": "CA-EN100U Datasheet",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.577647+00:00",
+          "current_version_id": "8b4ca84d-78ae-4427-bd2d-442fd9c28c5f",
+          "version_count": 1,
+          "chunk_count": 10,
+          "run_count": 1
+        },
+        {
+          "id": "08a3cddd-059a-4672-9bff-71906b69b5c6",
+          "corpus_id": "pipeline_health_8abccdf3a62c",
+          "source_filename": "CA-EN100U_Datasheet.pdf",
+          "title": "CA-EN100U Datasheet",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.568639+00:00",
+          "current_version_id": "dd631e80-69b8-44f9-a096-fa9ac20e366c",
+          "version_count": 1,
+          "chunk_count": 10,
+          "run_count": 1
+        },
+        {
+          "id": "4e535773-d34e-48b5-aabf-32dd51ddbf77",
+          "corpus_id": "pipeline_health_062b2d3ab4f7",
+          "source_filename": "CA-EN100U_Datasheet.pdf",
+          "title": "CA-EN100U Datasheet",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.559444+00:00",
+          "current_version_id": "3b6b6bca-4308-4ae6-ab67-8283439d6540",
+          "version_count": 1,
+          "chunk_count": 10,
+          "run_count": 1
+        },
+        {
+          "id": "65f5ea64-022d-4d7a-b41d-74445720a544",
+          "corpus_id": "dedupe-a5b40891-0915-4aa6-9154-5fb78fcf83ae",
+          "source_filename": "CA-EN100U_Datasheet.pdf",
+          "title": "CA-EN100U Datasheet",
+          "ingest_status": "uploaded",
+          "updated_at": "2026-04-05 12:40:12.692692+00:00",
+          "current_version_id": "2b3c655a-5750-4338-8796-21f9004b0c0d",
+          "version_count": 1,
+          "chunk_count": 0,
+          "run_count": 0
+        }
+      ]
+    },
+    {
+      "sha256": "d43b3487a5ebffcc6501b0ac00c2202725a7c47c9c30869ab633651d5d231e37",
+      "canonical": {
+        "id": "fd036b3f-d6fb-4692-8faf-5c2b1dfb704b",
+        "corpus_id": "manuals_eval_20260403_193601",
+        "source_filename": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf",
+        "title": "AS 151433 XG-X UM C84US KA GB 2035 8a",
+        "ingest_status": "indexed",
+        "updated_at": "2026-04-05 12:42:43.633677+00:00",
+        "current_version_id": "9a2be131-aa00-4a37-90bb-96d3083aea22",
+        "version_count": 1,
+        "chunk_count": 26734,
+        "run_count": 2
+      },
+      "duplicates": [
+        {
+          "id": "b97d2a51-01f0-4ec4-9156-868b5b4144af",
+          "corpus_id": "manuals_eval_20260403_205255",
+          "source_filename": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf",
+          "title": "AS 151433 XG-X UM C84US KA GB 2035 8a",
+          "ingest_status": "indexed",
+          "updated_at": "2026-04-05 12:42:44.236828+00:00",
+          "current_version_id": "98413c50-d7d1-4ef0-881c-30b5f81837d6",
+          "version_count": 1,
+          "chunk_count": 26734,
+          "run_count": 3
+        }
+      ]
+    }
+  ]
+}

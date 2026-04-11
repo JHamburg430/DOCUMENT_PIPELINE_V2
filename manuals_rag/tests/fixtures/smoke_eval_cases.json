@@ -1,0 +1,10 @@
+[
+  {
+    "query": "What product is described in the CA-EN100U datasheet?",
+    "expected_term": "Encoder relay unit"
+  },
+  {
+    "query": "What is the model number in the datasheet for the encoder relay unit?",
+    "expected_term": "CA-EN100U"
+  }
+]

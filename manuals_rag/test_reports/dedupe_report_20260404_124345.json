@@ -1,0 +1,119 @@
+{
+  "operations": [
+    {
+      "corpus_id": "manuals_vendor_keyence",
+      "canonical_name": "CA-EN100U_Datasheet.pdf",
+      "keep_id": "fe5d4398-b3f1-4312-a768-bc09a2fc94b6",
+      "drop_ids": [
+        "94ae515e-b407-47f4-b7fa-7b190d7aa236",
+        "dea17fce-3507-45e4-82ab-0d3516578f4d",
+        "a70f9c55-cee9-45d0-8f80-5f4a3798e573",
+        "fdcf077b-e368-4c66-8e1f-14f2aa394d98",
+        "c2847341-d68c-42fb-ba0f-64e296dbc223",
+        "e5fbaa86-57bd-43ee-ab5a-5486dbbcb103",
+        "801b20ef-a454-4874-97e1-5342047c9867",
+        "fbc751ca-2f32-4a4f-ba94-a3acb5d12a61",
+        "abd29af8-99b8-48d7-ab11-3fd9dfc4096e",
+        "a3e75615-f18a-45ff-9921-68ec8ee09994",
+        "926de777-f77c-47bf-a5c3-8bf03b716acb",
+        "503bbb96-15ca-4175-ab6c-138831b5f551",
+        "32bc8a3f-6816-44e7-88ca-6e982c40a78a",
+        "496d894c-f544-4f0e-9ab5-5779a0cbdf6d",
+        "9438f58d-5927-4a79-9682-b0a874240765",
+        "af37266e-df4d-4e6a-b6c1-e5e8c0cfb403",
+        "be269555-7158-43de-843d-e89369f8fe42",
+        "1a1ae099-e569-4234-a958-ee4a55e4fdb4",
+        "b673d611-b3f3-44dd-b3f4-656eddffa2d3",
+        "13f780eb-ece2-4693-be3c-7d2c240d627a",
+        "c7bc15f2-d965-4639-b119-902c0be6e9aa"
+      ],
+      "qdrant_delete_response": {
+        "result": {
+          "operation_id": 67,
+          "status": "completed"
+        },
+        "status": "ok",
+        "time": 0.004393394
+      }
+    }
+  ],
+  "deleted_source_documents": 21,
+  "deleted_qdrant_points_requested": 21,
+  "post_corpus_counts": [
+    {
+      "corpus_id": "manuals_eval_20260403_193601",
+      "docs": "1",
+      "distinct_filenames": "1"
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_193908",
+      "docs": "1",
+      "distinct_filenames": "1"
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_194132",
+      "docs": "3",
+      "distinct_filenames": "3"
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_195801",
+      "docs": "2",
+      "distinct_filenames": "2"
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_195942",
+      "docs": "1",
+      "distinct_filenames": "1"
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_205255",
+      "docs": "3",
+      "distinct_filenames": "3"
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_205759",
+      "docs": "3",
+      "distinct_filenames": "3"
+    },
+    {
+      "corpus_id": "manuals_eval_20260403_213507",
+      "docs": "3",
+      "distinct_filenames": "3"
+    },
+    {
+      "corpus_id": "manuals_eval_20260404_001432",
+      "docs": "1",
+      "distinct_filenames": "1"
+    },
+    {
+      "corpus_id": "manuals_eval_20260404_001533",
+      "docs": "1",
+      "distinct_filenames": "1"
+    },
+    {
+      "corpus_id": "manuals_eval_20260404_024402",
+      "docs": "1",
+      "distinct_filenames": "1"
+    },
+    {
+      "corpus_id": "manuals_eval_20260404_025707",
+      "docs": "1",
+      "distinct_filenames": "1"
+    },
+    {
+      "corpus_id": "manuals_eval_20260404_030848",
+      "docs": "1",
+      "distinct_filenames": "1"
+    },
+    {
+      "corpus_id": "manuals_eval_20260404_075738",
+      "docs": "1",
+      "distinct_filenames": "1"
+    },
+    {
+      "corpus_id": "manuals_vendor_keyence",
+      "docs": "1",
+      "distinct_filenames": "1"
+    }
+  ]
+}

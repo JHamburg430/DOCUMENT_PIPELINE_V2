@@ -1,0 +1,698 @@
+from __future__ import annotations
+
+import logging
+import re
+from functools import lru_cache
+from typing import Iterable
+
+from manuals_rag_common.config import settings
+from manuals_rag_common.db import fetch_all
+from manuals_rag_schemas.documents import SearchResult
+from manuals_rag_retrieval.embeddings import tokenize
+from manuals_rag_retrieval.query_analysis import QueryAnalysis, analyze_query
+from manuals_rag_retrieval.qdrant_store import QdrantStore
+
+try:
+    from haystack import Document
+    from haystack.components.rankers import SentenceTransformersSimilarityRanker
+except ImportError as exc:
+    Document = None
+    SentenceTransformersSimilarityRanker = None
+    _RERANK_IMPORT_ERROR = exc
+else:
+    _RERANK_IMPORT_ERROR = None
+
+
+logger = logging.getLogger(__name__)
+
+try:
+    import torch
+except ImportError:
+    torch = None
+
+
+def build_filters(query: str, request_filters: dict[str, object]) -> dict[str, object]:
+    analysis = analyze_query(query)
+    filters = dict(request_filters)
+    has_document_scope = any(key in filters for key in ("source_document_id", "document_version_id"))
+    if not has_document_scope and analysis.requested_doc_kind and "document_kind" not in filters:
+        filters["document_kind"] = analysis.requested_doc_kind
+    if not has_document_scope and analysis.product_model and not any(key in filters for key in ("product_model", "product_models")):
+        filters["product_models"] = analysis.product_model
+    if not has_document_scope and analysis.product_family and not any(key in filters for key in ("product_family", "product_families", "product_model", "product_models")):
+        filters["product_families"] = analysis.product_family
+    if not has_document_scope and analysis.manufacturer and "manufacturer" not in filters:
+        filters["manufacturer"] = analysis.manufacturer
+    if not has_document_scope and analysis.part_number and "part_numbers" not in filters:
+        filters["part_numbers"] = analysis.part_number
+    for key, value in analysis.preferred_metadata_filters.items():
+        filters.setdefault(key, value)
+    filters.setdefault("is_active", True)
+    return filters
+
+
+def _special_route_filters(base_filters: dict[str, object], analysis: QueryAnalysis) -> list[dict[str, object]]:
+    routes: list[dict[str, object]] = []
+    if analysis.preferred_chunk_types:
+        routes.append({**base_filters, "chunk_type": analysis.preferred_chunk_types})
+    if analysis.safety_intent:
+        routes.append({**base_filters, "chunk_type": ["warning_record", "procedure_record"]})
+    if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
+        routes.append({**base_filters, "chunk_type": ["procedure_record", "section_window"]})
+    if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
+        routes.append({**base_filters, "chunk_type": ["spec_record", "datasheet_record", "table_record", "section_window"]})
+    if "part_lookup" in analysis.query_types:
+        routes.append({**base_filters, "chunk_type": ["spec_record", "datasheet_record", "table_record"]})
+    if "revision_history" in analysis.query_types:
+        routes.append({**base_filters, "chunk_type": ["section_window", "parent_section"], "version_signal": "true"})
+    if "brochure_claim" in analysis.query_types:
+        routes.append({**base_filters, "chunk_type": ["brochure_fact", "datasheet_record", "spec_record"]})
+    if analysis.error_code:
+        routes.append({**base_filters, "keywords": [analysis.error_code]})
+    seen: set[tuple[tuple[str, str], ...]] = set()
+    deduped: list[dict[str, object]] = []
+    for route in routes:
+        fingerprint = tuple(sorted((key, str(value)) for key, value in route.items()))
+        if fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+        deduped.append(route)
+    return deduped
+
+
+def run_dense_search(store: QdrantStore, query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+    results: list[SearchResult] = []
+    for corpus_id in corpus_ids:
+        results.extend(store.search_dense(corpus_id=corpus_id, query=query, filters=filters, limit=limit))
+    return results
+
+
+def run_sparse_search(store: QdrantStore, query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+    results: list[SearchResult] = []
+    for corpus_id in corpus_ids:
+        results.extend(store.search_sparse(corpus_id=corpus_id, query=query, filters=filters, limit=limit))
+    return results
+
+
+def run_special_search(
+    store: QdrantStore,
+    query: str,
+    corpus_ids: list[str],
+    base_filters: dict[str, object],
+    analysis: QueryAnalysis,
+    limit: int = 40,
+) -> list[SearchResult]:
+    results: list[SearchResult] = []
+    for route_filters in _special_route_filters(base_filters, analysis):
+        for corpus_id in corpus_ids:
+            dense_results = store.search_dense(corpus_id=corpus_id, query=query, filters=route_filters, limit=limit)
+            sparse_results = store.search_sparse(corpus_id=corpus_id, query=query, filters=route_filters, limit=limit)
+            results.extend(store.fuse_rrf([dense_results, sparse_results], limit=limit))
+    return results
+
+
+def fuse_results(store: QdrantStore, result_sets: list[list[SearchResult]], *, limit: int = 30) -> list[SearchResult]:
+    return store.fuse_rrf(result_sets, limit=limit)
+
+
+def _query_terms(analysis: QueryAnalysis) -> set[str]:
+    normalized_terms = getattr(analysis, "normalized_terms", None)
+    if normalized_terms is None:
+        return set()
+    return set(normalized_terms)
+
+
+def _query_has_explicit_structure(analysis: QueryAnalysis) -> bool:
+    structured_types = {"spec_lookup", "part_lookup", "comparison", "compatibility", "revision_history"}
+    return bool(structured_types.intersection(analysis.query_types))
+
+
+def _query_prefers_narrative_prose(analysis: QueryAnalysis) -> bool:
+    return (
+        "general" in analysis.query_types
+        or "operational_flow" in analysis.query_types
+        or "troubleshooting" in analysis.query_types
+    ) and not _query_has_explicit_structure(analysis)
+
+
+def _family_score_adjustment(result: SearchResult, analysis: QueryAnalysis) -> float:
+    chunk_type = str(result.metadata.get("chunk_type", ""))
+    query_terms = _query_terms(analysis)
+    adjustment = 0.0
+    if "spec_lookup" in analysis.query_types:
+        if chunk_type in {"spec_record", "datasheet_record", "table_record"}:
+            adjustment += 0.06
+        elif chunk_type == "atomic_text":
+            adjustment -= 0.01
+    if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
+        if chunk_type == "procedure_record":
+            adjustment += 0.06
+        elif chunk_type == "section_window":
+            adjustment += 0.03
+    if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
+        if chunk_type in {"spec_record", "datasheet_record", "table_record"}:
+            adjustment += 0.04
+    if "revision_history" in analysis.query_types and str(result.metadata.get("version_signal", "false")) == "true":
+        adjustment += 0.05
+    if result.metadata.get("menu_labels") and any(term in " ".join(result.metadata.get("menu_labels", [])).lower() for term in query_terms):
+        adjustment += 0.03
+    if result.metadata.get("protocol_terms") and any(term in set(result.metadata.get("protocol_terms", [])) for term in query_terms):
+        adjustment += 0.03
+    document_protocol_terms = {str(term).lower() for term in result.metadata.get("document_protocol_terms", [])}
+    if document_protocol_terms and any(term in document_protocol_terms for term in query_terms):
+        adjustment += 0.02
+    if result.metadata.get("identifier_tokens") and any(term in " ".join(result.metadata.get("identifier_tokens", [])).lower() for term in query_terms):
+        adjustment += 0.02
+    document_identifiers = " ".join(
+        str(term)
+        for term in [
+            *(result.metadata.get("product_models") or []),
+            *(result.metadata.get("product_families") or []),
+            *(result.metadata.get("devices") or []),
+            *(result.metadata.get("part_numbers") or []),
+            *(result.metadata.get("settings") or []),
+            *(result.metadata.get("parameters") or []),
+        ]
+    ).lower()
+    if document_identifiers and any(term in document_identifiers for term in query_terms):
+        adjustment += 0.02
+    if _query_prefers_narrative_prose(analysis):
+        if chunk_type in {"atomic_text", "section_window", "parent_section"}:
+            adjustment += 0.03
+        elif chunk_type in {"spec_record", "datasheet_record", "table_record"}:
+            adjustment -= 0.05
+    if chunk_type == "atomic_text" and len(str(result.content).split()) <= 3:
+        adjustment -= 0.04
+    return adjustment
+
+
+def _apply_family_scoring(results: list[SearchResult], analysis: QueryAnalysis, *, stage: str) -> list[SearchResult]:
+    rescored = [
+        result.model_copy(
+            update={
+                "score": result.score + _family_score_adjustment(result, analysis),
+                "metadata": {**result.metadata, "retrieval_stage": stage},
+            }
+        )
+        for result in results
+    ]
+    return sorted(rescored, key=lambda item: item.score, reverse=True)
+
+
+def _family_bucket(result: SearchResult) -> str:
+    chunk_type = str(result.metadata.get("chunk_type", ""))
+    if chunk_type in {"spec_record", "datasheet_record"}:
+        return "spec"
+    if chunk_type == "table_record":
+        return "table"
+    if chunk_type == "procedure_record":
+        return "procedure"
+    if chunk_type in {"section_window", "parent_section"}:
+        return "context"
+    return "prose"
+
+
+def _preferred_family_order(analysis: QueryAnalysis) -> list[str]:
+    if "revision_history" in analysis.query_types:
+        return ["context", "spec", "table", "prose"]
+    if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
+        return ["procedure", "context", "prose", "table"]
+    if "operational_flow" in analysis.query_types:
+        return ["prose", "context", "procedure", "table"]
+    if "spec_lookup" in analysis.query_types or "part_lookup" in analysis.query_types:
+        return ["spec", "table", "prose", "context"]
+    if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
+        return ["spec", "table", "context", "prose"]
+    return ["prose", "context", "spec", "table"]
+
+
+def _allowed_families(analysis: QueryAnalysis) -> set[str]:
+    if "revision_history" in analysis.query_types:
+        return {"context", "spec"}
+    if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
+        return {"procedure", "context", "prose"}
+    if "operational_flow" in analysis.query_types:
+        return {"prose", "context", "procedure"}
+    if "spec_lookup" in analysis.query_types or "part_lookup" in analysis.query_types:
+        return {"spec", "table", "context"}
+    if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
+        return {"spec", "table", "context"}
+    return {"prose", "context"}
+
+
+def _families_from_chunk_type_filter(filters: dict[str, object]) -> tuple[list[str], set[str]]:
+    chunk_type_filter = filters.get("chunk_type")
+    if not chunk_type_filter:
+        return [], set()
+    chunk_types = chunk_type_filter if isinstance(chunk_type_filter, list) else [chunk_type_filter]
+    family_order: list[str] = []
+    for chunk_type in chunk_types:
+        family = {
+            "spec_record": "spec",
+            "datasheet_record": "spec",
+            "table_record": "table",
+            "procedure_record": "procedure",
+            "section_window": "context",
+            "parent_section": "context",
+            "atomic_text": "prose",
+        }.get(str(chunk_type))
+        if family and family not in family_order:
+            family_order.append(family)
+    return family_order, set(family_order)
+
+
+def _has_value_pattern(text: str) -> bool:
+    return bool(
+        re.search(
+            r":\s*\S+|\b\d+(?:\.\d+)?\s?(?:v|a|ma|w|kw|mm|cm|m|ms|s|hz|khz|mhz|fps|kg|g|n|mpa|deg|c|°c|%)\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def _semantic_completeness_score(result: SearchResult) -> float:
+    content = str(result.content or "").strip()
+    chunk_type = str(result.metadata.get("chunk_type", ""))
+    tokens = content.split()
+    token_count = len(tokens)
+    lowered = content.lower()
+    score = 0.0
+    if token_count >= 8:
+        score += 0.35
+    elif token_count >= 5:
+        score += 0.15
+    if _has_value_pattern(content):
+        score += 0.35
+    if any(char.isdigit() for char in content):
+        score += 0.1
+    if any(mark in content for mark in [".", ";", ":"]):
+        score += 0.1
+    if chunk_type in {"spec_record", "table_record", "procedure_record"}:
+        score += 0.15
+    heading_like = token_count <= 6 and not _has_value_pattern(content) and not re.search(r"\b(is|are|can|does|set|check|configure|measure|connect|select|display|returns?)\b", lowered)
+    if heading_like:
+        score -= 0.4
+    if token_count <= 3:
+        score -= 0.25
+    return score
+
+
+def _annotate_completeness(results: list[SearchResult]) -> list[SearchResult]:
+    annotated: list[SearchResult] = []
+    for result in results:
+        completeness = _semantic_completeness_score(result)
+        metadata = {
+            **result.metadata,
+            "family_bucket": _family_bucket(result),
+            "semantic_completeness_score": completeness,
+            "is_heading_like": completeness < 0.0,
+            "is_value_bearing": _has_value_pattern(str(result.content or "")),
+        }
+        annotated.append(result.model_copy(update={"metadata": metadata, "score": result.score + completeness * 0.05}))
+    return annotated
+
+
+def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> float:
+    query_terms = _query_terms(analysis)
+    if not query_terms:
+        return 0.0
+    content_terms = set(tokenize(str(result.content or "")))
+    title_terms = set(tokenize(str(result.title or "")))
+    section_terms = set(tokenize(" ".join(result.section_path)))
+    rerank_terms = set(tokenize(str(result.metadata.get("rerank_document") or result.metadata.get("content_for_rerank") or "")))
+    content_overlap = len(query_terms.intersection(content_terms))
+    title_overlap = len(query_terms.intersection(title_terms))
+    section_overlap = len(query_terms.intersection(section_terms))
+    rerank_overlap = len(query_terms.intersection(rerank_terms))
+    alignment = content_overlap * 0.045 + title_overlap * 0.015 + section_overlap * 0.025 + rerank_overlap * 0.02
+    if len(query_terms) >= 2 and content_overlap == 0 and rerank_overlap <= 1:
+        alignment -= 0.04
+    if len(query_terms) >= 3 and max(content_overlap, rerank_overlap) >= 3:
+        alignment += 0.03
+    return alignment
+
+
+def _apply_query_alignment(results: list[SearchResult], analysis: QueryAnalysis, *, stage: str) -> list[SearchResult]:
+    aligned = [
+        result.model_copy(
+            update={
+                "score": result.score + _query_alignment_score(result, analysis),
+                "metadata": {**result.metadata, "retrieval_stage": stage},
+            }
+        )
+        for result in results
+    ]
+    return sorted(aligned, key=lambda item: item.score, reverse=True)
+
+
+def _select_family_candidates(
+    results: list[SearchResult],
+    analysis: QueryAnalysis,
+    *,
+    filters: dict[str, object] | None = None,
+    limit: int = 12,
+) -> list[SearchResult]:
+    if not results:
+        return []
+    requested_order, requested_families = _families_from_chunk_type_filter(filters or {})
+    family_order = requested_order or _preferred_family_order(analysis)
+    allowed_families = requested_families or _allowed_families(analysis)
+    buckets: dict[str, list[SearchResult]] = {}
+    for result in results:
+        family = str(result.metadata.get("family_bucket") or _family_bucket(result))
+        if family not in allowed_families:
+            continue
+        buckets.setdefault(family, []).append(result)
+    chosen: list[SearchResult] = []
+    primary_family = next((family for family in family_order if buckets.get(family)), None)
+    if primary_family:
+        chosen.extend(buckets[primary_family][: max(6, limit)])
+    fallback_family = next(
+        (family for family in family_order if family != primary_family and family in allowed_families and buckets.get(family)),
+        None,
+    )
+    if fallback_family:
+        chosen.extend(buckets[fallback_family][: max(4, limit // 2)])
+    if not chosen:
+        chosen = results[:limit]
+    deduped: dict[str, SearchResult] = {}
+    for result in chosen:
+        deduped[result.chunk_id] = result
+    return list(deduped.values())[: max(limit, 10)]
+
+
+def _resolve_rerank_device() -> object | None:
+    configured_device = settings.haystack_rerank_device.strip().lower()
+    if configured_device == "auto":
+        configured_device = "cuda:0" if torch is not None and torch.cuda.is_available() else "cpu"
+    if not configured_device:
+        return None
+    if configured_device == "cpu":
+        return None
+    if configured_device.startswith("cuda") and (torch is None or not torch.cuda.is_available()):
+        logger.warning("CUDA rerank device requested but CUDA is unavailable; falling back to CPU")
+        return None
+    try:
+        from haystack.utils import ComponentDevice
+
+        return ComponentDevice.from_str(configured_device)
+    except Exception as exc:
+        logger.warning("Failed to configure rerank device %s; falling back to CPU: %s", configured_device, exc)
+        return None
+
+
+@lru_cache(maxsize=1)
+def _get_reranker() -> SentenceTransformersSimilarityRanker:
+    if SentenceTransformersSimilarityRanker is None:
+        raise RuntimeError("Haystack sentence-transformers ranker is unavailable") from _RERANK_IMPORT_ERROR
+    ranker = SentenceTransformersSimilarityRanker(
+        model=settings.haystack_rerank_model,
+        device=_resolve_rerank_device(),
+        top_k=settings.haystack_rerank_top_k,
+    )
+    ranker.warm_up()
+    return ranker
+
+
+def _to_rerank_documents(results: list[SearchResult]) -> list[Document]:
+    if Document is None:
+        raise RuntimeError("Haystack Document class is unavailable") from _RERANK_IMPORT_ERROR
+    return [
+        Document(
+            id=result.chunk_id,
+            content=str(result.metadata.get("rerank_document") or result.metadata.get("content_for_rerank") or result.content),
+            meta={"chunk_id": result.chunk_id, "pre_rerank_rank": result.metadata.get("stage_rank")},
+            score=result.score,
+        )
+        for result in results
+    ]
+
+
+def rerank_results(results: list[SearchResult], query: str, *, limit: int = 12) -> list[SearchResult]:
+    if not results:
+        return []
+    candidate_results = results[: max(limit, settings.haystack_rerank_top_k)]
+    try:
+        analysis = analyze_query(query)
+        documents = _to_rerank_documents(candidate_results)
+        reranked_documents = _get_reranker().run(query=query, documents=documents)["documents"]
+        result_by_id = {result.chunk_id: result for result in candidate_results}
+        reranked_results: list[SearchResult] = []
+        for post_rank, document in enumerate(reranked_documents, start=1):
+            chunk_id = document.meta.get("chunk_id", document.id)
+            result = result_by_id.get(str(chunk_id))
+            if result is None:
+                continue
+            rerank_score = float(document.score or result.score)
+            alignment_score = _query_alignment_score(result, analysis)
+            blended_score = rerank_score + result.score * 0.35 + alignment_score * 3.0
+            reranked_results.append(
+                result.model_copy(
+                    update={
+                        "score": blended_score,
+                        "metadata": {
+                            **result.metadata,
+                            "rerank_score": rerank_score,
+                            "rerank_query_alignment": alignment_score,
+                            "pre_rerank_rank": document.meta.get("pre_rerank_rank"),
+                            "post_rerank_rank": post_rank,
+                        },
+                    }
+                )
+            )
+        if reranked_results:
+            query_terms = _query_terms(analysis)
+            if query_terms and len(query_terms) >= 2 and any(
+                result.metadata.get("rerank_query_alignment", 0.0) > 0 for result in reranked_results
+            ):
+                aligned_results = [
+                    result for result in reranked_results if result.metadata.get("rerank_query_alignment", 0.0) > 0
+                ]
+                if aligned_results:
+                    reranked_results = aligned_results
+                reranked_results.sort(
+                    key=lambda item: (
+                        item.metadata.get("rerank_query_alignment", 0.0) > 0,
+                        item.score,
+                    ),
+                    reverse=True,
+                )
+            return reranked_results[:limit]
+    except Exception as exc:
+        logger.warning("Haystack rerank failed; falling back to fused order: %s", exc)
+    return candidate_results[:limit]
+
+
+def _chunk_group_key(result: SearchResult, analysis: QueryAnalysis) -> str:
+    if analysis.latest_only:
+        return "|".join([result.chunk_id, result.document_version_id])
+    return result.chunk_id
+
+
+def _section_path_has_meaningful_signal(section_path: list[str]) -> bool:
+    normalized = [part.strip() for part in section_path if part and part.strip()]
+    if not normalized:
+        return False
+    return any(len(re.findall(r"[A-Za-z0-9]", part)) >= 3 for part in normalized)
+
+
+def _dedupe_results(results: Iterable[SearchResult], analysis: QueryAnalysis) -> list[SearchResult]:
+    deduped: dict[str, SearchResult] = {}
+    for result in results:
+        group_key = _chunk_group_key(result, analysis)
+        if group_key not in deduped or result.score > deduped[group_key].score:
+            deduped[group_key] = result
+    return list(deduped.values())
+
+
+def _annotate_stage_metadata(results: list[SearchResult], stage: str) -> list[SearchResult]:
+    annotated: list[SearchResult] = []
+    for index, result in enumerate(results, start=1):
+        metadata = {**result.metadata, "retrieval_stage": stage, "stage_rank": index}
+        annotated.append(result.model_copy(update={"metadata": metadata}))
+    return annotated
+
+
+def _nearest_lineage_chunk(
+    result: SearchResult,
+    candidates: list[dict[str, object]],
+    *,
+    require_flag: str | None = None,
+) -> dict[str, object] | None:
+    matches = [
+        candidate
+        for candidate in candidates
+        if require_flag is None or bool(candidate.get(require_flag))
+    ]
+    if not matches:
+        return None
+    return min(
+        matches,
+        key=lambda candidate: abs(int(candidate["page_from"]) - min(result.pages)) + abs(int(candidate["page_to"]) - max(result.pages)),
+    )
+
+
+def enrich_candidates_for_rerank(results: list[SearchResult], analysis: QueryAnalysis, *, limit: int = 30) -> list[SearchResult]:
+    if not results:
+        return []
+    sections = {(result.document_version_id, " / ".join(result.section_path) or "Document") for result in results[:limit]}
+    placeholders = ",".join(["(%s,%s)"] * len(sections))
+    params: list[object] = []
+    for document_version_id, section_path_text in sections:
+        params.extend([document_version_id, section_path_text])
+    rows = fetch_all(
+        f"""
+        select document_version_id, section_path_text, chunk_type, chunk_level, page_from, page_to, content, metadata_json
+        from retrieval_chunks
+        where (document_version_id, section_path_text) in ({placeholders})
+        """,
+        tuple(params),
+    )
+    section_map: dict[tuple[str, str], list[dict[str, object]]] = {}
+    for row in rows:
+        key = (str(row["document_version_id"]), str(row["section_path_text"]))
+        section_map.setdefault(key, []).append(
+            {
+                "chunk_type": str(row["chunk_type"]),
+                "chunk_level": int(row["chunk_level"]),
+                "page_from": int(row["page_from"]),
+                "page_to": int(row["page_to"]),
+                "content": str(row["content"]),
+                **dict(row.get("metadata_json") or {}),
+            }
+        )
+    enriched: list[SearchResult] = []
+    for result in results[:limit]:
+        section_key = " / ".join(result.section_path) or "Document"
+        section_rows = section_map.get((result.document_version_id, section_key), [])
+        context_window = next((row["content"] for row in section_rows if int(row["chunk_level"]) == 2 and str(row["chunk_type"]) == "section_window"), None)
+        parent_context = next((row["content"] for row in section_rows if int(row["chunk_level"]) == 3 and str(row["chunk_type"]) == "parent_section"), None)
+        rerank_parts = [str(result.metadata.get("content_for_rerank") or result.content)]
+        chunk_type = str(result.metadata.get("chunk_type", ""))
+        if chunk_type == "atomic_text":
+            if context_window and context_window not in rerank_parts:
+                rerank_parts.append(context_window)
+        elif chunk_type == "procedure_record":
+            grouped = _nearest_lineage_chunk(result, section_rows, require_flag="grouped_procedure")
+            if grouped and grouped["content"] not in rerank_parts:
+                rerank_parts.append(str(grouped["content"]))
+        elif chunk_type == "table_record":
+            grouped = _nearest_lineage_chunk(result, section_rows, require_flag="table_row_group")
+            if grouped and grouped["content"] not in rerank_parts:
+                rerank_parts.append(str(grouped["content"]))
+            summary = _nearest_lineage_chunk(result, section_rows, require_flag="table_summary")
+            if summary and summary["content"] not in rerank_parts:
+                rerank_parts.append(str(summary["content"]))
+        if parent_context and ("revision_history" in analysis.query_types or chunk_type in {"procedure_record", "table_record"}):
+            rerank_parts.append(parent_context)
+        if chunk_type == "atomic_text" and context_window:
+            rerank_parts = rerank_parts[:2]
+        elif chunk_type == "spec_record":
+            rerank_parts = rerank_parts[:1]
+        rerank_document = "\n\n".join(part for part in rerank_parts if part)
+        metadata = {
+            **result.metadata,
+            "context_window": context_window,
+            "parent_context": parent_context,
+            "rerank_document": rerank_document,
+            "rerank_context_strategy": chunk_type,
+        }
+        enriched.append(result.model_copy(update={"metadata": metadata}))
+    return enriched
+
+
+def assemble_context(results: list[SearchResult], *, limit: int = 10) -> list[SearchResult]:
+    if not results:
+        return []
+    base_results = results[:limit]
+    sections = {
+        (result.document_version_id, " / ".join(result.section_path) or "Document")
+        for result in base_results
+        if _section_path_has_meaningful_signal(result.section_path)
+    }
+    if not sections:
+        return [
+            result.model_copy(
+                update={
+                    "metadata": {
+                        **result.metadata,
+                        "context_window": None,
+                        "parent_context": None,
+                    }
+                }
+            )
+            if not _section_path_has_meaningful_signal(result.section_path)
+            else result
+            for result in base_results
+        ]
+    placeholders = ",".join(["(%s,%s)"] * len(sections))
+    params: list[object] = []
+    for document_version_id, section_path_text in sections:
+        params.extend([document_version_id, section_path_text])
+    context_rows = fetch_all(
+        f"""
+        select document_version_id, section_path_text, chunk_level, content
+        from retrieval_chunks
+        where (document_version_id, section_path_text) in ({placeholders})
+          and chunk_level in (2, 3)
+        """,
+        tuple(params),
+    )
+    context_map: dict[tuple[str, str], dict[int, str]] = {}
+    for row in context_rows:
+        key = (str(row["document_version_id"]), str(row["section_path_text"]))
+        bucket = context_map.setdefault(key, {})
+        bucket[int(row["chunk_level"])] = str(row["content"])
+    assembled: list[SearchResult] = []
+    for result in base_results:
+        if not _section_path_has_meaningful_signal(result.section_path):
+            metadata = {
+                **result.metadata,
+                "context_window": None,
+                "parent_context": None,
+            }
+            assembled.append(result.model_copy(update={"metadata": metadata}))
+            continue
+        section_key = " / ".join(result.section_path) or "Document"
+        context = context_map.get((result.document_version_id, section_key), {})
+        metadata = {
+            **result.metadata,
+            "context_window": context.get(2),
+            "parent_context": context.get(3),
+        }
+        assembled.append(result.model_copy(update={"metadata": metadata}))
+    return assembled
+
+
+def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 10) -> list[SearchResult]:
+    store = QdrantStore()
+    analysis = analyze_query(query)
+    dense_results = _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, filters), "dense")
+    sparse_results = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, filters), "sparse")
+    special_results = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, filters, analysis), "special")
+    fused = _annotate_stage_metadata(fuse_results(store, [dense_results, sparse_results, special_results], limit=30), "fused")
+    rescored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored")[:30], "family_scored")
+    completed = _annotate_stage_metadata(_annotate_completeness(rescored), "completeness_scored")
+    aligned = _annotate_stage_metadata(_apply_query_alignment(completed, analysis, stage="query_aligned"), "query_aligned")
+    family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=filters, limit=12), "family_selected")
+    enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=12)
+    reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked")
+    deduped = _dedupe_results(reranked, analysis)
+    return assemble_context(deduped, limit=limit)
+
+
+def document_versions_for_results(results: list[SearchResult]) -> list[dict[str, object]]:
+    version_ids = tuple(result.document_version_id for result in results)
+    if not version_ids:
+        return []
+    placeholders = ",".join(["%s"] * len(version_ids))
+    return fetch_all(
+        f"""
+        select dv.id, dv.version_label, dv.revision_date, sd.id as source_document_id, sd.title
+        from document_versions dv
+        join source_documents sd on sd.id = dv.source_document_id
+        where dv.id in ({placeholders})
+        """,
+        version_ids,
+    )
