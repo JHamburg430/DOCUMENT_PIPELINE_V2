@@ -111,6 +111,77 @@ def _render_stage(stage: dict[str, Any], key_prefix: str) -> None:
             _render_json_block("Content", {"content": sample.get("content", ""), "context_window": sample.get("context_window"), "parent_context": sample.get("parent_context")})
 
 
+def _default_corpus_ids(documents: list[dict[str, Any]]) -> str:
+    corpus_ids = sorted({str(item.get("corpus_id")) for item in documents if item.get("corpus_id")})
+    return ",".join(corpus_ids) if corpus_ids else DEFAULT_CORPUS
+
+
+def _normalize_search_payload(payload: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    if isinstance(payload, list):
+        return payload, {}
+    if isinstance(payload, dict):
+        results = payload.get("results", [])
+        return results if isinstance(results, list) else [], payload.get("source_assets", {})
+    return [], {}
+
+
+def _selected_document_hit(metadata: dict[str, Any]) -> dict[str, Any]:
+    hits = metadata.get("selected_document_metadata_hits") or []
+    return hits[0] if hits and isinstance(hits[0], dict) else {}
+
+
+def _render_consolidated_search_results(payload: Any) -> None:
+    results, source_assets = _normalize_search_payload(payload)
+    if not results:
+        st.info("No search results returned.")
+        return
+
+    st.markdown("### Results")
+    rows = []
+    for index, result in enumerate(results, start=1):
+        metadata = result.get("metadata") or {}
+        selected_hit = _selected_document_hit(metadata)
+        rows.append(
+            {
+                "Rank": index,
+                "Score": result.get("score"),
+                "Chunk Type": metadata.get("chunk_type"),
+                "Stage": metadata.get("retrieval_stage"),
+                "Document Selection": metadata.get("document_selection_stage"),
+                "Selected Document": selected_hit.get("source_document_id") or result.get("source_document_id"),
+                "Title": result.get("title"),
+                "Pages": result.get("pages"),
+                "Preview": str(result.get("content") or "")[:260],
+            }
+        )
+    st.dataframe(rows, hide_index=True, use_container_width=True)
+
+    selected_index = st.selectbox(
+        "Inspect search result",
+        options=list(range(len(results))),
+        format_func=lambda index: f"{index + 1}. {results[index].get('score', 0):.4f} | {results[index].get('title')} | p.{results[index].get('pages')}",
+    )
+    result = results[selected_index]
+    metadata = result.get("metadata") or {}
+    selected_hit = _selected_document_hit(metadata)
+    left, right = st.columns(2)
+    with left:
+        _render_json_block(
+            "Result",
+            {
+                key: result.get(key)
+                for key in ("chunk_id", "score", "title", "source_document_id", "document_version_id", "pages", "section_path")
+            },
+        )
+        _render_json_block("Selected Document Metadata Hit", selected_hit)
+        _render_json_block("Metadata", metadata)
+    with right:
+        st.markdown("**Content**")
+        st.code(str(result.get("content") or ""), language="text")
+        if source_assets:
+            _render_json_block("Source Assets", source_assets)
+
+
 def main() -> None:
     st.set_page_config(page_title="Manuals RAG Debug", layout="wide")
     st.title("Manuals RAG Debug Console")
@@ -137,116 +208,66 @@ def main() -> None:
     }
     documents_by_id = {item["document_id"]: item for item in documents}
 
-    st.markdown("## Query Pipeline")
+    st.markdown("## Consolidated Search")
+    st.caption("Runs the production `/search` endpoint: metadata document selection, dense retrieval, sparse retrieval, table retrieval, fusion, reranking, and assembly.")
     query_col, result_col = st.columns([1, 2])
     with query_col:
-        query = st.text_area("Query", value="What product is described in this datasheet?", height=120)
-        filter_document = st.selectbox("Filter to Document", options=[""] + list(doc_options.keys()))
-        selected_document_id = doc_options.get(filter_document) if filter_document else None
-        selected_document = documents_by_id.get(selected_document_id) if selected_document_id else None
-        selected_corpus_id = str(selected_document["corpus_id"]) if selected_document else DEFAULT_CORPUS
-        previous_selected_document_id = st.session_state.get("query_filter_document_id")
+        query = st.text_area("Search Query", value="LJ-X8080 z axis repeatability", height=120)
         if "query_corpus_ids" not in st.session_state:
-            st.session_state["query_corpus_ids"] = selected_corpus_id
-        elif selected_document_id and selected_document_id != previous_selected_document_id:
-            st.session_state["query_corpus_ids"] = selected_corpus_id
-        elif not selected_document_id and previous_selected_document_id:
-            st.session_state["query_corpus_ids"] = DEFAULT_CORPUS
-        st.session_state["query_filter_document_id"] = selected_document_id
+            st.session_state["query_corpus_ids"] = _default_corpus_ids(documents)
         corpus_ids_text = st.text_input("Corpus IDs", key="query_corpus_ids")
-        if selected_document:
-            st.caption(f"Using selected document corpus `{selected_corpus_id}` by default.")
-        filters: dict[str, Any] = {}
-        if selected_document_id:
-            filters["source_document_id"] = selected_document_id
-        if st.button("Run Query Debug", use_container_width=True):
+        include_page_images = st.checkbox("Return page images", value=False)
+        include_table_images = st.checkbox("Return table images", value=False)
+        st.caption("No document filter is applied here; document selection is performed by metadata embeddings inside the API.")
+        if st.button("Run Consolidated Search", use_container_width=True):
             corpus_ids = [item.strip() for item in corpus_ids_text.split(",") if item.strip()]
             if not corpus_ids:
-                st.error("Corpus IDs cannot be empty. Select a document or enter at least one corpus ID.")
+                st.error("Corpus IDs cannot be empty.")
                 st.stop()
-            st.session_state["query_debug_payload"] = _run_query_debug(
+            st.session_state["consolidated_search_payload"] = _post(
+                "/search",
                 {
                     "query": query,
                     "corpus_ids": corpus_ids,
-                    "filters": filters,
+                    "filters": {},
+                    "response_mode": "answer_with_citations",
+                    "include_source_assets": include_page_images or include_table_images,
+                    "include_page_images": include_page_images,
+                    "include_table_images": include_table_images,
+                },
+            )
+    with result_col:
+        payload = st.session_state.get("consolidated_search_payload")
+        if payload:
+            _render_consolidated_search_results(payload)
+        else:
+            st.info("Run a search to inspect the consolidated retrieval results.")
+
+    with st.expander("Legacy debug pipeline", expanded=False):
+        st.caption("This diagnostic view uses the debug run endpoint. Use consolidated search above for production retrieval behavior.")
+        debug_query = st.text_area("Debug Query", value="What product is described in this datasheet?", height=100, key="debug_query_text")
+        debug_corpus_ids_text = st.text_input("Debug Corpus IDs", value=st.session_state.get("query_corpus_ids", DEFAULT_CORPUS), key="debug_query_corpus_ids")
+        if st.button("Run Legacy Debug Pipeline", use_container_width=True):
+            debug_corpus_ids = [item.strip() for item in debug_corpus_ids_text.split(",") if item.strip()]
+            if not debug_corpus_ids:
+                st.error("Debug corpus IDs cannot be empty.")
+                st.stop()
+            st.session_state["query_debug_payload"] = _run_query_debug(
+                {
+                    "query": debug_query,
+                    "corpus_ids": debug_corpus_ids,
+                    "filters": {},
                     "response_mode": "answer_with_citations",
                 },
                 sample_limit=sample_limit,
             )
-    with result_col:
-        payload = st.session_state.get("query_debug_payload")
-        if payload:
-            meta_left, meta_mid, meta_right = st.columns(3)
-            with meta_left:
-                _render_json_block("Query Analysis", payload.get("analysis", {}))
-            with meta_mid:
-                _render_json_block("Applied Filters", payload.get("applied_filters", {}))
-            with meta_right:
-                _render_json_block("Step Timings (ms)", payload.get("step_timings_ms", {}))
-            for stage in payload.get("stages", []):
-                _render_stage(stage, "query_stage")
-            st.markdown("### LLM Relevance Review")
-            answer_inputs = payload.get("answer_generation_inputs", {})
-            st.caption(f"{answer_inputs.get('count', 0)} results | {_format_duration(answer_inputs.get('duration_ms'))}")
-            answer_sample = _sample_selector("Answer input sample", answer_inputs.get("samples", []), "answer_inputs")
-            if answer_sample:
-                left, right = st.columns(2)
-                with left:
-                    _render_json_block(
-                        "Input Summary",
-                        {
-                            k: answer_sample.get(k)
-                            for k in ("chunk_id", "score", "chunk_type", "title", "pages", "section_path", "retrieval_stage")
-                        },
-                    )
-                    _render_json_block(
-                        "Model Judgment",
-                        {
-                            "verdict": answer_sample.get("relevance_verdict"),
-                            "reason": answer_sample.get("relevance_reason"),
-                        },
-                    )
-                with right:
-                    _render_json_block(
-                        "Input Content",
-                        {
-                            "content": answer_sample.get("content", ""),
-                            "context_window": answer_sample.get("context_window"),
-                            "parent_context": answer_sample.get("parent_context"),
-                        },
-                    )
-            st.markdown("### Chunk Summaries")
-            answer_summaries = payload.get("answer_summaries", {})
-            st.caption(f"{answer_summaries.get('count', 0)} summaries | {_format_duration(answer_summaries.get('duration_ms'))}")
-            summary_sample = _sample_selector("Summary sample", answer_summaries.get("samples", []), "answer_summaries")
-            if summary_sample:
-                left, right = st.columns(2)
-                with left:
-                    _render_json_block(
-                        "Summary Source",
-                        {
-                            k: summary_sample.get(k)
-                            for k in ("chunk_id", "title", "pages", "section_path", "source_document_id", "document_version_id")
-                        },
-                    )
-                with right:
-                    _render_json_block("Summary", {"summary": summary_sample.get("summary", "")})
-            st.markdown("### Final Answer")
-            st.caption(_format_duration(payload.get("step_timings_ms", {}).get("generate_answer")))
-            _render_json_block("Answer Payload", payload.get("answer", {}))
-            st.markdown("### Answer Generation Trace")
-            answer_trace = payload.get("answer_generation_trace", {})
-            trace_left, trace_mid, trace_right = st.columns(3)
-            with trace_left:
-                _render_json_block("Relevance Stage", answer_trace.get("relevance_review", {}))
-            with trace_mid:
-                _render_json_block("Summary Stage", answer_trace.get("summarization", {}))
-            with trace_right:
-                _render_json_block("Final Answer Stage", {k: v for k, v in answer_trace.get("final_answer", {}).items() if k != "summarized_evidence"})
-            final_answer_trace = answer_trace.get("final_answer", {})
-            _render_json_block("Summaries Sent To Final Answer", final_answer_trace.get("summarized_evidence", []))
-        else:
-            st.info("Run a query to inspect the retrieval and answer pipeline.")
+        debug_payload = st.session_state.get("query_debug_payload")
+        if debug_payload:
+            _render_json_block("Query Analysis", debug_payload.get("analysis", {}))
+            _render_json_block("Applied Filters", debug_payload.get("applied_filters", {}))
+            for stage in debug_payload.get("stages", []):
+                _render_stage(stage, "legacy_query_stage")
+            _render_json_block("Answer Payload", debug_payload.get("answer", {}))
 
     st.markdown("## Ollama Call Log")
     ollama_calls = st.session_state.get("ollama_call_log_payload")

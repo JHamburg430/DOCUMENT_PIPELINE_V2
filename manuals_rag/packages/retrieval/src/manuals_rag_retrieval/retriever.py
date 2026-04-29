@@ -24,6 +24,8 @@ else:
 
 
 logger = logging.getLogger(__name__)
+FUSED_CANDIDATE_POOL_LIMIT = 30
+DOCUMENT_METADATA_SELECTION_LIMIT = 5
 
 try:
     import torch
@@ -32,23 +34,44 @@ except ImportError:
 
 
 def build_filters(query: str, request_filters: dict[str, object]) -> dict[str, object]:
-    analysis = analyze_query(query)
     filters = dict(request_filters)
-    has_document_scope = any(key in filters for key in ("source_document_id", "document_version_id"))
-    if not has_document_scope and analysis.requested_doc_kind and "document_kind" not in filters:
-        filters["document_kind"] = analysis.requested_doc_kind
-    if not has_document_scope and analysis.product_model and not any(key in filters for key in ("product_model", "product_models")):
-        filters["product_models"] = analysis.product_model
-    if not has_document_scope and analysis.product_family and not any(key in filters for key in ("product_family", "product_families", "product_model", "product_models")):
-        filters["product_families"] = analysis.product_family
-    if not has_document_scope and analysis.manufacturer and "manufacturer" not in filters:
-        filters["manufacturer"] = analysis.manufacturer
-    if not has_document_scope and analysis.part_number and "part_numbers" not in filters:
-        filters["part_numbers"] = analysis.part_number
-    for key, value in analysis.preferred_metadata_filters.items():
-        filters.setdefault(key, value)
     filters.setdefault("is_active", True)
     return filters
+
+
+def _has_explicit_document_scope(filters: dict[str, object]) -> bool:
+    return any(filters.get(key) not in (None, "", [], {}) for key in ("source_document_id", "document_version_id"))
+
+
+def select_documents_from_metadata(
+    store: QdrantStore,
+    query: str,
+    corpus_ids: list[str],
+    filters: dict[str, object],
+    *,
+    limit: int = DOCUMENT_METADATA_SELECTION_LIMIT,
+) -> tuple[dict[str, object], list[dict[str, object]]]:
+    if _has_explicit_document_scope(filters):
+        return filters, []
+    hits: list[dict[str, object]] = []
+    for corpus_id in corpus_ids:
+        hits.extend(store.search_document_metadata(corpus_id=corpus_id, query=query, filters=filters, limit=limit))
+    if not hits:
+        return filters, []
+    hits.sort(key=lambda item: float(item.get("score", 0.0)), reverse=True)
+    document_ids: list[str] = []
+    deduped_hits: list[dict[str, object]] = []
+    for hit in hits:
+        document_id = str(hit.get("source_document_id") or "")
+        if not document_id or document_id in document_ids:
+            continue
+        document_ids.append(document_id)
+        deduped_hits.append(hit)
+        if len(document_ids) >= limit:
+            break
+    if not document_ids:
+        return filters, []
+    return {**filters, "source_document_id": document_ids}, deduped_hits
 
 
 def _special_route_filters(base_filters: dict[str, object], analysis: QueryAnalysis) -> list[dict[str, object]]:
@@ -94,6 +117,16 @@ def run_sparse_search(store: QdrantStore, query: str, corpus_ids: list[str], fil
     return results
 
 
+def run_table_search(store: QdrantStore, query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+    table_filters = {**filters, "chunk_type": ["table_record"]}
+    results: list[SearchResult] = []
+    for corpus_id in corpus_ids:
+        dense_results = store.search_dense(corpus_id=corpus_id, query=query, filters=table_filters, limit=limit)
+        sparse_results = store.search_sparse(corpus_id=corpus_id, query=query, filters=table_filters, limit=limit)
+        results.extend(store.fuse_rrf([dense_results, sparse_results], limit=limit))
+    return results
+
+
 def run_special_search(
     store: QdrantStore,
     query: str,
@@ -119,7 +152,28 @@ def _query_terms(analysis: QueryAnalysis) -> set[str]:
     normalized_terms = getattr(analysis, "normalized_terms", None)
     if normalized_terms is None:
         return set()
-    return set(normalized_terms)
+    return _term_variants(normalized_terms)
+
+
+def _term_variants(terms: Iterable[str]) -> set[str]:
+    variants: set[str] = set()
+    for term in terms:
+        token = str(term).strip().lower()
+        if not token:
+            continue
+        variants.add(token)
+        compact = re.sub(r"[-/.]", "", token)
+        if compact:
+            variants.add(compact)
+        if not any(char.isdigit() for char in token):
+            for piece in re.split(r"[-/.]", token):
+                if piece:
+                    variants.add(piece)
+    return variants
+
+
+def _text_terms(text: str) -> set[str]:
+    return _term_variants(tokenize(text))
 
 
 def _query_has_explicit_structure(analysis: QueryAnalysis) -> bool:
@@ -317,10 +371,10 @@ def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> flo
     query_terms = _query_terms(analysis)
     if not query_terms:
         return 0.0
-    content_terms = set(tokenize(str(result.content or "")))
-    title_terms = set(tokenize(str(result.title or "")))
-    section_terms = set(tokenize(" ".join(result.section_path)))
-    rerank_terms = set(tokenize(str(result.metadata.get("rerank_document") or result.metadata.get("content_for_rerank") or "")))
+    content_terms = _text_terms(str(result.content or ""))
+    title_terms = _text_terms(str(result.title or ""))
+    section_terms = _text_terms(" ".join(result.section_path))
+    rerank_terms = _text_terms(str(result.metadata.get("rerank_document") or result.metadata.get("content_for_rerank") or ""))
     content_overlap = len(query_terms.intersection(content_terms))
     title_overlap = len(query_terms.intersection(title_terms))
     section_overlap = len(query_terms.intersection(section_terms))
@@ -359,12 +413,12 @@ def _select_family_candidates(
     family_order = requested_order or _preferred_family_order(analysis)
     allowed_families = requested_families or _allowed_families(analysis)
     buckets: dict[str, list[SearchResult]] = {}
+    chosen: list[SearchResult] = results[: min(3, limit)] if analysis.query_types == ["general"] else []
     for result in results:
         family = str(result.metadata.get("family_bucket") or _family_bucket(result))
         if family not in allowed_families:
             continue
         buckets.setdefault(family, []).append(result)
-    chosen: list[SearchResult] = []
     primary_family = next((family for family in family_order if buckets.get(family)), None)
     if primary_family:
         chosen.extend(buckets[primary_family][: max(6, limit)])
@@ -668,18 +722,44 @@ def assemble_context(results: list[SearchResult], *, limit: int = 10) -> list[Se
 def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 10) -> list[SearchResult]:
     store = QdrantStore()
     analysis = analyze_query(query)
-    dense_results = _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, filters), "dense")
-    sparse_results = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, filters), "sparse")
-    special_results = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, filters, analysis), "special")
-    fused = _annotate_stage_metadata(fuse_results(store, [dense_results, sparse_results, special_results], limit=30), "fused")
-    rescored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored")[:30], "family_scored")
+    search_filters, metadata_document_hits = select_documents_from_metadata(store, query, corpus_ids, filters)
+    dense_results = _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, search_filters), "dense")
+    sparse_results = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, search_filters), "sparse")
+    table_results = _annotate_stage_metadata(run_table_search(store, query, corpus_ids, search_filters), "table")
+    special_results = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, search_filters, analysis), "special")
+    fused = _annotate_stage_metadata(fuse_results(store, [dense_results, sparse_results, table_results, special_results], limit=FUSED_CANDIDATE_POOL_LIMIT), "fused")
+    rescored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored")[:FUSED_CANDIDATE_POOL_LIMIT], "family_scored")
     completed = _annotate_stage_metadata(_annotate_completeness(rescored), "completeness_scored")
     aligned = _annotate_stage_metadata(_apply_query_alignment(completed, analysis, stage="query_aligned"), "query_aligned")
-    family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=filters, limit=12), "family_selected")
+    family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=search_filters, limit=12), "family_selected")
     enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=12)
     reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked")
     deduped = _dedupe_results(reranked, analysis)
-    return assemble_context(deduped, limit=limit)
+    assembled = assemble_context(deduped, limit=limit)
+    if not metadata_document_hits:
+        return assembled
+    document_selection = [
+        {
+            "source_document_id": hit.get("source_document_id"),
+            "score": hit.get("score"),
+            "retrieval_stage": hit.get("retrieval_stage"),
+            "title": (hit.get("payload") or {}).get("title") if isinstance(hit.get("payload"), dict) else None,
+            "source_filename": (hit.get("payload") or {}).get("source_filename") if isinstance(hit.get("payload"), dict) else None,
+        }
+        for hit in metadata_document_hits
+    ]
+    return [
+        result.model_copy(
+            update={
+                "metadata": {
+                    **result.metadata,
+                    "document_selection_stage": "metadata_embedding",
+                    "selected_document_metadata_hits": document_selection,
+                }
+            }
+        )
+        for result in assembled
+    ]
 
 
 def document_versions_for_results(results: list[SearchResult]) -> list[dict[str, object]]:

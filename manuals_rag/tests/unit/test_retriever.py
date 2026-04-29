@@ -1,9 +1,10 @@
 from types import SimpleNamespace
 
+from manuals_rag_retrieval.document_metadata import enrich_document_metadata_with_chunk_signals
 from manuals_rag_retrieval.qdrant_store import QdrantStore
 from manuals_rag_retrieval import retriever
-from manuals_rag_retrieval.retriever import _resolve_rerank_device, fuse_results, rerank_results, run_dense_search, run_sparse_search
-from manuals_rag_retrieval.query_analysis import analyze_query
+from manuals_rag_retrieval.retriever import _resolve_rerank_device, fuse_results, rerank_results, run_dense_search, run_sparse_search, run_table_search
+from manuals_rag_retrieval.query_analysis import QueryAnalysis, analyze_query
 from manuals_rag_schemas.documents import SearchResult
 from qdrant_client.http.exceptions import UnexpectedResponse
 
@@ -190,7 +191,7 @@ def test_dedupe_results_keeps_distinct_chunks_in_same_section():
 
 
 def test_family_scoring_promotes_spec_chunks_for_spec_queries():
-    analysis = analyze_query("What voltage specification is listed?")
+    analysis = QueryAnalysis(raw_query="structured lookup", query_types=["spec_lookup"])
     atomic = SearchResult(
         chunk_id="atomic",
         score=0.5,
@@ -273,7 +274,123 @@ def test_query_alignment_promotes_candidate_with_better_query_term_coverage():
     assert rescored[0].chunk_id == "aligned"
 
 
-def test_family_selection_excludes_spec_family_for_general_queries():
+def test_query_alignment_normalizes_hyphenated_axis_terms():
+    analysis = analyze_query("z axis repeatability")
+    partial = SearchResult(
+        chunk_id="partial",
+        score=0.5,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Specs"],
+        content="Z axis measurement range",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    aligned = SearchResult(
+        chunk_id="aligned",
+        score=0.49,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Specs"],
+        content="Z-axis repeatability is listed in the precision table.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    rescored = retriever._apply_query_alignment([partial, aligned], analysis, stage="query_aligned")
+    assert rescored[0].chunk_id == "aligned"
+
+
+def test_query_alignment_does_not_match_identifier_fragments():
+    analysis = analyze_query("LJ-X8080 z axis repeatability")
+    wrong_identifier = SearchResult(
+        chunk_id="wrong",
+        score=0.5,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Specs"],
+        content="LJ-X8020 Z-axis repeatability is listed.",
+        metadata={"chunk_type": "table_record"},
+    )
+    aligned = SearchResult(
+        chunk_id="aligned",
+        score=0.49,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-2",
+        pages=[1],
+        section_path=["Specs"],
+        content="LJ-X8080 Z-axis repeatability is listed.",
+        metadata={"chunk_type": "table_record"},
+    )
+    rescored = retriever._apply_query_alignment([wrong_identifier, aligned], analysis, stage="query_aligned")
+    assert rescored[0].chunk_id == "aligned"
+
+
+def test_query_alignment_promotes_generic_mixed_vendor_spec_lookup():
+    analysis = analyze_query("AX-1200 pressure repeatability")
+    wrong_document = SearchResult(
+        chunk_id="wrong",
+        score=0.5,
+        title="QN-42A Pressure Sensor",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Specifications"],
+        content="QN-42A pressure repeatability is listed as 0.04 kPa.",
+        metadata={"chunk_type": "table_record"},
+    )
+    aligned = SearchResult(
+        chunk_id="aligned",
+        score=0.49,
+        title="AX-1200 Pressure Controller",
+        document_version_id="ver-2",
+        source_document_id="doc-2",
+        pages=[3],
+        section_path=["Specifications"],
+        content="AX-1200 pressure repeatability is listed as 0.02 kPa.",
+        metadata={"chunk_type": "table_record"},
+    )
+
+    rescored = retriever._apply_query_alignment([wrong_document, aligned], analysis, stage="query_aligned")
+
+    assert rescored[0].chunk_id == "aligned"
+
+
+def test_query_alignment_keeps_generic_procedure_search_ahead_of_unrelated_spec_table():
+    analysis = analyze_query("configure ethernet scanner steps")
+    unrelated_spec = SearchResult(
+        chunk_id="spec",
+        score=0.5,
+        title="Scanner Specifications",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Specifications"],
+        content="Ethernet scanner supply voltage: 24 VDC.",
+        metadata={"chunk_type": "table_record"},
+    )
+    procedure = SearchResult(
+        chunk_id="procedure",
+        score=0.49,
+        title="Scanner Setup Guide",
+        document_version_id="ver-2",
+        source_document_id="doc-2",
+        pages=[5],
+        section_path=["Setup"],
+        content="Configure the Ethernet scanner by opening network setup and following the steps.",
+        metadata={"chunk_type": "procedure_record"},
+    )
+
+    rescored = retriever._apply_query_alignment([unrelated_spec, procedure], analysis, stage="query_aligned")
+
+    assert rescored[0].chunk_id == "procedure"
+
+
+def test_family_selection_keeps_preferred_family_for_general_queries():
     analysis = analyze_query("Where does the manual discuss command completion and successful execution?")
     candidates = [
         SearchResult(
@@ -300,7 +417,7 @@ def test_family_selection_excludes_spec_family_for_general_queries():
         ),
     ]
     selected = retriever._select_family_candidates(candidates, analysis, limit=5)
-    assert [item.chunk_id for item in selected] == ["prose"]
+    assert "prose" in [item.chunk_id for item in selected]
 
 
 def test_dense_search_returns_empty_on_vector_dimension_mismatch(monkeypatch):
@@ -405,7 +522,7 @@ def test_select_family_candidates_prefers_procedure_family_for_how_to_queries():
     assert chosen[0].chunk_id == "proc"
 
 
-def test_select_family_candidates_prefers_spec_family_for_spec_queries():
+def test_select_family_candidates_does_not_infer_spec_family_from_content_terms():
     analysis = analyze_query("What voltage specification is listed for the module?")
     prose = SearchResult(
         chunk_id="prose",
@@ -430,7 +547,8 @@ def test_select_family_candidates_prefers_spec_family_for_spec_queries():
         metadata={"chunk_type": "spec_record", "family_bucket": "spec"},
     )
     chosen = retriever._select_family_candidates([prose, spec], analysis, limit=4)
-    assert chosen[0].chunk_id == "spec"
+    assert chosen[0].chunk_id == "prose"
+    assert "spec" in [item.chunk_id for item in chosen]
 
 
 def test_run_dense_search_queries_each_corpus_and_returns_dense_hits():
@@ -489,6 +607,132 @@ def test_run_sparse_search_queries_each_corpus_and_returns_sparse_hits():
         ("c1", "handshake flags", {"document_kind": "manual"}, 4),
         ("c2", "handshake flags", {"document_kind": "manual"}, 4),
     ]
+
+
+def test_run_table_search_queries_table_records_with_dense_and_sparse():
+    calls: list[tuple[str, str, dict[str, object], int]] = []
+
+    class FakeStore:
+        def search_dense(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            calls.append((f"dense-{corpus_id}", query, filters, limit))
+            return [
+                SearchResult(
+                    chunk_id=f"dense-table-{corpus_id}",
+                    score=0.7,
+                    title=f"Doc {corpus_id}",
+                    document_version_id="ver-1",
+                    source_document_id=f"src-{corpus_id}",
+                    pages=[1],
+                    section_path=["Specs"],
+                    content="Column headers: Model; Row headers: Property; Cell value: 1",
+                    metadata={"chunk_type": "table_record"},
+                )
+            ]
+
+        def search_sparse(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            calls.append((f"sparse-{corpus_id}", query, filters, limit))
+            return [
+                SearchResult(
+                    chunk_id=f"sparse-table-{corpus_id}",
+                    score=0.65,
+                    title=f"Doc {corpus_id}",
+                    document_version_id="ver-1",
+                    source_document_id=f"src-{corpus_id}",
+                    pages=[1],
+                    section_path=["Specs"],
+                    content="Column headers: Model; Row headers: Property; Cell value: 1",
+                    metadata={"chunk_type": "table_record"},
+                )
+            ]
+
+        @staticmethod
+        def fuse_rrf(result_sets: list[list[SearchResult]], *, limit: int, k: int = 60) -> list[SearchResult]:
+            return QdrantStore.fuse_rrf(result_sets, limit=limit, k=k)
+
+    results = run_table_search(FakeStore(), "any query", ["c1", "c2"], {"is_active": True}, limit=3)
+
+    assert [item.chunk_id for item in results] == ["dense-table-c1", "sparse-table-c1", "dense-table-c2", "sparse-table-c2"]
+    assert calls == [
+        ("dense-c1", "any query", {"is_active": True, "chunk_type": ["table_record"]}, 3),
+        ("sparse-c1", "any query", {"is_active": True, "chunk_type": ["table_record"]}, 3),
+        ("dense-c2", "any query", {"is_active": True, "chunk_type": ["table_record"]}, 3),
+        ("sparse-c2", "any query", {"is_active": True, "chunk_type": ["table_record"]}, 3),
+    ]
+
+
+def test_metadata_document_selection_adds_document_scope_before_chunk_search():
+    calls: list[tuple[str, str, dict[str, object], int]] = []
+
+    class FakeStore:
+        def search_document_metadata(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 5) -> list[dict[str, object]]:
+            calls.append((corpus_id, query, filters, limit))
+            return [
+                {"source_document_id": f"doc-{corpus_id}", "score": 0.9, "payload": {"title": f"Doc {corpus_id}"}},
+                {"source_document_id": "duplicate", "score": 0.8, "payload": {"title": "Duplicate"}},
+            ]
+
+    filters, hits = retriever.select_documents_from_metadata(
+        FakeStore(),
+        "z axis repeatability",
+        ["c1", "c2"],
+        {"is_active": True},
+        limit=3,
+    )
+
+    assert filters == {"is_active": True, "source_document_id": ["doc-c1", "doc-c2", "duplicate"]}
+    assert [hit["source_document_id"] for hit in hits] == ["doc-c1", "doc-c2", "duplicate"]
+    assert calls == [
+        ("c1", "z axis repeatability", {"is_active": True}, 3),
+        ("c2", "z axis repeatability", {"is_active": True}, 3),
+    ]
+
+
+def test_metadata_document_selection_respects_explicit_document_scope():
+    class FakeStore:
+        def search_document_metadata(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 5) -> list[dict[str, object]]:
+            raise AssertionError("metadata selection should be skipped")
+
+    original_filters = {"is_active": True, "source_document_id": "doc-1"}
+    filters, hits = retriever.select_documents_from_metadata(FakeStore(), "query", ["c1"], original_filters)
+
+    assert filters == original_filters
+    assert hits == []
+
+
+def test_metadata_document_selection_falls_back_when_metadata_index_has_no_hits():
+    class FakeStore:
+        def search_document_metadata(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 5) -> list[dict[str, object]]:
+            return []
+
+    original_filters = {"is_active": True}
+    filters, hits = retriever.select_documents_from_metadata(FakeStore(), "query", ["c1"], original_filters)
+
+    assert filters == original_filters
+    assert hits == []
+
+
+def test_document_metadata_index_aggregates_generic_chunk_metadata_signals():
+    document = {"metadata_json": {"product_models": ["Series-100"]}}
+    chunk_rows = [
+        {
+            "metadata_json": {
+                "product_models": ["Series-100", "Model-101"],
+                "table_column_headers": ["Model-101"],
+                "table_row_headers": ["Repeatability"],
+                "section_path": ["Specifications"],
+                "local_rerank_context": "raw chunk text is not a configured document metadata signal",
+            }
+        }
+    ]
+
+    enriched = enrich_document_metadata_with_chunk_signals(document, chunk_rows)
+
+    signals = enriched["metadata_json"]["chunk_metadata_signals"]
+    assert signals["product_models"] == ["Series-100", "Model-101"]
+    assert signals["table_column_headers"] == ["Model-101"]
+    assert signals["table_row_headers"] == ["Repeatability"]
+    assert signals["section_path"] == ["Specifications"]
+    assert "local_rerank_context" not in signals
 
 
 def test_qdrant_store_search_sparse_uses_bm25_ranking(monkeypatch):
@@ -756,3 +1000,92 @@ def test_rerank_results_keeps_query_aligned_candidate_ahead_of_unrelated_cross_e
 
     assert [item.chunk_id for item in reranked] == ["aligned"]
     assert reranked[0].metadata["rerank_query_alignment"] > 0
+
+
+def test_retrieve_uses_metadata_document_selection_before_chunk_search(monkeypatch):
+    selected_filters: list[dict[str, object]] = []
+    result = SearchResult(
+        chunk_id="selected-chunk",
+        score=0.9,
+        title="Selected Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-selected",
+        pages=[36],
+        section_path=["Specs"],
+        content="Column headers: Model-101; Row headers: Repeatability; Cell value: 0.5 um",
+        metadata={"chunk_type": "table_record"},
+    )
+
+    class FakeStore:
+        def search_document_metadata(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 5) -> list[dict[str, object]]:
+            assert query == "Model-101 z axis repeatability"
+            return [
+                {
+                    "source_document_id": "doc-selected",
+                    "score": 0.9,
+                    "retrieval_stage": "metadata_dense+metadata_sparse",
+                    "payload": {"title": "Selected Doc", "source_filename": "selected.pdf"},
+                }
+            ]
+
+        def search_dense(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            selected_filters.append(filters)
+            return [result]
+
+        def search_sparse(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            selected_filters.append(filters)
+            return [result]
+
+        @staticmethod
+        def fuse_rrf(result_sets: list[list[SearchResult]], *, limit: int, k: int = 60) -> list[SearchResult]:
+            return QdrantStore.fuse_rrf(result_sets, limit=limit, k=k)
+
+    monkeypatch.setattr(retriever, "QdrantStore", FakeStore)
+    monkeypatch.setattr(retriever, "run_special_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retriever, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "rerank_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "assemble_context", lambda results, **_kwargs: results)
+
+    results = retriever.retrieve("Model-101 z axis repeatability", ["corpus-1"], {"is_active": True}, limit=5)
+
+    assert results[0].source_document_id == "doc-selected"
+    assert all(filters["source_document_id"] == ["doc-selected"] for filters in selected_filters)
+    assert results[0].metadata["document_selection_stage"] == "metadata_embedding"
+    assert results[0].metadata["selected_document_metadata_hits"][0]["source_document_id"] == "doc-selected"
+
+
+def test_repeatability_query_keeps_table_candidate_after_family_selection():
+    analysis = analyze_query("Model-101 z axis repeatability")
+    assert analysis.query_types == ["general"]
+    assert analysis.preferred_chunk_types == []
+    table = SearchResult(
+        chunk_id="table",
+        score=0.38,
+        title="Spec Sheet",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[36],
+        section_path=["Specifications"],
+        content="Column headers: Model-101; Row headers: Repeatability > Z-axis; Cell value: 0.5 um",
+        metadata={
+            "chunk_type": "table_record",
+            "family_bucket": "table",
+            "table_column_headers": ["Model-101"],
+            "table_row_headers": ["Repeatability", "Z-axis"],
+        },
+    )
+    prose = SearchResult(
+        chunk_id="prose",
+        score=0.32,
+        title="Spec Sheet",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[34],
+        section_path=["Notes"],
+        content="For Model-101 connection, measurement range changes when binning is enabled.",
+        metadata={"chunk_type": "atomic_text", "family_bucket": "prose"},
+    )
+
+    selected = retriever._select_family_candidates([table, prose], analysis, limit=5)
+
+    assert selected[0].chunk_id == "table"

@@ -18,8 +18,17 @@ def test_debug_report_includes_all_stages(monkeypatch):
     monkeypatch.setattr(retrieval_debug, "build_filters", lambda query, request_filters: {"is_active": True, **request_filters})
     monkeypatch.setattr(retrieval_debug, "analyze_query", lambda query: type("A", (), {"query_types": ["spec_lookup"], "preferred_chunk_types": ["spec_record"]})())
     monkeypatch.setattr(retrieval_debug, "QdrantStore", lambda: object())
+    monkeypatch.setattr(
+        retrieval_debug,
+        "select_documents_from_metadata",
+        lambda store, query, corpus_ids, filters: (
+            {**filters, "source_document_id": ["doc-1"]},
+            [{"source_document_id": "doc-1", "score": 0.5, "retrieval_stage": "metadata_dense", "payload": {"title": "Doc"}}],
+        ),
+    )
     monkeypatch.setattr(retrieval_debug, "run_dense_search", lambda *args, **kwargs: [result])
     monkeypatch.setattr(retrieval_debug, "run_sparse_search", lambda *args, **kwargs: [result])
+    monkeypatch.setattr(retrieval_debug, "run_table_search", lambda *args, **kwargs: [])
     monkeypatch.setattr(retrieval_debug, "run_special_search", lambda *args, **kwargs: [])
     monkeypatch.setattr(retrieval_debug, "fuse_results", lambda *args, **kwargs: [result])
     monkeypatch.setattr(retrieval_debug, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)
@@ -40,9 +49,12 @@ def test_debug_report_includes_all_stages(monkeypatch):
     assert report["query_count"] == 1
     case = report["cases"][0]
     assert case["query_types"] == ["spec_lookup"]
+    assert case["filters"]["source_document_id"] == ["doc-1"]
     assert [stage["name"] for stage in case["stages"]] == [
+        "metadata_document_selection",
         "dense",
         "sparse",
+        "table",
         "special",
         "fused",
         "family_scored",
@@ -52,8 +64,10 @@ def test_debug_report_includes_all_stages(monkeypatch):
         "reranked",
         "assembled",
     ]
-    assert case["stages"][0]["results"][0]["chunk_type"] == "spec_record"
+    assert case["stages"][0]["results"][0]["source_document_id"] == "doc-1"
+    assert case["stages"][1]["results"][0]["chunk_type"] == "spec_record"
     assert "summary" in report
+    assert report["summary"]["cases_with_metadata_document_selection"] == 1
 
 
 def test_debug_report_summary_flags_low_information_stage_regressions(monkeypatch):
@@ -83,8 +97,14 @@ def test_debug_report_summary_flags_low_information_stage_regressions(monkeypatc
     monkeypatch.setattr(retrieval_debug, "build_filters", lambda query, request_filters: {"is_active": True, **request_filters})
     monkeypatch.setattr(retrieval_debug, "analyze_query", lambda query: type("A", (), {"query_types": ["spec_lookup"], "preferred_chunk_types": ["spec_record"]})())
     monkeypatch.setattr(retrieval_debug, "QdrantStore", lambda: object())
+    monkeypatch.setattr(
+        retrieval_debug,
+        "select_documents_from_metadata",
+        lambda store, query, corpus_ids, filters: (filters, []),
+    )
     monkeypatch.setattr(retrieval_debug, "run_dense_search", lambda *args, **kwargs: [low_info])
     monkeypatch.setattr(retrieval_debug, "run_sparse_search", lambda *args, **kwargs: [strong])
+    monkeypatch.setattr(retrieval_debug, "run_table_search", lambda *args, **kwargs: [])
     monkeypatch.setattr(retrieval_debug, "run_special_search", lambda *args, **kwargs: [])
     monkeypatch.setattr(retrieval_debug, "fuse_results", lambda *args, **kwargs: [strong])
     monkeypatch.setattr(retrieval_debug, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)

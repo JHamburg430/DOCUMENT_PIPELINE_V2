@@ -32,7 +32,7 @@ create table if not exists source_documents (
 );
 
 create unique index if not exists source_documents_tenant_sha256_uidx
-    on source_documents (tenant_id, sha256);
+    on source_documents (tenant_id, corpus_id, sha256);
 
 create table if not exists document_versions (
     id uuid primary key,

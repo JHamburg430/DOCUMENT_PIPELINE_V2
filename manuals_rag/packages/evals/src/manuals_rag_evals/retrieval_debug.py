@@ -23,6 +23,8 @@ from manuals_rag_retrieval.retriever import (
     run_dense_search,
     run_sparse_search,
     run_special_search,
+    run_table_search,
+    select_documents_from_metadata,
 )
 from manuals_rag_schemas.documents import SearchResult
 
@@ -73,6 +75,23 @@ def _stage(name: str, results: list[SearchResult], *, top_k: int) -> RetrievalDe
     )
 
 
+def _metadata_document_selection_stage(hits: list[dict[str, Any]], *, top_k: int) -> RetrievalDebugStage:
+    return RetrievalDebugStage(
+        name="metadata_document_selection",
+        count=len(hits),
+        results=[
+            {
+                "source_document_id": hit.get("source_document_id"),
+                "score": round(float(hit.get("score", 0.0)), 6),
+                "retrieval_stage": hit.get("retrieval_stage"),
+                "title": (hit.get("payload") or {}).get("title") if isinstance(hit.get("payload"), dict) else None,
+                "source_filename": (hit.get("payload") or {}).get("source_filename") if isinstance(hit.get("payload"), dict) else None,
+            }
+            for hit in hits[:top_k]
+        ],
+    )
+
+
 def _case_diagnostics(stages: list[RetrievalDebugStage]) -> dict[str, Any]:
     top_results = {stage.name: (stage.results[0] if stage.results else None) for stage in stages}
     low_information_top_stages = [name for name, result in top_results.items() if result and result.get("low_information")]
@@ -85,6 +104,7 @@ def _case_diagnostics(stages: list[RetrievalDebugStage]) -> dict[str, Any]:
         "low_information_top_stages": low_information_top_stages,
         "structured_low_information_top_stages": structured_low_information_top_stages,
         "special_empty": not bool(next((stage.results for stage in stages if stage.name == "special"), [])),
+        "metadata_document_selection_used": bool(top_results.get("metadata_document_selection")),
         "rerank_promoted_low_information": bool(reranked and reranked.get("low_information")),
         "family_selection_changed_top_chunk": bool(
             family_selected and top_results.get("fused") and family_selected.get("chunk_id") != top_results["fused"].get("chunk_id")
@@ -98,6 +118,7 @@ def _case_diagnostics(stages: list[RetrievalDebugStage]) -> dict[str, Any]:
 
 def _report_summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
     summary = {
+        "cases_with_metadata_document_selection": 0,
         "cases_with_low_information_top_hit": 0,
         "cases_with_structured_low_information_top_hit": 0,
         "cases_with_empty_special_stage": 0,
@@ -107,6 +128,7 @@ def _report_summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
     }
     for case in cases:
         diagnostics = case["diagnostics"]
+        summary["cases_with_metadata_document_selection"] += int(diagnostics["metadata_document_selection_used"])
         summary["cases_with_low_information_top_hit"] += int(bool(diagnostics["low_information_top_stages"]))
         summary["cases_with_structured_low_information_top_hit"] += int(
             bool(diagnostics["structured_low_information_top_stages"])
@@ -129,15 +151,17 @@ def debug_retrieval_query(
     analysis = analyze_query(query)
     filters = build_filters(query, request_filters)
     store = QdrantStore()
+    search_filters, metadata_document_hits = select_documents_from_metadata(store, query, corpus_ids, filters)
 
-    dense = _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, filters, limit=max(top_k * 2, 10)), "dense")
-    sparse = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, filters, limit=max(top_k * 2, 10)), "sparse")
-    special = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, filters, analysis, limit=max(top_k * 2, 10)), "special")
-    fused = _annotate_stage_metadata(fuse_results(store, [dense, sparse, special], limit=max(top_k * 4, 20)), "fused")
+    dense = _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, search_filters, limit=max(top_k * 2, 10)), "dense")
+    sparse = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, search_filters, limit=max(top_k * 2, 10)), "sparse")
+    table = _annotate_stage_metadata(run_table_search(store, query, corpus_ids, search_filters, limit=max(top_k * 2, 10)), "table")
+    special = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, search_filters, analysis, limit=max(top_k * 2, 10)), "special")
+    fused = _annotate_stage_metadata(fuse_results(store, [dense, sparse, table, special], limit=max(top_k * 4, 20)), "fused")
     family_scored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored"), "family_scored")
     completeness_scored = _annotate_stage_metadata(_annotate_completeness(family_scored), "completeness_scored")
     query_aligned = _annotate_stage_metadata(_apply_query_alignment(completeness_scored, analysis, stage="query_aligned"), "query_aligned")
-    family_selected = _annotate_stage_metadata(_select_family_candidates(query_aligned, analysis, limit=max(top_k * 2, 10)), "family_selected")
+    family_selected = _annotate_stage_metadata(_select_family_candidates(query_aligned, analysis, filters=search_filters, limit=max(top_k * 2, 10)), "family_selected")
     enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=max(top_k * 2, 10))
     reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=max(top_k * 2, 10)), "reranked")
     deduped = _annotate_stage_metadata(_dedupe_results(reranked, analysis), "deduped")
@@ -145,12 +169,14 @@ def debug_retrieval_query(
 
     return RetrievalDebugCase(
         query=query,
-        filters=filters,
+        filters=search_filters,
         query_types=analysis.query_types,
         preferred_chunk_types=analysis.preferred_chunk_types,
         stages=[
+            _metadata_document_selection_stage(metadata_document_hits, top_k=top_k),
             _stage("dense", dense, top_k=top_k),
             _stage("sparse", sparse, top_k=top_k),
+            _stage("table", table, top_k=top_k),
             _stage("special", special, top_k=top_k),
             _stage("fused", fused, top_k=top_k),
             _stage("family_scored", family_scored, top_k=top_k),
@@ -162,8 +188,10 @@ def debug_retrieval_query(
         ],
         diagnostics=_case_diagnostics(
             [
+                _metadata_document_selection_stage(metadata_document_hits, top_k=top_k),
                 _stage("dense", dense, top_k=top_k),
                 _stage("sparse", sparse, top_k=top_k),
+                _stage("table", table, top_k=top_k),
                 _stage("special", special, top_k=top_k),
                 _stage("fused", fused, top_k=top_k),
                 _stage("family_scored", family_scored, top_k=top_k),
@@ -238,8 +266,14 @@ def debug_report_to_markdown(report: dict[str, Any]) -> str:
             lines.append(f"### {stage['name']}")
             lines.append(f"- Result count: `{stage['count']}`")
             for index, result in enumerate(stage["results"], start=1):
-                lines.append(
-                    f"- `{index}.` `{result['chunk_type']}` score `{result['score']}` pages `{result['pages']}`: `{result['content_preview']}`"
-                )
+                if stage["name"] == "metadata_document_selection":
+                    lines.append(
+                        f"- `{index}.` document `{result['source_document_id']}` score `{result['score']}` "
+                        f"stage `{result['retrieval_stage']}`: `{result.get('source_filename') or result.get('title')}`"
+                    )
+                else:
+                    lines.append(
+                        f"- `{index}.` `{result['chunk_type']}` score `{result['score']}` pages `{result['pages']}`: `{result['content_preview']}`"
+                    )
             lines.append("")
     return "\n".join(lines)

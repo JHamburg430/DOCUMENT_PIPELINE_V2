@@ -181,11 +181,11 @@ def _scalar_prompt_messages(filename: str, text: str) -> list[dict[str, str]]:
 
 
 LIST_FIELD_INSTRUCTIONS = {
-    "companies": "Copy company or manufacturer names from the source. Examples of the kind of value: KEYENCE, KEYENCE AMERICA. Return exact source text only.",
-    "product_families": "Extract product family names or series names from the source. Examples of the kind of value: LJ-X series, CA-EN series, IV4. Use short values.",
-    "product_models": "Copy product model identifiers from the source. Examples of the kind of value: LJ-X8000, LJ-X8080, LJ-X8060, CA-EN100U. Do not include accessory part numbers.",
+    "companies": "Copy company or manufacturer names from the source. Examples of the kind of value: ACME CONTROLS, NORTHRIDGE AUTOMATION. Return exact source text only.",
+    "product_families": "Extract product family names or series names from the source. Examples of the kind of value: AX series, QN family, Model 700 platform. Use short values.",
+    "product_models": "Copy product model identifiers from the source. Examples of the kind of value: AX-1200, QN-42A, MTR-700. Do not include accessory part numbers.",
     "devices": "Copy device, product, or equipment names from the source. Use concise exact source phrases.",
-    "part_numbers": "Copy accessory, option, cable, or part/order numbers from the source. Examples of the kind of value: OP-88310. Do not include product model identifiers.",
+    "part_numbers": "Copy accessory, option, cable, or part/order numbers from the source. Examples of the kind of value: ACC-88310, CBL-2040. Do not include product model identifiers.",
     "protocol_terms": "Copy industrial communication protocol names from the source. Examples of the kind of value: EtherNet/IP, EtherCAT, PROFINET, Modbus, RS-232C.",
     "settings": "Copy UI setting names, menu setting names, setup labels, or configurable setting names from the source. Use concise exact source phrases.",
     "parameters": "Copy parameter names, parameter labels, or named numeric/configuration parameters from the source. Use concise exact source phrases.",

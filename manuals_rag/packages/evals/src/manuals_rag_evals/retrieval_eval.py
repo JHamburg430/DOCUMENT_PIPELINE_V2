@@ -542,12 +542,59 @@ def _result_term_overlap(result_content: str, expected_terms: list[str]) -> int:
     return sum(1 for term in expected_terms if term and term in haystack)
 
 
+def score_document_selection(
+    case: RetrievalEvalCase,
+    results: list[dict[str, Any]],
+    *,
+    top_k: int = 5,
+) -> dict[str, Any]:
+    selected_hits: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for result in results[:top_k]:
+        metadata = result.get("metadata", {})
+        if not isinstance(metadata, dict):
+            continue
+        for hit in metadata.get("selected_document_metadata_hits", []) or []:
+            document_id = str(hit.get("source_document_id") or "")
+            if not document_id or document_id in seen:
+                continue
+            selected_hits.append(hit)
+            seen.add(document_id)
+
+    if not selected_hits:
+        return {
+            "attempted": False,
+            "passed": False,
+            "rank": None,
+            "expected_source_document_id": case.source_document_id,
+            "selected_source_document_ids": [],
+            "hit_count": 0,
+            "failure_category": "metadata_selection_not_recorded",
+        }
+
+    selected_ids = [str(hit.get("source_document_id") or "") for hit in selected_hits]
+    rank = next(
+        (index for index, document_id in enumerate(selected_ids, start=1) if document_id == case.source_document_id),
+        None,
+    )
+    return {
+        "attempted": True,
+        "passed": rank is not None and rank <= top_k,
+        "rank": rank,
+        "expected_source_document_id": case.source_document_id,
+        "selected_source_document_ids": selected_ids[:top_k],
+        "hit_count": len(selected_hits),
+        "failure_category": None if rank is not None and rank <= top_k else "metadata_document_miss",
+    }
+
+
 def score_search_results(
     case: RetrievalEvalCase,
     results: list[dict[str, Any]],
     *,
     top_k: int = 5,
 ) -> dict[str, Any]:
+    document_selection = score_document_selection(case, results, top_k=top_k)
     considered = results[:top_k]
     found_same_document = False
     found_chunk_family = False
@@ -572,6 +619,7 @@ def score_search_results(
                 "failure_category": None,
                 "retrieval_stage": "final_top_k",
                 "candidate_recall": True,
+                "metadata_document_selection": document_selection,
             }
         if same_document and same_section and overlap >= max(2, min(3, len(case.expected_terms))):
             return {
@@ -582,6 +630,7 @@ def score_search_results(
                 "failure_category": None,
                 "retrieval_stage": "final_top_k",
                 "candidate_recall": True,
+                "metadata_document_selection": document_selection,
             }
         if same_document and overlap >= max(2, min(3, len(case.expected_terms))):
             return {
@@ -592,6 +641,7 @@ def score_search_results(
                 "failure_category": None,
                 "retrieval_stage": "final_top_k",
                 "candidate_recall": True,
+                "metadata_document_selection": document_selection,
             }
     failure_category = "candidate_miss"
     if found_same_document:
@@ -606,4 +656,5 @@ def score_search_results(
         "failure_category": failure_category,
         "retrieval_stage": "final_top_k",
         "candidate_recall": found_same_document,
+        "metadata_document_selection": document_selection,
     }

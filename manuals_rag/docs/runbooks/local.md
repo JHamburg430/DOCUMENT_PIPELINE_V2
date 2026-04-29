@@ -1,7 +1,7 @@
 # Local Runbook
 
 1. Install dependencies into the shared bootstrap environment:
-   `/home/john/Desktop/Programming/Document_Pipeline/.venv/bin/python -m pip install -r manuals_rag/requirements.txt`
+   `python -m pip install -r manuals_rag/requirements.txt`
 2. Start Ollama if it is not already running.
 3. Start the stack:
    `docker compose -f manuals_rag/infra/compose/docker-compose.yml up -d --build`
@@ -20,10 +20,28 @@ POSTGRES_DSN=postgresql://manuals:manuals@127.0.0.1:5433/manuals_rag \
 REDIS_URL=redis://127.0.0.1:6379/0 \
 OLLAMA_URL=http://127.0.0.1:11434 \
 OLLAMA_METADATA_MODEL=tinyllama:1.1b \
-/home/john/Desktop/Programming/Document_Pipeline/.venv/bin/python \
+python \
 manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply
 ```
 
 The backfill writes `document_metadata_extractions`, merges metadata into `retrieval_chunks.metadata_json`, and queues embed jobs unless `--no-enqueue-embed` is passed.
 
 Inspect document and page metadata in Streamlit at `http://127.0.0.1:8601/Document_Metadata`.
+
+## Tests And Evals
+
+Default pytest excludes live Docker-stack tests:
+
+```bash
+cd manuals_rag
+python -m pytest
+```
+
+Run live integration tests explicitly:
+
+```bash
+cd manuals_rag
+python -m pytest -o addopts='' -m live tests/integration
+```
+
+The legacy smoke eval in `scripts/benchmark/run_smoke_eval.py` only checks whether a generated answer contains an expected string. Prefer `run_large_retrieval_eval.py`, `run_tmp_eval_suite.py`, and `run_retrieval_debug_report.py` for current retrieval quality work.

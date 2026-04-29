@@ -1,22 +1,25 @@
-PYTHON=/home/john/Desktop/Programming/Document_Pipeline/.venv/bin/python
-COMPOSE=docker compose -f infra/compose/docker-compose.yml
+PYTHON ?= python
+COMPOSE ?= docker compose -f infra/compose/docker-compose.yml
 
-.PHONY: test unit integration up down logs
+.PHONY: test unit integration live up down logs
 
 test:
-	cd manuals_rag && $(PYTHON) -m pytest
+	$(PYTHON) -m pytest
 
 unit:
-	cd manuals_rag && $(PYTHON) -m pytest tests/unit
+	$(PYTHON) -m pytest tests/unit
 
 integration:
-	cd manuals_rag && $(PYTHON) -m pytest tests/integration
+	$(PYTHON) -m pytest tests/integration
+
+live:
+	$(PYTHON) -m pytest -o addopts='' -m live tests/integration
 
 up:
-	cd manuals_rag && $(COMPOSE) up -d --build
+	$(COMPOSE) up -d --build
 
 down:
-	cd manuals_rag && $(COMPOSE) down -v
+	$(COMPOSE) down -v
 
 logs:
-	cd manuals_rag && $(COMPOSE) logs -f
+	$(COMPOSE) logs -f

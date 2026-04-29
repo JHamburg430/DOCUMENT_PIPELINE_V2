@@ -5,10 +5,43 @@ import logging
 from manuals_rag_common.db import execute, fetch_all
 from manuals_rag_common.logging import configure_logging
 from manuals_rag_common.queue import dequeue
+from manuals_rag_retrieval.document_metadata import enrich_document_metadata_with_chunk_signals
 from manuals_rag_retrieval.qdrant_store import QdrantStore
 from manuals_rag_schemas.documents import RetrievalChunk
 
 log = logging.getLogger(__name__)
+
+
+def _fetch_document_metadata_record(document_id: str) -> dict[str, object] | None:
+    rows = fetch_all(
+        """
+        select
+            sd.id as source_document_id,
+            sd.current_version_id as document_version_id,
+            sd.corpus_id,
+            sd.title,
+            sd.source_filename,
+            sd.manufacturer,
+            sd.product_family,
+            sd.product_model,
+            sd.document_kind,
+            coalesce(dme.metadata_json, '{}'::jsonb) as metadata_json,
+            true as is_active
+        from source_documents sd
+        left join document_metadata_extractions dme on dme.source_document_id = sd.id
+        where sd.id = %s
+        order by dme.extracted_at desc nulls last
+        limit 1
+        """,
+        (document_id,),
+    )
+    if not rows:
+        return None
+    chunk_rows = fetch_all(
+        "select metadata_json from retrieval_chunks where source_document_id = %s",
+        (document_id,),
+    )
+    return enrich_document_metadata_with_chunk_signals(rows[0], chunk_rows)
 
 
 def process_job(job: dict[str, str]) -> None:
@@ -41,6 +74,14 @@ def process_job(job: dict[str, str]) -> None:
         for chunk in chunks
     ]
     store.upsert_chunks(document[0]["corpus_id"], parsed_chunks)
+    metadata_record = _fetch_document_metadata_record(job["document_id"])
+    if metadata_record:
+        store.delete_document_metadata(
+            document[0]["corpus_id"],
+            source_document_id=job["document_id"],
+            document_version_id=job["version_id"],
+        )
+        store.upsert_document_metadata(document[0]["corpus_id"], [metadata_record])
     execute("update ingestion_runs set status = 'completed', updated_at = now() where id = %s", (job["run_id"],))
     execute("update source_documents set ingest_status = 'indexed', updated_at = now() where id = %s", (job["document_id"],))
     log.info(

@@ -5,6 +5,7 @@ import pytest
 from manuals_rag_evals.pipeline_health import (
     check_chunking_stage,
     check_chunk_quality_stage,
+    check_document_metadata_index_stage,
     check_embedding_stage,
     check_fixture_path,
     check_fragmentation_stage,
@@ -13,7 +14,9 @@ from manuals_rag_evals.pipeline_health import (
     check_normalize_stage,
     check_parse_stage,
     check_page_provenance_stage,
+    check_production_retrieval_stage,
     check_query_analysis_stage,
+    PIPELINE_HEALTH_DOCUMENT_ID,
 )
 from tests.helpers import fixture_pdf_path
 
@@ -121,3 +124,19 @@ def test_pipeline_health_local_retrieval_stage(built_chunks, inferred_metadata):
     if result.status == "fail" and result.error and "/api/embed" in result.error:
         pytest.skip("Embedding backend unavailable in the test runtime.")
     assert result.status == "pass"
+
+
+def test_pipeline_health_document_metadata_index_stage(built_chunks, inferred_metadata):
+    result = check_document_metadata_index_stage(built_chunks, inferred_metadata.product_model)
+    if result.status == "fail" and result.error and "/api/embed" in result.error:
+        pytest.skip("Embedding backend unavailable in the test runtime.")
+    assert result.status == "pass"
+    assert result.details["top_source_document_id"] == PIPELINE_HEALTH_DOCUMENT_ID
+
+
+def test_pipeline_health_production_retrieval_stage(built_chunks, inferred_metadata):
+    result = check_production_retrieval_stage(built_chunks, inferred_metadata.product_model)
+    if result.status == "fail" and result.error and "/api/embed" in result.error:
+        pytest.skip("Embedding backend unavailable in the test runtime.")
+    assert result.status == "pass"
+    assert result.details["document_selection_stage"] == "metadata_embedding"

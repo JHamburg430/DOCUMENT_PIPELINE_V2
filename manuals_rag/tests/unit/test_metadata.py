@@ -1,4 +1,4 @@
-from manuals_rag_parsers.metadata import infer_document_metadata
+from manuals_rag_parsers.metadata import LIST_FIELD_INSTRUCTIONS, infer_document_metadata
 
 
 def test_infer_document_metadata_from_model_response(monkeypatch):
@@ -91,3 +91,11 @@ def test_infer_document_metadata_falls_back_on_invalid_model_response(monkeypatc
     metadata = infer_document_metadata("bad.pdf", "text")
     assert metadata.document_kind.value == "manual"
     assert metadata.title == "bad"
+
+
+def test_metadata_prompt_examples_are_vendor_neutral():
+    instruction_text = "\n".join(LIST_FIELD_INSTRUCTIONS.values()).lower()
+    assert "keyence" not in instruction_text
+    assert "lj-x" not in instruction_text
+    assert "ca-en" not in instruction_text
+    assert "op-88310" not in instruction_text

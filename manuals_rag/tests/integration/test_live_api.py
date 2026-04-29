@@ -31,7 +31,10 @@ def _api_available() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(not _api_available(), reason="Live API stack is not running.")
+pytestmark = [
+    pytest.mark.live,
+    pytest.mark.skipif(not _api_available(), reason="Live API stack is not running."),
+]
 
 
 def _upload_and_ingest() -> str:

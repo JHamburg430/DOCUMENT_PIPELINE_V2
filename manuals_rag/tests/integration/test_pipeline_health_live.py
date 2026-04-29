@@ -19,7 +19,10 @@ def _api_available() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(not _api_available(), reason="Live API stack is not running.")
+pytestmark = [
+    pytest.mark.live,
+    pytest.mark.skipif(not _api_available(), reason="Live API stack is not running."),
+]
 
 
 def test_pipeline_health_live_api_stage():

@@ -37,25 +37,36 @@ def _metadata_value(value: Any) -> str:
     return str(value)
 
 
-def _render_query_selection_test(document: dict[str, Any]) -> None:
-    st.markdown("### Query Document Selection Test")
-    st.caption(
-        "Run retrieval without a document filter to check whether the current document is selected from the user query."
-    )
+def _document_label(document: dict[str, Any]) -> str:
+    return f"{document.get('title')} | {document.get('source_filename')} | {document.get('document_id')}"
 
-    document_id = str(document.get("document_id") or "")
-    default_corpus_id = str(document.get("corpus_id") or "")
-    corpus_key = f"metadata_query_corpus_ids_{document_id}"
-    if corpus_key not in st.session_state:
-        st.session_state[corpus_key] = default_corpus_id
+
+def _default_corpus_ids(documents: list[dict[str, Any]]) -> str:
+    corpus_ids = sorted({str(item.get("corpus_id")) for item in documents if item.get("corpus_id")})
+    return ",".join(corpus_ids)
+
+
+def _render_query_selection_test(documents: list[dict[str, Any]]) -> None:
+    st.markdown("### Query Document Selection Test")
+    st.caption("Run retrieval without a document filter to inspect which document the query selects.")
+
+    if "metadata_query_corpus_ids" not in st.session_state:
+        st.session_state["metadata_query_corpus_ids"] = _default_corpus_ids(documents)
 
     query = st.text_area(
         "Test Query",
-        value=f"What does {document.get('product_model') or document.get('title') or 'this document'} say about setup?",
+        value="Which document discusses setup?",
         height=100,
-        key=f"metadata_query_text_{document_id}",
+        key="metadata_query_text",
     )
-    corpus_ids_text = st.text_input("Corpus IDs", key=corpus_key)
+    corpus_ids_text = st.text_input("Corpus IDs", key="metadata_query_corpus_ids")
+    document_options = {_document_label(item): str(item["document_id"]) for item in documents}
+    expected_label = st.selectbox(
+        "Expected Document (optional)",
+        options=[""] + list(document_options.keys()),
+        help="Leave blank when you only want to inspect the selected document.",
+    )
+    expected_document_id = document_options.get(expected_label) if expected_label else None
 
     if st.button("Test Document Selection", use_container_width=True):
         corpus_ids = [item.strip() for item in corpus_ids_text.split(",") if item.strip()]
@@ -80,26 +91,38 @@ def _render_query_selection_test(document: dict[str, Any]) -> None:
             st.error(f"Query test failed: {exc}")
             return
 
-        results = results_payload.get("results", []) if isinstance(results_payload, dict) else results_payload
-        st.session_state[f"metadata_query_results_{document_id}"] = results
+        st.session_state["metadata_query_payload"] = results_payload
 
-    results = st.session_state.get(f"metadata_query_results_{document_id}", [])
+    payload = st.session_state.get("metadata_query_payload", {})
+    if isinstance(payload, list):
+        results = payload
+    elif isinstance(payload, dict):
+        results = payload.get("results", [])
+    else:
+        results = []
     if not results:
         st.info("Run a query to inspect which document retrieval selects.")
         return
 
-    matching_ranks = [
-        index + 1
-        for index, result in enumerate(results)
-        if str(result.get("source_document_id")) == document_id
-    ]
+    if isinstance(payload, dict):
+        st.json({"endpoint": "/search", "filters": {}}, expanded=False)
+
     top_result = results[0]
-    if str(top_result.get("source_document_id")) == document_id:
-        st.success("Selected document matched the top retrieval result.")
-    elif matching_ranks:
-        st.warning(f"Selected document was returned at rank {matching_ranks[0]}, but not as the top result.")
+    top_document_id = str(top_result.get("source_document_id") or "")
+    if expected_document_id:
+        matching_ranks = [
+            index + 1
+            for index, result in enumerate(results)
+            if str(result.get("source_document_id")) == expected_document_id
+        ]
+        if top_document_id == expected_document_id:
+            st.success("Expected document matched the top retrieval result.")
+        elif matching_ranks:
+            st.warning(f"Expected document was returned at rank {matching_ranks[0]}, but not as the top result.")
+        else:
+            st.error("Expected document was not returned in the retrieval results.")
     else:
-        st.error("Selected document was not returned in the retrieval results.")
+        st.success(f"Top selected document: {top_document_id}")
 
     rows = []
     for index, result in enumerate(results, start=1):
@@ -107,7 +130,11 @@ def _render_query_selection_test(document: dict[str, Any]) -> None:
         rows.append(
             {
                 "Rank": index,
-                "Expected Document": str(result.get("source_document_id")) == document_id,
+                "Expected Document": (
+                    str(result.get("source_document_id")) == expected_document_id
+                    if expected_document_id
+                    else ""
+                ),
                 "Score": result.get("score"),
                 "Title": result.get("title"),
                 "Source Document": result.get("source_document_id"),
@@ -135,8 +162,11 @@ def main() -> None:
         st.info("No documents are available.")
         return
 
+    _render_query_selection_test(documents)
+
+    st.markdown("### Document Inspection")
     options = {
-        f"{item['title']} | {item['source_filename']} | {item['document_id']}": item["document_id"]
+        _document_label(item): item["document_id"]
         for item in documents
     }
     selected_label = st.selectbox("Document", options=list(options.keys()))
@@ -182,8 +212,6 @@ def main() -> None:
         st.json(extracted, expanded=True)
     else:
         st.warning("No document-level metadata extraction row is saved yet.")
-
-    _render_query_selection_test(document)
 
     st.markdown(f"### Page {snapshot.get('selected_page')} Chunk Metadata")
     page_chunks = snapshot.get("page_chunks", [])

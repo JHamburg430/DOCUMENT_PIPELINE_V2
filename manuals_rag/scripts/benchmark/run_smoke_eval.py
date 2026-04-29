@@ -8,6 +8,7 @@ import httpx
 from manuals_rag_evals.benchmark import score_case
 
 
+# Legacy simple answer smoke test. Prefer run_large_retrieval_eval.py for current retrieval quality scoring.
 API_BASE = "http://127.0.0.1:8600"
 AUTH = {"Authorization": "Bearer user-token"}
 

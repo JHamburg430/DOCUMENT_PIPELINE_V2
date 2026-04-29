@@ -15,11 +15,16 @@ from manuals_rag_evals.retrieval_quality import content_quality_flags
 from manuals_rag_normalizers.normalize import normalize_nodes
 from manuals_rag_parsers.docling_parser import parse_document
 from manuals_rag_parsers.metadata import infer_document_metadata
+from manuals_rag_retrieval.document_metadata import enrich_document_metadata_with_chunk_signals
 from manuals_rag_retrieval.embeddings import build_sparse_vector, embed_dense
-from manuals_rag_retrieval.qdrant_store import QdrantStore, collection_name
+from manuals_rag_retrieval.qdrant_store import QdrantStore, collection_name, document_metadata_collection_name
 from manuals_rag_retrieval.query_analysis import analyze_query
-from manuals_rag_retrieval.retriever import build_filters
+from manuals_rag_retrieval.retriever import build_filters, retrieve
 from manuals_rag_schemas.enums import NodeType
+
+
+PIPELINE_HEALTH_DOCUMENT_ID = "00000000-0000-4000-8000-000000000001"
+PIPELINE_HEALTH_VERSION_ID = "00000000-0000-4000-8000-000000000002"
 
 
 @dataclass
@@ -175,8 +180,8 @@ def check_chunking_stage(metadata: Any, normalized: list[Any]) -> tuple[StageChe
             "is_active": True,
         }
         chunks = build_chunks(
-            source_document_id="pipeline-health-doc",
-            document_version_id="pipeline-health-version",
+            source_document_id=PIPELINE_HEALTH_DOCUMENT_ID,
+            document_version_id=PIPELINE_HEALTH_VERSION_ID,
             title=metadata.title,
             nodes=normalized,
             metadata=chunk_metadata,
@@ -337,7 +342,7 @@ def check_local_retrieval_stage(chunks: list[Any], product_model: str | None) ->
         filters = {"product_model": product_model} if product_model else {}
         results = store.search(corpus_id, query, filters, limit=5)
         return _result(
-            "local_retrieval",
+            "local_chunk_store_retrieval",
             start,
             status="pass" if results else "fail",
             details={
@@ -349,12 +354,100 @@ def check_local_retrieval_stage(chunks: list[Any], product_model: str | None) ->
             error=None if results else "No local retrieval results returned.",
         )
     except Exception as exc:
-        return _result("local_retrieval", start, status="fail", error=str(exc))
+        return _result("local_chunk_store_retrieval", start, status="fail", error=str(exc))
     finally:
         try:
             store.client.delete_collection(collection_name(corpus_id))
         except Exception:
             pass
+
+
+def _metadata_document_record(corpus_id: str, chunks: list[Any], product_model: str | None) -> dict[str, Any]:
+    document = {
+        "source_document_id": PIPELINE_HEALTH_DOCUMENT_ID,
+        "document_version_id": PIPELINE_HEALTH_VERSION_ID,
+        "corpus_id": corpus_id,
+        "title": chunks[0].title if chunks else "Pipeline Health Document",
+        "source_filename": "pipeline_health_fixture.pdf",
+        "manufacturer": str((chunks[0].metadata_json or {}).get("manufacturer") or "") if chunks else "",
+        "product_family": str((chunks[0].metadata_json or {}).get("product_family") or "") if chunks else "",
+        "product_model": product_model or "",
+        "document_kind": str((chunks[0].metadata_json or {}).get("document_kind") or "") if chunks else "",
+        "metadata_json": {
+            "product_model": product_model,
+            "product_models": [product_model] if product_model else [],
+        },
+        "is_active": True,
+    }
+    return enrich_document_metadata_with_chunk_signals(
+        document,
+        [{"metadata_json": chunk.metadata_json} for chunk in chunks],
+    )
+
+
+def check_document_metadata_index_stage(chunks: list[Any], product_model: str | None) -> StageCheckResult:
+    start = time.perf_counter()
+    corpus_id = f"pipeline_health_metadata_{uuid4().hex[:12]}"
+    store = QdrantStore()
+    try:
+        document = _metadata_document_record(corpus_id, chunks, product_model)
+        store.upsert_document_metadata(corpus_id, [document])
+        query = f"What product is described in {product_model or 'this'} datasheet?"
+        hits = store.search_document_metadata(corpus_id, query, {"is_active": True}, limit=3)
+        top_hit = hits[0] if hits else {}
+        return _result(
+            "document_metadata_index",
+            start,
+            status="pass" if top_hit.get("source_document_id") == PIPELINE_HEALTH_DOCUMENT_ID else "fail",
+            details={
+                "corpus_id": corpus_id,
+                "hit_count": len(hits),
+                "top_source_document_id": top_hit.get("source_document_id"),
+                "top_retrieval_stage": top_hit.get("retrieval_stage"),
+            },
+            error=None if hits else "No document metadata hits returned.",
+        )
+    except Exception as exc:
+        return _result("document_metadata_index", start, status="fail", error=str(exc))
+    finally:
+        try:
+            store.client.delete_collection(document_metadata_collection_name(corpus_id))
+        except Exception:
+            pass
+
+
+def check_production_retrieval_stage(chunks: list[Any], product_model: str | None) -> StageCheckResult:
+    start = time.perf_counter()
+    corpus_id = f"pipeline_health_retrieve_{uuid4().hex[:12]}"
+    store = QdrantStore()
+    try:
+        store.upsert_chunks(corpus_id, chunks)
+        store.upsert_document_metadata(corpus_id, [_metadata_document_record(corpus_id, chunks, product_model)])
+        query = f"What product is described in {product_model or 'this'} datasheet?"
+        results = retrieve(query, [corpus_id], {"is_active": True}, limit=5)
+        top = results[0] if results else None
+        metadata_hits = top.metadata.get("selected_document_metadata_hits", []) if top else []
+        return _result(
+            "production_retrieval",
+            start,
+            status="pass" if top and top.source_document_id == PIPELINE_HEALTH_DOCUMENT_ID else "fail",
+            details={
+                "corpus_id": corpus_id,
+                "result_count": len(results),
+                "top_source_document_id": top.source_document_id if top else None,
+                "document_selection_stage": top.metadata.get("document_selection_stage") if top else None,
+                "metadata_hit_count": len(metadata_hits),
+            },
+            error=None if top else "No production retrieval results returned.",
+        )
+    except Exception as exc:
+        return _result("production_retrieval", start, status="fail", error=str(exc))
+    finally:
+        for name in (collection_name(corpus_id), document_metadata_collection_name(corpus_id)):
+            try:
+                store.client.delete_collection(name)
+            except Exception:
+                pass
 
 
 def _api_available(api_base: str) -> bool:
@@ -489,6 +582,8 @@ def run_pipeline_health_checks(pdf_path: Path, *, api_base: str = "http://127.0.
     stage_results.append(check_embedding_stage(chunks))
     stage_results.append(check_query_analysis_stage())
     stage_results.append(check_local_retrieval_stage(chunks, metadata.product_model))
+    stage_results.append(check_document_metadata_index_stage(chunks, metadata.product_model))
+    stage_results.append(check_production_retrieval_stage(chunks, metadata.product_model))
     if include_live:
         stage_results.append(check_live_api_stage(pdf_path, api_base=api_base))
     return _build_report(pdf_path, stage_results)

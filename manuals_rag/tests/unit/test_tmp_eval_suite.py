@@ -37,6 +37,9 @@ def test_aggregate_tmp_eval_results_combines_runs():
                     "failed_queries": 1,
                     "benchmark_validity_rate": 1.0,
                     "candidate_recall_rate": 0.7,
+                    "metadata_document_selection_attempts": 3,
+                    "metadata_document_selection_recall_rate": 1.0,
+                    "metadata_document_selection_rank_1_rate": 2 / 3,
                     "by_chunk_type": {"atomic_text": {"total": 3, "passed": 2}},
                     "by_document": {"doc-a.pdf": {"total": 3, "passed": 2}},
                 },
@@ -49,6 +52,9 @@ def test_aggregate_tmp_eval_results_combines_runs():
                     "failed_queries": 1,
                     "benchmark_validity_rate": 1.0,
                     "candidate_recall_rate": 0.5,
+                    "metadata_document_selection_attempts": 2,
+                    "metadata_document_selection_recall_rate": 0.5,
+                    "metadata_document_selection_rank_1_rate": 0.5,
                     "by_chunk_type": {"spec_record": {"total": 2, "passed": 1}},
                     "by_document": {"doc-b.pdf": {"total": 2, "passed": 1}},
                 },
@@ -60,6 +66,9 @@ def test_aggregate_tmp_eval_results_combines_runs():
     assert report["overall"]["pass_rate"] == 0.6
     assert report["overall"]["benchmark_validity_rate"] == 1.0
     assert report["overall"]["candidate_recall_rate"] == 0.62
+    assert report["overall"]["metadata_document_selection_attempts"] == 5
+    assert report["overall"]["metadata_document_selection_recall_rate"] == 0.8
+    assert report["overall"]["metadata_document_selection_rank_1_rate"] == 0.6
     assert report["overall"]["by_chunk_type"]["atomic_text"]["passed"] == 2
     assert report["overall"]["by_chunk_type"]["spec_record"]["total"] == 2
 
@@ -79,6 +88,8 @@ def test_render_tmp_eval_markdown_includes_overview():
             "pass_rate": 0.75,
             "benchmark_validity_rate": 1.0,
             "candidate_recall_rate": 0.9,
+            "metadata_document_selection_recall_rate": 0.8,
+            "metadata_document_selection_rank_1_rate": 0.7,
         },
         "production_readiness": {"ready": True},
         "runs": [
@@ -89,4 +100,5 @@ def test_render_tmp_eval_markdown_includes_overview():
     assert "Tmp Document Retrieval Eval" in markdown
     assert "Keyence inventory PDFs: 10" in markdown
     assert "tmp_eval_docs: 4/5 (80.00%)" in markdown
+    assert "Metadata document selection recall: 80.00%" in markdown
     assert "Production ready: yes" in markdown

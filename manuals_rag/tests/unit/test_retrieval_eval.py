@@ -1,4 +1,9 @@
-from manuals_rag_evals.retrieval_eval import RetrievalEvalCase, build_eval_cases_from_chunks, score_search_results
+from manuals_rag_evals.retrieval_eval import (
+    RetrievalEvalCase,
+    build_eval_cases_from_chunks,
+    score_document_selection,
+    score_search_results,
+)
 
 
 def test_build_eval_cases_from_chunks_creates_queries():
@@ -275,6 +280,92 @@ def test_score_search_results_passes_on_same_document_term_overlap():
     assert evaluation["passed"] is True
     assert evaluation["rank"] == 1
     assert evaluation["candidate_recall"] is True
+    assert evaluation["metadata_document_selection"]["attempted"] is False
+
+
+def test_score_document_selection_passes_when_expected_document_is_selected():
+    case = RetrievalEvalCase(
+        case_id="c-selection",
+        query="AX-1200 pressure repeatability",
+        source_document_id="doc-expected",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="AX-1200 Manual",
+        source_filename="ax-1200.pdf",
+        chunk_type="table_record",
+        section_path="Specifications",
+        page_from=1,
+        page_to=1,
+        expected_terms=["ax-1200", "pressure", "repeatability"],
+        expected_snippet="AX-1200 pressure repeatability",
+        generation_method="table_primary",
+        source_metadata={"product_model": "AX-1200"},
+    )
+    results = [
+        {
+            "chunk_id": "chunk-x",
+            "source_document_id": "doc-expected",
+            "section_path": ["Specifications"],
+            "content": "AX-1200 pressure repeatability is 0.02 kPa.",
+            "metadata": {
+                "selected_document_metadata_hits": [
+                    {"source_document_id": "doc-expected", "score": 0.2},
+                    {"source_document_id": "doc-other", "score": 0.1},
+                ]
+            },
+        }
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is True
+    assert evaluation["metadata_document_selection"] == {
+        "attempted": True,
+        "passed": True,
+        "rank": 1,
+        "expected_source_document_id": "doc-expected",
+        "selected_source_document_ids": ["doc-expected", "doc-other"],
+        "hit_count": 2,
+        "failure_category": None,
+    }
+
+
+def test_score_document_selection_reports_metadata_document_miss():
+    case = RetrievalEvalCase(
+        case_id="c-selection-miss",
+        query="MTR-700 bearing preload",
+        source_document_id="doc-expected",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="MTR-700 Manual",
+        source_filename="mtr-700.pdf",
+        chunk_type="atomic_text",
+        section_path="Maintenance",
+        page_from=1,
+        page_to=1,
+        expected_terms=["mtr-700", "bearing", "preload"],
+        expected_snippet="MTR-700 bearing preload",
+        generation_method="general_multi",
+        source_metadata={"product_model": "MTR-700"},
+    )
+
+    selection = score_document_selection(
+        case,
+        [
+            {
+                "metadata": {
+                    "selected_document_metadata_hits": [
+                        {"source_document_id": "doc-other", "score": 0.4},
+                    ]
+                }
+            }
+        ],
+    )
+
+    assert selection["attempted"] is True
+    assert selection["passed"] is False
+    assert selection["rank"] is None
+    assert selection["failure_category"] == "metadata_document_miss"
 
 
 def test_score_search_results_handles_table_style_queries():

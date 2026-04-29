@@ -254,6 +254,9 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
     failure_categories = Counter()
     benchmark_quality = Counter()
     candidate_recall_hits = 0
+    metadata_selection_attempts = 0
+    metadata_selection_hits = 0
+    metadata_selection_rank_1_hits = 0
     for result in results:
         chunk_type = result["case"]["chunk_type"]
         chunk_type_stats[chunk_type]["total"] += 1
@@ -266,6 +269,11 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
             failure_categories[result["evaluation"]["failure_category"]] += 1
         if result["evaluation"].get("candidate_recall"):
             candidate_recall_hits += 1
+        metadata_selection = result["evaluation"].get("metadata_document_selection", {})
+        if metadata_selection.get("attempted"):
+            metadata_selection_attempts += 1
+            metadata_selection_hits += int(bool(metadata_selection.get("passed")))
+            metadata_selection_rank_1_hits += int(metadata_selection.get("rank") == 1)
     return {
         "total_queries": total,
         "passed_queries": passed,
@@ -281,6 +289,13 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
         "benchmark_quality": dict(benchmark_quality),
         "benchmark_validity_rate": round(benchmark_quality.get("validated", 0) / total, 4) if total else 0.0,
         "candidate_recall_rate": round(candidate_recall_hits / total, 4) if total else 0.0,
+        "metadata_document_selection_attempts": metadata_selection_attempts,
+        "metadata_document_selection_recall_rate": round(metadata_selection_hits / metadata_selection_attempts, 4)
+        if metadata_selection_attempts
+        else 0.0,
+        "metadata_document_selection_rank_1_rate": round(metadata_selection_rank_1_hits / metadata_selection_attempts, 4)
+        if metadata_selection_attempts
+        else 0.0,
     }
 
 

@@ -42,6 +42,7 @@ def aggregate_tmp_eval_results(
     total_queries = sum(int(result["summary"].get("total_queries", 0)) for result in run_results)
     passed_queries = sum(int(result["summary"].get("passed_queries", 0)) for result in run_results)
     failed_queries = sum(int(result["summary"].get("failed_queries", 0)) for result in run_results)
+    metadata_selection_attempts = sum(int(result["summary"].get("metadata_document_selection_attempts", 0)) for result in run_results)
 
     chunk_type_totals: dict[str, dict[str, int]] = {}
     by_document: dict[str, dict[str, int]] = {}
@@ -85,6 +86,29 @@ def aggregate_tmp_eval_results(
                 4,
             )
             if total_queries
+            else 0.0,
+            "metadata_document_selection_attempts": metadata_selection_attempts,
+            "metadata_document_selection_recall_rate": round(
+                sum(
+                    float(result["summary"].get("metadata_document_selection_recall_rate", 0.0))
+                    * int(result["summary"].get("metadata_document_selection_attempts", 0))
+                    for result in run_results
+                )
+                / metadata_selection_attempts,
+                4,
+            )
+            if metadata_selection_attempts
+            else 0.0,
+            "metadata_document_selection_rank_1_rate": round(
+                sum(
+                    float(result["summary"].get("metadata_document_selection_rank_1_rate", 0.0))
+                    * int(result["summary"].get("metadata_document_selection_attempts", 0))
+                    for result in run_results
+                )
+                / metadata_selection_attempts,
+                4,
+            )
+            if metadata_selection_attempts
             else 0.0,
             "by_chunk_type": chunk_type_totals,
             "by_document": by_document,
@@ -135,6 +159,8 @@ def render_tmp_eval_markdown(report: dict[str, Any]) -> str:
             f"- Pass rate: {report['overall']['pass_rate']:.2%}",
             f"- Benchmark validity: {report['overall'].get('benchmark_validity_rate', 0.0):.2%}",
             f"- Candidate recall: {report['overall'].get('candidate_recall_rate', 0.0):.2%}",
+            f"- Metadata document selection recall: {report['overall'].get('metadata_document_selection_recall_rate', 0.0):.2%}",
+            f"- Metadata document selection rank 1: {report['overall'].get('metadata_document_selection_rank_1_rate', 0.0):.2%}",
             f"- Production ready: {'yes' if report.get('production_readiness', {}).get('ready') else 'no'}",
             "",
             "## Per Run",

@@ -4,6 +4,7 @@ import argparse
 import csv
 import io
 import json
+import os
 import subprocess
 import sys
 import time
@@ -24,6 +25,22 @@ from manuals_rag_evals.tmp_eval_suite import (  # noqa: E402
 
 OUTPUT_DIR = MANUALS_ROOT / "test_reports"
 RUNNER = MANUALS_ROOT / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+
+
+def _package_pythonpath() -> str:
+    package_roots = [
+        "common",
+        "schemas",
+        "parsers",
+        "normalizers",
+        "chunking",
+        "retrieval",
+        "answering",
+        "permissions",
+        "observability",
+        "evals",
+    ]
+    return os.pathsep.join(str(MANUALS_ROOT / "packages" / name / "src") for name in package_roots)
 
 
 def _parse_runner_output(stdout: str) -> dict[str, object]:
@@ -115,13 +132,20 @@ def run_tmp_suite(*, max_queries: int) -> dict[str, object]:
             runner_args.extend(["--existing-corpus-id", existing_corpus_id])
         else:
             runner_args.extend(["--docs-dir", doc_set.directory, "--max-docs", str(len(doc_set.documents))])
-        completed = subprocess.run(
-            runner_args,
-            cwd=str(MANUALS_ROOT),
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        env = {**os.environ, "PYTHONPATH": _package_pythonpath()}
+        try:
+            completed = subprocess.run(
+                runner_args,
+                cwd=str(MANUALS_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(
+                f"Eval runner failed for {doc_set.name}.\nSTDOUT:\n{exc.stdout}\nSTDERR:\n{exc.stderr}"
+            ) from exc
         parsed = _parse_runner_output(completed.stdout)
         run_results.append(
             {

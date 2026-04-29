@@ -48,6 +48,29 @@ def _storage_object_name(tenant_id: str, sha256: str, filename: str) -> str:
     return f"{tenant_id}/sha256/{sha256}{extension}"
 
 
+def _default_corpus_name(corpus_id: str) -> str:
+    return corpus_id.replace("_", " ").replace("-", " ").strip().title() or corpus_id
+
+
+def _upsert_corpus(
+    corpus_id: str,
+    tenant_id: str,
+    name: str,
+    permissions: dict[str, Any] | None = None,
+    *,
+    update_on_conflict: bool = True,
+) -> None:
+    conflict_action = "do update set name = excluded.name, permissions_json = excluded.permissions_json" if update_on_conflict else "do nothing"
+    execute(
+        f"""
+        insert into corpora (id, tenant_id, name, permissions_json)
+        values (%s, %s, %s, %s)
+        on conflict (id) {conflict_action}
+        """,
+        (corpus_id, tenant_id, name, json_dumps(permissions or {})),
+    )
+
+
 def _parse_s3_uri(uri: str) -> tuple[str, str]:
     parsed = urlparse(uri)
     if parsed.scheme != "s3" or not parsed.netloc or not parsed.path:
@@ -337,14 +360,7 @@ def create_corpus(
     principal: Principal = Depends(require_role("admin", "operator")),
 ) -> dict[str, Any]:
     corpus_id = payload.get("id") or str(uuid4())
-    execute(
-        """
-        insert into corpora (id, tenant_id, name, permissions_json)
-        values (%s, %s, %s, %s)
-        on conflict (id) do update set name = excluded.name, permissions_json = excluded.permissions_json
-        """,
-        (corpus_id, principal.tenant_id, payload["name"], json_dumps(payload.get("permissions", {}))),
-    )
+    _upsert_corpus(corpus_id, principal.tenant_id, payload["name"], payload.get("permissions", {}))
     return {"id": corpus_id}
 
 
@@ -370,15 +386,21 @@ async def upload_documents(
         data = await upload.read()
         sha = sha256_bytes(data)
         target_corpus_id = corpus_id or settings.default_corpus_id
+        _upsert_corpus(
+            target_corpus_id,
+            principal.tenant_id,
+            _default_corpus_name(target_corpus_id),
+            update_on_conflict=False,
+        )
         existing = fetch_one(
             """
             select sd.id as document_id, sd.current_version_id as version_id, sd.source_filename, sd.corpus_id
             from source_documents sd
-            where sd.tenant_id = %s and sd.sha256 = %s
+            where sd.tenant_id = %s and sd.sha256 = %s and sd.corpus_id = %s
             order by sd.updated_at desc
             limit 1
             """,
-            (principal.tenant_id, sha),
+            (principal.tenant_id, sha, target_corpus_id),
         )
         if existing:
             uploaded.append(
@@ -402,14 +424,11 @@ async def upload_documents(
             upload.content_type or "application/octet-stream",
         ) if not store.object_exists(settings.minio_bucket_originals, object_name) else f"s3://{settings.minio_bucket_originals}/{object_name}"
         metadata = infer_document_metadata(upload.filename, "")
-        manufacturer = metadata.manufacturer
-        if manufacturer == "Unknown" and "keyence" in settings.default_corpus_id.lower():
-            manufacturer = "Keyence"
         payload = SourceDocumentCreate(
             tenant_id=principal.tenant_id,
             corpus_id=target_corpus_id,
             title=metadata.title,
-            manufacturer=manufacturer,
+            manufacturer=metadata.manufacturer,
             product_family=metadata.product_family,
             product_model=metadata.product_model,
             document_kind=metadata.document_kind,

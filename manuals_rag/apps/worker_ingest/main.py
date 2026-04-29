@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import fitz
 
 from manuals_rag_chunking.hierarchical import build_chunks
+from manuals_rag_common.config import settings
 from manuals_rag_common.db import execute, execute_many, fetch_one, json_dumps
 from manuals_rag_common.ids import sha256_bytes
 from manuals_rag_common.logging import configure_logging
@@ -40,6 +41,28 @@ def _artifact_object_name(tenant_id: str, artifact_bytes: bytes) -> str:
 
 def _asset_object_prefix(tenant_id: str, source_document_id: str, version_id: str) -> str:
     return f"{tenant_id}/document-assets/{source_document_id}/{version_id}"
+
+
+def _metadata_extraction_payload(metadata: object) -> dict[str, object]:
+    return {
+        "manufacturer": getattr(metadata, "manufacturer"),
+        "companies": getattr(metadata, "companies"),
+        "product_family": getattr(metadata, "product_family"),
+        "product_model": getattr(metadata, "product_model"),
+        "product_families": getattr(metadata, "product_families"),
+        "product_models": getattr(metadata, "product_models"),
+        "devices": getattr(metadata, "devices"),
+        "part_numbers": getattr(metadata, "part_numbers"),
+        "protocol_terms": getattr(metadata, "protocol_terms"),
+        "settings": getattr(metadata, "settings"),
+        "parameters": getattr(metadata, "parameters"),
+        "menu_labels": getattr(metadata, "menu_labels"),
+        "document_topics": getattr(metadata, "document_topics"),
+        "title": getattr(metadata, "title"),
+        "document_kind": getattr(metadata, "document_kind").value,
+        "revision_date": getattr(metadata, "revision_date").isoformat() if getattr(metadata, "revision_date") else None,
+        "effective_date": getattr(metadata, "effective_date").isoformat() if getattr(metadata, "effective_date") else None,
+    }
 
 
 def _put_once(store: ObjectStore, bucket: str, object_name: str, data: bytes, content_type: str) -> str:
@@ -340,6 +363,24 @@ def process_job(job: dict[str, str]) -> None:
                 json.dumps(result.parse_warnings),
                 result.quality_score,
                 document["version_id"],
+            ),
+        )
+        execute(
+            """
+            insert into document_metadata_extractions (
+                source_document_id, document_version_id, model, metadata_json, extracted_at
+            ) values (%s, %s, %s, %s::jsonb, now())
+            on conflict (source_document_id) do update
+            set document_version_id = excluded.document_version_id,
+                model = excluded.model,
+                metadata_json = excluded.metadata_json,
+                extracted_at = excluded.extracted_at
+            """,
+            (
+                document["id"],
+                document["version_id"],
+                settings.ollama_metadata_model,
+                json_dumps(_metadata_extraction_payload(inferred_metadata)),
             ),
         )
         execute(
