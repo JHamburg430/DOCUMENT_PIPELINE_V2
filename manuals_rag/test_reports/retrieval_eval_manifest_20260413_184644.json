@@ -1,0 +1,20 @@
+{
+  "corpus_id": "manuals_eval_20260404_134758",
+  "documents": [
+    {
+      "document_id": "92a3573b-bdc8-4637-8ac3-beed128f6c65",
+      "version_id": "88038d00-42fe-4e90-af5c-41a2aa2923e1",
+      "filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+      "document": {
+        "title": "Indicate a hazardous situation which, if not avoided, will result in death or serious injury.",
+        "ingest_status": "indexed"
+      }
+    }
+  ],
+  "dataset_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_dataset_20260413_184644.jsonl",
+  "results_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_results_20260413_184644.jsonl",
+  "summary_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_summary_20260413_184644.json",
+  "selected_documents": [
+    "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf"
+  ]
+}

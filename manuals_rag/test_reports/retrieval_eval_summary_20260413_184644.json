@@ -1,0 +1,30 @@
+{
+  "total_queries": 20,
+  "passed_queries": 0,
+  "failed_queries": 20,
+  "pass_rate": 0.0,
+  "pass_at_1": 0.0,
+  "pass_at_3": 0.0,
+  "pass_at_5": 0.0,
+  "mean_passing_rank": null,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 20,
+      "passed": 0
+    }
+  },
+  "by_document": {
+    "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf": {
+      "total": 20,
+      "passed": 0
+    }
+  },
+  "failure_categories": {
+    "ranking_or_context_loss": 20
+  },
+  "benchmark_quality": {
+    "validated": 20
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 1.0
+}

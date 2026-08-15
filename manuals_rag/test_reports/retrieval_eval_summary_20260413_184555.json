@@ -1,0 +1,34 @@
+{
+  "total_queries": 20,
+  "passed_queries": 9,
+  "failed_queries": 11,
+  "pass_rate": 0.45,
+  "pass_at_1": 0.35,
+  "pass_at_3": 0.45,
+  "pass_at_5": 0.45,
+  "mean_passing_rank": 1.222,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 16,
+      "passed": 6
+    },
+    "atomic_text": {
+      "total": 4,
+      "passed": 3
+    }
+  },
+  "by_document": {
+    "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf": {
+      "total": 20,
+      "passed": 9
+    }
+  },
+  "failure_categories": {
+    "ranking_or_context_loss": 11
+  },
+  "benchmark_quality": {
+    "validated": 20
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 1.0
+}

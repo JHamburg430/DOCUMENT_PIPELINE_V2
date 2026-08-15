@@ -1,0 +1,1616 @@
+{
+  "generated_at": "2026-04-13T22:45:33",
+  "corpus_ids": [
+    "manuals_vendor_keyence",
+    "manuals_eval_20260404_025707"
+  ],
+  "top_k": 3,
+  "query_count": 2,
+  "cases": [
+    {
+      "query": "LJ-X8080 z axis repeatability",
+      "filters": {
+        "is_active": true,
+        "source_document_id": [
+          "e0beedb6-d099-4418-add0-f60e56e3cae2",
+          "fe5d4398-b3f1-4312-a768-bc09a2fc94b6"
+        ]
+      },
+      "query_types": [
+        "general"
+      ],
+      "preferred_chunk_types": [],
+      "stages": [
+        {
+          "name": "metadata_document_selection",
+          "count": 2,
+          "results": [
+            {
+              "source_document_id": "e0beedb6-d099-4418-add0-f60e56e3cae2",
+              "score": 0.032787,
+              "retrieval_stage": "metadata_dense+metadata_sparse",
+              "title": "Dimension inspection | | Appearance inspection | | Shape Inspection | | Height difference | Volume | Burrs | Dents | Presence detection | Orientations detection | Incorrect seatings",
+              "source_filename": "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf"
+            },
+            {
+              "source_document_id": "fe5d4398-b3f1-4312-a768-bc09a2fc94b6",
+              "score": 0.016393,
+              "retrieval_stage": "metadata_dense",
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "source_filename": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49_CA-EN100U_Datasheet.pdf"
+            }
+          ]
+        },
+        {
+          "name": "dense",
+          "count": 14,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.421705,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.402611,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.372121,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "sparse",
+          "count": 10,
+          "results": [
+            {
+              "chunk_id": "09af0cb9-e06f-59d7-924e-6cd9a720809a",
+              "score": 14.474402,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "sparse",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                10
+              ],
+              "section_path": [
+                "800"
+              ],
+              "content_preview": "AS 151019 LJ-X8000 C 689092 KA US 2055 2 | 800\n\n800\n\n10 \u03bcm 0.0004\" Z-axis (height)\n\nMeasurement precision (Z: axis) 3x more accurate\n\nImproved Z: axis precision provides high-accuracy height measurements.\n\n\u2759 Conventional",
+              "low_information": true,
+              "structured_low_information": false,
+              "technical_signal_score": 0.1
+            },
+            {
+              "chunk_id": "5c7c6383-0121-57f2-9568-4a3bddecd06d",
+              "score": 14.474402,
+              "chunk_type": "section_window",
+              "retrieval_stage": "sparse",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                10
+              ],
+              "section_path": [
+                "800"
+              ],
+              "content_preview": "AS 151019 LJ-X8000 C 689092 KA US 2055 2 | 800\n\n800\n\n10 \u03bcm 0.0004\" Z-axis (height)\n\nMeasurement precision (Z: axis) 3x more accurate\n\nImproved Z: axis precision provides high-accuracy height measurements.\n\n\u2759 Conventional",
+              "low_information": true,
+              "structured_low_information": false,
+              "technical_signal_score": 0.1
+            },
+            {
+              "chunk_id": "ed9399c9-b8ac-501c-9d84-41b65aaef728",
+              "score": 14.216669,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "sparse",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                10
+              ],
+              "section_path": [
+                "800"
+              ],
+              "content_preview": "Measurement precision (Z: axis) 3x more accurate",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.65
+            }
+          ]
+        },
+        {
+          "name": "special",
+          "count": 0,
+          "results": []
+        },
+        {
+          "name": "fused",
+          "count": 20,
+          "results": [
+            {
+              "chunk_id": "9278ab06-c649-5b46-a04d-248a13c30857",
+              "score": 0.029199,
+              "chunk_type": "table_record",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "HALCON"
+              ],
+              "content_preview": "Column headers: LJ-X8080; Row headers: Repeatability *2 > Z-axis (height) *3; Cell value: 0.5 \u03bcm 0.000020\"; Row: 11; Column: 5",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.65
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.016393,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "09af0cb9-e06f-59d7-924e-6cd9a720809a",
+              "score": 0.016393,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                10
+              ],
+              "section_path": [
+                "800"
+              ],
+              "content_preview": "AS 151019 LJ-X8000 C 689092 KA US 2055 2 | 800\n\n800\n\n10 \u03bcm 0.0004\" Z-axis (height)\n\nMeasurement precision (Z: axis) 3x more accurate\n\nImproved Z: axis precision provides high-accuracy height measurements.\n\n\u2759 Conventional",
+              "low_information": true,
+              "structured_low_information": false,
+              "technical_signal_score": 0.1
+            }
+          ]
+        },
+        {
+          "name": "family_scored",
+          "count": 20,
+          "results": [
+            {
+              "chunk_id": "4446c0cc-588f-5221-9c2b-d2ab1e91f042",
+              "score": 0.065385,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                34
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "*1 For LJ-X8080 and LJ-X8200 connection, when binning (Z) is ON, or when the measurement range (Z) is set to 1/2. LJ-X8900 when the measurement range (Z) is set to 1/2.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.046393,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "09af0cb9-e06f-59d7-924e-6cd9a720809a",
+              "score": 0.046393,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                10
+              ],
+              "section_path": [
+                "800"
+              ],
+              "content_preview": "AS 151019 LJ-X8000 C 689092 KA US 2055 2 | 800\n\n800\n\n10 \u03bcm 0.0004\" Z-axis (height)\n\nMeasurement precision (Z: axis) 3x more accurate\n\nImproved Z: axis precision provides high-accuracy height measurements.\n\n\u2759 Conventional",
+              "low_information": true,
+              "structured_low_information": false,
+              "technical_signal_score": 0.1
+            }
+          ]
+        },
+        {
+          "name": "completeness_scored",
+          "count": 20,
+          "results": [
+            {
+              "chunk_id": "4446c0cc-588f-5221-9c2b-d2ab1e91f042",
+              "score": 0.092885,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                34
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "*1 For LJ-X8080 and LJ-X8200 connection, when binning (Z) is ON, or when the measurement range (Z) is set to 1/2. LJ-X8900 when the measurement range (Z) is set to 1/2.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.068893,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "09af0cb9-e06f-59d7-924e-6cd9a720809a",
+              "score": 0.091393,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.8999999999999999,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                10
+              ],
+              "section_path": [
+                "800"
+              ],
+              "content_preview": "AS 151019 LJ-X8000 C 689092 KA US 2055 2 | 800\n\n800\n\n10 \u03bcm 0.0004\" Z-axis (height)\n\nMeasurement precision (Z: axis) 3x more accurate\n\nImproved Z: axis precision provides high-accuracy height measurements.\n\n\u2759 Conventional",
+              "low_information": true,
+              "structured_low_information": false,
+              "technical_signal_score": 0.1
+            }
+          ]
+        },
+        {
+          "name": "query_aligned",
+          "count": 20,
+          "results": [
+            {
+              "chunk_id": "3fe9c032-91a4-5f81-84b7-b854ba580f80",
+              "score": 0.429925,
+              "chunk_type": "section_window",
+              "retrieval_stage": "query_aligned",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.8999999999999999,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38
+              ],
+              "section_path": [
+                "LJ-X8080"
+              ],
+              "content_preview": "AS 151019 LJ-X8000 C 689092 KA US 2055 2 | LJ-X8080\n\nLJ-X8080\n\nX-axis (width) 39 mm\n\nLJ-X8080\n\n\u00b120.5 mm \u00b10.81\" \u00b10.03% of F.S. \u00b123 mm \u00b10.91\" \u00b10.1% of F.S. 10\n\nTire shape / DOT code inspection\n\nWith improved X-axis and Z-a",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.9
+            },
+            {
+              "chunk_id": "739d65a4-99ce-5290-a97b-38d51f1873e1",
+              "score": 0.429706,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "query_aligned",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.8999999999999999,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38
+              ],
+              "section_path": [
+                "LJ-X8080"
+              ],
+              "content_preview": "AS 151019 LJ-X8000 C 689092 KA US 2055 2 | LJ-X8080\n\nLJ-X8080\n\nX-axis (width) 39 mm\n\nLJ-X8080\n\n\u00b120.5 mm \u00b10.81\" \u00b10.03% of F.S. \u00b123 mm \u00b10.91\" \u00b10.1% of F.S. 10\n\nTire shape / DOT code inspection\n\nWith improved X-axis and Z-a",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.9
+            },
+            {
+              "chunk_id": "9278ab06-c649-5b46-a04d-248a13c30857",
+              "score": 0.386699,
+              "chunk_type": "table_record",
+              "retrieval_stage": "query_aligned",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "table",
+              "semantic_completeness_score": 1.0499999999999998,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "HALCON"
+              ],
+              "content_preview": "Column headers: LJ-X8080; Row headers: Repeatability *2 > Z-axis (height) *3; Cell value: 0.5 \u03bcm 0.000020\"; Row: 11; Column: 5",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.65
+            }
+          ]
+        },
+        {
+          "name": "family_selected",
+          "count": 8,
+          "results": [
+            {
+              "chunk_id": "4446c0cc-588f-5221-9c2b-d2ab1e91f042",
+              "score": 0.317885,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                34
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "*1 For LJ-X8080 and LJ-X8200 connection, when binning (Z) is ON, or when the measurement range (Z) is set to 1/2. LJ-X8900 when the measurement range (Z) is set to 1/2.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.028893,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.028629,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "reranked",
+          "count": 5,
+          "results": [
+            {
+              "chunk_id": "3fe9c032-91a4-5f81-84b7-b854ba580f80",
+              "score": 2.166516,
+              "chunk_type": "section_window",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 4,
+              "post_rerank_rank": 1,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.8999999999999999,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38
+              ],
+              "section_path": [
+                "LJ-X8080"
+              ],
+              "content_preview": "AS 151019 LJ-X8000 C 689092 KA US 2055 2 | LJ-X8080\n\nLJ-X8080\n\nX-axis (width) 39 mm\n\nLJ-X8080\n\n\u00b120.5 mm \u00b10.81\" \u00b10.03% of F.S. \u00b123 mm \u00b10.91\" \u00b10.1% of F.S. 10\n\nTire shape / DOT code inspection\n\nWith improved X-axis and Z-a",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.9
+            },
+            {
+              "chunk_id": "739d65a4-99ce-5290-a97b-38d51f1873e1",
+              "score": 2.166439,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 5,
+              "post_rerank_rank": 2,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.8999999999999999,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38
+              ],
+              "section_path": [
+                "LJ-X8080"
+              ],
+              "content_preview": "AS 151019 LJ-X8000 C 689092 KA US 2055 2 | LJ-X8080\n\nLJ-X8080\n\nX-axis (width) 39 mm\n\nLJ-X8080\n\n\u00b120.5 mm \u00b10.81\" \u00b10.03% of F.S. \u00b123 mm \u00b10.91\" \u00b10.1% of F.S. 10\n\nTire shape / DOT code inspection\n\nWith improved X-axis and Z-a",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.9
+            },
+            {
+              "chunk_id": "4446c0cc-588f-5221-9c2b-d2ab1e91f042",
+              "score": 1.769107,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 5,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                34
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "*1 For LJ-X8080 and LJ-X8200 connection, when binning (Z) is ON, or when the measurement range (Z) is set to 1/2. LJ-X8900 when the measurement range (Z) is set to 1/2.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "assembled",
+          "count": 3,
+          "results": [
+            {
+              "chunk_id": "3fe9c032-91a4-5f81-84b7-b854ba580f80",
+              "score": 2.166516,
+              "chunk_type": "section_window",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 4,
+              "post_rerank_rank": 1,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.8999999999999999,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38
+              ],
+              "section_path": [
+                "LJ-X8080"
+              ],
+              "content_preview": "AS 151019 LJ-X8000 C 689092 KA US 2055 2 | LJ-X8080\n\nLJ-X8080\n\nX-axis (width) 39 mm\n\nLJ-X8080\n\n\u00b120.5 mm \u00b10.81\" \u00b10.03% of F.S. \u00b123 mm \u00b10.91\" \u00b10.1% of F.S. 10\n\nTire shape / DOT code inspection\n\nWith improved X-axis and Z-a",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.9
+            },
+            {
+              "chunk_id": "739d65a4-99ce-5290-a97b-38d51f1873e1",
+              "score": 2.166439,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 5,
+              "post_rerank_rank": 2,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.8999999999999999,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38
+              ],
+              "section_path": [
+                "LJ-X8080"
+              ],
+              "content_preview": "AS 151019 LJ-X8000 C 689092 KA US 2055 2 | LJ-X8080\n\nLJ-X8080\n\nX-axis (width) 39 mm\n\nLJ-X8080\n\n\u00b120.5 mm \u00b10.81\" \u00b10.03% of F.S. \u00b123 mm \u00b10.91\" \u00b10.1% of F.S. 10\n\nTire shape / DOT code inspection\n\nWith improved X-axis and Z-a",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.9
+            },
+            {
+              "chunk_id": "4446c0cc-588f-5221-9c2b-d2ab1e91f042",
+              "score": 1.769107,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 5,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                34
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "*1 For LJ-X8080 and LJ-X8200 connection, when binning (Z) is ON, or when the measurement range (Z) is set to 1/2. LJ-X8900 when the measurement range (Z) is set to 1/2.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        }
+      ],
+      "diagnostics": {
+        "low_information_top_stages": [
+          "sparse"
+        ],
+        "structured_low_information_top_stages": [],
+        "special_empty": true,
+        "metadata_document_selection_used": true,
+        "rerank_promoted_low_information": false,
+        "family_selection_changed_top_chunk": true,
+        "rerank_changed_top_chunk": true
+      }
+    },
+    {
+      "query": "What product is described in the CA-EN100U datasheet?",
+      "filters": {
+        "is_active": true,
+        "source_document_id": [
+          "fe5d4398-b3f1-4312-a768-bc09a2fc94b6",
+          "e0beedb6-d099-4418-add0-f60e56e3cae2"
+        ]
+      },
+      "query_types": [
+        "spec_lookup"
+      ],
+      "preferred_chunk_types": [
+        "datasheet_record",
+        "spec_record",
+        "table_record"
+      ],
+      "stages": [
+        {
+          "name": "metadata_document_selection",
+          "count": 2,
+          "results": [
+            {
+              "source_document_id": "fe5d4398-b3f1-4312-a768-bc09a2fc94b6",
+              "score": 0.032787,
+              "retrieval_stage": "metadata_dense+metadata_sparse",
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "source_filename": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49_CA-EN100U_Datasheet.pdf"
+            },
+            {
+              "source_document_id": "e0beedb6-d099-4418-add0-f60e56e3cae2",
+              "score": 0.032787,
+              "retrieval_stage": "metadata_dense+metadata_sparse",
+              "title": "Dimension inspection | | Appearance inspection | | Shape Inspection | | Height difference | Volume | Burrs | Dents | Presence detection | Orientations detection | Incorrect seatings",
+              "source_filename": "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf"
+            }
+          ]
+        },
+        {
+          "name": "dense",
+          "count": 14,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.740355,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.672026,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.657697,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "dense",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "sparse",
+          "count": 14,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 2.459852,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "sparse",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 1.829998,
+              "chunk_type": "section_window",
+              "retrieval_stage": "sparse",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 1.829998,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "sparse",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "special",
+          "count": 10,
+          "results": [
+            {
+              "chunk_id": "a1a226b0-6bfc-556f-87b6-f10a2c5fd707",
+              "score": 0.031319,
+              "chunk_type": "table_record",
+              "retrieval_stage": "special",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                34
+              ],
+              "section_path": [
+                "HALCON"
+              ],
+              "content_preview": "Column headers: LJ-X8002/LJ-X8000E *6 > 2D mode > 3D mode; Row headers: Memory card; Cell value: \u2022 SD card slot \u00d7 2 \u2022 Supports OP-87133 (512 MB), CA-SD1G (1 GB), CA-SD4G (4 GB), CA-SD16G (16 GB) *In the SD1 slot, CA-SD4G",
+              "low_information": true,
+              "structured_low_information": true,
+              "technical_signal_score": 0.25
+            },
+            {
+              "chunk_id": "45d397d7-51db-5dae-b038-dac3b3e46efc",
+              "score": 0.016393,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "special",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "LJ: X Series  Terminal-Software",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.15
+            },
+            {
+              "chunk_id": "06bd105f-5ac3-508f-94ee-ee3f07a76d9e",
+              "score": 0.016129,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "special",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "LJ: X Series  Simulation-Software",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.15
+            }
+          ]
+        },
+        {
+          "name": "fused",
+          "count": 20,
+          "results": [
+            {
+              "chunk_id": "6422a6b7-9101-5099-b6dc-b238d435774a",
+              "score": 0.032787,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [],
+              "content_preview": "Data Sheet Dimensions Download CAD file or product manual for larger image/text and more detail.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.031754,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            },
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.031754,
+              "chunk_type": "section_window",
+              "retrieval_stage": "fused",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            }
+          ]
+        },
+        {
+          "name": "family_scored",
+          "count": 20,
+          "results": [
+            {
+              "chunk_id": "45d397d7-51db-5dae-b038-dac3b3e46efc",
+              "score": 0.089828,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "LJ: X Series  Terminal-Software",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.15
+            },
+            {
+              "chunk_id": "a1a226b0-6bfc-556f-87b6-f10a2c5fd707",
+              "score": 0.076393,
+              "chunk_type": "table_record",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                34
+              ],
+              "section_path": [
+                "HALCON"
+              ],
+              "content_preview": "Column headers: LJ-X8002/LJ-X8000E *6 > 2D mode > 3D mode; Row headers: Memory card; Cell value: \u2022 SD card slot \u00d7 2 \u2022 Supports OP-87133 (512 MB), CA-SD1G (1 GB), CA-SD4G (4 GB), CA-SD16G (16 GB) *In the SD1 slot, CA-SD4G",
+              "low_information": true,
+              "structured_low_information": true,
+              "technical_signal_score": 0.25
+            },
+            {
+              "chunk_id": "06bd105f-5ac3-508f-94ee-ee3f07a76d9e",
+              "score": 0.075873,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "family_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": null,
+              "semantic_completeness_score": null,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "LJ: X Series  Simulation-Software",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.15
+            }
+          ]
+        },
+        {
+          "name": "completeness_scored",
+          "count": 20,
+          "results": [
+            {
+              "chunk_id": "45d397d7-51db-5dae-b038-dac3b3e46efc",
+              "score": 0.119828,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "spec",
+              "semantic_completeness_score": 0.6,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "LJ: X Series  Terminal-Software",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.15
+            },
+            {
+              "chunk_id": "a1a226b0-6bfc-556f-87b6-f10a2c5fd707",
+              "score": 0.128893,
+              "chunk_type": "table_record",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "table",
+              "semantic_completeness_score": 1.0499999999999998,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                34
+              ],
+              "section_path": [
+                "HALCON"
+              ],
+              "content_preview": "Column headers: LJ-X8002/LJ-X8000E *6 > 2D mode > 3D mode; Row headers: Memory card; Cell value: \u2022 SD card slot \u00d7 2 \u2022 Supports OP-87133 (512 MB), CA-SD1G (1 GB), CA-SD4G (4 GB), CA-SD16G (16 GB) *In the SD1 slot, CA-SD4G",
+              "low_information": true,
+              "structured_low_information": true,
+              "technical_signal_score": 0.25
+            },
+            {
+              "chunk_id": "06bd105f-5ac3-508f-94ee-ee3f07a76d9e",
+              "score": 0.105873,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "completeness_scored",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "spec",
+              "semantic_completeness_score": 0.6,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "LJ: X Series  Simulation-Software",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.15
+            }
+          ]
+        },
+        {
+          "name": "query_aligned",
+          "count": 20,
+          "results": [
+            {
+              "chunk_id": "e4e9e1b7-af10-5ebb-b338-5eb158b8164f",
+              "score": 0.574254,
+              "chunk_type": "section_window",
+              "retrieval_stage": "query_aligned",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "f2137597-ceac-5019-9ec0-b7a72cf19a0a",
+              "score": 0.574246,
+              "chunk_type": "parent_section",
+              "retrieval_stage": "query_aligned",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "context",
+              "semantic_completeness_score": 0.5499999999999999,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet | CA-EN100U\n\nCA-EN100U\n\nEncoder relay unit\n\n*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.5
+            },
+            {
+              "chunk_id": "cb626eda-2a67-5ab9-827d-817691d6cb12",
+              "score": 0.424254,
+              "chunk_type": "atomic_text",
+              "retrieval_stage": "query_aligned",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "prose",
+              "semantic_completeness_score": 0.44999999999999996,
+              "title": "7c5dc604-c690-4cae-a0aa-4ce61f1d8b49 CA-EN100U Datasheet",
+              "pages": [
+                1
+              ],
+              "section_path": [
+                "CA-EN100U"
+              ],
+              "content_preview": "*Please note that accessories depicted in the image are for illustrative purposes only and may not be included with the product.",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.3
+            }
+          ]
+        },
+        {
+          "name": "family_selected",
+          "count": 8,
+          "results": [
+            {
+              "chunk_id": "f233e6ee-9872-5969-9e34-0f81e6dae874",
+              "score": 0.257652,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "spec",
+              "semantic_completeness_score": 1.0499999999999998,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "LJ-X8200/LJ-X8300/LJ-X8400/LJ-X8900"
+              ],
+              "content_preview": "LASER  RADIATION CLASS  2M  LASER  PRODUCT IEC/EN 60825: 1 : 2014 DO NOT STARE INTO THE BEAM OR VIEW DIRECTLY WITH OPTICAL INSTRUMENTS Wavelength : 405nm Output : 10mW",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 1.05
+            },
+            {
+              "chunk_id": "d971d0fc-f1be-5d62-b324-379f0088eb9f",
+              "score": 0.252206,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "spec",
+              "semantic_completeness_score": 0.95,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                10
+              ],
+              "section_path": [
+                "(28.35\")"
+              ],
+              "content_preview": "Improved precision in both the X: axis and Z-axis",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.45
+            },
+            {
+              "chunk_id": "45d397d7-51db-5dae-b038-dac3b3e46efc",
+              "score": 0.079828,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "family_selected",
+              "pre_rerank_rank": null,
+              "post_rerank_rank": null,
+              "family_bucket": "spec",
+              "semantic_completeness_score": 0.6,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "CA-EN10"
+              ],
+              "content_preview": "LJ: X Series  Terminal-Software",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 0.15
+            }
+          ]
+        },
+        {
+          "name": "reranked",
+          "count": 6,
+          "results": [
+            {
+              "chunk_id": "a1a226b0-6bfc-556f-87b6-f10a2c5fd707",
+              "score": 0.861004,
+              "chunk_type": "table_record",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 5,
+              "post_rerank_rank": 2,
+              "family_bucket": "table",
+              "semantic_completeness_score": 1.0499999999999998,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                34
+              ],
+              "section_path": [
+                "HALCON"
+              ],
+              "content_preview": "Column headers: LJ-X8002/LJ-X8000E *6 > 2D mode > 3D mode; Row headers: Memory card; Cell value: \u2022 SD card slot \u00d7 2 \u2022 Supports OP-87133 (512 MB), CA-SD1G (1 GB), CA-SD4G (4 GB), CA-SD16G (16 GB) *In the SD1 slot, CA-SD4G",
+              "low_information": true,
+              "structured_low_information": true,
+              "technical_signal_score": 0.25
+            },
+            {
+              "chunk_id": "216fdb0e-8dcb-5fb3-8f98-11cf338c6ba2",
+              "score": 0.859495,
+              "chunk_type": "table_record",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 6,
+              "post_rerank_rank": 3,
+              "family_bucket": "table",
+              "semantic_completeness_score": 1.0499999999999998,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                35
+              ],
+              "section_path": [
+                "HALCON"
+              ],
+              "content_preview": "Column headers: XG-X2902LJ; Row headers: Interface; Cell value: Value output and control I/O can be switched to a CA Series touch panel interface (when this is in use, PLC Link using the RS-232C port cannot be used); Row",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 1.05
+            },
+            {
+              "chunk_id": "f233e6ee-9872-5969-9e34-0f81e6dae874",
+              "score": 0.480408,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "reranked",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 4,
+              "family_bucket": "spec",
+              "semantic_completeness_score": 1.0499999999999998,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "LJ-X8200/LJ-X8300/LJ-X8400/LJ-X8900"
+              ],
+              "content_preview": "LASER  RADIATION CLASS  2M  LASER  PRODUCT IEC/EN 60825: 1 : 2014 DO NOT STARE INTO THE BEAM OR VIEW DIRECTLY WITH OPTICAL INSTRUMENTS Wavelength : 405nm Output : 10mW",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 1.05
+            }
+          ]
+        },
+        {
+          "name": "assembled",
+          "count": 3,
+          "results": [
+            {
+              "chunk_id": "a1a226b0-6bfc-556f-87b6-f10a2c5fd707",
+              "score": 0.861004,
+              "chunk_type": "table_record",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 5,
+              "post_rerank_rank": 2,
+              "family_bucket": "table",
+              "semantic_completeness_score": 1.0499999999999998,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                34
+              ],
+              "section_path": [
+                "HALCON"
+              ],
+              "content_preview": "Column headers: LJ-X8002/LJ-X8000E *6 > 2D mode > 3D mode; Row headers: Memory card; Cell value: \u2022 SD card slot \u00d7 2 \u2022 Supports OP-87133 (512 MB), CA-SD1G (1 GB), CA-SD4G (4 GB), CA-SD16G (16 GB) *In the SD1 slot, CA-SD4G",
+              "low_information": true,
+              "structured_low_information": true,
+              "technical_signal_score": 0.25
+            },
+            {
+              "chunk_id": "216fdb0e-8dcb-5fb3-8f98-11cf338c6ba2",
+              "score": 0.859495,
+              "chunk_type": "table_record",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 6,
+              "post_rerank_rank": 3,
+              "family_bucket": "table",
+              "semantic_completeness_score": 1.0499999999999998,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                35
+              ],
+              "section_path": [
+                "HALCON"
+              ],
+              "content_preview": "Column headers: XG-X2902LJ; Row headers: Interface; Cell value: Value output and control I/O can be switched to a CA Series touch panel interface (when this is in use, PLC Link using the RS-232C port cannot be used); Row",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 1.05
+            },
+            {
+              "chunk_id": "f233e6ee-9872-5969-9e34-0f81e6dae874",
+              "score": 0.480408,
+              "chunk_type": "spec_record",
+              "retrieval_stage": "assembled",
+              "pre_rerank_rank": 1,
+              "post_rerank_rank": 4,
+              "family_bucket": "spec",
+              "semantic_completeness_score": 1.0499999999999998,
+              "title": "AS 151019 LJ-X8000 C 689092 KA US 2055 2",
+              "pages": [
+                36
+              ],
+              "section_path": [
+                "LJ-X8200/LJ-X8300/LJ-X8400/LJ-X8900"
+              ],
+              "content_preview": "LASER  RADIATION CLASS  2M  LASER  PRODUCT IEC/EN 60825: 1 : 2014 DO NOT STARE INTO THE BEAM OR VIEW DIRECTLY WITH OPTICAL INSTRUMENTS Wavelength : 405nm Output : 10mW",
+              "low_information": false,
+              "structured_low_information": false,
+              "technical_signal_score": 1.05
+            }
+          ]
+        }
+      ],
+      "diagnostics": {
+        "low_information_top_stages": [
+          "special",
+          "reranked",
+          "assembled"
+        ],
+        "structured_low_information_top_stages": [
+          "special",
+          "reranked",
+          "assembled"
+        ],
+        "special_empty": false,
+        "metadata_document_selection_used": true,
+        "rerank_promoted_low_information": true,
+        "family_selection_changed_top_chunk": true,
+        "rerank_changed_top_chunk": true
+      }
+    }
+  ],
+  "summary": {
+    "cases_with_metadata_document_selection": 2,
+    "cases_with_low_information_top_hit": 2,
+    "cases_with_structured_low_information_top_hit": 1,
+    "cases_with_empty_special_stage": 1,
+    "cases_where_rerank_promoted_low_information": 1,
+    "cases_where_family_selection_changed_top_chunk": 2,
+    "cases_where_rerank_changed_top_chunk": 2
+  }
+}

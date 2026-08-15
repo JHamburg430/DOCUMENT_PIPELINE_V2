@@ -1,0 +1,208 @@
+{
+  "tmp_doc_sets": [
+    {
+      "name": "tmp_eval_docs",
+      "directory": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/tmp_eval_docs",
+      "documents": [
+        "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/tmp_eval_docs/AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf"
+      ]
+    },
+    {
+      "name": "tmp_eval_docs_medium",
+      "directory": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/tmp_eval_docs_medium",
+      "documents": [
+        "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/tmp_eval_docs_medium/AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf"
+      ]
+    },
+    {
+      "name": "tmp_eval_docs_small",
+      "directory": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/tmp_eval_docs_small",
+      "documents": [
+        "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/tmp_eval_docs_small/AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf"
+      ]
+    }
+  ],
+  "tmp_coverage": {
+    "tmp_document_count": 3,
+    "keyence_inventory_count": 54,
+    "tmp_documents_present_in_keyence": 3,
+    "missing_from_keyence": []
+  },
+  "runs": [
+    {
+      "doc_set_name": "tmp_eval_docs",
+      "documents": [
+        "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf"
+      ],
+      "existing_corpus_id": "manuals_eval_20260404_134758",
+      "summary": {
+        "total_queries": 20,
+        "passed_queries": 0,
+        "failed_queries": 20,
+        "pass_rate": 0.0,
+        "pass_at_1": 0.0,
+        "pass_at_3": 0.0,
+        "pass_at_5": 0.0,
+        "mean_passing_rank": null,
+        "by_chunk_type": {
+          "table_record": {
+            "total": 20,
+            "passed": 0
+          }
+        },
+        "by_document": {
+          "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf": {
+            "total": 20,
+            "passed": 0
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 20
+        },
+        "benchmark_quality": {
+          "validated": 20
+        },
+        "benchmark_validity_rate": 1.0,
+        "candidate_recall_rate": 1.0
+      },
+      "artifacts": {
+        "dataset_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_dataset_20260413_184644.jsonl",
+        "results_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_results_20260413_184644.jsonl",
+        "summary_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_summary_20260413_184644.json"
+      }
+    },
+    {
+      "doc_set_name": "tmp_eval_docs_medium",
+      "documents": [
+        "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf"
+      ],
+      "existing_corpus_id": "manuals_eval_20260404_075738",
+      "summary": {
+        "total_queries": 20,
+        "passed_queries": 17,
+        "failed_queries": 3,
+        "pass_rate": 0.85,
+        "pass_at_1": 0.65,
+        "pass_at_3": 0.75,
+        "pass_at_5": 0.85,
+        "mean_passing_rank": 1.529,
+        "by_chunk_type": {
+          "table_record": {
+            "total": 18,
+            "passed": 15
+          },
+          "atomic_text": {
+            "total": 2,
+            "passed": 2
+          }
+        },
+        "by_document": {
+          "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf": {
+            "total": 20,
+            "passed": 17
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 3
+        },
+        "benchmark_quality": {
+          "validated": 20
+        },
+        "benchmark_validity_rate": 1.0,
+        "candidate_recall_rate": 1.0
+      },
+      "artifacts": {
+        "dataset_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_dataset_20260413_184916.jsonl",
+        "results_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_results_20260413_184916.jsonl",
+        "summary_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_summary_20260413_184916.json"
+      }
+    },
+    {
+      "doc_set_name": "tmp_eval_docs_small",
+      "documents": [
+        "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf"
+      ],
+      "existing_corpus_id": "manuals_eval_20260404_025707",
+      "summary": {
+        "total_queries": 20,
+        "passed_queries": 7,
+        "failed_queries": 13,
+        "pass_rate": 0.35,
+        "pass_at_1": 0.35,
+        "pass_at_3": 0.35,
+        "pass_at_5": 0.35,
+        "mean_passing_rank": 1.0,
+        "by_chunk_type": {
+          "table_record": {
+            "total": 18,
+            "passed": 6
+          },
+          "atomic_text": {
+            "total": 2,
+            "passed": 1
+          }
+        },
+        "by_document": {
+          "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf": {
+            "total": 20,
+            "passed": 7
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 13
+        },
+        "benchmark_quality": {
+          "validated": 20
+        },
+        "benchmark_validity_rate": 1.0,
+        "candidate_recall_rate": 1.0
+      },
+      "artifacts": {
+        "dataset_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_dataset_20260413_184930.jsonl",
+        "results_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_results_20260413_184930.jsonl",
+        "summary_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_summary_20260413_184930.json"
+      }
+    }
+  ],
+  "overall": {
+    "total_queries": 60,
+    "passed_queries": 24,
+    "failed_queries": 36,
+    "pass_rate": 0.4,
+    "benchmark_validity_rate": 1.0,
+    "candidate_recall_rate": 1.0,
+    "by_chunk_type": {
+      "table_record": {
+        "total": 56,
+        "passed": 21
+      },
+      "atomic_text": {
+        "total": 4,
+        "passed": 3
+      }
+    },
+    "by_document": {
+      "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf": {
+        "total": 20,
+        "passed": 0
+      },
+      "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf": {
+        "total": 20,
+        "passed": 17
+      },
+      "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf": {
+        "total": 20,
+        "passed": 7
+      }
+    }
+  },
+  "production_readiness": {
+    "ready": false,
+    "thresholds": {
+      "overall_pass_rate": 0.7,
+      "benchmark_validity_rate": 0.95,
+      "atomic_text_pass_rate": 0.6,
+      "structured_chunk_min_pass_rate": 0.75
+    }
+  }
+}

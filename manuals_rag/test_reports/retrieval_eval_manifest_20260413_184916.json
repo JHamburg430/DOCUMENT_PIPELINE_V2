@@ -1,0 +1,20 @@
+{
+  "corpus_id": "manuals_eval_20260404_075738",
+  "documents": [
+    {
+      "document_id": "84f6173b-2740-4815-ac13-cf2a83a9a5a3",
+      "version_id": "a59ee722-efd3-4a5e-a243-b7ef8ac42d31",
+      "filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+      "document": {
+        "title": "EtherNet/IP\u2122 Edition (Allen-Brauldly CompactLogix/ControlLogix Series)",
+        "ingest_status": "indexed"
+      }
+    }
+  ],
+  "dataset_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_dataset_20260413_184916.jsonl",
+  "results_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_results_20260413_184916.jsonl",
+  "summary_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_summary_20260413_184916.json",
+  "selected_documents": [
+    "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "total_queries": 20,
+  "passed_queries": 17,
+  "failed_queries": 3,
+  "pass_rate": 0.85,
+  "pass_at_1": 0.65,
+  "pass_at_3": 0.75,
+  "pass_at_5": 0.85,
+  "mean_passing_rank": 1.529,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 18,
+      "passed": 15
+    },
+    "atomic_text": {
+      "total": 2,
+      "passed": 2
+    }
+  },
+  "by_document": {
+    "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf": {
+      "total": 20,
+      "passed": 17
+    }
+  },
+  "failure_categories": {
+    "ranking_or_context_loss": 3
+  },
+  "benchmark_quality": {
+    "validated": 20
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 1.0
+}

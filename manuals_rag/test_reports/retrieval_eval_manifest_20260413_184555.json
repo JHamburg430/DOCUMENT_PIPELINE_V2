@@ -1,0 +1,20 @@
+{
+  "corpus_id": "manuals_eval_20260404_025707",
+  "documents": [
+    {
+      "document_id": "e0beedb6-d099-4418-add0-f60e56e3cae2",
+      "version_id": "865199fa-cff6-4b7e-b13f-d9b53cadfe04",
+      "filename": "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf",
+      "document": {
+        "title": "Dimension inspection | | Appearance inspection | | Shape Inspection | | Height difference | Volume | Burrs | Dents | Presence detection | Orientations detection | Incorrect seatings",
+        "ingest_status": "indexed"
+      }
+    }
+  ],
+  "dataset_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_dataset_20260413_184555.jsonl",
+  "results_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_results_20260413_184555.jsonl",
+  "summary_path": "/home/john/Desktop/Programming/Document_Pipeline_V2/manuals_rag/test_reports/retrieval_eval_summary_20260413_184555.json",
+  "selected_documents": [
+    "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf"
+  ]
+}
