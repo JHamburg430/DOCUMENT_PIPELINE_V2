@@ -36,6 +36,7 @@ from manuals_rag_common.logging import configure_logging
 from manuals_rag_common.ollama import build_chat_payload, ensure_model_loaded, extract_chat_content, recent_ollama_calls
 from manuals_rag_common.queue import enqueue
 from manuals_rag_common.storage import ObjectStore
+from manuals_rag_evals.retrieval_eval import RetrievalEvalCase, build_eval_cases_from_chunks, score_search_results, tokenize
 from manuals_rag_observability.metrics import QUERY_DURATION
 from manuals_rag_parsers.metadata import infer_document_metadata
 from manuals_rag_permissions.auth import Principal, require_role
@@ -83,6 +84,128 @@ def _safe_filename(filename: str) -> str:
     safe_stem = "".join(char if char.isalnum() or char in {"-", "_"} else "_" for char in stem).strip("_")
     safe_extension = extension.lower() if extension else ".pdf"
     return f"{safe_stem or 'document'}{safe_extension}"
+
+
+def _fetch_eval_chunk_rows(
+    *,
+    corpus_ids: list[str],
+    document_id: str | None,
+    max_chunks: int,
+) -> list[dict[str, Any]]:
+    where = ["rc.is_active = true", "rc.chunk_level = 1", "length(rc.content) >= 40"]
+    params: list[Any] = []
+    if document_id:
+        where.append("rc.source_document_id = %s")
+        params.append(document_id)
+    elif corpus_ids:
+        where.append("sd.corpus_id = any(%s)")
+        params.append(corpus_ids)
+    else:
+        where.append("sd.ingest_status = 'indexed'")
+    params.append(max(1, min(max_chunks, 1000)))
+    return fetch_all(
+        f"""
+        select
+            rc.id,
+            rc.source_document_id,
+            rc.document_version_id,
+            rc.chunk_type,
+            rc.chunk_level,
+            rc.title,
+            rc.section_path_text,
+            rc.page_from,
+            rc.page_to,
+            rc.content,
+            rc.metadata_json,
+            sd.source_filename,
+            coalesce(sd.product_model, rc.metadata_json->>'product_model', '') as product_model
+        from retrieval_chunks rc
+        join source_documents sd on sd.id = rc.source_document_id
+        where {' and '.join(where)}
+          and rc.chunk_type in ('table_record','datasheet_record','spec_record','procedure_record','warning_record','atomic_text')
+        order by
+          case rc.chunk_type
+            when 'datasheet_record' then 1
+            when 'spec_record' then 2
+            when 'procedure_record' then 3
+            when 'warning_record' then 4
+            when 'table_record' then 5
+            else 6
+          end,
+          rc.priority_score desc,
+          length(rc.content) desc
+        limit %s
+        """,
+        tuple(params),
+    )
+
+
+def _answer_contains_expected_terms(answer: dict[str, Any], expected_terms: list[str]) -> dict[str, Any]:
+    answer_text = str(answer.get("answer") or "")
+    answer_tokens = set(tokenize(answer_text))
+    expected = [term for term in expected_terms if term]
+    matched = [
+        term
+        for term in expected
+        if term.lower() in answer_text.lower() or any(term.lower() == token for token in answer_tokens)
+    ]
+    required = min(2, len(expected))
+    return {
+        "passed": len(matched) >= required if required else False,
+        "matched_terms": matched,
+        "expected_terms": expected,
+        "required_terms": required,
+    }
+
+
+def _score_answer(case: RetrievalEvalCase, answer: dict[str, Any], retrieval_evaluation: dict[str, Any]) -> dict[str, Any]:
+    citation_document_ids = {
+        str(citation.get("document_id") or citation.get("source_document_id") or "")
+        for citation in answer.get("citations", [])
+        if isinstance(citation, dict)
+    }
+    used_document_ids = {
+        str(document.get("document_id") or document.get("source_document_id") or "")
+        for document in answer.get("used_documents", [])
+        if isinstance(document, dict)
+    }
+    expected_document_used = case.source_document_id in citation_document_ids or case.source_document_id in used_document_ids
+    terms = _answer_contains_expected_terms(answer, case.expected_terms)
+    answer_text = str(answer.get("answer") or "").strip()
+    passed = bool(
+        answer_text
+        and not answer.get("insufficient_evidence")
+        and expected_document_used
+        and terms["passed"]
+    )
+    failure_reasons = []
+    if not answer_text:
+        failure_reasons.append("empty_answer")
+    if answer.get("insufficient_evidence"):
+        failure_reasons.append("insufficient_evidence")
+    if not expected_document_used:
+        failure_reasons.append("expected_document_not_cited_or_used")
+    if not terms["passed"]:
+        failure_reasons.append("expected_terms_missing")
+    return {
+        "passed": passed,
+        "failure_reasons": failure_reasons,
+        "expected_document_used": expected_document_used,
+        "term_check": terms,
+    }
+
+
+def _summarize_end_to_end_eval(items: list[dict[str, Any]]) -> dict[str, Any]:
+    total = len(items)
+    retrieval_passed = sum(1 for item in items if item["retrieval_evaluation"]["passed"])
+    answer_passed = sum(1 for item in items if item["answer_evaluation"]["passed"])
+    return {
+        "total_questions": total,
+        "retrieval_correct": retrieval_passed,
+        "retrieval_correct_percent": round((retrieval_passed / total) * 100, 2) if total else 0.0,
+        "answers_correct": answer_passed,
+        "answers_correct_percent": round((answer_passed / total) * 100, 2) if total else 0.0,
+    }
 
 
 def _render_pdf_page_png(data: bytes, page_number: int) -> bytes:
@@ -573,6 +696,65 @@ def explain_retrieval(
     return {
         "applied_filters": filters,
         "reranked_top_results": results,
+    }
+
+
+@app.post("/eval/end-to-end")
+def run_end_to_end_eval(
+    payload: dict[str, Any],
+    _: Principal = Depends(require_role("operator", "admin", "auditor")),
+) -> dict[str, Any]:
+    corpus_ids = [str(item).strip() for item in payload.get("corpus_ids", []) if str(item).strip()]
+    document_id = str(payload.get("document_id") or "").strip() or None
+    max_questions = max(1, min(int(payload.get("max_questions") or 10), 50))
+    max_chunks = max(max_questions, min(int(payload.get("max_chunks") or max_questions * 8), 1000))
+    use_llm_generation = bool(payload.get("use_llm_generation", True))
+    if not document_id and not corpus_ids:
+        raise HTTPException(status_code=400, detail="Provide corpus_ids for all-doc eval or document_id for a single-document eval.")
+
+    chunk_rows = _fetch_eval_chunk_rows(corpus_ids=corpus_ids, document_id=document_id, max_chunks=max_chunks)
+    cases = build_eval_cases_from_chunks(
+        chunk_rows,
+        max_cases=max_questions,
+        use_llm_generation=use_llm_generation,
+    )
+    if not cases:
+        return {
+            "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
+            "summary": _summarize_end_to_end_eval([]),
+            "items": [],
+            "warnings": ["No query-worthy indexed chunks were found for the requested scope."],
+        }
+
+    items: list[dict[str, Any]] = []
+    for case in cases:
+        filters: dict[str, Any] = {}
+        search_corpus_ids = corpus_ids
+        if document_id:
+            filters["source_document_id"] = [document_id]
+            document = fetch_one("select corpus_id from source_documents where id = %s", (document_id,))
+            if document and document.get("corpus_id"):
+                search_corpus_ids = [str(document["corpus_id"])]
+        search_results = [item.model_dump() for item in retrieve(case.query, search_corpus_ids, build_filters(case.query, filters))]
+        retrieval_evaluation = score_search_results(case, search_results)
+        answer_result = workflow.invoke({"query": case.query, "corpus_ids": search_corpus_ids, "filters": filters})
+        answer = dict(answer_result["answer"])
+        answer_evaluation = _score_answer(case, answer, retrieval_evaluation)
+        items.append(
+            {
+                "case": case.to_dict(),
+                "retrieval_evaluation": retrieval_evaluation,
+                "answer": answer,
+                "answer_evaluation": answer_evaluation,
+                "top_results": search_results[:5],
+            }
+        )
+
+    return {
+        "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
+        "summary": _summarize_end_to_end_eval(items),
+        "items": items,
+        "warnings": [],
     }
 
 

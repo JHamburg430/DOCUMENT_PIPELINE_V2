@@ -182,6 +182,109 @@ def _render_consolidated_search_results(payload: Any) -> None:
             _render_json_block("Source Assets", source_assets)
 
 
+def _render_end_to_end_eval(payload: dict[str, Any]) -> None:
+    summary = payload.get("summary", {})
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("Questions", summary.get("total_questions", 0))
+    metric_cols[1].metric("Retrieval Correct", f"{summary.get('retrieval_correct_percent', 0.0):.2f}%")
+    metric_cols[2].metric("Answers Correct", f"{summary.get('answers_correct_percent', 0.0):.2f}%")
+    metric_cols[3].metric("Answer Passes", summary.get("answers_correct", 0))
+
+    for warning in payload.get("warnings", []):
+        st.warning(warning)
+
+    items = payload.get("items", [])
+    if not items:
+        st.info("No evaluation items returned.")
+        return
+
+    rows = []
+    for index, item in enumerate(items, start=1):
+        case = item.get("case", {})
+        retrieval = item.get("retrieval_evaluation", {})
+        answer_eval = item.get("answer_evaluation", {})
+        rows.append(
+            {
+                "Item": index,
+                "Question": case.get("query"),
+                "Document": case.get("source_filename"),
+                "Chunk Type": case.get("chunk_type"),
+                "Retrieval": "pass" if retrieval.get("passed") else "fail",
+                "Rank": retrieval.get("rank"),
+                "Answer": "pass" if answer_eval.get("passed") else "fail",
+                "Answer Failures": ", ".join(answer_eval.get("failure_reasons", [])),
+            }
+        )
+    st.dataframe(rows, hide_index=True, use_container_width=True)
+
+    selected_index = st.selectbox(
+        "Review eval item",
+        options=list(range(len(items))),
+        format_func=lambda index: f"{index + 1}. {items[index].get('case', {}).get('query')}",
+    )
+    item = items[selected_index]
+    case = item.get("case", {})
+    answer = item.get("answer", {})
+    retrieval = item.get("retrieval_evaluation", {})
+    answer_eval = item.get("answer_evaluation", {})
+
+    left, right = st.columns(2)
+    with left:
+        st.markdown("### Expected")
+        _render_json_block(
+            "Case",
+            {
+                key: case.get(key)
+                for key in (
+                    "query",
+                    "source_filename",
+                    "source_title",
+                    "chunk_type",
+                    "section_path",
+                    "page_from",
+                    "page_to",
+                    "expected_terms",
+                    "generation_method",
+                )
+            },
+        )
+        st.markdown("**Expected Snippet**")
+        st.code(str(case.get("expected_snippet") or ""), language="text")
+        _render_json_block("Retrieval Evaluation", retrieval)
+        _render_json_block("Answer Evaluation", answer_eval)
+    with right:
+        st.markdown("### Generated Answer")
+        st.code(str(answer.get("answer") or ""), language="text")
+        _render_json_block("Citations", answer.get("citations", []))
+        _render_json_block("Used Documents", answer.get("used_documents", []))
+        _render_json_block("Warnings", answer.get("warnings", []))
+
+    st.markdown("### Top Search Results")
+    top_results = item.get("top_results", [])
+    if not top_results:
+        st.info("No search results recorded.")
+        return
+    result_index = st.selectbox(
+        "Inspect top result",
+        options=list(range(len(top_results))),
+        format_func=lambda index: f"{index + 1}. {top_results[index].get('score', 0):.4f} | {top_results[index].get('title')}",
+    )
+    result = top_results[result_index]
+    left, right = st.columns(2)
+    with left:
+        _render_json_block(
+            "Result",
+            {
+                key: result.get(key)
+                for key in ("chunk_id", "score", "title", "source_document_id", "document_version_id", "pages", "section_path")
+            },
+        )
+        _render_json_block("Metadata", result.get("metadata", {}))
+    with right:
+        st.markdown("**Content**")
+        st.code(str(result.get("content") or ""), language="text")
+
+
 def main() -> None:
     st.set_page_config(page_title="Manuals RAG Debug", layout="wide")
     st.title("Manuals RAG Debug Console")
@@ -242,6 +345,43 @@ def main() -> None:
             _render_consolidated_search_results(payload)
         else:
             st.info("Run a search to inspect the consolidated retrieval results.")
+
+    st.markdown("## End-to-End Evaluation")
+    st.caption("Generates questions from indexed document chunks, runs search and answer generation, scores correctness, and keeps each item reviewable.")
+    eval_control_col, eval_result_col = st.columns([1, 2])
+    with eval_control_col:
+        eval_scope = st.radio("Scope", options=["All indexed docs in corpora", "Single document"], horizontal=False)
+        eval_corpus_ids_text = st.text_input("Eval Corpus IDs", value=st.session_state.get("query_corpus_ids", DEFAULT_CORPUS), key="eval_corpus_ids")
+        selected_eval_document = ""
+        if eval_scope == "Single document":
+            selected_eval_document = st.selectbox("Eval Document", options=[""] + list(doc_options.keys()), key="eval_document_select")
+        max_questions = st.slider("Max questions", min_value=1, max_value=50, value=8)
+        use_llm_generation = st.checkbox("Use LLM question generation", value=True)
+        if st.button("Run End-to-End Eval", use_container_width=True):
+            eval_corpus_ids = [item.strip() for item in eval_corpus_ids_text.split(",") if item.strip()]
+            eval_document_id = doc_options.get(selected_eval_document) if selected_eval_document else None
+            if eval_scope == "Single document" and not eval_document_id:
+                st.error("Choose a document for single-document evaluation.")
+                st.stop()
+            if eval_scope != "Single document" and not eval_corpus_ids:
+                st.error("Corpus IDs cannot be empty for all-doc evaluation.")
+                st.stop()
+            with st.spinner("Running generated questions through search and answer generation..."):
+                st.session_state["end_to_end_eval_payload"] = _post(
+                    "/eval/end-to-end",
+                    {
+                        "corpus_ids": eval_corpus_ids,
+                        "document_id": eval_document_id,
+                        "max_questions": max_questions,
+                        "use_llm_generation": use_llm_generation,
+                    },
+                )
+    with eval_result_col:
+        eval_payload = st.session_state.get("end_to_end_eval_payload")
+        if eval_payload:
+            _render_end_to_end_eval(eval_payload)
+        else:
+            st.info("Run an evaluation to review generated questions, answers, scoring, citations, and top retrieved chunks.")
 
     with st.expander("Legacy debug pipeline", expanded=False):
         st.caption("This diagnostic view uses the debug run endpoint. Use consolidated search above for production retrieval behavior.")
