@@ -208,6 +208,131 @@ def _summarize_end_to_end_eval(items: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _ensure_run_tables() -> None:
+    execute(
+        """
+        create table if not exists app_runs (
+            id uuid primary key,
+            run_type text not null,
+            status text not null,
+            request_json jsonb not null default '{}'::jsonb,
+            progress_json jsonb not null default '{}'::jsonb,
+            result_json jsonb,
+            error text,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now()
+        )
+        """
+    )
+    execute(
+        """
+        create table if not exists app_run_events (
+            id bigserial primary key,
+            run_id uuid not null references app_runs(id) on delete cascade,
+            event_index integer not null,
+            event_json jsonb not null,
+            created_at timestamptz not null default now(),
+            unique (run_id, event_index)
+        )
+        """
+    )
+
+
+def _create_persisted_run(run_id: str, run_type: str, request_payload: dict[str, Any]) -> None:
+    execute(
+        """
+        insert into app_runs (id, run_type, status, request_json, progress_json, created_at, updated_at)
+        values (%s, %s, 'queued', %s::jsonb, '{}'::jsonb, now(), now())
+        on conflict (id) do update
+        set run_type = excluded.run_type,
+            status = excluded.status,
+            request_json = excluded.request_json,
+            progress_json = excluded.progress_json,
+            result_json = null,
+            error = null,
+            updated_at = now()
+        """,
+        (run_id, run_type, json_dumps(request_payload)),
+    )
+
+
+def _update_persisted_run(
+    run_id: str,
+    *,
+    status: str | None = None,
+    progress: dict[str, Any] | None = None,
+    result: dict[str, Any] | None = None,
+    error: str | None = None,
+) -> None:
+    current = fetch_one("select progress_json from app_runs where id = %s", (run_id,)) or {}
+    progress_payload = progress if progress is not None else dict(current.get("progress_json") or {})
+    execute(
+        """
+        update app_runs
+        set status = coalesce(%s, status),
+            progress_json = %s::jsonb,
+            result_json = coalesce(%s::jsonb, result_json),
+            error = coalesce(%s, error),
+            updated_at = now()
+        where id = %s
+        """,
+        (
+            status,
+            json_dumps(progress_payload),
+            json_dumps(result) if result is not None else None,
+            error,
+            run_id,
+        ),
+    )
+
+
+def _append_run_event(run_id: str, event_index: int, event: dict[str, Any]) -> None:
+    execute(
+        """
+        insert into app_run_events (run_id, event_index, event_json, created_at)
+        values (%s, %s, %s::jsonb, now())
+        on conflict (run_id, event_index) do nothing
+        """,
+        (run_id, event_index, json_dumps(event)),
+    )
+
+
+def _load_eval_cases(payload: dict[str, Any]) -> tuple[list[str], str | None, list[RetrievalEvalCase], list[str]]:
+    corpus_ids = [str(item).strip() for item in payload.get("corpus_ids", []) if str(item).strip()]
+    document_id = str(payload.get("document_id") or "").strip() or None
+    max_questions = max(1, min(int(payload.get("max_questions") or 10), 50))
+    max_chunks = max(max_questions, min(int(payload.get("max_chunks") or max_questions * 8), 1000))
+    use_llm_generation = bool(payload.get("use_llm_generation", True))
+    if not document_id and not corpus_ids:
+        raise HTTPException(status_code=400, detail="Provide corpus_ids for all-doc eval or document_id for a single-document eval.")
+    chunk_rows = _fetch_eval_chunk_rows(corpus_ids=corpus_ids, document_id=document_id, max_chunks=max_chunks)
+    cases = build_eval_cases_from_chunks(
+        chunk_rows,
+        max_cases=max_questions,
+        use_llm_generation=use_llm_generation,
+    )
+    warnings = [] if cases else ["No query-worthy indexed chunks were found for the requested scope."]
+    return corpus_ids, document_id, cases, warnings
+
+
+def _eval_search_scope(corpus_ids: list[str], document_id: str | None) -> tuple[list[str], dict[str, Any]]:
+    filters: dict[str, Any] = {}
+    search_corpus_ids = corpus_ids
+    if document_id:
+        filters["source_document_id"] = [document_id]
+        document = fetch_one("select corpus_id from source_documents where id = %s", (document_id,))
+        if document and document.get("corpus_id"):
+            search_corpus_ids = [str(document["corpus_id"])]
+    return search_corpus_ids, filters
+
+
+def _top_results_from_query_debug(result: dict[str, Any]) -> list[dict[str, Any]]:
+    for stage in result.get("stages", []):
+        if stage.get("name") == "retrieval_results":
+            return [dict(item) for item in stage.get("samples", [])]
+    return []
+
+
 def _render_pdf_page_png(data: bytes, page_number: int) -> bytes:
     pdf = fitz.open(stream=data, filetype="pdf")
     try:
@@ -399,6 +524,7 @@ def _attach_source_assets(
 async def lifespan(_: FastAPI):
     configure_logging()
     ObjectStore().ensure_buckets()
+    _ensure_run_tables()
     yield
 
 
@@ -423,6 +549,13 @@ def _set_debug_query_run(run_id: str, payload: dict[str, Any]) -> None:
         current.update(payload)
         current["updated_at"] = datetime.utcnow().isoformat() + "Z"
         debug_query_runs[run_id] = current
+    _update_persisted_run(
+        run_id,
+        status=current.get("status"),
+        progress=current.get("progress"),
+        result=current.get("result"),
+        error=current.get("error"),
+    )
 
 
 def _run_debug_query_job(run_id: str, request: QueryRequest, sample_limit: int) -> None:
@@ -704,37 +837,23 @@ def run_end_to_end_eval(
     payload: dict[str, Any],
     _: Principal = Depends(require_role("operator", "admin", "auditor")),
 ) -> dict[str, Any]:
-    corpus_ids = [str(item).strip() for item in payload.get("corpus_ids", []) if str(item).strip()]
-    document_id = str(payload.get("document_id") or "").strip() or None
-    max_questions = max(1, min(int(payload.get("max_questions") or 10), 50))
-    max_chunks = max(max_questions, min(int(payload.get("max_chunks") or max_questions * 8), 1000))
-    use_llm_generation = bool(payload.get("use_llm_generation", True))
-    if not document_id and not corpus_ids:
-        raise HTTPException(status_code=400, detail="Provide corpus_ids for all-doc eval or document_id for a single-document eval.")
-
-    chunk_rows = _fetch_eval_chunk_rows(corpus_ids=corpus_ids, document_id=document_id, max_chunks=max_chunks)
-    cases = build_eval_cases_from_chunks(
-        chunk_rows,
-        max_cases=max_questions,
-        use_llm_generation=use_llm_generation,
-    )
+    run_id = str(uuid4())
+    _create_persisted_run(run_id, "end_to_end_eval", payload)
+    corpus_ids, document_id, cases, warnings = _load_eval_cases(payload)
     if not cases:
-        return {
+        result = {
+            "run_id": run_id,
             "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
             "summary": _summarize_end_to_end_eval([]),
             "items": [],
-            "warnings": ["No query-worthy indexed chunks were found for the requested scope."],
+            "warnings": warnings,
         }
+        _update_persisted_run(run_id, status="completed", result=result)
+        return result
 
     items: list[dict[str, Any]] = []
     for case in cases:
-        filters: dict[str, Any] = {}
-        search_corpus_ids = corpus_ids
-        if document_id:
-            filters["source_document_id"] = [document_id]
-            document = fetch_one("select corpus_id from source_documents where id = %s", (document_id,))
-            if document and document.get("corpus_id"):
-                search_corpus_ids = [str(document["corpus_id"])]
+        search_corpus_ids, filters = _eval_search_scope(corpus_ids, document_id)
         search_results = [item.model_dump() for item in retrieve(case.query, search_corpus_ids, build_filters(case.query, filters))]
         retrieval_evaluation = score_search_results(case, search_results)
         answer_result = workflow.invoke({"query": case.query, "corpus_ids": search_corpus_ids, "filters": filters})
@@ -750,12 +869,190 @@ def run_end_to_end_eval(
             }
         )
 
-    return {
+    result = {
+        "run_id": run_id,
         "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
         "summary": _summarize_end_to_end_eval(items),
         "items": items,
-        "warnings": [],
+        "warnings": warnings,
     }
+    _update_persisted_run(run_id, status="completed", result=result)
+    return result
+
+
+@app.post("/eval/end-to-end-stream")
+def stream_end_to_end_eval(
+    payload: dict[str, Any],
+    sample_limit: int = 10,
+    _: Principal = Depends(require_role("operator", "admin", "auditor")),
+) -> StreamingResponse:
+    run_id = str(uuid4())
+    _create_persisted_run(run_id, "end_to_end_eval", payload)
+    bounded_sample_limit = max(5, min(sample_limit, 100))
+
+    def iter_events() -> Any:
+        event_index = 0
+
+        def emit(event: dict[str, Any]) -> Any:
+            nonlocal event_index
+            event_index += 1
+            event_with_run = {"run_id": run_id, **event}
+            _append_run_event(run_id, event_index, event_with_run)
+            return event_with_run
+
+        items: list[dict[str, Any]] = []
+        try:
+            corpus_ids, document_id, cases, warnings = _load_eval_cases(payload)
+            start_event = emit(
+                {
+                    "event": "eval_started",
+                    "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
+                    "total_questions": len(cases),
+                    "warnings": warnings,
+                }
+            )
+            _update_persisted_run(run_id, status="running", progress=start_event)
+            yield json.dumps(start_event, default=str) + "\n"
+            if not cases:
+                result = {
+                    "run_id": run_id,
+                    "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
+                    "summary": _summarize_end_to_end_eval([]),
+                    "items": [],
+                    "warnings": warnings,
+                }
+                completed = emit({"event": "eval_completed", "result": result})
+                _update_persisted_run(run_id, status="completed", progress=completed, result=result)
+                yield json.dumps(completed, default=str) + "\n"
+                return
+
+            for question_index, case in enumerate(cases, start=1):
+                search_corpus_ids, filters = _eval_search_scope(corpus_ids, document_id)
+                question_started = emit(
+                    {
+                        "event": "eval_question_started",
+                        "question_index": question_index,
+                        "total_questions": len(cases),
+                        "case": case.to_dict(),
+                    }
+                )
+                _update_persisted_run(run_id, status="running", progress=question_started)
+                yield json.dumps(question_started, default=str) + "\n"
+                query_request = QueryRequest(
+                    query=case.query,
+                    corpus_ids=search_corpus_ids,
+                    filters=filters,
+                    response_mode="answer_with_citations",
+                )
+                final_query_result: dict[str, Any] = {}
+                for event in stream_query_debug_events(query_request, sample_limit=bounded_sample_limit):
+                    nested = emit(
+                        {
+                            "event": "eval_query_event",
+                            "question_index": question_index,
+                            "query_event": event,
+                        }
+                    )
+                    if event.get("event") == "run_completed":
+                        final_query_result = dict(event.get("result") or {})
+                    yield json.dumps(nested, default=str) + "\n"
+                top_results = _top_results_from_query_debug(final_query_result)
+                retrieval_evaluation = score_search_results(case, top_results)
+                answer = dict(final_query_result.get("answer") or {})
+                answer_evaluation = _score_answer(case, answer, retrieval_evaluation)
+                item = {
+                    "case": case.to_dict(),
+                    "retrieval_evaluation": retrieval_evaluation,
+                    "answer": answer,
+                    "answer_evaluation": answer_evaluation,
+                    "top_results": top_results[:5],
+                    "query_debug_result": final_query_result,
+                }
+                items.append(item)
+                question_completed = emit(
+                    {
+                        "event": "eval_question_completed",
+                        "question_index": question_index,
+                        "summary": _summarize_end_to_end_eval(items),
+                        "item": item,
+                    }
+                )
+                _update_persisted_run(run_id, status="running", progress=question_completed)
+                yield json.dumps(question_completed, default=str) + "\n"
+
+            result = {
+                "run_id": run_id,
+                "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
+                "summary": _summarize_end_to_end_eval(items),
+                "items": items,
+                "warnings": warnings,
+            }
+            completed = emit({"event": "eval_completed", "result": result})
+            _update_persisted_run(run_id, status="completed", progress=completed, result=result)
+            yield json.dumps(completed, default=str) + "\n"
+        except GeneratorExit:
+            _update_persisted_run(run_id, status="failed", error="Client disconnected before stream completed.")
+            raise
+        except Exception as exc:
+            failed = emit({"event": "eval_failed", "error": str(exc)})
+            _update_persisted_run(run_id, status="failed", progress=failed, error=str(exc))
+            yield json.dumps(failed, default=str) + "\n"
+
+    return StreamingResponse(iter_events(), media_type="application/x-ndjson")
+
+
+@app.get("/runs")
+def list_app_runs(
+    run_type: str | None = None,
+    limit: int = 25,
+    _: Principal = Depends(require_role("operator", "admin", "auditor")),
+) -> list[dict[str, Any]]:
+    params: list[Any] = []
+    where = ""
+    if run_type:
+        where = "where run_type = %s"
+        params.append(run_type)
+    params.append(max(1, min(limit, 100)))
+    return fetch_all(
+        f"""
+        select id, run_type, status, request_json, progress_json, result_json, error, created_at, updated_at
+        from app_runs
+        {where}
+        order by updated_at desc
+        limit %s
+        """,
+        tuple(params),
+    )
+
+
+@app.get("/runs/{run_id}")
+def get_app_run(
+    run_id: str,
+    _: Principal = Depends(require_role("operator", "admin", "auditor")),
+) -> dict[str, Any]:
+    run = fetch_one("select * from app_runs where id = %s", (run_id,))
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found.")
+    return run
+
+
+@app.get("/runs/{run_id}/events")
+def list_app_run_events(
+    run_id: str,
+    after: int = 0,
+    limit: int = 500,
+    _: Principal = Depends(require_role("operator", "admin", "auditor")),
+) -> list[dict[str, Any]]:
+    return fetch_all(
+        """
+        select event_index, event_json, created_at
+        from app_run_events
+        where run_id = %s and event_index > %s
+        order by event_index asc
+        limit %s
+        """,
+        (run_id, after, max(1, min(limit, 2000))),
+    )
 
 
 @app.get("/debug/documents")
@@ -884,6 +1181,16 @@ def create_debug_query_run(
 ) -> dict[str, Any]:
     bounded_sample_limit = max(1, min(sample_limit, 100))
     run_id = str(uuid4())
+    _create_persisted_run(
+        run_id,
+        "query_debug",
+        {
+            "query": request.query,
+            "corpus_ids": request.corpus_ids,
+            "filters": request.filters,
+            "sample_limit": bounded_sample_limit,
+        },
+    )
     _set_debug_query_run(
         run_id,
         {
@@ -915,7 +1222,18 @@ def get_debug_query_run(
     with debug_query_runs_lock:
         payload = debug_query_runs.get(run_id)
     if not payload:
-        raise HTTPException(status_code=404, detail="Debug query run not found.")
+        persisted = fetch_one("select * from app_runs where id = %s and run_type = 'query_debug'", (run_id,))
+        if not persisted:
+            raise HTTPException(status_code=404, detail="Debug query run not found.")
+        return {
+            "run_id": str(persisted["id"]),
+            "status": persisted["status"],
+            "progress": persisted.get("progress_json") or {},
+            "result": persisted.get("result_json"),
+            "error": persisted.get("error"),
+            "created_at": persisted.get("created_at"),
+            "updated_at": persisted.get("updated_at"),
+        }
     return payload
 
 

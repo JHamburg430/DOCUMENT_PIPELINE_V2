@@ -121,6 +121,27 @@ create table if not exists feedback (
     created_at timestamptz not null default now()
 );
 
+create table if not exists app_runs (
+    id uuid primary key,
+    run_type text not null,
+    status text not null,
+    request_json jsonb not null default '{}'::jsonb,
+    progress_json jsonb not null default '{}'::jsonb,
+    result_json jsonb,
+    error text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create table if not exists app_run_events (
+    id bigserial primary key,
+    run_id uuid not null references app_runs(id) on delete cascade,
+    event_index integer not null,
+    event_json jsonb not null,
+    created_at timestamptz not null default now(),
+    unique (run_id, event_index)
+);
+
 insert into corpora (id, tenant_id, name, permissions_json)
 values ('manuals_vendor_keyence', 'local-tenant', 'Keyence Manuals', '{"roles":["admin","operator","end_user","auditor"]}'::jsonb)
 on conflict (id) do nothing;

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import time
 from typing import Any
@@ -29,6 +30,17 @@ def _post(path: str, payload: dict[str, Any], **params: Any) -> Any:
         response = client.post(path, headers=_headers(), json=payload, params=params or None)
         response.raise_for_status()
         return response.json()
+
+
+def _stream_events(path: str, payload: dict[str, Any], **params: Any) -> Any:
+    timeout = httpx.Timeout(900.0, connect=10.0, read=900.0)
+    with httpx.Client(base_url=API_BASE, timeout=timeout) as client:
+        with client.stream("POST", path, headers=_headers(), json=payload, params=params or None) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if not line:
+                    continue
+                yield json.loads(line)
 
 
 def _run_query_debug(payload: dict[str, Any], *, sample_limit: int) -> dict[str, Any]:
@@ -98,6 +110,152 @@ def _format_duration(duration_ms: Any) -> str:
     return f"{float(duration_ms):,.2f} ms"
 
 
+def _document_label(document: dict[str, Any]) -> str:
+    return f"{document.get('title')} | {document.get('source_filename')} | {document.get('document_id')}"
+
+
+def _metadata_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    return str(value)
+
+
+def _render_step_table(step_sequence: list[dict[str, Any]], step_state: dict[str, dict[str, Any]]) -> None:
+    rows = []
+    for index, step in enumerate(step_sequence, start=1):
+        name = step["name"]
+        state = step_state.get(name, {})
+        rows.append(
+            {
+                "#": index,
+                "Step": step["label"],
+                "Model": step.get("model") or "",
+                "Status": state.get("status", "pending"),
+                "Duration": _format_duration(state.get("duration_ms")) if state.get("duration_ms") is not None else "",
+            }
+        )
+    st.dataframe(rows, use_container_width=True, hide_index=True)
+
+
+def _render_llm_streams(llm_outputs: dict[str, dict[str, Any]]) -> None:
+    if not llm_outputs:
+        st.info("Model output appears here while relevance review, evidence summaries, and final answer generation run.")
+        return
+    for call_id, call in llm_outputs.items():
+        st.markdown(f"**{call.get('label') or call_id}**")
+        st.caption(f"{call.get('model') or ''} | {call.get('status', 'running')}")
+        st.code(call.get("text", ""), language="json")
+
+
+def _render_final_query_result(payload: dict[str, Any]) -> None:
+    meta_left, meta_mid, meta_right = st.columns(3)
+    with meta_left:
+        _render_json_block("Query Analysis", payload.get("analysis", {}))
+    with meta_mid:
+        _render_json_block("Applied Filters", payload.get("applied_filters", {}))
+    with meta_right:
+        _render_json_block("Step Timings", payload.get("step_timings_ms", {}))
+    st.markdown("### Retrieval Stages")
+    for stage in payload.get("stages", []):
+        with st.expander(f"{stage.get('name')} | {stage.get('count', 0)} results | {_format_duration(stage.get('duration_ms'))}", expanded=False):
+            samples = stage.get("samples", [])
+            if samples:
+                _render_json_block("First Sample", samples[0])
+    st.markdown("### Final Answer")
+    _render_json_block("Answer Payload", payload.get("answer", {}))
+    _render_json_block("Answer Trace", payload.get("answer_generation_trace", {}))
+
+
+def _consume_streaming_query(payload: dict[str, Any], *, sample_limit: int) -> None:
+    step_sequence: list[dict[str, Any]] = []
+    step_state: dict[str, dict[str, Any]] = {}
+    llm_outputs: dict[str, dict[str, Any]] = {}
+    final_result: dict[str, Any] | None = None
+    progress_placeholder = st.empty()
+    llm_placeholder = st.empty()
+    result_placeholder = st.empty()
+    for event in _stream_events("/debug/query-stream", payload, sample_limit=sample_limit):
+        event_type = event.get("event")
+        if event_type == "run_started":
+            step_sequence = event.get("step_sequence", [])
+        elif event_type == "step_started":
+            step_state[event["step"]] = {"status": "running"}
+        elif event_type == "step_completed":
+            step_state[event["step"]] = {"status": "completed", "duration_ms": event.get("duration_ms")}
+        elif event_type == "llm_call_started":
+            llm_outputs[event["call_id"]] = {"label": event.get("label"), "model": event.get("model"), "status": "running", "text": ""}
+        elif event_type == "llm_token":
+            call = llm_outputs.setdefault(event["call_id"], {"status": "running", "text": ""})
+            call["text"] = f"{call.get('text', '')}{event.get('token', '')}"
+        elif event_type == "llm_call_completed":
+            call = llm_outputs.setdefault(event["call_id"], {"text": ""})
+            call.update({"label": event.get("label") or call.get("label"), "model": event.get("model") or call.get("model"), "status": "completed", "text": event.get("raw_response") or call.get("text", "")})
+        elif event_type == "run_completed":
+            final_result = event.get("result", {})
+        elif event_type == "run_failed":
+            st.error(event.get("error") or "Streaming query failed.")
+        with progress_placeholder.container():
+            st.markdown("### Progress")
+            _render_step_table(step_sequence, step_state)
+        with llm_placeholder.container():
+            st.markdown("### Streaming Model Output")
+            _render_llm_streams(llm_outputs)
+        if final_result:
+            with result_placeholder.container():
+                _render_final_query_result(final_result)
+    if final_result:
+        st.session_state["streaming_query_result"] = final_result
+
+
+def _consume_streaming_eval(payload: dict[str, Any], *, sample_limit: int) -> None:
+    llm_outputs: dict[str, dict[str, Any]] = {}
+    items: list[dict[str, Any]] = []
+    final_result: dict[str, Any] | None = None
+    status_placeholder = st.empty()
+    llm_placeholder = st.empty()
+    result_placeholder = st.empty()
+    for event in _stream_events("/eval/end-to-end-stream", payload, sample_limit=sample_limit):
+        event_type = event.get("event")
+        if event_type == "eval_started":
+            status_placeholder.info(f"Started run {event.get('run_id')} with {event.get('total_questions', 0)} generated questions.")
+        elif event_type == "eval_question_started":
+            case = event.get("case", {})
+            status_placeholder.info(f"Question {event.get('question_index')}/{event.get('total_questions')}: {case.get('query')}")
+        elif event_type == "eval_query_event":
+            query_event = event.get("query_event", {})
+            nested_type = query_event.get("event")
+            if nested_type == "llm_call_started":
+                call_id = f"q{event.get('question_index')}:{query_event.get('call_id')}"
+                llm_outputs[call_id] = {"label": query_event.get("label"), "model": query_event.get("model"), "status": "running", "text": ""}
+            elif nested_type == "llm_token":
+                call_id = f"q{event.get('question_index')}:{query_event.get('call_id')}"
+                call = llm_outputs.setdefault(call_id, {"status": "running", "text": ""})
+                call["text"] = f"{call.get('text', '')}{query_event.get('token', '')}"
+            elif nested_type == "llm_call_completed":
+                call_id = f"q{event.get('question_index')}:{query_event.get('call_id')}"
+                call = llm_outputs.setdefault(call_id, {"text": ""})
+                call.update({"label": query_event.get("label") or call.get("label"), "model": query_event.get("model") or call.get("model"), "status": "completed", "text": query_event.get("raw_response") or call.get("text", "")})
+        elif event_type == "eval_question_completed":
+            items.append(event.get("item", {}))
+            partial = {"summary": event.get("summary", {}), "items": items, "warnings": []}
+            with result_placeholder.container():
+                _render_end_to_end_eval(partial, key_prefix="streaming_eval_partial")
+        elif event_type == "eval_completed":
+            final_result = event.get("result", {})
+            status_placeholder.success(f"Completed run {event.get('run_id')}")
+        elif event_type == "eval_failed":
+            status_placeholder.error(event.get("error") or "Evaluation failed.")
+        with llm_placeholder.container():
+            st.markdown("### Streaming Model Output")
+            _render_llm_streams(llm_outputs)
+    if final_result:
+        st.session_state["end_to_end_eval_payload"] = final_result
+        with result_placeholder.container():
+            _render_end_to_end_eval(final_result, key_prefix="streaming_eval_final")
+
+
 def _render_stage(stage: dict[str, Any], key_prefix: str) -> None:
     st.markdown(f"### {stage['name']}")
     st.caption(f"{stage['count']} results | {_format_duration(stage.get('duration_ms'))}")
@@ -130,7 +288,7 @@ def _selected_document_hit(metadata: dict[str, Any]) -> dict[str, Any]:
     return hits[0] if hits and isinstance(hits[0], dict) else {}
 
 
-def _render_consolidated_search_results(payload: Any) -> None:
+def _render_consolidated_search_results(payload: Any, *, key_prefix: str = "search") -> None:
     results, source_assets = _normalize_search_payload(payload)
     if not results:
         st.info("No search results returned.")
@@ -160,6 +318,7 @@ def _render_consolidated_search_results(payload: Any) -> None:
         "Inspect search result",
         options=list(range(len(results))),
         format_func=lambda index: f"{index + 1}. {results[index].get('score', 0):.4f} | {results[index].get('title')} | p.{results[index].get('pages')}",
+        key=f"{key_prefix}_inspect_search_result",
     )
     result = results[selected_index]
     metadata = result.get("metadata") or {}
@@ -182,7 +341,7 @@ def _render_consolidated_search_results(payload: Any) -> None:
             _render_json_block("Source Assets", source_assets)
 
 
-def _render_end_to_end_eval(payload: dict[str, Any]) -> None:
+def _render_end_to_end_eval(payload: dict[str, Any], *, key_prefix: str = "eval") -> None:
     summary = payload.get("summary", {})
     metric_cols = st.columns(4)
     metric_cols[0].metric("Questions", summary.get("total_questions", 0))
@@ -221,6 +380,7 @@ def _render_end_to_end_eval(payload: dict[str, Any]) -> None:
         "Review eval item",
         options=list(range(len(items))),
         format_func=lambda index: f"{index + 1}. {items[index].get('case', {}).get('query')}",
+        key=f"{key_prefix}_review_eval_item",
     )
     item = items[selected_index]
     case = item.get("case", {})
@@ -268,6 +428,7 @@ def _render_end_to_end_eval(payload: dict[str, Any]) -> None:
         "Inspect top result",
         options=list(range(len(top_results))),
         format_func=lambda index: f"{index + 1}. {top_results[index].get('score', 0):.4f} | {top_results[index].get('title')}",
+        key=f"{key_prefix}_inspect_eval_top_result",
     )
     result = top_results[result_index]
     left, right = st.columns(2)
@@ -285,54 +446,33 @@ def _render_end_to_end_eval(payload: dict[str, Any]) -> None:
         st.code(str(result.get("content") or ""), language="text")
 
 
-def main() -> None:
-    st.set_page_config(page_title="Manuals RAG Debug", layout="wide")
-    st.title("Manuals RAG Debug Console")
-    st.caption("Central inspection view for extraction, retrieval, and answer generation.")
-
-    with st.sidebar:
-        st.markdown("### Connection")
-        api_base = st.text_input("API Base", value=API_BASE, disabled=True)
-        token = st.text_input("Auth Token", value=AUTH_TOKEN, type="password", disabled=True)
-        st.caption(f"Using `{api_base}` with token `{token[:4]}...`.")
-        sample_limit = st.slider("Samples per stage", min_value=3, max_value=50, value=10)
-        if st.button("Refresh Ollama Call Log", use_container_width=True):
-            st.session_state["ollama_call_log_payload"] = _get("/debug/ollama-calls", limit=100)
-
-    documents = []
-    try:
-        documents = _get("/debug/documents", limit=100)
-    except Exception as exc:
-        st.error(f"Failed to load documents from API: {exc}")
-
-    doc_options = {
-        f"{item['title']} | {item['source_filename']} | {item['document_id']}": item["document_id"]
-        for item in documents
-    }
-    documents_by_id = {item["document_id"]: item for item in documents}
-
-    st.markdown("## Consolidated Search")
-    st.caption("Runs the production `/search` endpoint: metadata document selection, dense retrieval, sparse retrieval, table retrieval, fusion, reranking, and assembly.")
+def _render_search_tab(documents: list[dict[str, Any]]) -> None:
+    st.caption("Production retrieval: metadata document selection, dense retrieval, sparse retrieval, table retrieval, fusion, reranking, and assembly.")
+    doc_options = {_document_label(item): item["document_id"] for item in documents}
     query_col, result_col = st.columns([1, 2])
     with query_col:
-        query = st.text_area("Search Query", value="LJ-X8080 z axis repeatability", height=120)
+        query = st.text_area("Search Query", value="LJ-X8080 z axis repeatability", height=120, key="search_query")
         if "query_corpus_ids" not in st.session_state:
             st.session_state["query_corpus_ids"] = _default_corpus_ids(documents)
         corpus_ids_text = st.text_input("Corpus IDs", key="query_corpus_ids")
-        include_page_images = st.checkbox("Return page images", value=False)
-        include_table_images = st.checkbox("Return table images", value=False)
+        selected_document = st.selectbox("Optional Document Filter", options=[""] + list(doc_options.keys()), key="search_document_filter")
+        include_page_images = st.checkbox("Return page images", value=False, key="search_page_images")
+        include_table_images = st.checkbox("Return table images", value=False, key="search_table_images")
         st.caption("No document filter is applied here; document selection is performed by metadata embeddings inside the API.")
         if st.button("Run Consolidated Search", use_container_width=True):
             corpus_ids = [item.strip() for item in corpus_ids_text.split(",") if item.strip()]
             if not corpus_ids:
                 st.error("Corpus IDs cannot be empty.")
                 st.stop()
+            filters = {}
+            if selected_document:
+                filters["source_document_id"] = [doc_options[selected_document]]
             st.session_state["consolidated_search_payload"] = _post(
                 "/search",
                 {
                     "query": query,
                     "corpus_ids": corpus_ids,
-                    "filters": {},
+                    "filters": filters,
                     "response_mode": "answer_with_citations",
                     "include_source_assets": include_page_images or include_table_images,
                     "include_page_images": include_page_images,
@@ -342,21 +482,54 @@ def main() -> None:
     with result_col:
         payload = st.session_state.get("consolidated_search_payload")
         if payload:
-            _render_consolidated_search_results(payload)
+            _render_consolidated_search_results(payload, key_prefix="search")
         else:
             st.info("Run a search to inspect the consolidated retrieval results.")
 
-    st.markdown("## End-to-End Evaluation")
-    st.caption("Generates questions from indexed document chunks, runs search and answer generation, scores correctness, and keeps each item reviewable.")
+
+def _render_streaming_query_tab(documents: list[dict[str, Any]], *, sample_limit: int) -> None:
+    st.caption("Streams every model output in the query pipeline and shows progress for each retrieval and answer step.")
+    doc_options = {_document_label(item): item["document_id"] for item in documents}
+    documents_by_id = {item["document_id"]: item for item in documents}
+    left, right = st.columns([1, 2])
+    with left:
+        query = st.text_area("Query", value="What product is described in this datasheet?", height=120, key="streaming_query_text")
+        filter_document = st.selectbox("Filter to Document", options=[""] + list(doc_options.keys()), key="streaming_document_filter")
+        selected_document_id = doc_options.get(filter_document) if filter_document else None
+        selected_document = documents_by_id.get(selected_document_id) if selected_document_id else None
+        default_corpus = str(selected_document["corpus_id"]) if selected_document else _default_corpus_ids(documents)
+        corpus_ids_text = st.text_input("Corpus IDs", value=default_corpus, key="streaming_corpus_ids")
+        filters = {"source_document_id": [selected_document_id]} if selected_document_id else {}
+        if st.button("Run Streaming Query", use_container_width=True):
+            corpus_ids = [item.strip() for item in corpus_ids_text.split(",") if item.strip()]
+            if not corpus_ids:
+                st.error("Corpus IDs cannot be empty.")
+                st.stop()
+            st.session_state.pop("streaming_query_result", None)
+            _consume_streaming_query(
+                {"query": query, "corpus_ids": corpus_ids, "filters": filters, "response_mode": "answer_with_citations"},
+                sample_limit=sample_limit,
+            )
+    with right:
+        if st.session_state.get("streaming_query_result"):
+            _render_final_query_result(st.session_state["streaming_query_result"])
+        else:
+            st.info("Start a run to watch step progress and token streams.")
+
+
+def _render_eval_tab(documents: list[dict[str, Any]], *, sample_limit: int) -> None:
+    st.caption("Generates document-grounded questions, runs search and answer generation, scores correctness, streams model output, and stores the run.")
+    doc_options = {_document_label(item): item["document_id"] for item in documents}
     eval_control_col, eval_result_col = st.columns([1, 2])
     with eval_control_col:
-        eval_scope = st.radio("Scope", options=["All indexed docs in corpora", "Single document"], horizontal=False)
+        eval_scope = st.radio("Scope", options=["All indexed docs in corpora", "Single document"], horizontal=False, key="eval_scope")
         eval_corpus_ids_text = st.text_input("Eval Corpus IDs", value=st.session_state.get("query_corpus_ids", DEFAULT_CORPUS), key="eval_corpus_ids")
         selected_eval_document = ""
         if eval_scope == "Single document":
             selected_eval_document = st.selectbox("Eval Document", options=[""] + list(doc_options.keys()), key="eval_document_select")
-        max_questions = st.slider("Max questions", min_value=1, max_value=50, value=8)
-        use_llm_generation = st.checkbox("Use LLM question generation", value=True)
+        max_questions = st.slider("Max questions", min_value=1, max_value=50, value=8, key="eval_max_questions")
+        use_llm_generation = st.checkbox("Use LLM question generation", value=True, key="eval_llm_generation")
+        stream_eval = st.checkbox("Stream progress and model output", value=True, key="eval_stream")
         if st.button("Run End-to-End Eval", use_container_width=True):
             eval_corpus_ids = [item.strip() for item in eval_corpus_ids_text.split(",") if item.strip()]
             eval_document_id = doc_options.get(selected_eval_document) if selected_eval_document else None
@@ -366,50 +539,53 @@ def main() -> None:
             if eval_scope != "Single document" and not eval_corpus_ids:
                 st.error("Corpus IDs cannot be empty for all-doc evaluation.")
                 st.stop()
-            with st.spinner("Running generated questions through search and answer generation..."):
-                st.session_state["end_to_end_eval_payload"] = _post(
-                    "/eval/end-to-end",
-                    {
-                        "corpus_ids": eval_corpus_ids,
-                        "document_id": eval_document_id,
-                        "max_questions": max_questions,
-                        "use_llm_generation": use_llm_generation,
-                    },
-                )
+            request_payload = {
+                "corpus_ids": eval_corpus_ids,
+                "document_id": eval_document_id,
+                "max_questions": max_questions,
+                "use_llm_generation": use_llm_generation,
+            }
+            if stream_eval:
+                _consume_streaming_eval(request_payload, sample_limit=sample_limit)
+            else:
+                with st.spinner("Running generated questions through search and answer generation..."):
+                    st.session_state["end_to_end_eval_payload"] = _post("/eval/end-to-end", request_payload)
     with eval_result_col:
         eval_payload = st.session_state.get("end_to_end_eval_payload")
         if eval_payload:
-            _render_end_to_end_eval(eval_payload)
+            _render_end_to_end_eval(eval_payload, key_prefix="eval")
         else:
             st.info("Run an evaluation to review generated questions, answers, scoring, citations, and top retrieved chunks.")
 
-    with st.expander("Legacy debug pipeline", expanded=False):
-        st.caption("This diagnostic view uses the debug run endpoint. Use consolidated search above for production retrieval behavior.")
-        debug_query = st.text_area("Debug Query", value="What product is described in this datasheet?", height=100, key="debug_query_text")
-        debug_corpus_ids_text = st.text_input("Debug Corpus IDs", value=st.session_state.get("query_corpus_ids", DEFAULT_CORPUS), key="debug_query_corpus_ids")
-        if st.button("Run Legacy Debug Pipeline", use_container_width=True):
-            debug_corpus_ids = [item.strip() for item in debug_corpus_ids_text.split(",") if item.strip()]
-            if not debug_corpus_ids:
-                st.error("Debug corpus IDs cannot be empty.")
-                st.stop()
-            st.session_state["query_debug_payload"] = _run_query_debug(
-                {
-                    "query": debug_query,
-                    "corpus_ids": debug_corpus_ids,
-                    "filters": {},
-                    "response_mode": "answer_with_citations",
-                },
-                sample_limit=sample_limit,
-            )
-        debug_payload = st.session_state.get("query_debug_payload")
-        if debug_payload:
-            _render_json_block("Query Analysis", debug_payload.get("analysis", {}))
-            _render_json_block("Applied Filters", debug_payload.get("applied_filters", {}))
-            for stage in debug_payload.get("stages", []):
-                _render_stage(stage, "legacy_query_stage")
-            _render_json_block("Answer Payload", debug_payload.get("answer", {}))
 
-    st.markdown("## Ollama Call Log")
+def _render_model_tab() -> None:
+    st.caption("Direct prompt testing and recent model call log.")
+    left, right = st.columns([1, 2])
+    with left:
+        model = st.selectbox("Model", options=["qwen3.5:4b", "qwen3.5:9b"], index=0, key="model_prompt_model")
+        think_mode = st.selectbox("Thinking", options=["disabled", "provider default", "enabled"], index=0, key="model_prompt_think")
+        json_mode = st.checkbox("JSON mode", value=False, key="model_prompt_json")
+        system_prompt = st.text_area("System Prompt", value="Reply concisely. Do not include thinking or reasoning traces.", height=100, key="model_prompt_system")
+        user_prompt = st.text_area("User Prompt", value='Return exactly: {"ok": true}', height=180, key="model_prompt_user")
+        if st.button("Run Model Prompt", use_container_width=True):
+            think_value = {"disabled": False, "provider default": None, "enabled": True}[think_mode]
+            st.session_state["model_prompt_payload"] = _post(
+                "/debug/model-prompt",
+                {"model": model, "system_prompt": system_prompt, "user_prompt": user_prompt, "think": think_value, "json_mode": json_mode},
+            )
+        if st.button("Refresh Ollama Call Log", use_container_width=True):
+            st.session_state["ollama_call_log_payload"] = _get("/debug/ollama-calls", limit=100)
+    with right:
+        payload = st.session_state.get("model_prompt_payload")
+        if payload:
+            summary_cols = st.columns(4)
+            summary_cols[0].metric("Requested", payload.get("model_requested", ""))
+            summary_cols[1].metric("Response", payload.get("model_response", ""))
+            summary_cols[2].metric("Duration", _format_duration(payload.get("duration_ms")))
+            summary_cols[3].metric("Think Tags", "yes" if payload.get("raw_contains_think_tag") else "no")
+            _render_json_block("Raw Output", {"raw_content": payload.get("raw_content", ""), "raw_contains_think_tag": payload.get("raw_contains_think_tag")})
+            _render_json_block("Cleaned Output", {"cleaned_content": payload.get("cleaned_content", ""), "cleaned_contains_think_tag": payload.get("cleaned_contains_think_tag")})
+            _render_json_block("Request Payload", payload.get("request_payload", {}))
     ollama_calls = st.session_state.get("ollama_call_log_payload")
     if ollama_calls:
         call_sample = _sample_selector("Ollama call", ollama_calls, "ollama_call_log_select")
@@ -418,7 +594,10 @@ def main() -> None:
     else:
         st.info("Use `Refresh Ollama Call Log` to inspect actual model requests sent to Ollama.")
 
-    st.markdown("## PDF Extraction")
+
+def _render_documents_tab(documents: list[dict[str, Any]], *, sample_limit: int) -> None:
+    st.caption("Inspect parsed document structure, logical nodes, chunks, and metadata.")
+    doc_options = {_document_label(item): item["document_id"] for item in documents}
     selected_document = st.selectbox("Document", options=[""] + list(doc_options.keys()), key="doc_snapshot_select")
     if selected_document and st.button("Load Document Snapshot", use_container_width=True):
         st.session_state["document_snapshot_payload"] = _get(
@@ -456,6 +635,136 @@ def main() -> None:
                 _render_json_block("Chunk Content", {"content": chunk_sample.get("content", ""), "content_for_rerank": chunk_sample.get("content_for_rerank")})
     else:
         st.info("Load a document snapshot to inspect extraction and chunking outputs.")
+
+
+def _render_metadata_tab(documents: list[dict[str, Any]]) -> None:
+    st.caption("Inspect document metadata and test metadata-led document selection.")
+    if not documents:
+        st.info("No documents are available.")
+        return
+    doc_options = {_document_label(item): item["document_id"] for item in documents}
+    query = st.text_area("Selection Test Query", value="Which document discusses setup?", height=90, key="metadata_query_text")
+    corpus_ids_text = st.text_input("Metadata Test Corpus IDs", value=_default_corpus_ids(documents), key="metadata_query_corpus_ids")
+    expected_label = st.selectbox("Expected Document", options=[""] + list(doc_options.keys()), key="metadata_expected_document")
+    if st.button("Test Document Selection", use_container_width=True):
+        results = _post("/search", {"query": query, "corpus_ids": [item.strip() for item in corpus_ids_text.split(",") if item.strip()], "filters": {}, "response_mode": "answer_with_citations"})
+        st.session_state["metadata_query_payload"] = results
+    payload = st.session_state.get("metadata_query_payload")
+    if payload:
+        _render_consolidated_search_results(payload, key_prefix="metadata")
+    st.markdown("### Document Metadata")
+    selected_label = st.selectbox("Metadata Document", options=list(doc_options.keys()), key="metadata_document")
+    if selected_label:
+        snapshot = _get(f"/debug/documents/{doc_options[selected_label]}/metadata")
+        document = snapshot.get("document", {})
+        st.dataframe([{k: document.get(k) for k in ("title", "source_filename", "document_kind", "manufacturer", "product_family", "product_model", "ingest_status", "metadata_model", "metadata_extracted_at")}], hide_index=True, use_container_width=True)
+        _render_json_block("Extracted Metadata", document.get("extracted_metadata") or {})
+
+
+def _render_tables_tab(documents: list[dict[str, Any]]) -> None:
+    st.caption("Search table-specific or table-like evidence and inspect source assets.")
+    doc_options = {_document_label(item): item["document_id"] for item in documents}
+    left, right = st.columns([1, 2])
+    with left:
+        query = st.text_area("Table Query", value="What are the listed specifications in the table?", height=120, key="table_query_text")
+        filter_document = st.selectbox("Filter to Document", options=[""] + list(doc_options.keys()), key="table_document_filter")
+        corpus_ids_text = st.text_input("Table Corpus IDs", value=_default_corpus_ids(documents), key="table_query_corpus_ids")
+        retrieval_mode = st.selectbox("Retrieval Mode", options=["table-like evidence", "strict table chunks"], key="table_retrieval_mode")
+        filters: dict[str, Any] = {"chunk_type": ["table_record"]} if retrieval_mode == "strict table chunks" else {"chunk_type": ["table_record", "spec_record", "datasheet_record", "section_window", "parent_section", "atomic_text"]}
+        if filter_document:
+            filters["source_document_id"] = [doc_options[filter_document]]
+        _render_json_block("Search Filters", filters)
+        if st.button("Search Evidence", use_container_width=True):
+            st.session_state["table_retrieval_payload"] = _post(
+                "/search",
+                {
+                    "query": query,
+                    "corpus_ids": [item.strip() for item in corpus_ids_text.split(",") if item.strip()],
+                    "filters": filters,
+                    "response_mode": "answer_with_citations",
+                    "include_source_assets": True,
+                    "include_page_images": True,
+                    "include_table_images": True,
+                },
+            )
+    with right:
+        payload = st.session_state.get("table_retrieval_payload")
+        if payload:
+            _render_consolidated_search_results(payload, key_prefix="tables")
+        else:
+            st.info("Run a table search to inspect table-specific retrieval evidence.")
+
+
+def _render_history_tab() -> None:
+    st.caption("Persistent run outputs and event logs saved in Postgres.")
+    run_type = st.selectbox("Run Type", options=["", "query_debug", "end_to_end_eval"], key="history_run_type")
+    runs = _get("/runs", run_type=run_type or None, limit=50)
+    if not runs:
+        st.info("No persisted runs yet.")
+        return
+    st.dataframe(
+        [
+            {
+                "Run ID": row.get("id"),
+                "Type": row.get("run_type"),
+                "Status": row.get("status"),
+                "Created": row.get("created_at"),
+                "Updated": row.get("updated_at"),
+                "Error": row.get("error"),
+            }
+            for row in runs
+        ],
+        hide_index=True,
+        use_container_width=True,
+    )
+    selected = st.selectbox("Inspect Run", options=[str(row["id"]) for row in runs], key="history_selected_run")
+    run = _get(f"/runs/{selected}")
+    _render_json_block("Request", run.get("request_json", {}))
+    _render_json_block("Progress", run.get("progress_json", {}))
+    if run.get("result_json"):
+        if run.get("run_type") == "end_to_end_eval":
+            _render_end_to_end_eval(run["result_json"], key_prefix="history_eval")
+        else:
+            _render_final_query_result(run["result_json"])
+    events = _get(f"/runs/{selected}/events", limit=200)
+    _render_json_block("Events", events)
+
+
+def main() -> None:
+    st.set_page_config(page_title="Manuals RAG Debug", layout="wide")
+    st.title("Manuals RAG Debug Console")
+    st.caption("Tabbed operator workspace for search, streaming generation, evaluation, extraction, metadata, tables, models, and run history.")
+
+    with st.sidebar:
+        st.markdown("### Connection")
+        api_base = st.text_input("API Base", value=API_BASE, disabled=True)
+        token = st.text_input("Auth Token", value=AUTH_TOKEN, type="password", disabled=True)
+        st.caption(f"Using `{api_base}` with token `{token[:4]}...`.")
+        sample_limit = st.slider("Samples per stage", min_value=3, max_value=50, value=10)
+
+    try:
+        documents = _get("/debug/documents", limit=200)
+    except Exception as exc:
+        st.error(f"Failed to load documents from API: {exc}")
+        documents = []
+
+    tabs = st.tabs(["Search", "Streaming Query", "End-to-End Eval", "Documents", "Metadata", "Tables", "Models", "Run History"])
+    with tabs[0]:
+        _render_search_tab(documents)
+    with tabs[1]:
+        _render_streaming_query_tab(documents, sample_limit=sample_limit)
+    with tabs[2]:
+        _render_eval_tab(documents, sample_limit=sample_limit)
+    with tabs[3]:
+        _render_documents_tab(documents, sample_limit=sample_limit)
+    with tabs[4]:
+        _render_metadata_tab(documents)
+    with tabs[5]:
+        _render_tables_tab(documents)
+    with tabs[6]:
+        _render_model_tab()
+    with tabs[7]:
+        _render_history_tab()
 
 
 if __name__ == "__main__":
