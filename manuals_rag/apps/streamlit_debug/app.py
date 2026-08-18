@@ -212,44 +212,77 @@ def _consume_streaming_query(payload: dict[str, Any], *, sample_limit: int) -> N
 def _consume_streaming_eval(payload: dict[str, Any], *, sample_limit: int) -> None:
     llm_outputs: dict[str, dict[str, Any]] = {}
     items: list[dict[str, Any]] = []
+    step_sequence: list[dict[str, Any]] = []
+    step_state: dict[str, dict[str, Any]] = {}
     final_result: dict[str, Any] | None = None
+    run_id: str | None = None
+    terminal_error: str | None = None
     status_placeholder = st.empty()
+    progress_placeholder = st.empty()
     llm_placeholder = st.empty()
     result_placeholder = st.empty()
-    for event in _stream_events("/eval/end-to-end-stream", payload, sample_limit=sample_limit):
-        event_type = event.get("event")
-        if event_type == "eval_started":
-            status_placeholder.info(f"Started run {event.get('run_id')} with {event.get('total_questions', 0)} generated questions.")
-        elif event_type == "eval_question_started":
-            case = event.get("case", {})
-            status_placeholder.info(f"Question {event.get('question_index')}/{event.get('total_questions')}: {case.get('query')}")
-        elif event_type == "eval_query_event":
-            query_event = event.get("query_event", {})
-            nested_type = query_event.get("event")
-            if nested_type == "llm_call_started":
-                call_id = f"q{event.get('question_index')}:{query_event.get('call_id')}"
-                llm_outputs[call_id] = {"label": query_event.get("label"), "model": query_event.get("model"), "status": "running", "text": ""}
-            elif nested_type == "llm_token":
-                call_id = f"q{event.get('question_index')}:{query_event.get('call_id')}"
-                call = llm_outputs.setdefault(call_id, {"status": "running", "text": ""})
-                call["text"] = f"{call.get('text', '')}{query_event.get('token', '')}"
-            elif nested_type == "llm_call_completed":
-                call_id = f"q{event.get('question_index')}:{query_event.get('call_id')}"
-                call = llm_outputs.setdefault(call_id, {"text": ""})
-                call.update({"label": query_event.get("label") or call.get("label"), "model": query_event.get("model") or call.get("model"), "status": "completed", "text": query_event.get("raw_response") or call.get("text", "")})
-        elif event_type == "eval_question_completed":
-            items.append(event.get("item", {}))
-            partial = {"summary": event.get("summary", {}), "items": items, "warnings": []}
-            with result_placeholder.container():
-                _render_end_to_end_eval(partial, key_prefix="streaming_eval_partial")
-        elif event_type == "eval_completed":
-            final_result = event.get("result", {})
-            status_placeholder.success(f"Completed run {event.get('run_id')}")
-        elif event_type == "eval_failed":
-            status_placeholder.error(event.get("error") or "Evaluation failed.")
-        with llm_placeholder.container():
-            st.markdown("### Streaming Model Output")
-            _render_llm_streams(llm_outputs)
+    try:
+        for event in _stream_events("/eval/end-to-end-stream", payload, sample_limit=sample_limit):
+            run_id = event.get("run_id") or run_id
+            event_type = event.get("event")
+            if event_type == "eval_started":
+                status_placeholder.info(f"Started run {run_id} with {event.get('total_questions', 0)} generated questions.")
+            elif event_type == "eval_question_started":
+                case = event.get("case", {})
+                status_placeholder.info(f"Question {event.get('question_index')}/{event.get('total_questions')}: {case.get('query')}")
+            elif event_type == "eval_query_event":
+                query_event = event.get("query_event", {})
+                nested_type = query_event.get("event")
+                if nested_type == "run_started":
+                    step_sequence = query_event.get("step_sequence", [])
+                    step_state = {}
+                elif nested_type == "step_started":
+                    step_state[query_event["step"]] = {"status": "running"}
+                elif nested_type == "step_completed":
+                    step_state[query_event["step"]] = {
+                        "status": "completed",
+                        "duration_ms": query_event.get("duration_ms"),
+                    }
+                if nested_type == "llm_call_started":
+                    call_id = f"q{event.get('question_index')}:{query_event.get('call_id')}"
+                    llm_outputs[call_id] = {"label": query_event.get("label"), "model": query_event.get("model"), "status": "running", "text": ""}
+                elif nested_type == "llm_token":
+                    call_id = f"q{event.get('question_index')}:{query_event.get('call_id')}"
+                    call = llm_outputs.setdefault(call_id, {"status": "running", "text": ""})
+                    call["text"] = f"{call.get('text', '')}{query_event.get('token', '')}"
+                elif nested_type == "llm_call_completed":
+                    call_id = f"q{event.get('question_index')}:{query_event.get('call_id')}"
+                    call = llm_outputs.setdefault(call_id, {"text": ""})
+                    call.update({"label": query_event.get("label") or call.get("label"), "model": query_event.get("model") or call.get("model"), "status": "completed", "text": query_event.get("raw_response") or call.get("text", "")})
+            elif event_type == "eval_question_completed":
+                items.append(event.get("item", {}))
+                partial = {"summary": event.get("summary", {}), "items": items, "warnings": []}
+                with result_placeholder.container():
+                    _render_end_to_end_eval(partial, key_prefix="streaming_eval_partial")
+            elif event_type == "eval_completed":
+                final_result = event.get("result", {})
+                status_placeholder.success(f"Completed run {run_id}")
+            elif event_type == "eval_failed":
+                terminal_error = event.get("error") or "Evaluation failed."
+                status_placeholder.error(terminal_error)
+            with progress_placeholder.container():
+                st.markdown("### Current Question Progress")
+                _render_step_table(step_sequence, step_state)
+            with llm_placeholder.container():
+                st.markdown("### Streaming Model Output")
+                _render_llm_streams(llm_outputs)
+    except httpx.HTTPError as exc:
+        terminal_error = str(exc)
+        status_placeholder.warning(f"Live stream ended early: {terminal_error}")
+    if not final_result and run_id:
+        persisted = _get(f"/runs/{run_id}")
+        if persisted.get("status") == "completed" and persisted.get("result_json"):
+            final_result = persisted["result_json"]
+            status_placeholder.success(f"Completed run {run_id}")
+        elif persisted.get("status") == "failed":
+            status_placeholder.error(persisted.get("error") or terminal_error or "Evaluation failed.")
+        else:
+            status_placeholder.info(f"Run {run_id} is still running. Open Run History to inspect progress.")
     if final_result:
         st.session_state["end_to_end_eval_payload"] = final_result
         with result_placeholder.container():
@@ -721,13 +754,15 @@ def _render_history_tab() -> None:
     run = _get(f"/runs/{selected}")
     _render_json_block("Request", run.get("request_json", {}))
     _render_json_block("Progress", run.get("progress_json", {}))
+    if run.get("status") == "failed":
+        st.error(run.get("error") or "Run failed.")
     if run.get("result_json"):
         if run.get("run_type") == "end_to_end_eval":
             _render_end_to_end_eval(run["result_json"], key_prefix="history_eval")
         else:
             _render_final_query_result(run["result_json"])
-    events = _get(f"/runs/{selected}/events", limit=200)
-    _render_json_block("Events", events)
+    events = _get(f"/runs/{selected}/events", limit=200, tail=True)
+    _render_json_block("Latest Events", events)
 
 
 def main() -> None:

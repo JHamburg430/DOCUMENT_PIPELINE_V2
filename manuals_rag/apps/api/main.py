@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from datetime import datetime
@@ -295,6 +296,25 @@ def _append_run_event(run_id: str, event_index: int, event: dict[str, Any]) -> N
         """,
         (run_id, event_index, json_dumps(event)),
     )
+
+
+def _fail_stale_running_runs() -> None:
+    execute(
+        """
+        update app_runs
+        set status = 'failed',
+            error = coalesce(error, 'Run was left running without progress and was marked failed.'),
+            updated_at = now()
+        where status = 'running'
+          and updated_at < now() - interval '10 minutes'
+        """
+    )
+
+
+def _finalize_abandoned_run(run_id: str, message: str) -> None:
+    current = fetch_one("select status from app_runs where id = %s", (run_id,))
+    if current and current.get("status") == "running":
+        _update_persisted_run(run_id, status="failed", error=message)
 
 
 def _load_eval_cases(payload: dict[str, Any]) -> tuple[list[str], str | None, list[RetrievalEvalCase], list[str]]:
@@ -889,8 +909,15 @@ def stream_end_to_end_eval(
     run_id = str(uuid4())
     _create_persisted_run(run_id, "end_to_end_eval", payload)
     bounded_sample_limit = max(5, min(sample_limit, 100))
+    event_queue: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=500)
 
-    def iter_events() -> Any:
+    def publish(event: dict[str, Any]) -> None:
+        try:
+            event_queue.put_nowait(event)
+        except queue.Full:
+            pass
+
+    def run_eval() -> None:
         event_index = 0
 
         def emit(event: dict[str, Any]) -> Any:
@@ -898,6 +925,7 @@ def stream_end_to_end_eval(
             event_index += 1
             event_with_run = {"run_id": run_id, **event}
             _append_run_event(run_id, event_index, event_with_run)
+            publish(event_with_run)
             return event_with_run
 
         items: list[dict[str, Any]] = []
@@ -912,7 +940,6 @@ def stream_end_to_end_eval(
                 }
             )
             _update_persisted_run(run_id, status="running", progress=start_event)
-            yield json.dumps(start_event, default=str) + "\n"
             if not cases:
                 result = {
                     "run_id": run_id,
@@ -923,7 +950,6 @@ def stream_end_to_end_eval(
                 }
                 completed = emit({"event": "eval_completed", "result": result})
                 _update_persisted_run(run_id, status="completed", progress=completed, result=result)
-                yield json.dumps(completed, default=str) + "\n"
                 return
 
             for question_index, case in enumerate(cases, start=1):
@@ -937,7 +963,6 @@ def stream_end_to_end_eval(
                     }
                 )
                 _update_persisted_run(run_id, status="running", progress=question_started)
-                yield json.dumps(question_started, default=str) + "\n"
                 query_request = QueryRequest(
                     query=case.query,
                     corpus_ids=search_corpus_ids,
@@ -955,7 +980,8 @@ def stream_end_to_end_eval(
                     )
                     if event.get("event") == "run_completed":
                         final_query_result = dict(event.get("result") or {})
-                    yield json.dumps(nested, default=str) + "\n"
+                if not final_query_result:
+                    raise RuntimeError(f"Question {question_index} query stream ended without a completed result.")
                 top_results = _top_results_from_query_debug(final_query_result)
                 retrieval_evaluation = score_search_results(case, top_results)
                 answer = dict(final_query_result.get("answer") or {})
@@ -978,7 +1004,6 @@ def stream_end_to_end_eval(
                     }
                 )
                 _update_persisted_run(run_id, status="running", progress=question_completed)
-                yield json.dumps(question_completed, default=str) + "\n"
 
             result = {
                 "run_id": run_id,
@@ -989,14 +1014,20 @@ def stream_end_to_end_eval(
             }
             completed = emit({"event": "eval_completed", "result": result})
             _update_persisted_run(run_id, status="completed", progress=completed, result=result)
-            yield json.dumps(completed, default=str) + "\n"
-        except GeneratorExit:
-            _update_persisted_run(run_id, status="failed", error="Client disconnected before stream completed.")
-            raise
         except Exception as exc:
             failed = emit({"event": "eval_failed", "error": str(exc)})
             _update_persisted_run(run_id, status="failed", progress=failed, error=str(exc))
-            yield json.dumps(failed, default=str) + "\n"
+        finally:
+            publish(None)
+
+    Thread(target=run_eval, name=f"end-to-end-eval-{run_id}", daemon=True).start()
+
+    def iter_events() -> Any:
+        while True:
+            event = event_queue.get()
+            if event is None:
+                return
+            yield json.dumps(event, default=str) + "\n"
 
     return StreamingResponse(iter_events(), media_type="application/x-ndjson")
 
@@ -1007,6 +1038,7 @@ def list_app_runs(
     limit: int = 25,
     _: Principal = Depends(require_role("operator", "admin", "auditor")),
 ) -> list[dict[str, Any]]:
+    _fail_stale_running_runs()
     params: list[Any] = []
     where = ""
     if run_type:
@@ -1030,6 +1062,7 @@ def get_app_run(
     run_id: str,
     _: Principal = Depends(require_role("operator", "admin", "auditor")),
 ) -> dict[str, Any]:
+    _fail_stale_running_runs()
     run = fetch_one("select * from app_runs where id = %s", (run_id,))
     if not run:
         raise HTTPException(status_code=404, detail="Run not found.")
@@ -1041,8 +1074,22 @@ def list_app_run_events(
     run_id: str,
     after: int = 0,
     limit: int = 500,
+    tail: bool = False,
     _: Principal = Depends(require_role("operator", "admin", "auditor")),
 ) -> list[dict[str, Any]]:
+    bounded_limit = max(1, min(limit, 2000))
+    if tail:
+        rows = fetch_all(
+            """
+            select event_index, event_json, created_at
+            from app_run_events
+            where run_id = %s and event_index > %s
+            order by event_index desc
+            limit %s
+            """,
+            (run_id, after, bounded_limit),
+        )
+        return list(reversed(rows))
     return fetch_all(
         """
         select event_index, event_json, created_at
@@ -1051,7 +1098,7 @@ def list_app_run_events(
         order by event_index asc
         limit %s
         """,
-        (run_id, after, max(1, min(limit, 2000))),
+        (run_id, after, bounded_limit),
     )
 
 

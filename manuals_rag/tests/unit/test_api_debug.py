@@ -2,10 +2,100 @@ from fastapi.testclient import TestClient
 
 from apps.api.main import app
 from apps.api import main
+from manuals_rag_evals.retrieval_eval import RetrievalEvalCase
 
 
 client = TestClient(app)
 ADMIN_HEADERS = {"Authorization": "Bearer admin-token"}
+
+
+def _fake_eval_case() -> RetrievalEvalCase:
+    return RetrievalEvalCase(
+        case_id="case-1",
+        query="voltage",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Doc",
+        source_filename="doc.pdf",
+        chunk_type="spec_record",
+        section_path="Specs",
+        page_from=1,
+        page_to=1,
+        expected_terms=["24", "v"],
+        expected_snippet="Voltage: 24 V",
+        generation_method="unit",
+        source_metadata={},
+    )
+
+
+def _install_fake_run_store(monkeypatch):
+    runs = {}
+    events = []
+
+    def fake_execute(query, params=()):
+        normalized = " ".join(query.split()).lower()
+        if normalized.startswith("insert into app_runs"):
+            run_id, run_type, request_json = params
+            runs[run_id] = {
+                "id": run_id,
+                "run_type": run_type,
+                "status": "queued",
+                "request_json": request_json,
+                "progress_json": {},
+                "result_json": None,
+                "error": None,
+                "updated_at": "now",
+            }
+            return
+        if normalized.startswith("update app_runs set status = coalesce"):
+            status, progress_json, result_json, error, run_id = params
+            run = runs[run_id]
+            if status is not None:
+                run["status"] = status
+            if progress_json is not None:
+                run["progress_json"] = main.json.loads(progress_json)
+            if result_json is not None:
+                run["result_json"] = main.json.loads(result_json)
+            if error is not None:
+                run["error"] = error
+            return
+        if normalized.startswith("insert into app_run_events"):
+            run_id, event_index, event_json = params
+            events.append({"run_id": run_id, "event_index": event_index, "event_json": main.json.loads(event_json)})
+            return
+        if normalized.startswith("update app_runs set status = 'failed'"):
+            for run in runs.values():
+                if run["status"] == "running":
+                    run["status"] = "failed"
+                    run["error"] = run["error"] or "Run was left running without progress and was marked failed."
+            return
+        raise AssertionError(f"Unexpected execute query: {query}")
+
+    def fake_fetch_one(query, params=()):
+        normalized = " ".join(query.split()).lower()
+        if normalized.startswith("select progress_json from app_runs"):
+            return {"progress_json": runs[params[0]]["progress_json"]}
+        if normalized.startswith("select status from app_runs"):
+            run = runs.get(params[0])
+            return {"status": run["status"]} if run else None
+        if normalized.startswith("select * from app_runs"):
+            return runs.get(params[0])
+        raise AssertionError(f"Unexpected fetch_one query: {query}")
+
+    def fake_fetch_all(query, params=()):
+        normalized = " ".join(query.split()).lower()
+        if "from app_runs" in normalized:
+            return list(runs.values())
+        if "from app_run_events" in normalized:
+            run_id = params[0]
+            return [event for event in events if event["run_id"] == run_id]
+        raise AssertionError(f"Unexpected fetch_all query: {query}")
+
+    monkeypatch.setattr(main, "execute", fake_execute)
+    monkeypatch.setattr(main, "fetch_one", fake_fetch_one)
+    monkeypatch.setattr(main, "fetch_all", fake_fetch_all)
+    return runs, events
 
 
 class _FakeWorkflow:
@@ -177,6 +267,92 @@ def test_debug_query_run_endpoints_return_polled_progress(monkeypatch):
     assert payload["status"] == "completed"
     assert payload["result"]["answer"]["answer"] == "Voltage is 24 V."
     assert payload["result"]["progress"]["current_step"] == "generate_answer"
+
+
+def test_streaming_eval_persists_completion_and_progress_events(monkeypatch):
+    runs, events = _install_fake_run_store(monkeypatch)
+    monkeypatch.setattr(main, "_load_eval_cases", lambda payload: (["corpus"], None, [_fake_eval_case()], []))
+    monkeypatch.setattr(main, "_eval_search_scope", lambda corpus_ids, document_id: (corpus_ids, {}))
+    monkeypatch.setattr(main, "score_search_results", lambda _case, _results: {"passed": True, "rank": 1})
+    monkeypatch.setattr(main, "_score_answer", lambda _case, _answer, _retrieval: {"passed": True, "failure_reasons": []})
+    monkeypatch.setattr(main, "_top_results_from_query_debug", lambda _result: [{"chunk_id": "chunk-1"}])
+
+    def fake_stream_query_debug_events(_request, sample_limit=10):
+        yield {
+            "event": "run_started",
+            "step_sequence": [{"name": "classify_query", "label": "Analyzing query", "model": None}],
+        }
+        yield {"event": "step_started", "step": "classify_query"}
+        yield {"event": "step_completed", "step": "classify_query", "duration_ms": 1.2}
+        yield {"event": "run_completed", "result": {"answer": {"answer": "Voltage is 24 V."}, "top_results": [{"chunk_id": "chunk-1"}]}}
+
+    monkeypatch.setattr(main, "stream_query_debug_events", fake_stream_query_debug_events)
+
+    with client.stream(
+        "POST",
+        "/eval/end-to-end-stream?sample_limit=5",
+        headers=ADMIN_HEADERS,
+        json={"corpus_ids": ["corpus"], "max_questions": 1, "use_llm_generation": False},
+    ) as response:
+        assert response.status_code == 200
+        streamed = [main.json.loads(line) for line in response.iter_lines() if line]
+
+    run_id = streamed[0]["run_id"]
+    assert [event["event"] for event in streamed] == [
+        "eval_started",
+        "eval_question_started",
+        "eval_query_event",
+        "eval_query_event",
+        "eval_query_event",
+        "eval_query_event",
+        "eval_question_completed",
+        "eval_completed",
+    ]
+    assert runs[run_id]["status"] == "completed"
+    assert runs[run_id]["result_json"]["summary"]["total_questions"] == 1
+    assert events[-1]["event_json"]["event"] == "eval_completed"
+
+
+def test_streaming_eval_fails_when_nested_query_stream_does_not_complete(monkeypatch):
+    runs, events = _install_fake_run_store(monkeypatch)
+    monkeypatch.setattr(main, "_load_eval_cases", lambda payload: (["corpus"], None, [_fake_eval_case()], []))
+    monkeypatch.setattr(main, "_eval_search_scope", lambda corpus_ids, document_id: (corpus_ids, {}))
+    monkeypatch.setattr(main, "stream_query_debug_events", lambda _request, sample_limit=10: iter([{"event": "run_started", "step_sequence": []}]))
+
+    response = client.post(
+        "/eval/end-to-end-stream?sample_limit=5",
+        headers=ADMIN_HEADERS,
+        json={"corpus_ids": ["corpus"], "max_questions": 1, "use_llm_generation": False},
+    )
+
+    assert response.status_code == 200
+    streamed = [main.json.loads(line) for line in response.text.splitlines() if line]
+    run_id = streamed[0]["run_id"]
+    assert streamed[-1]["event"] == "eval_failed"
+    assert "ended without a completed result" in streamed[-1]["error"]
+    assert runs[run_id]["status"] == "failed"
+    assert "ended without a completed result" in runs[run_id]["error"]
+    assert events[-1]["event_json"]["event"] == "eval_failed"
+
+
+def test_run_history_marks_stale_running_runs_failed(monkeypatch):
+    runs, _events = _install_fake_run_store(monkeypatch)
+    runs["run-1"] = {
+        "id": "run-1",
+        "run_type": "end_to_end_eval",
+        "status": "running",
+        "request_json": {},
+        "progress_json": {},
+        "result_json": None,
+        "error": None,
+        "updated_at": "old",
+    }
+
+    response = client.get("/runs?run_type=end_to_end_eval", headers=ADMIN_HEADERS)
+
+    assert response.status_code == 200
+    assert response.json()[0]["status"] == "failed"
+    assert "left running" in response.json()[0]["error"]
 
 
 def test_debug_documents_endpoint_returns_recent_listing(monkeypatch):
