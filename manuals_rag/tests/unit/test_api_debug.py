@@ -86,7 +86,13 @@ def _install_fake_run_store(monkeypatch):
     def fake_fetch_all(query, params=()):
         normalized = " ".join(query.split()).lower()
         if "from app_runs" in normalized:
-            return list(runs.values())
+            rows = [dict(run) for run in runs.values()]
+            if "null::jsonb as result_json" in normalized:
+                for row in rows:
+                    summary = (row.get("progress_json") or {}).get("summary")
+                    row["progress_json"] = {"summary": summary} if summary is not None else {}
+                    row["result_json"] = None
+            return rows
         if "from app_run_events" in normalized:
             run_id = params[0]
             return [event for event in events if event["run_id"] == run_id]
@@ -353,6 +359,28 @@ def test_run_history_marks_stale_running_runs_failed(monkeypatch):
     assert response.status_code == 200
     assert response.json()[0]["status"] == "failed"
     assert "left running" in response.json()[0]["error"]
+
+
+def test_run_history_can_omit_large_result_payloads(monkeypatch):
+    runs, _events = _install_fake_run_store(monkeypatch)
+    runs["run-1"] = {
+        "id": "run-1",
+        "run_type": "end_to_end_eval",
+        "status": "completed",
+        "request_json": {},
+        "progress_json": {"summary": {"total_questions": 1}, "items": [{"large": "progress"}]},
+        "result_json": {"items": [{"large": "payload"}]},
+        "error": None,
+        "updated_at": "now",
+    }
+
+    response = client.get("/runs?include_result=false", headers=ADMIN_HEADERS)
+
+    assert response.status_code == 200
+    assert response.json()[0]["status"] == "completed"
+    assert response.json()[0]["progress_json"]["summary"]["total_questions"] == 1
+    assert "items" not in response.json()[0]["progress_json"]
+    assert response.json()[0]["result_json"] is None
 
 
 def test_debug_documents_endpoint_returns_recent_listing(monkeypatch):

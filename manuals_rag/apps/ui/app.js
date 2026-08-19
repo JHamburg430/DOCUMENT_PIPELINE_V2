@@ -541,16 +541,16 @@ async function loadDocuments() {
 }
 
 async function loadLatestRun() {
-  const runs = await apiJson("/runs?run_type=end_to_end_eval&limit=25");
+  const runs = await apiJson("/runs?run_type=end_to_end_eval&limit=25&include_result=false");
   state.latestRun =
-    runs.find((run) => run.status === "completed" && run.result_json?.items?.length) ||
-    runs.find((run) => run.status === "completed" && run.result_json) ||
+    runs.find((run) => run.status === "completed") ||
     null;
   if (!state.latestRun) {
     $("latest-run").innerHTML = "No completed runs yet.";
     return;
   }
-  const summary = state.latestRun.result_json.summary || {};
+  const progress = state.latestRun.progress_json || {};
+  const summary = progress.summary || {};
   $("latest-run").innerHTML = `
     <div><strong>${escapeHtml(state.latestRun.id)}</strong></div>
     <div>Updated ${escapeHtml(state.latestRun.updated_at)}</div>
@@ -558,12 +558,15 @@ async function loadLatestRun() {
   `;
 }
 
-function loadLatestResults() {
-  if (!state.latestRun?.result_json) return;
+async function loadLatestResults() {
+  if (!state.latestRun?.id) return;
+  const run = await apiJson(`/runs/${state.latestRun.id}`);
+  if (!run.result_json) return;
+  state.latestRun = run;
   state.selectedEvalIndex = 0;
-  renderEval(state.latestRun.result_json, {
-    id: state.latestRun.id,
-    updated_at: state.latestRun.updated_at,
+  renderEval(run.result_json, {
+    id: run.id,
+    updated_at: run.updated_at,
     source: "latest persisted completed run",
   });
   setStatus("Loaded latest completed run", "complete");
@@ -595,7 +598,7 @@ async function runQuery() {
 }
 
 async function loadHistory() {
-  const runs = await apiJson("/runs?limit=50");
+  const runs = await apiJson("/runs?limit=50&include_result=false");
   $("history-table").innerHTML = `
     <table>
       <thead><tr><th>Updated</th><th>Type</th><th>Status</th><th>Run ID</th><th>Error</th></tr></thead>
@@ -650,14 +653,10 @@ async function init() {
     await loadDocuments();
     await loadLatestRun();
     await loadHistory();
-    if (state.latestRun?.result_json) {
-      loadLatestResults();
-    } else {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const { payload, meta } = JSON.parse(saved);
-        renderEval(payload, meta);
-      }
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const { payload, meta } = JSON.parse(saved);
+      renderEval(payload, meta);
     }
     $("connection-status").textContent = `API connected at ${API_BASE}`;
   } catch (error) {

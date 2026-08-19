@@ -1036,6 +1036,7 @@ def stream_end_to_end_eval(
 def list_app_runs(
     run_type: str | None = None,
     limit: int = 25,
+    include_result: bool = True,
     _: Principal = Depends(require_role("operator", "admin", "auditor")),
 ) -> list[dict[str, Any]]:
     _fail_stale_running_runs()
@@ -1045,9 +1046,15 @@ def list_app_runs(
         where = "where run_type = %s"
         params.append(run_type)
     params.append(max(1, min(limit, 100)))
+    progress_select = (
+        "progress_json"
+        if include_result
+        else "jsonb_strip_nulls(jsonb_build_object('summary', progress_json -> 'summary')) as progress_json"
+    )
+    result_select = "result_json" if include_result else "null::jsonb as result_json"
     return fetch_all(
         f"""
-        select id, run_type, status, request_json, progress_json, result_json, error, created_at, updated_at
+        select id, run_type, status, request_json, {progress_select}, {result_select}, error, created_at, updated_at
         from app_runs
         {where}
         order by updated_at desc
