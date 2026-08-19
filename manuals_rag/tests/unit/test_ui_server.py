@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
+from urllib.request import Request, urlopen
+
+from apps.ui import server as ui_server
+
+
+def _serve(handler_cls):
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler_cls)
+    thread = Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    return httpd
+
+
+class UpstreamHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(b'{"ok":true}')
+
+    def do_HEAD(self):
+        self.send_response(204)
+        self.send_header("X-Upstream", "head-ok")
+        self.end_headers()
+
+
+class UiHandler(ui_server.ManualsRagUiHandler):
+    pass
+
+
+def test_static_assets_are_served_with_webview_safe_cache_headers():
+    httpd = _serve(UiHandler)
+    try:
+        with urlopen(f"http://127.0.0.1:{httpd.server_port}/app.js", timeout=5) as response:
+            assert response.status == 200
+            assert response.headers["Cache-Control"] == "no-store, no-cache, must-revalidate, max-age=0"
+            assert response.headers["Pragma"] == "no-cache"
+            assert response.headers["Expires"] == "0"
+    finally:
+        httpd.shutdown()
+
+
+def test_api_proxy_keeps_manuals_rag_same_origin(monkeypatch):
+    upstream = _serve(UpstreamHandler)
+    monkeypatch.setattr(ui_server, "API_BASE", f"http://127.0.0.1:{upstream.server_port}")
+    httpd = _serve(UiHandler)
+    try:
+        with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/debug/documents?limit=1", timeout=5) as response:
+            assert response.status == 200
+            assert response.headers["Cache-Control"] == "no-store, no-cache, must-revalidate, max-age=0"
+            assert response.read() == b'{"ok":true}'
+    finally:
+        httpd.shutdown()
+        upstream.shutdown()
+
+
+def test_api_proxy_supports_head_requests(monkeypatch):
+    upstream = _serve(UpstreamHandler)
+    monkeypatch.setattr(ui_server, "API_BASE", f"http://127.0.0.1:{upstream.server_port}")
+    httpd = _serve(UiHandler)
+    try:
+        request = Request(f"http://127.0.0.1:{httpd.server_port}/api/health", method="HEAD")
+        with urlopen(request, timeout=5) as response:
+            assert response.status == 204
+            assert response.headers["X-Upstream"] == "head-ok"
+            assert response.read() == b""
+    finally:
+        httpd.shutdown()
+        upstream.shutdown()

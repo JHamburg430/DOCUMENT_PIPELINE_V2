@@ -16,7 +16,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
     def end_headers(self) -> None:
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         super().end_headers()
 
     def do_GET(self) -> None:
@@ -24,6 +26,12 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self._proxy()
             return
         super().do_GET()
+
+    def do_HEAD(self) -> None:
+        if self.path.startswith("/api/"):
+            self._proxy()
+            return
+        super().do_HEAD()
 
     def do_POST(self) -> None:
         if self.path.startswith("/api/"):
@@ -52,6 +60,8 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
                     if key.lower() not in {"transfer-encoding", "connection", "content-encoding"}:
                         self.send_header(key, value)
                 self.end_headers()
+                if self.command == "HEAD":
+                    return
                 while True:
                     chunk = response.read(64 * 1024)
                     if not chunk:
@@ -64,7 +74,8 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
                 if key.lower() not in {"transfer-encoding", "connection", "content-encoding"}:
                     self.send_header(key, value)
             self.end_headers()
-            self.wfile.write(error.read())
+            if self.command != "HEAD":
+                self.wfile.write(error.read())
 
 
 def main() -> None:
