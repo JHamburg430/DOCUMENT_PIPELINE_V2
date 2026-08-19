@@ -134,11 +134,7 @@ services:
       dockerfile: infra/docker/python-service.Dockerfile
     working_dir: /workspace/manuals_rag
     command: >
-      python -m streamlit run apps/streamlit_debug/app.py
-      --server.address 0.0.0.0
-      --server.port 8601
-      --server.headless true
-      --browser.gatherUsageStats false
+      python apps/ui/server.py
     environment:
       PYTHONPATH: /workspace/manuals_rag/packages/common/src:/workspace/manuals_rag/packages/schemas/src:/workspace/manuals_rag/packages/parsers/src:/workspace/manuals_rag/packages/normalizers/src:/workspace/manuals_rag/packages/chunking/src:/workspace/manuals_rag/packages/retrieval/src:/workspace/manuals_rag/packages/answering/src:/workspace/manuals_rag/packages/permissions/src:/workspace/manuals_rag/packages/observability/src:/workspace/manuals_rag/packages/evals/src:/workspace/manuals_rag/apps
       MANUALS_RAG_API_BASE: http://api:8600

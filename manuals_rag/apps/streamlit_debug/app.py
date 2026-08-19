@@ -100,8 +100,8 @@ def _sample_selector(label: str, items: list[dict[str, Any]], key: str) -> dict[
 
 
 def _render_json_block(label: str, payload: Any) -> None:
-    st.markdown(f"**{label}**")
-    st.json(payload, expanded=False)
+    with st.expander(label, expanded=False):
+        st.json(payload, expanded=False)
 
 
 def _format_duration(duration_ms: Any) -> str:
@@ -146,7 +146,49 @@ def _render_llm_streams(llm_outputs: dict[str, dict[str, Any]]) -> None:
     for call_id, call in llm_outputs.items():
         st.markdown(f"**{call.get('label') or call_id}**")
         st.caption(f"{call.get('model') or ''} | {call.get('status', 'running')}")
-        st.code(call.get("text", ""), language="json")
+        text = str(call.get("text", ""))
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, dict):
+            if parsed.get("answer"):
+                st.write(str(parsed.get("answer")))
+            if parsed.get("citations"):
+                st.dataframe(parsed.get("citations"), hide_index=True, use_container_width=True)
+            with st.expander("Raw model payload", expanded=False):
+                st.json(parsed, expanded=False)
+        else:
+            st.code(text, language="text")
+
+
+def _latest_completed_eval() -> dict[str, Any] | None:
+    try:
+        runs = _get("/runs", run_type="end_to_end_eval", limit=10)
+    except Exception:
+        return None
+    for run in runs:
+        if run.get("status") == "completed" and run.get("result_json"):
+            return run
+    return None
+
+
+def _short_text(value: Any, limit: int = 220) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip() + "..."
+
+
+def _pass_label(value: Any) -> str:
+    return "pass" if value else "fail"
+
+
+def _render_failure_reasons(label: str, reasons: list[Any]) -> None:
+    if reasons:
+        st.error(f"{label}: {', '.join(str(reason) for reason in reasons)}")
+    else:
+        st.success(f"{label}: passed")
 
 
 def _render_final_query_result(payload: dict[str, Any]) -> None:
@@ -285,8 +327,8 @@ def _consume_streaming_eval(payload: dict[str, Any], *, sample_limit: int) -> No
             status_placeholder.info(f"Run {run_id} is still running. Open Run History to inspect progress.")
     if final_result:
         st.session_state["end_to_end_eval_payload"] = final_result
-        with result_placeholder.container():
-            _render_end_to_end_eval(final_result, key_prefix="streaming_eval_final")
+        st.session_state["end_to_end_eval_run_meta"] = {"id": run_id, "source": "current streamed run"}
+        st.rerun()
 
 
 def _render_stage(stage: dict[str, Any], key_prefix: str) -> None:
@@ -399,12 +441,13 @@ def _render_end_to_end_eval(payload: dict[str, Any], *, key_prefix: str = "eval"
             {
                 "Item": index,
                 "Question": case.get("query"),
-                "Document": case.get("source_filename"),
+                "Expected Document": case.get("source_filename"),
                 "Chunk Type": case.get("chunk_type"),
                 "Retrieval": "pass" if retrieval.get("passed") else "fail",
                 "Rank": retrieval.get("rank"),
                 "Answer": "pass" if answer_eval.get("passed") else "fail",
                 "Answer Failures": ", ".join(answer_eval.get("failure_reasons", [])),
+                "Answer Preview": _short_text((item.get("answer") or {}).get("answer"), 180),
             }
         )
     st.dataframe(rows, hide_index=True, use_container_width=True)
@@ -421,42 +464,74 @@ def _render_end_to_end_eval(payload: dict[str, Any], *, key_prefix: str = "eval"
     retrieval = item.get("retrieval_evaluation", {})
     answer_eval = item.get("answer_evaluation", {})
 
+    st.markdown("### Review")
+    result_cols = st.columns(4)
+    result_cols[0].metric("Retrieval", _pass_label(retrieval.get("passed")))
+    result_cols[1].metric("Rank", retrieval.get("rank") or "not found")
+    result_cols[2].metric("Answer", _pass_label(answer_eval.get("passed")))
+    result_cols[3].metric("Expected Terms", _pass_label((answer_eval.get("term_check") or {}).get("passed")))
+    _render_failure_reasons("Retrieval", retrieval.get("failure_reasons", []))
+    _render_failure_reasons("Answer", answer_eval.get("failure_reasons", []))
+
+    st.markdown("### Question")
+    st.write(case.get("query") or "")
+
     left, right = st.columns(2)
     with left:
         st.markdown("### Expected")
-        _render_json_block(
-            "Case",
-            {
-                key: case.get(key)
-                for key in (
-                    "query",
-                    "source_filename",
-                    "source_title",
-                    "chunk_type",
-                    "section_path",
-                    "page_from",
-                    "page_to",
-                    "expected_terms",
-                    "generation_method",
-                )
-            },
+        st.dataframe(
+            [
+                {
+                    "Document": case.get("source_filename"),
+                    "Title": case.get("source_title"),
+                    "Chunk Type": case.get("chunk_type"),
+                    "Pages": f"{case.get('page_from') or ''}-{case.get('page_to') or ''}".strip("-"),
+                    "Expected Terms": ", ".join(str(term) for term in case.get("expected_terms", [])),
+                    "Generated By": case.get("generation_method"),
+                }
+            ],
+            hide_index=True,
+            use_container_width=True,
         )
         st.markdown("**Expected Snippet**")
         st.code(str(case.get("expected_snippet") or ""), language="text")
-        _render_json_block("Retrieval Evaluation", retrieval)
-        _render_json_block("Answer Evaluation", answer_eval)
     with right:
         st.markdown("### Generated Answer")
-        st.code(str(answer.get("answer") or ""), language="text")
-        _render_json_block("Citations", answer.get("citations", []))
-        _render_json_block("Used Documents", answer.get("used_documents", []))
-        _render_json_block("Warnings", answer.get("warnings", []))
+        st.write(str(answer.get("answer") or ""))
+        citations = answer.get("citations", [])
+        if citations:
+            st.markdown("**Citations**")
+            st.dataframe(citations, hide_index=True, use_container_width=True)
+        used_documents = answer.get("used_documents", [])
+        if used_documents:
+            st.markdown("**Used Documents**")
+            st.dataframe(used_documents, hide_index=True, use_container_width=True)
+        for warning in answer.get("warnings", []):
+            st.warning(warning)
+
+    with st.expander("Detailed Scoring JSON", expanded=False):
+        st.json({"retrieval_evaluation": retrieval, "answer_evaluation": answer_eval}, expanded=False)
 
     st.markdown("### Top Search Results")
     top_results = item.get("top_results", [])
     if not top_results:
         st.info("No search results recorded.")
         return
+    st.dataframe(
+        [
+            {
+                "Rank": index,
+                "Score": result.get("score"),
+                "Title": result.get("title"),
+                "Pages": result.get("pages"),
+                "Chunk": result.get("chunk_id"),
+                "Preview": _short_text(result.get("content"), 240),
+            }
+            for index, result in enumerate(top_results, start=1)
+        ],
+        hide_index=True,
+        use_container_width=True,
+    )
     result_index = st.selectbox(
         "Inspect top result",
         options=list(range(len(top_results))),
@@ -466,12 +541,15 @@ def _render_end_to_end_eval(payload: dict[str, Any], *, key_prefix: str = "eval"
     result = top_results[result_index]
     left, right = st.columns(2)
     with left:
-        _render_json_block(
-            "Result",
-            {
-                key: result.get(key)
-                for key in ("chunk_id", "score", "title", "source_document_id", "document_version_id", "pages", "section_path")
-            },
+        st.dataframe(
+            [
+                {
+                    key: result.get(key)
+                    for key in ("chunk_id", "score", "title", "source_document_id", "document_version_id", "pages", "section_path")
+                }
+            ],
+            hide_index=True,
+            use_container_width=True,
         )
         _render_json_block("Metadata", result.get("metadata", {}))
     with right:
@@ -552,9 +630,33 @@ def _render_streaming_query_tab(documents: list[dict[str, Any]], *, sample_limit
 
 def _render_eval_tab(documents: list[dict[str, Any]], *, sample_limit: int) -> None:
     st.caption("Generates document-grounded questions, runs search and answer generation, scores correctness, streams model output, and stores the run.")
+    latest_eval = _latest_completed_eval()
+    if latest_eval and "end_to_end_eval_payload" not in st.session_state:
+        st.session_state["end_to_end_eval_payload"] = latest_eval["result_json"]
+        st.session_state["end_to_end_eval_run_meta"] = {
+            "id": latest_eval.get("id"),
+            "updated_at": latest_eval.get("updated_at"),
+            "source": "latest persisted completed run",
+        }
     doc_options = {_document_label(item): item["document_id"] for item in documents}
     eval_control_col, eval_result_col = st.columns([1, 2])
     with eval_control_col:
+        if latest_eval:
+            latest_summary = latest_eval.get("result_json", {}).get("summary", {})
+            st.markdown("### Latest Completed Run")
+            st.caption(f"`{latest_eval.get('id')}` updated {latest_eval.get('updated_at')}")
+            latest_cols = st.columns(2)
+            latest_cols[0].metric("Retrieval", f"{latest_summary.get('retrieval_correct_percent', 0.0):.2f}%")
+            latest_cols[1].metric("Answers", f"{latest_summary.get('answers_correct_percent', 0.0):.2f}%")
+            if st.button("Load Latest Completed Results", use_container_width=True):
+                st.session_state["end_to_end_eval_payload"] = latest_eval["result_json"]
+                st.session_state["end_to_end_eval_run_meta"] = {
+                    "id": latest_eval.get("id"),
+                    "updated_at": latest_eval.get("updated_at"),
+                    "source": "latest persisted completed run",
+                }
+                st.rerun()
+            st.divider()
         eval_scope = st.radio("Scope", options=["All indexed docs in corpora", "Single document"], horizontal=False, key="eval_scope")
         eval_corpus_ids_text = st.text_input("Eval Corpus IDs", value=st.session_state.get("query_corpus_ids", DEFAULT_CORPUS), key="eval_corpus_ids")
         selected_eval_document = ""
@@ -564,6 +666,8 @@ def _render_eval_tab(documents: list[dict[str, Any]], *, sample_limit: int) -> N
         use_llm_generation = st.checkbox("Use LLM question generation", value=True, key="eval_llm_generation")
         stream_eval = st.checkbox("Stream progress and model output", value=True, key="eval_stream")
         if st.button("Run End-to-End Eval", use_container_width=True):
+            st.session_state.pop("end_to_end_eval_payload", None)
+            st.session_state.pop("end_to_end_eval_run_meta", None)
             eval_corpus_ids = [item.strip() for item in eval_corpus_ids_text.split(",") if item.strip()]
             eval_document_id = doc_options.get(selected_eval_document) if selected_eval_document else None
             if eval_scope == "Single document" and not eval_document_id:
@@ -583,9 +687,17 @@ def _render_eval_tab(documents: list[dict[str, Any]], *, sample_limit: int) -> N
             else:
                 with st.spinner("Running generated questions through search and answer generation..."):
                     st.session_state["end_to_end_eval_payload"] = _post("/eval/end-to-end", request_payload)
+                    st.session_state["end_to_end_eval_run_meta"] = {"source": "current run"}
     with eval_result_col:
         eval_payload = st.session_state.get("end_to_end_eval_payload")
         if eval_payload:
+            run_meta = st.session_state.get("end_to_end_eval_run_meta") or {}
+            if run_meta:
+                st.caption(
+                    f"Showing {run_meta.get('source', 'saved result')}"
+                    + (f" `{run_meta.get('id')}`" if run_meta.get("id") else "")
+                    + (f" updated {run_meta.get('updated_at')}" if run_meta.get("updated_at") else "")
+                )
             _render_end_to_end_eval(eval_payload, key_prefix="eval")
         else:
             st.info("Run an evaluation to review generated questions, answers, scoring, citations, and top retrieved chunks.")

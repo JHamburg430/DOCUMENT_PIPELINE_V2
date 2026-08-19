@@ -3,30 +3,121 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Manuals RAG</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <title>Manuals RAG Console</title>
+    <link rel="stylesheet" href="/styles.css?v=20260818-static-console-2" />
   </head>
   <body>
-    <main class="shell">
-      <section class="panel hero">
-        <h1>Manuals RAG</h1>
-        <p>Grounded answers over technical manuals, datasheets, and service documents.</p>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>Manuals RAG Console</h1>
+          <p id="connection-status">Connecting to API...</p>
+        </div>
+        <nav class="tabs" aria-label="Views">
+          <button class="tab active" data-tab="eval">End-to-End Eval</button>
+          <button class="tab" data-tab="search">Search</button>
+          <button class="tab" data-tab="history">Run History</button>
+        </nav>
+      </header>
+
+      <section id="eval" class="tab-panel active">
+        <aside class="sidebar">
+          <section class="panel">
+            <h2>Latest Completed Run</h2>
+            <div id="latest-run" class="muted">Loading...</div>
+            <button id="load-latest" type="button">Load Latest Results</button>
+          </section>
+
+          <section class="panel">
+            <h2>Run Evaluation</h2>
+            <label>
+              Scope
+              <select id="eval-scope">
+                <option value="corpus">All indexed docs in corpora</option>
+                <option value="document">Single document</option>
+              </select>
+            </label>
+            <label>
+              Corpus IDs
+              <input id="eval-corpus" value="manuals_vendor_keyence" />
+            </label>
+            <label>
+              Document
+              <select id="eval-document"></select>
+            </label>
+            <label>
+              Max questions
+              <input id="eval-max-questions" type="number" min="1" max="50" value="8" />
+            </label>
+            <label class="check-row">
+              <input id="eval-llm-generation" type="checkbox" checked />
+              Use LLM question generation
+            </label>
+            <label>
+              Samples per stage
+              <input id="sample-limit" type="number" min="3" max="100" value="10" />
+            </label>
+            <button id="run-eval" type="button">Run End-to-End Eval</button>
+          </section>
+        </aside>
+
+        <section class="workspace">
+          <section class="panel">
+            <div class="section-heading">
+              <h2>Progress</h2>
+              <span id="eval-status" class="status-pill">Idle</span>
+            </div>
+            <div id="progress-list" class="progress-list"></div>
+            <details>
+              <summary>Streaming model output</summary>
+              <div id="model-output" class="model-output"></div>
+            </details>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <h2>Results</h2>
+              <span id="result-run-id" class="muted"></span>
+            </div>
+            <div id="eval-summary" class="metrics empty-state">No evaluation loaded.</div>
+            <div id="eval-table"></div>
+            <div id="eval-detail"></div>
+          </section>
+        </section>
       </section>
-      <section class="panel grid">
-        <div>
-          <h2>Search</h2>
-          <textarea id="query" rows="5" placeholder="How do I configure DHCP on model X?"></textarea>
-          <button id="run-query">Run Query</button>
-          <pre id="answer"></pre>
-        </div>
-        <div>
-          <h2>Admin Upload</h2>
-          <input id="file" type="file" multiple />
-          <button id="upload">Upload</button>
-          <pre id="upload-result"></pre>
-        </div>
+
+      <section id="search" class="tab-panel">
+        <section class="split">
+          <div class="panel">
+            <h2>Search</h2>
+            <label>
+              Query
+              <textarea id="query" rows="5">What product is described in this datasheet?</textarea>
+            </label>
+            <label>
+              Corpus IDs
+              <input id="query-corpus" value="manuals_vendor_keyence" />
+            </label>
+            <button id="run-query" type="button">Run Query</button>
+          </div>
+          <div class="panel">
+            <h2>Answer</h2>
+            <div id="answer" class="answer-view empty-state">Run a query to see grounded answers and citations.</div>
+          </div>
+        </section>
+      </section>
+
+      <section id="history" class="tab-panel">
+        <section class="panel">
+          <div class="section-heading">
+            <h2>Persisted Runs</h2>
+            <button id="refresh-history" type="button">Refresh</button>
+          </div>
+          <div id="history-table"></div>
+          <div id="history-detail"></div>
+        </section>
       </section>
     </main>
-    <script src="/app.js"></script>
+    <script src="/app.js?v=20260818-static-console-2"></script>
   </body>
-  </html>
+</html>
