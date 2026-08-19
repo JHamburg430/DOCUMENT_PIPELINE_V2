@@ -254,6 +254,13 @@ function renderProgress(stepSequence = [], stepState = {}) {
     .join("");
 }
 
+function renderEvalWarnings(warnings = []) {
+  if (!warnings.length) return;
+  $("progress-list").innerHTML = warnings
+    .map((warning) => `<div class="error-box">${escapeHtml(warning)}</div>`)
+    .join("");
+}
+
 function resetRunDebug(payload, sampleLimit) {
   state.runDebug = {
     startedAt: Date.now(),
@@ -360,8 +367,12 @@ async function runEval() {
   $("model-output").innerHTML = "";
   $("progress-list").innerHTML = "";
   setStatus("Starting", "running");
-  const scope = $("eval-scope").value;
   const documentId = $("eval-document").value;
+  let scope = $("eval-scope").value;
+  if (documentId && scope !== "document") {
+    scope = "document";
+    $("eval-scope").value = "document";
+  }
   const payload = {
     corpus_ids: splitList($("eval-corpus").value),
     document_id: scope === "document" ? documentId : null,
@@ -473,6 +484,7 @@ async function runEval() {
 function handleEvalEvent(event, refs) {
   if (event.event === "eval_started") {
     setStatus(`Run ${event.run_id}: ${event.total_questions} questions`, "running");
+    renderEvalWarnings(event.warnings || []);
   } else if (event.event === "eval_question_started") {
     setStatus(`Question ${event.question_index}/${event.total_questions}`, "running");
   } else if (event.event === "eval_query_event") {
@@ -643,8 +655,22 @@ function setupTabs() {
   });
 }
 
+function setupEvalScopeControls() {
+  $("eval-document").addEventListener("change", () => {
+    if ($("eval-document").value) {
+      $("eval-scope").value = "document";
+    }
+  });
+  $("eval-scope").addEventListener("change", () => {
+    if ($("eval-scope").value === "corpus") {
+      $("eval-document").value = "";
+    }
+  });
+}
+
 async function init() {
   setupTabs();
+  setupEvalScopeControls();
   $("run-eval").addEventListener("click", runEval);
   $("load-latest").addEventListener("click", loadLatestResults);
   $("run-query").addEventListener("click", runQuery);
