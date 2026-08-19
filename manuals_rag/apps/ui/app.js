@@ -11,6 +11,7 @@ const state = {
   running: false,
   runDebug: null,
   runDebugTimer: null,
+  evalRuntime: null,
 };
 
 function $(id) {
@@ -337,6 +338,65 @@ function summarizeEvent(event) {
   };
 }
 
+function createEvalRuntime() {
+  return {
+    llmOutputs: {},
+    stepSequence: [],
+    stepState: {},
+    finalResult: null,
+    runId: null,
+    lastEventIndex: 0,
+  };
+}
+
+function processEvalEvent(event, runtime, source = "stream", eventIndex = null) {
+  runtime.runId = event.run_id || runtime.runId;
+  if (eventIndex !== null) {
+    runtime.lastEventIndex = Math.max(runtime.lastEventIndex, Number(eventIndex) || 0);
+  }
+  updateRunDebug({
+    runId: runtime.runId,
+    events: state.runDebug.events + 1,
+    lastEvent: event.query_event?.event ? `${event.event}:${event.query_event.event}` : event.event,
+    lastEventAt: Date.now(),
+  });
+  appendRunDebug(`Event from ${source}`, summarizeEvent(event));
+  handleEvalEvent(event, {
+    llmOutputs: runtime.llmOutputs,
+    stepSequenceRef: (value) => (runtime.stepSequence = value),
+    stepStateRef: (value) => (runtime.stepState = value),
+  });
+  if (event.event === "eval_completed") runtime.finalResult = event.result;
+}
+
+async function pollRunToCompletion(runtime) {
+  if (!runtime.runId) return;
+  appendRunDebug("Polling persisted run after stream interruption", { runId: runtime.runId, after: runtime.lastEventIndex });
+  setStatus(`Reconnected to run ${runtime.runId}`, "running");
+  const deadline = Date.now() + 20 * 60 * 1000;
+  while (Date.now() < deadline) {
+    const rows = await apiJson(`/runs/${runtime.runId}/events?after=${runtime.lastEventIndex}&limit=250`);
+    appendRunDebug("Polled run events", { count: rows.length, after: runtime.lastEventIndex });
+    for (const row of rows) {
+      processEvalEvent(row.event_json, runtime, "poll", row.event_index);
+    }
+    const run = await apiJson(`/runs/${runtime.runId}`);
+    if (run.status === "completed" && run.result_json) {
+      appendRunDebug("Persisted run completed", { status: run.status, eventsSeen: runtime.lastEventIndex });
+      runtime.finalResult = run.result_json;
+      setStatus("Completed", "complete");
+      renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source: "persisted run after reconnect" });
+      await loadLatestRun();
+      return;
+    }
+    if (run.status === "failed") {
+      throw new Error(run.error || "Persisted run failed");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  throw new Error(`Timed out waiting for persisted run ${runtime.runId}`);
+}
+
 function appendModelOutput(callId, call) {
   const node = $("model-output");
   let block = node.querySelector(`[data-call-id="${CSS.escape(callId)}"]`);
@@ -389,11 +449,8 @@ async function runEval() {
   resetRunDebug(payload, sampleLimit);
   if (state.runDebugTimer) clearInterval(state.runDebugTimer);
   state.runDebugTimer = setInterval(renderRunDebug, 1000);
-  const llmOutputs = {};
-  let stepSequence = [];
-  let stepState = {};
-  let finalResult = null;
-  let runId = null;
+  const runtime = createEvalRuntime();
+  state.evalRuntime = runtime;
   try {
     appendRunDebug("Opening stream");
     const response = await apiFetch(`/eval/end-to-end-stream?sample_limit=${sampleLimit}`, {
@@ -435,30 +492,23 @@ async function runEval() {
           appendRunDebug("Could not parse stream line", { message: error.message, line: line.slice(0, 300) });
           throw error;
         }
-        runId = event.run_id || runId;
-        updateRunDebug({
-          runId,
-          events: state.runDebug.events + 1,
-          lastEvent: event.query_event?.event ? `${event.event}:${event.query_event.event}` : event.event,
-          lastEventAt: Date.now(),
-        });
-        appendRunDebug("Event", summarizeEvent(event));
-        handleEvalEvent(event, { llmOutputs, stepSequenceRef: (value) => (stepSequence = value), stepStateRef: (value) => (stepState = value) });
-        if (event.event === "eval_completed") finalResult = event.result;
+        processEvalEvent(event, runtime, "stream");
       }
     }
-    if (finalResult) {
+    if (runtime.finalResult) {
       appendRunDebug("Rendering final streamed result");
       setStatus("Completed", "complete");
-      renderEval(finalResult, { id: runId, source: "current streamed run" });
+      renderEval(runtime.finalResult, { id: runtime.runId, source: "current streamed run" });
       await loadLatestRun();
-    } else if (runId) {
-      appendRunDebug("No final result event; fetching persisted run", { runId });
-      const run = await apiJson(`/runs/${runId}`);
+    } else if (runtime.runId) {
+      appendRunDebug("No final result event; fetching persisted run", { runId: runtime.runId });
+      const run = await apiJson(`/runs/${runtime.runId}`);
       appendRunDebug("Persisted run loaded", { status: run.status, hasResult: Boolean(run.result_json) });
       if (run.status === "completed" && run.result_json) {
         setStatus("Completed", "complete");
         renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source: "persisted run" });
+      } else if (run.status === "running" || run.status === "queued") {
+        await pollRunToCompletion(runtime);
       } else {
         setStatus(run.status || "Ended without final result", run.status === "failed" ? "error" : "idle");
       }
@@ -467,8 +517,18 @@ async function runEval() {
     }
   } catch (error) {
     appendRunDebug("Run failed", { message: error.message, name: error.name });
-    setStatus("Failed", "error");
-    $("progress-list").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
+    if (runtime.runId) {
+      try {
+        await pollRunToCompletion(runtime);
+      } catch (pollError) {
+        appendRunDebug("Polling failed", { message: pollError.message, name: pollError.name });
+        setStatus("Failed", "error");
+        $("progress-list").innerHTML = `<div class="error-box">${escapeHtml(pollError.message)}</div>`;
+      }
+    } else {
+      setStatus("Failed", "error");
+      $("progress-list").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
+    }
   } finally {
     appendRunDebug("Run controls released");
     if (state.runDebugTimer) {
