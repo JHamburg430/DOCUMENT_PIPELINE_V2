@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import os
+from json import dumps
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from socket import timeout as SocketTimeout
 from urllib.error import HTTPError
+from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 
@@ -66,8 +69,8 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
                     chunk = response.read(64 * 1024)
                     if not chunk:
                         break
-                    self.wfile.write(chunk)
-                    self.wfile.flush()
+                    if not self._write(chunk):
+                        break
         except HTTPError as error:
             self.send_response(error.code)
             for key, value in error.headers.items():
@@ -75,7 +78,32 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
                     self.send_header(key, value)
             self.end_headers()
             if self.command != "HEAD":
-                self.wfile.write(error.read())
+                self._write(error.read())
+        except (ConnectionError, SocketTimeout, URLError, TimeoutError, OSError) as error:
+            if self.command == "HEAD":
+                self.send_response(502)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                return
+            payload = dumps({
+                "detail": f"Manuals RAG API proxy failed: {error.__class__.__name__}: {error}"
+            }).encode("utf-8")
+            try:
+                self.send_response(502)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self._write(payload)
+            except OSError:
+                pass
+
+    def _write(self, data: bytes) -> bool:
+        try:
+            self.wfile.write(data)
+            self.wfile.flush()
+            return True
+        except (BrokenPipeError, ConnectionResetError):
+            return False
 
 
 def main() -> None:

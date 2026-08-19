@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from json import loads
 from threading import Thread
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from apps.ui import server as ui_server
@@ -70,3 +72,20 @@ def test_api_proxy_supports_head_requests(monkeypatch):
     finally:
         httpd.shutdown()
         upstream.shutdown()
+
+
+def test_api_proxy_reports_upstream_failures_as_json_502(monkeypatch):
+    monkeypatch.setattr(ui_server, "API_BASE", "http://127.0.0.1:9")
+    httpd = _serve(UiHandler)
+    try:
+        try:
+            urlopen(f"http://127.0.0.1:{httpd.server_port}/api/debug/documents", timeout=5)
+        except HTTPError as error:
+            assert error.code == 502
+            assert error.headers["Content-Type"] == "application/json"
+            payload = loads(error.read())
+            assert payload["detail"].startswith("Manuals RAG API proxy failed:")
+        else:
+            raise AssertionError("Expected proxy failure")
+    finally:
+        httpd.shutdown()
