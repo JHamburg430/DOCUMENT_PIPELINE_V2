@@ -219,6 +219,14 @@ summary {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.debug-summary {
+  margin: 8px 0 10px;
+}
+
+.debug-summary.metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .metric {
   border: 1px solid var(--line);
   background: #fbfcfd;
@@ -234,6 +242,22 @@ summary {
 
 .metric strong {
   font-size: 1.05rem;
+}
+
+.debug-summary .metric {
+  min-width: 0;
+}
+
+.debug-summary .metric strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.debug-log {
+  max-height: 240px;
+  font-size: 0.78rem;
 }
 
 .status-pill,
@@ -383,6 +407,10 @@ dd {
   }
 
   .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .debug-summary.metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

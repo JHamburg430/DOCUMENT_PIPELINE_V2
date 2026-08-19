@@ -9,6 +9,8 @@ const state = {
   currentEval: null,
   selectedEvalIndex: 0,
   running: false,
+  runDebug: null,
+  runDebugTimer: null,
 };
 
 function $(id) {
@@ -252,6 +254,82 @@ function renderProgress(stepSequence = [], stepState = {}) {
     .join("");
 }
 
+function resetRunDebug(payload, sampleLimit) {
+  state.runDebug = {
+    startedAt: Date.now(),
+    requestUrl: `${API_BASE}/eval/end-to-end-stream?sample_limit=${sampleLimit}`,
+    payload,
+    sampleLimit,
+    runId: null,
+    httpStatus: null,
+    bytes: 0,
+    chunks: 0,
+    events: 0,
+    lastEvent: "not connected",
+    lastEventAt: null,
+    lines: [],
+  };
+  $("run-debug-log").textContent = "";
+  appendRunDebug("Prepared eval request", { requestUrl: state.runDebug.requestUrl, payload });
+  renderRunDebug();
+}
+
+function appendRunDebug(message, details = null) {
+  if (!state.runDebug) return;
+  const elapsed = ((Date.now() - state.runDebug.startedAt) / 1000).toFixed(1);
+  const suffix = details ? ` ${JSON.stringify(details)}` : "";
+  state.runDebug.lines.push(`[+${elapsed}s] ${message}${suffix}`);
+  state.runDebug.lines = state.runDebug.lines.slice(-80);
+  $("run-debug-log").textContent = state.runDebug.lines.join("\n");
+  $("run-debug-log").scrollTop = $("run-debug-log").scrollHeight;
+}
+
+function updateRunDebug(patch = {}) {
+  if (!state.runDebug) return;
+  Object.assign(state.runDebug, patch);
+  renderRunDebug();
+}
+
+function renderRunDebug() {
+  const debug = state.runDebug;
+  if (!debug) {
+    $("run-debug-summary").className = "debug-summary empty-state";
+    $("run-debug-summary").textContent = "No active run.";
+    return;
+  }
+  const elapsed = ((Date.now() - debug.startedAt) / 1000).toFixed(1);
+  const lastAge = debug.lastEventAt ? `${((Date.now() - debug.lastEventAt) / 1000).toFixed(1)}s ago` : "never";
+  $("run-debug-summary").className = "debug-summary metrics compact";
+  $("run-debug-summary").innerHTML = [
+    ["Run", debug.runId || "pending"],
+    ["HTTP", debug.httpStatus || "opening"],
+    ["Events", debug.events],
+    ["Bytes", debug.bytes],
+    ["Chunks", debug.chunks],
+    ["Last Event", debug.lastEvent],
+    ["Last Seen", lastAge],
+    ["Elapsed", `${elapsed}s`],
+  ]
+    .map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+}
+
+function summarizeEvent(event) {
+  const queryEvent = event.query_event || {};
+  return {
+    event: event.event,
+    run_id: event.run_id,
+    question_index: event.question_index,
+    total_questions: event.total_questions,
+    nested_event: queryEvent.event,
+    step: queryEvent.step,
+    call_id: queryEvent.call_id,
+    label: queryEvent.label,
+    model: queryEvent.model,
+    error: event.error || queryEvent.error,
+  };
+}
+
 function appendModelOutput(callId, call) {
   const node = $("model-output");
   let block = node.querySelector(`[data-call-id="${CSS.escape(callId)}"]`);
@@ -297,50 +375,96 @@ async function runEval() {
     return;
   }
   const sampleLimit = Number($("sample-limit").value || 10);
+  resetRunDebug(payload, sampleLimit);
+  if (state.runDebugTimer) clearInterval(state.runDebugTimer);
+  state.runDebugTimer = setInterval(renderRunDebug, 1000);
   const llmOutputs = {};
   let stepSequence = [];
   let stepState = {};
   let finalResult = null;
   let runId = null;
   try {
+    appendRunDebug("Opening stream");
     const response = await apiFetch(`/eval/end-to-end-stream?sample_limit=${sampleLimit}`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
+    updateRunDebug({ httpStatus: `${response.status} ${response.statusText}` });
+    appendRunDebug("Stream opened", {
+      status: response.status,
+      contentType: response.headers.get("content-type"),
+      cacheControl: response.headers.get("cache-control"),
+    });
+    if (!response.body) {
+      throw new Error("Response body is not readable; this browser/WebView may not support streaming fetch bodies.");
+    }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     while (true) {
       const { value, done } = await reader.read();
-      if (done) break;
+      if (done) {
+        appendRunDebug("Stream reader ended", { bufferedCharacters: buffer.length });
+        break;
+      }
+      updateRunDebug({
+        bytes: state.runDebug.bytes + value.length,
+        chunks: state.runDebug.chunks + 1,
+      });
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() || "";
+      appendRunDebug("Received stream chunk", { bytes: value.length, completeLines: lines.filter((line) => line.trim()).length });
       for (const line of lines) {
         if (!line.trim()) continue;
-        const event = JSON.parse(line);
+        let event;
+        try {
+          event = JSON.parse(line);
+        } catch (error) {
+          appendRunDebug("Could not parse stream line", { message: error.message, line: line.slice(0, 300) });
+          throw error;
+        }
         runId = event.run_id || runId;
+        updateRunDebug({
+          runId,
+          events: state.runDebug.events + 1,
+          lastEvent: event.query_event?.event ? `${event.event}:${event.query_event.event}` : event.event,
+          lastEventAt: Date.now(),
+        });
+        appendRunDebug("Event", summarizeEvent(event));
         handleEvalEvent(event, { llmOutputs, stepSequenceRef: (value) => (stepSequence = value), stepStateRef: (value) => (stepState = value) });
         if (event.event === "eval_completed") finalResult = event.result;
       }
     }
     if (finalResult) {
+      appendRunDebug("Rendering final streamed result");
       setStatus("Completed", "complete");
       renderEval(finalResult, { id: runId, source: "current streamed run" });
       await loadLatestRun();
     } else if (runId) {
+      appendRunDebug("No final result event; fetching persisted run", { runId });
       const run = await apiJson(`/runs/${runId}`);
+      appendRunDebug("Persisted run loaded", { status: run.status, hasResult: Boolean(run.result_json) });
       if (run.status === "completed" && run.result_json) {
         setStatus("Completed", "complete");
         renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source: "persisted run" });
       } else {
         setStatus(run.status || "Ended without final result", run.status === "failed" ? "error" : "idle");
       }
+    } else {
+      appendRunDebug("Stream ended before a run id was received");
     }
   } catch (error) {
+    appendRunDebug("Run failed", { message: error.message, name: error.name });
     setStatus("Failed", "error");
     $("progress-list").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
   } finally {
+    appendRunDebug("Run controls released");
+    if (state.runDebugTimer) {
+      clearInterval(state.runDebugTimer);
+      state.runDebugTimer = null;
+    }
+    renderRunDebug();
     state.running = false;
     $("run-eval").disabled = false;
   }

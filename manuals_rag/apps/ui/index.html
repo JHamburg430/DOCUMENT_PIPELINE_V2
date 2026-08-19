@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260818-static-console-2" />
+    <link rel="stylesheet" href="/styles.css?v=20260819-eval-debug-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -68,6 +68,11 @@
               <span id="eval-status" class="status-pill">Idle</span>
             </div>
             <div id="progress-list" class="progress-list"></div>
+            <details open>
+              <summary>Run debug</summary>
+              <div id="run-debug-summary" class="debug-summary empty-state">No active run.</div>
+              <pre id="run-debug-log" class="debug-log"></pre>
+            </details>
             <details>
               <summary>Streaming model output</summary>
               <div id="model-output" class="model-output"></div>
@@ -118,6 +123,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260818-static-console-2"></script>
+    <script src="/app.js?v=20260819-eval-debug-1"></script>
   </body>
 </html>
