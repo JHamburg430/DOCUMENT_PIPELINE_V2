@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260820-mobile-results-1" />
+    <link rel="stylesheet" href="/styles.css?v=20260820-question-trace-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -77,6 +77,13 @@
               <summary>Streaming model output</summary>
               <div id="model-output" class="model-output"></div>
             </details>
+            <section class="live-trace-panel">
+              <div class="section-heading">
+                <h2>Question Trace</h2>
+                <span id="trace-status" class="muted">No active trace.</span>
+              </div>
+              <div id="question-trace" class="question-trace empty-state">Run or resume an eval to inspect each question.</div>
+            </section>
           </section>
 
           <section class="panel">
@@ -123,6 +130,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260820-mobile-results-1"></script>
+    <script src="/app.js?v=20260820-question-trace-1"></script>
   </body>
 </html>

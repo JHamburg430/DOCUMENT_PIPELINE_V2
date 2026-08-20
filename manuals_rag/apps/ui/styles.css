@@ -348,6 +348,48 @@ summary {
   background: #fbfcfd;
 }
 
+.live-trace-panel {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.question-trace {
+  display: grid;
+  gap: 10px;
+}
+
+.trace-card {
+  border: 1px solid var(--line);
+  background: #fff;
+  padding: 10px;
+}
+
+.trace-card > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.trace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.trace-streams {
+  display: grid;
+  gap: 10px;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.trace-card pre {
+  max-height: 220px;
+}
+
 .model-meta,
 .muted {
   color: var(--muted);
@@ -480,6 +522,10 @@ dd {
   }
 
   .split {
+    grid-template-columns: 1fr;
+  }
+
+  .trace-grid {
     grid-template-columns: 1fr;
   }
 

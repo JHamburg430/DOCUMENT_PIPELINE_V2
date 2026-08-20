@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260820-mobile-results-1";
+const ASSET_VERSION = "20260820-question-trace-1";
 
 const state = {
   documents: [],
@@ -205,6 +205,109 @@ function renderTopResults(results = []) {
   `;
 }
 
+function getQuestionTrace(runtime, questionIndex) {
+  const key = String(questionIndex || "unknown");
+  runtime.questions[key] ||= {
+    index: questionIndex,
+    total: null,
+    case: null,
+    status: "pending",
+    llmCalls: {},
+    retrieved: [],
+    answer: null,
+  };
+  return runtime.questions[key];
+}
+
+function summarizeLlmCall(call = {}) {
+  const text = String(call.text || "").trim();
+  if (!text) return "";
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed.answer) return parsed.answer;
+    if (parsed.summary) return parsed.summary;
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return text;
+  }
+}
+
+function renderQuestionTrace(runtime) {
+  const node = $("question-trace");
+  if (!runtime) {
+    $("trace-status").textContent = "No active trace.";
+    node.className = "question-trace empty-state";
+    node.textContent = "Run or resume an eval to inspect each question.";
+    return;
+  }
+  const traces = Object.values(runtime.questions).sort((a, b) => Number(a.index || 0) - Number(b.index || 0));
+  $("trace-status").textContent = traces.length ? `${traces.length} questions seen` : "Waiting for questions.";
+  if (!traces.length) {
+    node.className = "question-trace empty-state";
+    node.textContent = "Waiting for the first eval question.";
+    return;
+  }
+  node.className = "question-trace";
+  node.innerHTML = traces
+    .map((trace, traceIndex) => {
+      const caseData = trace.case || {};
+      const llmCalls = Object.entries(trace.llmCalls || {});
+      const open = trace.status === "running" || traceIndex === traces.length - 1;
+      return `
+        <details class="trace-card" ${open ? "open" : ""}>
+          <summary>
+            <span>Question ${escapeHtml(trace.index)}${trace.total ? `/${escapeHtml(trace.total)}` : ""}</span>
+            <span class="badge ${trace.status === "completed" ? "pass" : ""}">${escapeHtml(trace.status)}</span>
+          </summary>
+          <div class="trace-grid">
+            <section>
+              <h4>Source Chunk</h4>
+              <dl>
+                <dt>Document</dt><dd>${escapeHtml(caseData.source_filename || "")}</dd>
+                <dt>Pages</dt><dd>${escapeHtml([caseData.page_from, caseData.page_to].filter(Boolean).join("-"))}</dd>
+                <dt>Chunk</dt><dd>${escapeHtml(caseData.source_chunk_id || "")}</dd>
+                <dt>Terms</dt><dd>${escapeHtml((caseData.expected_terms || []).join(", "))}</dd>
+              </dl>
+              <pre>${escapeHtml(caseData.expected_snippet || "")}</pre>
+            </section>
+            <section>
+              <h4>Generated Question</h4>
+              <p class="question">${escapeHtml(caseData.query || "")}</p>
+              <h4>Generated Answer</h4>
+              <p class="answer-text">${escapeHtml(trace.answer?.answer || "")}</p>
+            </section>
+          </div>
+          <h4>Retrieved Content</h4>
+          ${renderTopResults((trace.retrieved || []).slice(0, 5))}
+          <h4>Model Streams</h4>
+          <div class="trace-streams">
+            ${
+              llmCalls.length
+                ? llmCalls
+                    .map(([callId, call]) => `
+                      <article class="model-call">
+                        <div class="model-meta">${escapeHtml(call.label || callId)} | ${escapeHtml(call.model || "")} | ${escapeHtml(call.status || "running")}</div>
+                        <pre>${escapeHtml(summarizeLlmCall(call))}</pre>
+                      </article>
+                    `)
+                    .join("")
+                : '<div class="empty-state">No model generation has started for this question yet.</div>'
+            }
+          </div>
+        </details>
+      `;
+    })
+    .join("");
+}
+
+function scheduleQuestionTraceRender(runtime) {
+  if (runtime.traceRenderTimer) return;
+  runtime.traceRenderTimer = setTimeout(() => {
+    runtime.traceRenderTimer = null;
+    renderQuestionTrace(runtime);
+  }, 250);
+}
+
 function renderEvalDetail(payload) {
   const item = payload?.items?.[state.selectedEvalIndex];
   if (!item) {
@@ -369,6 +472,8 @@ function summarizeEvent(event) {
 function createEvalRuntime() {
   return {
     llmOutputs: {},
+    questions: {},
+    traceRenderTimer: null,
     stepSequence: [],
     stepState: {},
     finalResult: null,
@@ -394,6 +499,7 @@ function processEvalEvent(event, runtime, source = "stream", eventIndex = null) 
     }
   }
   handleEvalEvent(event, {
+    runtime,
     llmOutputs: runtime.llmOutputs,
     stepSequenceRef: (value) => (runtime.stepSequence = value),
     stepStateRef: (value) => (runtime.stepState = value),
@@ -439,6 +545,7 @@ async function resumeEvalRun(runId) {
   $("run-eval").disabled = true;
   $("model-output").innerHTML = "";
   $("progress-list").innerHTML = "";
+  renderQuestionTrace(null);
   state.selectedEvalIndex = 0;
   resetRunDebug({ resumed_run_id: runId }, Number($("sample-limit").value || 10));
   appendRunDebug("Resuming persisted run", { runId });
@@ -497,12 +604,72 @@ function appendModelOutput(callId, call) {
   node.scrollTop = node.scrollHeight;
 }
 
+function updateQuestionTrace(event, runtime) {
+  let immediate = true;
+  if (event.event === "eval_started") {
+    runtime.questions = {};
+    renderQuestionTrace(runtime);
+    return;
+  }
+  if (!event.question_index) return;
+  const trace = getQuestionTrace(runtime, event.question_index);
+  if (event.total_questions) trace.total = event.total_questions;
+
+  if (event.event === "eval_question_started") {
+    trace.case = event.case || trace.case;
+    trace.status = "running";
+  } else if (event.event === "eval_query_event") {
+    const queryEvent = event.query_event || {};
+    if (queryEvent.event === "llm_call_started") {
+      trace.llmCalls[queryEvent.call_id] = {
+        label: queryEvent.label,
+        model: queryEvent.model,
+        status: "running",
+        purpose: queryEvent.purpose,
+        text: "",
+      };
+    } else if (queryEvent.event === "llm_token") {
+      const call = (trace.llmCalls[queryEvent.call_id] ||= { status: "running", text: "" });
+      call.text = `${call.text || ""}${queryEvent.token || ""}`;
+      immediate = false;
+    } else if (queryEvent.event === "llm_call_completed") {
+      const call = (trace.llmCalls[queryEvent.call_id] ||= { text: "" });
+      call.label = queryEvent.label || call.label;
+      call.model = queryEvent.model || call.model;
+      call.status = "completed";
+      call.text = queryEvent.raw_response || call.text || "";
+    } else if (queryEvent.event === "llm_call_failed") {
+      const call = (trace.llmCalls[queryEvent.call_id] ||= { text: "" });
+      call.status = "failed";
+      call.text = queryEvent.error || call.text || "";
+    } else if (queryEvent.event === "step_completed" && queryEvent.payload?.answer) {
+      trace.answer = queryEvent.payload.answer;
+    } else if (queryEvent.event === "run_completed" && queryEvent.result) {
+      trace.retrieved = queryEvent.result.stages?.find((stage) => stage.name === "retrieval_results")?.samples || trace.retrieved;
+      trace.answer = queryEvent.result.answer || trace.answer;
+    }
+  } else if (event.event === "eval_question_completed") {
+    trace.status = "completed";
+    trace.case = event.item?.case || trace.case;
+    trace.answer = event.item?.answer || trace.answer;
+    trace.retrieved = event.item?.top_results || trace.retrieved;
+  } else if (event.event === "eval_failed") {
+    trace.status = "failed";
+  }
+  if (immediate) {
+    renderQuestionTrace(runtime);
+  } else {
+    scheduleQuestionTraceRender(runtime);
+  }
+}
+
 async function runEval() {
   if (state.running) return;
   state.running = true;
   $("run-eval").disabled = true;
   $("model-output").innerHTML = "";
   $("progress-list").innerHTML = "";
+  renderQuestionTrace(null);
   state.currentEval = null;
   $("eval-summary").className = "metrics empty-state";
   $("eval-summary").textContent = "No evaluation loaded.";
@@ -650,6 +817,7 @@ function handleEvalEvent(event, refs) {
   } else if (event.event === "eval_failed") {
     setStatus(event.error || "Failed", "error");
   }
+  if (refs.runtime) updateQuestionTrace(event, refs.runtime);
 }
 
 const progressState = { sequence: [], state: {} };
