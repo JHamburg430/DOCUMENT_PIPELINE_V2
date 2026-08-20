@@ -20,6 +20,7 @@ body {
   color: var(--ink);
   background: var(--bg);
   font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  overflow-x: hidden;
 }
 
 button,
@@ -35,6 +36,7 @@ button {
   color: #fff;
   padding: 9px 12px;
   cursor: pointer;
+  min-height: 40px;
 }
 
 button:hover {
@@ -54,6 +56,7 @@ textarea {
   background: #fff;
   color: var(--ink);
   padding: 8px 10px;
+  min-height: 40px;
 }
 
 label {
@@ -108,6 +111,8 @@ summary {
 .app-shell {
   min-height: 100vh;
   padding: 18px;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
 .topbar {
@@ -133,12 +138,16 @@ summary {
 .tabs {
   display: flex;
   gap: 6px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 1px;
 }
 
 .tab {
   background: #fff;
   color: var(--ink);
   border-color: var(--line);
+  white-space: nowrap;
 }
 
 .tab.active {
@@ -167,12 +176,15 @@ summary {
   display: grid;
   align-content: start;
   gap: 14px;
+  min-width: 0;
 }
 
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
   padding: 14px;
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .panel h2 {
@@ -241,7 +253,9 @@ summary {
 }
 
 .metric strong {
+  display: block;
   font-size: 1.05rem;
+  overflow-wrap: anywhere;
 }
 
 .debug-summary .metric {
@@ -300,10 +314,16 @@ summary {
 .progress-row {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 10px;
   border: 1px solid var(--line);
   padding: 8px 10px;
   background: #fbfcfd;
+}
+
+.progress-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .progress-row.running {
@@ -412,5 +432,109 @@ dd {
 
   .debug-summary.metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 10px;
+  }
+
+  .topbar {
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .topbar h1 {
+    font-size: 1.25rem;
+  }
+
+  .tabs {
+    margin: 0 -2px;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    min-height: 38px;
+  }
+
+  .panel {
+    padding: 10px;
+  }
+
+  .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .metrics,
+  .metrics.compact,
+  .debug-summary.metrics {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .metric {
+    padding: 8px;
+  }
+
+  .split {
+    grid-template-columns: 1fr;
+  }
+
+  table,
+  thead,
+  tbody,
+  tr,
+  th,
+  td {
+    display: block;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tr {
+    border: 1px solid var(--line);
+    background: #fff;
+    margin-bottom: 10px;
+  }
+
+  td {
+    display: grid;
+    grid-template-columns: 106px minmax(0, 1fr);
+    gap: 8px;
+    border-bottom: 1px solid var(--line);
+    padding: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  td:last-child {
+    border-bottom: 0;
+  }
+
+  td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-weight: 700;
+  }
+
+  td:not([data-label]) {
+    display: block;
+  }
+
+  td:not([data-label])::before {
+    content: "";
+  }
+
+  dl {
+    grid-template-columns: 1fr;
+  }
+
+  pre,
+  .model-output {
+    max-height: 300px;
   }
 }

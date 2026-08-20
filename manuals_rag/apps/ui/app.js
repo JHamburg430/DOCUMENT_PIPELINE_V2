@@ -2,6 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
+const ASSET_VERSION = "20260820-mobile-results-1";
 
 const state = {
   documents: [],
@@ -76,15 +77,31 @@ function setStatus(message, mode = "idle") {
 }
 
 function renderMetrics(summary = {}) {
+  const total = Number(summary.total_questions ?? 0);
+  const retrievalCorrect = Number(summary.retrieval_correct ?? 0);
+  const answersCorrect = Number(summary.answers_correct ?? 0);
   $("eval-summary").className = "metrics";
   $("eval-summary").innerHTML = [
-    ["Questions", summary.total_questions ?? 0],
-    ["Retrieval", `${Number(summary.retrieval_correct_percent ?? 0).toFixed(2)}%`],
-    ["Answers", `${Number(summary.answers_correct_percent ?? 0).toFixed(2)}%`],
-    ["Answer Passes", summary.answers_correct ?? 0],
+    ["Rows", total],
+    ["Retrieval", `${retrievalCorrect}/${total} (${Number(summary.retrieval_correct_percent ?? 0).toFixed(2)}%)`],
+    ["Answers", `${answersCorrect}/${total} (${Number(summary.answers_correct_percent ?? 0).toFixed(2)}%)`],
+    ["Failures", Math.max(0, total - answersCorrect)],
   ]
     .map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
     .join("");
+}
+
+function summarizeVisibleItems(items = []) {
+  const total = items.length;
+  const retrievalCorrect = items.filter((item) => item.retrieval_evaluation?.passed).length;
+  const answersCorrect = items.filter((item) => item.answer_evaluation?.passed).length;
+  return {
+    total_questions: total,
+    retrieval_correct: retrievalCorrect,
+    retrieval_correct_percent: total ? (retrievalCorrect / total) * 100 : 0,
+    answers_correct: answersCorrect,
+    answers_correct_percent: total ? (answersCorrect / total) * 100 : 0,
+  };
 }
 
 function renderEvalTable(payload) {
@@ -115,13 +132,13 @@ function renderEvalTable(payload) {
             const selected = index === state.selectedEvalIndex ? " selected" : "";
             return `
               <tr class="clickable${selected}" data-eval-index="${index}">
-                <td>${index + 1}</td>
-                <td>${escapeHtml(item.case?.query)}</td>
-                <td><span class="badge ${retrieval.passed ? "pass" : "fail"}">${retrieval.passed ? "pass" : "fail"}</span></td>
-                <td>${escapeHtml(retrieval.rank ?? "not found")}</td>
-                <td><span class="badge ${answerEval.passed ? "pass" : "fail"}">${answerEval.passed ? "pass" : "fail"}</span></td>
-                <td>${escapeHtml((answerEval.failure_reasons || []).join(", "))}</td>
-                <td>${escapeHtml(shortText(item.answer?.answer, 180))}</td>
+                <td data-label="#">${index + 1}</td>
+                <td data-label="Question">${escapeHtml(item.case?.query)}</td>
+                <td data-label="Retrieval"><span class="badge ${retrieval.passed ? "pass" : "fail"}">${retrieval.passed ? "pass" : "fail"}</span></td>
+                <td data-label="Rank">${escapeHtml(retrieval.rank ?? "not found")}</td>
+                <td data-label="Answer"><span class="badge ${answerEval.passed ? "pass" : "fail"}">${answerEval.passed ? "pass" : "fail"}</span></td>
+                <td data-label="Failures">${escapeHtml((answerEval.failure_reasons || []).join(", "))}</td>
+                <td data-label="Answer Preview">${escapeHtml(shortText(item.answer?.answer, 180))}</td>
               </tr>
             `;
           })
@@ -152,9 +169,9 @@ function renderCitations(citations = []) {
           .map(
             (citation) => `
               <tr>
-                <td>${escapeHtml(citation.document_id)}</td>
-                <td>${escapeHtml(citation.chunk_id)}</td>
-                <td>${escapeHtml((citation.pages || []).join(", "))}</td>
+                <td data-label="Document">${escapeHtml(citation.document_id)}</td>
+                <td data-label="Chunk">${escapeHtml(citation.chunk_id)}</td>
+                <td data-label="Pages">${escapeHtml((citation.pages || []).join(", "))}</td>
               </tr>
             `,
           )
@@ -174,11 +191,11 @@ function renderTopResults(results = []) {
           .map(
             (result, index) => `
               <tr>
-                <td>${index + 1}</td>
-                <td>${Number(result.score ?? 0).toFixed(4)}</td>
-                <td>${escapeHtml(result.title)}</td>
-                <td>${escapeHtml((result.pages || []).join(", "))}</td>
-                <td>${escapeHtml(shortText(result.content || result.content_preview, 260))}</td>
+                <td data-label="Rank">${index + 1}</td>
+                <td data-label="Score">${Number(result.score ?? 0).toFixed(4)}</td>
+                <td data-label="Title">${escapeHtml(result.title)}</td>
+                <td data-label="Pages">${escapeHtml((result.pages || []).join(", "))}</td>
+                <td data-label="Preview">${escapeHtml(shortText(result.content || result.content_preview, 260))}</td>
               </tr>
             `,
           )
@@ -242,8 +259,10 @@ function renderEvalDetail(payload) {
 
 function renderEval(payload, meta = {}) {
   if (!payload) return;
+  const items = payload.items || [];
+  payload = { ...payload, summary: summarizeVisibleItems(items) };
   state.currentEval = payload;
-  if (state.selectedEvalIndex >= (payload.items || []).length) state.selectedEvalIndex = 0;
+  if (state.selectedEvalIndex >= items.length) state.selectedEvalIndex = 0;
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ payload, meta, savedAt: new Date().toISOString() }));
   $("result-run-id").textContent = meta.id ? `Run ${meta.id}` : payload.run_id ? `Run ${payload.run_id}` : "";
   renderMetrics(payload.summary || {});
@@ -484,6 +503,11 @@ async function runEval() {
   $("run-eval").disabled = true;
   $("model-output").innerHTML = "";
   $("progress-list").innerHTML = "";
+  state.currentEval = null;
+  $("eval-summary").className = "metrics empty-state";
+  $("eval-summary").textContent = "No evaluation loaded.";
+  $("eval-table").innerHTML = "";
+  $("eval-detail").innerHTML = "";
   setStatus("Starting", "running");
   const documentId = $("eval-document").value;
   let scope = $("eval-scope").value;
@@ -601,6 +625,10 @@ async function runEval() {
 
 function handleEvalEvent(event, refs) {
   if (event.event === "eval_started") {
+    state.currentEval = { summary: summarizeVisibleItems([]), items: [], warnings: event.warnings || [] };
+    renderMetrics(state.currentEval.summary);
+    $("eval-table").innerHTML = '<div class="empty-state">Waiting for completed questions.</div>';
+    $("eval-detail").innerHTML = "";
     setStatus(`Run ${event.run_id}: ${event.total_questions} questions`, "running");
     renderEvalWarnings(event.warnings || []);
   } else if (event.event === "eval_question_started") {
@@ -743,11 +771,11 @@ async function loadHistory() {
           .map(
             (run) => `
               <tr class="clickable" data-run-id="${run.id}">
-                <td>${escapeHtml(run.updated_at)}</td>
-                <td>${escapeHtml(run.run_type)}</td>
-                <td>${escapeHtml(run.status)}</td>
-                <td>${escapeHtml(run.id)}</td>
-                <td>${escapeHtml(shortText(run.error, 120))}</td>
+                <td data-label="Updated">${escapeHtml(run.updated_at)}</td>
+                <td data-label="Type">${escapeHtml(run.run_type)}</td>
+                <td data-label="Status">${escapeHtml(run.status)}</td>
+                <td data-label="Run ID">${escapeHtml(run.id)}</td>
+                <td data-label="Error">${escapeHtml(shortText(run.error, 120))}</td>
               </tr>
             `,
           )
@@ -818,5 +846,7 @@ async function init() {
     $("connection-status").className = "error-text";
   }
 }
+
+document.querySelector('link[href^="/styles.css"]').href = `/styles.css?v=${ASSET_VERSION}`;
 
 init();
