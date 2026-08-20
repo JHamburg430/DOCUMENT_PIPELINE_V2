@@ -114,6 +114,9 @@ Return strict JSON with this shape:
 Rules:
 - Write queries a real technician, engineer, operator, purchaser, or integrator might type into search.
 - Base every query on the provided context, especially the source snippet, structured fields, labels, and extracted terms.
+- Make each query answerable from the source snippet itself, not merely from a surrounding section.
+- Include enough discriminating terms from the source snippet that the intended row, warning, step, or spec can be found without reading adjacent context.
+- For compact specs or table rows, include the label plus one concrete value/unit/class/action when available.
 - Do not say "this document", "this manual", "the datasheet", "this section", or similar.
 - Do not use meta phrasing like "what specification", "what value is listed", "where does", "what does the document say", or "which step in".
 - Do not mirror the source text mechanically or copy long spans verbatim.
@@ -163,7 +166,11 @@ def normalize_text(text: str) -> str:
 
 
 def tokenize(text: str) -> list[str]:
-    return re.findall(r"[a-zA-Z0-9][a-zA-Z0-9\-/.]+", text.lower())
+    return [
+        token.strip(".,;:")
+        for token in re.findall(r"[a-zA-Z0-9][a-zA-Z0-9\-/.]+", text.lower())
+        if token.strip(".,;:")
+    ]
 
 
 def _looks_specific(token: str) -> bool:
@@ -292,6 +299,40 @@ def _query_specificity_score(query: str, expected_terms: list[str]) -> int:
     return score
 
 
+def _query_context_terms(query: str, chunk: dict[str, Any]) -> set[str]:
+    metadata = dict(chunk.get("metadata_json", {}))
+    content_terms = set(tokenize(str(chunk.get("content", ""))))
+    section_terms = set(tokenize(str(chunk.get("section_path_text", ""))))
+    title_terms = set(tokenize(str(chunk.get("title", ""))))
+    model_terms = set(tokenize(str(chunk.get("product_model") or metadata.get("product_model") or "")))
+    allowed = content_terms.union(section_terms, title_terms, model_terms)
+    ignored = STOPWORDS.union(GENERIC_ANCHORS).union({"new", "series"})
+    return {
+        token
+        for token in tokenize(query)
+        if token not in ignored and (token in allowed or _is_high_signal_anchor(token))
+    }
+
+
+def _query_source_affinity_score(query: str, chunk: dict[str, Any], anchors: list[str]) -> int:
+    query_terms = _query_context_terms(query, chunk)
+    if not query_terms:
+        return 0
+    content_terms = set(tokenize(str(chunk.get("content", ""))))
+    anchor_terms = set(anchors)
+    score = 0
+    score += sum(1 for term in query_terms if term in content_terms)
+    score += sum(1 for term in query_terms if term in anchor_terms)
+    score += sum(1 for term in query_terms if _is_high_signal_anchor(term))
+    return score
+
+
+def _query_source_content_overlap(query: str, chunk: dict[str, Any]) -> int:
+    ignored = STOPWORDS.union(GENERIC_ANCHORS).union({"new", "series"})
+    content_terms = set(tokenize(str(chunk.get("content", ""))))
+    return sum(1 for term in tokenize(query) if term not in ignored and term in content_terms)
+
+
 def _query_looks_document_bound(query: str) -> bool:
     lowered = normalize_text(query)
     banned_phrases = {
@@ -349,6 +390,12 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
             return False, "atomic_requires_high_signal_anchor"
     if _query_specificity_score(query, anchors[:4]) < 5:
         return False, "low_specificity"
+    affinity_score = _query_source_affinity_score(query, chunk, anchors)
+    required_affinity = 4 if chunk_type in {"spec_record", "datasheet_record", "table_record"} else 3
+    if affinity_score < required_affinity:
+        return False, "weak_source_affinity"
+    if chunk_type in {"spec_record", "datasheet_record", "table_record"} and _query_source_content_overlap(query, chunk) < 2:
+        return False, "weak_source_affinity"
     return True, "validated"
 
 
@@ -367,17 +414,23 @@ def build_query_candidates(chunk: dict[str, Any]) -> list[tuple[str, str]]:
     label = model or title or "this document"
     primary = anchors[0]
     secondary = anchors[1] if len(anchors) > 1 else primary
+    tertiary = anchors[2] if len(anchors) > 2 else secondary
     candidates: list[tuple[str, str]] = []
 
     if chunk_type in {"spec_record", "datasheet_record"}:
-        candidates.append((f"{label} {primary}", "spec_primary"))
-        candidates.append((f"{primary} for {label}", "spec_value"))
+        if secondary != primary:
+            candidates.append((f"{label} {primary} {secondary}", "spec_primary_multi"))
+        if tertiary not in {primary, secondary}:
+            candidates.append((f"{label} {primary} {secondary} {tertiary}", "spec_context_multi"))
+        candidates.append((f"{primary} {secondary} for {label}", "spec_value"))
         if secondary != primary:
             candidates.append((f"{label} {primary} {secondary}", "spec_multi"))
     elif chunk_type == "table_record":
-        candidates.append((f"{label} {primary}", "table_primary"))
         if secondary != primary:
-            candidates.append((f"{primary} {secondary} {label}", "table_multi"))
+            candidates.append((f"{label} {primary} {secondary}", "table_primary_multi"))
+        if tertiary not in {primary, secondary}:
+            candidates.append((f"{primary} {secondary} {tertiary} {label}", "table_context_multi"))
+        candidates.append((f"{label} {primary}", "table_primary"))
     elif chunk_type == "procedure_record":
         candidates.append((f"how to {primary} {label}", "procedure_howto"))
         if secondary != primary:

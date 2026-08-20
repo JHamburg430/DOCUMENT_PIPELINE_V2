@@ -3,6 +3,7 @@ from manuals_rag_evals.retrieval_eval import (
     build_eval_cases_from_chunks,
     score_document_selection,
     score_search_results,
+    validate_eval_case,
 )
 
 
@@ -149,7 +150,7 @@ def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
 
     assert [case.query for case in cases] == [
         "power supply voltage for CA-EN100U",
-        "CA-EN100U required voltage",
+        "CA-EN100U power supply",
     ]
 
 
@@ -248,6 +249,46 @@ def test_build_eval_cases_filters_meta_llm_queries(monkeypatch):
     queries = [case.query for case in cases]
     assert "LJ-X8000 laser wavelength" in queries
     assert all("what specification" not in query.lower() for query in queries)
+
+
+def test_validate_eval_case_rejects_query_not_specific_to_source_context():
+    chunk = {
+        "chunk_type": "spec_record",
+        "title": "LJ-X8000",
+        "section_path_text": "LJ-X8080",
+        "content": "Capture the shape of targets in exceptional detail with 3200 points/profile.",
+        "metadata_json": {"product_model": "New LJ-X8000 Series"},
+        "product_model": "New LJ-X8000 Series",
+    }
+    anchors = ["3200", "points/profile", "capture", "shape"]
+
+    assert validate_eval_case("New LJ-X8000 Series 3200", chunk, anchors) == (False, "weak_source_affinity")
+    assert validate_eval_case("LJ-X8000 3200 points/profile", chunk, anchors) == (True, "validated")
+
+
+def test_fallback_eval_queries_include_context_anchors_for_compact_specs():
+    chunks = [
+        {
+            "id": "chunk-specific",
+            "source_document_id": "doc-1",
+            "document_version_id": "ver-1",
+            "chunk_type": "spec_record",
+            "title": "LJ-X8000",
+            "source_filename": "LJ-X8000.pdf",
+            "section_path_text": "LJ-X8080",
+            "page_from": 11,
+            "page_to": 11,
+            "content": "Capture the shape of targets in exceptional detail with 3200 points/profile.",
+            "metadata_json": {"product_model": "New LJ-X8000 Series"},
+            "product_model": "New LJ-X8000 Series",
+        }
+    ]
+
+    cases = build_eval_cases_from_chunks(chunks, max_cases=3, use_llm_generation=False)
+
+    assert cases
+    assert all("points/profile" in case.query.lower() or "capture" in case.query.lower() for case in cases)
+    assert all(case.query != "New LJ-X8000 Series 3200" for case in cases)
 
 
 def test_score_search_results_passes_on_same_document_term_overlap():
