@@ -522,7 +522,7 @@ def test_select_family_candidates_prefers_procedure_family_for_how_to_queries():
     assert chosen[0].chunk_id == "proc"
 
 
-def test_select_family_candidates_does_not_infer_spec_family_from_content_terms():
+def test_select_family_candidates_prefers_spec_family_for_spec_lookup():
     analysis = analyze_query("What voltage specification is listed for the module?")
     prose = SearchResult(
         chunk_id="prose",
@@ -547,7 +547,7 @@ def test_select_family_candidates_does_not_infer_spec_family_from_content_terms(
         metadata={"chunk_type": "spec_record", "family_bucket": "spec"},
     )
     chosen = retriever._select_family_candidates([prose, spec], analysis, limit=4)
-    assert chosen[0].chunk_id == "prose"
+    assert chosen[0].chunk_id == "spec"
     assert "spec" in [item.chunk_id for item in chosen]
 
 

@@ -16,6 +16,9 @@ SYSTEM_PROMPT = """
 You answer only from provided evidence.
 Return strict JSON with keys:
 answer, confidence, used_documents, citations, warnings, followup_questions, insufficient_evidence.
+Use confidence as a string: high, medium, or low.
+Use used_documents as an array of objects with document_id, title, version, pages, and section_path.
+Use citations as an array of objects with chunk_id, document_id, pages, and quote_span.
 If evidence is weak, set insufficient_evidence=true and explain the gap.
 Always mention version awareness and cite pages/sections.
 """.strip()
@@ -54,11 +57,36 @@ ANSWER_SCHEMA = {
     "type": "object",
     "properties": {
         "answer": {"type": "string"},
-        "confidence": {"type": "string"},
-        "used_documents": {"type": "array"},
-        "citations": {"type": "array"},
-        "warnings": {"type": "array"},
-        "followup_questions": {"type": "array"},
+        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+        "used_documents": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "document_id": {"type": "string"},
+                    "title": {"type": "string"},
+                    "version": {"type": "string"},
+                    "pages": {"type": "array", "items": {"type": "integer"}},
+                    "section_path": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["document_id", "title", "version", "pages", "section_path"],
+            },
+        },
+        "citations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "chunk_id": {"type": "string"},
+                    "document_id": {"type": "string"},
+                    "pages": {"type": "array", "items": {"type": "integer"}},
+                    "quote_span": {"type": ["string", "null"]},
+                },
+                "required": ["chunk_id", "document_id", "pages", "quote_span"],
+            },
+        },
+        "warnings": {"type": "array", "items": {"type": "string"}},
+        "followup_questions": {"type": "array", "items": {"type": "string"}},
         "insufficient_evidence": {"type": "boolean"},
     },
     "required": ["answer", "confidence", "used_documents", "citations", "warnings", "followup_questions", "insufficient_evidence"],
@@ -108,6 +136,8 @@ def _answer_supported_by_results(answer: str, results: list[SearchResult]) -> bo
         evidence_terms.update(_answer_terms(" ".join(result.section_path)))
         evidence_terms.update(_answer_terms(result.title))
     overlap = answer_terms.intersection(evidence_terms)
+    if len(answer_terms) <= 3:
+        return len(overlap) >= 1
     return len(overlap) >= max(2, min(5, len(answer_terms) // 4 or 1))
 
 
@@ -115,7 +145,7 @@ def _evidence_text(result: SearchResult) -> str:
     chunk_type = str(result.metadata.get("chunk_type") or "")
     context_window = str(result.metadata.get("context_window") or "").strip()
     content = str(result.content or "").strip()
-    if chunk_type == "atomic_text":
+    if chunk_type in {"atomic_text", "table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
         return content
     if context_window:
         return context_window
@@ -159,6 +189,55 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
         followup_questions=[],
         insufficient_evidence=False,
     )
+
+
+def _normalize_generated_answer_payload(payload: dict[str, Any], results: list[SearchResult]) -> dict[str, Any]:
+    normalized = dict(payload)
+    confidence = normalized.get("confidence")
+    if not isinstance(confidence, str):
+        if isinstance(confidence, (int, float)):
+            confidence = "high" if confidence >= 0.8 else ("medium" if confidence >= 0.4 else "low")
+        else:
+            confidence = "medium"
+    confidence = confidence.strip().lower()
+    if confidence not in {"high", "medium", "low"}:
+        confidence = "medium"
+    normalized["confidence"] = confidence
+
+    if not isinstance(normalized.get("warnings"), list):
+        normalized["warnings"] = [str(normalized["warnings"])] if normalized.get("warnings") else []
+    normalized["warnings"] = [str(item) for item in normalized["warnings"]]
+
+    if not isinstance(normalized.get("followup_questions"), list):
+        normalized["followup_questions"] = [str(normalized["followup_questions"])] if normalized.get("followup_questions") else []
+    normalized["followup_questions"] = [str(item) for item in normalized["followup_questions"]]
+
+    if not isinstance(normalized.get("used_documents"), list) or any(not isinstance(item, dict) for item in normalized.get("used_documents", [])):
+        normalized["used_documents"] = [
+            {
+                "document_id": result.source_document_id,
+                "title": result.title,
+                "version": result.document_version_id,
+                "pages": result.pages,
+                "section_path": result.section_path,
+            }
+            for result in results[:3]
+        ]
+
+    if not isinstance(normalized.get("citations"), list) or any(not isinstance(item, dict) for item in normalized.get("citations", [])):
+        normalized["citations"] = [
+            {
+                "chunk_id": result.chunk_id,
+                "document_id": result.source_document_id,
+                "pages": result.pages,
+                "quote_span": None,
+            }
+            for result in results[:3]
+        ]
+
+    if not isinstance(normalized.get("insufficient_evidence"), bool):
+        normalized["insufficient_evidence"] = str(normalized.get("insufficient_evidence", "")).lower() in {"1", "true", "yes"}
+    return normalized
 
 
 def validate_answer(answer: AnswerResponse, results: list[SearchResult]) -> AnswerResponse:
@@ -306,7 +385,7 @@ def generate_answer_with_trace(
             timeout=90.0,
             purpose="final_answer",
         )
-        generated_answer = AnswerResponse.model_validate(generated)
+        generated_answer = AnswerResponse.model_validate(_normalize_generated_answer_payload(generated, prioritized_results))
         validated_answer = validate_answer(generated_answer, prioritized_results)
         if validated_answer.answer != generated_answer.answer and any(
             "not sufficiently supported" in warning for warning in validated_answer.warnings

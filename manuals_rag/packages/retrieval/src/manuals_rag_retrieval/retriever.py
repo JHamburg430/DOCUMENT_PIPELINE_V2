@@ -34,7 +34,26 @@ except ImportError:
 
 
 def build_filters(query: str, request_filters: dict[str, object]) -> dict[str, object]:
+    analysis = analyze_query(query)
     filters = dict(request_filters)
+    has_document_scope = any(key in filters for key in ("source_document_id", "document_version_id"))
+    if not has_document_scope and analysis.requested_doc_kind and "document_kind" not in filters:
+        filters["document_kind"] = analysis.requested_doc_kind
+    if not has_document_scope and analysis.product_model and not any(key in filters for key in ("product_model", "product_models")):
+        filters["product_models"] = analysis.product_model
+    if not has_document_scope and analysis.product_family and not any(key in filters for key in ("product_family", "product_families", "product_model", "product_models")):
+        filters["product_families"] = analysis.product_family
+    if not has_document_scope and analysis.manufacturer and "manufacturer" not in filters:
+        filters["manufacturer"] = analysis.manufacturer
+    if (
+        not has_document_scope
+        and analysis.part_number
+        and analysis.part_number != analysis.product_model
+        and "part_numbers" not in filters
+    ):
+        filters["part_numbers"] = analysis.part_number
+    for key, value in analysis.preferred_metadata_filters.items():
+        filters.setdefault(key, value)
     filters.setdefault("is_active", True)
     return filters
 
@@ -384,6 +403,12 @@ def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> flo
         alignment -= 0.04
     if len(query_terms) >= 3 and max(content_overlap, rerank_overlap) >= 3:
         alignment += 0.03
+    chunk_type = str(result.metadata.get("chunk_type", ""))
+    if "spec_lookup" in analysis.query_types and "laser" in query_terms and chunk_type in {"spec_record", "warning_record"}:
+        laser_safety_terms = {"radiation", "class", "wavelength", "output"}
+        safety_overlap = len(laser_safety_terms.intersection(content_terms.union(rerank_terms)))
+        if safety_overlap >= 2:
+            alignment += 0.18
     return alignment
 
 
@@ -500,7 +525,7 @@ def rerank_results(results: list[SearchResult], query: str, *, limit: int = 12) 
                 continue
             rerank_score = float(document.score or result.score)
             alignment_score = _query_alignment_score(result, analysis)
-            blended_score = rerank_score + result.score * 0.35 + alignment_score * 3.0
+            blended_score = rerank_score + result.score * 0.35 + alignment_score * 7.0
             reranked_results.append(
                 result.model_copy(
                     update={
@@ -511,6 +536,25 @@ def rerank_results(results: list[SearchResult], query: str, *, limit: int = 12) 
                             "rerank_query_alignment": alignment_score,
                             "pre_rerank_rank": document.meta.get("pre_rerank_rank"),
                             "post_rerank_rank": post_rank,
+                        },
+                    }
+                )
+            )
+        for result in candidate_results:
+            alignment_score = _query_alignment_score(result, analysis)
+            if alignment_score < 0.1:
+                continue
+            reranked_results.append(
+                result.model_copy(
+                    update={
+                        "score": result.score + alignment_score * 7.0,
+                        "metadata": {
+                            **result.metadata,
+                            "rerank_score": None,
+                            "rerank_query_alignment": alignment_score,
+                            "pre_rerank_rank": result.metadata.get("stage_rank"),
+                            "post_rerank_rank": None,
+                            "rerank_preserved_by_alignment": True,
                         },
                     }
                 )
@@ -532,6 +576,11 @@ def rerank_results(results: list[SearchResult], query: str, *, limit: int = 12) 
                     ),
                     reverse=True,
                 )
+            deduped_reranked: dict[str, SearchResult] = {}
+            for result in reranked_results:
+                if result.chunk_id not in deduped_reranked or result.score > deduped_reranked[result.chunk_id].score:
+                    deduped_reranked[result.chunk_id] = result
+            reranked_results = sorted(deduped_reranked.values(), key=lambda item: item.score, reverse=True)
             return reranked_results[:limit]
     except Exception as exc:
         logger.warning("Haystack rerank failed; falling back to fused order: %s", exc)

@@ -133,6 +133,34 @@ def test_validate_answer_falls_back_when_generated_answer_is_not_supported():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_accepts_short_identifier_answer_when_supported():
+    answer = AnswerResponse(
+        answer="CA-EN100U",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="c1",
+            score=0.9,
+            title="CA-EN100U Data Sheet",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[1],
+            section_path=["CA-EN100U"],
+            content="CA-EN100U Encoder relay unit",
+            metadata={"chunk_type": "atomic_text"},
+        )
+    ]
+    validated = validate_answer(answer, results)
+    assert validated.answer == "CA-EN100U"
+    assert not any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_parse_relevance_response_detects_missing_chunk_ids_and_normalizes_null_fields():
     results = [
         SearchResult(
