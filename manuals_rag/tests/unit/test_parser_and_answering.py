@@ -2,7 +2,7 @@ from pathlib import Path
 
 import fitz
 
-from manuals_rag_answering.generator import _parse_relevance_response, generate_answer, generate_answer_with_trace, judge_retrieval_relevance, validate_answer
+from manuals_rag_answering.generator import _parse_relevance_response, generate_answer, generate_answer_with_trace, judge_retrieval_relevance, prioritize_results_for_answer, validate_answer
 from manuals_rag_parsers.docling_parser import (
     _classify_block,
     _docling_page_batches,
@@ -276,6 +276,92 @@ def test_judge_retrieval_relevance_retries_when_chunk_coverage_is_incomplete(mon
     assert judgments[1]["verdict"] == "potentially_relevant"
     assert len(prompts) == 2
     assert "Required chunk_ids in order" in prompts[1]
+
+
+def test_answer_prioritization_excludes_wrong_model_family_table_rows(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="lj-x-warning",
+            score=0.9,
+            title="LJ-X8000",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[36],
+            section_path=["LJ-X8200/LJ-X8300/LJ-X8400/LJ-X8900"],
+            content="LASER RADIATION CLASS 2M LASER PRODUCT Wavelength : 405nm Output : 10mW",
+            metadata={"chunk_type": "spec_record"},
+        ),
+        SearchResult(
+            chunk_id="lj-x-table",
+            score=0.8,
+            title="LJ-X8000",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[36],
+            section_path=["HALCON"],
+            content=(
+                "Column headers: LJ-X8020 > LJ-X8060 > LJ-X8080 > LJ-X8200; "
+                "Row headers: Light source > Laser class; Cell value: Class 2M laser product"
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="lj-v-table",
+            score=0.7,
+            title="LJ-X8000",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[45],
+            section_path=["135°"],
+            content=(
+                "Column headers: LJ-V7080/ LJ-V7080B > LJ-V7200/ LJ-V7200B; "
+                "Row headers: Light source > Laser class; Cell value: Class 2"
+            ),
+            metadata={"chunk_type": "table_record", "product_model": "New LJ-X8000 Series"},
+        ),
+        SearchResult(
+            chunk_id="lj-s-table",
+            score=0.6,
+            title="LJ-X8000",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[47],
+            section_path=["135°"],
+            content="Column headers: LJ-S015 > LJ-S025 > LJ-S040; Row headers: Laser light source; Cell value: 405",
+            metadata={"chunk_type": "table_record", "product_model": "New LJ-X8000 Series"},
+        ),
+        SearchResult(
+            chunk_id="lj-s-grouped-table",
+            score=0.5,
+            title="LJ-X8000",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[47],
+            section_path=["135°"],
+            content=(
+                "Laser light source | nm(visible light) wavelength blue semiconductor laser | 405\n"
+                "Laser class | 2Mlaser product | Class\n"
+                "Output | 10mW"
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_model": "New LJ-X8000 Series",
+                "table_row_group": True,
+                "identifier_tokens": ["LJ-S015", "LJ-S025", "LJ-S040"],
+            },
+        ),
+    ]
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("offline")))
+
+    prioritized = prioritize_results_for_answer("New LJ-X8000 Series laser radiation", results)
+
+    judgments = {item["chunk_id"]: item["verdict"] for item in prioritized["judgments"]}
+    assert judgments["lj-x-table"] != "not_relevant"
+    assert judgments["lj-v-table"] == "not_relevant"
+    assert judgments["lj-s-table"] == "not_relevant"
+    assert judgments["lj-s-grouped-table"] == "not_relevant"
+    assert [result.chunk_id for result in prioritized["prioritized_results"]] == ["lj-x-warning", "lj-x-table"]
 
 
 def test_generate_answer_uses_fast_model_for_relevance_and_summaries_then_answer_model(monkeypatch):

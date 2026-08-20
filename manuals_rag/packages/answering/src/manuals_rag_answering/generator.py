@@ -126,6 +126,57 @@ def _answer_terms(text: str) -> set[str]:
     }
 
 
+MODEL_TOKEN_RE = re.compile(r"\b[A-Z]{1,5}-[A-Z0-9]{2,12}[A-Z]?\b")
+
+
+def _model_tokens(text: str) -> set[str]:
+    return {match.group(0).upper() for match in MODEL_TOKEN_RE.finditer(text)}
+
+
+def _series_prefix(model: str) -> str | None:
+    match = re.fullmatch(r"([A-Z]{1,5}-[A-Z]+)(\d+)[A-Z]?", model.upper())
+    if not match:
+        return None
+    prefix, digits = match.groups()
+    if not digits:
+        return None
+    return f"{prefix}{digits[0]}"
+
+
+def _query_model_scope(query: str) -> tuple[set[str], set[str]]:
+    explicit_models = _model_tokens(query)
+    series_prefixes: set[str] = set()
+    if re.search(r"\b(series|family)\b", query, flags=re.IGNORECASE):
+        series_prefixes = {prefix for model in explicit_models if (prefix := _series_prefix(model))}
+    return explicit_models, series_prefixes
+
+
+def _model_matches_scope(candidate_model: str, explicit_models: set[str], series_prefixes: set[str]) -> bool:
+    candidate = candidate_model.upper()
+    if candidate in explicit_models:
+        return True
+    return any(candidate.startswith(prefix) for prefix in series_prefixes)
+
+
+def _table_model_scope_conflict(query: str, result: SearchResult) -> bool:
+    if str(result.metadata.get("chunk_type") or "") != "table_record":
+        return False
+    explicit_models, series_prefixes = _query_model_scope(query)
+    if not explicit_models and not series_prefixes:
+        return False
+    local_identifier_text = " ".join(
+        str(token)
+        for token in [
+            *list(result.metadata.get("identifier_tokens") or []),
+            *list(result.metadata.get("keywords") or []),
+        ]
+    )
+    content_models = _model_tokens(f"{result.content} {local_identifier_text}")
+    if not content_models:
+        return False
+    return not any(_model_matches_scope(model, explicit_models, series_prefixes) for model in content_models)
+
+
 def _answer_supported_by_results(answer: str, results: list[SearchResult]) -> bool:
     answer_terms = _answer_terms(answer)
     if not answer_terms:
@@ -449,6 +500,15 @@ def _fallback_relevance_judgments(query: str, results: list[SearchResult]) -> li
     query_terms = _answer_terms(query)
     judgments: list[dict[str, str]] = []
     for result in results:
+        if _table_model_scope_conflict(query, result):
+            judgments.append(
+                {
+                    "chunk_id": result.chunk_id,
+                    "verdict": "not_relevant",
+                    "reason": "The table row names a different model family than the explicit model in the request.",
+                }
+            )
+            continue
         evidence_terms = _answer_terms(_evidence_text(result))
         overlap = len(query_terms.intersection(evidence_terms))
         if overlap >= max(1, len(query_terms) // 2):
@@ -473,6 +533,28 @@ def _normalize_relevance_item(item: dict[str, Any], fallback: dict[str, str]) ->
     if not raw_reason or raw_reason.lower() == "null":
         raw_reason = fallback["reason"]
     return {"chunk_id": chunk_id, "verdict": raw_verdict, "reason": raw_reason}
+
+
+def _apply_model_scope_to_judgments(
+    query: str,
+    results: list[SearchResult],
+    judgments: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    result_by_chunk_id = {result.chunk_id: result for result in results}
+    scoped: list[dict[str, str]] = []
+    for judgment in judgments:
+        result = result_by_chunk_id.get(judgment["chunk_id"])
+        if result and _table_model_scope_conflict(query, result):
+            scoped.append(
+                {
+                    **judgment,
+                    "verdict": "not_relevant",
+                    "reason": "The table row names a different model family than the explicit model in the request.",
+                }
+            )
+            continue
+        scoped.append(judgment)
+    return scoped
 
 
 def _relevance_prompt(query: str, evidence: list[dict[str, Any]], *, strict: bool = False) -> str:
@@ -567,6 +649,7 @@ def judge_retrieval_relevance(query: str, results: list[SearchResult]) -> list[d
                     "invalid_items": [{"error": str(exc)}],
                 }
                 parsed = fallback
+            parsed = _apply_model_scope_to_judgments(query, results, parsed)
             if not diagnostics["missing_chunk_ids"] and not diagnostics["invalid_items"]:
                 return parsed
             logger.warning(
@@ -581,8 +664,8 @@ def judge_retrieval_relevance(query: str, results: list[SearchResult]) -> list[d
                 return parsed
     except Exception as exc:
         logger.warning("Relevance judgment failed; using fallback judgments: %s", exc)
-        return fallback
-    return fallback
+        return _apply_model_scope_to_judgments(query, results, fallback)
+    return _apply_model_scope_to_judgments(query, results, fallback)
 
 
 def _extract_json_summary(raw_response: str) -> str:
