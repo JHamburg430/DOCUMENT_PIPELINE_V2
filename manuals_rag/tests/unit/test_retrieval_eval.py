@@ -440,6 +440,45 @@ def test_score_search_results_handles_table_style_queries():
     assert evaluation["match_reason"] == "same_document_term_overlap"
 
 
+def test_score_search_results_matches_slash_terms_across_table_evidence():
+    case = RetrievalEvalCase(
+        case_id="c-slash",
+        query="New LJ-X8000 Series 3200 points/profile",
+        source_document_id="doc-lj",
+        document_version_id="ver-lj",
+        source_chunk_id="chunk-source",
+        source_title="LJ-X8000",
+        source_filename="lj-x8000.pdf",
+        chunk_type="spec_record",
+        section_path="LJ-X8080",
+        page_from=11,
+        page_to=11,
+        expected_terms=["3200", "points/profile", "linearity", "significantly"],
+        expected_snippet="With 3200 points/profile, X: axis linearity has been significantly improved.",
+        generation_method="spec_primary_multi",
+        source_metadata={"product_model": "New LJ-X8000 Series"},
+    )
+    results = [
+        {
+            "chunk_id": "table-profile-count",
+            "source_document_id": "doc-lj",
+            "section_path": ["HALCON"],
+            "content": (
+                "Column headers: LJ-X8020 > LJ-X8060 > LJ-X8080; "
+                "Row headers: Profile data count; Cell value: 3200 points"
+            ),
+            "metadata": {"chunk_type": "table_record", "product_model": "New LJ-X8000 Series"},
+        }
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is True
+    assert evaluation["overlap_terms"] == 2
+    assert evaluation["query_overlap_terms"] >= 2
+    assert evaluation["match_reason"] == "same_document_answerable_evidence"
+
+
 def test_score_search_results_categorizes_candidate_miss():
     case = RetrievalEvalCase(
         case_id="c3",

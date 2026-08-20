@@ -29,6 +29,16 @@ def _fake_eval_case() -> RetrievalEvalCase:
     )
 
 
+def test_answer_term_check_matches_slash_terms_across_answer_text():
+    evaluation = main._answer_contains_expected_terms(
+        {"answer": "The LJ-X8000 Series supports a profile data count of 3200 points."},
+        ["3200", "points/profile", "linearity", "significantly"],
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["matched_terms"] == ["3200", "points/profile"]
+
+
 def _install_fake_run_store(monkeypatch):
     runs = {}
     events = []

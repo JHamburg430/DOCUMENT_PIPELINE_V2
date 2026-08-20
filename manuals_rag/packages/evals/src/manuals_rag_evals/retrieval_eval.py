@@ -590,9 +590,68 @@ def build_eval_cases_from_chunks(
     return cases
 
 
-def _result_term_overlap(result_content: str, expected_terms: list[str]) -> int:
-    haystack = normalize_text(result_content)
-    return sum(1 for term in expected_terms if term and term in haystack)
+def _term_matches_evidence(term: str, evidence_text: str) -> bool:
+    normalized_term = normalize_text(term)
+    if not normalized_term:
+        return False
+    haystack = normalize_text(evidence_text)
+    if normalized_term in haystack:
+        return True
+    evidence_tokens = set(tokenize(evidence_text))
+    term_tokens = tokenize(normalized_term)
+    if not term_tokens:
+        return False
+    if len(term_tokens) == 1:
+        token = term_tokens[0]
+        if "/" in token:
+            parts = [part for part in token.split("/") if part and part not in STOPWORDS]
+            return bool(parts) and all(part in evidence_tokens for part in parts)
+        return token in evidence_tokens
+    return all(token in evidence_tokens for token in term_tokens if token not in STOPWORDS)
+
+
+def _result_evidence_text(result: dict[str, Any]) -> str:
+    metadata = result.get("metadata", {})
+    metadata = metadata if isinstance(metadata, dict) else {}
+    section_path = result.get("section_path", [])
+    if isinstance(section_path, list):
+        section_text = " ".join(str(part) for part in section_path)
+    else:
+        section_text = str(section_path)
+    metadata_values = [
+        metadata.get("product_model"),
+        metadata.get("chunk_type"),
+        metadata.get("row_header"),
+        metadata.get("column_header"),
+        metadata.get("table_title"),
+    ]
+    return " ".join(
+        str(part)
+        for part in [
+            result.get("content", ""),
+            result.get("title", ""),
+            section_text,
+            *metadata_values,
+        ]
+        if part
+    )
+
+
+def _result_term_overlap(result: dict[str, Any], expected_terms: list[str]) -> int:
+    evidence_text = _result_evidence_text(result)
+    return sum(1 for term in expected_terms if _term_matches_evidence(term, evidence_text))
+
+
+def _query_evidence_overlap(query: str, result: dict[str, Any]) -> int:
+    ignored = STOPWORDS.union(GENERIC_ANCHORS).union({"new", "series"})
+    evidence_text = _result_evidence_text(result)
+    query_terms = []
+    for token in tokenize(query):
+        if token in ignored:
+            continue
+        if token not in query_terms:
+            query_terms.append(token)
+    return sum(1 for term in query_terms if _term_matches_evidence(term, evidence_text))
 
 
 def score_document_selection(
@@ -652,12 +711,15 @@ def score_search_results(
     found_same_document = False
     found_chunk_family = False
     max_overlap = 0
+    max_query_overlap = 0
     for rank, result in enumerate(considered, start=1):
         same_document = str(result.get("source_document_id", "")) == case.source_document_id
         same_chunk = str(result.get("chunk_id", "")) == case.source_chunk_id
         same_section = " / ".join(result.get("section_path", [])) == case.section_path
-        overlap = _result_term_overlap(str(result.get("content", "")), case.expected_terms)
+        overlap = _result_term_overlap(result, case.expected_terms)
+        query_overlap = _query_evidence_overlap(case.query, result)
         max_overlap = max(max_overlap, overlap)
+        max_query_overlap = max(max_query_overlap, query_overlap)
         result_chunk_type = str(result.get("metadata", {}).get("chunk_type") or result.get("chunk_type", ""))
         if same_document:
             found_same_document = True
@@ -696,6 +758,18 @@ def score_search_results(
                 "candidate_recall": True,
                 "metadata_document_selection": document_selection,
             }
+        if same_document and overlap >= 2 and query_overlap >= 2:
+            return {
+                "passed": True,
+                "rank": rank,
+                "match_reason": "same_document_answerable_evidence",
+                "overlap_terms": overlap,
+                "query_overlap_terms": query_overlap,
+                "failure_category": None,
+                "retrieval_stage": "final_top_k",
+                "candidate_recall": True,
+                "metadata_document_selection": document_selection,
+            }
     failure_category = "candidate_miss"
     if found_same_document:
         failure_category = "ranking_or_context_loss"
@@ -706,6 +780,7 @@ def score_search_results(
         "rank": None,
         "match_reason": "no_match",
         "overlap_terms": max_overlap,
+        "query_overlap_terms": max_query_overlap,
         "failure_category": failure_category,
         "retrieval_stage": "final_top_k",
         "candidate_recall": found_same_document,

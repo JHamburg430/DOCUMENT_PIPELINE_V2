@@ -143,12 +143,13 @@ def _fetch_eval_chunk_rows(
 
 def _answer_contains_expected_terms(answer: dict[str, Any], expected_terms: list[str]) -> dict[str, Any]:
     answer_text = str(answer.get("answer") or "")
+    answer_text_lower = answer_text.lower()
     answer_tokens = set(tokenize(answer_text))
     expected = [term for term in expected_terms if term]
     matched = [
         term
         for term in expected
-        if term.lower() in answer_text.lower() or any(term.lower() == token for token in answer_tokens)
+        if _expected_term_matches_text(term, answer_text_lower, answer_tokens)
     ]
     required = min(2, len(expected))
     return {
@@ -157,6 +158,18 @@ def _answer_contains_expected_terms(answer: dict[str, Any], expected_terms: list
         "expected_terms": expected,
         "required_terms": required,
     }
+
+
+def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str]) -> bool:
+    term_lower = term.lower().strip()
+    if not term_lower:
+        return False
+    if term_lower in text_lower or term_lower in text_tokens:
+        return True
+    if "/" in term_lower:
+        parts = [part for part in term_lower.split("/") if part]
+        return bool(parts) and all(part in text_tokens for part in parts)
+    return False
 
 
 def _score_answer(case: RetrievalEvalCase, answer: dict[str, Any], retrieval_evaluation: dict[str, Any]) -> dict[str, Any]:
