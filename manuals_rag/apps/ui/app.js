@@ -60,6 +60,15 @@ async function apiJson(path, options = {}) {
   return response.json();
 }
 
+async function localJson(path) {
+  const response = await fetch(path, { headers: { "Cache-Control": "no-cache" } });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`${response.status} ${response.statusText}: ${body}`);
+  }
+  return response.json();
+}
+
 function setStatus(message, mode = "idle") {
   const node = $("eval-status");
   node.textContent = message;
@@ -354,13 +363,17 @@ function processEvalEvent(event, runtime, source = "stream", eventIndex = null) 
   if (eventIndex !== null) {
     runtime.lastEventIndex = Math.max(runtime.lastEventIndex, Number(eventIndex) || 0);
   }
-  updateRunDebug({
-    runId: runtime.runId,
-    events: state.runDebug.events + 1,
-    lastEvent: event.query_event?.event ? `${event.event}:${event.query_event.event}` : event.event,
-    lastEventAt: Date.now(),
-  });
-  appendRunDebug(`Event from ${source}`, summarizeEvent(event));
+  if (state.runDebug) {
+    updateRunDebug({
+      runId: runtime.runId,
+      events: state.runDebug.events + 1,
+      lastEvent: event.query_event?.event ? `${event.event}:${event.query_event.event}` : event.event,
+      lastEventAt: Date.now(),
+    });
+    if (event.query_event?.event !== "llm_token") {
+      appendRunDebug(`Event from ${source}`, summarizeEvent(event));
+    }
+  }
   handleEvalEvent(event, {
     llmOutputs: runtime.llmOutputs,
     stepSequenceRef: (value) => (runtime.stepSequence = value),
@@ -375,7 +388,7 @@ async function pollRunToCompletion(runtime) {
   setStatus(`Reconnected to run ${runtime.runId}`, "running");
   const deadline = Date.now() + 20 * 60 * 1000;
   while (Date.now() < deadline) {
-    const rows = await apiJson(`/runs/${runtime.runId}/events?after=${runtime.lastEventIndex}&limit=250`);
+    const rows = await localJson(`/local/run-events?run_id=${encodeURIComponent(runtime.runId)}&after=${runtime.lastEventIndex}&limit=1000`);
     appendRunDebug("Polled run events", { count: rows.length, after: runtime.lastEventIndex });
     for (const row of rows) {
       processEvalEvent(row.event_json, runtime, "poll", row.event_index);
@@ -392,9 +405,54 @@ async function pollRunToCompletion(runtime) {
     if (run.status === "failed") {
       throw new Error(run.error || "Persisted run failed");
     }
+    if (rows.length >= 1000) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      continue;
+    }
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
   throw new Error(`Timed out waiting for persisted run ${runtime.runId}`);
+}
+
+async function resumeEvalRun(runId) {
+  if (!runId || state.running) return;
+  state.running = true;
+  $("run-eval").disabled = true;
+  $("model-output").innerHTML = "";
+  $("progress-list").innerHTML = "";
+  state.selectedEvalIndex = 0;
+  resetRunDebug({ resumed_run_id: runId }, Number($("sample-limit").value || 10));
+  appendRunDebug("Resuming persisted run", { runId });
+  if (state.runDebugTimer) clearInterval(state.runDebugTimer);
+  state.runDebugTimer = setInterval(renderRunDebug, 1000);
+  const runtime = createEvalRuntime();
+  runtime.runId = runId;
+  state.evalRuntime = runtime;
+  try {
+    const run = await apiJson(`/runs/${runId}`);
+    updateRunDebug({ runId, httpStatus: "polling persisted run" });
+    if (run.result_json) {
+      renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source: "history" });
+      setStatus(run.status === "completed" ? "Loaded completed run" : `Loaded ${run.status} run`, run.status === "failed" ? "error" : "complete");
+      return;
+    }
+    if (run.progress_json?.event) {
+      processEvalEvent(run.progress_json, runtime, "progress");
+    }
+    await pollRunToCompletion(runtime);
+  } catch (error) {
+    appendRunDebug("Resume failed", { message: error.message, name: error.name });
+    setStatus("Failed", "error");
+    $("progress-list").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
+  } finally {
+    if (state.runDebugTimer) {
+      clearInterval(state.runDebugTimer);
+      state.runDebugTimer = null;
+    }
+    renderRunDebug();
+    state.running = false;
+    $("run-eval").disabled = false;
+  }
 }
 
 function appendModelOutput(callId, call) {
@@ -615,6 +673,7 @@ async function loadDocuments() {
 async function loadLatestRun() {
   const runs = await apiJson("/runs?run_type=end_to_end_eval&limit=25&include_result=false");
   state.latestRun =
+    runs.find((run) => run.status === "running" || run.status === "queued") ||
     runs.find((run) => run.status === "completed") ||
     null;
   if (!state.latestRun) {
@@ -625,6 +684,7 @@ async function loadLatestRun() {
   const summary = progress.summary || {};
   $("latest-run").innerHTML = `
     <div><strong>${escapeHtml(state.latestRun.id)}</strong></div>
+    <div>Status ${escapeHtml(state.latestRun.status)}</div>
     <div>Updated ${escapeHtml(state.latestRun.updated_at)}</div>
     <div>${Number(summary.retrieval_correct_percent || 0).toFixed(2)}% retrieval | ${Number(summary.answers_correct_percent || 0).toFixed(2)}% answers</div>
   `;
@@ -632,6 +692,10 @@ async function loadLatestRun() {
 
 async function loadLatestResults() {
   if (!state.latestRun?.id) return;
+  if (state.latestRun.status === "running" || state.latestRun.status === "queued") {
+    await resumeEvalRun(state.latestRun.id);
+    return;
+  }
   const run = await apiJson(`/runs/${state.latestRun.id}`);
   if (!run.result_json) return;
   state.latestRun = run;
@@ -695,10 +759,14 @@ async function loadHistory() {
     row.addEventListener("click", async () => {
       const run = await apiJson(`/runs/${row.dataset.runId}`);
       $("history-detail").innerHTML = `<details open><summary>Run JSON</summary><pre>${escapeHtml(JSON.stringify(run, null, 2))}</pre></details>`;
-      if (run.run_type === "end_to_end_eval" && run.result_json) {
+      if (run.run_type === "end_to_end_eval" && (run.result_json || run.status === "running" || run.status === "queued")) {
         state.selectedEvalIndex = 0;
-        renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source: "history" });
         document.querySelector('[data-tab="eval"]').click();
+        if (run.result_json) {
+          renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source: "history" });
+        } else {
+          await resumeEvalRun(run.id);
+        }
       }
     });
   });

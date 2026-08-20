@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from json import dumps
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -8,9 +9,14 @@ from socket import timeout as SocketTimeout
 from urllib.error import HTTPError
 from urllib.error import URLError
 from urllib.request import Request, urlopen
+from urllib.parse import parse_qs, urlparse
+
+import psycopg
+from psycopg.rows import dict_row
 
 
 API_BASE = os.getenv("MANUALS_RAG_API_BASE", "http://api:8600").rstrip("/")
+POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://manuals:manuals@postgres:5432/manuals_rag")
 STATIC_DIR = Path(__file__).resolve().parent
 
 
@@ -25,6 +31,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_GET(self) -> None:
+        if self.path.startswith("/local/run-events"):
+            self._local_run_events()
+            return
         if self.path.startswith("/api/"):
             self._proxy()
             return
@@ -96,6 +105,49 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
                 self._write(payload)
             except OSError:
                 pass
+
+    def _local_run_events(self) -> None:
+        parsed = urlparse(self.path)
+        query = parse_qs(parsed.query)
+        run_id = (query.get("run_id") or [""])[0]
+        if not run_id:
+            self.send_error(400, "run_id is required")
+            return
+        try:
+            after = max(0, int((query.get("after") or ["0"])[0]))
+            limit = max(1, min(int((query.get("limit") or ["1000"])[0]), 2000))
+        except ValueError:
+            self.send_error(400, "after and limit must be integers")
+            return
+        try:
+            with psycopg.connect(POSTGRES_DSN, row_factory=dict_row) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        select event_index, event_json, created_at
+                        from app_run_events
+                        where run_id = %s
+                          and event_index > %s
+                          and coalesce(event_json #>> '{query_event,event}', '') <> 'llm_token'
+                        order by event_index asc
+                        limit %s
+                        """,
+                        (run_id, after, limit),
+                    )
+                    rows = cur.fetchall()
+            payload = json.dumps(rows, default=str).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except Exception as error:
+            payload = dumps({"detail": f"Local run event lookup failed: {error.__class__.__name__}: {error}"}).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
 
     def _write(self, data: bytes) -> bool:
         try:

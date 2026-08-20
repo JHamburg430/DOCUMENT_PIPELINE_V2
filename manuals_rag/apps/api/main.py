@@ -1095,15 +1095,22 @@ def list_app_run_events(
     after: int = 0,
     limit: int = 500,
     tail: bool = False,
+    compact: bool = False,
     _: Principal = Depends(require_role("operator", "admin", "auditor")),
 ) -> list[dict[str, Any]]:
     bounded_limit = max(1, min(limit, 2000))
+    compact_where = ""
+    if compact:
+        compact_where = """
+            and coalesce(event_json #>> '{query_event,event}', '') not in ('llm_token')
+        """
     if tail:
         rows = fetch_all(
-            """
+            f"""
             select event_index, event_json, created_at
             from app_run_events
             where run_id = %s and event_index > %s
+            {compact_where}
             order by event_index desc
             limit %s
             """,
@@ -1111,10 +1118,11 @@ def list_app_run_events(
         )
         return list(reversed(rows))
     return fetch_all(
-        """
+        f"""
         select event_index, event_json, created_at
         from app_run_events
         where run_id = %s and event_index > %s
+        {compact_where}
         order by event_index asc
         limit %s
         """,
