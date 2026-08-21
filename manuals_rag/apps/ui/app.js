@@ -2,11 +2,12 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260820-history-consistency-1";
+const ASSET_VERSION = "20260821-latest-completed-1";
 
 const state = {
   documents: [],
   latestRun: null,
+  activeRun: null,
   currentEval: null,
   selectedEvalIndex: 0,
   running: false,
@@ -892,31 +893,31 @@ async function loadDocuments() {
 
 async function loadLatestRun() {
   const runs = await apiJson("/runs?run_type=end_to_end_eval&limit=25&include_result=false");
-  state.latestRun =
-    runs.find((run) => run.status === "running" || run.status === "queued") ||
-    runs.find((run) => run.status === "completed") ||
-    null;
+  state.activeRun = runs.find((run) => run.status === "running" || run.status === "queued") || null;
+  state.latestRun = runs.find((run) => run.status === "completed" && Number(run.progress_json?.summary?.total_questions || 0) > 0) || null;
   if (!state.latestRun) {
-    $("latest-run").innerHTML = "No eval runs yet.";
+    $("latest-run").innerHTML = state.activeRun
+      ? `No completed eval output yet.<br><span class="muted">Active run ${escapeHtml(state.activeRun.id)} is ${escapeHtml(state.activeRun.status)}.</span>`
+      : "No completed eval output yet.";
     return;
   }
   const progress = state.latestRun.progress_json || {};
   const summary = progress.summary || {};
   const items = Number(summary.total_questions || 0);
+  const activeHtml = state.activeRun
+    ? `<div class="muted">Active: ${escapeHtml(state.activeRun.id)} (${escapeHtml(state.activeRun.status)})</div>`
+    : "";
   $("latest-run").innerHTML = `
     <div><strong>${escapeHtml(state.latestRun.id)}</strong></div>
-    <div>Status ${escapeHtml(state.latestRun.status)}</div>
+    <div>Latest completed output</div>
     <div>Updated ${escapeHtml(state.latestRun.updated_at)}</div>
     <div>${items} rows | ${Number(summary.retrieval_correct_percent || 0).toFixed(2)}% retrieval | ${Number(summary.answers_correct_percent || 0).toFixed(2)}% answers</div>
+    ${activeHtml}
   `;
 }
 
 async function loadLatestResults() {
   if (!state.latestRun?.id) return;
-  if (state.latestRun.status === "running" || state.latestRun.status === "queued") {
-    await resumeEvalRun(state.latestRun.id);
-    return;
-  }
   const run = await apiJson(`/runs/${state.latestRun.id}`);
   if (!run.result_json) return;
   state.latestRun = run;
