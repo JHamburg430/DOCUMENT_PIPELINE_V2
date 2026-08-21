@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260821-current-run-1";
+const ASSET_VERSION = "20260821-ingestion-monitor-1";
 
 const state = {
   documents: [],
@@ -13,6 +13,7 @@ const state = {
   running: false,
   runDebug: null,
   runDebugTimer: null,
+  ingestionTimer: null,
   evalRuntime: null,
 };
 
@@ -158,6 +159,11 @@ function renderEvalTable(payload) {
 function renderList(items) {
   if (!items?.length) return '<span class="muted">none</span>';
   return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function statusCount(rows = [], status) {
+  const row = rows.find((item) => item.status === status || item.ingest_status === status);
+  return Number(row?.count || 0);
 }
 
 function renderCitations(citations = []) {
@@ -1007,6 +1013,86 @@ async function loadHistory() {
   });
 }
 
+function renderIngestionTable(rows = [], mode = "runs") {
+  if (!rows.length) return '<div class="empty-state">No ingestion records yet.</div>';
+  if (mode === "documents") {
+    return `
+      <table>
+        <thead><tr><th>Updated</th><th>Status</th><th>Corpus</th><th>File</th><th>Pages</th><th>Chunks</th></tr></thead>
+        <tbody>
+          ${rows
+            .map(
+              (row) => `
+                <tr>
+                  <td data-label="Updated">${escapeHtml(row.updated_at)}</td>
+                  <td data-label="Status">${escapeHtml(row.ingest_status)}</td>
+                  <td data-label="Corpus">${escapeHtml(row.corpus_id)}</td>
+                  <td data-label="File">${escapeHtml(row.source_filename)}</td>
+                  <td data-label="Pages">${escapeHtml(row.page_count ?? "")}</td>
+                  <td data-label="Chunks">${escapeHtml(row.chunk_count ?? 0)}</td>
+                </tr>
+              `,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    `;
+  }
+  return `
+    <table>
+      <thead><tr><th>Updated</th><th>Status</th><th>File</th><th>Doc Status</th><th>Pages</th><th>Chunks</th><th>Failure</th></tr></thead>
+      <tbody>
+        ${rows
+          .map(
+            (row) => `
+              <tr>
+                <td data-label="Updated">${escapeHtml(row.updated_at)}</td>
+                <td data-label="Status">${escapeHtml(row.status)}</td>
+                <td data-label="File">${escapeHtml(row.source_filename)}</td>
+                <td data-label="Doc Status">${escapeHtml(row.ingest_status)}</td>
+                <td data-label="Pages">${escapeHtml(row.page_count ?? "")}</td>
+                <td data-label="Chunks">${escapeHtml(row.chunk_count ?? 0)}</td>
+                <td data-label="Failure">${escapeHtml(row.failure_reason || row.failure_class || "")}</td>
+              </tr>
+            `,
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+async function loadIngestionStatus() {
+  const payload = await apiJson("/debug/ingestion-status?limit=80");
+  const docRows = payload.document_status || [];
+  const runRows = payload.run_status || [];
+  const queues = payload.queues || {};
+  $("ingestion-summary").className = "metrics";
+  $("ingestion-summary").innerHTML = [
+    ["Indexed Docs", statusCount(docRows, "indexed")],
+    ["Uploaded Docs", statusCount(docRows, "uploaded")],
+    ["Queued Runs", statusCount(runRows, "queued")],
+    ["Running Runs", statusCount(runRows, "running")],
+    ["Completed Runs", statusCount(runRows, "completed")],
+    ["Failed Runs", statusCount(runRows, "failed")],
+    ["Ingest Queue", queues.ingest_jobs ?? 0],
+    ["Embed Queue", queues.embed_jobs ?? 0],
+  ]
+    .map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+  $("ingestion-runs").innerHTML = renderIngestionTable(payload.recent_runs || [], "runs");
+  $("ingestion-documents").innerHTML = renderIngestionTable(payload.recent_documents || [], "documents");
+}
+
+function maybePollIngestion() {
+  const active = document.querySelector(".tab.active")?.dataset.tab === "ingestion";
+  if (!active) return;
+  loadIngestionStatus().catch((error) => {
+    $("ingestion-summary").className = "metrics empty-state";
+    $("ingestion-summary").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
+  });
+}
+
 function setupTabs() {
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -1014,6 +1100,7 @@ function setupTabs() {
       document.querySelectorAll(".tab-panel").forEach((item) => item.classList.remove("active"));
       tab.classList.add("active");
       $(tab.dataset.tab).classList.add("active");
+      if (tab.dataset.tab === "ingestion") maybePollIngestion();
     });
   });
 }
@@ -1038,10 +1125,13 @@ async function init() {
   $("load-latest").addEventListener("click", loadLatestResults);
   $("run-query").addEventListener("click", runQuery);
   $("refresh-history").addEventListener("click", loadHistory);
+  $("refresh-ingestion").addEventListener("click", loadIngestionStatus);
   try {
     await loadDocuments();
     await loadLatestRun();
     await loadHistory();
+    await loadIngestionStatus();
+    state.ingestionTimer = setInterval(maybePollIngestion, 5000);
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const { payload, meta } = JSON.parse(saved);

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260821-current-run-1" />
+    <link rel="stylesheet" href="/styles.css?v=20260821-ingestion-monitor-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -16,6 +16,7 @@
         <nav class="tabs" aria-label="Views">
           <button class="tab active" data-tab="eval">End-to-End Eval</button>
           <button class="tab" data-tab="search">Search</button>
+          <button class="tab" data-tab="ingestion">Ingestion</button>
           <button class="tab" data-tab="history">Run History</button>
         </nav>
       </header>
@@ -129,7 +130,27 @@
           <div id="history-detail"></div>
         </section>
       </section>
+
+      <section id="ingestion" class="tab-panel">
+        <section class="panel">
+          <div class="section-heading">
+            <h2>Ingestion Monitor</h2>
+            <button id="refresh-ingestion" type="button">Refresh</button>
+          </div>
+          <div id="ingestion-summary" class="metrics empty-state">Loading ingestion status...</div>
+          <div class="split">
+            <section>
+              <h3>Recent Runs</h3>
+              <div id="ingestion-runs"></div>
+            </section>
+            <section>
+              <h3>Recent Documents</h3>
+              <div id="ingestion-documents"></div>
+            </section>
+          </div>
+        </section>
+      </section>
     </main>
-    <script src="/app.js?v=20260821-current-run-1"></script>
+    <script src="/app.js?v=20260821-ingestion-monitor-1"></script>
   </body>
 </html>

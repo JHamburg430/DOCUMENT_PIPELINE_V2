@@ -35,7 +35,7 @@ from manuals_rag_common.db import execute, fetch_all, fetch_one, json_dumps
 from manuals_rag_common.ids import sha256_bytes
 from manuals_rag_common.logging import configure_logging
 from manuals_rag_common.ollama import build_chat_payload, ensure_model_loaded, extract_chat_content, recent_ollama_calls
-from manuals_rag_common.queue import enqueue
+from manuals_rag_common.queue import enqueue, redis_client
 from manuals_rag_common.storage import ObjectStore
 from manuals_rag_evals.retrieval_eval import RetrievalEvalCase, build_eval_cases_from_chunks, score_search_results, tokenize
 from manuals_rag_observability.metrics import QUERY_DURATION
@@ -1143,6 +1143,97 @@ def debug_documents(
     _: Principal = Depends(require_role("operator", "admin", "auditor")),
 ) -> list[dict[str, Any]]:
     return list_recent_documents(limit=max(1, min(limit, 200)))
+
+
+@app.get("/debug/ingestion-status")
+def debug_ingestion_status(
+    limit: int = 50,
+    _: Principal = Depends(require_role("operator", "admin", "auditor")),
+) -> dict[str, Any]:
+    bounded_limit = max(1, min(limit, 200))
+    document_status = fetch_all(
+        """
+        select corpus_id, ingest_status, count(*)::int as count
+        from source_documents
+        group by corpus_id, ingest_status
+        order by corpus_id, ingest_status
+        """
+    )
+    run_status = fetch_all(
+        """
+        select status, count(*)::int as count
+        from ingestion_runs
+        group by status
+        order by status
+        """
+    )
+    recent_runs = fetch_all(
+        """
+        select
+            ir.id as run_id,
+            ir.status,
+            ir.failure_class,
+            ir.failure_reason,
+            ir.created_at,
+            ir.updated_at,
+            sd.id as document_id,
+            sd.corpus_id,
+            sd.source_filename,
+            sd.ingest_status,
+            dv.page_count,
+            (
+                select count(*)::int
+                from retrieval_chunks rc
+                where rc.source_document_id = sd.id
+            ) as chunk_count
+        from ingestion_runs ir
+        join source_documents sd on sd.id = ir.source_document_id
+        left join document_versions dv on dv.id = ir.document_version_id
+        order by ir.updated_at desc
+        limit %s
+        """,
+        (bounded_limit,),
+    )
+    recent_documents = fetch_all(
+        """
+        select
+            sd.id as document_id,
+            sd.corpus_id,
+            sd.source_filename,
+            sd.ingest_status,
+            sd.updated_at,
+            dv.page_count,
+            (
+                select count(*)::int
+                from retrieval_chunks rc
+                where rc.source_document_id = sd.id
+            ) as chunk_count
+        from source_documents sd
+        left join document_versions dv on dv.id = sd.current_version_id
+        order by sd.updated_at desc
+        limit %s
+        """,
+        (bounded_limit,),
+    )
+    redis = redis_client()
+    queues = {
+        "ingest_jobs": redis.llen("ingest_jobs"),
+        "embed_jobs": redis.llen("embed_jobs"),
+        "reindex_jobs": redis.llen("reindex_jobs"),
+    }
+    totals = {
+        "documents": sum(int(row["count"]) for row in document_status),
+        "runs": sum(int(row["count"]) for row in run_status),
+    }
+    return {
+        "document_status": document_status,
+        "run_status": run_status,
+        "queues": queues,
+        "totals": totals,
+        "recent_runs": recent_runs,
+        "recent_documents": recent_documents,
+        "generated_at": datetime.utcnow().isoformat(),
+    }
 
 
 @app.get("/debug/ollama-calls")
