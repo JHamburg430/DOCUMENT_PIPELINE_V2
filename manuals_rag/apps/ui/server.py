@@ -74,6 +74,11 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
                 self.end_headers()
                 if self.command == "HEAD":
                     return
+                if self._is_streaming_response(response):
+                    for line in response:
+                        if not self._write(line):
+                            break
+                    return
                 while True:
                     chunk = response.read(64 * 1024)
                     if not chunk:
@@ -156,6 +161,10 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             return True
         except (BrokenPipeError, ConnectionResetError):
             return False
+
+    def _is_streaming_response(self, response) -> bool:
+        content_type = (response.headers.get("Content-Type") or "").lower()
+        return "application/x-ndjson" in content_type or self.path.startswith("/api/eval/end-to-end-stream")
 
 
 def main() -> None:

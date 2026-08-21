@@ -923,15 +923,27 @@ def stream_end_to_end_eval(
     _create_persisted_run(run_id, "end_to_end_eval", payload)
     bounded_sample_limit = max(5, min(sample_limit, 100))
     event_queue: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=500)
+    queued_event = {
+        "run_id": run_id,
+        "event": "eval_queued",
+        "scope": {
+            "corpus_ids": payload.get("corpus_ids") or [],
+            "document_id": payload.get("document_id"),
+        },
+        "sample_limit": bounded_sample_limit,
+    }
+    _append_run_event(run_id, 1, queued_event)
+    _update_persisted_run(run_id, status="queued", progress=queued_event)
 
     def publish(event: dict[str, Any]) -> None:
         try:
             event_queue.put_nowait(event)
         except queue.Full:
             pass
+    publish(queued_event)
 
     def run_eval() -> None:
-        event_index = 0
+        event_index = 1
 
         def emit(event: dict[str, Any]) -> Any:
             nonlocal event_index

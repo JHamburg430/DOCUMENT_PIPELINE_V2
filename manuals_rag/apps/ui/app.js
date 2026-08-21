@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260821-ingestion-monitor-1";
+const ASSET_VERSION = "20260821-eval-stream-flush-1";
 
 const state = {
   documents: [],
@@ -822,7 +822,10 @@ async function runEval() {
 }
 
 function handleEvalEvent(event, refs) {
-  if (event.event === "eval_started") {
+  if (event.event === "eval_queued") {
+    setStatus(`Run ${event.run_id}: preparing questions`, "running");
+    $("progress-list").innerHTML = '<div class="empty-state">Preparing evaluation questions.</div>';
+  } else if (event.event === "eval_started") {
     state.currentEval = { summary: summarizeVisibleItems([]), items: [], warnings: event.warnings || [] };
     renderMetrics(state.currentEval.summary);
     $("eval-table").innerHTML = '<div class="empty-state">Waiting for completed questions.</div>';

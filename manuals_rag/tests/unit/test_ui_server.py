@@ -3,6 +3,8 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from json import loads
 from threading import Thread
+from time import monotonic
+from time import sleep
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -27,6 +29,21 @@ class UpstreamHandler(BaseHTTPRequestHandler):
         self.send_response(204)
         self.send_header("X-Upstream", "head-ok")
         self.end_headers()
+
+
+class StreamingUpstreamHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        content_length = int(self.headers.get("Content-Length") or "0")
+        if content_length:
+            self.rfile.read(content_length)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson")
+        self.end_headers()
+        self.wfile.write(b'{"event":"eval_queued","run_id":"run-1"}\n')
+        self.wfile.flush()
+        sleep(0.4)
+        self.wfile.write(b'{"event":"eval_started","run_id":"run-1"}\n')
+        self.wfile.flush()
 
 
 class UiHandler(ui_server.ManualsRagUiHandler):
@@ -89,3 +106,30 @@ def test_api_proxy_reports_upstream_failures_as_json_502(monkeypatch):
             raise AssertionError("Expected proxy failure")
     finally:
         httpd.shutdown()
+
+
+def test_api_proxy_flushes_ndjson_stream_lines(monkeypatch):
+    upstream = _serve(StreamingUpstreamHandler)
+    monkeypatch.setattr(ui_server, "API_BASE", f"http://127.0.0.1:{upstream.server_port}")
+    httpd = _serve(UiHandler)
+    try:
+        request = Request(
+            f"http://127.0.0.1:{httpd.server_port}/api/eval/end-to-end-stream?sample_limit=5",
+            data=b'{"corpus_ids":["corpus"]}',
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        started = monotonic()
+        with urlopen(request, timeout=5) as response:
+            assert response.status == 200
+            assert response.headers["Content-Type"] == "application/x-ndjson"
+            first_line = response.readline()
+            elapsed = monotonic() - started
+            second_line = response.readline()
+
+        assert elapsed < 0.3
+        assert loads(first_line)["event"] == "eval_queued"
+        assert loads(second_line)["event"] == "eval_started"
+    finally:
+        httpd.shutdown()
+        upstream.shutdown()

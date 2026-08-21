@@ -315,6 +315,7 @@ def test_streaming_eval_persists_completion_and_progress_events(monkeypatch):
 
     run_id = streamed[0]["run_id"]
     assert [event["event"] for event in streamed] == [
+        "eval_queued",
         "eval_started",
         "eval_question_started",
         "eval_query_event",
@@ -344,6 +345,7 @@ def test_streaming_eval_fails_when_nested_query_stream_does_not_complete(monkeyp
     assert response.status_code == 200
     streamed = [main.json.loads(line) for line in response.text.splitlines() if line]
     run_id = streamed[0]["run_id"]
+    assert streamed[0]["event"] == "eval_queued"
     assert streamed[-1]["event"] == "eval_failed"
     assert "ended without a completed result" in streamed[-1]["error"]
     assert runs[run_id]["status"] == "failed"
