@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260820-question-trace-1";
+const ASSET_VERSION = "20260820-history-consistency-1";
 
 const state = {
   documents: [],
@@ -373,6 +373,30 @@ function renderEval(payload, meta = {}) {
   renderEvalDetail(payload);
 }
 
+function runtimeFromEvalResult(payload, runId = null) {
+  const runtime = createEvalRuntime();
+  runtime.runId = runId || payload?.run_id || null;
+  for (const [index, item] of (payload?.items || []).entries()) {
+    const trace = getQuestionTrace(runtime, index + 1);
+    trace.total = payload.items.length;
+    trace.case = item.case || null;
+    trace.status = "completed";
+    trace.retrieved = item.top_results || [];
+    trace.answer = item.answer || null;
+  }
+  return runtime;
+}
+
+function renderCompletedEvalRun(run, source) {
+  if (!run?.result_json) return;
+  state.selectedEvalIndex = 0;
+  renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source });
+  const runtime = runtimeFromEvalResult(run.result_json, run.id);
+  state.evalRuntime = runtime;
+  $("model-output").innerHTML = "";
+  renderQuestionTrace(runtime);
+}
+
 function renderProgress(stepSequence = [], stepState = {}) {
   if (!stepSequence.length) {
     $("progress-list").innerHTML = '<div class="empty-state">No active question progress.</div>';
@@ -523,7 +547,7 @@ async function pollRunToCompletion(runtime) {
       appendRunDebug("Persisted run completed", { status: run.status, eventsSeen: runtime.lastEventIndex });
       runtime.finalResult = run.result_json;
       setStatus("Completed", "complete");
-      renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source: "persisted run after reconnect" });
+      renderCompletedEvalRun(run, "persisted run after reconnect");
       await loadLatestRun();
       return;
     }
@@ -558,7 +582,7 @@ async function resumeEvalRun(runId) {
     const run = await apiJson(`/runs/${runId}`);
     updateRunDebug({ runId, httpStatus: "polling persisted run" });
     if (run.result_json) {
-      renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source: "history" });
+      renderCompletedEvalRun(run, "history");
       setStatus(run.status === "completed" ? "Loaded completed run" : `Loaded ${run.status} run`, run.status === "failed" ? "error" : "complete");
       return;
     }
@@ -755,7 +779,7 @@ async function runEval() {
       appendRunDebug("Persisted run loaded", { status: run.status, hasResult: Boolean(run.result_json) });
       if (run.status === "completed" && run.result_json) {
         setStatus("Completed", "complete");
-        renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source: "persisted run" });
+        renderCompletedEvalRun(run, "persisted run");
       } else if (run.status === "running" || run.status === "queued") {
         await pollRunToCompletion(runtime);
       } else {
@@ -873,16 +897,17 @@ async function loadLatestRun() {
     runs.find((run) => run.status === "completed") ||
     null;
   if (!state.latestRun) {
-    $("latest-run").innerHTML = "No completed runs yet.";
+    $("latest-run").innerHTML = "No eval runs yet.";
     return;
   }
   const progress = state.latestRun.progress_json || {};
   const summary = progress.summary || {};
+  const items = Number(summary.total_questions || 0);
   $("latest-run").innerHTML = `
     <div><strong>${escapeHtml(state.latestRun.id)}</strong></div>
     <div>Status ${escapeHtml(state.latestRun.status)}</div>
     <div>Updated ${escapeHtml(state.latestRun.updated_at)}</div>
-    <div>${Number(summary.retrieval_correct_percent || 0).toFixed(2)}% retrieval | ${Number(summary.answers_correct_percent || 0).toFixed(2)}% answers</div>
+    <div>${items} rows | ${Number(summary.retrieval_correct_percent || 0).toFixed(2)}% retrieval | ${Number(summary.answers_correct_percent || 0).toFixed(2)}% answers</div>
   `;
 }
 
@@ -895,13 +920,15 @@ async function loadLatestResults() {
   const run = await apiJson(`/runs/${state.latestRun.id}`);
   if (!run.result_json) return;
   state.latestRun = run;
-  state.selectedEvalIndex = 0;
-  renderEval(run.result_json, {
-    id: run.id,
-    updated_at: run.updated_at,
-    source: "latest persisted completed run",
-  });
+  renderCompletedEvalRun(run, "latest persisted completed run");
   setStatus("Loaded latest completed run", "complete");
+}
+
+function runSummaryText(run) {
+  const summary = run.progress_json?.summary || {};
+  const total = Number(summary.total_questions || 0);
+  if (!total) return "0 rows";
+  return `${total} rows | R ${Number(summary.retrieval_correct_percent || 0).toFixed(0)}% | A ${Number(summary.answers_correct_percent || 0).toFixed(0)}%`;
 }
 
 async function runQuery() {
@@ -933,7 +960,7 @@ async function loadHistory() {
   const runs = await apiJson("/runs?limit=50&include_result=false");
   $("history-table").innerHTML = `
     <table>
-      <thead><tr><th>Updated</th><th>Type</th><th>Status</th><th>Run ID</th><th>Error</th></tr></thead>
+      <thead><tr><th>Updated</th><th>Type</th><th>Status</th><th>Summary</th><th>Run ID</th><th>Error</th></tr></thead>
       <tbody>
         ${runs
           .map(
@@ -942,6 +969,7 @@ async function loadHistory() {
                 <td data-label="Updated">${escapeHtml(run.updated_at)}</td>
                 <td data-label="Type">${escapeHtml(run.run_type)}</td>
                 <td data-label="Status">${escapeHtml(run.status)}</td>
+                <td data-label="Summary">${escapeHtml(runSummaryText(run))}</td>
                 <td data-label="Run ID">${escapeHtml(run.id)}</td>
                 <td data-label="Error">${escapeHtml(shortText(run.error, 120))}</td>
               </tr>
@@ -959,7 +987,8 @@ async function loadHistory() {
         state.selectedEvalIndex = 0;
         document.querySelector('[data-tab="eval"]').click();
         if (run.result_json) {
-          renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source: "history" });
+          renderCompletedEvalRun(run, "history");
+          setStatus(`Loaded ${run.status} run`, run.status === "failed" ? "error" : "complete");
         } else {
           await resumeEvalRun(run.id);
         }

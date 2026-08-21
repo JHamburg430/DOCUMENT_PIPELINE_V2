@@ -1062,7 +1062,14 @@ def list_app_runs(
     progress_select = (
         "progress_json"
         if include_result
-        else "jsonb_strip_nulls(jsonb_build_object('summary', progress_json -> 'summary')) as progress_json"
+        else """
+            jsonb_strip_nulls(
+                jsonb_build_object(
+                    'summary',
+                    coalesce(progress_json -> 'summary', progress_json #> '{result,summary}', result_json -> 'summary')
+                )
+            ) as progress_json
+        """
     )
     result_select = "result_json" if include_result else "null::jsonb as result_json"
     return fetch_all(
