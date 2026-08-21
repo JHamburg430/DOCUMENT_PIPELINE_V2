@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from json import loads
+from pathlib import Path
+import re
 from threading import Thread
 from time import monotonic
 from time import sleep
@@ -9,6 +11,9 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from apps.ui import server as ui_server
+
+
+UI_DIR = Path(__file__).resolve().parents[2] / "apps" / "ui"
 
 
 def _serve(handler_cls):
@@ -60,6 +65,15 @@ def test_static_assets_are_served_with_webview_safe_cache_headers():
             assert response.headers["Expires"] == "0"
     finally:
         httpd.shutdown()
+
+
+def test_index_cache_buster_matches_app_asset_version():
+    app_js = (UI_DIR / "app.js").read_text()
+    index_html = (UI_DIR / "index.html").read_text()
+
+    asset_version = re.search(r'ASSET_VERSION = "([^"]+)"', app_js).group(1)
+    assert f"/app.js?v={asset_version}" in index_html
+    assert f"/styles.css?v={asset_version}" in index_html
 
 
 def test_api_proxy_keeps_manuals_rag_same_origin(monkeypatch):
