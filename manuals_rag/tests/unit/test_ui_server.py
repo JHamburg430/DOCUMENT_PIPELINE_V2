@@ -76,6 +76,17 @@ def test_index_cache_buster_matches_app_asset_version():
     assert f"/styles.css?v={asset_version}" in index_html
 
 
+def test_progress_steps_have_clickable_detail_disclosures():
+    app_js = (UI_DIR / "app.js").read_text()
+    styles_css = (UI_DIR / "styles.css").read_text()
+
+    assert "data-progress-step" in app_js
+    assert "setupProgressInteractions()" in app_js
+    assert "renderProgressStepDetails" in app_js
+    assert "progressState.details" in app_js
+    assert ".progress-details" in styles_css
+
+
 def test_api_proxy_keeps_manuals_rag_same_origin(monkeypatch):
     upstream = _serve(UpstreamHandler)
     monkeypatch.setattr(ui_server, "API_BASE", f"http://127.0.0.1:{upstream.server_port}")

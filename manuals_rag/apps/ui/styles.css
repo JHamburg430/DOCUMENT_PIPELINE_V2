@@ -311,7 +311,12 @@ summary {
   gap: 6px;
 }
 
+.progress-item {
+  display: grid;
+}
+
 .progress-row {
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -319,11 +324,30 @@ summary {
   border: 1px solid var(--line);
   padding: 8px 10px;
   background: #fbfcfd;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.progress-row:hover,
+.progress-row:focus-visible {
+  border-color: #9bb7d5;
+  background: #f4f8fc;
+}
+
+.progress-row[aria-expanded="true"] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .progress-row span {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.progress-index {
+  color: var(--muted);
 }
 
 .progress-row.running {
@@ -332,6 +356,31 @@ summary {
 
 .progress-row.completed {
   border-color: #b8dfc2;
+}
+
+.progress-details {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-top: 0;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.progress-detail-row {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.progress-detail-row strong {
+  color: var(--ink);
+}
+
+.progress-detail-row span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .model-output {

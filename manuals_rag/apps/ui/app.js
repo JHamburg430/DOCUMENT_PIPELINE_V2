@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260822-eval-poll-run-1";
+const ASSET_VERSION = "20260822-progress-step-details-1";
 
 const state = {
   documents: [],
@@ -404,7 +404,7 @@ function renderCompletedEvalRun(run, source) {
   renderQuestionTrace(runtime);
 }
 
-function renderProgress(stepSequence = [], stepState = {}) {
+function renderProgress(stepSequence = [], stepState = {}, detailState = progressState.details, expandedSteps = progressState.expanded) {
   if (!stepSequence.length) {
     $("progress-list").innerHTML = '<div class="empty-state">No active question progress.</div>';
     return;
@@ -412,9 +412,73 @@ function renderProgress(stepSequence = [], stepState = {}) {
   $("progress-list").innerHTML = stepSequence
     .map((step, index) => {
       const status = stepState[step.name]?.status || "pending";
-      return `<div class="progress-row ${status}"><span>${index + 1}. ${escapeHtml(step.label)}</span><strong>${escapeHtml(status)}</strong></div>`;
+      const isExpanded = expandedSteps.has(step.name);
+      return `<div class="progress-item ${status}${isExpanded ? " expanded" : ""}">
+        <button type="button" class="progress-row ${status}" data-progress-step="${escapeHtml(step.name)}" aria-expanded="${isExpanded ? "true" : "false"}">
+          <span><span class="progress-index">${index + 1}</span>. ${escapeHtml(step.label)}</span>
+          <strong>${escapeHtml(status)}</strong>
+        </button>
+        ${isExpanded ? renderProgressStepDetails(step, detailState[step.name]) : ""}
+      </div>`;
     })
     .join("");
+}
+
+function renderProgressStepDetails(step, detail = null) {
+  const rows = detail?.events || [];
+  const tokenCount = Number(detail?.tokens || 0);
+  if (!rows.length && !tokenCount) {
+    return `<div class="progress-details"><div class="muted">No events recorded for ${escapeHtml(step.label)} yet.</div></div>`;
+  }
+  const eventRows = rows
+    .map((item) => {
+      const bits = [item.event, item.model ? `model: ${item.model}` : "", item.callId ? `call: ${item.callId}` : "", item.duration ? item.duration : ""]
+        .filter(Boolean)
+        .map(escapeHtml)
+        .join(" · ");
+      const body = [item.label, item.error ? `Error: ${item.error}` : "", item.payload ? `Payload: ${item.payload}` : ""].filter(Boolean).map(escapeHtml).join("<br>");
+      return `<div class="progress-detail-row"><strong>${bits}</strong>${body ? `<span>${body}</span>` : ""}</div>`;
+    })
+    .join("");
+  const tokenRow = tokenCount ? `<div class="progress-detail-row"><strong>llm_token</strong><span>${tokenCount} streamed tokens</span></div>` : "";
+  return `<div class="progress-details">${eventRows}${tokenRow}</div>`;
+}
+
+function summarizeProgressPayload(payload) {
+  if (!payload || typeof payload !== "object") return "";
+  if (payload.answer) return "answer emitted";
+  const keys = Object.keys(payload);
+  return keys.length ? keys.slice(0, 6).join(", ") : "";
+}
+
+function recordProgressDetail(queryEvent) {
+  const stepName = queryEvent.step;
+  if (!stepName) return;
+  const detail = (progressState.details[stepName] ||= { events: [], tokens: 0 });
+  if (queryEvent.event === "llm_token") {
+    detail.tokens = Number(detail.tokens || 0) + 1;
+    return;
+  }
+  detail.events.push({
+    event: queryEvent.event,
+    label: queryEvent.label || "",
+    model: queryEvent.model || "",
+    callId: queryEvent.call_id || "",
+    duration: queryEvent.duration_ms != null ? `${Number(queryEvent.duration_ms).toFixed(0)} ms` : "",
+    error: queryEvent.error || "",
+    payload: summarizeProgressPayload(queryEvent.payload),
+  });
+  detail.events = detail.events.slice(-12);
+}
+
+function toggleProgressStep(stepName) {
+  if (!stepName) return;
+  if (progressState.expanded.has(stepName)) {
+    progressState.expanded.delete(stepName);
+  } else {
+    progressState.expanded.add(stepName);
+  }
+  renderProgress(progressState.sequence, progressState.state);
 }
 
 function renderEvalWarnings(warnings = []) {
@@ -803,16 +867,22 @@ function handleEvalEvent(event, refs) {
   if (refs.runtime) updateQuestionTrace(event, refs.runtime);
 }
 
-const progressState = { sequence: [], state: {} };
+const progressState = { sequence: [], state: {}, details: {}, expanded: new Set() };
 
 function updateNestedProgress(queryEvent) {
   if (queryEvent.event === "run_started") {
     progressState.sequence = queryEvent.step_sequence || [];
     progressState.state = {};
+    progressState.details = {};
+    progressState.expanded = new Set();
   } else if (queryEvent.event === "step_started") {
-    progressState.state[queryEvent.step] = { status: "running" };
+    recordProgressDetail(queryEvent);
+    progressState.state[queryEvent.step] = { ...(progressState.state[queryEvent.step] || {}), status: "running" };
   } else if (queryEvent.event === "step_completed") {
-    progressState.state[queryEvent.step] = { status: "completed" };
+    recordProgressDetail(queryEvent);
+    progressState.state[queryEvent.step] = { ...(progressState.state[queryEvent.step] || {}), status: "completed" };
+  } else {
+    recordProgressDetail(queryEvent);
   }
   renderProgress(progressState.sequence, progressState.state);
 }
@@ -1070,9 +1140,18 @@ function setupEvalScopeControls() {
   });
 }
 
+function setupProgressInteractions() {
+  $("progress-list").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-progress-step]");
+    if (!button) return;
+    toggleProgressStep(button.dataset.progressStep);
+  });
+}
+
 async function init() {
   setupTabs();
   setupEvalScopeControls();
+  setupProgressInteractions();
   $("run-eval").addEventListener("click", runEval);
   $("load-latest").addEventListener("click", loadLatestResults);
   $("run-query").addEventListener("click", runQuery);
