@@ -125,7 +125,10 @@ def _special_route_filters(base_filters: dict[str, object], analysis: QueryAnaly
 def run_dense_search(store: QdrantStore, query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
     results: list[SearchResult] = []
     for corpus_id in corpus_ids:
-        results.extend(store.search_dense(corpus_id=corpus_id, query=query, filters=filters, limit=limit))
+        try:
+            results.extend(store.search_dense(corpus_id=corpus_id, query=query, filters=filters, limit=limit))
+        except Exception as exc:
+            logger.warning("Dense search skipped for corpus_id=%s after embedding/search failure: %s", corpus_id, exc)
     return results
 
 
@@ -140,7 +143,11 @@ def run_table_search(store: QdrantStore, query: str, corpus_ids: list[str], filt
     table_filters = {**filters, "chunk_type": ["table_record"]}
     results: list[SearchResult] = []
     for corpus_id in corpus_ids:
-        dense_results = store.search_dense(corpus_id=corpus_id, query=query, filters=table_filters, limit=limit)
+        try:
+            dense_results = store.search_dense(corpus_id=corpus_id, query=query, filters=table_filters, limit=limit)
+        except Exception as exc:
+            logger.warning("Table dense search skipped for corpus_id=%s after embedding/search failure: %s", corpus_id, exc)
+            dense_results = []
         sparse_results = store.search_sparse(corpus_id=corpus_id, query=query, filters=table_filters, limit=limit)
         results.extend(store.fuse_rrf([dense_results, sparse_results], limit=limit))
     return results

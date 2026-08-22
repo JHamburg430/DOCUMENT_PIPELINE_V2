@@ -580,6 +580,30 @@ def test_run_dense_search_queries_each_corpus_and_returns_dense_hits():
     ]
 
 
+def test_run_dense_search_skips_failed_corpus_and_keeps_other_hits():
+    class FakeStore:
+        def search_dense(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            if corpus_id == "bad":
+                raise RuntimeError("embedding service failed")
+            return [
+                SearchResult(
+                    chunk_id=f"dense-{corpus_id}",
+                    score=0.7,
+                    title=f"Doc {corpus_id}",
+                    document_version_id="ver-1",
+                    source_document_id=f"src-{corpus_id}",
+                    pages=[1],
+                    section_path=["Specs"],
+                    content="Voltage: 24 V",
+                    metadata={"chunk_type": "spec_record", "retrieval_stage": "dense"},
+                )
+            ]
+
+    results = run_dense_search(FakeStore(), "voltage spec", ["bad", "good"], {}, limit=5)
+
+    assert [item.chunk_id for item in results] == ["dense-good"]
+
+
 def test_run_sparse_search_queries_each_corpus_and_returns_sparse_hits():
     calls: list[tuple[str, str, dict[str, object], int]] = []
 
@@ -658,6 +682,35 @@ def test_run_table_search_queries_table_records_with_dense_and_sparse():
         ("dense-c2", "any query", {"is_active": True, "chunk_type": ["table_record"]}, 3),
         ("sparse-c2", "any query", {"is_active": True, "chunk_type": ["table_record"]}, 3),
     ]
+
+
+def test_run_table_search_uses_sparse_when_dense_fails():
+    class FakeStore:
+        def search_dense(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            raise RuntimeError("embedding service failed")
+
+        def search_sparse(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            return [
+                SearchResult(
+                    chunk_id=f"sparse-table-{corpus_id}",
+                    score=0.65,
+                    title=f"Doc {corpus_id}",
+                    document_version_id="ver-1",
+                    source_document_id=f"src-{corpus_id}",
+                    pages=[1],
+                    section_path=["Specs"],
+                    content="Column headers: Model; Row headers: Property; Cell value: 1",
+                    metadata={"chunk_type": "table_record"},
+                )
+            ]
+
+        @staticmethod
+        def fuse_rrf(result_sets: list[list[SearchResult]], *, limit: int, k: int = 60) -> list[SearchResult]:
+            return QdrantStore.fuse_rrf(result_sets, limit=limit, k=k)
+
+    results = run_table_search(FakeStore(), "any query", ["c1"], {"is_active": True}, limit=3)
+
+    assert [item.chunk_id for item in results] == ["sparse-table-c1"]
 
 
 def test_metadata_document_selection_adds_document_scope_before_chunk_search():
