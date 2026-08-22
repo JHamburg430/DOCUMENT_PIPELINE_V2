@@ -112,6 +112,59 @@ def _serialize_stage(name: str, results: list[dict[str, Any]], *, sample_limit: 
     }
 
 
+def _serialize_step_result_sample(result: dict[str, Any]) -> dict[str, Any]:
+    serialized = _serialize_search_result(result)
+    return {
+        "chunk_id": serialized.get("chunk_id"),
+        "score": serialized.get("score"),
+        "title": serialized.get("title"),
+        "pages": serialized.get("pages"),
+        "section_path": serialized.get("section_path"),
+        "chunk_type": serialized.get("chunk_type"),
+        "retrieval_stage": serialized.get("retrieval_stage"),
+        "content_preview": serialized.get("content_preview"),
+    }
+
+
+def _step_results_payload(results: list[dict[str, Any]], *, sample_limit: int = 3) -> dict[str, Any]:
+    return {
+        "count": len(results),
+        "samples": [_serialize_step_result_sample(result) for result in results[:sample_limit]],
+    }
+
+
+def _stream_step_payload(step_name: str, state: dict[str, Any], *, sample_limit: int = 3) -> dict[str, Any]:
+    if step_name == "classify_query":
+        return {"analysis": state.get("analysis", {})}
+    if step_name == "build_filters":
+        return {"filters": state.get("filters", {})}
+    if step_name == "run_dense_search":
+        return _step_results_payload([dict(result) for result in state.get("dense_results", [])], sample_limit=sample_limit)
+    if step_name == "run_sparse_search":
+        return _step_results_payload([dict(result) for result in state.get("sparse_results", [])], sample_limit=sample_limit)
+    if step_name == "run_special_search":
+        return _step_results_payload([dict(result) for result in state.get("special_results", [])], sample_limit=sample_limit)
+    if step_name == "fuse_results":
+        return {
+            "input_counts": {
+                "dense": len(state.get("dense_results", [])),
+                "sparse": len(state.get("sparse_results", [])),
+                "special": len(state.get("special_results", [])),
+            },
+            **_step_results_payload([dict(result) for result in state.get("fused_results", [])], sample_limit=sample_limit),
+        }
+    if step_name == "rerank_results":
+        return _step_results_payload([dict(result) for result in state.get("retrieval_results", [])], sample_limit=sample_limit)
+    if step_name == "assemble_context":
+        results = [dict(result) for result in state.get("retrieval_results", [])]
+        return {
+            "count": len(results),
+            "total_content_chars": sum(len(str(result.get("content") or "")) for result in results),
+            "samples": [_serialize_step_result_sample(result) for result in results[:sample_limit]],
+        }
+    return {}
+
+
 def build_query_debug_snapshot(
     request: QueryRequest,
     *,
@@ -838,7 +891,7 @@ def stream_query_debug_events(
         state.update(next_state)
         state["step_timings_ms"] = timings
         completed_steps.append(step_name)
-        emit(step_event(step_name, "completed", duration_ms=elapsed_ms))
+        emit(step_event(step_name, "completed", duration_ms=elapsed_ms, payload=_stream_step_payload(step_name, state)))
         yield from flush()
 
     try:

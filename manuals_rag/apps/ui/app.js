@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260822-progress-step-details-1";
+const ASSET_VERSION = "20260822-progress-step-details-2";
 
 const state = {
   documents: [],
@@ -436,19 +436,19 @@ function renderProgressStepDetails(step, detail = null) {
         .filter(Boolean)
         .map(escapeHtml)
         .join(" · ");
-      const body = [item.label, item.error ? `Error: ${item.error}` : "", item.payload ? `Payload: ${item.payload}` : ""].filter(Boolean).map(escapeHtml).join("<br>");
-      return `<div class="progress-detail-row"><strong>${bits}</strong>${body ? `<span>${body}</span>` : ""}</div>`;
+      const body = [item.label, item.error ? `Error: ${item.error}` : "", item.response ? `Response: ${item.response}` : ""].filter(Boolean).map(escapeHtml).join("<br>");
+      const payload = item.payload ? `<pre class="progress-payload">${escapeHtml(item.payload)}</pre>` : "";
+      return `<div class="progress-detail-row"><strong>${bits}</strong>${body ? `<span>${body}</span>` : ""}${payload}</div>`;
     })
     .join("");
   const tokenRow = tokenCount ? `<div class="progress-detail-row"><strong>llm_token</strong><span>${tokenCount} streamed tokens</span></div>` : "";
   return `<div class="progress-details">${eventRows}${tokenRow}</div>`;
 }
 
-function summarizeProgressPayload(payload) {
+function formatProgressPayload(payload) {
   if (!payload || typeof payload !== "object") return "";
-  if (payload.answer) return "answer emitted";
-  const keys = Object.keys(payload);
-  return keys.length ? keys.slice(0, 6).join(", ") : "";
+  const text = JSON.stringify(payload, null, 2);
+  return text.length > 2400 ? `${text.slice(0, 2400).trim()}\n...` : text;
 }
 
 function recordProgressDetail(queryEvent) {
@@ -466,7 +466,8 @@ function recordProgressDetail(queryEvent) {
     callId: queryEvent.call_id || "",
     duration: queryEvent.duration_ms != null ? `${Number(queryEvent.duration_ms).toFixed(0)} ms` : "",
     error: queryEvent.error || "",
-    payload: summarizeProgressPayload(queryEvent.payload),
+    response: queryEvent.raw_response ? shortText(queryEvent.raw_response, 800) : "",
+    payload: formatProgressPayload(queryEvent.payload || queryEvent.diagnostics),
   });
   detail.events = detail.events.slice(-12);
 }

@@ -84,7 +84,9 @@ def test_progress_steps_have_clickable_detail_disclosures():
     assert "setupProgressInteractions()" in app_js
     assert "renderProgressStepDetails" in app_js
     assert "progressState.details" in app_js
+    assert "formatProgressPayload" in app_js
     assert ".progress-details" in styles_css
+    assert ".progress-payload" in styles_css
 
 
 def test_api_proxy_keeps_manuals_rag_same_origin(monkeypatch):

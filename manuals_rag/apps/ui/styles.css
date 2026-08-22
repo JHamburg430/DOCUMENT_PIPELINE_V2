@@ -383,6 +383,18 @@ summary {
   overflow-wrap: anywhere;
 }
 
+.progress-payload {
+  max-height: 180px;
+  overflow: auto;
+  margin: 2px 0 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: #f8fafc;
+  color: var(--ink);
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+
 .model-output {
   display: grid;
   gap: 10px;

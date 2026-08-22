@@ -3,6 +3,7 @@ from time import sleep
 
 from apps.api.main import app
 from apps.api import main
+from apps.api import debug as api_debug
 from manuals_rag_evals.retrieval_eval import RetrievalEvalCase
 
 
@@ -38,6 +39,30 @@ def test_answer_term_check_matches_slash_terms_across_answer_text():
 
     assert evaluation["passed"] is True
     assert evaluation["matched_terms"] == ["3200", "points/profile"]
+
+
+def test_stream_step_payload_includes_retrieval_samples():
+    state = {
+        "dense_results": [
+            {
+                "chunk_id": "chunk-1",
+                "score": 0.91,
+                "title": "Sensor Manual",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "pages": [4],
+                "section_path": ["Setup"],
+                "content": "Use 24 VDC power and verify the status LED.",
+                "metadata": {"chunk_type": "procedure_step", "retrieval_stage": "dense"},
+            }
+        ]
+    }
+
+    payload = api_debug._stream_step_payload("run_dense_search", state)
+
+    assert payload["count"] == 1
+    assert payload["samples"][0]["chunk_id"] == "chunk-1"
+    assert payload["samples"][0]["content_preview"] == "Use 24 VDC power and verify the status LED."
 
 
 def _install_fake_run_store(monkeypatch):
