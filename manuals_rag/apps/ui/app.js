@@ -540,7 +540,7 @@ function processEvalEvent(event, runtime, source = "stream", eventIndex = null) 
 
 async function pollRunToCompletion(runtime) {
   if (!runtime.runId) return;
-  appendRunDebug("Polling persisted run after stream interruption", { runId: runtime.runId, after: runtime.lastEventIndex });
+  appendRunDebug("Polling persisted run", { runId: runtime.runId, after: runtime.lastEventIndex });
   setStatus(`Reconnected to run ${runtime.runId}`, "running");
   const deadline = Date.now() + 20 * 60 * 1000;
   while (Date.now() < deadline) {
@@ -549,12 +549,13 @@ async function pollRunToCompletion(runtime) {
     for (const row of rows) {
       processEvalEvent(row.event_json, runtime, "poll", row.event_index);
     }
-    const run = await apiJson(`/runs/${runtime.runId}`);
-    if (run.status === "completed" && run.result_json) {
+    const run = await apiJson(`/runs/${runtime.runId}?include_result=false`);
+    if (run.status === "completed") {
+      const completedRun = await apiJson(`/runs/${runtime.runId}`);
       appendRunDebug("Persisted run completed", { status: run.status, eventsSeen: runtime.lastEventIndex });
-      runtime.finalResult = run.result_json;
+      runtime.finalResult = completedRun.result_json;
       setStatus("Completed", "complete");
-      renderCompletedEvalRun(run, "persisted run after reconnect");
+      renderCompletedEvalRun(completedRun, "persisted run after polling");
       await loadLatestRun();
       return;
     }
@@ -586,10 +587,11 @@ async function resumeEvalRun(runId) {
   runtime.runId = runId;
   state.evalRuntime = runtime;
   try {
-    const run = await apiJson(`/runs/${runId}`);
+    const run = await apiJson(`/runs/${runId}?include_result=false`);
     updateRunDebug({ runId, httpStatus: "polling persisted run" });
-    if (run.result_json) {
-      renderCompletedEvalRun(run, "history");
+    if (run.status === "completed") {
+      const completedRun = await apiJson(`/runs/${runId}`);
+      renderCompletedEvalRun(completedRun, "history");
       setStatus(run.status === "completed" ? "Loaded completed run" : `Loaded ${run.status} run`, run.status === "failed" ? "error" : "complete");
       return;
     }

@@ -92,6 +92,16 @@ def _install_fake_run_store(monkeypatch):
             return {"status": run["status"]} if run else None
         if normalized.startswith("select * from app_runs"):
             return runs.get(params[0])
+        if "from app_runs" in normalized and "where id = %s" in normalized:
+            run = runs.get(params[0])
+            if run and "null::jsonb as result_json" in normalized:
+                row = dict(run)
+                progress = row.get("progress_json") or {}
+                summary = progress.get("summary") or (progress.get("result") or {}).get("summary")
+                row["progress_json"] = {"summary": summary} if summary is not None else {}
+                row["result_json"] = None
+                return row
+            return run
         raise AssertionError(f"Unexpected fetch_one query: {query}")
 
     def fake_fetch_all(query, params=()):
@@ -416,6 +426,28 @@ def test_run_history_can_omit_large_result_payloads(monkeypatch):
     assert response.json()[0]["progress_json"]["summary"]["total_questions"] == 1
     assert "items" not in response.json()[0]["progress_json"]
     assert response.json()[0]["result_json"] is None
+
+
+def test_get_run_can_omit_large_result_payload(monkeypatch):
+    runs, _events = _install_fake_run_store(monkeypatch)
+    runs["run-1"] = {
+        "id": "run-1",
+        "run_type": "end_to_end_eval",
+        "status": "completed",
+        "request_json": {},
+        "progress_json": {"result": {"summary": {"total_questions": 1}}, "items": [{"large": "progress"}]},
+        "result_json": {"items": [{"large": "payload"}]},
+        "error": None,
+        "updated_at": "now",
+    }
+
+    response = client.get("/runs/run-1?include_result=false", headers=ADMIN_HEADERS)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "completed"
+    assert response.json()["progress_json"]["summary"]["total_questions"] == 1
+    assert "items" not in response.json()["progress_json"]
+    assert response.json()["result_json"] is None
 
 
 def test_debug_documents_endpoint_returns_recent_listing(monkeypatch):

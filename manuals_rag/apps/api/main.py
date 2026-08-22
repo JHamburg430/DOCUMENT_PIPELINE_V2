@@ -1121,10 +1121,37 @@ def list_app_runs(
 @app.get("/runs/{run_id}")
 def get_app_run(
     run_id: str,
+    include_result: bool = True,
     _: Principal = Depends(require_role("operator", "admin", "auditor")),
 ) -> dict[str, Any]:
     _fail_stale_running_runs()
-    run = fetch_one("select * from app_runs where id = %s", (run_id,))
+    progress_select = (
+        "progress_json"
+        if include_result
+        else """
+            jsonb_strip_nulls(
+                jsonb_build_object(
+                    'event',
+                    progress_json ->> 'event',
+                    'question_index',
+                    progress_json -> 'question_index',
+                    'total_questions',
+                    progress_json -> 'total_questions',
+                    'summary',
+                    coalesce(progress_json -> 'summary', progress_json #> '{result,summary}', result_json -> 'summary')
+                )
+            ) as progress_json
+        """
+    )
+    result_select = "result_json" if include_result else "null::jsonb as result_json"
+    run = fetch_one(
+        f"""
+        select id, run_type, status, request_json, {progress_select}, {result_select}, error, created_at, updated_at
+        from app_runs
+        where id = %s
+        """,
+        (run_id,),
+    )
     if not run:
         raise HTTPException(status_code=404, detail="Run not found.")
     return run
