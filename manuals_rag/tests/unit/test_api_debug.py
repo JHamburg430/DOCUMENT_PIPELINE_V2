@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from time import sleep
 
 from apps.api.main import app
 from apps.api import main
@@ -328,6 +329,28 @@ def test_streaming_eval_persists_completion_and_progress_events(monkeypatch):
     assert runs[run_id]["status"] == "completed"
     assert runs[run_id]["result_json"]["summary"]["total_questions"] == 1
     assert events[-1]["event_json"]["event"] == "eval_completed"
+
+
+def test_async_eval_start_returns_run_id_and_persists_queued_event(monkeypatch):
+    runs, events = _install_fake_run_store(monkeypatch)
+    monkeypatch.setattr(main, "_load_eval_cases", lambda payload: (["corpus"], None, [], ["no cases"]))
+
+    response = client.post(
+        "/eval/end-to-end-run?sample_limit=5",
+        headers=ADMIN_HEADERS,
+        json={"corpus_ids": ["corpus"], "max_questions": 1, "use_llm_generation": False},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    run_id = payload["run_id"]
+    assert payload["status"] == "queued"
+    assert events[0]["event_json"]["event"] == "eval_queued"
+    for _ in range(20):
+        if runs[run_id]["status"] == "completed":
+            break
+        sleep(0.01)
+    assert runs[run_id]["status"] == "completed"
 
 
 def test_streaming_eval_fails_when_nested_query_stream_does_not_complete(monkeypatch):

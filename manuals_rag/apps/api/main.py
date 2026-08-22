@@ -913,16 +913,14 @@ def run_end_to_end_eval(
     return result
 
 
-@app.post("/eval/end-to-end-stream")
-def stream_end_to_end_eval(
+def _start_end_to_end_eval_run(
     payload: dict[str, Any],
-    sample_limit: int = 10,
-    _: Principal = Depends(require_role("operator", "admin", "auditor")),
-) -> StreamingResponse:
+    sample_limit: int,
+    event_queue: queue.Queue[dict[str, Any] | None] | None = None,
+) -> str:
     run_id = str(uuid4())
     _create_persisted_run(run_id, "end_to_end_eval", payload)
     bounded_sample_limit = max(5, min(sample_limit, 100))
-    event_queue: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=500)
     queued_event = {
         "run_id": run_id,
         "event": "eval_queued",
@@ -935,11 +933,14 @@ def stream_end_to_end_eval(
     _append_run_event(run_id, 1, queued_event)
     _update_persisted_run(run_id, status="queued", progress=queued_event)
 
-    def publish(event: dict[str, Any]) -> None:
+    def publish(event: dict[str, Any] | None) -> None:
+        if event_queue is None:
+            return
         try:
             event_queue.put_nowait(event)
         except queue.Full:
             pass
+
     publish(queued_event)
 
     def run_eval() -> None:
@@ -1046,6 +1047,27 @@ def stream_end_to_end_eval(
             publish(None)
 
     Thread(target=run_eval, name=f"end-to-end-eval-{run_id}", daemon=True).start()
+    return run_id
+
+
+@app.post("/eval/end-to-end-run")
+def start_end_to_end_eval(
+    payload: dict[str, Any],
+    sample_limit: int = 10,
+    _: Principal = Depends(require_role("operator", "admin", "auditor")),
+) -> dict[str, Any]:
+    run_id = _start_end_to_end_eval_run(payload, sample_limit)
+    return {"run_id": run_id, "status": "queued"}
+
+
+@app.post("/eval/end-to-end-stream")
+def stream_end_to_end_eval(
+    payload: dict[str, Any],
+    sample_limit: int = 10,
+    _: Principal = Depends(require_role("operator", "admin", "auditor")),
+) -> StreamingResponse:
+    event_queue: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=500)
+    _start_end_to_end_eval_run(payload, sample_limit, event_queue)
 
     def iter_events() -> Any:
         while True:

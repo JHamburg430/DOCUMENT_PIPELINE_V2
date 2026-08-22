@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260821-eval-stream-flush-1";
+const ASSET_VERSION = "20260822-eval-poll-run-1";
 
 const state = {
   documents: [],
@@ -427,7 +427,7 @@ function renderEvalWarnings(warnings = []) {
 function resetRunDebug(payload, sampleLimit) {
   state.runDebug = {
     startedAt: Date.now(),
-    requestUrl: `${API_BASE}/eval/end-to-end-stream?sample_limit=${sampleLimit}`,
+    requestUrl: `${API_BASE}/eval/end-to-end-run?sample_limit=${sampleLimit}`,
     payload,
     sampleLimit,
     runId: null,
@@ -732,69 +732,16 @@ async function runEval() {
   const runtime = createEvalRuntime();
   state.evalRuntime = runtime;
   try {
-    appendRunDebug("Opening stream");
-    const response = await apiFetch(`/eval/end-to-end-stream?sample_limit=${sampleLimit}`, {
+    appendRunDebug("Starting persisted run");
+    const started = await apiJson(`/eval/end-to-end-run?sample_limit=${sampleLimit}`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    updateRunDebug({ httpStatus: `${response.status} ${response.statusText}` });
-    appendRunDebug("Stream opened", {
-      status: response.status,
-      contentType: response.headers.get("content-type"),
-      cacheControl: response.headers.get("cache-control"),
-    });
-    if (!response.body) {
-      throw new Error("Response body is not readable; this browser/WebView may not support streaming fetch bodies.");
-    }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) {
-        appendRunDebug("Stream reader ended", { bufferedCharacters: buffer.length });
-        break;
-      }
-      updateRunDebug({
-        bytes: state.runDebug.bytes + value.length,
-        chunks: state.runDebug.chunks + 1,
-      });
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      appendRunDebug("Received stream chunk", { bytes: value.length, completeLines: lines.filter((line) => line.trim()).length });
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        let event;
-        try {
-          event = JSON.parse(line);
-        } catch (error) {
-          appendRunDebug("Could not parse stream line", { message: error.message, line: line.slice(0, 300) });
-          throw error;
-        }
-        processEvalEvent(event, runtime, "stream");
-      }
-    }
-    if (runtime.finalResult) {
-      appendRunDebug("Rendering final streamed result");
-      setStatus("Completed", "complete");
-      renderEval(runtime.finalResult, { id: runtime.runId, source: "current streamed run" });
-      await loadLatestRun();
-    } else if (runtime.runId) {
-      appendRunDebug("No final result event; fetching persisted run", { runId: runtime.runId });
-      const run = await apiJson(`/runs/${runtime.runId}`);
-      appendRunDebug("Persisted run loaded", { status: run.status, hasResult: Boolean(run.result_json) });
-      if (run.status === "completed" && run.result_json) {
-        setStatus("Completed", "complete");
-        renderCompletedEvalRun(run, "persisted run");
-      } else if (run.status === "running" || run.status === "queued") {
-        await pollRunToCompletion(runtime);
-      } else {
-        setStatus(run.status || "Ended without final result", run.status === "failed" ? "error" : "idle");
-      }
-    } else {
-      appendRunDebug("Stream ended before a run id was received");
-    }
+    runtime.runId = started.run_id;
+    updateRunDebug({ runId: runtime.runId, httpStatus: "started" });
+    appendRunDebug("Persisted run started", started);
+    processEvalEvent({ event: "eval_queued", run_id: runtime.runId, scope: { corpus_ids: payload.corpus_ids, document_id: payload.document_id }, sample_limit: sampleLimit }, runtime, "start");
+    await pollRunToCompletion(runtime);
   } catch (error) {
     appendRunDebug("Run failed", { message: error.message, name: error.name });
     if (runtime.runId) {
