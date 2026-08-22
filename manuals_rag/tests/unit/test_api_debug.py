@@ -65,6 +65,40 @@ def test_stream_step_payload_includes_retrieval_samples():
     assert payload["samples"][0]["content_preview"] == "Use 24 VDC power and verify the status LED."
 
 
+def test_stream_step_payload_includes_answer_step_details():
+    result = {
+        "chunk_id": "chunk-1",
+        "score": 0.91,
+        "title": "Sensor Manual",
+        "document_version_id": "ver-1",
+        "source_document_id": "doc-1",
+        "pages": [4],
+        "section_path": ["Setup"],
+        "content": "Use 24 VDC power and verify the status LED.",
+        "metadata": {"chunk_type": "procedure_step", "retrieval_stage": "dense"},
+    }
+    state = {
+        "candidate_results": [result],
+        "prioritized": {
+            "judgments": [{"chunk_id": "chunk-1", "verdict": "relevant", "reason": "mentions voltage"}],
+            "prioritized_results": [result],
+        },
+        "summaries": [{"chunk_id": "chunk-1", "title": "Sensor Manual", "pages": [4], "summary": "Use 24 VDC power."}],
+        "answer": {"answer": "Use 24 VDC power.", "warnings": []},
+        "answer_trace": {"final_answer": {"answer_source": "model"}},
+    }
+
+    judged = api_debug._stream_step_payload("judge_answer_inputs", state)
+    summarized = api_debug._stream_step_payload("summarize_answer_inputs", state)
+    generated = api_debug._stream_step_payload("generate_answer", state)
+
+    assert judged["candidate_count"] == 1
+    assert judged["samples"][0]["relevance_verdict"] == "relevant"
+    assert summarized["summaries"][0]["summary"] == "Use 24 VDC power."
+    assert generated["answer"]["answer"] == "Use 24 VDC power."
+    assert generated["answer_generation_trace"]["final_answer"]["answer_source"] == "model"
+
+
 def _install_fake_run_store(monkeypatch):
     runs = {}
     events = []

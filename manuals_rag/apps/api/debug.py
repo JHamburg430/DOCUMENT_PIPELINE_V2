@@ -162,6 +162,35 @@ def _stream_step_payload(step_name: str, state: dict[str, Any], *, sample_limit:
             "total_content_chars": sum(len(str(result.get("content") or "")) for result in results),
             "samples": [_serialize_step_result_sample(result) for result in results[:sample_limit]],
         }
+    if step_name == "judge_answer_inputs":
+        prioritized = state.get("prioritized") or {}
+        judgments = prioritized.get("judgments") or []
+        prioritized_results = prioritized.get("prioritized_results") or []
+        return {
+            "candidate_count": len(state.get("candidate_results", [])),
+            "prioritized_count": len(prioritized_results),
+            "judgments": judgments[:sample_limit],
+            "samples": _attach_relevance_judgments(
+                [
+                    result.model_dump() if hasattr(result, "model_dump") else dict(result)
+                    for result in prioritized_results[:sample_limit]
+                ],
+                judgments,
+            ),
+        }
+    if step_name == "summarize_answer_inputs":
+        summaries = state.get("summaries") or []
+        return {
+            "summary_count": len(summaries),
+            "summaries": summaries[:sample_limit],
+        }
+    if step_name == "generate_answer":
+        answer = state.get("answer")
+        answer_payload = answer.model_dump() if hasattr(answer, "model_dump") else dict(answer or {})
+        return {
+            "answer": answer_payload,
+            "answer_generation_trace": state.get("answer_trace") or {},
+        }
     return {}
 
 
@@ -919,13 +948,15 @@ def stream_query_debug_events(
         yield from flush()
         relevance_duration_ms = round((perf_counter() - relevance_started) * 1000, 2)
         state["step_timings_ms"]["judge_answer_inputs"] = relevance_duration_ms
+        state["candidate_results"] = candidate_results
+        state["prioritized"] = prioritized
         completed_steps.append("judge_answer_inputs")
         emit(
             step_event(
                 "judge_answer_inputs",
                 "completed",
                 duration_ms=relevance_duration_ms,
-                payload={"judgments": prioritized["judgments"], "prioritized_count": len(prioritized["prioritized_results"])},
+                payload=_stream_step_payload("judge_answer_inputs", state, sample_limit=sample_limit),
             )
         )
         yield from flush()
@@ -937,13 +968,14 @@ def stream_query_debug_events(
         yield from flush()
         summarization_duration_ms = round((perf_counter() - summarization_started) * 1000, 2)
         state["step_timings_ms"]["summarize_answer_inputs"] = summarization_duration_ms
+        state["summaries"] = summaries
         completed_steps.append("summarize_answer_inputs")
         emit(
             step_event(
                 "summarize_answer_inputs",
                 "completed",
                 duration_ms=summarization_duration_ms,
-                payload={"summary_count": len(summaries), "summaries": summaries},
+                payload=_stream_step_payload("summarize_answer_inputs", state, sample_limit=sample_limit),
             )
         )
         yield from flush()
@@ -961,8 +993,17 @@ def stream_query_debug_events(
         yield from flush()
         answer_duration_ms = round((perf_counter() - answer_started) * 1000, 2)
         state["step_timings_ms"]["generate_answer"] = answer_duration_ms
+        state["answer"] = answer
+        state["answer_trace"] = answer_trace
         completed_steps.append("generate_answer")
-        emit(step_event("generate_answer", "completed", duration_ms=answer_duration_ms, payload={"answer": answer.model_dump()}))
+        emit(
+            step_event(
+                "generate_answer",
+                "completed",
+                duration_ms=answer_duration_ms,
+                payload=_stream_step_payload("generate_answer", state, sample_limit=sample_limit),
+            )
+        )
         yield from flush()
 
         result = _query_debug_payload(

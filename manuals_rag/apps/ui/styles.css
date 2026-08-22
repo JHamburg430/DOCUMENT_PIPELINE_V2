@@ -383,6 +383,40 @@ summary {
   overflow-wrap: anywhere;
 }
 
+.progress-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.progress-summary span,
+.progress-empty {
+  border: 1px solid var(--line);
+  background: #f8fafc;
+  color: var(--muted);
+  padding: 4px 6px;
+}
+
+.progress-sample,
+.progress-answer {
+  display: grid;
+  gap: 3px;
+  border-left: 3px solid var(--accent);
+  background: #f8fafc;
+  padding: 7px 8px;
+}
+
+.progress-sample p,
+.progress-answer p {
+  margin: 0;
+  color: var(--ink);
+}
+
+.progress-raw {
+  margin-top: 4px;
+}
+
 .progress-payload {
   max-height: 180px;
   overflow: auto;

@@ -83,9 +83,13 @@ def test_progress_steps_have_clickable_detail_disclosures():
     assert "data-progress-step" in app_js
     assert "setupProgressInteractions()" in app_js
     assert "renderProgressStepDetails" in app_js
+    assert "renderProgressPayload" in app_js
+    assert "payloadObject" in app_js
+    assert "No step payload was received" in app_js
     assert "progressState.details" in app_js
     assert "formatProgressPayload" in app_js
     assert ".progress-details" in styles_css
+    assert ".progress-sample" in styles_css
     assert ".progress-payload" in styles_css
 
 

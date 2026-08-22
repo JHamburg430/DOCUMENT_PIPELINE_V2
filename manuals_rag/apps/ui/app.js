@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260822-progress-step-details-2";
+const ASSET_VERSION = "20260822-progress-step-details-3";
 
 const state = {
   documents: [],
@@ -437,12 +437,64 @@ function renderProgressStepDetails(step, detail = null) {
         .map(escapeHtml)
         .join(" · ");
       const body = [item.label, item.error ? `Error: ${item.error}` : "", item.response ? `Response: ${item.response}` : ""].filter(Boolean).map(escapeHtml).join("<br>");
-      const payload = item.payload ? `<pre class="progress-payload">${escapeHtml(item.payload)}</pre>` : "";
+      const payload = renderProgressPayload(step.name, item);
       return `<div class="progress-detail-row"><strong>${bits}</strong>${body ? `<span>${body}</span>` : ""}${payload}</div>`;
     })
     .join("");
   const tokenRow = tokenCount ? `<div class="progress-detail-row"><strong>llm_token</strong><span>${tokenCount} streamed tokens</span></div>` : "";
   return `<div class="progress-details">${eventRows}${tokenRow}</div>`;
+}
+
+function renderProgressPayload(stepName, item) {
+  const payload = item.payloadObject;
+  if (item.event === "step_completed" && !payload) {
+    return '<div class="progress-empty">No step payload was received for this completed step.</div>';
+  }
+  if (!payload || typeof payload !== "object") {
+    return item.payload ? `<pre class="progress-payload">${escapeHtml(item.payload)}</pre>` : "";
+  }
+  const summaryRows = [];
+  for (const [label, value] of [
+    ["count", payload.count],
+    ["candidate_count", payload.candidate_count],
+    ["prioritized_count", payload.prioritized_count],
+    ["summary_count", payload.summary_count],
+    ["total_content_chars", payload.total_content_chars],
+  ]) {
+    if (value !== undefined && value !== null) summaryRows.push(`<span>${escapeHtml(label)}: ${escapeHtml(value)}</span>`);
+  }
+  if (payload.analysis) summaryRows.push(`<span>analysis: ${escapeHtml(JSON.stringify(payload.analysis))}</span>`);
+  if (payload.filters) summaryRows.push(`<span>filters: ${escapeHtml(JSON.stringify(payload.filters))}</span>`);
+  const samples = Array.isArray(payload.samples) ? payload.samples : [];
+  const sampleRows = samples
+    .map((sample, index) => {
+      const title = sample.title || sample.chunk_id || `sample ${index + 1}`;
+      const pages = Array.isArray(sample.pages) && sample.pages.length ? `pages ${sample.pages.join(", ")}` : "";
+      const meta = [sample.chunk_type, sample.retrieval_stage, pages].filter(Boolean).join(" · ");
+      const reason = sample.relevance_verdict || sample.relevance_reason ? `<div>${escapeHtml([sample.relevance_verdict, sample.relevance_reason].filter(Boolean).join(": "))}</div>` : "";
+      const preview = sample.content_preview || sample.summary || sample.content || "";
+      return `<div class="progress-sample">
+        <strong>${index + 1}. ${escapeHtml(title)}</strong>
+        ${meta ? `<span>${escapeHtml(meta)}</span>` : ""}
+        ${reason}
+        ${preview ? `<p>${escapeHtml(shortText(preview, 420))}</p>` : ""}
+      </div>`;
+    })
+    .join("");
+  const judgments = Array.isArray(payload.judgments) && !samples.length
+    ? payload.judgments
+        .map((judgment, index) => `<div class="progress-sample"><strong>${index + 1}. ${escapeHtml(judgment.chunk_id || "judgment")}</strong><span>${escapeHtml(judgment.verdict || "")}</span><p>${escapeHtml(judgment.reason || "")}</p></div>`)
+        .join("")
+    : "";
+  const summaries = Array.isArray(payload.summaries)
+    ? payload.summaries
+        .map((summary, index) => `<div class="progress-sample"><strong>${index + 1}. ${escapeHtml(summary.title || summary.chunk_id || "summary")}</strong><span>${escapeHtml((summary.pages || []).length ? `pages ${summary.pages.join(", ")}` : "")}</span><p>${escapeHtml(shortText(summary.summary || "", 520))}</p></div>`)
+        .join("")
+    : "";
+  const answer = payload.answer?.answer ? `<div class="progress-answer"><strong>answer</strong><p>${escapeHtml(payload.answer.answer)}</p></div>` : "";
+  const warnings = Array.isArray(payload.answer?.warnings) && payload.answer.warnings.length ? `<div class="progress-empty">${escapeHtml(payload.answer.warnings.join(" "))}</div>` : "";
+  const raw = item.payload ? `<details class="progress-raw"><summary>Raw step payload</summary><pre class="progress-payload">${escapeHtml(item.payload)}</pre></details>` : "";
+  return `${summaryRows.length ? `<div class="progress-summary">${summaryRows.join("")}</div>` : ""}${sampleRows}${judgments}${summaries}${answer}${warnings}${raw}`;
 }
 
 function formatProgressPayload(payload) {
@@ -467,6 +519,7 @@ function recordProgressDetail(queryEvent) {
     duration: queryEvent.duration_ms != null ? `${Number(queryEvent.duration_ms).toFixed(0)} ms` : "",
     error: queryEvent.error || "",
     response: queryEvent.raw_response ? shortText(queryEvent.raw_response, 800) : "",
+    payloadObject: queryEvent.payload || queryEvent.diagnostics || null,
     payload: formatProgressPayload(queryEvent.payload || queryEvent.diagnostics),
   });
   detail.events = detail.events.slice(-12);
