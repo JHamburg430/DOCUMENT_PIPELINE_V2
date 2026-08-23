@@ -28,6 +28,7 @@ def test_build_eval_cases_from_chunks_creates_queries():
     assert cases
     assert all(case.benchmark_quality == "validated" for case in cases)
     assert all("this document" not in case.query.lower() for case in cases)
+    assert all(case.query.endswith("?") for case in cases)
     assert any(
         "ca-en100u" in case.query.lower()
         and ("power" in case.query.lower() or "voltage" in case.query.lower())
@@ -100,6 +101,8 @@ def test_build_eval_cases_skips_toc_style_procedure_chunks():
 
 
 def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
+    call_count = 0
+
     class FakeResponse:
         def raise_for_status(self):
             return None
@@ -108,8 +111,8 @@ def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
             return {
                 "response": (
                     '{"queries":['
-                    '{"query":"power supply voltage for CA-EN100U","intent":"spec_lookup","reason":"natural spec lookup"},'
-                    '{"query":"CA-EN100U required voltage","intent":"spec_lookup","reason":"alternate phrasing"}'
+                    '{"query":"What power supply voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"natural spec lookup"},'
+                    '{"query":"What voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"alternate phrasing"}'
                     ']}'
                 )
             }
@@ -125,6 +128,8 @@ def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
             return False
 
         def post(self, *args, **kwargs):
+            nonlocal call_count
+            call_count += 1
             return FakeResponse()
 
     monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
@@ -148,10 +153,128 @@ def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
 
     cases = build_eval_cases_from_chunks(chunks, max_cases=2)
 
-    assert [case.query for case in cases] == [
-        "power supply voltage for CA-EN100U",
-        "CA-EN100U power supply",
-    ]
+    assert [case.query for case in cases] == ["What power supply voltage is required for CA-EN100U?"]
+    assert call_count == 1
+
+
+def test_build_eval_cases_allows_repeated_content_but_dedupes_questions(monkeypatch):
+    call_count = 0
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "response": (
+                    '{"queries":['
+                    '{"query":"What power supply voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"natural spec lookup"}'
+                    ']}'
+                )
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return FakeResponse()
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+
+    base_chunk = {
+        "id": "chunk-llm-1",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "datasheet_record",
+        "title": "CA-EN100U Datasheet",
+        "source_filename": "CA-EN100U_Datasheet.pdf",
+        "section_path_text": "Specifications",
+        "page_from": 1,
+        "page_to": 1,
+        "content": "Power supply voltage: 24 VDC for standard operation.",
+        "metadata_json": {"product_model": "CA-EN100U"},
+        "product_model": "CA-EN100U",
+    }
+    duplicate_chunk = {
+        **base_chunk,
+        "id": "chunk-llm-2",
+        "page_from": 2,
+        "page_to": 2,
+    }
+
+    cases = build_eval_cases_from_chunks([base_chunk, duplicate_chunk], max_cases=4)
+
+    assert [case.source_chunk_id for case in cases] == ["chunk-llm-1", "chunk-llm-2"]
+    assert call_count == 2
+
+
+def test_build_eval_cases_passes_previous_chunk_questions_to_generator(monkeypatch):
+    prompts = []
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "response": (
+                    '{"queries":['
+                    '{"query":"What current draw is specified for CA-EN100U?","intent":"spec_lookup","reason":"new facet"}'
+                    ']}'
+                )
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            prompts.append(kwargs["json"]["prompt"])
+            return FakeResponse()
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+
+    chunk = {
+        "id": "chunk-history",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "datasheet_record",
+        "title": "CA-EN100U Datasheet",
+        "source_filename": "CA-EN100U_Datasheet.pdf",
+        "section_path_text": "Specifications",
+        "page_from": 1,
+        "page_to": 1,
+        "content": "Power supply voltage: 24 VDC. Current draw: 120 mA.",
+        "metadata_json": {"product_model": "CA-EN100U"},
+        "product_model": "CA-EN100U",
+    }
+
+    cases = build_eval_cases_from_chunks(
+        [chunk],
+        max_cases=2,
+        previous_questions_by_chunk_id={
+            "chunk-history": ["What power supply voltage is required for CA-EN100U?"],
+        },
+    )
+
+    assert [case.query for case in cases] == ["What current draw is specified for CA-EN100U?"]
+    assert "previous_questions_for_this_chunk" in prompts[0]
+    assert "What power supply voltage is required for CA-EN100U?" in prompts[0]
 
 
 def test_build_eval_cases_falls_back_when_llm_generation_fails(monkeypatch):
@@ -207,7 +330,7 @@ def test_build_eval_cases_filters_meta_llm_queries(monkeypatch):
                 "response": (
                     '{"queries":['
                     '{"query":"What specification does LJ-X8000 give for laser?","intent":"spec_lookup","reason":"bad meta phrasing"},'
-                    '{"query":"LJ-X8000 laser wavelength","intent":"spec_lookup","reason":"good search phrasing"}'
+                    '{"query":"What laser wavelength applies to LJ-X8000?","intent":"spec_lookup","reason":"good question phrasing"}'
                     ']}'
                 )
             }
@@ -247,8 +370,9 @@ def test_build_eval_cases_filters_meta_llm_queries(monkeypatch):
     cases = build_eval_cases_from_chunks(chunks, max_cases=2)
 
     queries = [case.query for case in cases]
-    assert "LJ-X8000 laser wavelength" in queries
+    assert "What laser wavelength applies to LJ-X8000?" in queries
     assert all("what specification" not in query.lower() for query in queries)
+    assert all(query.endswith("?") for query in queries)
 
 
 def test_validate_eval_case_rejects_query_not_specific_to_source_context():
@@ -262,8 +386,11 @@ def test_validate_eval_case_rejects_query_not_specific_to_source_context():
     }
     anchors = ["3200", "points/profile", "capture", "shape"]
 
-    assert validate_eval_case("New LJ-X8000 Series 3200", chunk, anchors) == (False, "weak_source_affinity")
-    assert validate_eval_case("LJ-X8000 3200 points/profile", chunk, anchors) == (True, "validated")
+    assert validate_eval_case("New LJ-X8000 Series 3200", chunk, anchors) == (False, "not_question_form")
+    valid, reason = validate_eval_case("What detail applies to New LJ-X8000 Series?", chunk, anchors)
+    assert valid is False
+    assert reason in {"low_specificity", "weak_source_affinity", "weak_source_discriminator"}
+    assert validate_eval_case("What 3200 points/profile applies to LJ-X8000?", chunk, anchors) == (True, "validated")
 
 
 def test_fallback_eval_queries_include_context_anchors_for_compact_specs():
@@ -289,6 +416,66 @@ def test_fallback_eval_queries_include_context_anchors_for_compact_specs():
     assert cases
     assert all("points/profile" in case.query.lower() or "capture" in case.query.lower() for case in cases)
     assert all(case.query != "New LJ-X8000 Series 3200" for case in cases)
+    assert all(case.query.endswith("?") for case in cases)
+
+
+def test_eval_queries_reject_ambiguous_storage_only_phrasing():
+    chunk = {
+        "id": "chunk-command-number",
+        "source_document_id": "doc-ljx",
+        "document_version_id": "ver-ljx",
+        "chunk_type": "datasheet_record",
+        "title": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+        "source_filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+        "section_path_text": "PLC",
+        "page_from": 38,
+        "page_to": 38,
+        "content": "The PLC stores the number: specified-command No. in Command Number and the command parameters in Command Parameter.",
+        "metadata_json": {"product_model": "D48GB"},
+        "product_model": "D48GB",
+    }
+
+    valid, reason = validate_eval_case("What stores number for D48GB?", chunk, ["specified-command", "command", "parameters"])
+    assert valid is False
+    assert reason in {"weak_source_affinity", "weak_source_discriminator"}
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
+    queries = [case.query.lower() for case in cases]
+
+    assert cases
+    assert all(query != "d48gb stores number" for query in queries)
+    assert all(query.endswith("?") for query in queries)
+    assert all("command" in query for query in queries)
+    assert any("specified-command" in query for query in queries)
+
+
+def test_eval_queries_create_question_form_for_disconnect_guidance():
+    chunk = {
+        "id": "chunk-disconnect",
+        "source_document_id": "doc-ljx",
+        "document_version_id": "ver-ljx",
+        "chunk_type": "atomic_text",
+        "title": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+        "source_filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+        "section_path_text": "EtherNet/IP",
+        "page_from": 3,
+        "page_to": 3,
+        "content": (
+            "To give priority to the checking of the EtherNet/IP connection, disconnect all devices other "
+            "than the LJ-X and the PLC from the hub before establishing the connection."
+        ),
+        "metadata_json": {"product_model": "D48GB"},
+        "product_model": "D48GB",
+    }
+
+    valid, reason = validate_eval_case("D48GB disconnect devices", chunk, ["ethernet/ip", "disconnect", "devices", "plc"])
+    assert valid is False
+    assert reason == "not_question_form"
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
+    queries = [case.query for case in cases]
+
+    assert queries == ["Which other devices should be disconnected for D48GB?"]
 
 
 def test_score_search_results_passes_on_same_document_term_overlap():

@@ -2,7 +2,8 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260822-progress-step-details-3";
+const ASSET_VERSION = "20260822-fetch-recovery-1";
+const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
   documents: [],
@@ -42,15 +43,59 @@ function splitList(value) {
     .filter(Boolean);
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTransientFetchError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return error?.name === "AbortError" || error instanceof TypeError || message.includes("failed to fetch") || message.includes("networkerror") || message.includes("load failed");
+}
+
+function setConnectionStatus(message, mode = "idle") {
+  const node = $("connection-status");
+  if (!node) return;
+  node.textContent = message;
+  node.className = mode === "error" ? "error-text" : "";
+}
+
+async function fetchWithRetry(url, options = {}, { retry = true } = {}) {
+  let lastError = null;
+  const delays = retry ? FETCH_RETRY_DELAYS_MS : [];
+  for (let attempt = 0; attempt <= delays.length; attempt += 1) {
+    try {
+      const response = await fetch(url, options);
+      if (attempt > 0) setConnectionStatus(`API connected at ${API_BASE}`);
+      return response;
+    } catch (error) {
+      lastError = error;
+      if (!retry || !isTransientFetchError(error) || attempt >= delays.length) {
+        throw error;
+      }
+      const delay = delays[attempt];
+      setConnectionStatus(`Connection interrupted; retrying in ${(delay / 1000).toFixed(1)}s...`);
+      await sleep(delay);
+    }
+  }
+  throw lastError;
+}
+
+function shouldRetryRequest(method) {
+  return ["GET", "HEAD"].includes(String(method || "GET").toUpperCase());
+}
+
 async function apiFetch(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
+  const method = options.method || "GET";
+  const { retry, ...fetchOptions } = options;
+  const response = await fetchWithRetry(`${API_BASE}${path}`, {
+    ...fetchOptions,
+    method,
     headers: {
       Authorization: AUTH,
-      ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+      ...(fetchOptions.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
       ...(options.headers || {}),
     },
-  });
+  }, { retry: retry ?? shouldRetryRequest(method) });
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`${response.status} ${response.statusText}: ${body}`);
@@ -64,7 +109,7 @@ async function apiJson(path, options = {}) {
 }
 
 async function localJson(path) {
-  const response = await fetch(path, { headers: { "Cache-Control": "no-cache" } });
+  const response = await fetchWithRetry(path, { headers: { "Cache-Control": "no-cache" } }, { retry: true });
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`${response.status} ${response.statusText}: ${body}`);
@@ -562,6 +607,13 @@ function resetRunDebug(payload, sampleLimit) {
   renderRunDebug();
 }
 
+function displayRecoverableFetchError(targetId, error) {
+  const message = isTransientFetchError(error)
+    ? "Connection interrupted while the browser was resuming. Refreshing run state..."
+    : error.message;
+  $(targetId).innerHTML = `<div class="error-box">${escapeHtml(message)}</div>`;
+}
+
 function appendRunDebug(message, details = null) {
   if (!state.runDebug) return;
   const elapsed = ((Date.now() - state.runDebug.startedAt) / 1000).toFixed(1);
@@ -720,7 +772,7 @@ async function resumeEvalRun(runId) {
   } catch (error) {
     appendRunDebug("Resume failed", { message: error.message, name: error.name });
     setStatus("Failed", "error");
-    $("progress-list").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
+    displayRecoverableFetchError("progress-list", error);
   } finally {
     if (state.runDebugTimer) {
       clearInterval(state.runDebugTimer);
@@ -1089,6 +1141,24 @@ async function loadHistory() {
   });
 }
 
+async function recoverAfterPageReturn() {
+  if (document.visibilityState && document.visibilityState !== "visible") return;
+  try {
+    await loadLatestRun();
+    if (state.activeRun?.id && !state.running) {
+      await resumeEvalRun(state.activeRun.id);
+    } else if (!state.running) {
+      await loadHistory();
+    }
+    if (document.querySelector(".tab.active")?.dataset.tab === "ingestion") {
+      await loadIngestionStatus();
+    }
+    setConnectionStatus(`API connected at ${API_BASE}`);
+  } catch (error) {
+    setConnectionStatus(`API reconnect pending: ${error.message}`, isTransientFetchError(error) ? "idle" : "error");
+  }
+}
+
 function renderIngestionTable(rows = [], mode = "runs") {
   if (!rows.length) return '<div class="empty-state">No ingestion records yet.</div>';
   if (mode === "documents") {
@@ -1222,12 +1292,19 @@ async function init() {
       const { payload, meta } = JSON.parse(saved);
       renderEval(payload, meta);
     }
-    $("connection-status").textContent = `API connected at ${API_BASE}`;
+    setConnectionStatus(`API connected at ${API_BASE}`);
   } catch (error) {
-    $("connection-status").textContent = `API error: ${error.message}`;
-    $("connection-status").className = "error-text";
+    setConnectionStatus(`API error: ${error.message}`, "error");
   }
 }
+
+window.addEventListener("online", recoverAfterPageReturn);
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) recoverAfterPageReturn();
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") recoverAfterPageReturn();
+});
 
 document.querySelector('link[href^="/styles.css"]').href = `/styles.css?v=${ASSET_VERSION}`;
 

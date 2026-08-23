@@ -191,6 +191,43 @@ def _render_failure_reasons(label: str, reasons: list[Any]) -> None:
         st.success(f"{label}: passed")
 
 
+def _join_ids(values: list[Any], limit: int = 3) -> str:
+    ids = [str(value) for value in values if value]
+    if len(ids) <= limit:
+        return ", ".join(ids)
+    return ", ".join(ids[:limit]) + f" +{len(ids) - limit}"
+
+
+def _render_eval_telemetry(payload: dict[str, Any], items: list[dict[str, Any]], summary: dict[str, Any]) -> None:
+    telemetry = payload.get("telemetry") or {}
+    computed = telemetry.get("computed_summary") or {}
+    if not computed:
+        computed = {
+            "total_questions": len(items),
+            "retrieval_correct": sum(1 for item in items if (item.get("retrieval_evaluation") or {}).get("passed")),
+            "answers_correct": sum(1 for item in items if (item.get("answer_evaluation") or {}).get("passed")),
+        }
+    mismatches = telemetry.get("summary_mismatches") or {
+        key: {"reported": summary.get(key), "computed": computed.get(key)}
+        for key in ("total_questions", "retrieval_correct", "answers_correct")
+        if summary.get(key) != computed.get(key)
+    }
+    with st.expander("Eval Telemetry", expanded=bool(mismatches)):
+        cols = st.columns(3)
+        cols[0].metric("Reported Answer Passes", summary.get("answers_correct", 0))
+        cols[1].metric("Computed Answer Passes", computed.get("answers_correct", 0))
+        cols[2].metric("Failed Items", len(telemetry.get("failed_items") or []))
+        if mismatches:
+            st.error("Summary mismatch detected between reported run summary and item-level scoring.")
+            st.json(mismatches, expanded=False)
+        else:
+            st.success("Reported summary matches item-level scoring.")
+        failed_items = telemetry.get("failed_items") or []
+        if failed_items:
+            st.markdown("**Failed Item Trace**")
+            st.dataframe(failed_items, hide_index=True, use_container_width=True)
+
+
 def _render_final_query_result(payload: dict[str, Any]) -> None:
     meta_left, meta_mid, meta_right = st.columns(3)
     with meta_left:
@@ -430,13 +467,19 @@ def _render_end_to_end_eval(payload: dict[str, Any], *, key_prefix: str = "eval"
     items = payload.get("items", [])
     if not items:
         st.info("No evaluation items returned.")
+        _render_eval_telemetry(payload, items, summary)
         return
+    _render_eval_telemetry(payload, items, summary)
 
     rows = []
     for index, item in enumerate(items, start=1):
         case = item.get("case", {})
         retrieval = item.get("retrieval_evaluation", {})
         answer_eval = item.get("answer_evaluation", {})
+        telemetry = item.get("telemetry") or {}
+        retrieval_trace = telemetry.get("retrieval") or {}
+        answer_trace = telemetry.get("answer") or {}
+        summarization_trace = telemetry.get("summarization") or {}
         rows.append(
             {
                 "Item": index,
@@ -445,7 +488,11 @@ def _render_end_to_end_eval(payload: dict[str, Any], *, key_prefix: str = "eval"
                 "Chunk Type": case.get("chunk_type"),
                 "Retrieval": "pass" if retrieval.get("passed") else "fail",
                 "Rank": retrieval.get("rank"),
+                "Expected Doc Rank": retrieval_trace.get("expected_document_rank"),
+                "Expected Chunk Rank": retrieval_trace.get("expected_chunk_rank"),
                 "Answer": "pass" if answer_eval.get("passed") else "fail",
+                "Expected Doc Used": answer_trace.get("expected_document_used", answer_eval.get("expected_document_used")),
+                "Lost After Summary": summarization_trace.get("expected_document_lost_after_summarization"),
                 "Answer Failures": ", ".join(answer_eval.get("failure_reasons", [])),
                 "Answer Preview": _short_text((item.get("answer") or {}).get("answer"), 180),
             }
@@ -463,6 +510,7 @@ def _render_end_to_end_eval(payload: dict[str, Any], *, key_prefix: str = "eval"
     answer = item.get("answer", {})
     retrieval = item.get("retrieval_evaluation", {})
     answer_eval = item.get("answer_evaluation", {})
+    telemetry = item.get("telemetry") or {}
 
     st.markdown("### Review")
     result_cols = st.columns(4)
@@ -472,6 +520,25 @@ def _render_end_to_end_eval(payload: dict[str, Any], *, key_prefix: str = "eval"
     result_cols[3].metric("Expected Terms", _pass_label((answer_eval.get("term_check") or {}).get("passed")))
     _render_failure_reasons("Retrieval", retrieval.get("failure_reasons", []))
     _render_failure_reasons("Answer", answer_eval.get("failure_reasons", []))
+    if telemetry:
+        trace = telemetry.get("retrieval") or {}
+        answer_trace = telemetry.get("answer") or {}
+        summary_trace = telemetry.get("summarization") or {}
+        st.markdown("**Telemetry Trace**")
+        st.dataframe(
+            [
+                {
+                    "Expected Doc Rank": trace.get("expected_document_rank"),
+                    "Expected Chunk Rank": trace.get("expected_chunk_rank"),
+                    "Citation Docs": _join_ids(answer_trace.get("citation_document_ids", [])),
+                    "Used Docs": _join_ids(answer_trace.get("used_document_ids", [])),
+                    "Summary Docs": _join_ids(summary_trace.get("summary_document_ids", [])),
+                    "Lost After Summary": summary_trace.get("expected_document_lost_after_summarization"),
+                }
+            ],
+            hide_index=True,
+            use_container_width=True,
+        )
 
     st.markdown("### Question")
     st.write(case.get("query") or "")
@@ -510,7 +577,7 @@ def _render_end_to_end_eval(payload: dict[str, Any], *, key_prefix: str = "eval"
             st.warning(warning)
 
     with st.expander("Detailed Scoring JSON", expanded=False):
-        st.json({"retrieval_evaluation": retrieval, "answer_evaluation": answer_eval}, expanded=False)
+        st.json({"retrieval_evaluation": retrieval, "answer_evaluation": answer_eval, "telemetry": telemetry}, expanded=False)
 
     st.markdown("### Top Search Results")
     top_results = item.get("top_results", [])

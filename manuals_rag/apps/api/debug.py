@@ -20,6 +20,7 @@ from manuals_rag_answering.generator import (
     _fallback_summary,
     _parse_relevance_response,
     _relevance_prompt,
+    _summary_source_documents,
     generate_answer_with_trace,
     prioritize_results_for_answer,
     summarize_results_for_answer,
@@ -137,7 +138,11 @@ def _stream_step_payload(step_name: str, state: dict[str, Any], *, sample_limit:
     if step_name == "classify_query":
         return {"analysis": state.get("analysis", {})}
     if step_name == "build_filters":
-        return {"filters": state.get("filters", {})}
+        return {
+            "request_filters": state.get("request_filters", {}),
+            "filters": state.get("filters", {}),
+            "applied_filters": state.get("filters", {}),
+        }
     if step_name == "run_dense_search":
         return _step_results_payload([dict(result) for result in state.get("dense_results", [])], sample_limit=sample_limit)
     if step_name == "run_sparse_search":
@@ -204,6 +209,7 @@ def build_query_debug_snapshot(
         {
             "query": request.query,
             "corpus_ids": request.corpus_ids,
+            "request_filters": request.filters,
             "filters": request.filters,
         }
     )
@@ -261,6 +267,7 @@ def build_query_debug_snapshot(
         "query": request.query,
         "corpus_ids": request.corpus_ids,
         "request_filters": request.filters,
+        "filters": state.get("filters", {}),
         "applied_filters": state.get("filters", {}),
         "analysis": state.get("analysis", {}),
         "step_timings_ms": step_timings_ms,
@@ -347,6 +354,7 @@ def _query_debug_payload(
         "query": request.query,
         "corpus_ids": request.corpus_ids,
         "request_filters": request.filters,
+        "filters": state.get("filters", {}),
         "applied_filters": state.get("filters", {}),
         "analysis": state.get("analysis", {}),
         "step_timings_ms": state.get("step_timings_ms", {}),
@@ -386,6 +394,7 @@ def execute_query_debug_run(
     state: dict[str, Any] = {
         "query": request.query,
         "corpus_ids": request.corpus_ids,
+        "request_filters": request.filters,
         "filters": request.filters,
         "step_timings_ms": {},
     }
@@ -502,6 +511,7 @@ def execute_query_debug_run(
         "query": request.query,
         "corpus_ids": request.corpus_ids,
         "request_filters": request.filters,
+        "filters": state.get("filters", {}),
         "applied_filters": state.get("filters", {}),
         "analysis": state.get("analysis", {}),
         "step_timings_ms": state.get("step_timings_ms", {}),
@@ -731,6 +741,16 @@ def _stream_summarize_chunk(query: str, result: SearchResult, *, emit: Any) -> d
         "summary": summary,
         "source_document_id": result.source_document_id,
         "document_version_id": result.document_version_id,
+        "source_documents": [
+            {
+                "chunk_id": result.chunk_id,
+                "title": result.title,
+                "pages": result.pages,
+                "section_path": result.section_path,
+                "source_document_id": result.source_document_id,
+                "document_version_id": result.document_version_id,
+            }
+        ],
     }
 
 
@@ -764,6 +784,7 @@ def _stream_merge_summary_batch(query: str, batch: list[dict[str, Any]], *, emit
         "summary": summary[:2000],
         "source_document_id": batch[0]["source_document_id"],
         "document_version_id": batch[0]["document_version_id"],
+        "source_documents": _summary_source_documents(batch),
     }
 
 
@@ -893,6 +914,7 @@ def stream_query_debug_events(
     state: dict[str, Any] = {
         "query": request.query,
         "corpus_ids": request.corpus_ids,
+        "request_filters": request.filters,
         "filters": request.filters,
         "step_timings_ms": {},
     }

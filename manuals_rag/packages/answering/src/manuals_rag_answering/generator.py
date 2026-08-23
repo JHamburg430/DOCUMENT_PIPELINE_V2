@@ -715,7 +715,46 @@ def _summarize_chunk(query: str, result: SearchResult) -> dict[str, Any]:
         "summary": summary,
         "source_document_id": result.source_document_id,
         "document_version_id": result.document_version_id,
+        "source_documents": [
+            {
+                "chunk_id": result.chunk_id,
+                "title": result.title,
+                "pages": result.pages,
+                "section_path": result.section_path,
+                "source_document_id": result.source_document_id,
+                "document_version_id": result.document_version_id,
+            }
+        ],
     }
+
+
+def _summary_source_documents(batch: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    documents: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for item in batch:
+        source_documents = item.get("source_documents")
+        if not isinstance(source_documents, list):
+            source_documents = [item]
+        for source in source_documents:
+            if not isinstance(source, dict):
+                continue
+            document_id = str(source.get("source_document_id") or "")
+            chunk_id = str(source.get("chunk_id") or "")
+            key = (document_id, chunk_id)
+            if not document_id or key in seen:
+                continue
+            documents.append(
+                {
+                    "chunk_id": source.get("chunk_id"),
+                    "title": source.get("title"),
+                    "pages": source.get("pages"),
+                    "section_path": source.get("section_path"),
+                    "source_document_id": source.get("source_document_id"),
+                    "document_version_id": source.get("document_version_id"),
+                }
+            )
+            seen.add(key)
+    return documents
 
 
 def _merge_summary_batch(query: str, batch: list[dict[str, Any]]) -> dict[str, Any]:
@@ -745,6 +784,7 @@ def _merge_summary_batch(query: str, batch: list[dict[str, Any]]) -> dict[str, A
         "summary": summary[:2000],
         "source_document_id": batch[0]["source_document_id"],
         "document_version_id": batch[0]["document_version_id"],
+        "source_documents": _summary_source_documents(batch),
     }
 
 

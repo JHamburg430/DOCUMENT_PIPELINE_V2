@@ -119,12 +119,24 @@ def _fetch_eval_chunk_rows(
             rc.content,
             rc.metadata_json,
             sd.source_filename,
-            coalesce(sd.product_model, rc.metadata_json->>'product_model', '') as product_model
+            coalesce(sd.product_model, rc.metadata_json->>'product_model', '') as product_model,
+            coalesce(eval_history.eval_count, 0)::integer as eval_count
         from retrieval_chunks rc
         join source_documents sd on sd.id = rc.source_document_id
+        left join (
+            select
+                item -> 'case' ->> 'source_chunk_id' as source_chunk_id,
+                count(*) as eval_count
+            from app_runs ar
+            cross join lateral jsonb_array_elements(coalesce(ar.result_json -> 'items', '[]'::jsonb)) item
+            where ar.run_type = 'end_to_end_eval'
+              and ar.status = 'completed'
+            group by item -> 'case' ->> 'source_chunk_id'
+        ) eval_history on eval_history.source_chunk_id = rc.id
         where {' and '.join(where)}
           and rc.chunk_type in ('table_record','datasheet_record','spec_record','procedure_record','warning_record','atomic_text')
         order by
+          coalesce(eval_history.eval_count, 0) asc,
           case rc.chunk_type
             when 'datasheet_record' then 1
             when 'spec_record' then 2
@@ -139,6 +151,37 @@ def _fetch_eval_chunk_rows(
         """,
         tuple(params),
     )
+
+
+def _fetch_previous_eval_questions_by_chunk_id(chunk_ids: list[str], *, limit_per_chunk: int = 10) -> dict[str, list[str]]:
+    if not chunk_ids:
+        return {}
+    rows = fetch_all(
+        """
+        select
+            item -> 'case' ->> 'source_chunk_id' as source_chunk_id,
+            item -> 'case' ->> 'query' as query,
+            ar.created_at
+        from app_runs ar
+        cross join lateral jsonb_array_elements(coalesce(ar.result_json -> 'items', '[]'::jsonb)) item
+        where ar.run_type = 'end_to_end_eval'
+          and ar.status = 'completed'
+          and item -> 'case' ->> 'source_chunk_id' = any(%s)
+          and coalesce(item -> 'case' ->> 'query', '') <> ''
+        order by ar.created_at desc
+        """,
+        (chunk_ids,),
+    )
+    questions_by_chunk_id: dict[str, list[str]] = {}
+    for row in rows:
+        chunk_id = str(row.get("source_chunk_id") or "")
+        query = str(row.get("query") or "").strip()
+        if not chunk_id or not query:
+            continue
+        questions = questions_by_chunk_id.setdefault(chunk_id, [])
+        if query not in questions and len(questions) < limit_per_chunk:
+            questions.append(query)
+    return questions_by_chunk_id
 
 
 def _answer_contains_expected_terms(answer: dict[str, Any], expected_terms: list[str]) -> dict[str, Any]:
@@ -209,6 +252,122 @@ def _score_answer(case: RetrievalEvalCase, answer: dict[str, Any], retrieval_eva
     }
 
 
+def _answer_document_ids(answer: dict[str, Any], key: str) -> list[str]:
+    values: list[str] = []
+    for item in answer.get(key, []) or []:
+        if not isinstance(item, dict):
+            continue
+        document_id = str(item.get("document_id") or item.get("source_document_id") or "")
+        if document_id and document_id not in values:
+            values.append(document_id)
+    return values
+
+
+def _rank_for_expected_document(case: RetrievalEvalCase, results: list[dict[str, Any]]) -> int | None:
+    for index, result in enumerate(results, start=1):
+        if str(result.get("source_document_id") or "") == case.source_document_id:
+            return index
+    return None
+
+
+def _rank_for_expected_chunk(case: RetrievalEvalCase, results: list[dict[str, Any]]) -> int | None:
+    for index, result in enumerate(results, start=1):
+        if str(result.get("chunk_id") or "") == case.source_chunk_id:
+            return index
+    return None
+
+
+def _summarized_evidence_documents(query_debug_result: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not query_debug_result:
+        return []
+    trace = query_debug_result.get("answer_generation_trace") or {}
+    final_answer = trace.get("final_answer") or {}
+    summarized = final_answer.get("summarized_evidence") or []
+    documents: list[dict[str, Any]] = []
+    for index, item in enumerate(summarized, start=1):
+        if not isinstance(item, dict):
+            continue
+        source_documents = item.get("source_documents")
+        if not isinstance(source_documents, list) or not source_documents:
+            source_documents = [item]
+        for source_index, source in enumerate(source_documents, start=1):
+            if not isinstance(source, dict):
+                continue
+            documents.append(
+                {
+                    "summary_index": index,
+                    "source_index": source_index,
+                    "chunk_id": source.get("chunk_id"),
+                    "source_document_id": source.get("source_document_id"),
+                    "document_version_id": source.get("document_version_id"),
+                    "title": source.get("title"),
+                    "pages": source.get("pages"),
+                }
+            )
+    return documents
+
+
+def _build_eval_item_telemetry(
+    case: RetrievalEvalCase,
+    *,
+    top_results: list[dict[str, Any]],
+    answer: dict[str, Any],
+    retrieval_evaluation: dict[str, Any],
+    answer_evaluation: dict[str, Any],
+    query_debug_result: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    citation_document_ids = _answer_document_ids(answer, "citations")
+    used_document_ids = _answer_document_ids(answer, "used_documents")
+    summarized_documents = _summarized_evidence_documents(query_debug_result)
+    summarized_document_ids = [
+        str(item.get("source_document_id"))
+        for item in summarized_documents
+        if item.get("source_document_id")
+    ]
+    unique_summarized_document_ids = list(dict.fromkeys(summarized_document_ids))
+    expected_in_summaries = case.source_document_id in unique_summarized_document_ids
+    expected_in_answer_documents = case.source_document_id in citation_document_ids or case.source_document_id in used_document_ids
+    return {
+        "expected": {
+            "source_document_id": case.source_document_id,
+            "source_chunk_id": case.source_chunk_id,
+            "source_filename": case.source_filename,
+            "document_version_id": case.document_version_id,
+        },
+        "retrieval": {
+            "passed": retrieval_evaluation.get("passed"),
+            "rank": retrieval_evaluation.get("rank"),
+            "match_reason": retrieval_evaluation.get("match_reason"),
+            "expected_document_rank": _rank_for_expected_document(case, top_results),
+            "expected_chunk_rank": _rank_for_expected_chunk(case, top_results),
+            "top_result_document_ids": [
+                str(result.get("source_document_id") or "")
+                for result in top_results
+            ],
+            "top_result_chunk_ids": [
+                str(result.get("chunk_id") or "")
+                for result in top_results
+            ],
+        },
+        "answer": {
+            "passed": answer_evaluation.get("passed"),
+            "failure_reasons": answer_evaluation.get("failure_reasons", []),
+            "expected_document_used": answer_evaluation.get("expected_document_used"),
+            "citation_document_ids": citation_document_ids,
+            "used_document_ids": used_document_ids,
+            "insufficient_evidence": answer.get("insufficient_evidence"),
+            "warnings": answer.get("warnings", []),
+        },
+        "summarization": {
+            "available": bool(query_debug_result),
+            "expected_document_in_summaries": expected_in_summaries,
+            "expected_document_lost_after_summarization": expected_in_summaries and not expected_in_answer_documents,
+            "summary_document_ids": unique_summarized_document_ids,
+            "summarized_evidence": summarized_documents,
+        },
+    }
+
+
 def _summarize_end_to_end_eval(items: list[dict[str, Any]]) -> dict[str, Any]:
     total = len(items)
     retrieval_passed = sum(1 for item in items if item["retrieval_evaluation"]["passed"])
@@ -219,6 +378,34 @@ def _summarize_end_to_end_eval(items: list[dict[str, Any]]) -> dict[str, Any]:
         "retrieval_correct_percent": round((retrieval_passed / total) * 100, 2) if total else 0.0,
         "answers_correct": answer_passed,
         "answers_correct_percent": round((answer_passed / total) * 100, 2) if total else 0.0,
+    }
+
+
+def _build_eval_run_telemetry(items: list[dict[str, Any]], summary: dict[str, Any]) -> dict[str, Any]:
+    computed = _summarize_end_to_end_eval(items)
+    failed_items = [
+        {
+            "item": index,
+            "query": (item.get("case") or {}).get("query"),
+            "answer_failures": (item.get("answer_evaluation") or {}).get("failure_reasons", []),
+            "expected_document_rank": ((item.get("telemetry") or {}).get("retrieval") or {}).get("expected_document_rank"),
+            "expected_chunk_rank": ((item.get("telemetry") or {}).get("retrieval") or {}).get("expected_chunk_rank"),
+            "expected_document_used": ((item.get("telemetry") or {}).get("answer") or {}).get("expected_document_used"),
+            "expected_document_lost_after_summarization": ((item.get("telemetry") or {}).get("summarization") or {}).get("expected_document_lost_after_summarization"),
+        }
+        for index, item in enumerate(items, start=1)
+        if not (item.get("answer_evaluation") or {}).get("passed")
+    ]
+    mismatches = {
+        key: {"reported": summary.get(key), "computed": computed.get(key)}
+        for key in ("total_questions", "retrieval_correct", "answers_correct")
+        if summary.get(key) != computed.get(key)
+    }
+    return {
+        "computed_summary": computed,
+        "reported_summary": summary,
+        "summary_mismatches": mismatches,
+        "failed_items": failed_items,
     }
 
 
@@ -339,10 +526,14 @@ def _load_eval_cases(payload: dict[str, Any]) -> tuple[list[str], str | None, li
     if not document_id and not corpus_ids:
         raise HTTPException(status_code=400, detail="Provide corpus_ids for all-doc eval or document_id for a single-document eval.")
     chunk_rows = _fetch_eval_chunk_rows(corpus_ids=corpus_ids, document_id=document_id, max_chunks=max_chunks)
+    previous_questions_by_chunk_id = _fetch_previous_eval_questions_by_chunk_id(
+        [str(row.get("id")) for row in chunk_rows if row.get("id")]
+    )
     cases = build_eval_cases_from_chunks(
         chunk_rows,
         max_cases=max_questions,
         use_llm_generation=use_llm_generation,
+        previous_questions_by_chunk_id=previous_questions_by_chunk_id,
     )
     warnings = [] if cases else ["No query-worthy indexed chunks were found for the requested scope."]
     return corpus_ids, document_id, cases, warnings
@@ -874,12 +1065,14 @@ def run_end_to_end_eval(
     _create_persisted_run(run_id, "end_to_end_eval", payload)
     corpus_ids, document_id, cases, warnings = _load_eval_cases(payload)
     if not cases:
+        summary = _summarize_end_to_end_eval([])
         result = {
             "run_id": run_id,
             "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
-            "summary": _summarize_end_to_end_eval([]),
+            "summary": summary,
             "items": [],
             "warnings": warnings,
+            "telemetry": _build_eval_run_telemetry([], summary),
         }
         _update_persisted_run(run_id, status="completed", result=result)
         return result
@@ -892,22 +1085,33 @@ def run_end_to_end_eval(
         answer_result = workflow.invoke({"query": case.query, "corpus_ids": search_corpus_ids, "filters": filters})
         answer = dict(answer_result["answer"])
         answer_evaluation = _score_answer(case, answer, retrieval_evaluation)
+        top_results = search_results[:5]
+        telemetry = _build_eval_item_telemetry(
+            case,
+            top_results=top_results,
+            answer=answer,
+            retrieval_evaluation=retrieval_evaluation,
+            answer_evaluation=answer_evaluation,
+        )
         items.append(
             {
                 "case": case.to_dict(),
                 "retrieval_evaluation": retrieval_evaluation,
                 "answer": answer,
                 "answer_evaluation": answer_evaluation,
-                "top_results": search_results[:5],
+                "top_results": top_results,
+                "telemetry": telemetry,
             }
         )
 
+    summary = _summarize_end_to_end_eval(items)
     result = {
         "run_id": run_id,
         "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
-        "summary": _summarize_end_to_end_eval(items),
+        "summary": summary,
         "items": items,
         "warnings": warnings,
+        "telemetry": _build_eval_run_telemetry(items, summary),
     }
     _update_persisted_run(run_id, status="completed", result=result)
     return result
@@ -967,12 +1171,14 @@ def _start_end_to_end_eval_run(
             )
             _update_persisted_run(run_id, status="running", progress=start_event)
             if not cases:
+                summary = _summarize_end_to_end_eval([])
                 result = {
                     "run_id": run_id,
                     "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
-                    "summary": _summarize_end_to_end_eval([]),
+                    "summary": summary,
                     "items": [],
                     "warnings": warnings,
+                    "telemetry": _build_eval_run_telemetry([], summary),
                 }
                 completed = emit({"event": "eval_completed", "result": result})
                 _update_persisted_run(run_id, status="completed", progress=completed, result=result)
@@ -1012,6 +1218,14 @@ def _start_end_to_end_eval_run(
                 retrieval_evaluation = score_search_results(case, top_results)
                 answer = dict(final_query_result.get("answer") or {})
                 answer_evaluation = _score_answer(case, answer, retrieval_evaluation)
+                telemetry = _build_eval_item_telemetry(
+                    case,
+                    top_results=top_results,
+                    answer=answer,
+                    retrieval_evaluation=retrieval_evaluation,
+                    answer_evaluation=answer_evaluation,
+                    query_debug_result=final_query_result,
+                )
                 item = {
                     "case": case.to_dict(),
                     "retrieval_evaluation": retrieval_evaluation,
@@ -1019,6 +1233,7 @@ def _start_end_to_end_eval_run(
                     "answer_evaluation": answer_evaluation,
                     "top_results": top_results[:5],
                     "query_debug_result": final_query_result,
+                    "telemetry": telemetry,
                 }
                 items.append(item)
                 question_completed = emit(
@@ -1031,12 +1246,14 @@ def _start_end_to_end_eval_run(
                 )
                 _update_persisted_run(run_id, status="running", progress=question_completed)
 
+            summary = _summarize_end_to_end_eval(items)
             result = {
                 "run_id": run_id,
                 "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
-                "summary": _summarize_end_to_end_eval(items),
+                "summary": summary,
                 "items": items,
                 "warnings": warnings,
+                "telemetry": _build_eval_run_telemetry(items, summary),
             }
             completed = emit({"event": "eval_completed", "result": result})
             _update_persisted_run(run_id, status="completed", progress=completed, result=result)

@@ -37,6 +37,30 @@ STOPWORDS = {
     "note",
 }
 
+QUERY_DEDUPE_FILLER = STOPWORDS.union(
+    {
+        "a",
+        "an",
+        "are",
+        "be",
+        "before",
+        "do",
+        "how",
+        "is",
+        "required",
+        "should",
+        "specified",
+        "applies",
+        "apply",
+        "described",
+        "give",
+        "given",
+        "other",
+        "to",
+        "you",
+    }
+)
+
 GENERIC_ANCHORS = {
     "use",
     "used",
@@ -65,10 +89,18 @@ GENERIC_ANCHORS = {
     "data",
     "output",
     "input",
+    "store",
+    "stores",
+    "stored",
+    "number",
+    "numbers",
+    "priority",
+    "checking",
 }
 
 TECHNICAL_VERBS = {
     "connect",
+    "disconnect",
     "configure",
     "set",
     "install",
@@ -84,6 +116,8 @@ TECHNICAL_VERBS = {
     "receive",
     "assign",
     "register",
+    "store",
+    "stores",
 }
 
 GENERIC_TECHNICAL_TERMS = {
@@ -103,6 +137,15 @@ GENERIC_TECHNICAL_TERMS = {
     "repeatability",
     "tolerance",
     "configuration",
+    "device",
+    "devices",
+    "plc",
+    "network",
+    "power",
+    "supply",
+    "ethernet/ip",
+    "laser",
+    "wavelength",
 }
 
 USER_STYLE_QUERY_SYSTEM_PROMPT = """
@@ -112,7 +155,7 @@ Return strict JSON with this shape:
 {"queries":[{"query":"...","intent":"...","reason":"..."}]}
 
 Rules:
-- Write queries a real technician, engineer, operator, purchaser, or integrator might type into search.
+- Write concise question-form queries a real technician, engineer, operator, purchaser, or integrator might ask.
 - Base every query on the provided context, especially the source snippet, structured fields, labels, and extracted terms.
 - Make each query answerable from the source snippet itself, not merely from a surrounding section.
 - Include enough discriminating terms from the source snippet that the intended row, warning, step, or spec can be found without reading adjacent context.
@@ -120,15 +163,17 @@ Rules:
 - Do not say "this document", "this manual", "the datasheet", "this section", or similar.
 - Do not use meta phrasing like "what specification", "what value is listed", "where does", "what does the document say", or "which step in".
 - Do not mirror the source text mechanically or copy long spans verbatim.
-- Keep each query concise and natural, usually under 12 words.
-- Prefer search-style phrasing:
-  model + parameter
-  model + task
-  parameter + unit
-  warning condition
-  short natural questions engineers actually ask
+- Keep each query concise and natural, usually under 14 words.
+- End each query with a question mark.
+- Prefer direct technical questions:
+  What/which setting applies to model?
+  What value/unit/class is specified for model?
+  Which devices/actions are required?
+  How should a procedure step be performed?
 - If the snippet contains explicit fields, labels, units, steps, warnings, or settings, use those concrete concepts in the query.
 - Prefer concrete terms from the snippet such as field names, units, menu labels, protocol names, settings, or actions.
+- Avoid vague storage-only phrasing such as "stores number" unless the query also includes the specific field/action name, for example "command number" or "specified-command".
+- If previous questions are provided, do not repeat them or make close paraphrases. Ask about a different concrete facet of the same snippet.
 - Do not invent facts not present in the input.
 - Return 2 or 3 diverse queries when the context is strong, otherwise return 1.
 - Return at most 3 queries.
@@ -163,6 +208,12 @@ def normalize_text(text: str) -> str:
     text = text.lower()
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+def _normalized_query_key(query: str) -> str:
+    key = normalize_text(query)
+    key = re.sub(r"\?$", "", key).strip()
+    return key
 
 
 def tokenize(text: str) -> list[str]:
@@ -333,6 +384,21 @@ def _query_source_content_overlap(query: str, chunk: dict[str, Any]) -> int:
     return sum(1 for term in tokenize(query) if term not in ignored and term in content_terms)
 
 
+def _query_has_discriminating_source_term(query: str, chunk: dict[str, Any]) -> bool:
+    metadata = dict(chunk.get("metadata_json", {}))
+    content_terms = set(tokenize(str(chunk.get("content", ""))))
+    model_terms = set(tokenize(str(chunk.get("product_model") or metadata.get("product_model") or "")))
+    title_terms = set(tokenize(str(chunk.get("title", ""))))
+    section_terms = set(tokenize(str(chunk.get("section_path_text", ""))))
+    ignored = STOPWORDS.union(GENERIC_ANCHORS).union(model_terms).union(title_terms).union(section_terms).union({"new", "series"})
+    for token in tokenize(query):
+        if token in ignored or token not in content_terms:
+            continue
+        if _is_high_signal_anchor(token) or token in GENERIC_TECHNICAL_TERMS or token in TECHNICAL_VERBS:
+            return True
+    return False
+
+
 def _query_looks_document_bound(query: str) -> bool:
     lowered = normalize_text(query)
     banned_phrases = {
@@ -342,8 +408,14 @@ def _query_looks_document_bound(query: str) -> bool:
         "this datasheet",
         "the datasheet",
         "this section",
-        "where does",
-        "what does",
+        "where does the document",
+        "where does the manual",
+        "where does this document",
+        "where does this manual",
+        "what does the document",
+        "what does the manual",
+        "what does this document",
+        "what does this manual",
         "which step in",
         "what procedure in",
         "what warning does",
@@ -355,9 +427,14 @@ def _query_looks_meta(query: str) -> bool:
     lowered = normalize_text(query)
     banned_prefixes = (
         "what specification",
-        "what value",
-        "where does",
-        "what does",
+        "where does the document",
+        "where does the manual",
+        "where does this document",
+        "where does this manual",
+        "what does the document",
+        "what does the manual",
+        "what does this document",
+        "what does this manual",
         "which step in",
         "what procedure",
         "what warning",
@@ -366,7 +443,6 @@ def _query_looks_meta(query: str) -> bool:
     if any(lowered.startswith(prefix) for prefix in banned_prefixes):
         return True
     banned_fragments = {
-        "is listed for",
         "does the table say about",
         "refers to",
         "mentions",
@@ -375,10 +451,45 @@ def _query_looks_meta(query: str) -> bool:
     return any(fragment in lowered for fragment in banned_fragments)
 
 
+def _query_looks_like_question(query: str) -> bool:
+    return query.strip().endswith("?")
+
+
+def _query_dedupe_terms(query: str) -> set[str]:
+    return {
+        token
+        for token in tokenize(query)
+        if token not in QUERY_DEDUPE_FILLER and token not in GENERIC_ANCHORS
+    }
+
+
+def _queries_are_near_duplicates(query: str, existing_query: str) -> bool:
+    if _normalized_query_key(query) == _normalized_query_key(existing_query):
+        return True
+    query_terms = _query_dedupe_terms(query)
+    existing_terms = _query_dedupe_terms(existing_query)
+    if not query_terms or not existing_terms:
+        return False
+    overlap = len(query_terms.intersection(existing_terms))
+    if overlap < 2:
+        return False
+    smaller = min(len(query_terms), len(existing_terms))
+    larger = max(len(query_terms), len(existing_terms))
+    containment = overlap / smaller
+    jaccard = overlap / len(query_terms.union(existing_terms))
+    return (overlap >= 3 and containment >= 0.8 and larger <= smaller + 2) or jaccard >= 0.75
+
+
+def _has_near_duplicate_query(query: str, existing_queries: list[str]) -> bool:
+    return any(_queries_are_near_duplicates(query, existing_query) for existing_query in existing_queries)
+
+
 def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) -> tuple[bool, str]:
     chunk_type = str(chunk.get("chunk_type", ""))
     if not anchors:
         return False, "no_specific_anchor"
+    if not _query_looks_like_question(query):
+        return False, "not_question_form"
     if _query_looks_document_bound(query):
         return False, "document_bound_query"
     if _query_looks_meta(query):
@@ -396,6 +507,8 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "weak_source_affinity"
     if chunk_type in {"spec_record", "datasheet_record", "table_record"} and _query_source_content_overlap(query, chunk) < 2:
         return False, "weak_source_affinity"
+    if chunk_type in {"spec_record", "datasheet_record", "table_record"} and not _query_has_discriminating_source_term(query, chunk):
+        return False, "weak_source_discriminator"
     return True, "validated"
 
 
@@ -417,33 +530,41 @@ def build_query_candidates(chunk: dict[str, Any]) -> list[tuple[str, str]]:
     tertiary = anchors[2] if len(anchors) > 2 else secondary
     candidates: list[tuple[str, str]] = []
 
+    if "disconnect" in anchors and "devices" in anchors:
+        candidates.append((f"Which other devices should be disconnected for {label}?", "disconnect_devices_question"))
+        candidates.append((f"For {label}, which other devices should be disconnected before connection checks?", "disconnect_context_question"))
+        candidates.append((f"Which devices should be disconnected before checking the EtherNet/IP connection for {label}?", "disconnect_ethernetip_question"))
+    if "specified-command" in anchors and "command" in anchors:
+        candidates.append((f"What does the PLC store in Command Number for {label}?", "command_number_question"))
+        candidates.append((f"For {label}, what specified-command number does the PLC store?", "specified_command_question"))
+
     if chunk_type in {"spec_record", "datasheet_record"}:
         if secondary != primary:
-            candidates.append((f"{label} {primary} {secondary}", "spec_primary_multi"))
+            candidates.append((f"For {label}, what {primary} {secondary} is specified?", "spec_primary_multi"))
         if tertiary not in {primary, secondary}:
-            candidates.append((f"{label} {primary} {secondary} {tertiary}", "spec_context_multi"))
-        candidates.append((f"{primary} {secondary} for {label}", "spec_value"))
+            candidates.append((f"For {label}, what {primary} {secondary} {tertiary} is specified?", "spec_context_multi"))
+        candidates.append((f"What {primary} {secondary} applies to {label}?", "spec_value"))
         if secondary != primary:
-            candidates.append((f"{label} {primary} {secondary}", "spec_multi"))
+            candidates.append((f"What {primary} {secondary} is specified for {label}?", "spec_multi"))
     elif chunk_type == "table_record":
         if secondary != primary:
-            candidates.append((f"{label} {primary} {secondary}", "table_primary_multi"))
+            candidates.append((f"For {label}, what {primary} {secondary} applies?", "table_primary_multi"))
         if tertiary not in {primary, secondary}:
-            candidates.append((f"{primary} {secondary} {tertiary} {label}", "table_context_multi"))
-        candidates.append((f"{label} {primary}", "table_primary"))
+            candidates.append((f"For {label}, what {primary} {secondary} {tertiary} applies?", "table_context_multi"))
+        candidates.append((f"What {primary} applies to {label}?", "table_primary"))
     elif chunk_type == "procedure_record":
-        candidates.append((f"how to {primary} {label}", "procedure_howto"))
+        candidates.append((f"How do you {primary} {label}?", "procedure_howto"))
         if secondary != primary:
-            candidates.append((f"{primary} {secondary} steps {label}", "procedure_step"))
-        candidates.append((f"{primary} procedure {label}", "procedure_describe"))
+            candidates.append((f"What {primary} {secondary} steps apply to {label}?", "procedure_step"))
+        candidates.append((f"What {primary} procedure applies to {label}?", "procedure_describe"))
     elif chunk_type == "warning_record":
-        candidates.append((f"{label} warning {primary}", "warning_primary"))
+        candidates.append((f"What warning applies to {primary} for {label}?", "warning_primary"))
         if secondary != primary:
-            candidates.append((f"{label} caution {primary} {secondary}", "warning_caution"))
+            candidates.append((f"What caution applies to {primary} {secondary} for {label}?", "warning_caution"))
     else:
         if len(anchors) >= 2:
-            candidates.append((f"{label} {primary} {secondary}", "general_multi"))
-        candidates.append((f"{label} {primary}", "general_primary"))
+            candidates.append((f"For {label}, what {primary} {secondary} is described?", "general_multi"))
+        candidates.append((f"What {primary} is described for {label}?", "general_primary"))
 
     return candidates
 
@@ -486,12 +607,15 @@ def generate_user_style_queries(
     *,
     anchors: list[str],
     fallback_candidates: list[tuple[str, str]],
+    previous_questions: list[str] | None = None,
     limit: int,
 ) -> list[tuple[str, str]]:
+    previous_questions = previous_questions or []
     prompt = {
         "document_title": str(chunk.get("title", "")).strip(),
         "source_filename": str(chunk.get("source_filename", "")).strip(),
         "structured_input": _structured_eval_input(chunk, anchors),
+        "previous_questions_for_this_chunk": previous_questions[:10],
         "fallback_examples": [{"query": query, "intent": method} for query, method in fallback_candidates[:3]],
     }
     try:
@@ -512,23 +636,30 @@ def generate_user_style_queries(
         generated = []
 
     queries: list[tuple[str, str]] = []
-    seen: set[str] = set()
+    seen: set[str] = {_normalized_query_key(question) for question in previous_questions}
+    accepted_query_texts: list[str] = list(previous_questions)
     for item in generated:
-        normalized = normalize_text(item["query"])
+        normalized = _normalized_query_key(item["query"])
         if normalized in seen:
+            continue
+        if _has_near_duplicate_query(item["query"], accepted_query_texts):
             continue
         is_valid, _ = validate_eval_case(item["query"], chunk, anchors)
         if not is_valid:
             continue
         seen.add(normalized)
+        accepted_query_texts.append(item["query"])
         queries.append((item["query"], item["intent"]))
         if len(queries) >= limit:
             return queries
     for query, method in fallback_candidates:
-        normalized = normalize_text(query)
+        normalized = _normalized_query_key(query)
         if normalized in seen:
             continue
+        if _has_near_duplicate_query(query, accepted_query_texts):
+            continue
         seen.add(normalized)
+        accepted_query_texts.append(query)
         queries.append((query, method))
         if len(queries) >= limit:
             break
@@ -541,18 +672,22 @@ def build_eval_cases_from_chunks(
     max_cases: int,
     per_chunk_limit: int = 3,
     use_llm_generation: bool = True,
+    previous_questions_by_chunk_id: dict[str, list[str]] | None = None,
 ) -> list[RetrievalEvalCase]:
     cases: list[RetrievalEvalCase] = []
+    previous_questions_by_chunk_id = previous_questions_by_chunk_id or {}
     for chunk in chunks:
         anchors = extract_anchor_terms(str(chunk["content"]))
         if not chunk_is_queryworthy(chunk, anchors):
             continue
+        previous_questions = previous_questions_by_chunk_id.get(str(chunk.get("id")), [])
         fallback_candidates = build_query_candidates(chunk)[:per_chunk_limit]
         candidates = (
             generate_user_style_queries(
                 chunk,
                 anchors=anchors,
                 fallback_candidates=fallback_candidates,
+                previous_questions=previous_questions,
                 limit=per_chunk_limit,
             )
             if use_llm_generation
@@ -560,10 +695,14 @@ def build_eval_cases_from_chunks(
         )
         if len(anchors) < 1:
             continue
+        accepted_query_texts: list[str] = list(previous_questions)
         for index, (query, method) in enumerate(candidates, start=1):
+            if _has_near_duplicate_query(query, accepted_query_texts):
+                continue
             is_valid, quality = validate_eval_case(query, chunk, anchors)
             if not is_valid:
                 continue
+            accepted_query_texts.append(query)
             cases.append(
                 RetrievalEvalCase(
                     case_id=f"{chunk['id']}::{index}",
