@@ -399,6 +399,30 @@ def _query_has_discriminating_source_term(query: str, chunk: dict[str, Any]) -> 
     return False
 
 
+def _filename_artifact_terms(chunk: dict[str, Any]) -> set[str]:
+    filename = str(chunk.get("source_filename", ""))
+    if not filename:
+        return set()
+    stem = re.sub(r"\.[A-Za-z0-9]+$", "", filename)
+    raw_parts = [part.lower() for part in re.split(r"[_\W]+", stem) if part]
+    content_terms = set(tokenize(str(chunk.get("content", ""))))
+    section_terms = set(tokenize(str(chunk.get("section_path_text", ""))))
+    artifact_terms: set[str] = set()
+    for part in raw_parts:
+        if part in content_terms or part in section_terms:
+            continue
+        if re.fullmatch(r"[a-z]\d{2,}[a-z]{2,}", part) or re.fullmatch(r"\d{3,}[a-z]*", part):
+            artifact_terms.add(part)
+    return artifact_terms
+
+
+def _query_uses_filename_artifact(query: str, chunk: dict[str, Any]) -> bool:
+    artifacts = _filename_artifact_terms(chunk)
+    if not artifacts:
+        return False
+    return any(token in artifacts for token in tokenize(query))
+
+
 def _query_looks_document_bound(query: str) -> bool:
     lowered = normalize_text(query)
     banned_phrases = {
@@ -494,6 +518,8 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "document_bound_query"
     if _query_looks_meta(query):
         return False, "meta_query"
+    if _query_uses_filename_artifact(query, chunk):
+        return False, "filename_artifact_query"
     if chunk_type == "atomic_text":
         if len(anchors) < 2:
             return False, "atomic_requires_two_anchors"
@@ -512,10 +538,28 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
     return True, "validated"
 
 
+def _safe_query_label(chunk: dict[str, Any]) -> str:
+    metadata = dict(chunk.get("metadata_json", {}))
+    model = str(chunk.get("product_model") or metadata.get("product_model") or "").strip()
+    if model and not _query_uses_filename_artifact(model, chunk):
+        return model
+    title = str(chunk.get("title", "")).strip()
+    filename = str(chunk.get("source_filename", "")).strip()
+    if title and title != filename and not title.lower().endswith(".pdf"):
+        return title
+    return ""
+
+
+def _for_label(label: str) -> str:
+    return f" for {label}" if label else ""
+
+
+def _to_label(label: str) -> str:
+    return f" to {label}" if label else ""
+
+
 def build_query_candidates(chunk: dict[str, Any]) -> list[tuple[str, str]]:
     content = str(chunk["content"]).strip()
-    title = str(chunk.get("title", "")).strip()
-    model = str(chunk.get("product_model") or chunk.get("metadata_json", {}).get("product_model") or "").strip()
     chunk_type = str(chunk.get("chunk_type", ""))
     anchors = extract_anchor_terms(content)
     labels = _quoted_menu_labels(content)
@@ -524,47 +568,51 @@ def build_query_candidates(chunk: dict[str, Any]) -> list[tuple[str, str]]:
     if not anchors:
         return []
 
-    label = model or title or "this document"
+    label = _safe_query_label(chunk)
     primary = anchors[0]
     secondary = anchors[1] if len(anchors) > 1 else primary
     tertiary = anchors[2] if len(anchors) > 2 else secondary
     candidates: list[tuple[str, str]] = []
 
     if "disconnect" in anchors and "devices" in anchors:
-        candidates.append((f"Which other devices should be disconnected for {label}?", "disconnect_devices_question"))
-        candidates.append((f"For {label}, which other devices should be disconnected before connection checks?", "disconnect_context_question"))
-        candidates.append((f"Which devices should be disconnected before checking the EtherNet/IP connection for {label}?", "disconnect_ethernetip_question"))
+        candidates.append((f"Which other devices should be disconnected{_for_label(label)}?", "disconnect_devices_question"))
+        if label:
+            candidates.append((f"For {label}, which other devices should be disconnected before connection checks?", "disconnect_context_question"))
+        candidates.append((f"Which devices should be disconnected before checking the EtherNet/IP connection{_for_label(label)}?", "disconnect_ethernetip_question"))
     if "specified-command" in anchors and "command" in anchors:
-        candidates.append((f"What does the PLC store in Command Number for {label}?", "command_number_question"))
-        candidates.append((f"For {label}, what specified-command number does the PLC store?", "specified_command_question"))
+        candidates.append((f"What does the PLC store in Command Number{_for_label(label)}?", "command_number_question"))
+        if label:
+            candidates.append((f"For {label}, what specified-command number does the PLC store?", "specified_command_question"))
+        else:
+            candidates.append(("What specified-command number does the PLC store?", "specified_command_question"))
 
     if chunk_type in {"spec_record", "datasheet_record"}:
         if secondary != primary:
-            candidates.append((f"For {label}, what {primary} {secondary} is specified?", "spec_primary_multi"))
+            candidates.append((f"What {primary} {secondary} is specified{_for_label(label)}?", "spec_primary_multi"))
         if tertiary not in {primary, secondary}:
-            candidates.append((f"For {label}, what {primary} {secondary} {tertiary} is specified?", "spec_context_multi"))
-        candidates.append((f"What {primary} {secondary} applies to {label}?", "spec_value"))
+            candidates.append((f"What {primary} {secondary} {tertiary} is specified{_for_label(label)}?", "spec_context_multi"))
+        candidates.append((f"What {primary} {secondary} applies{_to_label(label)}?", "spec_value"))
         if secondary != primary:
-            candidates.append((f"What {primary} {secondary} is specified for {label}?", "spec_multi"))
+            candidates.append((f"What {primary} {secondary} is specified{_for_label(label)}?", "spec_multi"))
     elif chunk_type == "table_record":
         if secondary != primary:
-            candidates.append((f"For {label}, what {primary} {secondary} applies?", "table_primary_multi"))
+            candidates.append((f"What {primary} {secondary} applies{_to_label(label)}?", "table_primary_multi"))
         if tertiary not in {primary, secondary}:
-            candidates.append((f"For {label}, what {primary} {secondary} {tertiary} applies?", "table_context_multi"))
-        candidates.append((f"What {primary} applies to {label}?", "table_primary"))
+            candidates.append((f"What {primary} {secondary} {tertiary} applies{_to_label(label)}?", "table_context_multi"))
+        candidates.append((f"What {primary} applies{_to_label(label)}?", "table_primary"))
     elif chunk_type == "procedure_record":
-        candidates.append((f"How do you {primary} {label}?", "procedure_howto"))
+        candidates.append((f"How do you {primary}{_for_label(label)}?", "procedure_howto"))
         if secondary != primary:
-            candidates.append((f"What {primary} {secondary} steps apply to {label}?", "procedure_step"))
-        candidates.append((f"What {primary} procedure applies to {label}?", "procedure_describe"))
+            candidates.append((f"What {primary} {secondary} steps apply{_to_label(label)}?", "procedure_step"))
+        candidates.append((f"What {primary} procedure applies{_to_label(label)}?", "procedure_describe"))
     elif chunk_type == "warning_record":
-        candidates.append((f"What warning applies to {primary} for {label}?", "warning_primary"))
+        candidates.append((f"What warning applies to {primary}{_for_label(label)}?", "warning_primary"))
         if secondary != primary:
-            candidates.append((f"What caution applies to {primary} {secondary} for {label}?", "warning_caution"))
+            candidates.append((f"What caution applies to {primary} {secondary}{_for_label(label)}?", "warning_caution"))
     else:
         if len(anchors) >= 2:
-            candidates.append((f"For {label}, what {primary} {secondary} is described?", "general_multi"))
-        candidates.append((f"What {primary} is described for {label}?", "general_primary"))
+            candidates.append((f"What {primary} {secondary} is described{_for_label(label)}?", "general_multi"))
+        candidates.append((f"What {primary} is described{_for_label(label)}?", "general_primary"))
 
     return candidates
 
@@ -575,8 +623,8 @@ def _structured_eval_input(chunk: dict[str, Any], anchors: list[str]) -> dict[st
     field_matches = _field_value_pairs(content)
     return {
         "chunk_type": str(chunk.get("chunk_type", "")),
-        "title": str(chunk.get("title", "")).strip(),
-        "product_model": str(chunk.get("product_model") or metadata.get("product_model") or "").strip(),
+        "title": _safe_query_label(chunk),
+        "product_model": _safe_query_label(chunk),
         "section_path": str(chunk.get("section_path_text", "")).strip(),
         "anchors": anchors[:6],
         "menu_labels": _quoted_menu_labels(content)[:3],
@@ -612,8 +660,7 @@ def generate_user_style_queries(
 ) -> list[tuple[str, str]]:
     previous_questions = previous_questions or []
     prompt = {
-        "document_title": str(chunk.get("title", "")).strip(),
-        "source_filename": str(chunk.get("source_filename", "")).strip(),
+        "document_title": _safe_query_label(chunk),
         "structured_input": _structured_eval_input(chunk, anchors),
         "previous_questions_for_this_chunk": previous_questions[:10],
         "fallback_examples": [{"query": query, "intent": method} for query, method in fallback_candidates[:3]],

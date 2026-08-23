@@ -437,7 +437,7 @@ def test_eval_queries_reject_ambiguous_storage_only_phrasing():
 
     valid, reason = validate_eval_case("What stores number for D48GB?", chunk, ["specified-command", "command", "parameters"])
     assert valid is False
-    assert reason in {"weak_source_affinity", "weak_source_discriminator"}
+    assert reason == "filename_artifact_query"
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
     queries = [case.query.lower() for case in cases]
@@ -445,6 +445,7 @@ def test_eval_queries_reject_ambiguous_storage_only_phrasing():
     assert cases
     assert all(query != "d48gb stores number" for query in queries)
     assert all(query.endswith("?") for query in queries)
+    assert all("d48gb" not in query for query in queries)
     assert all("command" in query for query in queries)
     assert any("specified-command" in query for query in queries)
 
@@ -475,7 +476,67 @@ def test_eval_queries_create_question_form_for_disconnect_guidance():
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
     queries = [case.query for case in cases]
 
-    assert queries == ["Which other devices should be disconnected for D48GB?"]
+    assert queries
+    assert "Which other devices should be disconnected?" in queries
+    assert "Which devices should be disconnected before checking the EtherNet/IP connection?" in queries
+    assert all("D48GB" not in query for query in queries)
+
+
+def test_eval_generation_does_not_prompt_with_source_filename_artifacts(monkeypatch):
+    prompts = []
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "response": (
+                    '{"queries":['
+                    '{"query":"What specified-command number does the PLC store?","intent":"spec_lookup","reason":"snippet-grounded"}'
+                    ']}'
+                )
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            prompts.append(kwargs["json"]["prompt"])
+            return FakeResponse()
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+
+    chunk = {
+        "id": "chunk-filename-artifact",
+        "source_document_id": "doc-ljx",
+        "document_version_id": "ver-ljx",
+        "chunk_type": "datasheet_record",
+        "title": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+        "source_filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+        "section_path_text": "PLC",
+        "page_from": 38,
+        "page_to": 38,
+        "content": "The PLC stores the number: specified-command No. in Command Number and the command parameters in Command Parameter.",
+        "metadata_json": {"product_model": "D48GB"},
+        "product_model": "D48GB",
+    }
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=2)
+
+    assert cases[0].query == "What specified-command number does the PLC store?"
+    assert all("D48GB" not in case.query for case in cases)
+    assert prompts
+    assert "source_filename" not in prompts[0]
+    assert "D48GB" not in prompts[0]
+    assert "AS_128241" not in prompts[0]
 
 
 def test_score_search_results_passes_on_same_document_term_overlap():
