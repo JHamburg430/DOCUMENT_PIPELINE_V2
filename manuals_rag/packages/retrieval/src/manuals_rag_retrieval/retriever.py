@@ -36,22 +36,6 @@ except ImportError:
 def build_filters(query: str, request_filters: dict[str, object]) -> dict[str, object]:
     analysis = analyze_query(query)
     filters = dict(request_filters)
-    has_document_scope = any(key in filters for key in ("source_document_id", "document_version_id"))
-    if not has_document_scope and analysis.requested_doc_kind and "document_kind" not in filters:
-        filters["document_kind"] = analysis.requested_doc_kind
-    if not has_document_scope and analysis.product_model and not any(key in filters for key in ("product_model", "product_models")):
-        filters["product_models"] = analysis.product_model
-    if not has_document_scope and analysis.product_family and not any(key in filters for key in ("product_family", "product_families", "product_model", "product_models")):
-        filters["product_families"] = analysis.product_family
-    if not has_document_scope and analysis.manufacturer and "manufacturer" not in filters:
-        filters["manufacturer"] = analysis.manufacturer
-    if (
-        not has_document_scope
-        and analysis.part_number
-        and analysis.part_number != analysis.product_model
-        and "part_numbers" not in filters
-    ):
-        filters["part_numbers"] = analysis.part_number
     for key, value in analysis.preferred_metadata_filters.items():
         filters.setdefault(key, value)
     filters.setdefault("is_active", True)

@@ -9,7 +9,6 @@ class QueryAnalysis:
     raw_query: str
     query_types: list[str] = field(default_factory=list)
     normalized_terms: list[str] = field(default_factory=list)
-    manufacturer: str | None = None
     product_family: str | None = None
     product_model: str | None = None
     part_number: str | None = None
@@ -47,7 +46,24 @@ def analyze_query(query: str) -> QueryAnalysis:
     if any(word in lowered for word in ["command", "timing", "flow", "handshake", "flag", "procedure"]):
         types.append("operational_flow")
         preferred_chunk_types.extend(["section_window", "procedure_record"])
-    if any(word in lowered for word in ["spec", "datasheet", "voltage", "current", "dimension", "value", "parameter", "laser", "radiation", "wavelength", "output", "class"]):
+    requested_doc_kind = None
+    if "datasheet" in lowered:
+        requested_doc_kind = "datasheet"
+    elif "brochure" in lowered:
+        requested_doc_kind = "brochure"
+    elif "safety" in lowered:
+        requested_doc_kind = "safety_bulletin"
+    elif "troubleshoot" in lowered or "error" in lowered or "fault" in lowered:
+        requested_doc_kind = "troubleshooting_guide"
+    elif "install" in lowered:
+        requested_doc_kind = "installation_guide"
+    elif "setup" in lowered:
+        requested_doc_kind = "setup_guide"
+    if "manual" in lowered and requested_doc_kind is None:
+        requested_doc_kind = "manual"
+    spec_terms = {"voltage", "current", "dimension", "laser", "radiation", "wavelength", "output", "class"}
+    explicit_spec_lookup = "specification" in lowered or re.search(r"\bspecs?\b", lowered) is not None
+    if requested_doc_kind is None and (explicit_spec_lookup or any(word in lowered for word in spec_terms)):
         types.append("spec_lookup")
         preferred_chunk_types.extend(["datasheet_record", "spec_record", "table_record"])
     if any(word in lowered for word in ["error", "alarm", "troubleshoot", "fault"]):
@@ -67,7 +83,7 @@ def analyze_query(query: str) -> QueryAnalysis:
     if any(word in lowered for word in ["revision", "version", "legacy", "old version", "superseded"]):
         types.append("revision_history")
         preferred_metadata_filters["version_signal"] = "true"
-    if any(word in lowered for word in ["step", "list", "row", "entry", "value", "parameter"]):
+    if any(word in lowered for word in ["step", "list", "row", "entry"]):
         preferred_chunk_types.append("table_record")
     if "table" in lowered:
         preferred_chunk_types.append("table_record")
@@ -81,28 +97,12 @@ def analyze_query(query: str) -> QueryAnalysis:
     family_match = re.search(r"\b([A-Z]{1,5}-[A-Z0-9]{1,6}|[A-Z]{2,5})\s+(?:series|family)\b", query, flags=re.IGNORECASE)
     part_match = re.search(r"\b(?:OP|CA|SZ|GL|SR|IV|LJ|LR|KV|XG|VS|WM|VJ)-[A-Z0-9]{2,12}[A-Z0-9-]*\b", query)
     error_match = re.search(r"\b[A-Z]\d{2,4}\b", query)
-    requested_doc_kind = None
-    if "datasheet" in lowered:
-        requested_doc_kind = "datasheet"
-    elif "brochure" in lowered:
-        requested_doc_kind = "brochure"
-    elif "safety" in lowered:
-        requested_doc_kind = "safety_bulletin"
-    elif "troubleshoot" in lowered or "error" in lowered or "fault" in lowered:
-        requested_doc_kind = "troubleshooting_guide"
-    elif "install" in lowered:
-        requested_doc_kind = "installation_guide"
-    elif "setup" in lowered:
-        requested_doc_kind = "setup_guide"
-    if "manual" in lowered and requested_doc_kind is None:
-        requested_doc_kind = "manual"
-    explicit_identifier_count = int(bool(model_match)) + int(bool(error_match)) + int("keyence" in lowered)
+    explicit_identifier_count = int(bool(model_match)) + int(bool(error_match))
     filter_strictness = "strict" if explicit_identifier_count >= 2 else ("balanced" if explicit_identifier_count == 1 else "loose")
     return QueryAnalysis(
         raw_query=query,
         query_types=sorted(set(types)),
         normalized_terms=normalized_terms,
-        manufacturer="Keyence" if "keyence" in lowered else None,
         product_family=family_match.group(1).upper() if family_match and not model_match else None,
         product_model=model_match.group(0) if model_match else None,
         part_number=part_match.group(0) if part_match else None,
