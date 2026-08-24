@@ -111,10 +111,13 @@ def select_documents_from_metadata(
 
 def _special_route_filters(base_filters: dict[str, object], analysis: QueryAnalysis) -> list[dict[str, object]]:
     routes: list[dict[str, object]] = []
-    if analysis.preferred_chunk_types:
+    if analysis.preferred_chunk_types and not analysis.safety_intent:
         routes.append({**base_filters, "chunk_type": analysis.preferred_chunk_types})
     if analysis.safety_intent:
-        routes.append({**base_filters, "chunk_type": ["warning_record", "procedure_record"]})
+        safety_chunk_types = ["warning_record", "procedure_record"]
+        if _safety_action_terms(analysis.raw_query):
+            safety_chunk_types.append("atomic_text")
+        routes.append({**base_filters, "chunk_type": safety_chunk_types})
     if not analysis.safety_intent and ("how_to" in analysis.query_types or "configuration" in analysis.query_types):
         routes.append({**base_filters, "chunk_type": ["procedure_record", "section_window"]})
     if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:

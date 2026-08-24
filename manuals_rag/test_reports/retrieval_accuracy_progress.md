@@ -398,3 +398,44 @@ Next target:
 Next target:
 
 - Continue reducing IV4 warning/status safety-route latency causing three 8-second warning-step timeouts, then fix the remaining VS/IV4 single-step ranking/context losses before broadening to cross-document multi-step cases.
+
+## 2026-08-24 Cron 39262386 Safety Route Error-Code Cleanup
+
+- Target: continue reducing IV4 warning/status safety-route latency causing three 8-second warning-step timeouts, while preserving the saved single-step regression bank.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior refined warning-step run `retrieval_eval_20260824_115754` was 12/15 (80%) with three `eval_timeout` failures clustered in IV4 warning/status PROFINET questions. A stage profile on one timeout-shaped query showed special-route search spending about 8.008s and returning 109 candidates; query analysis incorrectly extracted `G120` from product model `IV4-G120` as an error code, adding a broad keyword route.
+- Changed query analysis in `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py` so an error-code match contained inside an already parsed product model is ignored.
+- Changed special-route planning in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so safety queries use the combined warning/procedure route without an additional redundant warning-only route.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for model-contained error-code suppression and safety route collapse.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 61 passed, 1 warning.
+- Stage timing evidence after the fix: the same IV4 warning/status query had `error_code=None`, one warning/procedure special route, special results dropped from 109 to 40 candidates, and special-route time dropped from about 8.008s to 2.630s.
+- Live eval command (saved refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved refined warning-step result: `retrieval_eval_20260824_122646` improved from 12/15 (80%) to 14/15 (93.33%), pass@1 73.33%, pass@3 86.67%, pass@5 93.33%, candidate recall 100%, metadata-document recall 100%, and failure categories `ranking_or_context_loss: 1`. All three prior timeout-shaped IV4 cases now completed; two passed and one exposed a true paired-evidence ranking/context miss.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_122811` held at 37/40 (92.5%), pass@1 77.5%, pass@3 87.5%, pass@5 92.5%, candidate recall 97.5%, metadata-document recall 100%, metadata-document rank-1 rate 71.79%, and failures `eval_timeout: 1`, `ranking_or_context_loss: 2`.
+- New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_122646.json`, `test_reports/retrieval_eval_manifest_20260824_122646.json`, `test_reports/retrieval_eval_summary_20260824_122811.json`, `test_reports/retrieval_eval_manifest_20260824_122811.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py`, `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 12:26 and 12:28 UTC.
+
+Next target:
+
+- Fix the remaining refined warning-step ranking/context loss by keeping paired action evidence with warning/status context in final top-k, then reduce the remaining VS/IV4 single-step timeout and ranking/context losses before broadening to cross-document multi-step cases.
+
+## 2026-08-24 Cron 39262386 Safety Applies-When Action Evidence
+
+- Target: fix the remaining refined warning-step ranking/context loss by keeping paired action evidence with warning/status context in final top-k, while preserving the saved single-step regression bank.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior refined warning-step run `retrieval_eval_20260824_122646` was 14/15 (93.33%) with one `ranking_or_context_loss`. The failed IV4-G120 PROFINET warning/status query selected the right document and warning context, but the specific atomic action evidence for remaining buffers / reading out status result was below final top-k.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so safety questions using the `applies when ...` shape retrieve atomic action text alongside warning/procedure evidence in the same deduped special route. This is generic action-evidence routing, not document-specific filtering.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for safety applies-when routes including atomic action evidence.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 62 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 204 passed, 58 warnings in 150.65s.
+- Live eval command (saved refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved refined warning-step result: `retrieval_eval_20260824_125037` improved from 14/15 (93.33%) to 15/15 (100%), pass@1 86.67%, pass@3 93.33%, pass@5 100%, candidate recall 100%, metadata-document recall 100%, and failure categories `{}`.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_125142` held at 37/40 (92.5%), pass@1 77.5%, pass@3 87.5%, pass@5 92.5%, candidate recall 97.5%, metadata-document recall 100%, and failures `eval_timeout: 1`, `ranking_or_context_loss: 2`.
+- Question-bank counts unchanged: 153 exploratory questions total, 80 single-step and 73 multi-step. New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_125037.json`, `test_reports/retrieval_eval_manifest_20260824_125037.json`, `test_reports/retrieval_eval_summary_20260824_125142.json`, `test_reports/retrieval_eval_manifest_20260824_125142.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py`, `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 12:50 and 12:51 UTC.
+
+Next target:
+
+- Reduce the remaining VS/IV4 single-step timeout and ranking/context losses, then broaden multi-step coverage to cross-document engineering questions.

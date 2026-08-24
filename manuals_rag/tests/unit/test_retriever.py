@@ -192,6 +192,13 @@ def test_query_analysis_recognizes_models_with_numbered_prefixes():
     assert analysis.error_code is None
 
 
+def test_query_analysis_does_not_extract_model_suffix_as_error_code():
+    analysis = analyze_query("What warning applies to IV4-G120 when reading warning status?")
+
+    assert analysis.product_model == "IV4-G120"
+    assert analysis.error_code is None
+
+
 def test_table_search_route_skips_safety_procedure_questions():
     analysis = analyze_query(
         "When installing the controller for LJ-X8000, what warning or caution about controller mounting should be followed?"
@@ -216,8 +223,20 @@ def test_special_routes_do_not_duplicate_how_to_route_for_safety_questions():
     routes = retriever._special_route_filters({"is_active": True}, analysis)
     chunk_type_sets = [set(route["chunk_type"]) for route in routes if "chunk_type" in route]
 
+    assert {"warning_record"} not in chunk_type_sets
     assert chunk_type_sets.count({"warning_record", "procedure_record"}) == 1
     assert {"procedure_record", "section_window"} not in chunk_type_sets
+
+
+def test_special_routes_include_action_text_for_warning_applies_questions():
+    analysis = analyze_query(
+        "What warning or caution about warning status for IV4-G120 applies when the number of remaining buffers is checked?"
+    )
+
+    routes = retriever._special_route_filters({"is_active": True}, analysis)
+    chunk_type_sets = [set(route["chunk_type"]) for route in routes if "chunk_type" in route]
+
+    assert {"warning_record", "procedure_record", "atomic_text"} in chunk_type_sets
 
 
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():

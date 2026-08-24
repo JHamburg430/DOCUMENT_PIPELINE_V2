@@ -125,12 +125,188 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 201,
+      "passed": 204,
       "warnings": 58,
-      "duration_seconds": 153.52,
-      "notes": "Full unit suite passed after exact product-model scoring and safety action-overlap ranking changes."
+      "duration_seconds": 150.65,
+      "notes": "Full unit suite passed after expanding safety applies-when special routing to retrieve atomic action evidence."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_125037",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_125037.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_125037.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_125037.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 0.9333,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.4667,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "failure_categories": {},
+        "notes": "Safety applies-when route now includes atomic action evidence, improving the refined warning-step bank from 14/15 (93.33%) to 15/15 (100%)."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_125142",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_125142.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_125142.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_125142.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 40,
+        "passed_queries": 37,
+        "failed_queries": 3,
+        "pass_rate": 0.925,
+        "pass_at_1": 0.775,
+        "pass_at_3": 0.875,
+        "pass_at_5": 0.925,
+        "candidate_recall_rate": 0.975,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.6667,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 37
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 31
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 5
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 2
+        },
+        "notes": "Saved single-step regression bank held at 37/40 (92.5%) after adding atomic action evidence to safety applies-when special routes."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_122646",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_122646.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_122646.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_122646.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 14,
+        "failed_queries": 1,
+        "pass_rate": 0.9333,
+        "pass_at_1": 0.7333,
+        "pass_at_3": 0.8667,
+        "pass_at_5": 0.9333,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.4667,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 14
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 15,
+            "passed": 14
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 1
+        },
+        "notes": "Safety special route cleanup improved refined warning-step bank from 12/15 (80%) to 14/15 (93.33%) and removed all scored eval_timeout failures. Remaining miss has candidate recall but lacks paired remaining-buffers action evidence in final top-k."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_122811",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_122811.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_122811.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_122811.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 40,
+        "passed_queries": 37,
+        "failed_queries": 3,
+        "pass_rate": 0.925,
+        "pass_at_1": 0.775,
+        "pass_at_3": 0.875,
+        "pass_at_5": 0.925,
+        "candidate_recall_rate": 0.975,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.7179,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 37
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 31
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 5
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 2
+        },
+        "notes": "Saved single-step regression bank held at 37/40 (92.5%) after safety route cleanup; metadata document rank-1 rate improved slightly to 71.79%."
+      },
       {
         "run_id": "retrieval_eval_20260824_115754",
         "corpus_id": "manuals_vendor_keyence",
@@ -1354,7 +1530,15 @@
         },
         "notes": "Separate LLM-generated live eval attempt produced no completed cases after about 2 minutes and was stopped for cron budget; this completed run used deterministic fallback generation."
       }
-    ]
+    ],
+    "failure_categories": {
+      "warning_step_multi_step": {},
+      "single_step_regression": {
+        "eval_timeout": 1,
+        "ranking_or_context_loss": 2
+      }
+    },
+    "next_target": "Reduce the remaining VS/IV4 single-step timeout and ranking/context losses, then broaden multi-step coverage to cross-document engineering questions."
   },
-  "next_target": "Continue reducing IV4 warning/status safety-route latency causing three 8-second warning-step timeouts, then fix the remaining VS/IV4 single-step ranking/context losses before broadening to cross-document multi-step cases."
+  "next_target": "Reduce the remaining VS/IV4 single-step timeout and ranking/context losses, then broaden multi-step coverage to cross-document engineering questions."
 }

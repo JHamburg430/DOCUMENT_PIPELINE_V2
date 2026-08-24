@@ -113,6 +113,10 @@ def analyze_query(query: str) -> QueryAnalysis:
     )
     part_match = re.search(r"\b(?:OP|CA|SZ|GL|SR|IV|LJ|LR|KV|XG|VS|WM|VJ)-[A-Z0-9]{2,12}[A-Z0-9-]*\b", query)
     error_match = re.search(r"\b[A-Z]\d{2,4}\b(?!\s+(?:series|family))", query, flags=re.IGNORECASE)
+    if error_match and model_match:
+        model_span = model_match.span()
+        if model_span[0] <= error_match.start() and error_match.end() <= model_span[1]:
+            error_match = None
     explicit_identifier_count = int(bool(model_match)) + int(bool(error_match))
     filter_strictness = "strict" if explicit_identifier_count >= 2 else ("balanced" if explicit_identifier_count == 1 else "loose")
     return QueryAnalysis(
