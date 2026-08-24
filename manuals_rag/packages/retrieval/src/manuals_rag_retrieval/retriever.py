@@ -194,6 +194,16 @@ def _should_run_table_search(analysis: QueryAnalysis) -> bool:
     return True
 
 
+def _should_run_broad_vector_search(analysis: QueryAnalysis) -> bool:
+    return "structured_lookup" not in analysis.query_types
+
+
+def _should_run_extra_table_vector_search(analysis: QueryAnalysis) -> bool:
+    if "structured_lookup" in analysis.query_types:
+        return False
+    return _should_run_table_search(analysis)
+
+
 def run_special_search(
     store: QdrantStore,
     query: str,
@@ -1273,11 +1283,20 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     store = QdrantStore()
     analysis = analyze_query(query)
     search_filters, metadata_document_hits = select_documents_from_metadata(store, query, corpus_ids, filters)
-    dense_results = _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, search_filters), "dense")
-    sparse_results = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, search_filters), "sparse")
+    broad_vector_enabled = _should_run_broad_vector_search(analysis)
+    dense_results = (
+        _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, search_filters), "dense")
+        if broad_vector_enabled
+        else []
+    )
+    sparse_results = (
+        _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, search_filters), "sparse")
+        if broad_vector_enabled
+        else []
+    )
     table_results = (
         _annotate_stage_metadata(run_table_search(store, query, corpus_ids, search_filters), "table")
-        if _should_run_table_search(analysis)
+        if _should_run_extra_table_vector_search(analysis)
         else []
     )
     table_lexical_results = _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis), "table_lexical")

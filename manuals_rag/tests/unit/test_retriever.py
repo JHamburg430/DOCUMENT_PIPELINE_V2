@@ -266,6 +266,16 @@ def test_structured_lookup_special_routes_stay_table_focused():
     assert all("procedure_record" not in chunk_types for chunk_types in chunk_type_sets)
 
 
+def test_structured_lookup_uses_focused_vector_route_instead_of_duplicate_broad_routes():
+    analysis = analyze_query(
+        "What Vibration resistance Compliant with JIS B 3502 and IEC 61131-2 KV-NC32T value applies to SV2 Series?"
+    )
+
+    assert "structured_lookup" in analysis.query_types
+    assert retriever._should_run_broad_vector_search(analysis) is False
+    assert retriever._should_run_extra_table_vector_search(analysis) is False
+
+
 def test_structured_lookup_skips_contextual_lexical_search_terms():
     analysis = analyze_query("What Display Settings Green Lower Limit Value value applies to VS Series Vision System?")
 

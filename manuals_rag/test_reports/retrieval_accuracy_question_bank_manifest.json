@@ -125,12 +125,148 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 210,
+      "passed": 211,
       "warnings": 58,
-      "duration_seconds": 150.06,
-      "notes": "Full unit suite passed after eval scoring accepted applicable equivalent table evidence and queryworthy filtering rejected standalone table-header prompts."
+      "duration_seconds": 149.61,
+      "notes": "Full unit suite passed after structured lookup route pruning; focused retriever tests were 67 passed, 1 warning."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_142701",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_142701.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_142701.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_142701.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 40,
+        "passed_queries": 38,
+        "failed_queries": 2,
+        "pass_rate": 0.95,
+        "pass_at_1": 0.775,
+        "pass_at_3": 0.9,
+        "pass_at_5": 0.95,
+        "candidate_recall_rate": 0.975,
+        "metadata_document_selection_recall_rate": 0.975,
+        "metadata_document_selection_rank_1_rate": 0.7,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 38
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 31
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 6
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "wrong_document_or_filter_loss": 1,
+          "ranking_or_context_loss": 1
+        },
+        "notes": "Structured lookup route pruning removed the saved KV-X eval_timeout; saved single-step bank stayed 38/40 (95%) with failures now wrong_document_or_filter_loss: 1 and ranking_or_context_loss: 1."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_142814",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_142814.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_142814.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_142814.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 0.9333,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.4667,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "failure_categories": {},
+        "notes": "No-regression check for the refined warning-plus-step multi-step bank stayed 15/15 (100%)."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_142927",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_142927.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_142927.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_142927.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_142927.json",
+        "status": "completed",
+        "mode": "retrieval_only_refreshed_single_step_diagnostic_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 40,
+        "passed_queries": 34,
+        "failed_queries": 6,
+        "pass_rate": 0.85,
+        "pass_at_1": 0.8,
+        "pass_at_3": 0.85,
+        "pass_at_5": 0.85,
+        "candidate_recall_rate": 0.95,
+        "metadata_document_selection_recall_rate": 0.95,
+        "metadata_document_selection_rank_1_rate": 0.7,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 34
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 28
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 6
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 0
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 4,
+          "wrong_document_or_filter_loss": 2
+        },
+        "notes": "Diagnostic refreshed deterministic single-step bank without standalone table-header prompts completed 34/40 (85%); not promoted to durable question-bank list because it exposed new ranking/document-selection failures."
+      },
       {
         "run_id": "retrieval_eval_20260824_135558",
         "corpus_id": "manuals_vendor_keyence",
@@ -1619,13 +1755,17 @@
       }
     ],
     "failure_categories": {
-      "single_step_regression": {
-        "eval_timeout": 1,
+      "saved_single_step_regression": {
+        "wrong_document_or_filter_loss": 1,
         "ranking_or_context_loss": 1
       },
-      "warning_step_multi_step": {}
+      "warning_step_multi_step": {},
+      "refreshed_single_step_diagnostic": {
+        "ranking_or_context_loss": 4,
+        "wrong_document_or_filter_loss": 2
+      }
     },
-    "next_target": "Reduce the remaining saved single-step KV-X timeout and retire or replace the old low-quality IV4 detection table-header prompt in a refreshed durable bank, then broaden multi-step coverage to cross-document engineering questions."
+    "next_target": "Improve refreshed single-step ranking/document selection for LJ-S, CV-X, and VS structured questions while preserving the saved 38/40 bank and warning-step 15/15 bank, then broaden multi-step coverage to cross-document engineering questions."
   },
-  "next_target": "Reduce the remaining saved single-step KV-X timeout, refresh the single-step bank without standalone table-header prompts, then broaden multi-step coverage to cross-document engineering questions."
+  "next_target": "Improve refreshed single-step ranking/document selection for LJ-S, CV-X, and VS structured questions while preserving the saved 38/40 bank and warning-step 15/15 bank, then broaden multi-step coverage to cross-document engineering questions."
 }
