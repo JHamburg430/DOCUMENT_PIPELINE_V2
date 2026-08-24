@@ -569,7 +569,12 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
 def _safe_query_label(chunk: dict[str, Any]) -> str:
     metadata = dict(chunk.get("metadata_json", {}))
     model = str(chunk.get("product_model") or metadata.get("product_model") or "").strip()
-    if model and len(model) <= 60 and model.count("/") <= 3 and not _query_uses_filename_artifact(model, chunk):
+    generic_model_label = re.search(
+        r"\b(?:user'?s?\s+manual|instruction\s+manual|setup\s+guide|installation\s+guide|operation\s+manual)\b",
+        model,
+        flags=re.IGNORECASE,
+    )
+    if model and not generic_model_label and len(model) <= 60 and model.count("/") <= 3 and not _query_uses_filename_artifact(model, chunk):
         return model
     family = str(metadata.get("product_family") or "").strip()
     if family and len(family) <= 80 and family.count("/") <= 1 and not _query_uses_filename_artifact(family, chunk):
@@ -973,6 +978,14 @@ def _operational_step_subject(chunk: dict[str, Any]) -> str:
     return _short_answer_anchor(subject)
 
 
+def _warning_step_action_phrase(subject: str) -> str:
+    phrase = re.sub(r"\s+", " ", subject).strip()
+    if not phrase:
+        return phrase
+    phrase = phrase[0].lower() + phrase[1:]
+    return phrase.rstrip(".")
+
+
 def _good_operational_step_chunk(chunk: dict[str, Any]) -> bool:
     chunk_type = str(chunk.get("chunk_type", ""))
     if chunk_type not in {"procedure_record", "atomic_text"}:
@@ -984,6 +997,8 @@ def _good_operational_step_chunk(chunk: dict[str, Any]) -> bool:
     if _looks_like_toc_line(content) or _looks_like_legal_boilerplate(content):
         return False
     compact = normalize_text(content)
+    if re.match(r"^(?:do not|never|caution|warning|notice|if|failing to)\b", compact):
+        return False
     has_step_shape = re.match(r"^\d+\s+[a-z]", compact) is not None
     has_action = any(term in TECHNICAL_VERBS for term in tokenize(content))
     return len(content) >= 45 and len(anchors) >= 2 and (has_step_shape or has_action)
@@ -1215,9 +1230,10 @@ def _build_warning_step_multi_step_cases(
                 if not _good_contextual_procedure_subject(step_subject):
                     continue
                 label = _safe_query_label(step) or _safe_query_label(warning)
+                action_phrase = _warning_step_action_phrase(step_subject)
                 query = (
-                    f"When {step_subject}{_for_label(label)}, "
-                    f"what warning or caution about {warning_subject} should be followed?"
+                    f"What warning or caution about {warning_subject}{_for_label(label)} "
+                    f"applies when {action_phrase}?"
                 )
                 if _has_near_duplicate_query(query, seen_queries):
                     continue

@@ -1,0 +1,51 @@
+{
+  "total_queries": 15,
+  "passed_queries": 8,
+  "failed_queries": 7,
+  "pass_rate": 0.5333,
+  "pass_at_1": 0.4667,
+  "pass_at_3": 0.5333,
+  "pass_at_5": 0.5333,
+  "mean_passing_rank": 1.125,
+  "by_chunk_type": {
+    "atomic_text": {
+      "total": 15,
+      "passed": 8
+    }
+  },
+  "by_retrieval_task": {
+    "multi_step_retrieval": {
+      "total": 15,
+      "passed": 8
+    }
+  },
+  "by_document": {
+    "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf": {
+      "total": 7,
+      "passed": 5
+    },
+    "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf": {
+      "total": 1,
+      "passed": 0
+    },
+    "AS_146087_IV4_UM_K08GB_WW_GB_2084_1.pdf": {
+      "total": 5,
+      "passed": 1
+    },
+    "AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf": {
+      "total": 2,
+      "passed": 2
+    }
+  },
+  "failure_categories": {
+    "eval_timeout": 7
+  },
+  "benchmark_quality": {
+    "validated": 15
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 0.5333,
+  "metadata_document_selection_attempts": 8,
+  "metadata_document_selection_recall_rate": 1.0,
+  "metadata_document_selection_rank_1_rate": 0.25
+}

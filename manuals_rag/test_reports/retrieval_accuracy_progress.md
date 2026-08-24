@@ -340,3 +340,19 @@ Next target:
 Next target:
 
 - Continue warning-step latency reduction by profiling the remaining safety special route and rerank inputs, then improve the newly exposed warning-step ranking/context loss and restore the saved single-step bank to at least 37/40 before broadening to cross-document multi-step cases.
+
+## 2026-08-24 Cron 39262386 Refined Warning-Step Questions
+
+- Target: refine warning-plus-step multi-step eval coverage so it uses realistic engineer wording before making further retrieval changes.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed eval logic in `packages/evals/src/manuals_rag_evals/retrieval_eval.py` so warning-step generation skips prohibition/status snippets as operational steps, avoids generic labels such as `User's Manual (3D mode)` when a product family is available, and asks `What warning or caution ... applies when ...?` instead of pasting long step snippets after `When`.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for the refined question shape, generic manual-label fallback, and prohibition skipping.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 36 passed.
+- Live eval command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --retrieval-task multi_step_retrieval --multi-step-case-family warning_step --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45 --disable-llm-query-generation`.
+- Live eval result: refined warning-step bank `retrieval_eval_20260824_105701` generated 15 validated multi-step questions and passed 8/15 (53.33%), pass@1 46.67%, pass@3/pass@5 53.33%, candidate recall 53.33%, metadata-document recall 100%, and failure categories `eval_timeout: 7`. The new dataset is tracked in the manifest, bringing the question bank to 153 exploratory questions: 80 single-step and 73 multi-step.
+- Diagnostic retrieval experiment: a smaller safety/procedure rerank pool was tested and reverted after `retrieval_eval_20260824_110038` dropped to 7/15 (46.67%) with `eval_timeout: 8`; no retrieval logic from that experiment was kept.
+- Changed files: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for 10:57 and 11:00 UTC.
+
+Next target:
+
+- Profile and reduce IV4 warning/status safety-route latency causing 8-second warning-step eval timeouts, then rerun the refined warning-step bank and the saved single-step regression bank.

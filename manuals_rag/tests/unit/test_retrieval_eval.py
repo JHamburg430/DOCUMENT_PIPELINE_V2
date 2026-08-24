@@ -495,7 +495,73 @@ def test_build_multi_step_eval_cases_from_warning_step_neighborhood():
     assert cases[0].retrieval_task == "multi_step_retrieval"
     assert cases[0].generation_method == "warning_plus_step_evidence"
     assert "warning or caution" in cases[0].query.lower()
+    assert cases[0].query.startswith("What warning or caution")
+    assert "applies when connect the ether" in cases[0].query.lower()
     assert cases[0].expected_source_chunk_ids == ["procedure-cell", "warning-cell"]
+
+
+def test_warning_step_cases_skip_generic_manual_labels_and_prohibitions():
+    base = {
+        "source_document_id": "doc-lj",
+        "document_version_id": "ver-lj",
+        "title": "LJ-X",
+        "source_filename": "lj-x.pdf",
+    }
+    chunks = [
+        {
+            **base,
+            "id": "prohibition",
+            "chunk_type": "atomic_text",
+            "chunk_level": 1,
+            "section_path_text": "Mounting",
+            "page_from": 12,
+            "page_to": 12,
+            "content": "Do not install the controller in a location with lots of dust or water vapor.",
+            "metadata_json": {
+                "product_model": "User's Manual (3D mode)",
+                "product_family": "LJ: X8000 Series",
+                "local_rerank_context": "Controller mounting cautions for LJ-X8000.",
+            },
+        },
+        {
+            **base,
+            "id": "step",
+            "chunk_type": "atomic_text",
+            "chunk_level": 1,
+            "section_path_text": "Mounting",
+            "page_from": 12,
+            "page_to": 12,
+            "content": "Install the controller to the DIN rail, or use the holes on the bottom to secure it with screws.",
+            "metadata_json": {
+                "product_model": "User's Manual (3D mode)",
+                "product_family": "LJ: X8000 Series",
+                "local_rerank_context": "Controller mounting cautions for LJ-X8000.",
+            },
+        },
+        {
+            **base,
+            "id": "warning",
+            "chunk_type": "warning_record",
+            "chunk_level": 1,
+            "section_path_text": "Mounting",
+            "page_from": 12,
+            "page_to": 12,
+            "content": "Caution: Caution on direction of controller mounting",
+            "metadata_json": {
+                "product_model": "User's Manual (3D mode)",
+                "product_family": "LJ: X8000 Series",
+                "local_rerank_context": "Controller mounting cautions for LJ-X8000.",
+            },
+        },
+    ]
+
+    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="warning_step")
+
+    assert len(cases) == 1
+    assert cases[0].expected_source_chunk_ids == ["step", "warning"]
+    assert "User's Manual" not in cases[0].query
+    assert "LJ: X8000 Series" in cases[0].query
+    assert "When Do not" not in cases[0].query
 
 
 def test_build_eval_cases_skips_low_signal_atomic_queries():
