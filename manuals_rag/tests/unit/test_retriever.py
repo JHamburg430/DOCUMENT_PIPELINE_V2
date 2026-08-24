@@ -171,6 +171,22 @@ def test_query_analysis_marks_applies_to_field_questions_as_structured_lookup():
     assert "spec_record" in analysis.preferred_chunk_types
 
 
+def test_query_analysis_marks_detection_applies_questions_as_structured_lookup():
+    analysis = analyze_query("What detection applies to IV4-G120?")
+
+    assert "structured_lookup" in analysis.query_types
+    assert analysis.product_model == "IV4-G120"
+    assert "comparison" not in analysis.query_types
+
+
+def test_query_analysis_does_not_treat_vs_series_as_comparison():
+    analysis = analyze_query("What Display Settings value applies to VS Series Vision System?")
+
+    assert "structured_lookup" in analysis.query_types
+    assert "comparison" not in analysis.query_types
+    assert analysis.product_family == "VS"
+
+
 def test_query_analysis_marks_cause_and_correction_questions_as_structured_lookup():
     analysis = analyze_query("What causes EtherNet/IP output buffer is full, and how should it be corrected?")
     assert "structured_lookup" in analysis.query_types
@@ -237,6 +253,23 @@ def test_special_routes_include_action_text_for_warning_applies_questions():
     chunk_type_sets = [set(route["chunk_type"]) for route in routes if "chunk_type" in route]
 
     assert {"warning_record", "procedure_record", "atomic_text"} in chunk_type_sets
+
+
+def test_structured_lookup_special_routes_stay_table_focused():
+    analysis = analyze_query("What Display Settings Green Lower Limit Value value applies to VS Series Vision System?")
+
+    routes = retriever._special_route_filters({"is_active": True}, analysis)
+    chunk_type_sets = [set(route["chunk_type"]) for route in routes if "chunk_type" in route]
+
+    assert {"table_record", "spec_record", "section_window"} in chunk_type_sets
+    assert {"procedure_record", "section_window"} not in chunk_type_sets
+    assert all("procedure_record" not in chunk_types for chunk_types in chunk_type_sets)
+
+
+def test_structured_lookup_skips_contextual_lexical_search_terms():
+    analysis = analyze_query("What Display Settings Green Lower Limit Value value applies to VS Series Vision System?")
+
+    assert retriever._lexical_context_terms(analysis.raw_query, analysis) == []
 
 
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():

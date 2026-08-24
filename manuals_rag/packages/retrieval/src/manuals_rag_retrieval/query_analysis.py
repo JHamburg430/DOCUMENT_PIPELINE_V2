@@ -47,7 +47,7 @@ def analyze_query(query: str) -> QueryAnalysis:
         types.append("operational_flow")
         preferred_chunk_types.extend(["section_window", "procedure_record"])
     structured_lookup_field = re.search(
-        r"\b(?:address|value|message|symbol|description|index|sub\s+index|stored\s+data|error\s+message)\b",
+        r"\b(?:address|value|message|symbol|description|detection|index|sub\s+index|stored\s+data|error\s+message)\b",
         lowered,
     )
     structured_lookup_shape = re.search(r"\b(?:applies?\s+to|applies?\s+for)\b", lowered)
@@ -80,7 +80,9 @@ def analyze_query(query: str) -> QueryAnalysis:
         types.append("troubleshooting")
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "section_window"])
-    if any(word in lowered for word in ["compare", "difference", "versus", "vs "]):
+    if re.search(r"\b(?:compare|difference|versus)\b", lowered) or re.search(r"\bvs\.?\b", lowered) and not re.search(
+        r"\bvs\.?\s+series\b", lowered
+    ):
         types.append("comparison")
         preferred_chunk_types.extend(["spec_record", "datasheet_record", "table_record"])
     if any(word in lowered for word in ["compatib", "support", "supported", "works with"]):

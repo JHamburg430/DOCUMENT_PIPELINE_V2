@@ -439,3 +439,24 @@ Next target:
 Next target:
 
 - Reduce the remaining VS/IV4 single-step timeout and ranking/context losses, then broaden multi-step coverage to cross-document engineering questions.
+
+## 2026-08-24 Cron 39262386 Structured Lookup Route Focus
+
+- Target: reduce the remaining VS/IV4 single-step timeout and ranking/context losses without changing model settings, ingestion, UI, schema, or adding document-specific routing.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior saved single-step run `retrieval_eval_20260824_125142` was 37/40 (92.5%) with `eval_timeout: 1` and `ranking_or_context_loss: 2`. The VS display-settings structured table query still ran broad contextual/procedure supplemental searches and was measured around 9-10 seconds warm; `VS Series` was also incorrectly classified as a comparison query. The VS applicability atomic-text miss was outranked by short title/spec chunks, and the IV4 detection prompt was a low-information table-header case.
+- Changed query analysis in `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py` so `VS Series` does not trigger comparison intent and `detection ... applies to` prompts are treated as structured lookups.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so structured lookups use a focused table/spec/section special route and skip contextual lexical procedure searches. The profiled VS display-settings query dropped from about 9-10 seconds warm to 3.404 seconds in the same direct path; contextual lexical work dropped to zero and special-route time dropped to 0.135 seconds.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for VS Series comparison avoidance, detection applies-to classification, focused structured special routes, and contextual lexical skip behavior.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 66 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 208 passed, 58 warnings in 152.37s.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_132820` improved from 37/40 (92.5%) to 38/40 (95%), pass@1 82.5%, pass@3 90%, pass@5 95%, candidate recall 97.5%, metadata-document recall 97.5%, and failures `wrong_document_or_filter_loss: 1`, `ranking_or_context_loss: 1`. The previous VS display-settings timeout and VS applicability atomic-text miss now pass at rank 1. Remaining failures are an IV4-G600CA PDO case where the top evidence has the same answer from another IV4 manual, and a likely low-quality IV4 detection table-header prompt.
+- Live eval command (saved refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved refined warning-step result: `retrieval_eval_20260824_133005` held at 15/15 (100%), pass@1 86.67%, pass@3 93.33%, pass@5 100%, candidate recall 100%, metadata-document recall 100%, failure categories `{}`.
+- Question-bank counts unchanged: 153 exploratory questions total, 80 single-step and 73 multi-step. New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_132820.json`, `test_reports/retrieval_eval_manifest_20260824_132820.json`, `test_reports/retrieval_eval_summary_20260824_133005.json`, `test_reports/retrieval_eval_manifest_20260824_133005.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py`, `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for 13:28 and 13:30 UTC.
+
+Next target:
+
+- Resolve the remaining single-step IV4 failures by distinguishing equivalent-answer evidence from true wrong-document misses and pruning low-quality table-header prompts, then broaden multi-step coverage to cross-document engineering questions.
