@@ -52,7 +52,15 @@ def analyze_query(query: str) -> QueryAnalysis:
         lowered,
     )
     structured_lookup_shape = re.search(r"\b(?:appl(?:y|ies)\s+to|appl(?:y|ies)\s+for)\b", lowered)
-    if structured_lookup_field and structured_lookup_shape:
+    structured_reverse_lookup_shape = re.search(
+        r"\bwhat\s+"
+        r"(?:address|values?|items?|setting\s+(?:item|range)|word\s+device|number\s+of\s+image\s+pixels|"
+        r"cause|error\s+code|message|symbol|description|detection|index|sub\s+index|stored\s+data|"
+        r"error\s+message|summary|data\s*\d+)"
+        r"\b.+\b(?:selects?|sets?|specif(?:y|ies)|measures?|displays?|indicates?|corresponds?)\b",
+        lowered,
+    )
+    if structured_lookup_field and (structured_lookup_shape or structured_reverse_lookup_shape):
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
     requested_doc_kind = None

@@ -205,11 +205,130 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 237,
+      "passed": 238,
       "warnings": 58,
-      "notes": "Full unit suite passed after tightening deterministic single-step eval query-quality filtering."
+      "notes": "Full unit suite passed after broadening reverse table lookup query classification."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_212529",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_212529.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_212529.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_212529.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 13,
+        "passed_queries": 13,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 13,
+            "passed": 13
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 11,
+            "passed": 11
+          },
+          "atomic_text": {
+            "total": 2,
+            "passed": 2
+          }
+        },
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_single_step_replacement_debt_reverse_lookup_fix",
+        "notes": "Reverse table lookup query classification fixed the remaining generated LJ-X8000 setting-item ranking/context loss; this 13-case replacement-debt bank improved from 12/13 to 13/13 at rank 1."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_212612",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_173031.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_212612.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_212612.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_212612.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 20,
+        "passed_queries": 20,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.95,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 0.95,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 20,
+            "passed": 20
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 15,
+            "passed": 15
+          },
+          "atomic_text": {
+            "total": 5,
+            "passed": 5
+          }
+        },
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_replacement_single_step_bank_direct_timeout_warmup",
+        "notes": "No-regression check for the existing 20-case replacement single-step bank stayed 20/20."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_212704",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_212704.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_212704.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_212704.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
+        "notes": "No-regression check for the refined warning-plus-step multi-step bank stayed 15/15."
+      },
       {
         "run_id": "retrieval_eval_20260824_210121",
         "corpus_id": "manuals_vendor_keyence",
@@ -3285,9 +3404,7 @@
       }
     ],
     "failure_categories": {
-      "replacement_debt_single_step_bank": {
-        "ranking_or_context_loss": 1
-      },
+      "replacement_debt_single_step_bank": {},
       "replacement_single_step_bank": {},
       "warning_step_multi_step_bank": {},
       "cross_document_multi_step_bank": {
@@ -3295,7 +3412,7 @@
         "candidate_miss": 1
       }
     },
-    "next_target": "Improve the remaining generated single-step LJ-X8000 ranking/context loss and continue expanding cross-document multi-step coverage while keeping replacement debt at zero.",
+    "next_target": "Improve cross-document multi-step retrieval/context assembly for same-field prompts while preserving green single-step reverse lookup and warning-step gates; then add final-answer grounding eval coverage.",
     "current_failure_categories": {
       "replacement_debt_single_step_bank": {
         "ranking_or_context_loss": 1
@@ -3306,6 +3423,10 @@
         "ranking_or_context_loss": 7,
         "candidate_miss": 1
       }
+    },
+    "answer_grounding_status": {
+      "status": "not_measured_this_run",
+      "notes": "This scoped run changed retrieval query classification only; next answer-generation work should add or run answer-with-citations grounding coverage after cross-document retrieval improves."
     }
   },
   "next_target": "Improve the remaining generated single-step LJ-X8000 ranking/context loss and continue expanding cross-document multi-step coverage while keeping replacement debt at zero."

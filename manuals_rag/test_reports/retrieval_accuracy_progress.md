@@ -810,3 +810,27 @@ Next target:
 Next target:
 
 - Improve the remaining generated single-step LJ-X8000 ranking/context loss and continue expanding cross-document multi-step coverage while keeping replacement debt at zero.
+
+## 2026-08-24 Cron 39262386 Reverse Table Lookup Classification
+
+- Target: fix the remaining generated single-step LJ-X8000 ranking/context loss from the 13-question replacement-debt bank without document-specific routing or eval-only behavior.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior replacement-debt run `retrieval_eval_20260824_210121` was 12/13 (92.31%). The failed question was a natural table reverse lookup, `what Setting item ... selects width measure`, but query analysis treated it as configuration/procedure rather than structured/table lookup, so table candidates did not survive final selection.
+- Changed retrieval query analysis in `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py` so reverse table lookup phrasing such as `what setting item ... selects ...`, `what value ... sets ...`, or `what message ... indicates ...` is classified as `structured_lookup`. This is grammar-based and should apply to unseen manuals, vendors, and users asking table field/value questions.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for reverse table lookup classification.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 82 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 238 passed, 58 warnings in 152.01s.
+- Live eval command (13-case replacement-debt bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_210121.jsonl --max-queries 13 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Replacement-debt single-step result: `retrieval_eval_20260824_212529` improved from 12/13 (92.31%) to 13/13 (100%), pass@1/pass@3/pass@5 all 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`. The former LJ-X8000 setting-item miss now passes at rank 1.
+- No-regression command (20-case replacement single-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_173031.jsonl --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Replacement single-step result: `retrieval_eval_20260824_212612` stayed 20/20 (100%), pass@1 95%, pass@3/pass@5 100%, candidate recall 100%, failures `{}`.
+- No-regression command (15-case refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Warning-step multi-step result: `retrieval_eval_20260824_212704` stayed 15/15 (100%), pass@1 86.67%, pass@3/pass@5 100%, candidate recall 100%, failures `{}`.
+- Question-bank counts unchanged this run while a validated existing case was refined/fixed: 193 exploratory questions total, 100 single-step and 93 multi-step; replacement debt remains 0.
+- Answer-grounding status: not measured this run because the scoped change was retrieval query classification only.
+- New tracked artifacts: `test_reports/retrieval_eval_summary_20260824_212529.json`, `test_reports/retrieval_eval_manifest_20260824_212529.json`, `test_reports/retrieval_eval_summary_20260824_212612.json`, `test_reports/retrieval_eval_manifest_20260824_212612.json`, `test_reports/retrieval_eval_summary_20260824_212704.json`, `test_reports/retrieval_eval_manifest_20260824_212704.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 21:25-21:27 UTC.
+
+Next target:
+
+- Improve cross-document multi-step retrieval/context assembly for same-field prompts, especially the saved `retrieval_eval_20260824_202725` ranking/context losses, while preserving the green single-step reverse-lookup and warning-step gates; then add or run final-answer grounding coverage.

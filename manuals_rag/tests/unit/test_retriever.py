@@ -202,6 +202,13 @@ def test_query_analysis_marks_summary_applies_questions_as_structured_lookup():
     assert "table_record" in analysis.preferred_chunk_types
 
 
+def test_query_analysis_marks_reverse_table_lookup_questions_as_structured_lookup():
+    analysis = analyze_query("For X8000 Series, what Setting item for Settings selects width measure?")
+
+    assert "structured_lookup" in analysis.query_types
+    assert "table_record" in analysis.preferred_chunk_types
+
+
 def test_query_analysis_marks_specified_for_model_questions_as_spec_lookup():
     analysis = analyze_query("What average density is specified for CV-X482?")
 
