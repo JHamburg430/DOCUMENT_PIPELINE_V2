@@ -124,6 +124,19 @@ def select_documents_from_metadata(
     return {**filters, "source_document_id": document_ids}, deduped_hits
 
 
+def _chunk_search_filters(filters: dict[str, object], metadata_filters: dict[str, object], analysis: QueryAnalysis) -> dict[str, object]:
+    if _has_explicit_document_scope(filters):
+        return metadata_filters
+    if (
+        "structured_lookup" in analysis.query_types
+        and analysis.product_family
+        and not analysis.product_model
+        and not analysis.part_number
+    ):
+        return filters
+    return metadata_filters
+
+
 def _special_route_filters(base_filters: dict[str, object], analysis: QueryAnalysis) -> list[dict[str, object]]:
     routes: list[dict[str, object]] = []
     if "structured_lookup" in analysis.query_types:
@@ -1439,19 +1452,20 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     store = QdrantStore()
     analysis = analyze_query(query)
     search_filters, metadata_document_hits = select_documents_from_metadata(store, query, corpus_ids, filters)
+    chunk_search_filters = _chunk_search_filters(filters, search_filters, analysis)
     broad_vector_enabled = _should_run_broad_vector_search(analysis)
     dense_results = (
-        _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, search_filters), "dense")
+        _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, chunk_search_filters), "dense")
         if broad_vector_enabled
         else []
     )
     sparse_results = (
-        _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, search_filters), "sparse")
+        _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, chunk_search_filters), "sparse")
         if broad_vector_enabled
         else []
     )
     table_results = (
-        _annotate_stage_metadata(run_table_search(store, query, corpus_ids, search_filters), "table")
+        _annotate_stage_metadata(run_table_search(store, query, corpus_ids, chunk_search_filters), "table")
         if _should_run_extra_table_vector_search(analysis)
         else []
     )
@@ -1464,7 +1478,7 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
         run_contextual_lexical_search(query, corpus_ids, filters, analysis),
         "contextual_lexical",
     )
-    special_results = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, search_filters, analysis), "special")
+    special_results = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, chunk_search_filters, analysis), "special")
     fused = _annotate_stage_metadata(
         fuse_results(
             store,
@@ -1476,7 +1490,7 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     rescored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored")[:FUSED_CANDIDATE_POOL_LIMIT], "family_scored")
     completed = _annotate_stage_metadata(_annotate_completeness(rescored), "completeness_scored")
     aligned = _annotate_stage_metadata(_apply_query_alignment(completed, analysis, stage="query_aligned"), "query_aligned")
-    family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=search_filters, limit=12), "family_selected")
+    family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=chunk_search_filters, limit=12), "family_selected")
     enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=12)
     reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked")
     deduped = _dedupe_results(reranked, analysis)

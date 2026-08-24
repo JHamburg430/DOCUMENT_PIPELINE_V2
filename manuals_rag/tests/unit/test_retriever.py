@@ -1745,6 +1745,62 @@ def test_retrieve_uses_metadata_document_selection_before_chunk_search(monkeypat
     assert results[0].metadata["selected_document_metadata_hits"][0]["source_document_id"] == "doc-selected"
 
 
+def test_product_family_structured_lookup_does_not_hard_scope_chunk_search_to_metadata_selection(monkeypatch):
+    selected_filters: list[dict[str, object]] = []
+    result = SearchResult(
+        chunk_id="table-row",
+        score=0.9,
+        title="LJ-X8000 Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-expected",
+        pages=[505],
+        section_path=["PLC link"],
+        content="Column headers: Link unit; Row headers: SYSMAC CPM2A; Cell value: CPM1-C1F01",
+        metadata={"chunk_type": "table_record", "product_family": "LJ: X8000 Series"},
+    )
+
+    class FakeStore:
+        def search_document_metadata(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 5) -> list[dict[str, object]]:
+            return [
+                {
+                    "source_document_id": "doc-wrong",
+                    "score": 0.9,
+                    "retrieval_stage": "metadata_dense+metadata_sparse",
+                    "payload": {"title": "X8000 Brochure", "source_filename": "brochure.pdf"},
+                }
+            ]
+
+        def search_dense(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            selected_filters.append(filters)
+            return [result] if filters == {"is_active": True, "chunk_type": ["table_record"]} else []
+
+        def search_sparse(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            selected_filters.append(filters)
+            return []
+
+        @staticmethod
+        def fuse_rrf(result_sets: list[list[SearchResult]], *, limit: int, k: int = 60) -> list[SearchResult]:
+            return QdrantStore.fuse_rrf(result_sets, limit=limit, k=k)
+
+    monkeypatch.setattr(retriever, "QdrantStore", FakeStore)
+    monkeypatch.setattr(retriever, "run_contextual_lexical_search", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(retriever, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "rerank_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "assemble_context", lambda results, **_kwargs: results)
+
+    results = retriever.retrieve(
+        "What cpm1-c1f01 SYSMAC CPM2A Link unit value applies to LJ: X8000 Series?",
+        ["corpus-1"],
+        {"is_active": True},
+        limit=5,
+    )
+
+    assert [item.chunk_id for item in results] == ["table-row"]
+    assert {"is_active": True, "chunk_type": ["table_record"]} in selected_filters
+    assert all(filters.get("source_document_id") != ["doc-wrong"] for filters in selected_filters)
+    assert results[0].metadata["selected_document_metadata_hits"][0]["source_document_id"] == "doc-wrong"
+
+
 def test_retrieve_keeps_table_chunks_available_for_safety_queries_without_table_only_route(monkeypatch):
     query = "When installing the controller for LJ-X8000, what warning or caution about controller mounting should be followed?"
     base_search_filters: list[dict[str, object]] = []

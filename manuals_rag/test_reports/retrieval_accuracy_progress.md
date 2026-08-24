@@ -667,3 +667,25 @@ Next target:
 Next target:
 
 - Fix the remaining replacement single-step LJ-X8000 PLC link-unit wrong-document/candidate-selection miss, then broaden multi-step coverage to cross-document engineering questions.
+
+## 2026-08-24 Cron 39262386 Product-Family Metadata Scope
+
+- Target: fix the remaining replacement single-step LJ-X8000 PLC link-unit wrong-document/candidate-selection miss without reintroducing broad lexical scans or query-derived hard document filters.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior replacement single-step run `retrieval_eval_20260824_175800` was 19/20 (95%). The failed query was the LJ-X8000/SYSMAC CPM2A link-unit lookup; metadata document selection chose related X8000/XG/LJ brochure-style documents and excluded the LJ-X8000 user's manual table row from table/vector candidate search.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so product-family-only `structured_lookup` queries keep metadata document selection for diagnostics/annotation but use the original request filters for chunk retrieval. Explicit `source_document_id`/`document_version_id` filters remain strict, and product-model/part-number structured lookups keep the faster metadata-scoped path.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for the same failure mode: metadata selection returns a plausible wrong document, while product-family structured chunk search still uses the original filters and retrieves the table row.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 78 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 228 passed, 58 warnings in 150.50s.
+- Live eval command (replacement validated single-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_173031.jsonl --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Replacement single-step result: `retrieval_eval_20260824_182625` improved from 19/20 (95%) to 20/20 (100%), pass@1 95%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 95%, failure categories `{}`. The LJ-X8000 PLC link-unit case now passes under the standard 8-second timeout.
+- Live eval command (cleaned saved single-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_165722.jsonl --max-queries 27 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Cleaned saved single-step result: `retrieval_eval_20260824_182715` stayed 27/27 (100%), pass@1 88.89%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`.
+- Live eval command (refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Warning-step multi-step result: `retrieval_eval_20260824_182816` stayed 15/15 (100%), pass@1 86.67%, pass@3 93.33%, pass@5 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`.
+- Question-bank counts unchanged: 160 exploratory questions total, 87 single-step and 73 multi-step. New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_182625.json`, `test_reports/retrieval_eval_manifest_20260824_182625.json`, `test_reports/retrieval_eval_summary_20260824_182715.json`, `test_reports/retrieval_eval_manifest_20260824_182715.json`, `test_reports/retrieval_eval_summary_20260824_182816.json`, `test_reports/retrieval_eval_manifest_20260824_182816.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for 18:26-18:28 UTC.
+
+Next target:
+
+- Broaden multi-step coverage to cross-document engineering questions while preserving the 20/20 replacement single-step, 27/27 cleaned single-step, and 15/15 warning-step gates.

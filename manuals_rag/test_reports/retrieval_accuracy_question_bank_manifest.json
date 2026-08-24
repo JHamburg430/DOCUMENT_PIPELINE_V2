@@ -160,13 +160,136 @@
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 77,
-      "warnings": 1,
-      "notes": "Focused retrieval suite passed after skipping supplemental table lexical scan for structured lookups that already include an analyzed product family. Full unit suite was not rerun to keep this cron inside the 30-minute budget; live single-step and warning-step regression evals were run."
+      "passed": 228,
+      "warnings": 58,
+      "notes": "Full unit suite passed after product-family structured lookups stopped hard-scoping chunk search to inferred metadata-selected documents. Focused retrieval suite also passed: tests/unit/test_retriever.py -> 78 passed, 1 warning."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_182625",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_173031.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_182625.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_182625.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_182625.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 20,
+        "passed_queries": 20,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.95,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 0.95,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 20,
+            "passed": 20
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 15,
+            "passed": 15
+          },
+          "atomic_text": {
+            "total": 5,
+            "passed": 5
+          }
+        },
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_replacement_single_step_bank_direct_timeout_warmup",
+        "notes": "Replacement validated single-step bank improved from 19/20 to 20/20. Product-family-only structured table lookups no longer use inferred metadata-selected documents as hard chunk-search scope, so the LJ-X8000 PLC link-unit row is retrievable even when metadata selection chooses a related X8000 brochure/document set."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_182715",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_165722.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_182715.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_182715.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_182715.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 27,
+        "passed_queries": 27,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8889,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 27,
+            "passed": 27
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 25,
+            "passed": 25
+          },
+          "atomic_text": {
+            "total": 1,
+            "passed": 1
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_cleaned_single_step_bank_direct_timeout_warmup",
+        "notes": "No-regression check for the cleaned saved single-step bank stayed 27/27 under the standard 8-second timeout."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_182816",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_182816.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_182816.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_182816.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 0.9333,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
+        "notes": "No-regression check for the refined warning-plus-step multi-step bank stayed 15/15 under the standard 8-second timeout."
+      },
       {
         "run_id": "retrieval_eval_20260824_175800",
         "corpus_id": "manuals_vendor_keyence",
