@@ -318,3 +318,25 @@ Next target:
 Next target:
 
 - Reduce contextual/warning-step retrieval latency that causes 8-second eval timeouts, then rerun the warning-plus-step bank and broaden to cross-document multi-step cases.
+
+## 2026-08-24 Cron 39262386 Safety Route Pruning
+
+- Target: reduce warning-plus-step retrieval latency that caused 8-second eval timeouts without changing model settings, ingestion, UI, schema, or adding document-specific routing.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior warning-plus-step run `retrieval_eval_20260824_095925` was 10/18 (55.56%) with all 8 failures scored as `eval_timeout`. A stage-timing probe on a timeout-shaped warning query showed table-only search was avoidable for safety/procedure intent and overlapping special safety/how-to routes spent about 7.7s before rerank.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so table-only dense/sparse search only runs when query analysis says table/spec/structured evidence is plausible. Safety/procedure/context questions still use dense, sparse, contextual lexical, and special routes.
+- Changed special route planning so safety questions keep the warning/procedure route but do not also run the broader how-to procedure/section route. Non-safety how-to/configuration questions keep the existing procedure/section route.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for skipping table search on safety procedure questions, preserving table search for structured value questions, and avoiding duplicate special how-to routes for safety questions.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 57 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 198 passed, 58 warnings in 150.92s.
+- Diagnostic warning-step eval after only skipping table search stayed at 10/18 (55.56%), confirming the overlapping special route was the larger bottleneck.
+- Live eval command (saved warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_095925.jsonl --max-queries 18 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved warning-step result: `retrieval_eval_20260824_103005` improved from 10/18 (55.56%) to 11/18 (61.11%), pass@1 50%, pass@3/pass@5 61.11%, candidate recall 66.67%, metadata-document recall 100%, and timeout failures dropped from 8 to 6. One former timeout now completes as `ranking_or_context_loss`, giving a concrete next ranking target.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_103510` completed at 36/40 (90%), pass@1 75%, pass@3 85%, pass@5 90%, candidate recall 95%, metadata-document recall 97.44%, failures `eval_timeout: 1`, `ranking_or_context_loss: 2`, `wrong_document_or_filter_loss: 1`. This is below the prior 37/40 run, so keep it as a watch item; the failures are the existing VS/IV4 timeout/ranking/document-selection cluster and the changed safety routing should not apply to structured table questions.
+- New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_103005.json`, `test_reports/retrieval_eval_manifest_20260824_103005.json`, `test_reports/retrieval_eval_summary_20260824_103510.json`, `test_reports/retrieval_eval_manifest_20260824_103510.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for 10:30 and 10:35 UTC.
+
+Next target:
+
+- Continue warning-step latency reduction by profiling the remaining safety special route and rerank inputs, then improve the newly exposed warning-step ranking/context loss and restore the saved single-step bank to at least 37/40 before broadening to cross-document multi-step cases.

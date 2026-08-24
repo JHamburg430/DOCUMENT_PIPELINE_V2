@@ -115,7 +115,7 @@ def _special_route_filters(base_filters: dict[str, object], analysis: QueryAnaly
         routes.append({**base_filters, "chunk_type": analysis.preferred_chunk_types})
     if analysis.safety_intent:
         routes.append({**base_filters, "chunk_type": ["warning_record", "procedure_record"]})
-    if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
+    if not analysis.safety_intent and ("how_to" in analysis.query_types or "configuration" in analysis.query_types):
         routes.append({**base_filters, "chunk_type": ["procedure_record", "section_window"]})
     if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
         routes.append({**base_filters, "chunk_type": ["spec_record", "datasheet_record", "table_record", "section_window"]})
@@ -167,6 +167,16 @@ def run_table_search(store: QdrantStore, query: str, corpus_ids: list[str], filt
         sparse_results = store.search_sparse(corpus_id=corpus_id, query=query, filters=table_filters, limit=limit)
         results.extend(store.fuse_rrf([dense_results, sparse_results], limit=limit))
     return results
+
+
+def _should_run_table_search(analysis: QueryAnalysis) -> bool:
+    if "table_record" in analysis.preferred_chunk_types:
+        return True
+    if {"structured_lookup", "spec_lookup", "part_lookup", "comparison", "compatibility"}.intersection(analysis.query_types):
+        return True
+    if analysis.safety_intent or {"how_to", "configuration", "operational_flow", "troubleshooting"}.intersection(analysis.query_types):
+        return False
+    return True
 
 
 def run_special_search(
@@ -1197,7 +1207,11 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     search_filters, metadata_document_hits = select_documents_from_metadata(store, query, corpus_ids, filters)
     dense_results = _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, search_filters), "dense")
     sparse_results = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, search_filters), "sparse")
-    table_results = _annotate_stage_metadata(run_table_search(store, query, corpus_ids, search_filters), "table")
+    table_results = (
+        _annotate_stage_metadata(run_table_search(store, query, corpus_ids, search_filters), "table")
+        if _should_run_table_search(analysis)
+        else []
+    )
     table_lexical_results = _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis), "table_lexical")
     contextual_lexical_results = _annotate_stage_metadata(
         run_contextual_lexical_search(query, corpus_ids, filters, analysis),

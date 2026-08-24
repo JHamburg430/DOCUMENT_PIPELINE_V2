@@ -192,6 +192,33 @@ def test_query_analysis_recognizes_models_with_numbered_prefixes():
     assert analysis.error_code is None
 
 
+def test_table_search_route_skips_safety_procedure_questions():
+    analysis = analyze_query(
+        "When installing the controller for LJ-X8000, what warning or caution about controller mounting should be followed?"
+    )
+
+    assert analysis.safety_intent is True
+    assert retriever._should_run_table_search(analysis) is False
+
+
+def test_table_search_route_keeps_structured_value_questions():
+    analysis = analyze_query("What Display Settings Green Lower Limit Value value applies to VS Series Vision System?")
+
+    assert "structured_lookup" in analysis.query_types
+    assert retriever._should_run_table_search(analysis) is True
+
+
+def test_special_routes_do_not_duplicate_how_to_route_for_safety_questions():
+    analysis = analyze_query(
+        "When installing the controller for LJ-X8000, what warning or caution about controller mounting should be followed?"
+    )
+
+    routes = retriever._special_route_filters({"is_active": True}, analysis)
+
+    assert {"warning_record", "procedure_record"} in [set(route["chunk_type"]) for route in routes]
+    assert {"procedure_record", "section_window"} not in [set(route["chunk_type"]) for route in routes]
+
+
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():
     analysis = analyze_query("What does LJ-X8000 say about trigger timing?")
     first = SearchResult(

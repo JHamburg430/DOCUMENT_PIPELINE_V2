@@ -109,14 +109,109 @@
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 35,
-      "warnings": 0,
-      "duration_seconds": 0.18,
-      "notes": "Focused eval tests passed after adding deterministic warning-plus-step multi-step generation."
+      "passed": 198,
+      "warnings": 58,
+      "duration_seconds": 150.92,
+      "notes": "Full unit suite passed after pruning non-table retrieval routes for safety/procedure questions."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_103005",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_095925.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_103005.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_103005.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_103005.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_warning_step_multi_step_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 12.536,
+        "total_queries": 18,
+        "passed_queries": 11,
+        "failed_queries": 7,
+        "pass_rate": 0.6111,
+        "pass_at_1": 0.5,
+        "pass_at_3": 0.6111,
+        "pass_at_5": 0.6111,
+        "candidate_recall_rate": 0.6667,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.5833,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 18,
+            "passed": 11
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 18,
+            "passed": 11
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 6,
+          "ranking_or_context_loss": 1
+        },
+        "notes": "Safety/procedure route pruning improved the saved warning-plus-step multi-step bank from 10/18 (55.56%) to 11/18 (61.11%) and reduced timeout failures from 8 to 6; one former timeout now completes as a ranking/context loss."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_103510",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_103510.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_103510.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_103510.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 8.296,
+        "total_queries": 40,
+        "passed_queries": 36,
+        "failed_queries": 4,
+        "pass_rate": 0.9,
+        "pass_at_1": 0.75,
+        "pass_at_3": 0.85,
+        "pass_at_5": 0.9,
+        "candidate_recall_rate": 0.95,
+        "metadata_document_selection_recall_rate": 0.9744,
+        "metadata_document_selection_rank_1_rate": 0.6923,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 36
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 30
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 5
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 2,
+          "wrong_document_or_filter_loss": 1
+        },
+        "notes": "Saved single-step bank checked after route pruning at 36/40 (90%), below the prior 37/40 run; failures are the existing VS/IV4 timeout, ranking/context, and document-selection cases. Treat as a watch item while continuing latency and ranking work."
+      },
       {
         "run_id": "retrieval_eval_20260824_095925",
         "corpus_id": "manuals_vendor_keyence",
