@@ -10,6 +10,17 @@
       "multi_step_retrieval"
     ]
   },
+  "quality_policy": {
+    "active_counts_must_not_shrink": true,
+    "retired_questions_create_replacement_debt": true,
+    "max_queries_is_batch_size_not_bank_size": true,
+    "replacement_debt": {
+      "single_step_retrieval": 13,
+      "reason": "13 stale saved single-step cases were dropped by queryworthiness cleaning and must be replaced with fresh validated engineer questions rather than treated as permanently deleted.",
+      "source_dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+      "cleaned_subset": "test_reports/retrieval_eval_dataset_20260824_165722.jsonl"
+    }
+  },
   "constraints": {
     "models": "use existing local application model settings only",
     "allowed_logic": [
@@ -63,7 +74,7 @@
           "spec_record": 1
         },
         "superseded_by": "test_reports/retrieval_eval_dataset_20260824_165722.jsonl",
-        "notes": "Superseded for active counts because 13 stale saved cases fail the current single-step queryworthiness gate, including the low-information IV4 detection table-header prompt."
+        "notes": "Superseded for active counts because 13 stale saved cases fail the current single-step queryworthiness gate, including the low-information IV4 detection table-header prompt. These are replacement debt, not a permanent reduction in desired single-step coverage."
       },
       {
         "path": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
@@ -1041,7 +1052,7 @@
         },
         "failure_categories": {},
         "dropped_invalid_cases": 13,
-        "notes": "The saved single-step bank now has an opt-in queryworthiness cleaner for stale saved cases. It retired 13 cases current generation would not use as standalone prompts, including the low-information IV4 detection table-header prompt, and the remaining 27 cases passed 27/27 under the standard 8-second timeout."
+        "notes": "The saved single-step bank now has an opt-in queryworthiness cleaner for stale saved cases. It retired 13 cases current generation would not use as standalone prompts, including the low-information IV4 detection table-header prompt, and the remaining 27 cases passed 27/27 under the standard 8-second timeout. The retired cases must be replaced by fresh validated engineer questions."
       },
       {
         "run_id": "retrieval_eval_20260824_165909",
@@ -3147,7 +3158,7 @@
       "replacement_single_step_bank": {},
       "warning_step_multi_step_bank": {}
     },
-    "next_target": "Improve cross-document multi-step retrieval/context assembly for same-field prompts using the diagnostic failures, especially final top-k ranking/context losses, while preserving the 20/20 replacement single-step and 15/15 warning-step gates.",
+    "next_target": "Pay down single-step replacement debt and keep growing active question-bank coverage while improving cross-document multi-step retrieval/context assembly; preserve the 20/20 replacement single-step, 27/27 cleaned single-step, and 15/15 warning-step gates.",
     "current_failure_categories": {
       "cross_document_multi_step_bank": {
         "ranking_or_context_loss": 6,
@@ -3161,5 +3172,5 @@
       "warning_step_multi_step_bank": {}
     }
   },
-  "next_target": "Refine cross-document multi-step evaluation/scoring before further production ranking changes: distinguish equivalent same-field table-row evidence from strict arbitrary chunk-id misses, filter overly generic cross-document fields such as item/items, and then retest retrieval changes against the 20/20 replacement single-step and 15/15 warning-step gates."
+  "next_target": "Pay down single-step replacement debt and keep growing active question-bank coverage while refining cross-document multi-step evaluation/scoring; distinguish equivalent same-field table-row evidence from strict arbitrary chunk-id misses, filter overly generic cross-document fields such as item/items, and retest against the 20/20 replacement single-step, 27/27 cleaned single-step, and 15/15 warning-step gates."
 }

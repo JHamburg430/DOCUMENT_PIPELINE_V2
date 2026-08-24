@@ -57,7 +57,15 @@ Each 30-minute run should do the smallest complete improvement cycle possible:
 
 ## Question Bank Requirements
 
-Build toward 10000+ questions if needed. Quality matters more than count.
+Build toward 10000+ questions across retrieval and answer coverage. Quality matters, but count is also a coverage requirement: do not treat a smaller green eval as progress when coverage was reduced.
+
+Question-bank growth rules:
+
+- Retiring a bad or stale question creates replacement debt. Replace it with a fresh validated engineer question in the same run when possible; otherwise record the exact debt in the progress log and manifest as the next target.
+- Active single-step and multi-step bank counts must be monotonic unless John explicitly approves a reset. If queryworthiness cleaning drops active cases, add replacement cases before declaring the bank healthy.
+- `--max-queries` is a runtime batch size, not the desired durable bank size. Small 20-case batches are acceptable for cron timing, but they should accumulate into the bank instead of replacing larger coverage.
+- Preserve retired-question metadata and reason codes so bad patterns are measurable without counting them as active coverage.
+- Locked regression banks should only grow or be superseded by larger equivalent-quality banks.
 
 Question classes to include:
 

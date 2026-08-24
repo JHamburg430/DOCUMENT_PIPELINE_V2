@@ -777,3 +777,13 @@ Next target:
 Next target:
 
 - Improve cross-document multi-step retrieval/context assembly for same-field prompts using the diagnostic failures, especially final top-k ranking/context losses, while preserving the 20/20 replacement single-step and 15/15 warning-step gates.
+
+## 2026-08-24 Main-Session Question-Bank Policy Correction
+
+- John flagged that single-step coverage appeared to drop from 40 to 20 questions. Review confirmed the 13 removed saved single-step cases were marked bad/stale by queryworthiness cleaning, but removal alone is not acceptable for the long-running accuracy job.
+- Policy correction: bad questions should be replaced, not simply deleted. Any retired question creates replacement debt, active bank counts should not shrink without explicit approval, and `--max-queries 20` is only a cron-sized eval batch, not the desired durable bank size.
+- Updated `docs/runbooks/retrieval_accuracy_cron.md` and `test_reports/retrieval_accuracy_question_bank_manifest.json` so future runs must grow coverage toward the 10000+ question target while keeping retired-question reason metadata.
+
+Next target:
+
+- Pay down the 13-question single-step replacement debt and keep accumulating validated single-step and multi-step engineer questions while preserving the existing green regression gates.
