@@ -356,3 +356,24 @@ Next target:
 Next target:
 
 - Profile and reduce IV4 warning/status safety-route latency causing 8-second warning-step eval timeouts, then rerun the refined warning-step bank and the saved single-step regression bank.
+
+## 2026-08-24 Cron 39262386 Safety Route Deduplication
+
+- Target: reduce warning-step safety-route latency without changing model settings, ingestion, UI, schema, or adding document-specific routing.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: refined warning-step bank `retrieval_eval_20260824_105701` was 8/15 (53.33%) with 7 `eval_timeout` failures. A stage probe on a failed LJ-S8000 controller-mounting warning query showed safety special routing returning 80 candidates because the preferred warning/procedure route and safety warning/procedure route differed only by chunk-type list order and bypassed dedupe.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so special-route filter fingerprints canonicalize list values before dedupe. This preserves the same generic routes and explicit filters, but prevents duplicate dense+sparse searches when chunk-type lists contain the same values in different order.
+- Added focused unit coverage in `tests/unit/test_retriever.py` asserting safety warning/procedure special routes appear once and do not add the broader how-to route.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 57 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 199 passed, 58 warnings in 150.83s.
+- Stage timing evidence: after the fix, the same LJ-S8000 safety query had one warning/procedure special route and special-route results dropped from 80 to 40 candidates; measured special stage time dropped from about 3.162s to 1.611s in the probe.
+- Live eval command (saved refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved refined warning-step result: `retrieval_eval_20260824_112647` improved from 8/15 (53.33%) to 11/15 (73.33%), pass@1 60%, pass@3/pass@5 73.33%, candidate recall 80%, metadata-document recall 100%, and failures `eval_timeout: 3`, `ranking_or_context_loss: 1`. Timeout failures dropped from 7 to 3.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_112845` held at the prior latest 36/40 (90%), pass@1 75%, pass@3 85%, pass@5 90%, candidate recall 95%, metadata-document recall 97.44%, and failures `eval_timeout: 1`, `ranking_or_context_loss: 2`, `wrong_document_or_filter_loss: 1`.
+- New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_112647.json`, `test_reports/retrieval_eval_manifest_20260824_112647.json`, `test_reports/retrieval_eval_summary_20260824_112845.json`, `test_reports/retrieval_eval_manifest_20260824_112845.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 11:26 and 11:28 UTC.
+
+Next target:
+
+- Continue reducing IV4 warning/status safety-route latency and fix the newly exposed warning-step ranking/context loss, then restore the saved single-step bank above 36/40 before broadening to cross-document multi-step cases.

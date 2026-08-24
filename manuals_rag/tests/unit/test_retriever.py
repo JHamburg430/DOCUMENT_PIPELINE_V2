@@ -214,9 +214,10 @@ def test_special_routes_do_not_duplicate_how_to_route_for_safety_questions():
     )
 
     routes = retriever._special_route_filters({"is_active": True}, analysis)
+    chunk_type_sets = [set(route["chunk_type"]) for route in routes if "chunk_type" in route]
 
-    assert {"warning_record", "procedure_record"} in [set(route["chunk_type"]) for route in routes]
-    assert {"procedure_record", "section_window"} not in [set(route["chunk_type"]) for route in routes]
+    assert chunk_type_sets.count({"warning_record", "procedure_record"}) == 1
+    assert {"procedure_record", "section_window"} not in chunk_type_sets
 
 
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():

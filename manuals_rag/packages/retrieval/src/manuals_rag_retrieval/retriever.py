@@ -130,7 +130,13 @@ def _special_route_filters(base_filters: dict[str, object], analysis: QueryAnaly
     seen: set[tuple[tuple[str, str], ...]] = set()
     deduped: list[dict[str, object]] = []
     for route in routes:
-        fingerprint = tuple(sorted((key, str(value)) for key, value in route.items()))
+        fingerprint_parts = []
+        for key, value in route.items():
+            if isinstance(value, list):
+                fingerprint_parts.append((key, ",".join(sorted(str(item) for item in value))))
+            else:
+                fingerprint_parts.append((key, str(value)))
+        fingerprint = tuple(sorted(fingerprint_parts))
         if fingerprint in seen:
             continue
         seen.add(fingerprint)

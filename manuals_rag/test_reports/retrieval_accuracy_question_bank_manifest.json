@@ -125,12 +125,103 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 198,
+      "passed": 199,
       "warnings": 58,
-      "duration_seconds": 150.92,
-      "notes": "Full unit suite passed after pruning non-table retrieval routes for safety/procedure questions."
+      "duration_seconds": 150.83,
+      "notes": "Full unit suite passed after order-insensitive special route dedupe for safety/procedure retrieval."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_112647",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_112647.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_112647.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_112647.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 11,
+        "failed_queries": 4,
+        "pass_rate": 0.7333,
+        "pass_at_1": 0.6,
+        "pass_at_3": 0.7333,
+        "pass_at_5": 0.7333,
+        "candidate_recall_rate": 0.8,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.3333,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 11
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 15,
+            "passed": 11
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 1,
+          "eval_timeout": 3
+        },
+        "notes": "Order-insensitive special-route dedupe removed duplicate safety warning/procedure searches and improved the refined warning-step bank from 8/15 (53.33%) to 11/15 (73.33%); timeout failures dropped from 7 to 3."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_112845",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_112845.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_112845.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_112845.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 40,
+        "passed_queries": 36,
+        "failed_queries": 4,
+        "pass_rate": 0.9,
+        "pass_at_1": 0.75,
+        "pass_at_3": 0.85,
+        "pass_at_5": 0.9,
+        "candidate_recall_rate": 0.95,
+        "metadata_document_selection_recall_rate": 0.9744,
+        "metadata_document_selection_rank_1_rate": 0.6923,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 36
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 30
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 5
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 2,
+          "wrong_document_or_filter_loss": 1
+        },
+        "notes": "Single-step regression bank held at the prior latest 36/40 (90%) after the safety-route latency fix; remaining failures are the existing timeout/ranking/wrong-document cluster."
+      },
       {
         "run_id": "retrieval_eval_20260824_105701",
         "corpus_id": "manuals_vendor_keyence",
@@ -1176,5 +1267,5 @@
       }
     ]
   },
-  "next_target": "Profile and reduce IV4 warning/status safety-route latency causing 8-second warning-step eval timeouts, then rerun the refined warning-step bank and the saved single-step regression bank."
+  "next_target": "Continue reducing IV4 warning/status safety-route latency and fix the newly exposed warning-step ranking/context loss, then restore the saved single-step bank above 36/40 before broadening to cross-document multi-step cases."
 }
