@@ -340,6 +340,20 @@ def _structured_lookup_subject_terms(query: str) -> set[str]:
     return terms
 
 
+def _structured_lookup_field_terms(query: str) -> set[str]:
+    match = re.search(
+        r"\bwhat\s+(?P<field>error\s+message|message|symbol|description|summary|detection)\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return set()
+    field = re.sub(r"\s+", " ", match.group("field").strip().lower())
+    if field == "error message":
+        return {"error", "message", "errormessage"}
+    return {re.sub(r"[^a-z0-9]+", "", field)}
+
+
 def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase: str = "") -> float:
     content = str(row.get("content") or "")
     metadata = dict(row.get("metadata_json") or {})
@@ -970,17 +984,24 @@ def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> flo
             alignment += 0.18
     if "structured_lookup" in analysis.query_types and chunk_type == "table_record":
         subject_terms = _structured_lookup_subject_terms(analysis.raw_query)
+        field_terms = _structured_lookup_field_terms(analysis.raw_query)
+        compact_evidence = re.sub(
+            r"[^a-z0-9]+",
+            "",
+            str(result.metadata.get("rerank_document") or result.metadata.get("content_for_rerank") or result.content or "").lower(),
+        )
         if subject_terms:
-            compact_evidence = re.sub(
-                r"[^a-z0-9]+",
-                "",
-                str(result.metadata.get("rerank_document") or result.metadata.get("content_for_rerank") or result.content or "").lower(),
-            )
             subject_overlap = sum(1 for term in subject_terms if term in compact_evidence)
             if subject_overlap:
                 alignment += min(0.6, subject_overlap * 0.3)
             elif content_overlap <= 1 and rerank_overlap <= 1:
                 alignment -= 0.08
+        if field_terms:
+            field_overlap = sum(1 for term in field_terms if term in compact_evidence)
+            if field_overlap:
+                alignment += min(0.28, field_overlap * 0.14)
+            elif subject_terms and any(term in compact_evidence for term in subject_terms):
+                alignment -= 0.16
     if analysis.safety_intent and "how_to" in analysis.query_types:
         warning_phrase = _safety_warning_phrase(analysis.raw_query)
         if warning_phrase and chunk_type == "warning_record":

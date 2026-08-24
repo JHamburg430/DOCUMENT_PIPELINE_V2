@@ -584,3 +584,23 @@ Next target:
 Next target:
 
 - Fix the remaining saved single-step ranking/context losses: promote the exact LJ-X8000 PROFINETunit message row/group into final top-k without broadening lexical scans, and retire or replace the old low-information IV4 detection table-header prompt before refreshing/promoting the single-step bank or broadening to cross-document multi-step cases.
+
+## 2026-08-24 Cron 39262386 Structured Field/Subject Ranking
+
+- Target: fix the remaining genuine saved single-step ranking loss by promoting the exact LJ-X8000 PROFINETunit message row/group into final top-k without broadening lexical scans or adding document-specific routing.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior saved single-step run `retrieval_eval_20260824_155708` was 38/40 (95%) with two `ranking_or_context_loss` failures. The LJ-X8000 query `What message profinetunit applies to User's Manual (3D mode)?` had candidate recall and selected the correct document, but unrelated Trigger Mode rows containing `PROFINET Unit` outranked the actual `Message: The PROFINETunit cannot be recognized.` row. The other miss remained the old low-information IV4 detection table-header prompt.
+- Changed retrieval ranking logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so structured message/symbol/description/summary/detection table lookups score evidence by both requested field and subject. Rows matching the subject but lacking the requested field now receive a small generic demotion; rows containing the requested field get a modest boost. This is ranking-only behavior and does not turn query text into a hard document filter.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for preferring the structured lookup field together with the subject over subject-only rows.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 76 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 221 passed, 58 warnings in 150.11s.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_162547` improved from 38/40 (95%) to 39/40 (97.5%), pass@1 90%, pass@3 95%, pass@5 97.5%, candidate recall 100%, metadata-document recall 97.5%, and failures `ranking_or_context_loss: 1`. The LJ-X8000 PROFINETunit message case now passes at rank 1 under the standard 8-second timeout.
+- Live eval command (saved refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved refined warning-step result: `retrieval_eval_20260824_162755` held at 15/15 (100%), pass@1 86.67%, pass@3 93.33%, pass@5 100%, candidate recall 100%, metadata-document recall 100%, failure categories `{}`.
+- Question-bank counts unchanged: 153 exploratory questions total, 80 single-step and 73 multi-step. New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_162547.json`, `test_reports/retrieval_eval_manifest_20260824_162547.json`, `test_reports/retrieval_eval_summary_20260824_162755.json`, `test_reports/retrieval_eval_manifest_20260824_162755.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 16:25 and 16:27 UTC.
+
+Next target:
+
+- Retire or replace the old low-information IV4 detection table-header prompt, refresh/promote a cleaner single-step bank, then broaden multi-step coverage to cross-document engineering questions.

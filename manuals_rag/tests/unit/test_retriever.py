@@ -719,6 +719,42 @@ def test_query_alignment_promotes_structured_lookup_exact_subject():
     assert rescored[0].chunk_id == "exact"
 
 
+def test_query_alignment_prefers_structured_lookup_field_with_subject():
+    analysis = analyze_query("What message profinetunit applies to User's Manual (3D mode)?")
+    subject_only = SearchResult(
+        chunk_id="trigger-mode",
+        score=0.5,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Trigger Mode"],
+        content="Column headers: Trigger Mode; Row headers: PROFINET Unit; Cell value: cyclic communication trigger.",
+        metadata={
+            "chunk_type": "table_record",
+            "rerank_document": "Column headers: Trigger Mode; Row headers: PROFINET Unit; Cell value: cyclic communication trigger.",
+        },
+    )
+    message_row = SearchResult(
+        chunk_id="message-row",
+        score=0.48,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[2],
+        section_path=["Error Messages"],
+        content="Message: The PROFINETunit cannot be recognized. Cause: The PROFINET unit is not recognized.",
+        metadata={
+            "chunk_type": "table_record",
+            "rerank_document": "Message: The PROFINETunit cannot be recognized. Cause: The PROFINET unit is not recognized.",
+        },
+    )
+
+    rescored = retriever._apply_query_alignment([subject_only, message_row], analysis, stage="query_aligned")
+
+    assert rescored[0].chunk_id == "message-row"
+
+
 def test_query_alignment_keeps_generic_procedure_search_ahead_of_unrelated_spec_table():
     analysis = analyze_query("configure ethernet scanner steps")
     unrelated_spec = SearchResult(
