@@ -293,6 +293,29 @@ class QdrantStore:
         return self._fuse_document_metadata_hits([dense_results, sparse_results], limit=limit)
 
     def search_sparse(self, corpus_id: str, query: str, filters: dict[str, Any], limit: int = 40) -> list[SearchResult]:
+        name = collection_name(corpus_id)
+        if hasattr(self.client, "collection_exists") and not self.client.collection_exists(name):
+            return []
+        indices, values = build_sparse_vector(query)
+        if not indices:
+            return []
+        query_filter = self._build_filter(filters)
+        try:
+            sparse_hits = self.client.search(
+                collection_name=name,
+                query_vector=NamedSparseVector(name="sparse", vector=SparseVector(indices=indices, values=values)),
+                query_filter=query_filter,
+                limit=limit,
+                with_payload=True,
+            )
+        except Exception as exc:
+            if "Search exceeded per-query timeout" in str(exc):
+                raise
+            logger.warning("Native sparse search failed for corpus_id=%s; falling back to local BM25 scroll: %s", corpus_id, exc)
+            return self._search_sparse_bm25(corpus_id=corpus_id, query=query, filters=filters, limit=limit)
+        return self._hits_to_results(sparse_hits)
+
+    def _search_sparse_bm25(self, corpus_id: str, query: str, filters: dict[str, Any], limit: int = 40) -> list[SearchResult]:
         points = self._scroll_points(corpus_id=corpus_id, filters=filters)
         if not points:
             return []

@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from manuals_rag_retrieval.document_metadata import enrich_document_metadata_with_chunk_signals
 from manuals_rag_retrieval.qdrant_store import QdrantStore
 from manuals_rag_retrieval import retriever
@@ -788,7 +790,54 @@ def test_document_metadata_index_aggregates_generic_chunk_metadata_signals():
     assert "local_rerank_context" not in signals
 
 
-def test_qdrant_store_search_sparse_uses_bm25_ranking(monkeypatch):
+def test_qdrant_store_search_sparse_uses_native_sparse_vector(monkeypatch):
+    class FakeClient:
+        def __init__(self, url: str) -> None:
+            self.url = url
+
+        def search(
+            self,
+            *,
+            collection_name: str,
+            query_vector: object,
+            query_filter: dict[str, object] | None,
+            limit: int,
+            with_payload: bool,
+        ) -> list[SimpleNamespace]:
+            assert collection_name == "manuals_corpus-1"
+            assert getattr(query_vector, "name") == "sparse"
+            assert query_filter == {"must": [{"key": "document_kind", "match": {"value": "manual"}}]}
+            assert limit == 2
+            assert with_payload is True
+            return [
+                SimpleNamespace(
+                    id="identity",
+                    score=0.42,
+                    payload={
+                        "title": "CA-EN100U Datasheet",
+                        "document_version_id": "ver-1",
+                        "source_document_id": "doc-1",
+                        "page_from": 1,
+                        "page_to": 1,
+                        "section_path": ["Overview"],
+                        "content": "CA-EN100U encoder relay unit",
+                        "chunk_type": "datasheet_record",
+                        "priority_score": 0.0,
+                        "document_kind": "manual",
+                    },
+                )
+            ]
+
+        def scroll(self, **_kwargs: object) -> tuple[list[object], None]:
+            raise AssertionError("native sparse search should not scroll payloads")
+
+    monkeypatch.setattr("manuals_rag_retrieval.qdrant_store.QdrantClient", FakeClient)
+    store = QdrantStore()
+    results = store.search_sparse("corpus-1", "What product is the CA-EN100U?", {"document_kind": "manual"}, limit=2)
+    assert [item.chunk_id for item in results] == ["identity"]
+
+
+def test_qdrant_store_search_sparse_falls_back_to_bm25_ranking(monkeypatch):
     class FakePoint:
         def __init__(self, point_id: str, payload: dict[str, object]) -> None:
             self.id = point_id
@@ -797,6 +846,9 @@ def test_qdrant_store_search_sparse_uses_bm25_ranking(monkeypatch):
     class FakeClient:
         def __init__(self, url: str) -> None:
             self.url = url
+
+        def search(self, **_kwargs: object) -> list[object]:
+            raise RuntimeError("sparse vector unavailable")
 
         def scroll(
             self,
@@ -850,6 +902,24 @@ def test_qdrant_store_search_sparse_uses_bm25_ranking(monkeypatch):
     store = QdrantStore()
     results = store.search_sparse("corpus-1", "What product is the CA-EN100U?", {"document_kind": "manual"}, limit=2)
     assert [item.chunk_id for item in results] == ["identity"]
+
+
+def test_qdrant_store_search_sparse_reraises_query_timeout(monkeypatch):
+    class FakeClient:
+        def __init__(self, url: str) -> None:
+            self.url = url
+
+        def search(self, **_kwargs: object) -> list[object]:
+            raise RuntimeError("Search exceeded per-query timeout of 8 seconds.")
+
+        def scroll(self, **_kwargs: object) -> tuple[list[object], None]:
+            raise AssertionError("timeout exceptions should not trigger fallback scrolling")
+
+    monkeypatch.setattr("manuals_rag_retrieval.qdrant_store.QdrantClient", FakeClient)
+    store = QdrantStore()
+
+    with pytest.raises(RuntimeError, match="Search exceeded per-query timeout"):
+        store.search_sparse("corpus-1", "What product is the CA-EN100U?", {"document_kind": "manual"}, limit=2)
 
 
 def test_qdrant_payload_matching_supports_list_metadata_filters(monkeypatch):

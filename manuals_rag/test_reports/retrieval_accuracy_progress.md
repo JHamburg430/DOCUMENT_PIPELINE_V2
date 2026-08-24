@@ -63,3 +63,21 @@ Next target:
 Next target:
 
 - Profile and optimize single-query retrieval latency, especially the sparse/table paths that scroll large Qdrant payload sets for every query, then rerun the 40-case saved single-step bank with bounded per-query timing before generating true multi-step cases.
+
+## 2026-08-24 Cron 39262386 Native Sparse Search
+
+- Target: reduce single-query retrieval latency in the sparse/table path that previously scrolled Qdrant payloads and timed out direct saved-bank evals.
+- Local stack: compose services were up; API, Postgres, and Qdrant were reachable. Live native sparse-vector smoke search against `manuals_vendor_keyence` returned 3 table hits for a measurement-range query.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/qdrant_store.py` so `search_sparse` queries Qdrant's stored sparse vector directly with `NamedSparseVector` instead of scrolling all matching payloads and building local BM25 every query. The previous BM25 scroll remains as a compatibility fallback, and eval timeout exceptions are re-raised instead of being swallowed by fallback handling.
+- Added focused tests in `tests/unit/test_retriever.py` covering native sparse-vector search, BM25 fallback, and timeout re-raise behavior.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 40 passed, 1 warning.
+- Broader tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 170 passed, 58 warnings.
+- Live eval commands:
+  - `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl --max-queries 3 --search-mode direct --per-query-timeout-seconds 8`
+  - `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl --max-queries 10 --search-mode direct --per-query-timeout-seconds 8`
+- Live eval result: corrected bounded 3-case run `retrieval_eval_20260824_035739` completed at 2/3 passed (66.67%), pass@1/pass@3/pass@5 66.67%, failure categories `eval_timeout: 1`. The first query still pays reranker warmup and times out; the next two warmed queries completed in 2.510s and 1.092s at rank 1. Earlier same-run 10-case evidence `retrieval_eval_20260824_035613` completed at 8/10 passed (80%), pass@1 80%, failures `candidate_miss: 1`, `wrong_document_or_filter_loss: 1`; it also exposed that timeout exceptions were being swallowed before the final fix.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/qdrant_store.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for the 03:55-03:57 UTC runs.
+
+Next target:
+
+- Add explicit eval/runtime warmup accounting or a harness warmup phase so bounded saved-bank evals do not mark first-query model loading as retrieval failure, then rerun the full 40-case single-step bank and investigate the remaining AS_151292 metadata/candidate misses before generating true multi-step cases.

@@ -51,13 +51,72 @@
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 25,
-      "warnings": 0,
-      "notes": "Focused harness/retrieval eval tests passed after adding saved question-bank loading and per-query timeout scoring."
+      "passed": 170,
+      "warnings": 58,
+      "notes": "Broad unit suite passed after switching chunk sparse retrieval to native Qdrant sparse-vector search with BM25 fallback and timeout re-raise coverage. Focused retriever suite also passed: 40 passed, 1 warning."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_035739",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_035739.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_035739.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_035739.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_question_bank_direct_timeout",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "total_queries": 3,
+        "passed_queries": 2,
+        "failed_queries": 1,
+        "pass_rate": 0.6667,
+        "pass_at_1": 0.6667,
+        "pass_at_3": 0.6667,
+        "pass_at_5": 0.6667,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 3,
+            "passed": 2
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 1
+        },
+        "notes": "Corrected bounded run after native sparse search and timeout re-raise fix. First query still timed out while paying reranker/model warmup; the two warmed queries passed at rank 1 in 2.510s and 1.092s."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_035613",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_035613.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_035613.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_035613.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_question_bank_direct_timeout",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "total_queries": 10,
+        "passed_queries": 8,
+        "failed_queries": 2,
+        "pass_rate": 0.8,
+        "pass_at_1": 0.8,
+        "pass_at_3": 0.8,
+        "pass_at_5": 0.8,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 10,
+            "passed": 8
+          }
+        },
+        "failure_categories": {
+          "candidate_miss": 1,
+          "wrong_document_or_filter_loss": 1
+        },
+        "notes": "Same-run 10-case evidence after native sparse search improved the saved-bank sample from the prior 7/10 to 8/10, but the first query exceeded the intended timeout because sparse fallback caught the timeout exception before the final re-raise fix."
+      },
       {
         "run_id": "retrieval_eval_20260824_032823",
         "corpus_id": "manuals_vendor_keyence",
@@ -159,5 +218,5 @@
       }
     ]
   },
-  "next_target": "Profile and optimize single-query retrieval latency, especially sparse/table paths that scroll large Qdrant payload sets for every query, then rerun the 40-case saved single-step bank with bounded per-query timing before generating true multi-step cases."
+  "next_target": "Add explicit eval/runtime warmup accounting or a harness warmup phase so bounded saved-bank evals do not mark first-query model loading as retrieval failure, then rerun the full 40-case single-step bank and investigate the remaining AS_151292 metadata/candidate misses before generating true multi-step cases."
 }
