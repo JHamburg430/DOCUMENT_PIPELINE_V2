@@ -1,0 +1,13 @@
+{
+  "dataset_path": "/workspace/manuals_rag/test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
+  "corpus_id": "manuals_vendor_keyence",
+  "total_questions": 40,
+  "by_retrieval_task": {
+    "single_step_retrieval": 40
+  },
+  "by_chunk_type": {
+    "table_record": 30,
+    "atomic_text": 10
+  },
+  "generation": "deterministic_fallback"
+}

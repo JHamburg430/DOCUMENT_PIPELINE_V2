@@ -83,8 +83,16 @@ GENERIC_ANCHORS = {
     "shown",
     "show",
     "button",
+    "cell",
+    "column",
+    "columns",
+    "header",
+    "headers",
+    "row",
+    "rows",
     "setting",
     "settings",
+    "table",
     "information",
     "data",
     "output",
@@ -199,6 +207,7 @@ class RetrievalEvalCase:
     source_metadata: dict[str, Any]
     benchmark_quality: str = "validated"
     anchor_terms: list[str] | None = None
+    retrieval_task: str = "single_step_retrieval"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -541,7 +550,7 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
 def _safe_query_label(chunk: dict[str, Any]) -> str:
     metadata = dict(chunk.get("metadata_json", {}))
     model = str(chunk.get("product_model") or metadata.get("product_model") or "").strip()
-    if model and not _query_uses_filename_artifact(model, chunk):
+    if model and len(model) <= 60 and model.count("/") <= 3 and not _query_uses_filename_artifact(model, chunk):
         return model
     title = str(chunk.get("title", "")).strip()
     filename = str(chunk.get("source_filename", "")).strip()
@@ -595,6 +604,7 @@ def build_query_candidates(chunk: dict[str, Any]) -> list[tuple[str, str]]:
         if secondary != primary:
             candidates.append((f"What {primary} {secondary} is specified{_for_label(label)}?", "spec_multi"))
     elif chunk_type == "table_record":
+        candidates.extend(_build_table_query_candidates(chunk, label))
         if secondary != primary:
             candidates.append((f"What {primary} {secondary} applies{_to_label(label)}?", "table_primary_multi"))
         if tertiary not in {primary, secondary}:
@@ -635,6 +645,43 @@ def _structured_eval_input(chunk: dict[str, Any], anchors: list[str]) -> dict[st
         "expected_terms": anchors[:4],
         "snippet": content_preview(content, limit=420),
     }
+
+
+def _metadata_list(metadata: dict[str, Any], key: str) -> list[str]:
+    value = metadata.get(key, [])
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if value:
+        return [str(value).strip()]
+    return []
+
+
+def _table_question_terms(chunk: dict[str, Any]) -> tuple[list[str], list[str]]:
+    metadata = dict(chunk.get("metadata_json", {}))
+    row_headers = _metadata_list(metadata, "table_row_headers")
+    column_headers = _metadata_list(metadata, "table_column_headers")
+    content = str(chunk.get("content", ""))
+    cell_match = re.search(r"Cell value:\s*([^;]+)", content)
+    cell_terms = extract_anchor_terms(cell_match.group(1) if cell_match else content, limit=3)
+    query_terms = [*row_headers[:2], *column_headers[:2]]
+    expected_terms = extract_anchor_terms(" ".join([*cell_terms, *query_terms]), limit=6)
+    return query_terms, expected_terms
+
+
+def _build_table_query_candidates(chunk: dict[str, Any], label: str) -> list[tuple[str, str]]:
+    query_terms, expected_terms = _table_question_terms(chunk)
+    if not query_terms or len(expected_terms) < 2:
+        return []
+    subject = " ".join(query_terms[:3])
+    cell_anchor = expected_terms[0] if expected_terms and _is_high_signal_anchor(expected_terms[0]) else ""
+    anchored_subject = f"{cell_anchor} {subject}".strip()
+    if label:
+        return [
+            (f"What {anchored_subject} value applies to {label}?", "table_row_column_value"),
+            (f"For {label}, what value is listed for {anchored_subject}?", "table_row_column_lookup"),
+            (f"Which {anchored_subject} value should be used for {label}?", "table_row_column_engineer_lookup"),
+        ]
+    return [(f"What value is listed for {anchored_subject}?", "table_row_column_lookup")]
 
 
 def _parse_generated_queries(payload: str) -> list[dict[str, str]]:
@@ -725,6 +772,10 @@ def build_eval_cases_from_chunks(
     previous_questions_by_chunk_id = previous_questions_by_chunk_id or {}
     for chunk in chunks:
         anchors = extract_anchor_terms(str(chunk["content"]))
+        if str(chunk.get("chunk_type", "")) == "table_record":
+            _, table_expected_terms = _table_question_terms(chunk)
+            if table_expected_terms:
+                anchors = table_expected_terms
         if not chunk_is_queryworthy(chunk, anchors):
             continue
         previous_questions = previous_questions_by_chunk_id.get(str(chunk.get("id")), [])

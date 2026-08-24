@@ -1,0 +1,35 @@
+{
+  "total_queries": 20,
+  "passed_queries": 8,
+  "failed_queries": 12,
+  "pass_rate": 0.4,
+  "pass_at_1": 0.25,
+  "pass_at_3": 0.4,
+  "pass_at_5": 0.4,
+  "mean_passing_rank": 1.375,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 18,
+      "passed": 8
+    },
+    "atomic_text": {
+      "total": 2,
+      "passed": 0
+    }
+  },
+  "by_retrieval_task": {
+    "single_step_retrieval": {
+      "total": 20,
+      "passed": 8
+    }
+  },
+  "failure_categories": {
+    "candidate_miss": 9,
+    "wrong_document_or_filter_loss": 3
+  },
+  "benchmark_quality": {
+    "validated": 20
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 0.4
+}

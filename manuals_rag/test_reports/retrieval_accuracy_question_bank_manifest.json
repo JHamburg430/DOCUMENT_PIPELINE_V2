@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-23",
+  "updated_at": "2026-08-24",
   "goal": {
     "target_answer_accuracy": 1.0,
     "target_question_count": 10000,
@@ -26,21 +26,66 @@
     "run_budget_minutes": 30
   },
   "question_bank": {
-    "total_questions": 0,
-    "single_step_questions": 0,
+    "total_questions": 40,
+    "single_step_questions": 40,
     "multi_step_questions": 0,
     "locked_regression_questions": 0,
-    "exploratory_questions": 0,
-    "datasets": []
+    "exploratory_questions": 40,
+    "datasets": [
+      {
+        "path": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
+        "summary_path": "test_reports/retrieval_accuracy_question_bank_20260824_024426.summary.json",
+        "created_at": "2026-08-24T02:44:26Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "deterministic_fallback",
+        "status": "exploratory",
+        "total_questions": 40,
+        "single_step_questions": 40,
+        "multi_step_questions": 0,
+        "by_chunk_type": {
+          "table_record": 30,
+          "atomic_text": 10
+        }
+      }
+    ]
   },
   "latest_results": {
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 163,
+      "passed": 165,
       "warnings": 55
     },
-    "evals": []
+    "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_024852",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_024852.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_024852.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_024852.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_024852.json",
+        "status": "completed",
+        "mode": "answer_with_citations",
+        "total_queries": 20,
+        "passed_queries": 8,
+        "failed_queries": 12,
+        "pass_rate": 0.4,
+        "pass_at_1": 0.25,
+        "pass_at_3": 0.4,
+        "pass_at_5": 0.4,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 20,
+            "passed": 8
+          }
+        },
+        "failure_categories": {
+          "candidate_miss": 9,
+          "wrong_document_or_filter_loss": 3
+        },
+        "notes": "Separate LLM-generated live eval attempt produced no completed cases after about 2 minutes and was stopped for cron budget; this completed run used deterministic fallback generation."
+      }
+    ]
   },
-  "next_target": "Create or extend the first durable question-bank dataset and baseline single-step versus multi-step retrieval accuracy."
+  "next_target": "Add an efficient retrieval-only focused eval path for saved question-bank datasets, then generate true multi-step cases with expected evidence from multiple chunks or sections."
 }

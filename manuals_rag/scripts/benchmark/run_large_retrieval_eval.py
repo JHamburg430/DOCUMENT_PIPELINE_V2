@@ -250,6 +250,7 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
     passed = sum(1 for result in results if result["evaluation"]["passed"])
     ranks = [result["evaluation"]["rank"] for result in results if result["evaluation"]["rank"] is not None]
     chunk_type_stats = defaultdict(lambda: {"total": 0, "passed": 0})
+    retrieval_task_stats = defaultdict(lambda: {"total": 0, "passed": 0})
     doc_stats = defaultdict(lambda: {"total": 0, "passed": 0})
     failure_categories = Counter()
     benchmark_quality = Counter()
@@ -261,6 +262,9 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
         chunk_type = result["case"]["chunk_type"]
         chunk_type_stats[chunk_type]["total"] += 1
         chunk_type_stats[chunk_type]["passed"] += int(result["evaluation"]["passed"])
+        retrieval_task = result["case"].get("retrieval_task", "single_step_retrieval")
+        retrieval_task_stats[retrieval_task]["total"] += 1
+        retrieval_task_stats[retrieval_task]["passed"] += int(result["evaluation"]["passed"])
         filename = result["case"]["source_filename"]
         doc_stats[filename]["total"] += 1
         doc_stats[filename]["passed"] += int(result["evaluation"]["passed"])
@@ -284,6 +288,7 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
         "pass_at_5": round(sum(1 for result in results if (result["evaluation"]["rank"] or 999) <= 5) / total, 4) if total else 0.0,
         "mean_passing_rank": round(sum(ranks) / len(ranks), 3) if ranks else None,
         "by_chunk_type": dict(chunk_type_stats),
+        "by_retrieval_task": dict(retrieval_task_stats),
         "by_document": dict(doc_stats),
         "failure_categories": dict(failure_categories),
         "benchmark_quality": dict(benchmark_quality),

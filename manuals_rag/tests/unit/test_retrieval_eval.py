@@ -34,6 +34,69 @@ def test_build_eval_cases_from_chunks_creates_queries():
         and ("power" in case.query.lower() or "voltage" in case.query.lower())
         for case in cases
     )
+    assert all(case.retrieval_task == "single_step_retrieval" for case in cases)
+
+
+def test_table_eval_queries_use_row_column_and_cell_context():
+    chunks = [
+        {
+            "id": "chunk-table-specific",
+            "source_document_id": "doc-lj",
+            "document_version_id": "ver-lj",
+            "chunk_type": "table_record",
+            "title": "LJ-X8000",
+            "source_filename": "LJ-X8000.pdf",
+            "section_path_text": "Specifications",
+            "page_from": 36,
+            "page_to": 36,
+            "content": (
+                "Column headers: LJ-X8200; Row headers: Measurement range > X-axis (width) > "
+                "Reference distance; Cell value: 72 mm 2.83\"; Row: 4; Column: 6"
+            ),
+            "metadata_json": {
+                "product_model": "LJ-X8000",
+                "table_column_headers": ["LJ-X8200"],
+                "table_row_headers": ["Measurement range", "X-axis (width)", "Reference distance"],
+            },
+            "product_model": "LJ-X8000",
+        }
+    ]
+
+    cases = build_eval_cases_from_chunks(chunks, max_cases=3, use_llm_generation=False)
+    queries = [case.query.lower() for case in cases]
+
+    assert cases
+    assert all("measurement range" in query for query in queries)
+    assert all("lj-x8200" in query for query in queries)
+    assert all(query not in {"lj-x8000 column", "column headers lj-x8000"} for query in queries)
+    assert any("2.83" in case.expected_terms or "2.83" in (case.anchor_terms or []) for case in cases)
+
+
+def test_eval_queries_avoid_unwieldy_product_list_labels():
+    chunk = {
+        "id": "chunk-long-model-list",
+        "source_document_id": "doc-vs",
+        "document_version_id": "ver-vs",
+        "chunk_type": "table_record",
+        "title": "VS Manual",
+        "source_filename": "VS.pdf",
+        "section_path_text": "Capture Settings",
+        "page_from": 1,
+        "page_to": 1,
+        "content": "Column headers: Value Upper Limit; Row headers: Capture Settings; Cell value: 88ms; Row: 13; Column: 6",
+        "metadata_json": {
+            "product_model": "VS-L160MX/VS-L160CX/VS-L320MX/VS-L320CX/VS-L500MX/VS-L500CX",
+            "table_column_headers": ["Value Upper Limit"],
+            "table_row_headers": ["Capture Settings"],
+        },
+        "product_model": "VS-L160MX/VS-L160CX/VS-L320MX/VS-L320CX/VS-L500MX/VS-L500CX",
+    }
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
+
+    assert cases
+    assert all("vs-l160mx/" not in case.query.lower() for case in cases)
+    assert any("88ms capture settings value upper limit" in case.query.lower() for case in cases)
 
 
 def test_build_eval_cases_skips_low_signal_atomic_queries():
