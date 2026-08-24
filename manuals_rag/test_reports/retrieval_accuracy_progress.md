@@ -195,3 +195,26 @@ Next target:
 Next target:
 
 - Improve remaining multi-step candidate recall and ranking/context losses for cause/corrective-action rows, especially XG-X expansion/backup/firmware cases and CV-X light-controller/LJ-head misses, then add broader multi-step cases beyond sibling troubleshooting tables.
+
+## 2026-08-24 Cron 39262386 Structured Troubleshooting Table Rows
+
+- Target: fix the remaining saved multi-step sibling-row failures for cause/corrective-action prompts without document-specific routing or query-derived hard filters.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior saved multi-step run `retrieval_eval_20260824_065927` was 14/20 (70%) with `ranking_or_context_loss: 4` and `candidate_miss: 2`. The misses were natural troubleshooting questions such as XG-X line-scan/expansion/backup/firmware rows and CV-X light-controller/LJ-head rows.
+- Root cause: structured cause/correction prompts also contain `how`, so family selection treated them as procedure/context lookups before `structured_lookup` and excluded table candidates before rerank. Metadata document selection also made some fallback searches too narrow for CV-X/LJ-head table rows.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so `structured_lookup` takes precedence over `how_to`/`configuration` during family ordering and allowed-family selection.
+- Added a bounded generic lexical table-row candidate source for structured table/troubleshooting lookups. It scores table rows by salient query-term overlap, table row-group evidence, troubleshooting field names, and exact prompted symptom/error phrase, while using the original request filters rather than metadata-selected document IDs so inferred document selection cannot become a hard filter.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for lexical row-group scoring, general-query skip behavior, and structured lookup family precedence when the query also says `how`.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 49 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 187 passed, 58 warnings in 151.19s.
+- Diagnostic eval attempts before the final family-precedence fix: `retrieval_eval_20260824_072809` and `retrieval_eval_20260824_073220` both remained 14/20 (70%), confirming lexical candidates alone were not enough while table candidates were excluded by family selection.
+- Live eval command (saved multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_062714.jsonl --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved multi-step result: `retrieval_eval_20260824_073510` improved from 14/20 (70%) to 20/20 (100%), pass@1/pass@3/pass@5 all 100%, candidate recall 100%, metadata-document recall 100%, failure categories `{}`. All 20 saved sibling troubleshooting rows passed at rank 1.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_073935` improved from 35/40 (87.5%) to 37/40 (92.5%), pass@1 80%, pass@3 90%, pass@5 92.5%, candidate recall 100%, metadata-document recall 100%, failure categories `ranking_or_context_loss: 3`.
+- New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_073510.json`, `test_reports/retrieval_eval_manifest_20260824_073510.json`, `test_reports/retrieval_eval_summary_20260824_073935.json`, `test_reports/retrieval_eval_manifest_20260824_073935.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus the new successful eval summary/manifest artifacts.
+
+Next target:
+
+- Broaden multi-step coverage beyond sibling troubleshooting rows, including procedure-plus-spec, warning-plus-step, and cross-document engineering questions; continue reducing the remaining single-step ranking/context losses.

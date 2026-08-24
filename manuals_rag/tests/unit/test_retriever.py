@@ -1362,3 +1362,121 @@ def test_repeatability_query_keeps_table_candidate_after_family_selection():
     selected = retriever._select_family_candidates([table, prose], analysis, limit=5)
 
     assert selected[0].chunk_id == "table"
+
+
+def test_structured_lookup_keeps_table_candidates_when_query_also_says_how():
+    analysis = analyze_query(
+        "What causes Failed to back up settings to VisionDatabase. for XG-X Series, and how should it be corrected?"
+    )
+    assert "structured_lookup" in analysis.query_types
+    assert "how_to" in analysis.query_types
+    table = SearchResult(
+        chunk_id="table",
+        score=0.8,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Errors"],
+        content="Error Message: Failed to back up settings to VisionDatabase.; Cause: FTP output failed.; Corrective Action: Check disk space.",
+        metadata={"chunk_type": "table_record", "family_bucket": "table"},
+    )
+    context = SearchResult(
+        chunk_id="context",
+        score=0.9,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[9],
+        section_path=["Saving"],
+        content="Use this screen to back up settings.",
+        metadata={"chunk_type": "section_window", "family_bucket": "context"},
+    )
+
+    selected = retriever._select_family_candidates([context, table], analysis, limit=5)
+
+    assert any(result.chunk_id == "table" for result in selected)
+    assert selected[0].chunk_id == "table"
+
+
+def test_table_lexical_search_scores_structured_troubleshooting_row_groups(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_fetch_all(query: str, params: tuple[object, ...]) -> list[dict[str, object]]:
+        captured["query"] = query
+        captured["params"] = params
+        return [
+            {
+                "id": "cell-1",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "Manual",
+                "section_path_text": "A-1",
+                "page_from": 12,
+                "page_to": 12,
+                "content": "Column headers: Error Message; Cell value: Failed to back up settings to VisionDatabase.",
+                "metadata_json": {
+                    "corpus_id": "corpus-1",
+                    "chunk_type": "table_record",
+                    "table_cell": True,
+                    "product_family": "XG-X Series",
+                    "section_path": ["A-1"],
+                },
+                "priority_score": 0.0,
+            },
+            {
+                "id": "row-group-1",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "Manual",
+                "section_path_text": "A-1",
+                "page_from": 12,
+                "page_to": 12,
+                "content": (
+                    "Error Message: Failed to back up settings to VisionDatabase.; "
+                    "Cause: Failed to output the backup settings file to the VisionDatabase destination device.; "
+                    "Corrective Action: Check the available disk space and connection condition."
+                ),
+                "metadata_json": {
+                    "corpus_id": "corpus-1",
+                    "chunk_type": "table_record",
+                    "table_row_group": True,
+                    "product_family": "XG-X Series",
+                    "section_path": ["A-1"],
+                },
+                "priority_score": 0.0,
+            },
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    analysis = analyze_query(
+        "What causes Failed to back up settings to VisionDatabase. for XG-X Series, and how should it be corrected?"
+    )
+    results = retriever.run_table_lexical_search(
+        analysis.raw_query,
+        ["corpus-1"],
+        {"source_document_id": ["doc-1"]},
+        analysis,
+        limit=2,
+    )
+
+    assert results[0].chunk_id == "row-group-1"
+    assert results[0].metadata["table_row_group"] is True
+    assert results[0].section_path == ["A-1"]
+    assert "source_document_id = any" in str(captured["query"])
+    assert captured["params"][0] == ["corpus-1"]
+    assert captured["params"][1] == ["doc-1"]
+
+
+def test_table_lexical_search_skips_unstructured_general_queries(monkeypatch):
+    monkeypatch.setattr(retriever, "fetch_all", lambda *_args, **_kwargs: pytest.fail("fetch_all should not run"))
+
+    results = retriever.run_table_lexical_search(
+        "Tell me about the software",
+        ["corpus-1"],
+        {},
+        analyze_query("Tell me about the software"),
+    )
+
+    assert results == []

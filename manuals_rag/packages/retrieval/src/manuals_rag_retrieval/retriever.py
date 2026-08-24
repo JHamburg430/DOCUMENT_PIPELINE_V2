@@ -26,6 +26,32 @@ else:
 logger = logging.getLogger(__name__)
 FUSED_CANDIDATE_POOL_LIMIT = 30
 DOCUMENT_METADATA_SELECTION_LIMIT = 5
+LEXICAL_TABLE_ROW_LIMIT = 24
+LEXICAL_TABLE_SCAN_LIMIT = 1500
+LEXICAL_TABLE_STOPWORDS = {
+    "about",
+    "after",
+    "being",
+    "causes",
+    "check",
+    "checked",
+    "confirm",
+    "corrected",
+    "correction",
+    "could",
+    "error",
+    "following",
+    "please",
+    "series",
+    "settings",
+    "should",
+    "temporarily",
+    "there",
+    "using",
+    "what",
+    "when",
+    "with",
+}
 
 try:
     import torch
@@ -186,6 +212,166 @@ def _text_terms(text: str) -> set[str]:
     return _term_variants(tokenize(text))
 
 
+def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
+    if "structured_lookup" not in analysis.query_types:
+        return []
+    terms: list[str] = []
+    for term in tokenize(query):
+        normalized = re.sub(r"[^a-z0-9]+", "", term.lower())
+        if len(normalized) < 4 or normalized in LEXICAL_TABLE_STOPWORDS:
+            continue
+        if normalized not in terms:
+            terms.append(normalized)
+    return terms[:16]
+
+
+def _lexical_table_content_terms(terms: list[str]) -> list[str]:
+    content_terms = [
+        term
+        for term in terms
+        if not any(char.isdigit() for char in term)
+        and term not in {"corrective", "corrected", "remedy", "cause"}
+    ]
+    return sorted(content_terms, key=lambda term: (len(term), term), reverse=True)[:4]
+
+
+def _structured_prompt_phrase(query: str) -> str:
+    match = re.search(
+        r"\bwhat\s+causes?\s+(?P<phrase>.+?)\s+for\s+.+?,\s+and\s+(?:what|how)\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return ""
+    phrase = re.sub(r"\s+", " ", match.group("phrase")).strip(" .,:;")
+    return re.sub(r"[^a-z0-9]+", "", phrase.lower())
+
+
+def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase: str = "") -> float:
+    content = str(row.get("content") or "")
+    metadata = dict(row.get("metadata_json") or {})
+    haystack = " ".join(
+        str(part)
+        for part in [
+            content,
+            metadata.get("product_model"),
+            metadata.get("product_family"),
+            " ".join(str(item) for item in metadata.get("product_models") or []),
+            " ".join(str(item) for item in metadata.get("devices") or []),
+            " ".join(str(item) for item in metadata.get("table_column_headers") or []),
+            " ".join(str(item) for item in metadata.get("table_row_headers") or []),
+        ]
+        if part
+    ).lower()
+    compact_haystack = re.sub(r"[^a-z0-9]+", "", haystack)
+    overlap = sum(1 for term in terms if term in compact_haystack)
+    if overlap <= 0:
+        return 0.0
+    score = overlap * 0.12
+    if prompt_phrase and prompt_phrase in compact_haystack:
+        score += 1.0
+    if metadata.get("table_row_group"):
+        score += 0.28
+    if metadata.get("table_cell"):
+        score += 0.06
+    if re.search(r"\b(?:cause|remedy|corrective action|error messages?|symptom)\b", content, flags=re.IGNORECASE):
+        score += 0.16
+    return score + float(row.get("priority_score") or 0.0) / 100.0
+
+
+def run_table_lexical_search(
+    query: str,
+    corpus_ids: list[str],
+    filters: dict[str, object],
+    analysis: QueryAnalysis,
+    limit: int = LEXICAL_TABLE_ROW_LIMIT,
+) -> list[SearchResult]:
+    terms = _lexical_table_terms(query, analysis)
+    if not terms:
+        return []
+    prompt_phrase = _structured_prompt_phrase(query)
+    where = [
+        "chunk_type = 'table_record'",
+        "is_active = true",
+        "metadata_json->>'corpus_id' = any(%s)",
+    ]
+    params: list[object] = [corpus_ids]
+    source_document_ids = filters.get("source_document_id")
+    if source_document_ids:
+        document_ids = source_document_ids if isinstance(source_document_ids, list) else [source_document_ids]
+        where.append("source_document_id = any(%s)")
+        params.append([str(item) for item in document_ids])
+    document_version_ids = filters.get("document_version_id")
+    if document_version_ids:
+        version_ids = document_version_ids if isinstance(document_version_ids, list) else [document_version_ids]
+        where.append("document_version_id = any(%s)")
+        params.append([str(item) for item in version_ids])
+    for key in ("product_model", "product_family", "document_kind"):
+        value = filters.get(key)
+        if value:
+            values = value if isinstance(value, list) else [value]
+            where.append(f"metadata_json->>%s = any(%s)")
+            params.extend([key, [str(item) for item in values]])
+    required_terms = _lexical_table_content_terms(terms)
+    if required_terms:
+        where.extend(["content ilike %s"] * len(required_terms))
+        params.extend([f"%{term}%" for term in required_terms])
+    else:
+        like_terms = terms[:8]
+        where.append("(" + " or ".join(["content ilike %s"] * len(like_terms)) + ")")
+        params.extend([f"%{term}%" for term in like_terms])
+    rows = fetch_all(
+        f"""
+        select id, document_version_id, source_document_id, title, section_path_text,
+               page_from, page_to, content, metadata_json, priority_score
+        from retrieval_chunks
+        where {" and ".join(where)}
+        limit {LEXICAL_TABLE_SCAN_LIMIT}
+        """,
+        tuple(params),
+    )
+    ranked: list[tuple[float, SearchResult]] = []
+    for row in rows:
+        score = _table_lexical_score(dict(row), terms, prompt_phrase)
+        if score <= 0:
+            continue
+        metadata = {
+            **dict(row.get("metadata_json") or {}),
+            "chunk_id": str(row["id"]),
+            "document_version_id": str(row["document_version_id"]),
+            "source_document_id": str(row["source_document_id"]),
+            "chunk_type": "table_record",
+            "chunk_level": 1,
+            "title": str(row["title"]),
+            "page_from": int(row["page_from"]),
+            "page_to": int(row["page_to"]),
+            "content": str(row["content"]),
+            "content_for_rerank": str(row["content"]),
+            "priority_score": float(row.get("priority_score") or 0.0),
+        }
+        section_path = metadata.get("section_path")
+        if not isinstance(section_path, list) or not section_path:
+            section_path = [str(row["section_path_text"])]
+        ranked.append(
+            (
+                score,
+                SearchResult(
+                    chunk_id=str(row["id"]),
+                    score=score,
+                    title=str(row["title"]),
+                    document_version_id=str(row["document_version_id"]),
+                    source_document_id=str(row["source_document_id"]),
+                    pages=list(range(int(row["page_from"]), int(row["page_to"]) + 1)),
+                    section_path=[str(part) for part in section_path],
+                    content=str(row["content"]),
+                    metadata=metadata,
+                ),
+            )
+        )
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return [result for _, result in ranked[:limit]]
+
+
 def _query_has_explicit_structure(analysis: QueryAnalysis) -> bool:
     structured_types = {"spec_lookup", "structured_lookup", "part_lookup", "comparison", "compatibility", "revision_history"}
     return bool(structured_types.intersection(analysis.query_types))
@@ -293,12 +479,12 @@ def _family_bucket(result: SearchResult) -> str:
 def _preferred_family_order(analysis: QueryAnalysis) -> list[str]:
     if "revision_history" in analysis.query_types:
         return ["context", "spec", "table", "prose"]
+    if "structured_lookup" in analysis.query_types:
+        return ["table", "spec", "context", "prose"]
     if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
         return ["procedure", "context", "prose", "table"]
     if "operational_flow" in analysis.query_types:
         return ["prose", "context", "procedure", "table"]
-    if "structured_lookup" in analysis.query_types:
-        return ["table", "spec", "context", "prose"]
     if "spec_lookup" in analysis.query_types or "part_lookup" in analysis.query_types:
         return ["spec", "table", "prose", "context"]
     if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
@@ -309,12 +495,12 @@ def _preferred_family_order(analysis: QueryAnalysis) -> list[str]:
 def _allowed_families(analysis: QueryAnalysis) -> set[str]:
     if "revision_history" in analysis.query_types:
         return {"context", "spec"}
+    if "structured_lookup" in analysis.query_types:
+        return {"table", "spec", "context"}
     if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
         return {"procedure", "context", "prose"}
     if "operational_flow" in analysis.query_types:
         return {"prose", "context", "procedure"}
-    if "structured_lookup" in analysis.query_types:
-        return {"table", "spec", "context"}
     if "spec_lookup" in analysis.query_types or "part_lookup" in analysis.query_types:
         return {"spec", "table", "context"}
     if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
@@ -808,8 +994,16 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     dense_results = _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, search_filters), "dense")
     sparse_results = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, search_filters), "sparse")
     table_results = _annotate_stage_metadata(run_table_search(store, query, corpus_ids, search_filters), "table")
+    table_lexical_results = _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis), "table_lexical")
     special_results = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, search_filters, analysis), "special")
-    fused = _annotate_stage_metadata(fuse_results(store, [dense_results, sparse_results, table_results, special_results], limit=FUSED_CANDIDATE_POOL_LIMIT), "fused")
+    fused = _annotate_stage_metadata(
+        fuse_results(
+            store,
+            [dense_results, sparse_results, table_results, table_lexical_results, special_results],
+            limit=FUSED_CANDIDATE_POOL_LIMIT,
+        ),
+        "fused",
+    )
     rescored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored")[:FUSED_CANDIDATE_POOL_LIMIT], "family_scored")
     completed = _annotate_stage_metadata(_annotate_completeness(rescored), "completeness_scored")
     aligned = _annotate_stage_metadata(_apply_query_alignment(completed, analysis, stage="query_aligned"), "query_aligned")

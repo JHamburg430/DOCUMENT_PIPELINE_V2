@@ -83,11 +83,102 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 184,
+      "passed": 187,
       "warnings": 58,
-      "notes": "Full unit suite passed after adding structured cause/correction lookup intent, table row-group context assembly, and table-context answer/eval evidence handling."
+      "duration_seconds": 151.19,
+      "notes": "Full unit suite passed after adding structured troubleshooting table-row lexical retrieval and giving structured_lookup precedence over how_to/configuration in family selection."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_073510",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_073510.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_073510.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_073510.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_multi_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 8.696,
+        "total_queries": 20,
+        "passed_queries": 20,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.85,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 20,
+            "passed": 20
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 20,
+            "passed": 20
+          }
+        },
+        "failure_categories": {},
+        "notes": "Saved 20-case multi-step sibling table-row bank improved from 14/20 (70%) to 20/20 (100%), all at rank 1. Fix keeps structured troubleshooting table lookups in the table family even when phrased as how/correction questions, and adds a generic lexical table-row candidate source under original request filters."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_073935",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_073935.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_073935.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_073935.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 8.366,
+        "total_queries": 40,
+        "passed_queries": 37,
+        "failed_queries": 3,
+        "pass_rate": 0.925,
+        "pass_at_1": 0.8,
+        "pass_at_3": 0.9,
+        "pass_at_5": 0.925,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.6842,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 37
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 31
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 5
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 3
+        },
+        "notes": "Saved 40-case single-step bank improved from 35/40 (87.5%) to 37/40 (92.5%) with candidate and metadata-document recall both at 100%; remaining failures are ranking/context-loss only."
+      },
       {
         "run_id": "retrieval_eval_20260824_065927",
         "corpus_id": "manuals_vendor_keyence",
@@ -618,5 +709,5 @@
       }
     ]
   },
-  "next_target": "Improve remaining multi-step candidate recall and ranking/context losses for cause/corrective-action rows, especially XG-X expansion/backup/firmware cases and CV-X light-controller/LJ-head misses, then add broader multi-step cases beyond sibling troubleshooting tables."
+  "next_target": "Broaden multi-step coverage beyond sibling troubleshooting rows, including procedure-plus-spec, warning-plus-step, and cross-document engineering questions; continue reducing the remaining single-step ranking/context losses."
 }
