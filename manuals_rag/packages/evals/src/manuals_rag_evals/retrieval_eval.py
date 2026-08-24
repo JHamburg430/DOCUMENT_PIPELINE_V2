@@ -166,11 +166,15 @@ Rules:
 - Write concise question-form queries a real technician, engineer, operator, purchaser, or integrator might ask.
 - Base every query on the provided context, especially the source snippet, structured fields, labels, and extracted terms.
 - Make each query answerable from the source snippet itself, not merely from a surrounding section.
-- Include enough discriminating terms from the source snippet that the intended row, warning, step, or spec can be found without reading adjacent context.
-- For compact specs or table rows, include the label plus one concrete value/unit/class/action when available.
+- Represent the kind of question a user would ask before seeing the answer text; do not turn source wording into a keyword query.
+- Include enough fair discriminators that the intended row, warning, step, or spec can be found without reading adjacent context.
+- Use product names, model numbers, field labels, menu labels, protocol names, units, and standardized technical terms as anchors when needed.
+- Do not copy any other exact sentence, clause, or two-or-more-word phrase from the snippet into the question.
+- Paraphrase awkward or document-authored wording into natural user language; for example, do not copy phrases like "obtained authentication" or "there manners".
+- For compact specs or table rows, ask about the field, setting, action, or constraint in natural language and include one concrete value/unit/class/action when useful.
 - Do not say "this document", "this manual", "the datasheet", "this section", or similar.
 - Do not use meta phrasing like "what specification", "what value is listed", "where does", "what does the document say", or "which step in".
-- Do not mirror the source text mechanically or copy long spans verbatim.
+- Do not mirror the source text mechanically.
 - Keep each query concise and natural, usually under 14 words.
 - End each query with a question mark.
 - Prefer direct technical questions:
@@ -459,6 +463,59 @@ def _query_uses_filename_artifact(query: str, chunk: dict[str, Any]) -> bool:
     return any(token in artifacts for token in tokenize(query))
 
 
+def _allowed_copied_source_phrases(chunk: dict[str, Any]) -> set[tuple[str, ...]]:
+    metadata = dict(chunk.get("metadata_json", {}))
+    allowed_texts: list[str] = [
+        str(chunk.get("product_model") or metadata.get("product_model") or ""),
+        str(metadata.get("product_family") or ""),
+        str(chunk.get("section_path_text", "")),
+        _safe_query_label(chunk),
+    ]
+    allowed_texts.extend(_quoted_menu_labels(str(chunk.get("content", ""))))
+    allowed_texts.extend(_metadata_list(metadata, "table_column_headers"))
+    allowed_texts.extend(_metadata_list(metadata, "table_row_headers"))
+    for field, _ in _field_value_pairs(str(chunk.get("content", ""))):
+        allowed_texts.append(field)
+
+    allowed: set[tuple[str, ...]] = set()
+    for text in allowed_texts:
+        tokens = tuple(tokenize(text))
+        for size in (2, 3, 4, 5):
+            for index in range(0, max(0, len(tokens) - size + 1)):
+                allowed.add(tokens[index : index + size])
+    return allowed
+
+
+def _query_copies_unfair_source_phrase(query: str, chunk: dict[str, Any]) -> bool:
+    query_tokens = tokenize(query)
+    content_tokens = tokenize(str(chunk.get("content", "")))
+    if len(query_tokens) < 2 or len(content_tokens) < 2:
+        return False
+
+    allowed_phrases = _allowed_copied_source_phrases(chunk)
+
+    copied_pairs: set[tuple[str, str]] = set()
+    meaningful_content = [
+        token
+        for token in content_tokens
+        if token not in STOPWORDS
+        and token not in GENERIC_ANCHORS
+        and not _is_high_signal_anchor(token)
+        and len(token) >= 4
+    ]
+    for index, first in enumerate(meaningful_content):
+        for second in meaningful_content[index + 1 : index + 3]:
+            copied_pairs.add((first, second))
+
+    for index in range(0, len(query_tokens) - 1):
+        pair = tuple(query_tokens[index : index + 2])
+        if pair in allowed_phrases:
+            continue
+        if pair in copied_pairs:
+            return True
+    return False
+
+
 def _query_looks_document_bound(query: str) -> bool:
     lowered = normalize_text(query)
     banned_phrases = {
@@ -556,6 +613,8 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "meta_query"
     if _query_uses_filename_artifact(query, chunk):
         return False, "filename_artifact_query"
+    if _query_copies_unfair_source_phrase(query, chunk):
+        return False, "copied_source_phrase"
     if chunk_type == "atomic_text":
         if len(anchors) < 2:
             return False, "atomic_requires_two_anchors"

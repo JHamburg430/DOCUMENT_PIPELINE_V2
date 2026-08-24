@@ -1095,6 +1095,71 @@ def test_eval_generation_does_not_prompt_with_source_filename_artifacts(monkeypa
     assert "AS_128241" not in prompts[0]
 
 
+def test_eval_generation_rejects_copied_source_phrasing(monkeypatch):
+    prompts = []
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "response": (
+                    '{"queries":['
+                    '{"query":"What obtained authentication is specified for XG-X Series?","intent":"bad_copy","reason":"copied"},'
+                    '{"query":"Which controller combination has CSA approval for XG-X Series?","intent":"fair_user_question","reason":"paraphrased"}'
+                    ']}'
+                )
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            prompts.append(kwargs["json"]["prompt"])
+            return FakeResponse()
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+
+    chunk = {
+        "id": "chunk-csa-auth",
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "chunk_type": "warning_record",
+        "title": "Safety information for XG-X Series",
+        "source_filename": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf",
+        "section_path_text": "Safety information",
+        "page_from": 6,
+        "page_to": 6,
+        "content": (
+            "The obtained CSA authentication of the LJ-X8000 Series head is only for the case "
+            "when it is used in combination with the LJ-X8000 Series controller."
+        ),
+        "metadata_json": {"product_model": "XG-X Series"},
+        "product_model": "XG-X Series",
+    }
+
+    anchors = ["obtained", "authentication", "x8000", "series"]
+
+    valid, reason = validate_eval_case("What obtained authentication is specified for XG-X Series?", chunk, anchors)
+    assert valid is False
+    assert reason == "copied_source_phrase"
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=1)
+
+    assert cases
+    assert cases[0].query == "Which controller combination has CSA approval for XG-X Series?"
+    assert "Do not copy any other exact sentence, clause, or two-or-more-word phrase" in prompts[0]
+    assert "obtained authentication" in prompts[0]
+
+
 def test_score_search_results_passes_on_same_document_term_overlap():
     case = RetrievalEvalCase(
         case_id="c1",
