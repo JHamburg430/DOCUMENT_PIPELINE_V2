@@ -92,6 +92,75 @@ def test_large_retrieval_eval_recognizes_wrapped_query_timeouts():
     assert not module.is_query_timeout_exception(RuntimeError("qdrant collection unavailable"))
 
 
+def test_large_retrieval_eval_runs_unscored_warmups(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    searched_queries = []
+
+    def fake_run_case_search(query, *, corpus_id, search_mode):
+        searched_queries.append((query, corpus_id, search_mode))
+        return [{"chunk_id": "hit"}]
+
+    monkeypatch.setattr(module, "run_case_search", fake_run_case_search)
+
+    warmups = module.run_warmup_searches(
+        [
+            {"case_id": "case-1", "query": "first query"},
+            {"case_id": "case-2", "query": "second query"},
+        ],
+        corpus_id="manuals",
+        search_mode="direct",
+        warmup_queries=1,
+        warmup_timeout_seconds=30,
+    )
+
+    assert searched_queries == [("first query", "manuals", "direct")]
+    assert warmups == [
+        {
+            "case_id": "case-1",
+            "status": "completed",
+            "elapsed_seconds": warmups[0]["elapsed_seconds"],
+            "result_count": 1,
+        }
+    ]
+
+
+def test_large_retrieval_eval_records_warmup_timeouts(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    def fake_run_case_search(query, *, corpus_id, search_mode):
+        raise module.QueryTimeoutError("Search exceeded per-query timeout of 30 seconds.")
+
+    monkeypatch.setattr(module, "run_case_search", fake_run_case_search)
+
+    warmups = module.run_warmup_searches(
+        [{"case_id": "case-1", "query": "slow startup query"}],
+        corpus_id="manuals",
+        search_mode="direct",
+        warmup_queries=1,
+        warmup_timeout_seconds=30,
+    )
+
+    assert warmups[0]["case_id"] == "case-1"
+    assert warmups[0]["status"] == "eval_timeout"
+    assert warmups[0]["timeout_seconds"] == 30
+    assert warmups[0]["result_count"] == 0
+
+
 def test_build_eval_cases_from_chunks_creates_queries():
     chunks = [
         {

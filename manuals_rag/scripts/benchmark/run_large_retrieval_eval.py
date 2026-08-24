@@ -300,6 +300,51 @@ def run_search_direct(query: str, *, corpus_id: str) -> list[dict[str, Any]]:
     return [item.model_dump() for item in retrieve(query, [corpus_id], filters)]
 
 
+def run_case_search(query: str, *, corpus_id: str, search_mode: str) -> list[dict[str, Any]]:
+    if search_mode == "direct":
+        return run_search_direct(query, corpus_id=corpus_id)
+    return run_search(query, corpus_id=corpus_id)
+
+
+def run_warmup_searches(
+    cases: list[dict[str, Any]],
+    *,
+    corpus_id: str,
+    search_mode: str,
+    warmup_queries: int,
+    warmup_timeout_seconds: int,
+) -> list[dict[str, Any]]:
+    warmups: list[dict[str, Any]] = []
+    if warmup_queries <= 0:
+        return warmups
+    for case in cases[:warmup_queries]:
+        start_time = time.time()
+        try:
+            with query_timeout(warmup_timeout_seconds):
+                search_results = run_case_search(case["query"], corpus_id=corpus_id, search_mode=search_mode)
+            warmups.append(
+                {
+                    "case_id": case["case_id"],
+                    "status": "completed",
+                    "elapsed_seconds": round(time.time() - start_time, 3),
+                    "result_count": len(search_results),
+                }
+            )
+        except Exception as exc:
+            if not is_query_timeout_exception(exc):
+                raise
+            warmups.append(
+                {
+                    "case_id": case["case_id"],
+                    "status": "eval_timeout",
+                    "elapsed_seconds": round(time.time() - start_time, 3),
+                    "timeout_seconds": warmup_timeout_seconds,
+                    "result_count": 0,
+                }
+            )
+    return warmups
+
+
 def write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
@@ -420,6 +465,18 @@ def main() -> int:
         default=0,
         help="Abort and score a single query as eval_timeout after this many seconds. 0 disables per-query timeout.",
     )
+    parser.add_argument(
+        "--warmup-queries",
+        type=int,
+        default=0,
+        help="Run this many unscored searches before timed evaluation to pay model/retriever startup cost outside the benchmark.",
+    )
+    parser.add_argument(
+        "--warmup-timeout-seconds",
+        type=int,
+        default=0,
+        help="Abort an unscored warmup query after this many seconds. 0 uses max(30, per-query-timeout-seconds * 4).",
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -463,6 +520,19 @@ def main() -> int:
         random.shuffle(chunk_rows)
         cases = [case.to_dict() for case in build_eval_cases_from_chunks(chunk_rows, max_cases=args.max_queries)]
 
+    warmup_timeout_seconds = args.warmup_timeout_seconds
+    if args.warmup_queries > 0 and warmup_timeout_seconds <= 0:
+        warmup_timeout_seconds = max(30, args.per_query_timeout_seconds * 4)
+    warmups = run_warmup_searches(
+        cases,
+        corpus_id=corpus_id,
+        search_mode=args.search_mode,
+        warmup_queries=args.warmup_queries,
+        warmup_timeout_seconds=warmup_timeout_seconds,
+    )
+    for warmup in warmups:
+        print(json.dumps({"warmup": warmup}, indent=2), flush=True)
+
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     dataset_path = OUTPUT_DIR / f"retrieval_eval_dataset_{timestamp}.jsonl"
     results_path = OUTPUT_DIR / f"retrieval_eval_results_{timestamp}.jsonl"
@@ -476,10 +546,7 @@ def main() -> int:
         start_time = time.time()
         try:
             with query_timeout(args.per_query_timeout_seconds):
-                if args.search_mode == "direct":
-                    search_results = run_search_direct(case["query"], corpus_id=corpus_id)
-                else:
-                    search_results = run_search(case["query"], corpus_id=corpus_id)
+                search_results = run_case_search(case["query"], corpus_id=corpus_id, search_mode=args.search_mode)
             evaluation = score_search_results(RetrievalEvalCase(**case), search_results)
             evaluation["elapsed_seconds"] = round(time.time() - start_time, 3)
         except Exception as exc:
@@ -517,6 +584,9 @@ def main() -> int:
                 "input_dataset_path": str(args.dataset_path) if args.dataset_path else None,
                 "search_mode": args.search_mode,
                 "per_query_timeout_seconds": args.per_query_timeout_seconds,
+                "warmup_queries": args.warmup_queries,
+                "warmup_timeout_seconds": warmup_timeout_seconds,
+                "warmups": warmups,
                 "dataset_path": str(dataset_path),
                 "results_path": str(results_path),
                 "summary_path": str(summary_path),

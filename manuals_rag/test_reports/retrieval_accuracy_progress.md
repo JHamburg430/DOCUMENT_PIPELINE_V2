@@ -81,3 +81,22 @@ Next target:
 Next target:
 
 - Add explicit eval/runtime warmup accounting or a harness warmup phase so bounded saved-bank evals do not mark first-query model loading as retrieval failure, then rerun the full 40-case single-step bank and investigate the remaining AS_151292 metadata/candidate misses before generating true multi-step cases.
+
+## 2026-08-24 Cron 39262386 Warmup Accounting
+
+- Target: separate first-query model/retriever startup cost from scored retrieval failures in saved-bank direct evals.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus was usable with 53 indexed documents.
+- Changed eval harness logic in `scripts/benchmark/run_large_retrieval_eval.py` to add `--warmup-queries` and `--warmup-timeout-seconds`, run unscored warmup searches before timed scoring, record warmup status/timing in the eval manifest, and share search dispatch between HTTP/direct modes.
+- Added focused tests in `tests/unit/test_retrieval_eval.py` for completed warmup accounting and warmup timeout accounting.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 27 passed.
+- Live eval commands:
+  - `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl --max-queries 10 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`
+  - `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`
+- Live eval result: 10-case warmup smoke `retrieval_eval_20260824_042510` completed at 8/10 passed (80%) with no `eval_timeout` failures; the unscored warmup completed in 12.202s.
+- Full saved-bank result: `retrieval_eval_20260824_042547` completed all 40 single-step questions at 28/40 passed (70%), pass@1 67.5%, pass@3/pass@5 70%, no `eval_timeout` failures; the unscored warmup completed in 10.198s. Table questions were 20/30, atomic text questions were 8/10. Failure categories: `candidate_miss: 7`, `wrong_document_or_filter_loss: 3`, `ranking_or_context_loss: 2`.
+- Failure evidence: all 6 saved-bank cases from `AS_151292_VS_UM_J18GB_WW_GB_2035_7.pdf` failed in the full run, so the next target should focus on generic VS/manual table metadata selection and candidate recall rather than eval timing.
+- Changed files: `scripts/benchmark/run_large_retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for `retrieval_eval_20260824_042510` and `retrieval_eval_20260824_042547`.
+
+Next target:
+
+- Investigate and improve the remaining VS/manual table retrieval failures, especially AS_151292 metadata-document selection and candidate misses, then generate the first true multi-step cases once single-step evidence improves.
