@@ -314,11 +314,26 @@ def run_search_direct(query: str, *, corpus_id: str) -> list[dict[str, Any]]:
 
 
 def generate_answer_payload(query: str, results: list[dict[str, Any]]) -> dict[str, Any]:
-    from manuals_rag_answering.generator import generate_answer
+    from manuals_rag_answering.generator import generate_answer_with_trace
     from manuals_rag_schemas.documents import SearchResult
 
-    answer = generate_answer(query, [SearchResult(**item) for item in results])
-    return answer.model_dump()
+    answer, trace = generate_answer_with_trace(query, [SearchResult(**item) for item in results])
+    payload = answer.model_dump()
+    final_answer_trace = trace.get("final_answer", {})
+    payload["_eval_trace"] = {
+        "answer_source": final_answer_trace.get("answer_source"),
+        "used_fallback": bool(final_answer_trace.get("used_fallback")),
+        "fallback_reason": final_answer_trace.get("fallback_reason"),
+        "summary_count": trace.get("summarization", {}).get("summary_count"),
+    }
+    return payload
+
+
+def _answer_trace(answer: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(answer, dict):
+        return {}
+    trace = answer.get("_eval_trace")
+    return trace if isinstance(trace, dict) else {}
 
 
 def run_case_search(query: str, *, corpus_id: str, search_mode: str, response_mode: str = "retrieval_only") -> dict[str, Any]:
@@ -488,6 +503,11 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
     answer_eval_count = 0
     answer_passed = 0
     answer_failure_reasons = Counter()
+    answer_elapsed_seconds: list[float] = []
+    answer_fallback_count = 0
+    answer_sources = Counter()
+    answer_fallback_reasons = Counter()
+    answer_summary_counts: list[int] = []
     for result in results:
         chunk_type = result["case"]["chunk_type"]
         chunk_type_stats[chunk_type]["total"] += 1
@@ -513,6 +533,29 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
             answer_eval_count += 1
             answer_passed += int(bool(answer_evaluation.get("passed")))
             answer_failure_reasons.update(answer_evaluation.get("failure_reasons", []))
+            elapsed_seconds = answer_evaluation.get("elapsed_seconds")
+            if isinstance(elapsed_seconds, int | float):
+                answer_elapsed_seconds.append(float(elapsed_seconds))
+        trace = _answer_trace(result.get("answer"))
+        if trace:
+            if trace.get("used_fallback"):
+                answer_fallback_count += 1
+            if trace.get("answer_source"):
+                answer_sources[str(trace["answer_source"])] += 1
+            if trace.get("fallback_reason"):
+                answer_fallback_reasons[str(trace["fallback_reason"])] += 1
+            summary_count = trace.get("summary_count")
+            if isinstance(summary_count, int):
+                answer_summary_counts.append(summary_count)
+    sorted_answer_elapsed = sorted(answer_elapsed_seconds)
+    answer_latency = {
+        "min_seconds": round(sorted_answer_elapsed[0], 3),
+        "max_seconds": round(sorted_answer_elapsed[-1], 3),
+        "mean_seconds": round(sum(sorted_answer_elapsed) / len(sorted_answer_elapsed), 3),
+    } if sorted_answer_elapsed else None
+    if sorted_answer_elapsed:
+        p95_index = max(0, min(len(sorted_answer_elapsed) - 1, int(len(sorted_answer_elapsed) * 0.95 + 0.999) - 1))
+        answer_latency["p95_seconds"] = round(sorted_answer_elapsed[p95_index], 3)
     return {
         "total_queries": total,
         "passed_queries": passed,
@@ -541,6 +584,14 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
         "answer_failed_queries": answer_eval_count - answer_passed,
         "answer_pass_rate": round(answer_passed / answer_eval_count, 4) if answer_eval_count else None,
         "answer_failure_reasons": dict(answer_failure_reasons),
+        "answer_latency": answer_latency,
+        "answer_fallback_count": answer_fallback_count if answer_eval_count else None,
+        "answer_fallback_rate": round(answer_fallback_count / answer_eval_count, 4) if answer_eval_count else None,
+        "answer_sources": dict(answer_sources),
+        "answer_fallback_reasons": dict(answer_fallback_reasons),
+        "answer_mean_summary_count": round(sum(answer_summary_counts) / len(answer_summary_counts), 3)
+        if answer_summary_counts
+        else None,
     }
 
 
@@ -766,6 +817,8 @@ def main() -> int:
                     "failure_category": evaluation.get("failure_category"),
                     "answer_passed": answer_evaluation.get("passed") if answer_evaluation else None,
                     "answer_failure_reasons": answer_evaluation.get("failure_reasons") if answer_evaluation else None,
+                    "answer_used_fallback": _answer_trace(answer).get("used_fallback") if answer else None,
+                    "answer_source": _answer_trace(answer).get("answer_source") if answer else None,
                     "elapsed_seconds": evaluation.get("elapsed_seconds"),
                 },
                 indent=2,

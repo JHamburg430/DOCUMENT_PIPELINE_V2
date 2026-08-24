@@ -855,3 +855,20 @@ Next target:
 Next target:
 
 - Improve cross-document multi-step retrieval/context assembly for same-field prompts while preserving green single-step reverse-lookup and warning-step gates; expand answer-grounding coverage beyond the 2-case smoke and track fallback/latency behavior.
+
+## 2026-08-24 Cron 39262386 Answer-Grounding Metrics
+
+- Target: expand answer-grounding coverage beyond the prior 2-case smoke and make answer-mode summaries report whether passed/failed answers came from the model or retrieval-grounded fallbacks, plus answer latency.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed eval/benchmark logic in `scripts/benchmark/run_large_retrieval_eval.py` so answer-with-citations runs keep a compact eval trace from `generate_answer_with_trace`, record `answer_source`, `used_fallback`, fallback reasons, summary counts, and answer latency stats in per-case output and summaries. Production retrieval/answering behavior was not changed.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for answer fallback/source, fallback reason, summary-count, and latency summary metrics.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 55 passed.
+- Live answer-grounding command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_210121.jsonl --max-queries 3 --search-mode direct --response-mode answer_with_citations --per-query-timeout-seconds 60 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Live answer result: `retrieval_eval_20260824_222545` completed 3 saved single-step table questions at 3/3 retrieval passed and 2/3 answer passed. Answer pass rate was 66.67%, answer failures were `expected_terms_missing: 1`, answer latency min/max/mean/p95 was 21.249s/38.451s/27.221s/38.451s, and fallback use was 1/3 (`fallback_validation`) with 2/3 direct model answers.
+- Answer-generation evidence: correct retrieval is not sufficient for final answer reliability; one validation fallback still missed expected answer terms. Relevance and recursive-summary JSON fallbacks also appeared in logs, so the next answer work should measure and reduce malformed JSON/fallback behavior rather than treating answer pass rate as purely retrieval-driven.
+- Question-bank counts unchanged: 193 exploratory questions total, 100 single-step and 93 multi-step. Replacement debt remains 0; no questions were retired or added in this harness-focused run.
+- Changed files: `scripts/benchmark/run_large_retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new answer-mode eval artifacts for 22:25 UTC.
+
+Next target:
+
+- Improve answer-generation grounding for correctly retrieved table evidence, especially fallback-validation answers that miss expected terms; preserve the green single-step reverse-lookup and warning-step retrieval gates, and continue cross-document multi-step work after answer metrics stabilize.

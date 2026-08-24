@@ -359,7 +359,20 @@ def test_large_retrieval_eval_summarizes_answer_metrics():
                     "benchmark_quality": "validated",
                 },
                 "evaluation": {"passed": True, "rank": 1, "candidate_recall": True},
-                "answer_evaluation": {"passed": False, "failure_reasons": ["expected_terms_missing"]},
+                "answer": {
+                    "answer": "24 VDC",
+                    "_eval_trace": {
+                        "used_fallback": True,
+                        "answer_source": "fallback_validation",
+                        "fallback_reason": "Generated answer was replaced by retrieval-grounded fallback during validation.",
+                        "summary_count": 3,
+                    },
+                },
+                "answer_evaluation": {
+                    "passed": False,
+                    "failure_reasons": ["expected_terms_missing"],
+                    "elapsed_seconds": 12.5,
+                },
             }
         ]
     )
@@ -367,6 +380,19 @@ def test_large_retrieval_eval_summarizes_answer_metrics():
     assert summary["answer_eval_count"] == 1
     assert summary["answer_pass_rate"] == 0.0
     assert summary["answer_failure_reasons"] == {"expected_terms_missing": 1}
+    assert summary["answer_latency"] == {
+        "min_seconds": 12.5,
+        "max_seconds": 12.5,
+        "mean_seconds": 12.5,
+        "p95_seconds": 12.5,
+    }
+    assert summary["answer_fallback_count"] == 1
+    assert summary["answer_fallback_rate"] == 1.0
+    assert summary["answer_sources"] == {"fallback_validation": 1}
+    assert summary["answer_fallback_reasons"] == {
+        "Generated answer was replaced by retrieval-grounded fallback during validation.": 1
+    }
+    assert summary["answer_mean_summary_count"] == 3.0
 
 
 def test_large_retrieval_eval_generates_answers_after_http_retrieval(monkeypatch):
@@ -380,7 +406,14 @@ def test_large_retrieval_eval_generates_answers_after_http_retrieval(monkeypatch
     spec.loader.exec_module(module)
 
     monkeypatch.setattr(module, "run_search", lambda query, *, corpus_id, response_mode: [{"chunk_id": "hit"}])
-    monkeypatch.setattr(module, "generate_answer_payload", lambda query, results: {"answer": "24 VDC"})
+    monkeypatch.setattr(
+        module,
+        "generate_answer_payload",
+        lambda query, results: {
+            "answer": "24 VDC",
+            "_eval_trace": {"used_fallback": False, "answer_source": "model", "summary_count": 1},
+        },
+    )
 
     payload = module.run_case_search(
         "What voltage?",
@@ -389,7 +422,13 @@ def test_large_retrieval_eval_generates_answers_after_http_retrieval(monkeypatch
         response_mode="answer_with_citations",
     )
 
-    assert payload == {"top_results": [{"chunk_id": "hit"}], "answer": {"answer": "24 VDC"}}
+    assert payload == {
+        "top_results": [{"chunk_id": "hit"}],
+        "answer": {
+            "answer": "24 VDC",
+            "_eval_trace": {"used_fallback": False, "answer_source": "model", "summary_count": 1},
+        },
+    }
 
 
 def test_build_eval_cases_from_chunks_creates_queries():

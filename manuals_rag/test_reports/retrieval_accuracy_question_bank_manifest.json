@@ -207,9 +207,56 @@
       "status": "passed",
       "passed": 55,
       "warnings": 0,
-      "notes": "Focused eval-harness tests passed after adding answer-with-citations scoring and elapsed timeout enforcement."
+      "notes": "Focused eval-harness tests passed after adding compact answer fallback/source and latency metrics."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_222545",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_222545.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_222545.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_222545.json",
+        "status": "completed_answer_grounding_metrics_smoke",
+        "search_mode": "direct",
+        "response_mode": "answer_with_citations",
+        "per_query_timeout_seconds": 60,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 3,
+        "passed_queries": 3,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "answer_eval_count": 3,
+        "answer_passed_queries": 2,
+        "answer_failed_queries": 1,
+        "answer_pass_rate": 0.6667,
+        "answer_failure_reasons": {
+          "expected_terms_missing": 1
+        },
+        "answer_latency": {
+          "min_seconds": 21.249,
+          "max_seconds": 38.451,
+          "mean_seconds": 27.221,
+          "p95_seconds": 38.451
+        },
+        "answer_fallback_count": 1,
+        "answer_fallback_rate": 0.3333,
+        "answer_sources": {
+          "fallback_validation": 1,
+          "model": 2
+        },
+        "answer_fallback_reasons": {
+          "Generated answer was replaced by retrieval-grounded fallback during validation.": 1
+        },
+        "mode": "answer_with_citations_saved_single_step_replacement_debt_metrics_smoke",
+        "notes": "Expanded answer-grounding smoke from 2 to 3 cases and now records fallback/source/latency metrics. Retrieval was 3/3, but one validation fallback answer missed expected terms, exposing answer quality risk despite correct retrieval."
+      },
       {
         "run_id": "retrieval_eval_20260824_220047",
         "corpus_id": "manuals_vendor_keyence",
