@@ -729,6 +729,67 @@ def test_warning_step_cases_skip_generic_manual_labels_and_prohibitions():
     assert "When Do not" not in cases[0].query
 
 
+def test_build_multi_step_eval_cases_from_cross_document_same_field_values():
+    left_base = {
+        "source_document_id": "doc-iv",
+        "document_version_id": "ver-iv",
+        "title": "IV4",
+        "source_filename": "iv4.pdf",
+        "section_path_text": "Electrical specifications",
+        "page_from": 7,
+        "page_to": 7,
+        "product_model": "IV4-G120",
+        "chunk_level": 1,
+        "metadata_json": {
+            "product_model": "IV4-G120",
+            "table_cell": True,
+            "table_column_headers": ["Power supply voltage"],
+            "table_row_headers": ["Controller"],
+        },
+    }
+    right_base = {
+        "source_document_id": "doc-lj",
+        "document_version_id": "ver-lj",
+        "title": "LJ-X8000",
+        "source_filename": "ljx.pdf",
+        "section_path_text": "Electrical specifications",
+        "page_from": 8,
+        "page_to": 8,
+        "product_model": "LJ-X8000",
+        "chunk_level": 1,
+        "metadata_json": {
+            "product_model": "LJ-X8000",
+            "table_cell": True,
+            "table_column_headers": ["Power supply voltage"],
+            "table_row_headers": ["Controller"],
+        },
+    }
+    chunks = [
+        {
+            **left_base,
+            "id": "iv-voltage",
+            "chunk_type": "table_record",
+            "content": "Row headers: Controller; Column headers: Power supply voltage; Cell value: 24 VDC",
+        },
+        {
+            **right_base,
+            "id": "lj-voltage",
+            "chunk_type": "table_record",
+            "content": "Row headers: Controller; Column headers: Power supply voltage; Cell value: 24 VDC +/-10%",
+        },
+    ]
+
+    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="cross_document")
+
+    assert len(cases) == 1
+    assert cases[0].retrieval_task == "multi_step_retrieval"
+    assert cases[0].generation_method == "cross_document_same_field_evidence"
+    assert "power supply voltage values" in cases[0].query.lower()
+    assert "IV4-G120" in cases[0].query
+    assert "LJ-X8000" in cases[0].query
+    assert cases[0].expected_source_chunk_ids == ["iv-voltage", "lj-voltage"]
+
+
 def test_build_eval_cases_skips_low_signal_atomic_queries():
     chunks = [
         {

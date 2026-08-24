@@ -689,3 +689,26 @@ Next target:
 Next target:
 
 - Broaden multi-step coverage to cross-document engineering questions while preserving the 20/20 replacement single-step, 27/27 cleaned single-step, and 15/15 warning-step gates.
+
+## 2026-08-24 Cron 39262386 Cross-Document Multi-Step Baseline
+
+- Target: broaden multi-step coverage to explicit cross-document engineering questions while preserving the current green single-step and warning-step gates.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed eval logic in `packages/evals/src/manuals_rag_evals/retrieval_eval.py` to add deterministic `cross_document` multi-step case generation. The new family pairs the same meaningful table/spec field across two different source documents, rejects generic fields/labels, and requires expected evidence from both chunks.
+- Changed benchmark CLI in `scripts/benchmark/run_large_retrieval_eval.py` so `--multi-step-case-family cross_document` can generate and measure the new coverage family directly.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for cross-document same-field evidence case generation.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 45 passed.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 229 passed, 58 warnings in 152.25s.
+- Live generation timing check: fetching 333,041 live chunks took about 16.1s; bounded cross-document generation produced 20 cases in about 1.1s after fetch. An initial unbounded pairing attempt was stopped because generation had not completed after the fetch, confirming the need for bounded streaming pair selection.
+- Live eval command (new cross-document bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --retrieval-task multi_step_retrieval --multi-step-case-family cross_document --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45 --disable-llm-query-generation`.
+- Cross-document result: `retrieval_eval_20260824_190632` completed 20 table-record multi-step questions at 10/20 passed (50%), pass@1 35%, pass@3 45%, pass@5 50%, candidate recall 90%, metadata-document recall 95%, metadata-document rank-1 rate 55%, failures `ranking_or_context_loss: 8` and `candidate_miss: 2`.
+- No-regression command (replacement single-step): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_173031.jsonl --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Replacement single-step result: `retrieval_eval_20260824_190736` stayed 20/20 (100%), pass@1 95%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 95%, failures `{}`.
+- No-regression command (refined warning-step multi-step): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Warning-step multi-step result: `retrieval_eval_20260824_190828` stayed 15/15 (100%), pass@1 86.67%, pass@3 93.33%, pass@5 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`.
+- Question-bank manifest now tracks 180 exploratory questions total: 87 single-step and 93 multi-step. New tracked artifacts: `test_reports/retrieval_eval_dataset_20260824_190632.jsonl`, `test_reports/retrieval_eval_results_20260824_190632.jsonl`, `test_reports/retrieval_eval_summary_20260824_190632.json`, `test_reports/retrieval_eval_manifest_20260824_190632.json`, plus no-regression summaries/manifests for `retrieval_eval_20260824_190736` and `retrieval_eval_20260824_190828`.
+- Changed files: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `scripts/benchmark/run_large_retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 19:06-19:08 UTC.
+
+Next target:
+
+- Improve cross-document multi-step retrieval and context assembly so paired same-field evidence from both documents reliably survives final top-k, starting with the `ranking_or_context_loss` failures in `retrieval_eval_20260824_190632`, while preserving the 20/20 replacement single-step and 15/15 warning-step gates.

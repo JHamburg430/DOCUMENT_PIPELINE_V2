@@ -552,7 +552,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--multi-step-case-family",
-        choices=["all", "sibling_table_rows", "contextual_section", "warning_step"],
+        choices=["all", "sibling_table_rows", "contextual_section", "warning_step", "cross_document"],
         default="all",
         help="Limit generated multi-step cases to a specific coverage family.",
     )

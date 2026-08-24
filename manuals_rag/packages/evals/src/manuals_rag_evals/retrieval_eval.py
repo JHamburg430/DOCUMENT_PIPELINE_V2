@@ -1207,6 +1207,171 @@ def _chunks_are_warning_step_linked(warning: dict[str, Any], procedure: dict[str
     return warning_hits >= min(2, len(warning_terms)) or procedure_hits >= min(2, len(procedure_terms))
 
 
+def _cross_document_lookup_field(chunk: dict[str, Any]) -> str:
+    chunk_type = str(chunk.get("chunk_type", ""))
+    if chunk_type == "table_record":
+        field = _column_field(chunk)
+        if field:
+            return field
+    field_pairs = _meaningful_table_field_value_pairs(str(chunk.get("content", "")))
+    if field_pairs:
+        return normalize_text(field_pairs[0][0])
+    anchors = extract_anchor_terms(str(chunk.get("content", "")), limit=3)
+    return " ".join(anchors[:2])
+
+
+def _cross_document_lookup_value(chunk: dict[str, Any]) -> str:
+    content = str(chunk.get("content", ""))
+    if str(chunk.get("chunk_type", "")) == "table_record":
+        value = _cell_value(content)
+        if value:
+            return value
+    field_pairs = _meaningful_table_field_value_pairs(content)
+    if field_pairs:
+        return field_pairs[0][1]
+    return _short_answer_anchor(content)
+
+
+def _good_cross_document_field(field: str) -> bool:
+    compact = normalize_text(field)
+    if len(compact) < 4:
+        return False
+    if compact in STOPWORDS or compact in GENERIC_ANCHORS:
+        return False
+    if compact in {
+        "cell value",
+        "value",
+        "values",
+        "description",
+        "remarks",
+        "reference",
+        "page",
+        "model",
+        "model name",
+        "name",
+    }:
+        return False
+    terms = [term for term in tokenize(compact) if term not in STOPWORDS and term not in GENERIC_ANCHORS]
+    return bool(terms)
+
+
+def _good_cross_document_label(label: str) -> bool:
+    compact = normalize_text(label)
+    if len(compact) < 4:
+        return False
+    if compact in STOPWORDS or compact in GENERIC_ANCHORS:
+        return False
+    tokens = tokenize(label)
+    if len(tokens) == 1 and len(tokens[0]) < 4 and not any(char.isdigit() for char in tokens[0]):
+        return False
+    return bool(any(_is_high_signal_anchor(token) or len(token) >= 4 for token in tokens))
+
+
+def _good_cross_document_value(value: str) -> bool:
+    compact = normalize_text(value)
+    if len(compact) < 2:
+        return False
+    if compact in {"-", "--", "n/a", "na", "none", "not applicable"}:
+        return False
+    return bool(extract_anchor_terms(value, limit=1) or re.search(r"\d", value))
+
+
+def _build_cross_document_multi_step_cases(
+    chunks: list[dict[str, Any]],
+    *,
+    max_cases: int,
+    seen_queries: list[str],
+) -> list[RetrievalEvalCase]:
+    candidates_by_field: dict[str, list[dict[str, Any]]] = {}
+    cases: list[RetrievalEvalCase] = []
+    for chunk in chunks:
+        if int(chunk.get("chunk_level", 1) or 1) != 1:
+            continue
+        chunk_type = str(chunk.get("chunk_type", ""))
+        if chunk_type not in {"table_record", "spec_record", "datasheet_record"}:
+            continue
+        metadata = dict(chunk.get("metadata_json", {}))
+        if chunk_type == "table_record" and not (metadata.get("table_cell") or metadata.get("table_key_value")):
+            continue
+        anchors = extract_anchor_terms(str(chunk.get("content", "")), limit=4)
+        if not chunk_is_queryworthy(chunk, anchors):
+            continue
+        field = _cross_document_lookup_field(chunk)
+        value = _cross_document_lookup_value(chunk)
+        label = _safe_query_label(chunk)
+        if (
+            not _good_cross_document_label(label)
+            or not _good_cross_document_field(field)
+            or not _good_cross_document_value(value)
+        ):
+            continue
+        grouped = dict(chunk)
+        grouped["_cross_doc_field"] = field
+        grouped["_cross_doc_value"] = value
+        grouped["_cross_doc_label"] = label
+        candidates = candidates_by_field.setdefault(field, [])
+        for left in candidates:
+            left_label = str(left.get("_cross_doc_label", ""))
+            left_value = str(left.get("_cross_doc_value", ""))
+            left_terms = set(extract_anchor_terms(left_value, limit=4))
+            if str(left.get("source_document_id", "")) == str(grouped.get("source_document_id", "")):
+                continue
+            if left_label == label:
+                continue
+            right_terms = set(extract_anchor_terms(value, limit=4))
+            if left_terms and right_terms and left_terms == right_terms:
+                continue
+            query = f"What {field} values apply for {left_label} and {label}?"
+            if _has_near_duplicate_query(query, seen_queries):
+                continue
+            evidence = _multi_step_expected_evidence(left, grouped)
+            expected_terms = []
+            for item in evidence:
+                for term in item["expected_terms"]:
+                    if term not in expected_terms:
+                        expected_terms.append(term)
+                    if len(expected_terms) >= 6:
+                        break
+                if len(expected_terms) >= 6:
+                    break
+            if len(expected_terms) < 3:
+                continue
+            seen_queries.append(query)
+            cases.append(
+                RetrievalEvalCase(
+                    case_id=f"{left['id']}::{grouped['id']}::cross_document_multi_step::{len(cases) + 1}",
+                    query=query,
+                    source_document_id=str(left["source_document_id"]),
+                    document_version_id=str(left["document_version_id"]),
+                    source_chunk_id=str(left["id"]),
+                    source_title=str(left.get("title", "")),
+                    source_filename=str(left.get("source_filename", "")),
+                    chunk_type=str(left.get("chunk_type", "")),
+                    section_path=str(left.get("section_path_text", "")),
+                    page_from=int(left.get("page_from", 0)),
+                    page_to=int(left.get("page_to", 0)),
+                    expected_terms=expected_terms[:6],
+                    expected_snippet=" | ".join(item["snippet"] for item in evidence),
+                    generation_method="cross_document_same_field_evidence",
+                    source_metadata=dict(left.get("metadata_json", {})),
+                    benchmark_quality="validated",
+                    anchor_terms=expected_terms[:6],
+                    retrieval_task="multi_step_retrieval",
+                    expected_source_chunk_ids=[item["chunk_id"] for item in evidence],
+                    expected_evidence=evidence,
+                )
+            )
+            if len(cases) >= max_cases:
+                return cases
+        if len(candidates) < 24 and not any(
+            str(existing.get("_cross_doc_label", "")) == label
+            and str(existing.get("source_document_id", "")) == str(grouped.get("source_document_id", ""))
+            for existing in candidates
+        ):
+            candidates.append(grouped)
+    return cases
+
+
 def _build_contextual_multi_step_cases(
     chunks: list[dict[str, Any]],
     *,
@@ -1485,7 +1650,15 @@ def build_multi_step_eval_cases_from_chunks(
                 seen_queries=seen_queries,
             )
         )
-    if case_family not in {"all", "sibling_table_rows", "contextual_section", "warning_step"}:
+    if case_family in {"all", "cross_document"} and len(cases) < max_cases:
+        cases.extend(
+            _build_cross_document_multi_step_cases(
+                chunks,
+                max_cases=max_cases - len(cases),
+                seen_queries=seen_queries,
+            )
+        )
+    if case_family not in {"all", "sibling_table_rows", "contextual_section", "warning_step", "cross_document"}:
         raise ValueError(f"Unsupported multi-step case family: {case_family}")
     return cases
 
