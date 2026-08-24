@@ -1,0 +1,46 @@
+{
+  "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
+  "created_at": "2026-08-23",
+  "updated_at": "2026-08-23",
+  "goal": {
+    "target_answer_accuracy": 1.0,
+    "target_question_count": 10000,
+    "components": [
+      "single_step_retrieval",
+      "multi_step_retrieval"
+    ]
+  },
+  "constraints": {
+    "models": "use existing local application model settings only",
+    "allowed_logic": [
+      "retrieval",
+      "evaluation",
+      "answering"
+    ],
+    "forbidden_shortcuts": [
+      "document-specific routing",
+      "filename heuristics",
+      "vendor-specific shortcuts",
+      "eval-only production behavior"
+    ],
+    "run_budget_minutes": 30
+  },
+  "question_bank": {
+    "total_questions": 0,
+    "single_step_questions": 0,
+    "multi_step_questions": 0,
+    "locked_regression_questions": 0,
+    "exploratory_questions": 0,
+    "datasets": []
+  },
+  "latest_results": {
+    "unit_tests": {
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
+      "status": "passed",
+      "passed": 163,
+      "warnings": 55
+    },
+    "evals": []
+  },
+  "next_target": "Create or extend the first durable question-bank dataset and baseline single-step versus multi-step retrieval accuracy."
+}
