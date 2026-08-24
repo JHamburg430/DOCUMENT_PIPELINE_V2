@@ -7,11 +7,13 @@ import mimetypes
 import os
 import random
 import shutil
+import signal
 import subprocess
 import sys
 import time
 import uuid
 from collections import Counter, defaultdict
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from urllib import error, request
@@ -30,6 +32,51 @@ ADMIN_TOKEN = os.getenv("LOCAL_ADMIN_TOKEN", "admin-token")
 USER_TOKEN = os.getenv("LOCAL_END_USER_TOKEN", "user-token")
 DEFAULT_DOCS_DIR = REPO_ROOT / "Technical_Documents" / "Keyence"
 OUTPUT_DIR = MANUALS_ROOT / "test_reports"
+
+
+class QueryTimeoutError(TimeoutError):
+    pass
+
+
+@contextmanager
+def query_timeout(seconds: int | None):
+    if not seconds or seconds <= 0:
+        yield
+        return
+    if not hasattr(signal, "SIGALRM"):
+        yield
+        return
+    previous_handler = signal.getsignal(signal.SIGALRM)
+
+    def _raise_timeout(_signum: int, _frame: object) -> None:
+        raise QueryTimeoutError(f"Search exceeded per-query timeout of {seconds} seconds.")
+
+    signal.signal(signal.SIGALRM, _raise_timeout)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous_handler)
+
+
+def timeout_evaluation(case: dict[str, Any], *, elapsed_seconds: float, timeout_seconds: int) -> dict[str, Any]:
+    return {
+        "passed": False,
+        "rank": None,
+        "matched_terms": [],
+        "missing_terms": list(case.get("expected_terms") or []),
+        "candidate_recall": False,
+        "failure_category": "eval_timeout",
+        "elapsed_seconds": round(elapsed_seconds, 3),
+        "timeout_seconds": timeout_seconds,
+    }
+
+
+def is_query_timeout_exception(exc: Exception) -> bool:
+    if isinstance(exc, QueryTimeoutError):
+        return True
+    return "Search exceeded per-query timeout" in str(exc)
 
 
 def _query_postgres_rows(sql: str) -> list[dict[str, Any]]:
@@ -246,6 +293,13 @@ def run_search(query: str, *, corpus_id: str) -> list[dict[str, Any]]:
     )
 
 
+def run_search_direct(query: str, *, corpus_id: str) -> list[dict[str, Any]]:
+    from manuals_rag_retrieval.retriever import build_filters, retrieve
+
+    filters = build_filters(query, {})
+    return [item.model_dump() for item in retrieve(query, [corpus_id], filters)]
+
+
 def write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
@@ -354,6 +408,18 @@ def main() -> int:
         default=None,
         help="Existing RetrievalEvalCase JSONL dataset to score instead of generating new cases.",
     )
+    parser.add_argument(
+        "--search-mode",
+        choices=["http", "direct"],
+        default="http",
+        help="Use the HTTP API or call the app retriever in-process. Direct mode is intended for fast retrieval-only saved-bank evals.",
+    )
+    parser.add_argument(
+        "--per-query-timeout-seconds",
+        type=int,
+        default=0,
+        help="Abort and score a single query as eval_timeout after this many seconds. 0 disables per-query timeout.",
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -407,10 +473,38 @@ def main() -> int:
 
     results: list[dict[str, Any]] = []
     for case in cases:
-        search_results = run_search(case["query"], corpus_id=corpus_id)
-        evaluation = score_search_results(RetrievalEvalCase(**case), search_results)
+        start_time = time.time()
+        try:
+            with query_timeout(args.per_query_timeout_seconds):
+                if args.search_mode == "direct":
+                    search_results = run_search_direct(case["query"], corpus_id=corpus_id)
+                else:
+                    search_results = run_search(case["query"], corpus_id=corpus_id)
+            evaluation = score_search_results(RetrievalEvalCase(**case), search_results)
+            evaluation["elapsed_seconds"] = round(time.time() - start_time, 3)
+        except Exception as exc:
+            if not is_query_timeout_exception(exc):
+                raise
+            search_results = []
+            evaluation = timeout_evaluation(
+                case,
+                elapsed_seconds=time.time() - start_time,
+                timeout_seconds=args.per_query_timeout_seconds,
+            )
         results.append({"case": case, "evaluation": evaluation, "top_results": search_results[:5]})
-        print(json.dumps({"case_id": case["case_id"], "passed": evaluation["passed"], "rank": evaluation["rank"]}, indent=2), flush=True)
+        print(
+            json.dumps(
+                {
+                    "case_id": case["case_id"],
+                    "passed": evaluation["passed"],
+                    "rank": evaluation["rank"],
+                    "failure_category": evaluation.get("failure_category"),
+                    "elapsed_seconds": evaluation.get("elapsed_seconds"),
+                },
+                indent=2,
+            ),
+            flush=True,
+        )
 
     write_jsonl(results_path, results)
     summary = summarize(results)
@@ -421,12 +515,15 @@ def main() -> int:
                 "corpus_id": corpus_id,
                 "documents": ingested_docs,
                 "input_dataset_path": str(args.dataset_path) if args.dataset_path else None,
+                "search_mode": args.search_mode,
+                "per_query_timeout_seconds": args.per_query_timeout_seconds,
                 "dataset_path": str(dataset_path),
                 "results_path": str(results_path),
                 "summary_path": str(summary_path),
                 "selected_documents": [str(path) for path in selected_docs],
             },
             indent=2,
+            default=str,
         ),
         encoding="utf-8",
     )

@@ -53,6 +53,45 @@ def test_large_retrieval_eval_loads_saved_dataset(tmp_path):
     assert cases[0]["retrieval_task"] == "single_step_retrieval"
 
 
+def test_large_retrieval_eval_scores_query_timeouts():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    evaluation = module.timeout_evaluation(
+        {"expected_terms": ["24", "vdc"]},
+        elapsed_seconds=12.3456,
+        timeout_seconds=12,
+    )
+
+    assert evaluation["passed"] is False
+    assert evaluation["rank"] is None
+    assert evaluation["candidate_recall"] is False
+    assert evaluation["failure_category"] == "eval_timeout"
+    assert evaluation["missing_terms"] == ["24", "vdc"]
+    assert evaluation["elapsed_seconds"] == 12.346
+
+
+def test_large_retrieval_eval_recognizes_wrapped_query_timeouts():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert module.is_query_timeout_exception(module.QueryTimeoutError("Search exceeded per-query timeout of 12 seconds."))
+    assert module.is_query_timeout_exception(RuntimeError("Search exceeded per-query timeout of 12 seconds."))
+    assert not module.is_query_timeout_exception(RuntimeError("qdrant collection unavailable"))
+
+
 def test_build_eval_cases_from_chunks_creates_queries():
     chunks = [
         {

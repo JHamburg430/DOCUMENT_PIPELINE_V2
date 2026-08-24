@@ -53,11 +53,66 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
       "status": "passed",
-      "passed": 23,
+      "passed": 25,
       "warnings": 0,
-      "notes": "Focused harness/retrieval eval tests passed after adding saved question-bank loading."
+      "notes": "Focused harness/retrieval eval tests passed after adding saved question-bank loading and per-query timeout scoring."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_032823",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_032823.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_032823.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_032823.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_question_bank_direct_timeout",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "total_queries": 3,
+        "passed_queries": 0,
+        "failed_queries": 3,
+        "pass_rate": 0.0,
+        "pass_at_1": 0.0,
+        "pass_at_3": 0.0,
+        "pass_at_5": 0.0,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 3,
+            "passed": 0
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 3
+        },
+        "notes": "Bounded direct-mode eval now completes and writes artifacts; manual direct retrieval of the first case exceeded 60 seconds, so the next bottleneck is retrieval/model latency rather than only HTTP overhead."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_025839",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_025839.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_question_bank",
+        "total_queries": 10,
+        "passed_queries": 7,
+        "failed_queries": 3,
+        "pass_rate": 0.7,
+        "pass_at_1": 0.7,
+        "pass_at_3": 0.7,
+        "pass_at_5": 0.7,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 10,
+            "passed": 7
+          }
+        },
+        "failure_categories": {
+          "candidate_miss": 1,
+          "wrong_document_or_filter_loss": 2
+        },
+        "notes": "Useful saved-bank result artifact found at the start of the timeout-control run; only the summary file was present as an untracked artifact."
+      },
       {
         "run_id": "retrieval_eval_20260824_025651_aborted",
         "corpus_id": "manuals_vendor_keyence",
@@ -104,5 +159,5 @@
       }
     ]
   },
-  "next_target": "Make saved-bank retrieval eval fast enough for cron by bypassing HTTP/query overhead or adding per-query timing/timeout controls in the eval harness, then rerun the 40-case single-step bank and generate the first true multi-step cases."
+  "next_target": "Profile and optimize single-query retrieval latency, especially sparse/table paths that scroll large Qdrant payload sets for every query, then rerun the 40-case saved single-step bank with bounded per-query timing before generating true multi-step cases."
 }
