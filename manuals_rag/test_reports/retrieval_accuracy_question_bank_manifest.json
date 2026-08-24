@@ -205,11 +205,84 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q",
       "status": "passed",
-      "passed": 77,
+      "passed": 79,
       "warnings": 23,
-      "notes": "Focused answering/eval tests passed after preserving focused table-cell evidence in validation fallback answers."
+      "notes": "Focused answering/eval tests passed after direct structured evidence summaries and table-cell-first validation support checks."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_233118",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_233118.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_233118.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_233118.json",
+        "status": "completed_answer_grounding_direct_structured_evidence",
+        "search_mode": "direct",
+        "response_mode": "answer_with_citations",
+        "per_query_timeout_seconds": 60,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 5,
+        "passed_queries": 5,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "answer_eval_count": 5,
+        "answer_passed_queries": 4,
+        "answer_failed_queries": 1,
+        "answer_pass_rate": 0.8,
+        "answer_failure_reasons": {
+          "expected_terms_missing": 1
+        },
+        "answer_latency": {
+          "min_seconds": 13.323,
+          "max_seconds": 21.937,
+          "mean_seconds": 16.724,
+          "p95_seconds": 21.937
+        },
+        "answer_fallback_count": 1,
+        "answer_fallback_rate": 0.2,
+        "answer_sources": {
+          "model": 4,
+          "fallback_validation": 1
+        },
+        "answer_fallback_reasons": {
+          "Generated answer was replaced by retrieval-grounded fallback during validation.": 1
+        },
+        "mode": "answer_with_citations_saved_single_step_replacement_debt_direct_structured_evidence",
+        "notes": "Direct summaries for focused structured chunks improved the same 5-case answer smoke from pre-fix 3/5 to 4/5 answers passed, reduced fallback-validation from 40% to 20%, and lowered p95 latency from 28.657s to 21.937s. Relevance and recursive-summary JSON fallbacks still appeared in logs."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_233306",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_233306.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_233306.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_233306.json",
+        "status": "completed_retrieval_only_regression",
+        "search_mode": "direct",
+        "response_mode": "retrieval_only",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 13,
+        "passed_queries": 13,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_single_step_replacement_debt_regression",
+        "notes": "Replacement-debt single-step retrieval gate stayed green after answer-generation changes."
+      },
       {
         "run_id": "retrieval_eval_20260824_225623",
         "corpus_id": "manuals_vendor_keyence",
@@ -3592,9 +3665,12 @@
       "cross_document_multi_step_bank": {
         "ranking_or_context_loss": 7,
         "candidate_miss": 1
+      },
+      "answer_grounding_smoke": {
+        "expected_terms_missing": 1
       }
     },
-    "next_target": "Improve cross-document multi-step retrieval/context assembly for same-field prompts while preserving green single-step reverse lookup and warning-step gates; expand answer-grounding coverage beyond the 2-case smoke and track fallback/latency behavior.",
+    "next_target": "Reduce remaining relevance-judgment and recursive-summary JSON fallback frequency, then fix the remaining 5-case answer-mode expected-term miss while preserving the 13/13 replacement-debt retrieval gate and the green warning-step/cross-document tracking gates.",
     "current_failure_categories": {
       "replacement_debt_single_step_bank": {},
       "replacement_single_step_bank": {},
@@ -3602,16 +3678,26 @@
       "cross_document_multi_step_bank": {
         "ranking_or_context_loss": 7,
         "candidate_miss": 1
+      },
+      "answer_grounding_smoke": {
+        "expected_terms_missing": 1
       }
     },
     "answer_grounding_status": {
-      "status": "smoke_measured",
-      "latest_run_id": "retrieval_eval_20260824_220047",
-      "answer_eval_count": 2,
-      "answer_passed_queries": 2,
-      "answer_pass_rate": 1.0,
-      "notes": "Benchmark answer-with-citations mode now scores final answers for expected terms and cited/used expected documents. A 2-case saved single-step smoke passed, but local relevance and recursive summary calls produced malformed JSON and used fallbacks; broader answer coverage should track fallback frequency and latency."
+      "status": "smoke_measured_direct_structured_evidence",
+      "latest_run_id": "retrieval_eval_20260824_233118",
+      "answer_eval_count": 5,
+      "answer_passed_queries": 4,
+      "answer_pass_rate": 0.8,
+      "answer_fallback_rate": 0.2,
+      "answer_latency": {
+        "min_seconds": 13.323,
+        "max_seconds": 21.937,
+        "mean_seconds": 16.724,
+        "p95_seconds": 21.937
+      },
+      "notes": "Focused structured chunks now bypass chunk-summary JSON calls and table validation keeps focused cell text before broad context. Remaining live logs still show relevance and recursive-summary JSON fallbacks, and one model answer missed expected terms."
     }
   },
-  "next_target": "Improve cross-document multi-step retrieval/context assembly for same-field prompts while preserving green single-step reverse lookup and warning-step gates; expand answer-grounding coverage beyond the 2-case smoke and track fallback/latency behavior."
+  "next_target": "Reduce remaining relevance-judgment and recursive-summary JSON fallback frequency, then fix the remaining 5-case answer-mode expected-term miss while preserving the 13/13 replacement-debt retrieval gate and the green warning-step/cross-document tracking gates."
 }

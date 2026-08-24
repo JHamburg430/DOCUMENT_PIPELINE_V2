@@ -894,3 +894,25 @@ Next target:
 Next target:
 
 - Reduce answer-generation JSON fallback frequency and latency, then expand answer-grounding coverage beyond the 3-case smoke while preserving the green single-step reverse-lookup and warning-step retrieval gates; continue cross-document multi-step retrieval work after answer metrics stabilize.
+
+## 2026-08-24 Cron 39262386 Direct Structured Answer Evidence
+
+- Target: reduce answer-generation JSON fallback frequency and latency for correctly retrieved structured evidence while preserving the green single-step replacement-debt retrieval gate.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior answer-mode evidence showed malformed relevance/recursive-summary JSON fallbacks and high latency. A same-run 5-case diagnostic before the final fix (`retrieval_eval_20260824_232731`) had 5/5 retrieval passed but only 3/5 answers passed, answer fallback rate 40%, and answer latency p95 28.657s.
+- Changed answering logic in `packages/answering/src/manuals_rag_answering/generator.py` so focused structured chunks (`table_record`, `spec_record`, `datasheet_record`, `procedure_record`, and `warning_record`) use direct evidence summaries instead of a chunk-summary model call. Table evidence text now keeps the focused cell content before broader context for relevance and validation support checks.
+- Added focused unit coverage in `tests/unit/test_parser_and_answering.py` for direct structured summaries bypassing chunk-summary JSON calls and for validation support checks using table-cell content even when context windows are present.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q` -> 79 passed, 23 warnings.
+- Live answer-grounding command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_210121.jsonl --max-queries 5 --search-mode direct --response-mode answer_with_citations --per-query-timeout-seconds 60 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Live answer result: `retrieval_eval_20260824_233118` completed 5 saved single-step table questions with 5/5 retrieval passed and 4/5 answers passed. Answer pass rate improved from 60% in the pre-fix diagnostic to 80%, answer fallback rate dropped from 40% to 20%, and answer latency min/max/mean/p95 was 13.323s/21.937s/16.724s/21.937s. One remaining answer failed `expected_terms_missing`.
+- Retrieval-only regression command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_210121.jsonl --max-queries 13 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Retrieval-only regression result: `retrieval_eval_20260824_233306` stayed 13/13 (100%), pass@1/pass@3/pass@5 all 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`.
+- Answer-generation evidence: chunk-summary JSON fallback was removed for focused structured evidence, but relevance judgment and recursive-summary JSON fallbacks still appeared in the live logs. The next answer target should reduce those remaining fallback paths and fix the remaining model answer expected-term miss.
+- Question-bank counts unchanged: 193 exploratory questions total, 100 single-step and 93 multi-step. Replacement debt remains 0; no questions were retired or added in this answer-focused run.
+- New artifacts: `test_reports/retrieval_eval_summary_20260824_233118.json`, `test_reports/retrieval_eval_manifest_20260824_233118.json`, `test_reports/retrieval_eval_summary_20260824_233306.json`, and `test_reports/retrieval_eval_manifest_20260824_233306.json`. JSONL datasets/results are present locally under the same timestamps.
+- Changed files: `packages/answering/src/manuals_rag_answering/generator.py`, `tests/unit/test_parser_and_answering.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus the new tracked summary/manifest artifacts for 23:31 and 23:33 UTC.
+- Generalization check before commit: preserving focused structured evidence before broad context and skipping unnecessary JSON summarization for already-focused structured chunks is valid for unseen manuals, unseen vendors, and realistic questions from engineers, salespeople, managers, technicians, and support users.
+
+Next target:
+
+- Reduce remaining relevance-judgment and recursive-summary JSON fallback frequency, then fix the remaining 5-case answer-mode expected-term miss while preserving the 13/13 replacement-debt retrieval gate and the green warning-step/cross-document tracking gates.

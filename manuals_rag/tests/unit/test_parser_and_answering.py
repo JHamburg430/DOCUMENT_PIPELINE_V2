@@ -546,6 +546,58 @@ def test_generate_answer_with_trace_exposes_summary_input_and_fallback_state(mon
     assert trace["final_answer"]["summarized_evidence"][0]["summary"] == "Use the Defect Tool for setup."
 
 
+def test_structured_evidence_uses_direct_summary_without_chunk_summary_model(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="c-table",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[3],
+            section_path=["Settings"],
+            content="Column headers: setting; Row headers: Width; Cell value: measure",
+            metadata={"chunk_type": "table_record", "context_window": "Width setting selects measure."},
+        )
+    ]
+    calls: list[str] = []
+
+    def fake_chat_json(**kwargs):
+        calls.append(kwargs["purpose"])
+        if kwargs["purpose"] == "chunk_summary":
+            raise AssertionError("focused table evidence should not need model summarization")
+        if kwargs["purpose"] == "relevance_review":
+            return (
+                {"items": [{"chunk_id": "c-table", "verdict": "relevant", "reason": "Direct table match."}]},
+                '{"items":[{"chunk_id":"c-table","verdict":"relevant","reason":"Direct table match."}]}',
+            )
+        return (
+            {
+                "answer": "The Width setting selects measure.",
+                "confidence": "high",
+                "used_documents": [],
+                "citations": [],
+                "warnings": [],
+                "followup_questions": [],
+                "insufficient_evidence": False,
+            },
+            '{"answer":"The Width setting selects measure.","confidence":"high",'
+            '"used_documents":[],"citations":[],"warnings":[],'
+            '"followup_questions":[],"insufficient_evidence":false}',
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fake_chat_json)
+
+    answer, trace = generate_answer_with_trace("What setting selects measure?", results)
+
+    assert answer.answer == "The Width setting selects measure."
+    assert calls == ["relevance_review", "final_answer"]
+    summary = trace["final_answer"]["summarized_evidence"][0]
+    assert summary["summary_source"] == "direct_evidence"
+    assert summary["summary"].startswith("Column headers: setting")
+    assert "Context: Width setting selects measure." in summary["summary"]
+
+
 def test_validation_fallback_preserves_focused_table_cell_before_context(monkeypatch):
     results = [
         SearchResult(
@@ -608,6 +660,50 @@ def test_validation_fallback_preserves_focused_table_cell_before_context(monkeyp
     assert "Cell value: Command Result" in answer.answer
     assert "Context: status Bit area" in answer.answer
     assert trace["final_answer"]["answer_source"] == "fallback_validation"
+
+
+def test_validation_support_checks_table_cell_before_context(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="c-table",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[13],
+            section_path=["Ring lights"],
+            content='Column headers: Part number; Cell value: 19.69" OP-42284; Row: 4; Column: 0',
+            metadata={"chunk_type": "table_record", "context_window": "CA-DRR3 | 1.5W | 12VDC"},
+        )
+    ]
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "relevance_review":
+            return (
+                {"items": [{"chunk_id": "c-table", "verdict": "relevant", "reason": "Direct table match."}]},
+                '{"items":[{"chunk_id":"c-table","verdict":"relevant","reason":"Direct table match."}]}',
+            )
+        return (
+            {
+                "answer": 'The part number is 19.69" OP-42284.',
+                "confidence": "high",
+                "used_documents": [],
+                "citations": [],
+                "warnings": [],
+                "followup_questions": [],
+                "insufficient_evidence": False,
+            },
+            '{"answer":"The part number is 19.69\\" OP-42284.","confidence":"high",'
+            '"used_documents":[],"citations":[],"warnings":[],'
+            '"followup_questions":[],"insufficient_evidence":false}',
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fake_chat_json)
+
+    answer, trace = generate_answer_with_trace("What 19.69 OP-42284 applies?", results)
+
+    assert answer.answer == 'The part number is 19.69" OP-42284.'
+    assert trace["final_answer"]["used_fallback"] is False
 
 
 def test_docling_page_batches_cover_full_document():

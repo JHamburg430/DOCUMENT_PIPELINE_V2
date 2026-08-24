@@ -183,7 +183,7 @@ def _answer_supported_by_results(answer: str, results: list[SearchResult]) -> bo
         return False
     evidence_terms: set[str] = set()
     for result in results[:5]:
-        evidence_terms.update(_answer_terms(str(result.metadata.get("context_window") or result.content)))
+        evidence_terms.update(_answer_terms(_evidence_text(result)))
         evidence_terms.update(_answer_terms(" ".join(result.section_path)))
         evidence_terms.update(_answer_terms(result.title))
     overlap = answer_terms.intersection(evidence_terms)
@@ -197,7 +197,9 @@ def _evidence_text(result: SearchResult) -> str:
     context_window = str(result.metadata.get("context_window") or "").strip()
     content = str(result.content or "").strip()
     if chunk_type == "table_record" and context_window:
-        return context_window
+        if content and content.lower() not in context_window.lower():
+            return f"{content}\n\nContext: {context_window}"
+        return content or context_window
     if chunk_type in {"atomic_text", "table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
         return content
     if context_window:
@@ -695,7 +697,39 @@ def _fallback_summary(query: str, result: SearchResult) -> str:
     return f"[{result.chunk_id}] {evidence}"
 
 
+def _direct_evidence_summary(result: SearchResult) -> str | None:
+    chunk_type = str(result.metadata.get("chunk_type") or "")
+    if chunk_type not in {"table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
+        return None
+    evidence = _fallback_answer_text(result).strip()
+    if not evidence:
+        return None
+    return evidence[:1200]
+
+
 def _summarize_chunk(query: str, result: SearchResult) -> dict[str, Any]:
+    direct_summary = _direct_evidence_summary(result)
+    if direct_summary:
+        return {
+            "chunk_id": result.chunk_id,
+            "title": result.title,
+            "pages": result.pages,
+            "section_path": result.section_path,
+            "summary": direct_summary,
+            "summary_source": "direct_evidence",
+            "source_document_id": result.source_document_id,
+            "document_version_id": result.document_version_id,
+            "source_documents": [
+                {
+                    "chunk_id": result.chunk_id,
+                    "title": result.title,
+                    "pages": result.pages,
+                    "section_path": result.section_path,
+                    "source_document_id": result.source_document_id,
+                    "document_version_id": result.document_version_id,
+                }
+            ],
+        }
     payload = {
         "chunk_id": result.chunk_id,
         "title": result.title,
@@ -718,15 +752,18 @@ def _summarize_chunk(query: str, result: SearchResult) -> dict[str, Any]:
             purpose="chunk_summary",
         )
         summary = _extract_json_summary(raw)
+        summary_source = "model"
     except Exception as exc:
         logger.warning("Chunk summary failed for %s; using fallback summary: %s", result.chunk_id, exc)
         summary = _fallback_summary(query, result)
+        summary_source = "fallback_summary"
     return {
         "chunk_id": result.chunk_id,
         "title": result.title,
         "pages": result.pages,
         "section_path": result.section_path,
         "summary": summary,
+        "summary_source": summary_source,
         "source_document_id": result.source_document_id,
         "document_version_id": result.document_version_id,
         "source_documents": [
