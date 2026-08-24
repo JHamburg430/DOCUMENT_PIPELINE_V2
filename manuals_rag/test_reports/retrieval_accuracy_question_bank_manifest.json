@@ -175,13 +175,93 @@
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q",
       "status": "passed",
-      "passed": 232,
-      "warnings": 58,
-      "notes": "Full unit suite passed after multi-identifier structured lookup analysis and retrieval scope changes. Focused retriever suite also passed: tests/unit/test_retriever.py -> 81 passed, 1 warning."
+      "passed": 83,
+      "warnings": 1,
+      "notes": "Focused retriever tests passed for an experimental cross-document ranking/diversification branch, but the branch was rolled back because live eval regressed."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_195702",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_190632.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_195702.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_195702.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_195702.json",
+        "status": "completed_failed_experiment",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 20,
+        "passed_queries": 10,
+        "failed_queries": 10,
+        "pass_rate": 0.5,
+        "pass_at_1": 0.3,
+        "pass_at_3": 0.45,
+        "pass_at_5": 0.5,
+        "candidate_recall_rate": 0.85,
+        "metadata_document_selection_recall_rate": 0.95,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 20,
+            "passed": 10
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 20,
+            "passed": 10
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 7,
+          "candidate_miss": 3
+        },
+        "mode": "retrieval_only_saved_cross_document_multi_step_experimental_field_diversity",
+        "notes": "Experimental structured-field alignment plus multi-identifier source-document diversification regressed the saved cross-document bank from 11/20 to 10/20; production code changes were rolled back."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_195822",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_190632.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_195822.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_195822.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_195822.json",
+        "status": "completed_failed_diagnostic",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 8,
+        "passed_queries": 3,
+        "failed_queries": 5,
+        "pass_rate": 0.375,
+        "pass_at_1": 0.125,
+        "pass_at_3": 0.25,
+        "pass_at_5": 0.375,
+        "candidate_recall_rate": 0.75,
+        "metadata_document_selection_recall_rate": 0.875,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 8,
+            "passed": 3
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 8,
+            "passed": 3
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 3,
+          "candidate_miss": 2
+        },
+        "mode": "retrieval_only_saved_cross_document_multi_step_experimental_penalty_diagnostic",
+        "notes": "Smaller diagnostic after stronger non-field penalties still underperformed; experiment was abandoned and rolled back."
+      },
       {
         "run_id": "retrieval_eval_20260824_192726",
         "corpus_id": "manuals_vendor_keyence",
@@ -2898,18 +2978,26 @@
         "ranking_or_context_loss": 6,
         "candidate_miss": 3
       },
+      "failed_experimental_cross_document_run": {
+        "ranking_or_context_loss": 7,
+        "candidate_miss": 3
+      },
       "replacement_single_step_bank": {},
       "warning_step_multi_step_bank": {}
     },
-    "next_target": "Improve cross-document multi-step evidence selection and scoring for same-field prompts, especially equivalent table-row/context handling across two expected source documents, while preserving the 20/20 replacement single-step and 15/15 warning-step gates.",
+    "next_target": "Refine cross-document multi-step evaluation/scoring before further production ranking changes: distinguish equivalent same-field table-row evidence from strict arbitrary chunk-id misses, filter overly generic cross-document fields such as item/items, and then retest retrieval changes against the 20/20 replacement single-step and 15/15 warning-step gates.",
     "current_failure_categories": {
       "cross_document_multi_step_bank": {
         "ranking_or_context_loss": 6,
+        "candidate_miss": 3
+      },
+      "failed_experimental_cross_document_run": {
+        "ranking_or_context_loss": 7,
         "candidate_miss": 3
       },
       "replacement_single_step_bank": {},
       "warning_step_multi_step_bank": {}
     }
   },
-  "next_target": "Improve cross-document multi-step evidence selection and scoring for same-field prompts, especially equivalent table-row/context handling across two expected source documents, while preserving the 20/20 replacement single-step and 15/15 warning-step gates."
+  "next_target": "Refine cross-document multi-step evaluation/scoring before further production ranking changes: distinguish equivalent same-field table-row evidence from strict arbitrary chunk-id misses, filter overly generic cross-document fields such as item/items, and then retest retrieval changes against the 20/20 replacement single-step and 15/15 warning-step gates."
 }

@@ -735,3 +735,21 @@ Next target:
 Next target:
 
 - Improve cross-document multi-step evidence selection and scoring for same-field prompts, especially equivalent table-row/context handling across two expected source documents, while preserving the 20/20 replacement single-step and 15/15 warning-step gates.
+
+## 2026-08-24 Cron 39262386 Cross-Document Ranking Experiment
+
+- Target: improve saved cross-document same-field multi-step retrieval by reducing final-context document crowding and promoting rows that match the requested structured field.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior saved cross-document run `retrieval_eval_20260824_192726` was 11/20 (55%) with `ranking_or_context_loss: 6` and `candidate_miss: 3`. Failure inspection showed one document's table rows crowding final top-k for multi-identifier prompts, plus several low-signal same-field cases where strict expected chunk ids compete with many equivalent table rows.
+- Experimental retrieval changes attempted: expanded generic structured-field alignment beyond message/symbol/description-style prompts and added final-result source-document diversification for multi-identifier structured lookups. This did not add filename/vendor routing, model changes, provider changes, or query-derived hard document filters.
+- Focused tests for the experimental branch: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 83 passed, 1 warning.
+- Live eval command (full saved cross-document bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_190632.jsonl --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Experimental full result: `retrieval_eval_20260824_195702` regressed to 10/20 (50%), pass@1 30%, pass@3 45%, pass@5 50%, candidate recall 85%, metadata-document recall 95%, failures `ranking_or_context_loss: 7` and `candidate_miss: 3`.
+- Follow-up diagnostic command after increasing non-field penalties: same saved bank with `--max-queries 8`.
+- Diagnostic result: `retrieval_eval_20260824_195822` completed 3/8 (37.5%), pass@1 12.5%, pass@3 25%, pass@5 37.5%, candidate recall 75%, metadata-document recall 87.5%, failures `ranking_or_context_loss: 3` and `candidate_miss: 2`.
+- Decision: no safe production retrieval improvement was made. The experimental retriever/test edits were backed out before ending this run. New eval artifacts are retained as failure evidence only.
+- Changed files after rollback: `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new failed-experiment eval artifacts for 19:57 and 19:58 UTC.
+
+Next target:
+
+- Refine cross-document multi-step evaluation/scoring before further production ranking changes: distinguish equivalent same-field table-row evidence from strict arbitrary chunk-id misses, filter out overly generic cross-document fields such as `item/items`, and then retest retrieval changes against the 20/20 replacement single-step and 15/15 warning-step gates.
