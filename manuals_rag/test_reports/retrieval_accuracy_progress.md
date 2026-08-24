@@ -522,3 +522,23 @@ Next target:
 Next target:
 
 - Preserve the recovered 39/40 single-step path and warning-step 15/15 path while retiring or replacing the low-information IV4 detection prompt, then broaden multi-step coverage to cross-document engineering questions.
+
+## 2026-08-24 Cron 39262386 Standard Timeout Validation
+
+- Target: validate the already-committed single-step structured recovery under the normal cron-sized 8-second per-query timeout before promoting the refreshed single-step bank or broadening to cross-document multi-step cases.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Repository state: HEAD was already `e0bff8c Recover single-step structured retrieval` on `origin/main`; no tracked retrieval/eval/answering code changes were made in this run.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 71 passed, 1 warning.
+- Live eval command (refreshed deterministic single-step diagnostic): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --retrieval-task single_step_retrieval --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45 --disable-llm-query-generation`.
+- Refreshed diagnostic result: `retrieval_eval_20260824_150321` stayed at 34/40 (85%), pass@1 80%, pass@3 82.5%, pass@5 85%, candidate recall 92.5%, metadata-document recall 92.5%, failures `wrong_document_or_filter_loss: 2`, `candidate_miss: 1`, `ranking_or_context_loss: 3`. It remains diagnostic-only and was not promoted to the durable question-bank list.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_150525` completed at 37/40 (92.5%), pass@1 82.5%, pass@3 90%, pass@5 92.5%, candidate recall 97.5%, metadata-document recall 97.44%, failures `eval_timeout: 1`, `ranking_or_context_loss: 2`. This is below the earlier committed 90-second recovery artifact `retrieval_eval_20260824_145600` at 39/40 (97.5%).
+- Live eval command (saved refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved refined warning-step result: `retrieval_eval_20260824_150526` completed at 14/15 (93.33%), pass@1 80%, pass@3 86.67%, pass@5 93.33%, candidate recall 100%, metadata-document recall 100%, failures `ranking_or_context_loss: 1`. This is below the prior 15/15 gate.
+- New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_150321.json`, `test_reports/retrieval_eval_manifest_20260824_150321.json`, `test_reports/retrieval_eval_summary_20260824_150525.json`, `test_reports/retrieval_eval_manifest_20260824_150525.json`, `test_reports/retrieval_eval_summary_20260824_150526.json`, `test_reports/retrieval_eval_manifest_20260824_150526.json`.
+- Question-bank counts unchanged: 153 exploratory questions total, 80 single-step and 73 multi-step.
+- Changed files: `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for 15:03-15:05 UTC.
+
+Next target:
+
+- Reconcile the 90-second 39/40 recovery with the standard 8-second cron gate: reduce KV/structured lookup latency and restore saved single-step to at least 38/40 plus warning-step to 15/15 under the normal timeout before promoting refreshed single-step data or broadening to cross-document multi-step cases.
