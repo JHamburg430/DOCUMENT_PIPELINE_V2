@@ -278,3 +278,24 @@ Next target:
 Next target:
 
 - Fix the remaining LJ-X8000 high-speed image-capture contextual evidence miss and the IV4-G600CA PDO wrong-document table miss with generic metadata/table ranking improvements, then add warning-plus-step and cross-document multi-step cases.
+
+## 2026-08-24 Cron 39262386 Contextual Pre-Limit Ordering
+
+- Target: fix the remaining LJ-X8000 high-speed image-capture contextual evidence miss and recheck the IV4-G600CA PDO single-step wrong-document miss without adding document-specific routing or query-derived hard filters.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior contextual run `retrieval_eval_20260824_085757` was 19/20 (95%) with one `candidate_miss`; the missed LJ-X8000 evidence was discoverable by contextual lexical scoring but could be lost before scoring because the SQL pre-limit scan had no deterministic relevance ordering. Prior single-step run `retrieval_eval_20260824_085932` was 37/40 (92.5%) with the IV4-G600CA PDO row still reported as `wrong_document_or_filter_loss`.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so contextual lexical candidate scans order rows before `LIMIT` using generic product-term matches plus content/local-context query-term matches, then continue through the existing Python scorer/reranker. The ordering is bounded to a small term set to limit added SQL cost.
+- Added focused unit coverage in `tests/unit/test_retriever.py` to assert contextual lexical scans include deterministic relevance ordering and product-term metadata matching.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 54 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 194 passed, 58 warnings in 150.83s.
+- Live eval command (saved contextual multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved contextual multi-step result: `retrieval_eval_20260824_093050` held at 19/20 (95%) with pass@1/pass@3/pass@5 all 95%, candidate recall 95%, metadata-document recall 89.47%, and failure categories `eval_timeout: 1`. The prior LJ-X8000 high-speed image-capture candidate miss now passes at rank 1; the remaining failure is an XG-X contextual case brushing the 8-second timeout.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_093241` held at 37/40 (92.5%), pass@1 77.5%, pass@3 87.5%, pass@5 92.5%, candidate recall 97.5%, metadata-document recall improved to 100%, and failures were `eval_timeout: 1` plus `ranking_or_context_loss: 2`. The IV4-G600CA PDO row now passes at rank 1.
+- Timeout evidence: two useful saved-bank evals now have one scored `eval_timeout` each under the 8-second per-query ceiling. Future runs should reduce contextual/query latency or consider raising the per-query eval timeout before treating these as accuracy misses.
+- New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_093050.json`, `test_reports/retrieval_eval_manifest_20260824_093050.json`, `test_reports/retrieval_eval_summary_20260824_093241.json`, `test_reports/retrieval_eval_manifest_20260824_093241.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for the 09:30 and 09:32 UTC runs.
+
+Next target:
+
+- Reduce contextual retrieval latency for XG-X cases brushing the 8-second timeout, then add warning-plus-step and cross-document multi-step cases while continuing to reduce remaining single-step ranking/context losses.

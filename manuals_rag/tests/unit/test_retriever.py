@@ -313,6 +313,7 @@ def test_contextual_lexical_search_scores_local_section_context(monkeypatch):
 
     def fake_fetch_all(query, params):
         assert "local_rerank_context" in query
+        assert "order by" in query.lower()
         assert params[0] == ["procedure_record", "atomic_text", "section_window"]
         return [
             {
@@ -366,6 +367,9 @@ def test_contextual_lexical_search_promotes_product_family_context(monkeypatch):
 
     def fake_fetch_all(query, params):
         assert "local_rerank_context" in query
+        assert "order by" in query.lower()
+        assert "metadata_json::text ilike" in query
+        assert any(param == "%x8000%" for param in params)
         return [
             {
                 "id": "expected-section",

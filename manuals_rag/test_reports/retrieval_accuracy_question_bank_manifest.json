@@ -99,10 +99,103 @@
       "status": "passed",
       "passed": 194,
       "warnings": 58,
-      "duration_seconds": 149.76,
-      "notes": "Full unit suite passed after preserving explicit filters only, recognizing numbered-prefix product models, and strengthening contextual lexical family/context scoring."
+      "duration_seconds": 150.83,
+      "notes": "Full unit suite passed after adding deterministic pre-limit ordering for contextual lexical retrieval candidates."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_093241",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_093241.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_093241.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_093241.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 8.239,
+        "total_queries": 40,
+        "passed_queries": 37,
+        "failed_queries": 3,
+        "pass_rate": 0.925,
+        "pass_at_1": 0.775,
+        "pass_at_3": 0.875,
+        "pass_at_5": 0.925,
+        "candidate_recall_rate": 0.975,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.6923,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 37
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 31
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 5
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 2
+        },
+        "notes": "Saved 40-case single-step bank held at 37/40 (92.5%). The IV4-G600CA PDO wrong-document miss now passes and metadata document recall rose to 100%; remaining failures are one eval timeout plus two ranking/context losses."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_093050",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_093050.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_093050.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_093050.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_contextual_multi_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 13.585,
+        "total_queries": 20,
+        "passed_queries": 19,
+        "failed_queries": 1,
+        "pass_rate": 0.95,
+        "pass_at_1": 0.95,
+        "pass_at_3": 0.95,
+        "pass_at_5": 0.95,
+        "candidate_recall_rate": 0.95,
+        "metadata_document_selection_recall_rate": 0.8947,
+        "metadata_document_selection_rank_1_rate": 0.7368,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 20,
+            "passed": 19
+          }
+        },
+        "by_chunk_type": {
+          "procedure_record": {
+            "total": 20,
+            "passed": 19
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 1
+        },
+        "notes": "Saved contextual procedure-plus-section multi-step bank stayed at 19/20 (95%) after deterministic contextual lexical pre-limit ordering. The prior LJ-X8000 high-speed image-capture candidate miss now passes at rank 1; the remaining failure is an 8-second eval timeout on an XG-X contextual case, so timeout pressure remains the next runtime target."
+      },
       {
         "run_id": "retrieval_eval_20260824_085757",
         "corpus_id": "manuals_vendor_keyence",
@@ -858,5 +951,5 @@
       }
     ]
   },
-  "next_target": "Fix the remaining LJ-X8000 high-speed image-capture contextual evidence miss and the IV4-G600CA PDO wrong-document table miss with generic metadata/table ranking improvements, then add warning-plus-step and cross-document multi-step cases."
+  "next_target": "Reduce contextual retrieval latency for XG-X cases brushing the 8-second timeout, then add warning-plus-step and cross-document multi-step cases while continuing to reduce remaining single-step ranking/context losses."
 }

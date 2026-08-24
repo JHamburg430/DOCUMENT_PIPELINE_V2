@@ -496,15 +496,39 @@ def run_contextual_lexical_search(
     )
     for term in like_terms:
         params.extend([f"%{term}%", f"%{term}%"])
+    order_terms: list[str] = []
+    for term in [*product_terms[:2], *(term for term in like_terms if not any(char.isdigit() for char in term))]:
+        if term not in order_terms:
+            order_terms.append(term)
+        if len(order_terms) >= 6:
+            break
+    order_fragments: list[str] = []
+    order_params: list[object] = []
+    for term in order_terms:
+        if any(char.isdigit() for char in term):
+            order_fragments.append(
+                "(case when metadata_json::text ilike %s then 2 else 0 end "
+                "+ case when content ilike %s or metadata_json->>'local_rerank_context' ilike %s then 1 else 0 end)"
+            )
+            order_params.extend([f"%{term}%", f"%{term}%", f"%{term}%"])
+        else:
+            order_fragments.append(
+                "(case when content ilike %s or metadata_json->>'local_rerank_context' ilike %s then 1 else 0 end)"
+            )
+            order_params.extend([f"%{term}%", f"%{term}%"])
+    order_by = ""
+    if order_fragments:
+        order_by = "order by " + " + ".join(order_fragments) + " desc, priority_score desc, id"
     rows = fetch_all(
         f"""
         select id, document_version_id, source_document_id, title, section_path_text,
                page_from, page_to, content, chunk_type, metadata_json, priority_score
         from retrieval_chunks
         where {" and ".join(where)}
+        {order_by}
         limit {LEXICAL_CONTEXT_SCAN_LIMIT}
         """,
-        tuple(params),
+        tuple([*params, *order_params]),
     )
     ranked: list[tuple[float, SearchResult]] = []
     for row in rows:
