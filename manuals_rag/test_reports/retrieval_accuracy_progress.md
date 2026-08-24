@@ -646,3 +646,24 @@ Next target:
 Next target:
 
 - Reduce structured/table retrieval latency for the new validated single-step replacement questions, then broaden multi-step coverage to cross-document engineering questions.
+
+## 2026-08-24 Cron 39262386 Product-Family Structured Latency
+
+- Target: reduce structured/table retrieval latency for the new validated single-step replacement questions while preserving the cleaned single-step and warning-step multi-step gates.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior replacement single-step run `retrieval_eval_20260824_173031` was 17/20 (85%) with three `eval_timeout` failures. Stage profiling showed the focused table vector and special routes already retrieved the expected rows quickly, while the supplemental table lexical scan added about 4.8-8.6 seconds for product-family structured lookups.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so structured lookups with an analyzed `product_family` skip the broad supplemental table lexical scan, matching the existing skip for explicit product models and part numbers. Focused table vector/special routes remain active and explicit request filters are still preserved.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for product-family structured lookups skipping table lexical search.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 77 passed, 1 warning.
+- Live eval command (replacement validated single-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_173031.jsonl --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Replacement single-step result: `retrieval_eval_20260824_175800` improved from 17/20 (85%) to 19/20 (95%), pass@1 90%, pass@3/pass@5 95%, candidate recall 95%, metadata-document recall 95%, and no `eval_timeout` failures. The remaining miss is a genuine LJ-X8000 PLC link-unit wrong-document/candidate selection case.
+- Live eval command (cleaned saved single-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_165722.jsonl --max-queries 27 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Cleaned saved single-step result: `retrieval_eval_20260824_175905` stayed 27/27 (100%), pass@1 88.89%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`.
+- Live eval command (refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Warning-step multi-step result: `retrieval_eval_20260824_180007` stayed 15/15 (100%), pass@1 86.67%, pass@3 93.33%, pass@5 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`.
+- Question-bank counts unchanged: 160 exploratory questions total, 87 single-step and 73 multi-step. New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_175800.json`, `test_reports/retrieval_eval_manifest_20260824_175800.json`, `test_reports/retrieval_eval_summary_20260824_175905.json`, `test_reports/retrieval_eval_manifest_20260824_175905.json`, `test_reports/retrieval_eval_summary_20260824_180007.json`, `test_reports/retrieval_eval_manifest_20260824_180007.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for 17:58, 17:59, and 18:00 UTC.
+
+Next target:
+
+- Fix the remaining replacement single-step LJ-X8000 PLC link-unit wrong-document/candidate-selection miss, then broaden multi-step coverage to cross-document engineering questions.

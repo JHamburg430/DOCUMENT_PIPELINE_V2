@@ -299,6 +299,15 @@ def test_structured_lookup_uses_focused_vector_route_instead_of_duplicate_broad_
     assert retriever._should_run_table_lexical_search(analysis) is False
 
 
+def test_structured_lookup_with_product_family_skips_table_lexical_search():
+    analysis = analyze_query("What Paste target not found. Code 101. Error Detail value applies to XG-X Series?")
+
+    assert "structured_lookup" in analysis.query_types
+    assert analysis.product_family == "XG-X"
+    assert retriever._should_run_extra_table_vector_search(analysis) is True
+    assert retriever._should_run_table_lexical_search(analysis) is False
+
+
 def test_structured_lookup_without_explicit_identifier_keeps_table_lexical_search():
     analysis = analyze_query("What message profinetunit applies to User's Manual (3D mode)?")
 

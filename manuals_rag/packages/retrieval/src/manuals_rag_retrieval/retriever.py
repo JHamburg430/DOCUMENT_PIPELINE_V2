@@ -220,7 +220,7 @@ def _should_run_extra_table_vector_search(analysis: QueryAnalysis) -> bool:
 def _should_run_table_lexical_search(analysis: QueryAnalysis) -> bool:
     if "structured_lookup" not in analysis.query_types:
         return True
-    if analysis.product_model or analysis.part_number:
+    if analysis.product_model or analysis.product_family or analysis.part_number:
         return False
     return True
 

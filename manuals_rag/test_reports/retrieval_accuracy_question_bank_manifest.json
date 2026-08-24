@@ -160,13 +160,138 @@
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q",
       "status": "passed",
-      "passed": 44,
-      "warnings": 0,
-      "notes": "Focused eval-quality suite passed after rejecting placeholder/icon-only table cells, short cross-reference-only atomic notes, and bracketed page-reference fragments as standalone single-step cases. Full unit suite was not rerun to keep this cron within the 30-minute budget; change is eval generation/queryworthiness only."
+      "passed": 77,
+      "warnings": 1,
+      "notes": "Focused retrieval suite passed after skipping supplemental table lexical scan for structured lookups that already include an analyzed product family. Full unit suite was not rerun to keep this cron inside the 30-minute budget; live single-step and warning-step regression evals were run."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_175800",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_173031.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_175800.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_175800.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_175800.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 20,
+        "passed_queries": 19,
+        "failed_queries": 1,
+        "pass_rate": 0.95,
+        "pass_at_1": 0.9,
+        "pass_at_3": 0.95,
+        "pass_at_5": 0.95,
+        "candidate_recall_rate": 0.95,
+        "metadata_document_selection_recall_rate": 0.95,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 20,
+            "passed": 19
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 15,
+            "passed": 14
+          },
+          "atomic_text": {
+            "total": 5,
+            "passed": 5
+          }
+        },
+        "failure_categories": {
+          "wrong_document_or_filter_loss": 1
+        },
+        "mode": "retrieval_only_saved_replacement_single_step_bank_direct_timeout_warmup",
+        "notes": "Product-family structured lookups now skip the supplemental table lexical scan while keeping focused table vector/special routes. Replacement validated single-step bank improved from 17/20 to 19/20; eval_timeout dropped from 3 to 0. Remaining miss is an LJ-X8000 PLC link-unit wrong-document/candidate selection case."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_175905",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_165722.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_175905.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_175905.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_175905.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 27,
+        "passed_queries": 27,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8889,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 27,
+            "passed": 27
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 25,
+            "passed": 25
+          },
+          "atomic_text": {
+            "total": 1,
+            "passed": 1
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_cleaned_single_step_bank_direct_timeout_warmup",
+        "notes": "No-regression check for the cleaned saved single-step bank stayed 27/27 under the standard 8-second timeout."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_180007",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_180007.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_180007.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_180007.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 0.9333,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
+        "notes": "No-regression check for the refined warning-plus-step multi-step bank stayed 15/15 under the standard 8-second timeout."
+      },
       {
         "run_id": "retrieval_eval_20260824_173031",
         "corpus_id": "manuals_vendor_keyence",
@@ -2401,7 +2526,14 @@
       "cleaned_single_step_saved_bank_remaining": {},
       "multi_step_warning_step_saved_bank_remaining": "not_rerun_this_cron; prior latest retrieval_eval_20260824_165909 was 15/15"
     },
-    "next_target": "Reduce structured/table retrieval latency for the new validated single-step replacement questions, then broaden multi-step coverage to cross-document engineering questions."
+    "next_target": "Fix the remaining replacement single-step LJ-X8000 PLC link-unit wrong-document/candidate-selection miss, then broaden multi-step coverage to cross-document engineering questions.",
+    "current_failure_categories": {
+      "replacement_single_step_bank": {
+        "wrong_document_or_filter_loss": 1
+      },
+      "cleaned_single_step_bank": {},
+      "warning_step_multi_step_bank": {}
+    }
   },
-  "next_target": "Reduce structured/table retrieval latency for the new validated single-step replacement questions, then broaden multi-step coverage to cross-document engineering questions."
+  "next_target": "Fix the remaining replacement single-step LJ-X8000 PLC link-unit wrong-document/candidate-selection miss, then broaden multi-step coverage to cross-document engineering questions."
 }
