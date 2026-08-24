@@ -1042,6 +1042,7 @@ def _short_answer_anchor(value: str) -> str:
 def _multi_step_expected_evidence(*cells: dict[str, Any]) -> list[dict[str, Any]]:
     evidence: list[dict[str, Any]] = []
     for cell in cells:
+        metadata = dict(cell.get("metadata_json", {}))
         value = _cell_value(str(cell.get("content", "")))
         terms = extract_anchor_terms(value, limit=4)
         if not terms:
@@ -1049,7 +1050,10 @@ def _multi_step_expected_evidence(*cells: dict[str, Any]) -> list[dict[str, Any]
         evidence.append(
             {
                 "chunk_id": str(cell.get("id", "")),
+                "source_document_id": str(cell.get("source_document_id", "")),
                 "field": _column_field(cell),
+                "label": _safe_query_label(cell),
+                "product_identifiers": sorted(_metadata_product_identifiers(metadata)),
                 "expected_terms": terms[:4],
                 "snippet": content_preview(str(cell.get("content", "")), limit=180),
             }
@@ -1246,6 +1250,8 @@ def _good_cross_document_field(field: str) -> bool:
         "remarks",
         "reference",
         "page",
+        "item",
+        "items",
         "model",
         "model name",
         "name",
@@ -1718,26 +1724,29 @@ def _result_term_overlap(result: dict[str, Any], expected_terms: list[str]) -> i
     return sum(1 for term in expected_terms if _term_matches_evidence(term, evidence_text))
 
 
+def _result_column_field(result: dict[str, Any]) -> str:
+    metadata = result.get("metadata", {})
+    metadata = metadata if isinstance(metadata, dict) else {}
+    headers = _metadata_list(metadata, "table_column_headers")
+    if headers:
+        return normalize_text(" ".join(headers))
+    pairs = _meaningful_table_field_value_pairs(str(result.get("content", "")))
+    if pairs:
+        return normalize_text(pairs[0][0])
+    match = re.search(r"Column headers:\s*([^;]+)", str(result.get("content", "")))
+    return normalize_text(match.group(1)) if match else ""
+
+
 def _case_product_identifiers(case: RetrievalEvalCase) -> set[str]:
     metadata = dict(case.source_metadata or {})
-    identifiers: set[str] = set()
-    for key in ("product_model", "product_family"):
-        value = metadata.get(key)
-        if value:
-            identifiers.add(str(value))
-    for key in ("devices", "product_models", "product_families"):
-        for value in metadata.get(key) or []:
-            if value:
-                identifiers.add(str(value))
-    return {_compact_eval_identifier(value) for value in identifiers if _compact_eval_identifier(value)}
+    return _metadata_product_identifiers(metadata)
 
 
 def _compact_eval_identifier(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
-def _result_product_identifiers(result: dict[str, Any]) -> set[str]:
-    metadata = dict(result.get("metadata") or {})
+def _metadata_product_identifiers(metadata: dict[str, Any]) -> set[str]:
     identifiers: set[str] = set()
     for key in ("product_model", "product_family"):
         value = metadata.get(key)
@@ -1748,6 +1757,16 @@ def _result_product_identifiers(result: dict[str, Any]) -> set[str]:
             if value:
                 identifiers.add(str(value))
     return {_compact_eval_identifier(value) for value in identifiers if _compact_eval_identifier(value)}
+
+
+def _result_product_identifiers(result: dict[str, Any]) -> set[str]:
+    metadata = dict(result.get("metadata") or {})
+    return _metadata_product_identifiers(metadata)
+
+
+def _query_product_identifier_hits(query: str, result: dict[str, Any]) -> set[str]:
+    compact_query = _compact_eval_identifier(query)
+    return {identifier for identifier in _result_product_identifiers(result) if identifier and identifier in compact_query}
 
 
 def _result_is_applicable_equivalent(case: RetrievalEvalCase, result: dict[str, Any], overlap: int, query_overlap: int) -> bool:
@@ -1762,6 +1781,35 @@ def _result_is_applicable_equivalent(case: RetrievalEvalCase, result: dict[str, 
     case_identifiers = _case_product_identifiers(case)
     result_identifiers = _result_product_identifiers(result)
     return bool(case_identifiers and result_identifiers and case_identifiers.intersection(result_identifiers))
+
+
+def _result_matches_cross_document_evidence_item(
+    case: RetrievalEvalCase,
+    item: dict[str, Any],
+    result: dict[str, Any],
+    *,
+    overlap: int,
+    required_overlap: int,
+) -> bool:
+    if case.generation_method != "cross_document_same_field_evidence":
+        return False
+    result_chunk_type = str(result.get("metadata", {}).get("chunk_type") or result.get("chunk_type", ""))
+    if result_chunk_type != case.chunk_type:
+        return False
+    expected_field = normalize_text(str(item.get("field") or ""))
+    if not expected_field or _result_column_field(result) != expected_field:
+        return False
+    if overlap < required_overlap:
+        return False
+    item_identifiers = {
+        str(identifier)
+        for identifier in item.get("product_identifiers", []) or []
+        if str(identifier)
+    }
+    result_query_identifiers = _query_product_identifier_hits(case.query, result)
+    if item_identifiers:
+        return bool(item_identifiers.intersection(_result_product_identifiers(result)))
+    return bool(result_query_identifiers)
 
 
 def _score_multi_step_search_results(
@@ -1790,11 +1838,22 @@ def _score_multi_step_search_results(
         max_overlap = 0
         for rank, result in enumerate(considered, start=1):
             same_chunk = chunk_id and str(result.get("chunk_id", "")) == chunk_id
-            same_document = str(result.get("source_document_id", "")) == case.source_document_id
+            expected_document_id = str(item.get("source_document_id") or case.source_document_id)
+            same_document = str(result.get("source_document_id", "")) == expected_document_id
             overlap = _result_term_overlap(result, terms)
             max_overlap = max(max_overlap, overlap)
             required_overlap = max(1, min(2, len(terms)))
-            if same_chunk or (same_document and overlap >= required_overlap):
+            if (
+                same_chunk
+                or (same_document and overlap >= required_overlap)
+                or _result_matches_cross_document_evidence_item(
+                    case,
+                    item,
+                    result,
+                    overlap=overlap,
+                    required_overlap=required_overlap,
+                )
+            ):
                 matched = True
                 item_rank = rank
                 best_rank = rank if best_rank is None else min(best_rank, rank)

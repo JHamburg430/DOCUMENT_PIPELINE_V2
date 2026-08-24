@@ -788,6 +788,52 @@ def test_build_multi_step_eval_cases_from_cross_document_same_field_values():
     assert "IV4-G120" in cases[0].query
     assert "LJ-X8000" in cases[0].query
     assert cases[0].expected_source_chunk_ids == ["iv-voltage", "lj-voltage"]
+    assert cases[0].expected_evidence[0]["source_document_id"] == "doc-iv"
+    assert cases[0].expected_evidence[1]["source_document_id"] == "doc-lj"
+    assert "iv4g120" in cases[0].expected_evidence[0]["product_identifiers"]
+
+
+def test_build_cross_document_cases_skip_generic_item_fields():
+    left_base = {
+        "source_document_id": "doc-left",
+        "document_version_id": "ver-left",
+        "title": "Left",
+        "source_filename": "left.pdf",
+        "section_path_text": "Settings",
+        "page_from": 7,
+        "page_to": 7,
+        "product_model": "MODEL-A",
+        "chunk_level": 1,
+        "metadata_json": {
+            "product_model": "MODEL-A",
+            "table_cell": True,
+            "table_column_headers": ["Item"],
+            "table_row_headers": ["Mode"],
+        },
+    }
+    right_base = {
+        "source_document_id": "doc-right",
+        "document_version_id": "ver-right",
+        "title": "Right",
+        "source_filename": "right.pdf",
+        "section_path_text": "Settings",
+        "page_from": 8,
+        "page_to": 8,
+        "product_model": "MODEL-B",
+        "chunk_level": 1,
+        "metadata_json": {
+            "product_model": "MODEL-B",
+            "table_cell": True,
+            "table_column_headers": ["Items"],
+            "table_row_headers": ["Mode"],
+        },
+    }
+    chunks = [
+        {**left_base, "id": "left-item", "chunk_type": "table_record", "content": "Column headers: Item; Row headers: Mode; Cell value: Operation mode"},
+        {**right_base, "id": "right-item", "chunk_type": "table_record", "content": "Column headers: Items; Row headers: Mode; Cell value: Batch mode"},
+    ]
+
+    assert build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="cross_document") == []
 
 
 def test_build_eval_cases_skips_low_signal_atomic_queries():
@@ -1717,6 +1763,63 @@ def test_score_search_results_counts_table_row_group_context_as_multi_step_evide
 
     assert evaluation["passed"] is True
     assert evaluation["match_reason"] == "multi_step_expected_evidence"
+
+
+def test_score_search_results_accepts_cross_document_same_field_equivalent_evidence():
+    case = RetrievalEvalCase(
+        case_id="c-cross-equivalent",
+        query="What power supply voltage values apply for IV4-G120 and LJ-X8000?",
+        source_document_id="doc-iv",
+        document_version_id="ver-iv",
+        source_chunk_id="iv-voltage",
+        source_title="IV4",
+        source_filename="iv.pdf",
+        chunk_type="table_record",
+        section_path="Electrical specifications",
+        page_from=7,
+        page_to=8,
+        expected_terms=["24", "vdc"],
+        expected_snippet="Power supply voltage evidence from both documents",
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={"product_model": "IV4-G120"},
+        retrieval_task="multi_step_retrieval",
+        expected_source_chunk_ids=["iv-voltage", "lj-voltage"],
+        expected_evidence=[
+            {
+                "chunk_id": "iv-voltage",
+                "source_document_id": "doc-iv",
+                "field": "power supply voltage",
+                "product_identifiers": ["iv4g120"],
+                "expected_terms": ["24", "vdc"],
+            },
+            {
+                "chunk_id": "lj-voltage",
+                "source_document_id": "doc-lj",
+                "field": "power supply voltage",
+                "product_identifiers": ["ljx8000"],
+                "expected_terms": ["24", "vdc"],
+            },
+        ],
+    )
+    results = [
+        {
+            "chunk_id": "iv-voltage",
+            "source_document_id": "doc-iv",
+            "content": "Column headers: Power supply voltage; Cell value: 24 VDC",
+            "metadata": {"chunk_type": "table_record", "table_column_headers": ["Power supply voltage"], "product_model": "IV4-G120"},
+        },
+        {
+            "chunk_id": "lj-voltage-equivalent",
+            "source_document_id": "doc-lj-family",
+            "content": "Column headers: Power supply voltage; Cell value: 24 VDC +/-10%",
+            "metadata": {"chunk_type": "table_record", "table_column_headers": ["Power supply voltage"], "product_family": "LJ-X8000"},
+        },
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is True
+    assert evaluation["matched_evidence"][1]["chunk_id"] == "lj-voltage"
 
 
 def test_score_search_results_categorizes_candidate_miss():
