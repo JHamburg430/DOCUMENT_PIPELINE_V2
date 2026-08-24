@@ -55,6 +55,85 @@ def test_large_retrieval_eval_loads_saved_dataset(tmp_path):
     assert cases[0]["retrieval_task"] == "single_step_retrieval"
 
 
+def test_large_retrieval_eval_can_drop_invalid_saved_single_step_cases(tmp_path):
+    import importlib.util
+    import json
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    valid_case = RetrievalEvalCase(
+        case_id="valid-cell",
+        query="What 24 VDC power supply voltage applies to MODEL-1?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="table_record",
+        section_path="Specifications",
+        page_from=1,
+        page_to=1,
+        expected_terms=["24", "vdc", "power"],
+        expected_snippet="Column headers: Power supply voltage; Row headers: MODEL-1; Cell value: 24 VDC",
+        generation_method="table_row_column_value",
+        source_metadata={
+            "product_model": "MODEL-1",
+            "table_cell": True,
+            "table_row_headers": ["MODEL-1"],
+            "table_column_headers": ["Power supply voltage"],
+        },
+        anchor_terms=["24", "vdc", "power"],
+    )
+    header_case = RetrievalEvalCase(
+        case_id="stale-header",
+        query="What detection applies to IV4-G120?",
+        source_document_id="doc-iv4",
+        document_version_id="ver-iv4",
+        source_chunk_id="header-row",
+        source_title="IV4 Manual",
+        source_filename="iv4.pdf",
+        chunk_type="table_record",
+        section_path="R1.20",
+        page_from=14,
+        page_to=14,
+        expected_terms=["detection", "becomes", "unstable"],
+        expected_snippet="Table header: If the detection becomes unstable due to the effect of; Header role: row; Row: 32; Column: 0",
+        generation_method="table_primary",
+        source_metadata={
+            "product_model": "IV4-G120",
+            "table_header": True,
+            "table_header_role": "row",
+        },
+        anchor_terms=["detection", "becomes", "unstable"],
+    )
+    dataset_path = tmp_path / "cases.jsonl"
+    dataset_path.write_text(
+        "\n".join(json.dumps(case.to_dict()) for case in [header_case, valid_case]),
+        encoding="utf-8",
+    )
+
+    kept, rejected = module.load_eval_cases_and_rejections_from_dataset(
+        dataset_path,
+        max_cases=10,
+        drop_invalid_cases=True,
+    )
+
+    assert [case["case_id"] for case in kept] == ["valid-cell"]
+    assert rejected == [
+        {
+            "case_id": "stale-header",
+            "query": "What detection applies to IV4-G120?",
+            "source_chunk_id": "header-row",
+            "reason": "not_queryworthy_source_chunk",
+        }
+    ]
+
+
 def test_large_retrieval_eval_scores_query_timeouts():
     import importlib.util
     from pathlib import Path

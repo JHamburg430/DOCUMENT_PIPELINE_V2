@@ -604,3 +604,25 @@ Next target:
 Next target:
 
 - Retire or replace the old low-information IV4 detection table-header prompt, refresh/promote a cleaner single-step bank, then broaden multi-step coverage to cross-document engineering questions.
+
+## 2026-08-24 Cron 39262386 Saved-Bank Queryworthiness Cleaning
+
+- Target: retire the old low-information IV4 detection table-header prompt from the saved single-step bank without changing production retrieval behavior or adding document-specific shortcuts.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior saved single-step run `retrieval_eval_20260824_162547` was 39/40 (97.5%) with one `ranking_or_context_loss`. The failed prompt was `What detection applies to IV4-G120?`, sourced from a standalone table-header chunk that current question generation already rejects as not queryworthy.
+- Changed eval harness logic in `scripts/benchmark/run_large_retrieval_eval.py` to add `--drop-invalid-saved-cases`, an opt-in saved-dataset cleaning mode that drops stale single-step cases whose source chunk fails the current queryworthiness gate. It records dropped cases in the eval manifest and leaves normal saved-dataset loading unchanged.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for dropping a stale standalone table-header saved case while keeping a valid table-cell case.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 40 passed.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 222 passed, 58 warnings in 164.42s.
+- Diagnostic note: an initial over-aggressive cleaning run `retrieval_eval_20260824_165558` also applied the copied-phrase validator to saved deterministic table prompts and was not promoted. The final implementation only applies source-chunk queryworthiness.
+- Live eval command (cleaned saved single-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45 --drop-invalid-saved-cases`.
+- Cleaned saved single-step result: `retrieval_eval_20260824_165722` loaded 27/40 cases, dropped 13 stale non-queryworthy cases including the IV4 detection table-header prompt, and completed at 27/27 (100%), pass@1 92.59%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 100%, failure categories `{}`.
+- Live eval command (saved refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved refined warning-step result: `retrieval_eval_20260824_165909` held at 15/15 (100%), pass@1 86.67%, pass@3 93.33%, pass@5 100%, candidate recall 100%, metadata-document recall 100%, failure categories `{}`.
+- Question-bank manifest now marks `test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl` as superseded by the cleaned subset `test_reports/retrieval_eval_dataset_20260824_165722.jsonl` for active counts. Active exploratory counts are now 140 total questions: 67 single-step and 73 multi-step.
+- New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_165722.json`, `test_reports/retrieval_eval_manifest_20260824_165722.json`, `test_reports/retrieval_eval_summary_20260824_165909.json`, `test_reports/retrieval_eval_manifest_20260824_165909.json`.
+- Changed files: `scripts/benchmark/run_large_retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 16:57 and 16:59 UTC.
+
+Next target:
+
+- Replace the retired low-quality single-step cases with fresh validated engineer questions, then broaden multi-step coverage to cross-document engineering questions.

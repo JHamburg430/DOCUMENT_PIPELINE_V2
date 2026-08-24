@@ -23,7 +23,12 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 MANUALS_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(MANUALS_ROOT / "packages" / "evals" / "src"))
 
-from manuals_rag_evals.retrieval_eval import build_eval_cases_from_chunks, build_multi_step_eval_cases_from_chunks, score_search_results
+from manuals_rag_evals.retrieval_eval import (
+    build_eval_cases_from_chunks,
+    build_multi_step_eval_cases_from_chunks,
+    chunk_is_queryworthy,
+    score_search_results,
+)
 from manuals_rag_evals.retrieval_eval import RetrievalEvalCase
 
 
@@ -367,17 +372,69 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def load_eval_cases_from_dataset(path: Path, *, max_cases: int) -> list[dict[str, Any]]:
+    cases, _ = load_eval_cases_and_rejections_from_dataset(path, max_cases=max_cases, drop_invalid_cases=False)
+    return cases
+
+
+def _source_chunk_from_saved_case(case: RetrievalEvalCase) -> dict[str, Any]:
+    metadata = dict(case.source_metadata or {})
+    return {
+        "id": case.source_chunk_id,
+        "source_document_id": case.source_document_id,
+        "document_version_id": case.document_version_id,
+        "chunk_type": case.chunk_type,
+        "title": case.source_title,
+        "source_filename": case.source_filename,
+        "section_path_text": case.section_path,
+        "page_from": case.page_from,
+        "page_to": case.page_to,
+        "content": case.expected_snippet,
+        "metadata_json": metadata,
+        "product_model": metadata.get("product_model", ""),
+    }
+
+
+def saved_case_quality_rejection_reason(case: RetrievalEvalCase) -> str | None:
+    if case.retrieval_task != "single_step_retrieval":
+        return None
+    chunk = _source_chunk_from_saved_case(case)
+    anchors = list(case.anchor_terms or case.expected_terms)
+    if not chunk_is_queryworthy(chunk, anchors):
+        return "not_queryworthy_source_chunk"
+    return None
+
+
+def load_eval_cases_and_rejections_from_dataset(
+    path: Path,
+    *,
+    max_cases: int,
+    drop_invalid_cases: bool = False,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     cases: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
     for record in read_jsonl(path):
         case = record.get("case") if isinstance(record.get("case"), dict) else record
         if not isinstance(case, dict):
             raise ValueError(f"Dataset record in {path} does not contain an eval case object.")
-        cases.append(RetrievalEvalCase(**case).to_dict())
+        eval_case = RetrievalEvalCase(**case)
+        if drop_invalid_cases:
+            rejection_reason = saved_case_quality_rejection_reason(eval_case)
+            if rejection_reason:
+                rejected.append(
+                    {
+                        "case_id": eval_case.case_id,
+                        "query": eval_case.query,
+                        "source_chunk_id": eval_case.source_chunk_id,
+                        "reason": rejection_reason,
+                    }
+                )
+                continue
+        cases.append(eval_case.to_dict())
         if len(cases) >= max_cases:
             break
     if not cases:
         raise ValueError(f"No eval cases found in {path}.")
-    return cases
+    return cases, rejected
 
 
 def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
@@ -452,6 +509,11 @@ def main() -> int:
         type=Path,
         default=None,
         help="Existing RetrievalEvalCase JSONL dataset to score instead of generating new cases.",
+    )
+    parser.add_argument(
+        "--drop-invalid-saved-cases",
+        action="store_true",
+        help="When loading --dataset-path, omit stale saved single-step cases whose source chunks fail the current queryworthiness gate.",
     )
     parser.add_argument(
         "--search-mode",
@@ -530,9 +592,25 @@ def main() -> int:
             ingested_docs.append(upload_and_ingest(path, corpus_id=corpus_id))
 
     if args.dataset_path:
-        cases = load_eval_cases_from_dataset(args.dataset_path, max_cases=args.max_queries)
-        print(json.dumps({"dataset_path": str(args.dataset_path), "loaded_cases": len(cases)}, indent=2), flush=True)
+        cases, rejected_cases = load_eval_cases_and_rejections_from_dataset(
+            args.dataset_path,
+            max_cases=args.max_queries,
+            drop_invalid_cases=args.drop_invalid_saved_cases,
+        )
+        print(
+            json.dumps(
+                {
+                    "dataset_path": str(args.dataset_path),
+                    "loaded_cases": len(cases),
+                    "dropped_invalid_cases": len(rejected_cases),
+                    "rejected_cases": rejected_cases,
+                },
+                indent=2,
+            ),
+            flush=True,
+        )
     else:
+        rejected_cases = []
         chunk_rows = fetch_chunk_rows([item["document_id"] for item in ingested_docs])
         random.shuffle(chunk_rows)
         if args.retrieval_task == "multi_step_retrieval":
@@ -621,6 +699,8 @@ def main() -> int:
                 "warmup_queries": args.warmup_queries,
                 "warmup_timeout_seconds": warmup_timeout_seconds,
                 "warmups": warmups,
+                "dropped_invalid_cases": len(rejected_cases),
+                "rejected_cases": rejected_cases,
                 "dataset_path": str(dataset_path),
                 "results_path": str(results_path),
                 "summary_path": str(summary_path),

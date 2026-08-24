@@ -26,11 +26,11 @@
     "run_budget_minutes": 30
   },
   "question_bank": {
-    "total_questions": 153,
-    "single_step_questions": 80,
+    "total_questions": 140,
+    "single_step_questions": 67,
     "multi_step_questions": 73,
     "locked_regression_questions": 0,
-    "exploratory_questions": 153,
+    "exploratory_questions": 140,
     "datasets": [
       {
         "path": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
@@ -53,7 +53,7 @@
         "created_at": "2026-08-24T04:58:17Z",
         "corpus_id": "manuals_vendor_keyence",
         "generation": "deterministic_with_product_family_labels",
-        "status": "exploratory",
+        "status": "superseded_by_queryworthiness_cleaned_subset",
         "total_questions": 40,
         "single_step_questions": 40,
         "multi_step_questions": 0,
@@ -61,7 +61,9 @@
           "table_record": 33,
           "atomic_text": 6,
           "spec_record": 1
-        }
+        },
+        "superseded_by": "test_reports/retrieval_eval_dataset_20260824_165722.jsonl",
+        "notes": "Superseded for active counts because 13 stale saved cases fail the current single-step queryworthiness gate, including the low-information IV4 detection table-header prompt."
       },
       {
         "path": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
@@ -118,6 +120,25 @@
         "by_chunk_type": {
           "atomic_text": 15
         }
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260824_165722.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_165722.json",
+        "created_at": "2026-08-24T16:57:22Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "saved_single_step_question_bank_queryworthiness_cleaned_subset",
+        "status": "exploratory",
+        "supersedes": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "total_questions": 27,
+        "single_step_questions": 27,
+        "multi_step_questions": 0,
+        "by_chunk_type": {
+          "table_record": 25,
+          "atomic_text": 1,
+          "spec_record": 1
+        },
+        "dropped_invalid_cases": 13,
+        "drop_reason": "not_queryworthy_source_chunk"
       }
     ]
   },
@@ -125,11 +146,95 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 221,
+      "passed": 222,
       "warnings": 58,
-      "notes": "Full unit suite passed after structured lookup field/subject ranking alignment; focused retriever suite also passed 76 tests, 1 warning."
+      "notes": "Full unit suite passed after adding saved-dataset queryworthiness cleaning; focused retrieval eval suite also passed 40 tests."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_165722",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "cleaned_dataset_path": "test_reports/retrieval_eval_dataset_20260824_165722.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_165722.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_165722.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_165722.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup_drop_invalid_saved_cases",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 27,
+        "passed_queries": 27,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.9259,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 27,
+            "passed": 27
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 25,
+            "passed": 25
+          },
+          "atomic_text": {
+            "total": 1,
+            "passed": 1
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {},
+        "dropped_invalid_cases": 13,
+        "notes": "The saved single-step bank now has an opt-in queryworthiness cleaner for stale saved cases. It retired 13 cases current generation would not use as standalone prompts, including the low-information IV4 detection table-header prompt, and the remaining 27 cases passed 27/27 under the standard 8-second timeout."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_165909",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_165909.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_165909.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_165909.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 0.9333,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "failure_categories": {},
+        "notes": "No-regression check for the refined warning-plus-step multi-step bank stayed 15/15 under the normal 8-second timeout after the eval harness cleaning change."
+      },
       {
         "run_id": "retrieval_eval_20260824_162547",
         "corpus_id": "manuals_vendor_keyence",
@@ -2186,12 +2291,10 @@
       }
     ],
     "failure_categories": {
-      "single_step_saved_bank_remaining": {
-        "ranking_or_context_loss": 1
-      },
+      "cleaned_single_step_saved_bank_remaining": {},
       "multi_step_warning_step_saved_bank_remaining": {}
     },
-    "next_target": "Retire or replace the old low-information IV4 detection table-header prompt, refresh/promote a cleaner single-step bank, then broaden multi-step coverage to cross-document engineering questions."
+    "next_target": "Replace the retired low-quality single-step cases with fresh validated engineer questions, then broaden multi-step coverage to cross-document engineering questions."
   },
-  "next_target": "Retire or replace the old low-information IV4 detection table-header prompt, refresh/promote a cleaner single-step bank, then broaden multi-step coverage to cross-document engineering questions."
+  "next_target": "Replace the retired low-quality single-step cases with fresh validated engineer questions, then broaden multi-step coverage to cross-document engineering questions."
 }
