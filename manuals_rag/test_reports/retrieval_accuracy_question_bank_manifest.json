@@ -69,11 +69,114 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 176,
+      "passed": 179,
       "warnings": 58,
-      "notes": "Full unit suite passed after structured applies-to lookup routing and table/spec family preference."
+      "notes": "Full unit suite passed after table key-value eval generation refinement and structured lookup table-header demotion."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_060124",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_060124.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_060124.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_060124.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 8.035,
+        "total_queries": 40,
+        "passed_queries": 35,
+        "failed_queries": 5,
+        "pass_rate": 0.875,
+        "pass_at_1": 0.8,
+        "pass_at_3": 0.875,
+        "pass_at_5": 0.875,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.7368,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 35
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 29
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 5
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 5
+        },
+        "notes": "Saved-bank apples-to-apples run improved from 34/40 to 35/40 after table-header demotion; the previous XG-X error-message table-cell case passed at rank 1. Remaining misses all have candidate recall and are ranking/context-selection failures."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_055851",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_055851.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_055851.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_055851.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_055851.json",
+        "status": "completed",
+        "mode": "deterministic_generated_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 9.024,
+        "total_queries": 40,
+        "passed_queries": 29,
+        "failed_queries": 11,
+        "pass_rate": 0.725,
+        "pass_at_1": 0.675,
+        "pass_at_3": 0.7,
+        "pass_at_5": 0.725,
+        "candidate_recall_rate": 0.85,
+        "metadata_document_selection_recall_rate": 0.8438,
+        "metadata_document_selection_rank_1_rate": 0.5625,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 29
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 24
+          },
+          "atomic_text": {
+            "total": 5,
+            "passed": 5
+          },
+          "spec_record": {
+            "total": 2,
+            "passed": 0
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 5,
+          "candidate_miss": 4,
+          "wrong_document_or_filter_loss": 1
+        },
+        "notes": "Refreshed deterministic generation after table question specificity changes produced a harder 40-case single-step eval dataset. It was not added as a durable question-bank file; use it as coverage evidence for candidate/document-selection gaps."
+      },
       {
         "run_id": "retrieval_eval_20260824_052609",
         "corpus_id": "manuals_vendor_keyence",
@@ -414,5 +517,5 @@
       }
     ]
   },
-  "next_target": "Improve ranking/context selection for high-recall misses, especially IV4 address/detection and protocol-symbol table cases, then add the first true multi-step retrieval cases."
+  "next_target": "Add true multi-step cases for sibling table cells/rows, especially error-message cause/corrective-action rows and IV4 address/stored-data rows, then improve context assembly for sibling row evidence."
 }

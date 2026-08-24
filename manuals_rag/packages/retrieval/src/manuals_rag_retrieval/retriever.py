@@ -211,6 +211,8 @@ def _family_score_adjustment(result: SearchResult, analysis: QueryAnalysis) -> f
     if "structured_lookup" in analysis.query_types:
         if chunk_type == "table_record":
             adjustment += 0.07
+            if result.metadata.get("table_header"):
+                adjustment -= 0.14
         elif chunk_type in {"spec_record", "datasheet_record"}:
             adjustment += 0.04
         elif chunk_type == "section_window":

@@ -1,6 +1,7 @@
 from manuals_rag_evals.retrieval_eval import (
     RetrievalEvalCase,
     build_eval_cases_from_chunks,
+    chunk_is_queryworthy,
     score_document_selection,
     score_search_results,
     validate_eval_case,
@@ -283,6 +284,56 @@ def test_eval_queries_fall_back_to_product_family_for_long_model_lists():
     assert cases
     assert all("vs-l160mx/" not in case.query.lower() for case in cases)
     assert all("vs series vision system" in case.query.lower() for case in cases)
+
+
+def test_table_key_value_queries_include_disambiguating_adjacent_value():
+    chunk = {
+        "id": "chunk-key-value-table",
+        "source_document_id": "doc-iv4",
+        "document_version_id": "ver-iv4",
+        "chunk_type": "table_record",
+        "title": "IV4 Manual",
+        "source_filename": "IV4.pdf",
+        "section_path_text": "Data Allocation",
+        "page_from": 1,
+        "page_to": 1,
+        "content": "Address: 6 to 7 (WORD); Stored data: 1041",
+        "metadata_json": {
+            "product_model": "IV4-G120",
+            "table_key_value": True,
+        },
+        "product_model": "IV4-G120",
+    }
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
+    queries = [case.query.lower() for case in cases]
+
+    assert cases
+    assert all("1041" in query for query in queries)
+    assert all("address" in query for query in queries)
+
+
+def test_table_cell_without_row_context_is_not_single_step_queryworthy():
+    chunk = {
+        "id": "chunk-answer-only-cell",
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "chunk_type": "table_record",
+        "title": "XG-X Manual",
+        "source_filename": "XGX.pdf",
+        "section_path_text": "Error Messages",
+        "page_from": 1,
+        "page_to": 1,
+        "content": "Column headers: Error Message; Cell value: Library conversion was interrupted.; Row: 13; Column: 0",
+        "metadata_json": {
+            "product_family": "XG-X Series",
+            "table_cell": True,
+            "table_column_headers": ["Error Message"],
+            "table_row_headers": [],
+        },
+    }
+
+    assert not chunk_is_queryworthy(chunk, ["library", "conversion", "interrupted", "error"])
 
 
 def test_build_eval_cases_skips_low_signal_atomic_queries():

@@ -292,6 +292,15 @@ def _field_value_pairs(content: str) -> list[tuple[str, str]]:
     return re.findall(r"([A-Za-z][A-Za-z0-9 /_()-]{1,40})\s*:\s*([^\n;]{1,80})", content)
 
 
+def _meaningful_table_field_value_pairs(content: str) -> list[tuple[str, str]]:
+    ignored_fields = {"column headers", "row headers", "cell value", "table header", "header role", "row", "column"}
+    return [
+        (field, value)
+        for field, value in _field_value_pairs(content)
+        if normalize_text(field) not in ignored_fields
+    ]
+
+
 def _looks_like_toc_line(content: str) -> bool:
     compact = normalize_text(content)
     if "procedure step" in compact and re.search(r"\d+-\d+\b", compact):
@@ -332,7 +341,15 @@ def _has_concrete_technical_signal(content: str, anchors: list[str], chunk_type:
 def chunk_is_queryworthy(chunk: dict[str, Any], anchors: list[str]) -> bool:
     content = str(chunk.get("content", "")).strip()
     chunk_type = str(chunk.get("chunk_type", ""))
+    metadata = dict(chunk.get("metadata_json", {}))
     if len(content) < 40:
+        return False
+    if (
+        chunk_type == "table_record"
+        and metadata.get("table_cell")
+        and not _metadata_list(metadata, "table_row_headers")
+        and not _meaningful_table_field_value_pairs(content)
+    ):
         return False
     if _looks_like_toc_line(content):
         return False
@@ -673,6 +690,18 @@ def _table_question_terms(chunk: dict[str, Any]) -> tuple[list[str], list[str]]:
 
 def _build_table_query_candidates(chunk: dict[str, Any], label: str) -> list[tuple[str, str]]:
     query_terms, expected_terms = _table_question_terms(chunk)
+    field_pairs = _meaningful_table_field_value_pairs(str(chunk.get("content", "")))
+    if len(field_pairs) >= 2:
+        answer_field, _ = field_pairs[0]
+        context_field, context_value = field_pairs[1]
+        context_anchor = " ".join(extract_anchor_terms(context_value, limit=3)) or context_value.strip()
+        key_value_subject = f"{answer_field.strip()} for {context_field.strip()} {context_anchor}".strip()
+        if label:
+            return [
+                (f"For {label}, what {key_value_subject}?", "table_key_value_lookup"),
+                (f"What {answer_field.strip()} is listed for {context_field.strip()} {context_anchor} on {label}?", "table_key_value_reverse_lookup"),
+            ]
+        return [(f"What {key_value_subject}?", "table_key_value_lookup")]
     if not query_terms or len(expected_terms) < 2:
         return []
     subject = " ".join(query_terms[:3])

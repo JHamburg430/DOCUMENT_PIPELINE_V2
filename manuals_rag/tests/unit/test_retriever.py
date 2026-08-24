@@ -621,6 +621,36 @@ def test_select_family_candidates_prefers_table_family_for_structured_lookup():
     assert "prose" not in [item.chunk_id for item in chosen]
 
 
+def test_structured_lookup_family_scoring_demotes_table_header_chunks():
+    analysis = analyze_query("What address applies to IV4-G120?")
+    header = SearchResult(
+        chunk_id="header",
+        score=0.5,
+        title="IV4 Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Data Allocation"],
+        content="Table header: IV4-G120; Header role: column; Row: 0; Column: 2",
+        metadata={"chunk_type": "table_record", "table_header": True, "product_model": "IV4-G120"},
+    )
+    row = SearchResult(
+        chunk_id="row",
+        score=0.47,
+        title="IV4 Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Data Allocation"],
+        content="Address: 6 to 7 (WORD); Stored data: 1041",
+        metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": "IV4-G120"},
+    )
+
+    rescored = retriever._apply_family_scoring([header, row], analysis, stage="family_scored")
+
+    assert rescored[0].chunk_id == "row"
+
+
 def test_run_dense_search_queries_each_corpus_and_returns_dense_hits():
     calls: list[tuple[str, str, dict[str, object], int]] = []
 

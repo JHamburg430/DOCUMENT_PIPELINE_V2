@@ -139,3 +139,22 @@ Next target:
 Next target:
 
 - Improve context assembly/scoring for the remaining all-candidate-recall misses, especially IV4 address/detection table rows and short XG-X error-message table cells, then generate the first true multi-step retrieval cases.
+
+## 2026-08-24 Cron 39262386 Table Question Specificity
+
+- Target: reduce false single-step table failures from under-specified generated table-cell questions while making a small generic ranking improvement for structured table lookups.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus was usable with 53 indexed documents.
+- Failure review: prior saved-bank run `retrieval_eval_20260824_052609` was 34/40 (85%) with all failures in `ranking_or_context_loss`. One short XG-X error-message cell failed because the question only asked for "Error Message value" for a product family, and IV4 address failures showed table header/model chunks outranking value rows.
+- Changed eval question generation in `packages/evals/src/manuals_rag_evals/retrieval_eval.py` so table key-value rows generate questions that include the adjacent row-disambiguating value, and answer-only table cells without row context are not treated as single-step queryworthy. These should move error-message row/cause/action coverage toward future multi-step cases instead of ambiguous single-cell lookups.
+- Changed retrieval scoring in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` to demote table-header chunks for structured field/value lookup queries, without adding document-specific routing or query-derived filters.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_retriever.py -q` -> 74 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 179 passed, 58 warnings.
+- Live eval command (refreshed deterministic generation): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45 --disable-llm-query-generation`.
+- Refreshed eval result: `retrieval_eval_20260824_055851` completed 40 single-step questions at 29/40 passed (72.5%), pass@1 67.5%, pass@3 70%, pass@5 72.5%, candidate recall 85%, metadata-document recall 84.38%. Failures: `eval_timeout: 1`, `ranking_or_context_loss: 5`, `candidate_miss: 4`, `wrong_document_or_filter_loss: 1`. This was a harder regenerated dataset, not added as a durable bank file.
+- Live eval command (saved-bank apples-to-apples): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved-bank result: `retrieval_eval_20260824_060124` improved from 34/40 (85%) to 35/40 (87.5%), pass@1 80%, pass@3/pass@5 87.5%, candidate recall 100%, metadata-document recall 100%, failure categories `ranking_or_context_loss: 5`. The previous XG-X error-message single-cell case now passed at rank 1.
+- Changed files: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retrieval_eval.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for the 05:58 and 06:01 UTC runs.
+
+Next target:
+
+- Add the first true multi-step retrieval cases for table rows that require combining sibling cells, especially error-message/cause/corrective-action rows and IV4 address/stored-data rows, then improve context assembly so sibling row cells are available to the answerer.
