@@ -26,11 +26,11 @@
     "run_budget_minutes": 30
   },
   "question_bank": {
-    "total_questions": 100,
+    "total_questions": 120,
     "single_step_questions": 80,
-    "multi_step_questions": 20,
+    "multi_step_questions": 40,
     "locked_regression_questions": 0,
-    "exploratory_questions": 100,
+    "exploratory_questions": 120,
     "datasets": [
       {
         "path": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
@@ -76,19 +76,75 @@
         "by_chunk_type": {
           "table_record": 20
         }
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_080232.json",
+        "created_at": "2026-08-24T08:02:32Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "deterministic_contextual_procedure_plus_section_evidence",
+        "status": "exploratory",
+        "total_questions": 20,
+        "single_step_questions": 0,
+        "multi_step_questions": 20,
+        "by_chunk_type": {
+          "procedure_record": 20
+        }
       }
     ]
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
       "status": "passed",
-      "passed": 187,
-      "warnings": 58,
-      "duration_seconds": 151.19,
-      "notes": "Full unit suite passed after adding structured troubleshooting table-row lexical retrieval and giving structured_lookup precedence over how_to/configuration in family selection."
+      "passed": 34,
+      "warnings": 0,
+      "duration_seconds": 0.18,
+      "notes": "Focused eval-generation tests passed after adding contextual procedure-plus-section multi-step cases and stricter same-section linkage filters."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_080232",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_080232.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_080232.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_080232.json",
+        "status": "completed",
+        "mode": "deterministic_contextual_multi_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 9.197,
+        "total_queries": 20,
+        "passed_queries": 17,
+        "failed_queries": 3,
+        "pass_rate": 0.85,
+        "pass_at_1": 0.85,
+        "pass_at_3": 0.85,
+        "pass_at_5": 0.85,
+        "candidate_recall_rate": 0.85,
+        "metadata_document_selection_recall_rate": 0.8889,
+        "metadata_document_selection_rank_1_rate": 0.7778,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 20,
+            "passed": 17
+          }
+        },
+        "by_chunk_type": {
+          "procedure_record": {
+            "total": 20,
+            "passed": 17
+          }
+        },
+        "failure_categories": {
+          "candidate_miss": 3
+        },
+        "notes": "First broader contextual multi-step bank for procedure-plus-section evidence passed 17/20 at rank 1. The stricter generator filters out numeric-only procedure labels and same-page unrelated support by requiring local-context linkage. Remaining failures cluster in LJ-X8000 setup-guide image-capture timing questions where metadata document selection/candidate recall misses the expected document."
+      },
       {
         "run_id": "retrieval_eval_20260824_073510",
         "corpus_id": "manuals_vendor_keyence",
@@ -709,5 +765,5 @@
       }
     ]
   },
-  "next_target": "Broaden multi-step coverage beyond sibling troubleshooting rows, including procedure-plus-spec, warning-plus-step, and cross-document engineering questions; continue reducing the remaining single-step ranking/context losses."
+  "next_target": "Improve contextual multi-step candidate recall for procedure-plus-section questions, especially LJ-X8000 setup-guide image-capture timing cases where metadata document selection chooses XG-X/CV-X evidence; then add warning-plus-step and cross-document multi-step cases."
 }

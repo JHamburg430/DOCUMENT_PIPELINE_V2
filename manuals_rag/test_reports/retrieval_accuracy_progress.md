@@ -218,3 +218,23 @@ Next target:
 Next target:
 
 - Broaden multi-step coverage beyond sibling troubleshooting rows, including procedure-plus-spec, warning-plus-step, and cross-document engineering questions; continue reducing the remaining single-step ranking/context losses.
+
+## 2026-08-24 Cron 39262386 Contextual Procedure Multi-Step
+
+- Target: broaden multi-step retrieval coverage beyond sibling troubleshooting tables with procedure-plus-section evidence questions.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed eval logic in `packages/evals/src/manuals_rag_evals/retrieval_eval.py` to generate deterministic `contextual_procedure_plus_section_evidence` cases from a procedure chunk plus linked same-section support evidence such as setup constraints, ports, menu labels, or communication details. The generator now rejects numeric-only procedure subjects and requires local-context linkage before treating same-section support as multi-step evidence.
+- Changed benchmark logic in `scripts/benchmark/run_large_retrieval_eval.py` to add `--multi-step-case-family all|sibling_table_rows|contextual_section`, so cron can measure the broader contextual family separately from the existing sibling table-row bank.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for contextual procedure-plus-section case generation.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 34 passed.
+- Diagnostic live eval before tightening contextual linkage: `retrieval_eval_20260824_075859` completed 20 contextual cases at 18/20 passed (90%), but failure inspection showed one unrelated same-page camera table pair and one numeric-only procedure label, so the dataset was not added to the durable question-bank manifest.
+- Live eval command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --retrieval-task multi_step_retrieval --multi-step-case-family contextual_section --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45 --disable-llm-query-generation`.
+- Live eval result: refined contextual multi-step bank `retrieval_eval_20260824_080232` completed 20 procedure-plus-section questions at 17/20 passed (85%), all passing cases at rank 1. Candidate recall was 85%, metadata-document recall 88.89%, metadata-document rank-1 rate 77.78%, and failures were `candidate_miss: 3`.
+- Failure evidence: all 3 misses clustered in `AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf` image-capture timing/setup-guide cases; top retrieval chose XG-X or CV-X evidence, so the next retrieval target is generic contextual multi-step document/candidate selection for terse product-family setup-guide queries.
+- New artifacts: `test_reports/retrieval_eval_dataset_20260824_080232.jsonl`, `test_reports/retrieval_eval_results_20260824_080232.jsonl`, `test_reports/retrieval_eval_summary_20260824_080232.json`, `test_reports/retrieval_eval_manifest_20260824_080232.json`. The refined 20-case dataset is now tracked in the question-bank manifest.
+- Question-bank manifest now tracks 120 exploratory questions: 80 single-step and 40 multi-step.
+- Changed files: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `scripts/benchmark/run_large_retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus the new 08:02 UTC eval summary/manifest artifacts.
+
+Next target:
+
+- Improve contextual multi-step candidate recall for procedure-plus-section questions, especially LJ-X8000 setup-guide image-capture timing cases where metadata document selection chooses XG-X/CV-X evidence; then add warning-plus-step and cross-document multi-step cases.

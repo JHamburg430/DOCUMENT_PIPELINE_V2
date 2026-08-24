@@ -488,6 +488,12 @@ def main() -> int:
         default="single_step_retrieval",
         help="Generate cases for the selected retrieval task when --dataset-path is not provided.",
     )
+    parser.add_argument(
+        "--multi-step-case-family",
+        choices=["all", "sibling_table_rows", "contextual_section"],
+        default="all",
+        help="Limit generated multi-step cases to a specific coverage family.",
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -535,6 +541,7 @@ def main() -> int:
                 for case in build_multi_step_eval_cases_from_chunks(
                     chunk_rows,
                     max_cases=args.max_queries,
+                    case_family=args.multi_step_case_family,
                 )
             ]
         else:

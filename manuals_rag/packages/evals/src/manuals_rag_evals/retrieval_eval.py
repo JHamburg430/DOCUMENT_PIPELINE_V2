@@ -945,10 +945,173 @@ def _multi_step_expected_evidence(*cells: dict[str, Any]) -> list[dict[str, Any]
     return evidence
 
 
+def _procedure_subject(content: str) -> str:
+    subject = re.sub(r"^Procedure step\s*\d+\s*:\s*", "", content, flags=re.IGNORECASE).strip()
+    subject = re.sub(r"^\d+\.\s*", "", subject).strip()
+    return _short_answer_anchor(subject)
+
+
+def _good_contextual_procedure_subject(subject: str) -> bool:
+    compact = normalize_text(subject)
+    if len(compact) < 18:
+        return False
+    if re.fullmatch(r"\d+\)?", compact):
+        return False
+    if re.match(r"^\d+\)?\s*$", compact):
+        return False
+    terms = [term for term in extract_anchor_terms(subject, limit=5) if term not in {"procedure", "typical"}]
+    if len(terms) < 2:
+        return False
+    return bool(any(term in TECHNICAL_VERBS or _is_high_signal_anchor(term) for term in terms) or len(compact.split()) >= 5)
+
+
+def _support_subject(chunk: dict[str, Any]) -> str:
+    content = str(chunk.get("content", ""))
+    field_pairs = _meaningful_table_field_value_pairs(content)
+    if field_pairs:
+        field, value = field_pairs[0]
+        value_anchor = _short_answer_anchor(value)
+        return f"{field.strip()} {value_anchor}".strip()
+    labels = _quoted_menu_labels(content)
+    if labels:
+        return " ".join(labels[:2])
+    anchors = extract_anchor_terms(content, limit=3)
+    return " ".join(anchors)
+
+
+def _support_chunks_for_contextual_multi_step(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    support: list[dict[str, Any]] = []
+    for chunk in chunks:
+        chunk_type = str(chunk.get("chunk_type", ""))
+        if chunk_type not in {"atomic_text", "table_record", "spec_record", "datasheet_record", "warning_record"}:
+            continue
+        content = str(chunk.get("content", ""))
+        anchors = extract_anchor_terms(content, limit=4)
+        if chunk_type == "table_record":
+            _, table_terms = _table_question_terms(chunk)
+            anchors = table_terms or anchors
+        if _looks_like_toc_line(content) or _looks_like_legal_boilerplate(content):
+            continue
+        if chunk_type != "atomic_text" and not chunk_is_queryworthy(chunk, anchors):
+            continue
+        if len(anchors) < 2:
+            continue
+        support.append(chunk)
+    return support
+
+
+def _chunks_are_contextually_linked(procedure: dict[str, Any], support: dict[str, Any]) -> bool:
+    procedure_terms = [
+        term
+        for term in extract_anchor_terms(str(procedure.get("content", "")), limit=5)
+        if term not in {"procedure", "typical"}
+    ]
+    support_terms = extract_anchor_terms(str(support.get("content", "")), limit=5)
+    procedure_context = str(dict(procedure.get("metadata_json", {})).get("local_rerank_context") or "")
+    support_context = str(dict(support.get("metadata_json", {})).get("local_rerank_context") or "")
+    if not procedure_context and not support_context:
+        return True
+    procedure_hits = sum(1 for term in procedure_terms if _term_matches_evidence(term, support_context))
+    support_hits = sum(1 for term in support_terms if _term_matches_evidence(term, procedure_context))
+    return procedure_hits >= min(2, len(procedure_terms)) or support_hits >= min(2, len(support_terms))
+
+
+def _build_contextual_multi_step_cases(
+    chunks: list[dict[str, Any]],
+    *,
+    max_cases: int,
+    seen_queries: list[str],
+) -> list[RetrievalEvalCase]:
+    grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    for chunk in chunks:
+        if int(chunk.get("chunk_level", 1) or 1) != 1:
+            continue
+        key = (
+            str(chunk.get("source_document_id", "")),
+            str(chunk.get("document_version_id", "")),
+            str(chunk.get("section_path_text", "")),
+        )
+        grouped.setdefault(key, []).append(chunk)
+
+    cases: list[RetrievalEvalCase] = []
+    for section_chunks in grouped.values():
+        procedures = [
+            chunk
+            for chunk in section_chunks
+            if str(chunk.get("chunk_type", "")) == "procedure_record"
+            and chunk_is_queryworthy(chunk, extract_anchor_terms(str(chunk.get("content", "")), limit=4))
+        ]
+        support_chunks = _support_chunks_for_contextual_multi_step(section_chunks)
+        for procedure in procedures:
+            procedure_subject = _procedure_subject(str(procedure.get("content", "")))
+            if not procedure_subject or not _good_contextual_procedure_subject(procedure_subject):
+                continue
+            procedure_terms = extract_anchor_terms(str(procedure.get("content", "")), limit=4)
+            for support in support_chunks:
+                if support.get("id") == procedure.get("id"):
+                    continue
+                if not _chunks_are_contextually_linked(procedure, support):
+                    continue
+                support_subject = _support_subject(support)
+                if not support_subject:
+                    continue
+                support_terms = extract_anchor_terms(str(support.get("content", "")), limit=4)
+                if len(set(procedure_terms).intersection(support_terms)) >= min(2, len(support_terms)):
+                    continue
+                label = _safe_query_label(procedure) or _safe_query_label(support)
+                query = (
+                    f"When {procedure_subject}{_for_label(label)}, "
+                    f"what related {support_subject} detail should be used?"
+                )
+                if _has_near_duplicate_query(query, seen_queries):
+                    continue
+                evidence = _multi_step_expected_evidence(procedure, support)
+                expected_terms = []
+                for item in evidence:
+                    for term in item["expected_terms"]:
+                        if term not in expected_terms:
+                            expected_terms.append(term)
+                        if len(expected_terms) >= 6:
+                            break
+                    if len(expected_terms) >= 6:
+                        break
+                if len(expected_terms) < 4:
+                    continue
+                seen_queries.append(query)
+                cases.append(
+                    RetrievalEvalCase(
+                        case_id=f"{procedure['id']}::contextual_multi_step::{len(cases) + 1}",
+                        query=query,
+                        source_document_id=str(procedure["source_document_id"]),
+                        document_version_id=str(procedure["document_version_id"]),
+                        source_chunk_id=str(procedure["id"]),
+                        source_title=str(procedure.get("title", "")),
+                        source_filename=str(procedure.get("source_filename", "")),
+                        chunk_type=str(procedure.get("chunk_type", "")),
+                        section_path=str(procedure.get("section_path_text", "")),
+                        page_from=int(procedure.get("page_from", 0)),
+                        page_to=int(procedure.get("page_to", 0)),
+                        expected_terms=expected_terms[:6],
+                        expected_snippet=" | ".join(item["snippet"] for item in evidence),
+                        generation_method="contextual_procedure_plus_section_evidence",
+                        source_metadata=dict(procedure.get("metadata_json", {})),
+                        benchmark_quality="validated",
+                        anchor_terms=expected_terms[:6],
+                        retrieval_task="multi_step_retrieval",
+                        expected_source_chunk_ids=[item["chunk_id"] for item in evidence],
+                        expected_evidence=evidence,
+                    )
+                )
+                if len(cases) >= max_cases:
+                    return cases
+    return cases
+
+
 def build_multi_step_eval_cases_from_chunks(
     chunks: list[dict[str, Any]],
     *,
     max_cases: int,
+    case_family: str = "all",
 ) -> list[RetrievalEvalCase]:
     grouped: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
     for chunk in chunks:
@@ -964,68 +1127,79 @@ def build_multi_step_eval_cases_from_chunks(
 
     cases: list[RetrievalEvalCase] = []
     seen_queries: list[str] = []
-    for cells in grouped.values():
-        prompt_cells = [
-            cell
-            for cell in cells
-            if any(term in _column_field(cell) for term in {"error message", "symptom"})
-            and _good_multi_step_anchor(_cell_value(str(cell.get("content", ""))))
-        ]
-        for prompt_cell in prompt_cells:
-            prompt_value = _cell_value(str(prompt_cell.get("content", "")))
-            cause_cell = _best_related_cell(cells, {"cause"}, prompt_value)
-            action_cell = _best_related_cell(cells, {"corrective action", "countermeasure", "remedy"}, prompt_value)
-            if not cause_cell or not action_cell or len({prompt_cell["id"], cause_cell["id"], action_cell["id"]}) < 3:
-                continue
-            label = _safe_query_label(prompt_cell)
-            prompt_anchor = _short_answer_anchor(prompt_value)
-            if not prompt_anchor:
-                continue
-            if "symptom" in _column_field(prompt_cell):
-                query = f"What causes {prompt_anchor}{_for_label(label)}, and what should be checked or corrected?"
-            else:
-                query = f"What causes {prompt_anchor}{_for_label(label)}, and how should it be corrected?"
-            if _has_near_duplicate_query(query, seen_queries):
-                continue
-            evidence = _multi_step_expected_evidence(prompt_cell, cause_cell, action_cell)
-            expected_terms = []
-            for item in evidence:
-                for term in item["expected_terms"]:
-                    if term not in expected_terms:
-                        expected_terms.append(term)
+    if case_family in {"all", "sibling_table_rows"}:
+        for cells in grouped.values():
+            prompt_cells = [
+                cell
+                for cell in cells
+                if any(term in _column_field(cell) for term in {"error message", "symptom"})
+                and _good_multi_step_anchor(_cell_value(str(cell.get("content", ""))))
+            ]
+            for prompt_cell in prompt_cells:
+                prompt_value = _cell_value(str(prompt_cell.get("content", "")))
+                cause_cell = _best_related_cell(cells, {"cause"}, prompt_value)
+                action_cell = _best_related_cell(cells, {"corrective action", "countermeasure", "remedy"}, prompt_value)
+                if not cause_cell or not action_cell or len({prompt_cell["id"], cause_cell["id"], action_cell["id"]}) < 3:
+                    continue
+                label = _safe_query_label(prompt_cell)
+                prompt_anchor = _short_answer_anchor(prompt_value)
+                if not prompt_anchor:
+                    continue
+                if "symptom" in _column_field(prompt_cell):
+                    query = f"What causes {prompt_anchor}{_for_label(label)}, and what should be checked or corrected?"
+                else:
+                    query = f"What causes {prompt_anchor}{_for_label(label)}, and how should it be corrected?"
+                if _has_near_duplicate_query(query, seen_queries):
+                    continue
+                evidence = _multi_step_expected_evidence(prompt_cell, cause_cell, action_cell)
+                expected_terms = []
+                for item in evidence:
+                    for term in item["expected_terms"]:
+                        if term not in expected_terms:
+                            expected_terms.append(term)
+                        if len(expected_terms) >= 6:
+                            break
                     if len(expected_terms) >= 6:
                         break
-                if len(expected_terms) >= 6:
-                    break
-            if len(expected_terms) < 4:
-                continue
-            seen_queries.append(query)
-            cases.append(
-                RetrievalEvalCase(
-                    case_id=f"{prompt_cell['id']}::multi_step::{len(cases) + 1}",
-                    query=query,
-                    source_document_id=str(prompt_cell["source_document_id"]),
-                    document_version_id=str(prompt_cell["document_version_id"]),
-                    source_chunk_id=str(prompt_cell["id"]),
-                    source_title=str(prompt_cell.get("title", "")),
-                    source_filename=str(prompt_cell.get("source_filename", "")),
-                    chunk_type=str(prompt_cell.get("chunk_type", "")),
-                    section_path=str(prompt_cell.get("section_path_text", "")),
-                    page_from=int(prompt_cell.get("page_from", 0)),
-                    page_to=int(prompt_cell.get("page_to", 0)),
-                    expected_terms=expected_terms[:6],
-                    expected_snippet=" | ".join(item["snippet"] for item in evidence),
-                    generation_method="table_sibling_error_cause_action",
-                    source_metadata=dict(prompt_cell.get("metadata_json", {})),
-                    benchmark_quality="validated",
-                    anchor_terms=expected_terms[:6],
-                    retrieval_task="multi_step_retrieval",
-                    expected_source_chunk_ids=[item["chunk_id"] for item in evidence],
-                    expected_evidence=evidence,
+                if len(expected_terms) < 4:
+                    continue
+                seen_queries.append(query)
+                cases.append(
+                    RetrievalEvalCase(
+                        case_id=f"{prompt_cell['id']}::multi_step::{len(cases) + 1}",
+                        query=query,
+                        source_document_id=str(prompt_cell["source_document_id"]),
+                        document_version_id=str(prompt_cell["document_version_id"]),
+                        source_chunk_id=str(prompt_cell["id"]),
+                        source_title=str(prompt_cell.get("title", "")),
+                        source_filename=str(prompt_cell.get("source_filename", "")),
+                        chunk_type=str(prompt_cell.get("chunk_type", "")),
+                        section_path=str(prompt_cell.get("section_path_text", "")),
+                        page_from=int(prompt_cell.get("page_from", 0)),
+                        page_to=int(prompt_cell.get("page_to", 0)),
+                        expected_terms=expected_terms[:6],
+                        expected_snippet=" | ".join(item["snippet"] for item in evidence),
+                        generation_method="table_sibling_error_cause_action",
+                        source_metadata=dict(prompt_cell.get("metadata_json", {})),
+                        benchmark_quality="validated",
+                        anchor_terms=expected_terms[:6],
+                        retrieval_task="multi_step_retrieval",
+                        expected_source_chunk_ids=[item["chunk_id"] for item in evidence],
+                        expected_evidence=evidence,
+                    )
                 )
+                if len(cases) >= max_cases:
+                    return cases
+    if case_family in {"all", "contextual_section"} and len(cases) < max_cases:
+        cases.extend(
+            _build_contextual_multi_step_cases(
+                chunks,
+                max_cases=max_cases - len(cases),
+                seen_queries=seen_queries,
             )
-            if len(cases) >= max_cases:
-                return cases
+        )
+    if case_family not in {"all", "sibling_table_rows", "contextual_section"}:
+        raise ValueError(f"Unsupported multi-step case family: {case_family}")
     return cases
 
 

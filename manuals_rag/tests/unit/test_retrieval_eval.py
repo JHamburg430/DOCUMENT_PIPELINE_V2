@@ -402,6 +402,53 @@ def test_build_multi_step_eval_cases_from_sibling_error_rows():
     assert len(cases[0].expected_evidence or []) == 3
 
 
+def test_build_multi_step_eval_cases_from_contextual_procedure_section():
+    base = {
+        "source_document_id": "doc-cvx",
+        "document_version_id": "ver-cvx",
+        "title": "CV-X",
+        "source_filename": "cvx.pdf",
+        "section_path_text": "PLC-Link Ethernet setup",
+        "page_from": 48,
+        "page_to": 48,
+        "product_model": "CV-X482",
+    }
+    chunks = [
+        {
+            **base,
+            "id": "procedure-cell",
+            "chunk_type": "procedure_record",
+            "chunk_level": 1,
+            "content": "Procedure step 3: 3. Connect the PLC-Link Ethernet cable and set the link unit.",
+            "metadata_json": {
+                "product_family": "CV-X Series",
+                "procedure_flag": True,
+                "local_rerank_context": "Connect the PLC-Link Ethernet cable and set the link unit. Port 9010 is reserved.",
+            },
+        },
+        {
+            **base,
+            "id": "constraint-cell",
+            "chunk_type": "atomic_text",
+            "chunk_level": 1,
+            "content": "The port number for communication port settings, '9010', cannot be used because it is reserved for the controller.",
+            "metadata_json": {
+                "product_family": "CV-X Series",
+                "local_rerank_context": "Procedure step 3: Connect the PLC-Link Ethernet cable and set the link unit. Port 9010 is reserved.",
+            },
+        },
+    ]
+
+    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="contextual_section")
+
+    assert len(cases) == 1
+    assert cases[0].retrieval_task == "multi_step_retrieval"
+    assert cases[0].generation_method == "contextual_procedure_plus_section_evidence"
+    assert "connect the plc-link ethernet cable" in cases[0].query.lower()
+    assert "9010" in cases[0].query
+    assert cases[0].expected_source_chunk_ids == ["procedure-cell", "constraint-cell"]
+
+
 def test_build_eval_cases_skips_low_signal_atomic_queries():
     chunks = [
         {
