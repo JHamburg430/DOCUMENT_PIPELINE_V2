@@ -203,13 +203,81 @@
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
       "status": "passed",
-      "passed": 238,
-      "warnings": 58,
-      "notes": "Full unit suite passed after broadening reverse table lookup query classification."
+      "passed": 55,
+      "warnings": 0,
+      "notes": "Focused eval-harness tests passed after adding answer-with-citations scoring and elapsed timeout enforcement."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_220047",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_220047.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_220047.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_220047.json",
+        "status": "completed_answer_grounding_smoke",
+        "search_mode": "direct",
+        "response_mode": "answer_with_citations",
+        "per_query_timeout_seconds": 60,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 2,
+        "passed_queries": 2,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 2,
+        "answer_failed_queries": 0,
+        "answer_pass_rate": 1.0,
+        "answer_failure_reasons": {},
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 2,
+            "passed": 2
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 2,
+            "passed": 2
+          }
+        },
+        "failure_categories": {},
+        "mode": "answer_with_citations_saved_single_step_replacement_debt_smoke",
+        "notes": "First current answer-grounding smoke for the benchmark path. Retrieval and answer scoring both passed 2/2; local relevance/recursive summary JSON occasionally fell back, so broader answer coverage should measure latency and fallback frequency next."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_215806",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_215806.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_215806.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_215806.json",
+        "status": "completed_diagnostic_timeout_accounting_before_fix",
+        "search_mode": "direct",
+        "response_mode": "answer_with_citations",
+        "per_query_timeout_seconds": 45,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 3,
+        "passed_queries": 3,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "answer_eval_count": 3,
+        "answer_passed_queries": 3,
+        "answer_failed_queries": 0,
+        "answer_pass_rate": 1.0,
+        "failure_categories": {},
+        "mode": "answer_with_citations_timeout_accounting_diagnostic",
+        "notes": "Diagnostic run exposed that answer-generation code could swallow the signal timeout and return after the nominal cap; the benchmark now enforces elapsed timeout after completed calls too."
+      },
       {
         "run_id": "retrieval_eval_20260824_212529",
         "corpus_id": "manuals_vendor_keyence",
@@ -3412,11 +3480,9 @@
         "candidate_miss": 1
       }
     },
-    "next_target": "Improve cross-document multi-step retrieval/context assembly for same-field prompts while preserving green single-step reverse lookup and warning-step gates; then add final-answer grounding eval coverage.",
+    "next_target": "Improve cross-document multi-step retrieval/context assembly for same-field prompts while preserving green single-step reverse lookup and warning-step gates; expand answer-grounding coverage beyond the 2-case smoke and track fallback/latency behavior.",
     "current_failure_categories": {
-      "replacement_debt_single_step_bank": {
-        "ranking_or_context_loss": 1
-      },
+      "replacement_debt_single_step_bank": {},
       "replacement_single_step_bank": {},
       "warning_step_multi_step_bank": {},
       "cross_document_multi_step_bank": {
@@ -3425,9 +3491,13 @@
       }
     },
     "answer_grounding_status": {
-      "status": "not_measured_this_run",
-      "notes": "This scoped run changed retrieval query classification only; next answer-generation work should add or run answer-with-citations grounding coverage after cross-document retrieval improves."
+      "status": "smoke_measured",
+      "latest_run_id": "retrieval_eval_20260824_220047",
+      "answer_eval_count": 2,
+      "answer_passed_queries": 2,
+      "answer_pass_rate": 1.0,
+      "notes": "Benchmark answer-with-citations mode now scores final answers for expected terms and cited/used expected documents. A 2-case saved single-step smoke passed, but local relevance and recursive summary calls produced malformed JSON and used fallbacks; broader answer coverage should track fallback frequency and latency."
     }
   },
-  "next_target": "Improve the remaining generated single-step LJ-X8000 ranking/context loss and continue expanding cross-document multi-step coverage while keeping replacement debt at zero."
+  "next_target": "Improve cross-document multi-step retrieval/context assembly for same-field prompts while preserving green single-step reverse lookup and warning-step gates; expand answer-grounding coverage beyond the 2-case smoke and track fallback/latency behavior."
 }

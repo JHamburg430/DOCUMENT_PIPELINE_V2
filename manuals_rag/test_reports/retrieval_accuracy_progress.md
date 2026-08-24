@@ -834,3 +834,24 @@ Next target:
 Next target:
 
 - Improve cross-document multi-step retrieval/context assembly for same-field prompts, especially the saved `retrieval_eval_20260824_202725` ranking/context losses, while preserving the green single-step reverse-lookup and warning-step gates; then add or run final-answer grounding coverage.
+
+## 2026-08-24 Cron 39262386 Answer-Grounding Eval Harness
+
+- Target: add final-answer grounding measurement to the cron-sized benchmark path, without changing production retrieval behavior, model providers, model names, ingestion, parser, UI, auth, infrastructure, schema, or deployment code.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed eval logic in `packages/evals/src/manuals_rag_evals/retrieval_eval.py` to add `score_answer_response`, which checks non-empty answers, insufficient-evidence flags, expected term coverage, and cited/used expected source documents. For multi-step cases it requires every expected evidence document to be cited or used, which is general for unseen manuals and cross-document questions.
+- Changed benchmark logic in `scripts/benchmark/run_large_retrieval_eval.py` to add `--response-mode retrieval_only|answer_with_citations`, generate local answers with the existing configured answer model after retrieval in direct or HTTP mode, record answer pass/fail metrics in results and summaries, and enforce elapsed per-query timeouts even if lower-level answer code catches the signal timeout.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for answer scoring, multi-step document coverage, answer-summary metrics, HTTP-mode answer generation after retrieval, and elapsed timeout enforcement.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 55 passed.
+- Live diagnostic command before elapsed-timeout enforcement: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_210121.jsonl --max-queries 3 --search-mode direct --response-mode answer_with_citations --per-query-timeout-seconds 45 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Diagnostic result: `retrieval_eval_20260824_215806` reported 3/3 retrieval and 3/3 answers passed, but exposed a harness issue because one answer case returned after 55.561s despite a 45s cap. This was fixed by post-call elapsed timeout enforcement.
+- Live answer-grounding command after the fix: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_210121.jsonl --max-queries 2 --search-mode direct --response-mode answer_with_citations --per-query-timeout-seconds 60 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Answer-grounding smoke result: `retrieval_eval_20260824_220047` completed 2 saved single-step table questions at 2/2 retrieval passed and 2/2 answer passed, answer pass rate 100%, candidate recall 100%, metadata-document recall 100%, no answer failure reasons. Per-case answer/retrieval elapsed times were 30.390s and 24.454s after a 7.898s retrieval warmup.
+- Answer-generation evidence: local relevance and recursive summary JSON calls sometimes returned malformed JSON and used fallback relevance/summary logic during the smoke. The final answers still passed term and citation/document grounding checks, but fallback frequency and latency need broader measurement before this is a strong answer-generation gate.
+- Question-bank counts unchanged: 193 exploratory questions total, 100 single-step and 93 multi-step. Replacement debt remains 0; no questions were retired or added in this harness-focused run.
+- Changed files: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `scripts/benchmark/run_large_retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new answer-mode eval artifacts for 21:58 and 22:00 UTC.
+- Broader full unit suite was not rerun because this run changed eval/benchmark scoring only and the 30-minute window was used by answer-generation smoke latency.
+
+Next target:
+
+- Improve cross-document multi-step retrieval/context assembly for same-field prompts while preserving green single-step reverse-lookup and warning-step gates; expand answer-grounding coverage beyond the 2-case smoke and track fallback/latency behavior.

@@ -27,6 +27,7 @@ from manuals_rag_evals.retrieval_eval import (
     build_eval_cases_from_chunks,
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
+    score_answer_response,
     score_search_results,
 )
 from manuals_rag_evals.retrieval_eval import RetrievalEvalCase
@@ -82,6 +83,13 @@ def is_query_timeout_exception(exc: Exception) -> bool:
     if isinstance(exc, QueryTimeoutError):
         return True
     return "Search exceeded per-query timeout" in str(exc)
+
+
+def enforce_completed_query_timeout(*, start_time: float, timeout_seconds: int) -> float:
+    elapsed_seconds = time.time() - start_time
+    if timeout_seconds > 0 and elapsed_seconds > timeout_seconds:
+        raise QueryTimeoutError(f"Search exceeded per-query timeout of {timeout_seconds} seconds.")
+    return elapsed_seconds
 
 
 def _query_postgres_rows(sql: str) -> list[dict[str, Any]]:
@@ -283,12 +291,12 @@ def fetch_documents_for_corpus(corpus_id: str) -> list[dict[str, Any]]:
     return _query_postgres_rows(sql)
 
 
-def run_search(query: str, *, corpus_id: str) -> list[dict[str, Any]]:
+def run_search(query: str, *, corpus_id: str, response_mode: str = "retrieval_only") -> dict[str, Any] | list[dict[str, Any]]:
     payload = {
         "query": query,
         "corpus_ids": [corpus_id],
         "filters": {},
-        "response_mode": "retrieval_only",
+        "response_mode": response_mode,
     }
     return _json_request(
         f"{API_BASE}/search",
@@ -305,10 +313,36 @@ def run_search_direct(query: str, *, corpus_id: str) -> list[dict[str, Any]]:
     return [item.model_dump() for item in retrieve(query, [corpus_id], filters)]
 
 
-def run_case_search(query: str, *, corpus_id: str, search_mode: str) -> list[dict[str, Any]]:
+def generate_answer_payload(query: str, results: list[dict[str, Any]]) -> dict[str, Any]:
+    from manuals_rag_answering.generator import generate_answer
+    from manuals_rag_schemas.documents import SearchResult
+
+    answer = generate_answer(query, [SearchResult(**item) for item in results])
+    return answer.model_dump()
+
+
+def run_case_search(query: str, *, corpus_id: str, search_mode: str, response_mode: str = "retrieval_only") -> dict[str, Any]:
     if search_mode == "direct":
-        return run_search_direct(query, corpus_id=corpus_id)
-    return run_search(query, corpus_id=corpus_id)
+        results = run_search_direct(query, corpus_id=corpus_id)
+        payload: dict[str, Any] = {"top_results": results}
+        if response_mode == "answer_with_citations":
+            payload["answer"] = generate_answer_payload(query, results)
+        return payload
+    payload = run_search(query, corpus_id=corpus_id, response_mode=response_mode)
+    if isinstance(payload, list):
+        results = payload
+    else:
+        results = list(payload.get("top_results") or payload.get("results") or [])
+    normalized = {"top_results": results}
+    if response_mode == "answer_with_citations":
+        normalized["answer"] = generate_answer_payload(query, results)
+    return normalized
+
+
+def _top_results_from_search_payload(payload: dict[str, Any] | list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return payload
+    return list(payload.get("top_results", []))
 
 
 def run_warmup_searches(
@@ -326,13 +360,14 @@ def run_warmup_searches(
         start_time = time.time()
         try:
             with query_timeout(warmup_timeout_seconds):
-                search_results = run_case_search(case["query"], corpus_id=corpus_id, search_mode=search_mode)
+                search_payload = run_case_search(case["query"], corpus_id=corpus_id, search_mode=search_mode)
             warmups.append(
                 {
                     "case_id": case["case_id"],
                     "status": "completed",
                     "elapsed_seconds": round(time.time() - start_time, 3),
-                    "result_count": len(search_results),
+                    "result_count": len(_top_results_from_search_payload(search_payload)),
+                    "answer_generated": isinstance(search_payload, dict) and bool(search_payload.get("answer")),
                 }
             )
         except Exception as exc:
@@ -450,6 +485,9 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
     metadata_selection_attempts = 0
     metadata_selection_hits = 0
     metadata_selection_rank_1_hits = 0
+    answer_eval_count = 0
+    answer_passed = 0
+    answer_failure_reasons = Counter()
     for result in results:
         chunk_type = result["case"]["chunk_type"]
         chunk_type_stats[chunk_type]["total"] += 1
@@ -470,6 +508,11 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
             metadata_selection_attempts += 1
             metadata_selection_hits += int(bool(metadata_selection.get("passed")))
             metadata_selection_rank_1_hits += int(metadata_selection.get("rank") == 1)
+        answer_evaluation = result.get("answer_evaluation")
+        if isinstance(answer_evaluation, dict):
+            answer_eval_count += 1
+            answer_passed += int(bool(answer_evaluation.get("passed")))
+            answer_failure_reasons.update(answer_evaluation.get("failure_reasons", []))
     return {
         "total_queries": total,
         "passed_queries": passed,
@@ -493,6 +536,11 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
         "metadata_document_selection_rank_1_rate": round(metadata_selection_rank_1_hits / metadata_selection_attempts, 4)
         if metadata_selection_attempts
         else 0.0,
+        "answer_eval_count": answer_eval_count,
+        "answer_passed_queries": answer_passed,
+        "answer_failed_queries": answer_eval_count - answer_passed,
+        "answer_pass_rate": round(answer_passed / answer_eval_count, 4) if answer_eval_count else None,
+        "answer_failure_reasons": dict(answer_failure_reasons),
     }
 
 
@@ -520,6 +568,12 @@ def main() -> int:
         choices=["http", "direct"],
         default="http",
         help="Use the HTTP API or call the app retriever in-process. Direct mode is intended for fast retrieval-only saved-bank evals.",
+    )
+    parser.add_argument(
+        "--response-mode",
+        choices=["retrieval_only", "answer_with_citations"],
+        default="retrieval_only",
+        help="Score retrieval only or also generate and score final answers with citations.",
     )
     parser.add_argument(
         "--per-query-timeout-seconds",
@@ -656,11 +710,31 @@ def main() -> int:
     results: list[dict[str, Any]] = []
     for case in cases:
         start_time = time.time()
+        answer: dict[str, Any] | None = None
+        answer_evaluation: dict[str, Any] | None = None
         try:
             with query_timeout(args.per_query_timeout_seconds):
-                search_results = run_case_search(case["query"], corpus_id=corpus_id, search_mode=args.search_mode)
-            evaluation = score_search_results(RetrievalEvalCase(**case), search_results)
+                search_payload = run_case_search(
+                    case["query"],
+                    corpus_id=corpus_id,
+                    search_mode=args.search_mode,
+                    response_mode=args.response_mode,
+                )
+            search_results = search_payload.get("top_results", [])
+            eval_case = RetrievalEvalCase(**case)
+            evaluation = score_search_results(eval_case, search_results)
             evaluation["elapsed_seconds"] = round(time.time() - start_time, 3)
+            if args.response_mode == "answer_with_citations":
+                answer = dict(search_payload.get("answer") or {})
+                answer_evaluation = score_answer_response(eval_case, answer, evaluation)
+                answer_evaluation["elapsed_seconds"] = evaluation["elapsed_seconds"]
+            elapsed_seconds = enforce_completed_query_timeout(
+                start_time=start_time,
+                timeout_seconds=args.per_query_timeout_seconds,
+            )
+            evaluation["elapsed_seconds"] = round(elapsed_seconds, 3)
+            if answer_evaluation is not None:
+                answer_evaluation["elapsed_seconds"] = evaluation["elapsed_seconds"]
         except Exception as exc:
             if not is_query_timeout_exception(exc):
                 raise
@@ -670,7 +744,19 @@ def main() -> int:
                 elapsed_seconds=time.time() - start_time,
                 timeout_seconds=args.per_query_timeout_seconds,
             )
-        results.append({"case": case, "evaluation": evaluation, "top_results": search_results[:5]})
+            if args.response_mode == "answer_with_citations":
+                answer = {}
+                answer_evaluation = {
+                    "passed": False,
+                    "failure_reasons": ["eval_timeout"],
+                    "expected_document_used": False,
+                    "elapsed_seconds": evaluation["elapsed_seconds"],
+                }
+        result_record: dict[str, Any] = {"case": case, "evaluation": evaluation, "top_results": search_results[:5]}
+        if args.response_mode == "answer_with_citations":
+            result_record["answer"] = answer or {}
+            result_record["answer_evaluation"] = answer_evaluation or {}
+        results.append(result_record)
         print(
             json.dumps(
                 {
@@ -678,6 +764,8 @@ def main() -> int:
                     "passed": evaluation["passed"],
                     "rank": evaluation["rank"],
                     "failure_category": evaluation.get("failure_category"),
+                    "answer_passed": answer_evaluation.get("passed") if answer_evaluation else None,
+                    "answer_failure_reasons": answer_evaluation.get("failure_reasons") if answer_evaluation else None,
                     "elapsed_seconds": evaluation.get("elapsed_seconds"),
                 },
                 indent=2,
@@ -695,6 +783,7 @@ def main() -> int:
                 "documents": ingested_docs,
                 "input_dataset_path": str(args.dataset_path) if args.dataset_path else None,
                 "search_mode": args.search_mode,
+                "response_mode": args.response_mode,
                 "per_query_timeout_seconds": args.per_query_timeout_seconds,
                 "warmup_queries": args.warmup_queries,
                 "warmup_timeout_seconds": warmup_timeout_seconds,

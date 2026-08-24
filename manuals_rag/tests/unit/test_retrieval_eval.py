@@ -3,6 +3,7 @@ from manuals_rag_evals.retrieval_eval import (
     build_eval_cases_from_chunks,
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
+    score_answer_response,
     score_document_selection,
     score_search_results,
     validate_eval_case,
@@ -173,6 +174,26 @@ def test_large_retrieval_eval_recognizes_wrapped_query_timeouts():
     assert not module.is_query_timeout_exception(RuntimeError("qdrant collection unavailable"))
 
 
+def test_large_retrieval_eval_enforces_elapsed_timeout_after_swallowed_signal(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    monkeypatch.setattr(module.time, "time", lambda: 101.0)
+
+    try:
+        module.enforce_completed_query_timeout(start_time=50.0, timeout_seconds=45)
+    except module.QueryTimeoutError as exc:
+        assert "45 seconds" in str(exc)
+    else:
+        raise AssertionError("Expected elapsed timeout to be raised.")
+
+
 def test_large_retrieval_eval_runs_unscored_warmups(monkeypatch):
     import importlib.util
     from pathlib import Path
@@ -209,6 +230,7 @@ def test_large_retrieval_eval_runs_unscored_warmups(monkeypatch):
             "status": "completed",
             "elapsed_seconds": warmups[0]["elapsed_seconds"],
             "result_count": 1,
+            "answer_generated": False,
         }
     ]
 
@@ -240,6 +262,134 @@ def test_large_retrieval_eval_records_warmup_timeouts(monkeypatch):
     assert warmups[0]["status"] == "eval_timeout"
     assert warmups[0]["timeout_seconds"] == 30
     assert warmups[0]["result_count"] == 0
+
+
+def test_answer_response_scoring_requires_terms_and_expected_document():
+    case = RetrievalEvalCase(
+        case_id="case-1",
+        query="What voltage does MODEL-1 use?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="spec_record",
+        section_path="Specifications",
+        page_from=1,
+        page_to=1,
+        expected_terms=["24", "vdc"],
+        expected_snippet="Power supply voltage: 24 VDC",
+        generation_method="unit_test",
+        source_metadata={"product_model": "MODEL-1"},
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Use a 24 VDC power supply.",
+            "citations": [{"document_id": "doc-1", "chunk_id": "chunk-1", "pages": [1]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert scored["passed"] is True
+    assert scored["missing_document_ids"] == []
+    assert scored["term_check"]["matched_terms"] == ["24", "vdc"]
+
+
+def test_answer_response_scoring_requires_all_multi_step_documents():
+    case = RetrievalEvalCase(
+        case_id="case-1",
+        query="Compare the address values for MODEL-1 and MODEL-2.",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="table_record",
+        section_path="Specifications",
+        page_from=1,
+        page_to=1,
+        expected_terms=["address", "100"],
+        expected_snippet="Address: 100",
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={"product_model": "MODEL-1"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {"chunk_id": "chunk-1", "source_document_id": "doc-1", "expected_terms": ["address", "100"]},
+            {"chunk_id": "chunk-2", "source_document_id": "doc-2", "expected_terms": ["address", "200"]},
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "MODEL-1 lists address 100; MODEL-2 lists address 200.",
+            "citations": [{"document_id": "doc-1", "chunk_id": "chunk-1", "pages": [1]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert scored["passed"] is False
+    assert scored["missing_document_ids"] == ["doc-2"]
+    assert "expected_document_not_cited_or_used" in scored["failure_reasons"]
+
+
+def test_large_retrieval_eval_summarizes_answer_metrics():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    summary = module.summarize(
+        [
+            {
+                "case": {
+                    "chunk_type": "spec_record",
+                    "retrieval_task": "single_step_retrieval",
+                    "source_filename": "manual.pdf",
+                    "benchmark_quality": "validated",
+                },
+                "evaluation": {"passed": True, "rank": 1, "candidate_recall": True},
+                "answer_evaluation": {"passed": False, "failure_reasons": ["expected_terms_missing"]},
+            }
+        ]
+    )
+
+    assert summary["answer_eval_count"] == 1
+    assert summary["answer_pass_rate"] == 0.0
+    assert summary["answer_failure_reasons"] == {"expected_terms_missing": 1}
+
+
+def test_large_retrieval_eval_generates_answers_after_http_retrieval(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    monkeypatch.setattr(module, "run_search", lambda query, *, corpus_id, response_mode: [{"chunk_id": "hit"}])
+    monkeypatch.setattr(module, "generate_answer_payload", lambda query, results: {"answer": "24 VDC"})
+
+    payload = module.run_case_search(
+        "What voltage?",
+        corpus_id="manuals",
+        search_mode="http",
+        response_mode="answer_with_citations",
+    )
+
+    assert payload == {"top_results": [{"chunk_id": "hit"}], "answer": {"answer": "24 VDC"}}
 
 
 def test_build_eval_cases_from_chunks_creates_queries():

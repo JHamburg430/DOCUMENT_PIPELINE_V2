@@ -2076,3 +2076,95 @@ def score_search_results(
         "candidate_recall": found_same_document,
         "metadata_document_selection": document_selection,
     }
+
+
+def _answer_document_ids(answer: dict[str, Any], key: str) -> set[str]:
+    document_ids: set[str] = set()
+    for item in answer.get(key, []) or []:
+        if not isinstance(item, dict):
+            continue
+        document_id = str(item.get("document_id") or item.get("source_document_id") or "")
+        if document_id:
+            document_ids.add(document_id)
+    return document_ids
+
+
+def _expected_answer_document_ids(case: RetrievalEvalCase) -> set[str]:
+    document_ids = {case.source_document_id}
+    for item in case.expected_evidence or []:
+        document_id = str(item.get("source_document_id") or "")
+        if document_id:
+            document_ids.add(document_id)
+    return document_ids
+
+
+def _answer_contains_expected_terms(answer: dict[str, Any], expected_terms: list[str]) -> dict[str, Any]:
+    answer_text = str(answer.get("answer") or "")
+    answer_text_lower = answer_text.lower()
+    answer_tokens = set(tokenize(answer_text))
+    expected = [term for term in expected_terms if term]
+    matched = [
+        term
+        for term in expected
+        if _expected_term_matches_text(term, answer_text_lower, answer_tokens)
+    ]
+    required = min(2, len(expected))
+    return {
+        "passed": len(matched) >= required if required else False,
+        "matched_terms": matched,
+        "expected_terms": expected,
+        "required_terms": required,
+    }
+
+
+def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str]) -> bool:
+    term_lower = term.lower().strip()
+    if not term_lower:
+        return False
+    if term_lower in text_lower or term_lower in text_tokens:
+        return True
+    if "/" in term_lower:
+        parts = [part for part in term_lower.split("/") if part]
+        return bool(parts) and all(part in text_tokens for part in parts)
+    return False
+
+
+def score_answer_response(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+    retrieval_evaluation: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    citation_document_ids = _answer_document_ids(answer, "citations")
+    used_document_ids = _answer_document_ids(answer, "used_documents")
+    answer_document_ids = citation_document_ids.union(used_document_ids)
+    expected_document_ids = _expected_answer_document_ids(case)
+    missing_document_ids = sorted(expected_document_ids.difference(answer_document_ids))
+    terms = _answer_contains_expected_terms(answer, case.expected_terms)
+    answer_text = str(answer.get("answer") or "").strip()
+    passed = bool(
+        answer_text
+        and not answer.get("insufficient_evidence")
+        and not missing_document_ids
+        and terms["passed"]
+    )
+    failure_reasons: list[str] = []
+    if not answer_text:
+        failure_reasons.append("empty_answer")
+    if answer.get("insufficient_evidence"):
+        failure_reasons.append("insufficient_evidence")
+    if missing_document_ids:
+        failure_reasons.append("expected_document_not_cited_or_used")
+    if not terms["passed"]:
+        failure_reasons.append("expected_terms_missing")
+    if retrieval_evaluation and not retrieval_evaluation.get("passed"):
+        failure_reasons.append("retrieval_not_passed")
+    return {
+        "passed": passed,
+        "failure_reasons": failure_reasons,
+        "expected_document_ids": sorted(expected_document_ids),
+        "citation_document_ids": sorted(citation_document_ids),
+        "used_document_ids": sorted(used_document_ids),
+        "missing_document_ids": missing_document_ids,
+        "expected_document_used": not missing_document_ids,
+        "term_check": terms,
+    }
