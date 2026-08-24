@@ -872,3 +872,25 @@ Next target:
 Next target:
 
 - Improve answer-generation grounding for correctly retrieved table evidence, especially fallback-validation answers that miss expected terms; preserve the green single-step reverse-lookup and warning-step retrieval gates, and continue cross-document multi-step work after answer metrics stabilize.
+
+## 2026-08-24 Cron 39262386 Table-Cell Answer Fallback
+
+- Target: improve answer-generation grounding for correctly retrieved table evidence, especially the fallback-validation answer that missed expected terms in `retrieval_eval_20260824_222545`.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: the prior 3-case answer smoke had 3/3 retrieval passed but only 2/3 answers passed. The failed CV-X table question retrieved the correct `Command Result` table cell at rank 1, but validation fallback answered from the broader row-group context and dropped the focused cell terms (`command`, `0028`, `65.0`).
+- Changed answering logic in `packages/answering/src/manuals_rag_answering/generator.py` so retrieval-grounded fallback answers preserve the focused retrieved chunk content first, then include table row-group context as supporting context when available. This is general table-answer behavior and does not add document, vendor, filename, query, provider, model, ingestion, parser, UI, schema, or deployment changes.
+- Added focused unit coverage in `tests/unit/test_parser_and_answering.py` for validation fallback preserving a focused table cell before broader context.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q` -> 77 passed, 23 warnings.
+- Live answer-grounding command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_210121.jsonl --max-queries 3 --search-mode direct --response-mode answer_with_citations --per-query-timeout-seconds 60 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Live answer result: `retrieval_eval_20260824_225623` recovered the prior smoke from 2/3 to 3/3 answers passed. Retrieval stayed 3/3, answer pass rate was 100%, answer sources were `model: 3`, fallback use was 0/3, and answer latency min/max/mean/p95 was 18.804s/44.588s/27.756s/44.588s.
+- Answer-generation evidence: relevance and recursive-summary JSON fallbacks still appeared in logs during the live run, so answer quality improved for this case but malformed JSON/fallback behavior and latency remain a watch item.
+- Retrieval-only regression command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_210121.jsonl --max-queries 13 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Retrieval-only regression result: `retrieval_eval_20260824_225809` stayed 13/13 (100%), pass@1/pass@3/pass@5 all 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`.
+- Question-bank counts unchanged: 193 exploratory questions total, 100 single-step and 93 multi-step. Replacement debt remains 0; no questions were retired or added in this answer-focused run.
+- New artifacts: JSONL datasets/results are present locally under `test_reports/retrieval_eval_dataset_20260824_225623.jsonl`, `test_reports/retrieval_eval_results_20260824_225623.jsonl`, `test_reports/retrieval_eval_dataset_20260824_225809.jsonl`, and `test_reports/retrieval_eval_results_20260824_225809.jsonl`; tracked summaries/manifests are `test_reports/retrieval_eval_summary_20260824_225623.json`, `test_reports/retrieval_eval_manifest_20260824_225623.json`, `test_reports/retrieval_eval_summary_20260824_225809.json`, and `test_reports/retrieval_eval_manifest_20260824_225809.json`.
+- Changed files: `packages/answering/src/manuals_rag_answering/generator.py`, `tests/unit/test_parser_and_answering.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 22:56 and 22:58 UTC.
+- Generalization check before commit: the change is valid for unseen manuals and vendors because any table fallback should preserve the exact retrieved cell before surrounding context, and it helps engineers, technicians, support, sales, and managers asking direct table/spec questions.
+
+Next target:
+
+- Reduce answer-generation JSON fallback frequency and latency, then expand answer-grounding coverage beyond the 3-case smoke while preserving the green single-step reverse-lookup and warning-step retrieval gates; continue cross-document multi-step retrieval work after answer metrics stabilize.

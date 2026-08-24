@@ -546,6 +546,70 @@ def test_generate_answer_with_trace_exposes_summary_input_and_fallback_state(mon
     assert trace["final_answer"]["summarized_evidence"][0]["summary"] == "Use the Defect Tool for setup."
 
 
+def test_validation_fallback_preserves_focused_table_cell_before_context(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="c-table",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[7],
+            section_path=["PLC"],
+            content=(
+                "Column headers: 6bit > 5bit; Row headers: 0028 65.0 > "
+                "Command output area; Cell value: Command Result"
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "context_window": "status Bit area | 0000 | Result Ready | Cmd Ready",
+            },
+        )
+    ]
+
+    def fake_chat_json(**kwargs):
+        return (
+            {
+                "answer": "Unrelated generated answer",
+                "confidence": "medium",
+                "used_documents": [],
+                "citations": [],
+                "warnings": [],
+                "followup_questions": [],
+                "insufficient_evidence": False,
+            },
+            (
+                '{"answer":"Unrelated generated answer","confidence":"medium",'
+                '"used_documents":[],"citations":[],"warnings":[],'
+                '"followup_questions":[],"insufficient_evidence":false}'
+            ),
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fake_chat_json)
+
+    answer, trace = generate_answer_with_trace(
+        "What command 0028 65.0 Command output area 6bit value applies?",
+        results,
+        prioritized_results=results,
+        summarized_evidence=[
+            {
+                "chunk_id": "c-table",
+                "title": "Doc",
+                "pages": [7],
+                "section_path": ["PLC"],
+                "summary": "The table row says Command Result.",
+                "source_document_id": "d1",
+                "document_version_id": "v1",
+            }
+        ],
+    )
+
+    assert answer.answer.startswith("Column headers: 6bit > 5bit")
+    assert "Cell value: Command Result" in answer.answer
+    assert "Context: status Bit area" in answer.answer
+    assert trace["final_answer"]["answer_source"] == "fallback_validation"
+
+
 def test_docling_page_batches_cover_full_document():
     assert _docling_page_batches(10, 4) == [(1, 4), (5, 8), (9, 10)]
 

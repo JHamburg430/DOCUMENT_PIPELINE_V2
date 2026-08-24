@@ -205,6 +205,18 @@ def _evidence_text(result: SearchResult) -> str:
     return content
 
 
+def _fallback_answer_text(result: SearchResult) -> str:
+    content = str(result.content or "").strip()
+    context = str(result.metadata.get("context_window") or "").strip()
+    if not content:
+        return context
+    if str(result.metadata.get("chunk_type") or "") != "table_record" or not context:
+        return content
+    if content.lower() in context.lower():
+        return context
+    return f"{content}\n\nContext: {context}"
+
+
 def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     if not results:
         return AnswerResponse(
@@ -217,7 +229,7 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             insufficient_evidence=True,
         )
     top = results[0]
-    top_content = _evidence_text(top)
+    top_content = _fallback_answer_text(top)
     return AnswerResponse(
         answer=top_content,
         confidence="medium",
