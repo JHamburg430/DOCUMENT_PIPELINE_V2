@@ -33,7 +33,9 @@ LEXICAL_CONTEXT_SCAN_LIMIT = 1500
 LEXICAL_TABLE_STOPWORDS = {
     "about",
     "after",
+    "applies",
     "being",
+    "built",
     "causes",
     "check",
     "checked",
@@ -47,11 +49,14 @@ LEXICAL_TABLE_STOPWORDS = {
     "series",
     "settings",
     "should",
+    "system",
     "temporarily",
     "there",
     "using",
+    "value",
     "what",
     "when",
+    "vision",
     "with",
 }
 LEXICAL_CONTEXT_STOPWORDS = LEXICAL_TABLE_STOPWORDS.union(
@@ -61,6 +66,16 @@ LEXICAL_CONTEXT_STOPWORDS = LEXICAL_TABLE_STOPWORDS.union(
         "used",
     }
 )
+LEXICAL_TABLE_FIELD_TERMS = {
+    "average",
+    "description",
+    "message",
+    "scaling",
+    "specified",
+    "summary",
+    "symbol",
+    "target",
+}
 
 try:
     import torch
@@ -199,8 +214,6 @@ def _should_run_broad_vector_search(analysis: QueryAnalysis) -> bool:
 
 
 def _should_run_extra_table_vector_search(analysis: QueryAnalysis) -> bool:
-    if "structured_lookup" in analysis.query_types:
-        return False
     return _should_run_table_search(analysis)
 
 
@@ -277,7 +290,17 @@ def _lexical_table_content_terms(terms: list[str]) -> list[str]:
         if not any(char.isdigit() for char in term)
         and term not in {"corrective", "corrected", "remedy", "cause"}
     ]
-    return sorted(content_terms, key=lambda term: (len(term), term), reverse=True)[:4]
+    return sorted(content_terms, key=lambda term: (len(term), term), reverse=True)[:1]
+
+
+def _lexical_table_symbol_terms(terms: list[str]) -> list[str]:
+    symbol_terms: list[str] = []
+    for term in terms:
+        if any(char.isdigit() for char in term) or (
+            3 <= len(term) <= 6 and term not in LEXICAL_TABLE_STOPWORDS and term not in LEXICAL_TABLE_FIELD_TERMS
+        ):
+            symbol_terms.append(term)
+    return symbol_terms[:8]
 
 
 def _structured_prompt_phrase(query: str) -> str:
@@ -313,12 +336,33 @@ def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase
     if overlap <= 0:
         return 0.0
     score = overlap * 0.12
+    symbol_overlap = sum(1 for term in _lexical_table_symbol_terms(terms) if term in compact_haystack)
+    score += min(0.6, symbol_overlap * 0.12)
+    product_haystack = " ".join(
+        str(part)
+        for part in [
+            metadata.get("product_model"),
+            metadata.get("product_family"),
+            " ".join(str(item) for item in metadata.get("product_models") or []),
+            " ".join(str(item) for item in metadata.get("devices") or []),
+        ]
+        if part
+    ).lower()
+    product_terms = _text_terms(product_haystack)
+    product_overlap = len(set(terms).intersection(product_terms))
+    score += min(0.36, product_overlap * 0.09)
     if prompt_phrase and prompt_phrase in compact_haystack:
         score += 1.0
     if metadata.get("table_row_group"):
         score += 0.28
+    if metadata.get("table_summary"):
+        score += 0.12
     if metadata.get("table_cell"):
         score += 0.06
+    if metadata.get("table_header") and not (
+        metadata.get("table_cell") or metadata.get("table_key_value") or metadata.get("table_row_group") or metadata.get("table_summary")
+    ):
+        score -= 0.35
     if re.search(r"\b(?:cause|remedy|corrective action|error messages?|symptom)\b", content, flags=re.IGNORECASE):
         score += 0.16
     return score + float(row.get("priority_score") or 0.0) / 100.0
@@ -358,10 +402,14 @@ def run_table_lexical_search(
             where.append(f"metadata_json->>%s = any(%s)")
             params.extend([key, [str(item) for item in values]])
     required_terms = _lexical_table_content_terms(terms)
-    if required_terms:
+    symbol_terms = _lexical_table_symbol_terms(terms)
+    if required_terms and len(symbol_terms) < 3:
         where.extend(["content ilike %s"] * len(required_terms))
         params.extend([f"%{term}%" for term in required_terms])
-    else:
+    if symbol_terms:
+        where.append("(" + " or ".join(["regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s"] * len(symbol_terms)) + ")")
+        params.extend([f"%{term}%" for term in symbol_terms])
+    if not required_terms and not symbol_terms:
         like_terms = terms[:8]
         where.append("(" + " or ".join(["content ilike %s"] * len(like_terms)) + ")")
         params.extend([f"%{term}%" for term in like_terms])
@@ -637,10 +685,30 @@ def _family_score_adjustment(result: SearchResult, analysis: QueryAnalysis) -> f
     if "structured_lookup" in analysis.query_types:
         if chunk_type == "table_record":
             adjustment += 0.07
-            if result.metadata.get("table_header"):
-                adjustment -= 0.14
+            compact_content = re.sub(
+                r"[^a-z0-9]+",
+                "",
+                str(result.metadata.get("rerank_document") or result.metadata.get("content_for_rerank") or result.content or "").lower(),
+            )
+            symbol_overlap = sum(
+                1
+                for term in _lexical_table_symbol_terms(list(query_terms))
+                if term and term in compact_content
+            )
+            adjustment += min(0.9, symbol_overlap * 0.3)
+            if result.metadata.get("table_header") and not (
+                result.metadata.get("table_cell")
+                or result.metadata.get("table_key_value")
+                or result.metadata.get("table_row_group")
+                or result.metadata.get("table_summary")
+            ):
+                adjustment -= 0.45
+            if result.metadata.get("table_cell") or result.metadata.get("table_key_value") or result.metadata.get("table_summary"):
+                adjustment += 0.08
         elif chunk_type in {"spec_record", "datasheet_record"}:
             adjustment += 0.04
+            if not _has_value_pattern(str(result.content or "")) and len(str(result.content or "").split()) <= 8:
+                adjustment -= 0.55
         elif chunk_type == "section_window":
             adjustment += 0.02
     if "how_to" in analysis.query_types or "configuration" in analysis.query_types:

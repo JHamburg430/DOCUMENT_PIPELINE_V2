@@ -505,3 +505,20 @@ Next target:
 Next target:
 
 - Improve refreshed single-step ranking/document selection for LJ-S, CV-X, and VS structured questions while preserving the saved 38/40 bank and warning-step 15/15 bank, then broaden multi-step coverage to cross-document engineering questions.
+
+## 2026-08-24 Single-Step Regression Recovery
+
+- Target: recover the refreshed single-step diagnostic regression from 34/40 without reopening the broad all-chunk structured lookup route that had caused the KV-X timeout work.
+- Failure review: the 14:29 refreshed single-step diagnostic failed six LJ-S, CV-X, VS, and XG-X structured questions. The failures clustered around newly recognized structured lookup shapes (`summary`, `dataN`, symbol/scaling rows, and `specified for`) plus over-pruned table-vector recall.
+- Changed query analysis in `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py` so `summary ... applies`, `dataN ... applies`, and `specified for <model>` prompts receive the structured/spec lookup routes they need.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so structured lookups still skip the broad vector route but regain the dedicated table-only vector route, and so table lexical filters ignore generic `applies`/`value` terms while preserving compact symbol terms such as `mdata9`.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for the recovered query-analysis shapes, the table-vector route decision, and lexical table term selection.
+- Focused tests: `docker exec compose-api-1 python -m pytest tests/unit/test_retriever.py -q` -> 67 passed, 1 warning.
+- Full unit tests: `docker exec compose-api-1 python -m pytest tests/unit -q` -> 215 passed, 58 warnings in 153.03s.
+- Live eval command (refreshed deterministic single-step diagnostic): `docker exec compose-api-1 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 90 --warmup-queries 0`.
+- Saved single-step result: `retrieval_eval_20260824_145600` recovered to 39/40 (97.5%), pass@1 85%, pass@3 92.5%, pass@5 97.5%, candidate recall 100%, metadata-document recall 97.5%, and failures `ranking_or_context_loss: 1`. The remaining failure is the old low-information IV4 detection prompt.
+- New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_145600.json`, `test_reports/retrieval_eval_manifest_20260824_145600.json`.
+
+Next target:
+
+- Preserve the recovered 39/40 single-step path and warning-step 15/15 path while retiring or replacing the low-information IV4 detection prompt, then broaden multi-step coverage to cross-document engineering questions.

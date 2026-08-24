@@ -125,12 +125,60 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 211,
+      "passed": 215,
       "warnings": 58,
-      "duration_seconds": 149.61,
-      "notes": "Full unit suite passed after structured lookup route pruning; focused retriever tests were 67 passed, 1 warning."
+      "duration_seconds": 153.03,
+      "notes": "Full unit suite passed after single-step regression recovery; focused retriever tests were 67 passed, 1 warning."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_145600",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_145600.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_145600.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_145600.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 90,
+        "warmup_queries": 0,
+        "warmup_timeout_seconds": 0,
+        "total_queries": 40,
+        "passed_queries": 39,
+        "failed_queries": 1,
+        "pass_rate": 0.975,
+        "pass_at_1": 0.85,
+        "pass_at_3": 0.925,
+        "pass_at_5": 0.975,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 0.975,
+        "metadata_document_selection_rank_1_rate": 0.7,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 39
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 32
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 6
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 1
+        },
+        "notes": "Single-step recovery run after restoring the table-only vector route for structured lookups and tightening structured lexical/query-analysis shapes. The 14:29 diagnostic regression recovered from 34/40 to 39/40; remaining miss is the old low-information IV4 detection prompt."
+      },
       {
         "run_id": "retrieval_eval_20260824_142701",
         "corpus_id": "manuals_vendor_keyence",
@@ -1756,16 +1804,14 @@
     ],
     "failure_categories": {
       "saved_single_step_regression": {
-        "wrong_document_or_filter_loss": 1,
         "ranking_or_context_loss": 1
       },
       "warning_step_multi_step": {},
       "refreshed_single_step_diagnostic": {
-        "ranking_or_context_loss": 4,
-        "wrong_document_or_filter_loss": 2
+        "ranking_or_context_loss": 1
       }
     },
-    "next_target": "Improve refreshed single-step ranking/document selection for LJ-S, CV-X, and VS structured questions while preserving the saved 38/40 bank and warning-step 15/15 bank, then broaden multi-step coverage to cross-document engineering questions."
+    "next_target": "Preserve the recovered 39/40 single-step path and warning-step 15/15 path while retiring or replacing the low-information IV4 detection prompt, then broaden multi-step coverage to cross-document engineering questions."
   },
-  "next_target": "Improve refreshed single-step ranking/document selection for LJ-S, CV-X, and VS structured questions while preserving the saved 38/40 bank and warning-step 15/15 bank, then broaden multi-step coverage to cross-document engineering questions."
+  "next_target": "Preserve the recovered 39/40 single-step path and warning-step 15/15 path while retiring or replacing the low-information IV4 detection prompt, then broaden multi-step coverage to cross-document engineering questions."
 }

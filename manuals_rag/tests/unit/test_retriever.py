@@ -179,6 +179,28 @@ def test_query_analysis_marks_detection_applies_questions_as_structured_lookup()
     assert "comparison" not in analysis.query_types
 
 
+def test_query_analysis_marks_data_number_applies_questions_as_structured_lookup():
+    analysis = analyze_query("What 0068 data4 applies to VS Series Vision System with Built-in AI?")
+
+    assert "structured_lookup" in analysis.query_types
+    assert "table_record" in analysis.preferred_chunk_types
+    assert "comparison" not in analysis.query_types
+
+
+def test_query_analysis_marks_summary_applies_questions_as_structured_lookup():
+    analysis = analyze_query("What summary average applies to XG-X Series?")
+
+    assert "structured_lookup" in analysis.query_types
+    assert "table_record" in analysis.preferred_chunk_types
+
+
+def test_query_analysis_marks_specified_for_model_questions_as_spec_lookup():
+    analysis = analyze_query("What average density is specified for CV-X482?")
+
+    assert "spec_lookup" in analysis.query_types
+    assert analysis.product_model == "CV-X482"
+
+
 def test_query_analysis_does_not_treat_vs_series_as_comparison():
     analysis = analyze_query("What Display Settings value applies to VS Series Vision System?")
 
@@ -273,13 +295,25 @@ def test_structured_lookup_uses_focused_vector_route_instead_of_duplicate_broad_
 
     assert "structured_lookup" in analysis.query_types
     assert retriever._should_run_broad_vector_search(analysis) is False
-    assert retriever._should_run_extra_table_vector_search(analysis) is False
+    assert retriever._should_run_extra_table_vector_search(analysis) is True
 
 
 def test_structured_lookup_skips_contextual_lexical_search_terms():
     analysis = analyze_query("What Display Settings Green Lower Limit Value value applies to VS Series Vision System?")
 
     assert retriever._lexical_context_terms(analysis.raw_query, analysis) == []
+
+
+def test_table_lexical_content_terms_ignore_generic_value_and_keep_only_strong_fields():
+    terms = retriever._lexical_table_terms(
+        "What data7 M_DATA7 M_DATA9 Scaling target value applies to LJ: S8000 Series?",
+        analyze_query("What data7 M_DATA7 M_DATA9 Scaling target value applies to LJ: S8000 Series?"),
+    )
+
+    assert retriever._lexical_table_content_terms(terms) == ["scaling"]
+    symbol_terms = retriever._lexical_table_symbol_terms(terms)
+    assert "data7" in symbol_terms
+    assert "mdata9" in symbol_terms
 
 
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():

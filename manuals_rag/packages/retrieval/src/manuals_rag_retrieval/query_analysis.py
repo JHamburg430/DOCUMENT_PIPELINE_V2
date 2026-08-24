@@ -47,7 +47,7 @@ def analyze_query(query: str) -> QueryAnalysis:
         types.append("operational_flow")
         preferred_chunk_types.extend(["section_window", "procedure_record"])
     structured_lookup_field = re.search(
-        r"\b(?:address|value|message|symbol|description|detection|index|sub\s+index|stored\s+data|error\s+message)\b",
+        r"\b(?:address|value|message|symbol|description|detection|index|sub\s+index|stored\s+data|error\s+message|summary|data\s*\d+)\b",
         lowered,
     )
     structured_lookup_shape = re.search(r"\b(?:applies?\s+to|applies?\s+for)\b", lowered)
@@ -71,7 +71,11 @@ def analyze_query(query: str) -> QueryAnalysis:
         requested_doc_kind = "manual"
     spec_terms = {"voltage", "current", "dimension", "laser", "radiation", "wavelength", "output", "class"}
     explicit_spec_lookup = "specification" in lowered or re.search(r"\bspecs?\b", lowered) is not None
-    if requested_doc_kind is None and (explicit_spec_lookup or any(word in lowered for word in spec_terms)):
+    if requested_doc_kind is None and (
+        explicit_spec_lookup
+        or any(word in lowered for word in spec_terms)
+        or (re.search(r"\bspecified\s+for\b", lowered) and re.search(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query))
+    ):
         types.append("spec_lookup")
         preferred_chunk_types.extend(["datasheet_record", "spec_record", "table_record"])
     if any(word in lowered for word in ["error", "alarm", "troubleshoot", "fault"]):
