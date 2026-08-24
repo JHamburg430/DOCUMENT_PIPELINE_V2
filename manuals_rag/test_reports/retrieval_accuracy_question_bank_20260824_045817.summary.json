@@ -1,0 +1,21 @@
+{
+  "created_at": "2026-08-24T04:58:17Z",
+  "total_questions": 40,
+  "single_step_questions": 40,
+  "multi_step_questions": 0,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 33,
+      "passed": 26
+    },
+    "atomic_text": {
+      "total": 6,
+      "passed": 5
+    },
+    "spec_record": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "source_eval_summary": "test_reports/retrieval_eval_summary_20260824_045817.json"
+}

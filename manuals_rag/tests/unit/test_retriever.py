@@ -220,6 +220,36 @@ def test_family_scoring_promotes_spec_chunks_for_spec_queries():
     assert [item.chunk_id for item in rescored][:1] == ["spec"]
 
 
+def test_family_scoring_uses_scalar_product_family_identifier():
+    analysis = analyze_query("VS Series capture settings value upper limit")
+    generic = SearchResult(
+        chunk_id="generic",
+        score=0.5,
+        title="Capture Settings",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Capture Settings"],
+        content="Capture Settings Value Upper Limit: 100",
+        metadata={"chunk_type": "table_record", "product_family": "CV-X Series"},
+    )
+    family_match = SearchResult(
+        chunk_id="family-match",
+        score=0.49,
+        title="Capture Settings",
+        document_version_id="ver-2",
+        source_document_id="doc-2",
+        pages=[1],
+        section_path=["Capture Settings"],
+        content="Capture Settings Value Upper Limit: 88",
+        metadata={"chunk_type": "table_record", "product_family": "VS Series Vision System"},
+    )
+
+    rescored = retriever._apply_family_scoring([generic, family_match], analysis, stage="family_scored")
+
+    assert rescored[0].chunk_id == "family-match"
+
+
 def test_family_scoring_demotes_spec_chunks_for_general_prose_queries():
     analysis = analyze_query("Where does the manual discuss command completion and successful execution?")
     prose = SearchResult(

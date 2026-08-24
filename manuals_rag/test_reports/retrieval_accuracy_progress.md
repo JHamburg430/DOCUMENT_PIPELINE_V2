@@ -100,3 +100,23 @@ Next target:
 Next target:
 
 - Investigate and improve the remaining VS/manual table retrieval failures, especially AS_151292 metadata-document selection and candidate misses, then generate the first true multi-step cases once single-step evidence improves.
+
+## 2026-08-24 Cron 39262386 Product-Family Labels
+
+- Target: improve the remaining VS/manual table retrieval failures without filename routing or document-specific shortcuts.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus was usable with 53 indexed documents.
+- Failure review: prior full saved-bank run `retrieval_eval_20260824_042547` was 28/40 (70%) and all 6 AS_151292 VS cases failed. Several failed prompts lacked a natural product/family scope because long product-model lists were dropped from query labels.
+- Changed eval logic in `packages/evals/src/manuals_rag_evals/retrieval_eval.py` so deterministic and LLM-assisted question generation can use concise `product_family` as the user-facing label when `product_model` is an unwieldy slash-delimited list. The eval discriminator now accepts long named table concepts as source-specific anchors.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so scalar `product_model` and `product_family` participate in generic identifier scoring, with a larger adjustment for multiple matching identifier terms instead of a flat one-term match.
+- Changed eval harness in `scripts/benchmark/run_large_retrieval_eval.py` to add `--disable-llm-query-generation`, keeping cron-sized question-bank refreshes deterministic and bounded.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` and `tests/unit/test_retriever.py` for product-family fallback labels and scalar product-family retrieval scoring.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_retriever.py -q` -> 69 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 174 passed, 58 warnings.
+- Live eval command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45 --disable-llm-query-generation`.
+- Live eval result: refreshed deterministic single-step bank completed at 32/40 passed (80%), pass@1 70%, pass@3 77.5%, pass@5 80%, candidate recall 97.5%, metadata-document recall 97.37%, no `eval_timeout` failures. AS_151292 VS cases improved to 10/11 passed. Failure categories: `ranking_or_context_loss: 7`, `wrong_document_or_filter_loss: 1`.
+- New artifacts: `test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl`, `test_reports/retrieval_accuracy_question_bank_20260824_045817.summary.json`, `test_reports/retrieval_eval_dataset_20260824_045817.jsonl`, `test_reports/retrieval_eval_results_20260824_045817.jsonl`, `test_reports/retrieval_eval_summary_20260824_045817.json`, `test_reports/retrieval_eval_manifest_20260824_045817.json`.
+- Question-bank manifest now tracks 80 exploratory single-step questions across two datasets; multi-step remains 0.
+
+Next target:
+
+- Improve ranking/context selection for high-recall misses, especially IV4 address/detection and protocol-symbol table cases, then add the first true multi-step retrieval cases.

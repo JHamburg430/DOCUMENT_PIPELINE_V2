@@ -477,6 +477,11 @@ def main() -> int:
         default=0,
         help="Abort an unscored warmup query after this many seconds. 0 uses max(30, per-query-timeout-seconds * 4).",
     )
+    parser.add_argument(
+        "--disable-llm-query-generation",
+        action="store_true",
+        help="Use deterministic eval question generation instead of local LLM rewrites.",
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -518,7 +523,14 @@ def main() -> int:
     else:
         chunk_rows = fetch_chunk_rows([item["document_id"] for item in ingested_docs])
         random.shuffle(chunk_rows)
-        cases = [case.to_dict() for case in build_eval_cases_from_chunks(chunk_rows, max_cases=args.max_queries)]
+        cases = [
+            case.to_dict()
+            for case in build_eval_cases_from_chunks(
+                chunk_rows,
+                max_cases=args.max_queries,
+                use_llm_generation=not args.disable_llm_query_generation,
+            )
+        ]
 
     warmup_timeout_seconds = args.warmup_timeout_seconds
     if args.warmup_queries > 0 and warmup_timeout_seconds <= 0:

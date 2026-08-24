@@ -403,7 +403,7 @@ def _query_has_discriminating_source_term(query: str, chunk: dict[str, Any]) -> 
     for token in tokenize(query):
         if token in ignored or token not in content_terms:
             continue
-        if _is_high_signal_anchor(token) or token in GENERIC_TECHNICAL_TERMS or token in TECHNICAL_VERBS:
+        if _is_high_signal_anchor(token) or token in GENERIC_TECHNICAL_TERMS or token in TECHNICAL_VERBS or len(token) >= 7:
             return True
     return False
 
@@ -552,6 +552,9 @@ def _safe_query_label(chunk: dict[str, Any]) -> str:
     model = str(chunk.get("product_model") or metadata.get("product_model") or "").strip()
     if model and len(model) <= 60 and model.count("/") <= 3 and not _query_uses_filename_artifact(model, chunk):
         return model
+    family = str(metadata.get("product_family") or "").strip()
+    if family and len(family) <= 80 and family.count("/") <= 1 and not _query_uses_filename_artifact(family, chunk):
+        return family
     title = str(chunk.get("title", "")).strip()
     filename = str(chunk.get("source_filename", "")).strip()
     if title and title != filename and not title.lower().endswith(".pdf"):

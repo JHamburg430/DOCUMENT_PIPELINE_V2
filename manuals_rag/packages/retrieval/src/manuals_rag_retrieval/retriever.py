@@ -230,6 +230,8 @@ def _family_score_adjustment(result: SearchResult, analysis: QueryAnalysis) -> f
     document_identifiers = " ".join(
         str(term)
         for term in [
+            result.metadata.get("product_model", ""),
+            result.metadata.get("product_family", ""),
             *(result.metadata.get("product_models") or []),
             *(result.metadata.get("product_families") or []),
             *(result.metadata.get("devices") or []),
@@ -238,8 +240,11 @@ def _family_score_adjustment(result: SearchResult, analysis: QueryAnalysis) -> f
             *(result.metadata.get("parameters") or []),
         ]
     ).lower()
-    if document_identifiers and any(term in document_identifiers for term in query_terms):
-        adjustment += 0.02
+    if document_identifiers:
+        identifier_terms = _text_terms(document_identifiers)
+        identifier_overlap = query_terms.intersection(identifier_terms)
+        if identifier_overlap:
+            adjustment += min(0.06, 0.02 * len(identifier_overlap))
     if _query_prefers_narrative_prose(analysis):
         if chunk_type in {"atomic_text", "section_window", "parent_section"}:
             adjustment += 0.03

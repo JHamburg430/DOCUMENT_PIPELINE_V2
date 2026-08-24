@@ -253,6 +253,38 @@ def test_eval_queries_avoid_unwieldy_product_list_labels():
     assert any("88ms capture settings value upper limit" in case.query.lower() for case in cases)
 
 
+def test_eval_queries_fall_back_to_product_family_for_long_model_lists():
+    chunk = {
+        "id": "chunk-vs-family",
+        "source_document_id": "doc-vs",
+        "document_version_id": "ver-vs",
+        "chunk_type": "table_record",
+        "title": "VS Manual",
+        "source_filename": "VS.pdf",
+        "section_path_text": "Capture Settings",
+        "page_from": 1,
+        "page_to": 1,
+        "content": (
+            "Column headers: Number Format > Decimal Digits; "
+            "Row headers: LumiTrax Capture Settings > Track Moving Object: Pattern Region: Height; "
+            "Cell value: 0; Row: 12; Column: 9"
+        ),
+        "metadata_json": {
+            "product_model": "VS-L160MX/VS-L160CX/VS-L320MX/VS-L320CX/VS-L500MX/VS-L500CX",
+            "product_family": "VS Series Vision System",
+            "table_column_headers": ["Number Format", "Decimal Digits"],
+            "table_row_headers": ["LumiTrax Capture Settings", "Track Moving Object: Pattern Region: Height"],
+        },
+        "product_model": "VS-L160MX/VS-L160CX/VS-L320MX/VS-L320CX/VS-L500MX/VS-L500CX",
+    }
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
+
+    assert cases
+    assert all("vs-l160mx/" not in case.query.lower() for case in cases)
+    assert all("vs series vision system" in case.query.lower() for case in cases)
+
+
 def test_build_eval_cases_skips_low_signal_atomic_queries():
     chunks = [
         {
