@@ -965,6 +965,30 @@ def _good_contextual_procedure_subject(subject: str) -> bool:
     return bool(any(term in TECHNICAL_VERBS or _is_high_signal_anchor(term) for term in terms) or len(compact.split()) >= 5)
 
 
+def _operational_step_subject(chunk: dict[str, Any]) -> str:
+    content = str(chunk.get("content", ""))
+    if str(chunk.get("chunk_type", "")) == "procedure_record":
+        return _procedure_subject(content)
+    subject = re.sub(r"^\d+\s+", "", content).strip()
+    return _short_answer_anchor(subject)
+
+
+def _good_operational_step_chunk(chunk: dict[str, Any]) -> bool:
+    chunk_type = str(chunk.get("chunk_type", ""))
+    if chunk_type not in {"procedure_record", "atomic_text"}:
+        return False
+    content = str(chunk.get("content", ""))
+    anchors = extract_anchor_terms(content, limit=5)
+    if chunk_type == "procedure_record":
+        return chunk_is_queryworthy(chunk, anchors)
+    if _looks_like_toc_line(content) or _looks_like_legal_boilerplate(content):
+        return False
+    compact = normalize_text(content)
+    has_step_shape = re.match(r"^\d+\s+[a-z]", compact) is not None
+    has_action = any(term in TECHNICAL_VERBS for term in tokenize(content))
+    return len(content) >= 45 and len(anchors) >= 2 and (has_step_shape or has_action)
+
+
 def _support_subject(chunk: dict[str, Any]) -> str:
     content = str(chunk.get("content", ""))
     field_pairs = _meaningful_table_field_value_pairs(content)
@@ -1014,6 +1038,51 @@ def _chunks_are_contextually_linked(procedure: dict[str, Any], support: dict[str
     procedure_hits = sum(1 for term in procedure_terms if _term_matches_evidence(term, support_context))
     support_hits = sum(1 for term in support_terms if _term_matches_evidence(term, procedure_context))
     return procedure_hits >= min(2, len(procedure_terms)) or support_hits >= min(2, len(support_terms))
+
+
+def _warning_subject(content: str) -> str:
+    subject = re.sub(r"^(?:Warning|Caution|Notice)\s*:\s*", "", content, flags=re.IGNORECASE).strip()
+    return _short_answer_anchor(subject)
+
+
+def _good_warning_subject(subject: str) -> bool:
+    compact = normalize_text(subject)
+    if len(compact) < 12:
+        return False
+    if re.fullmatch(r"warning(?: code| number)?\s*\d+", compact):
+        return False
+    terms = extract_anchor_terms(subject, limit=5)
+    return len(terms) >= 1 and any(_is_high_signal_anchor(term) or term in TECHNICAL_VERBS or len(term) >= 6 for term in terms)
+
+
+def _chunks_are_warning_step_linked(warning: dict[str, Any], procedure: dict[str, Any]) -> bool:
+    if str(warning.get("source_document_id", "")) != str(procedure.get("source_document_id", "")):
+        return False
+    if str(warning.get("document_version_id", "")) != str(procedure.get("document_version_id", "")):
+        return False
+    try:
+        page_distance = abs(int(warning.get("page_from", 0) or 0) - int(procedure.get("page_from", 0) or 0))
+    except (TypeError, ValueError):
+        page_distance = 999
+    if page_distance > 2:
+        return False
+    warning_terms = [
+        term
+        for term in extract_anchor_terms(str(warning.get("content", "")), limit=6)
+        if term not in {"warning", "caution"}
+    ]
+    procedure_terms = [
+        term
+        for term in extract_anchor_terms(str(procedure.get("content", "")), limit=6)
+        if term not in {"procedure", "typical"}
+    ]
+    if set(warning_terms).intersection(procedure_terms):
+        return True
+    warning_context = str(dict(warning.get("metadata_json", {})).get("local_rerank_context") or "")
+    procedure_context = str(dict(procedure.get("metadata_json", {})).get("local_rerank_context") or "")
+    warning_hits = sum(1 for term in warning_terms if _term_matches_evidence(term, procedure_context))
+    procedure_hits = sum(1 for term in procedure_terms if _term_matches_evidence(term, warning_context))
+    return warning_hits >= min(2, len(warning_terms)) or procedure_hits >= min(2, len(procedure_terms))
 
 
 def _build_contextual_multi_step_cases(
@@ -1095,6 +1164,93 @@ def _build_contextual_multi_step_cases(
                         expected_snippet=" | ".join(item["snippet"] for item in evidence),
                         generation_method="contextual_procedure_plus_section_evidence",
                         source_metadata=dict(procedure.get("metadata_json", {})),
+                        benchmark_quality="validated",
+                        anchor_terms=expected_terms[:6],
+                        retrieval_task="multi_step_retrieval",
+                        expected_source_chunk_ids=[item["chunk_id"] for item in evidence],
+                        expected_evidence=evidence,
+                    )
+                )
+                if len(cases) >= max_cases:
+                    return cases
+    return cases
+
+
+def _build_warning_step_multi_step_cases(
+    chunks: list[dict[str, Any]],
+    *,
+    max_cases: int,
+    seen_queries: list[str],
+) -> list[RetrievalEvalCase]:
+    by_document: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for chunk in chunks:
+        if int(chunk.get("chunk_level", 1) or 1) != 1:
+            continue
+        key = (str(chunk.get("source_document_id", "")), str(chunk.get("document_version_id", "")))
+        by_document.setdefault(key, []).append(chunk)
+
+    cases: list[RetrievalEvalCase] = []
+    for document_chunks in by_document.values():
+        warnings = [
+            chunk
+            for chunk in document_chunks
+            if str(chunk.get("chunk_type", "")) == "warning_record"
+            and not _looks_like_toc_line(str(chunk.get("content", "")))
+            and not _looks_like_legal_boilerplate(str(chunk.get("content", "")))
+            and _good_warning_subject(_warning_subject(str(chunk.get("content", ""))))
+        ]
+        operational_steps = [
+            chunk
+            for chunk in document_chunks
+            if _good_operational_step_chunk(chunk)
+        ]
+        for warning in warnings:
+            warning_subject = _warning_subject(str(warning.get("content", "")))
+            if not _good_warning_subject(warning_subject):
+                continue
+            for step in operational_steps:
+                if not _chunks_are_warning_step_linked(warning, step):
+                    continue
+                step_subject = _operational_step_subject(step)
+                if not _good_contextual_procedure_subject(step_subject):
+                    continue
+                label = _safe_query_label(step) or _safe_query_label(warning)
+                query = (
+                    f"When {step_subject}{_for_label(label)}, "
+                    f"what warning or caution about {warning_subject} should be followed?"
+                )
+                if _has_near_duplicate_query(query, seen_queries):
+                    continue
+                evidence = _multi_step_expected_evidence(step, warning)
+                expected_terms = []
+                for item in evidence:
+                    for term in item["expected_terms"]:
+                        if term not in expected_terms:
+                            expected_terms.append(term)
+                        if len(expected_terms) >= 6:
+                            break
+                    if len(expected_terms) >= 6:
+                        break
+                if len(expected_terms) < 4:
+                    continue
+                seen_queries.append(query)
+                cases.append(
+                    RetrievalEvalCase(
+                        case_id=f"{step['id']}::warning_step_multi_step::{len(cases) + 1}",
+                        query=query,
+                        source_document_id=str(step["source_document_id"]),
+                        document_version_id=str(step["document_version_id"]),
+                        source_chunk_id=str(step["id"]),
+                        source_title=str(step.get("title", "")),
+                        source_filename=str(step.get("source_filename", "")),
+                        chunk_type=str(step.get("chunk_type", "")),
+                        section_path=str(step.get("section_path_text", "")),
+                        page_from=int(step.get("page_from", 0)),
+                        page_to=int(step.get("page_to", 0)),
+                        expected_terms=expected_terms[:6],
+                        expected_snippet=" | ".join(item["snippet"] for item in evidence),
+                        generation_method="warning_plus_step_evidence",
+                        source_metadata=dict(step.get("metadata_json", {})),
                         benchmark_quality="validated",
                         anchor_terms=expected_terms[:6],
                         retrieval_task="multi_step_retrieval",
@@ -1198,7 +1354,15 @@ def build_multi_step_eval_cases_from_chunks(
                 seen_queries=seen_queries,
             )
         )
-    if case_family not in {"all", "sibling_table_rows", "contextual_section"}:
+    if case_family in {"all", "warning_step"} and len(cases) < max_cases:
+        cases.extend(
+            _build_warning_step_multi_step_cases(
+                chunks,
+                max_cases=max_cases - len(cases),
+                seen_queries=seen_queries,
+            )
+        )
+    if case_family not in {"all", "sibling_table_rows", "contextual_section", "warning_step"}:
         raise ValueError(f"Unsupported multi-step case family: {case_family}")
     return cases
 

@@ -449,6 +449,55 @@ def test_build_multi_step_eval_cases_from_contextual_procedure_section():
     assert cases[0].expected_source_chunk_ids == ["procedure-cell", "constraint-cell"]
 
 
+def test_build_multi_step_eval_cases_from_warning_step_neighborhood():
+    base = {
+        "source_document_id": "doc-iv",
+        "document_version_id": "ver-iv",
+        "title": "IV4",
+        "source_filename": "iv4.pdf",
+        "product_model": "IV4-G600CA",
+    }
+    chunks = [
+        {
+            **base,
+            "id": "procedure-cell",
+            "chunk_type": "procedure_record",
+            "chunk_level": 1,
+            "section_path_text": "Connection check",
+            "page_from": 12,
+            "page_to": 12,
+            "content": "Procedure step 2: Connect the EtherNet/IP cable and check the controller connection status.",
+            "metadata_json": {
+                "product_family": "IV4 Series",
+                "procedure_flag": True,
+                "local_rerank_context": "Before connecting the EtherNet/IP cable, turn off power and check controller wiring.",
+            },
+        },
+        {
+            **base,
+            "id": "warning-cell",
+            "chunk_type": "warning_record",
+            "chunk_level": 1,
+            "section_path_text": "Wiring caution",
+            "page_from": 11,
+            "page_to": 11,
+            "content": "Caution: Turn off the power before connecting or disconnecting the EtherNet/IP cable.",
+            "metadata_json": {
+                "product_family": "IV4 Series",
+                "local_rerank_context": "Connect the EtherNet/IP cable only after turning off power.",
+            },
+        },
+    ]
+
+    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="warning_step")
+
+    assert len(cases) == 1
+    assert cases[0].retrieval_task == "multi_step_retrieval"
+    assert cases[0].generation_method == "warning_plus_step_evidence"
+    assert "warning or caution" in cases[0].query.lower()
+    assert cases[0].expected_source_chunk_ids == ["procedure-cell", "warning-cell"]
+
+
 def test_build_eval_cases_skips_low_signal_atomic_queries():
     chunks = [
         {

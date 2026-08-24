@@ -299,3 +299,22 @@ Next target:
 Next target:
 
 - Reduce contextual retrieval latency for XG-X cases brushing the 8-second timeout, then add warning-plus-step and cross-document multi-step cases while continuing to reduce remaining single-step ranking/context losses.
+
+## 2026-08-24 Cron 39262386 Warning-Step Multi-Step Coverage
+
+- Target: add the first warning-plus-step multi-step retrieval cases while staying within retrieval/eval logic and avoiding document-specific routing or filename heuristics.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed eval logic in `packages/evals/src/manuals_rag_evals/retrieval_eval.py` to add deterministic `warning_plus_step_evidence` multi-step cases. The generator pairs warning/caution records with nearby same-document operational step evidence, preferring procedure records but allowing action-shaped atomic step chunks because this corpus stores many installation steps as `atomic_text`.
+- Changed benchmark logic in `scripts/benchmark/run_large_retrieval_eval.py` to accept `--multi-step-case-family warning_step`.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for warning/step neighborhood case generation and expected multi-evidence chunk ids.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 35 passed.
+- Diagnostic live evals before relaxing the warning-side gate produced zero cases: `retrieval_eval_20260824_095614` and `retrieval_eval_20260824_095745`. The corpus warning records are often short headings or status fields, so the final generator uses warning-specific subject validation plus TOC/legal filters instead of the general `chunk_is_queryworthy` gate.
+- Live eval command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --retrieval-task multi_step_retrieval --multi-step-case-family warning_step --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45 --disable-llm-query-generation`.
+- Live eval result: first warning-plus-step bank `retrieval_eval_20260824_095925` generated 18 validated multi-step questions and passed 10/18 (55.56%), pass@1 44.44%, pass@3/pass@5 55.56%, candidate recall 55.56%, metadata-document recall 100%, metadata-document rank-1 rate 60%. All 8 failures were `eval_timeout` under the 8-second per-query limit.
+- New artifacts tracked in manifest: `test_reports/retrieval_eval_dataset_20260824_095925.jsonl`, `test_reports/retrieval_eval_results_20260824_095925.jsonl`, `test_reports/retrieval_eval_summary_20260824_095925.json`, `test_reports/retrieval_eval_manifest_20260824_095925.json`.
+- Question-bank manifest now tracks 138 exploratory questions: 80 single-step and 58 multi-step.
+- Changed files: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `scripts/benchmark/run_large_retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for 09:59 UTC.
+
+Next target:
+
+- Reduce contextual/warning-step retrieval latency that causes 8-second eval timeouts, then rerun the warning-plus-step bank and broaden to cross-document multi-step cases.

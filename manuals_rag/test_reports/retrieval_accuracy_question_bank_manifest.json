@@ -26,11 +26,11 @@
     "run_budget_minutes": 30
   },
   "question_bank": {
-    "total_questions": 120,
+    "total_questions": 138,
     "single_step_questions": 80,
-    "multi_step_questions": 40,
+    "multi_step_questions": 58,
     "locked_regression_questions": 0,
-    "exploratory_questions": 120,
+    "exploratory_questions": 138,
     "datasets": [
       {
         "path": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
@@ -90,19 +90,75 @@
         "by_chunk_type": {
           "procedure_record": 20
         }
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260824_095925.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_095925.json",
+        "created_at": "2026-08-24T09:59:25Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "deterministic_warning_plus_step_evidence",
+        "status": "exploratory",
+        "total_questions": 18,
+        "single_step_questions": 0,
+        "multi_step_questions": 18,
+        "by_chunk_type": {
+          "atomic_text": 18
+        }
       }
     ]
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
       "status": "passed",
-      "passed": 194,
-      "warnings": 58,
-      "duration_seconds": 150.83,
-      "notes": "Full unit suite passed after adding deterministic pre-limit ordering for contextual lexical retrieval candidates."
+      "passed": 35,
+      "warnings": 0,
+      "duration_seconds": 0.18,
+      "notes": "Focused eval tests passed after adding deterministic warning-plus-step multi-step generation."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_095925",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_095925.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_095925.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_095925.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_095925.json",
+        "status": "completed",
+        "mode": "retrieval_only_generated_warning_step_multi_step_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 14.088,
+        "total_queries": 18,
+        "passed_queries": 10,
+        "failed_queries": 8,
+        "pass_rate": 0.5556,
+        "pass_at_1": 0.4444,
+        "pass_at_3": 0.5556,
+        "pass_at_5": 0.5556,
+        "candidate_recall_rate": 0.5556,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.6,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 18,
+            "passed": 10
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 18,
+            "passed": 10
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 8
+        },
+        "notes": "First warning-plus-step exploratory multi-step bank generated 18 validated questions. Retrieval found both operational-step and warning evidence for 10/18; all failures were 8-second eval timeouts, so latency is the next target before treating these as recall misses."
+      },
       {
         "run_id": "retrieval_eval_20260824_093241",
         "corpus_id": "manuals_vendor_keyence",
@@ -951,5 +1007,5 @@
       }
     ]
   },
-  "next_target": "Reduce contextual retrieval latency for XG-X cases brushing the 8-second timeout, then add warning-plus-step and cross-document multi-step cases while continuing to reduce remaining single-step ranking/context losses."
+  "next_target": "Reduce contextual/warning-step retrieval latency that causes 8-second eval timeouts, then rerun the warning-plus-step bank and broaden to cross-document multi-step cases."
 }
