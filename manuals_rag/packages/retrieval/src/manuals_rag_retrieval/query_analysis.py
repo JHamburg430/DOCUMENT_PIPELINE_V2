@@ -11,6 +11,7 @@ class QueryAnalysis:
     normalized_terms: list[str] = field(default_factory=list)
     product_family: str | None = None
     product_model: str | None = None
+    product_identifiers: list[str] = field(default_factory=list)
     part_number: str | None = None
     error_code: str | None = None
     requested_doc_kind: str | None = None
@@ -47,10 +48,10 @@ def analyze_query(query: str) -> QueryAnalysis:
         types.append("operational_flow")
         preferred_chunk_types.extend(["section_window", "procedure_record"])
     structured_lookup_field = re.search(
-        r"\b(?:address|value|message|symbol|description|detection|index|sub\s+index|stored\s+data|error\s+message|summary|data\s*\d+)\b",
+        r"\b(?:address|values?|items?|setting\s+(?:item|range)|word\s+device|number\s+of\s+image\s+pixels|cause|error\s+code|message|symbol|description|detection|index|sub\s+index|stored\s+data|error\s+message|summary|data\s*\d+)\b",
         lowered,
     )
-    structured_lookup_shape = re.search(r"\b(?:applies?\s+to|applies?\s+for)\b", lowered)
+    structured_lookup_shape = re.search(r"\b(?:appl(?:y|ies)\s+to|appl(?:y|ies)\s+for)\b", lowered)
     if structured_lookup_field and structured_lookup_shape:
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
@@ -109,9 +110,22 @@ def analyze_query(query: str) -> QueryAnalysis:
         preferred_metadata_filters["menu_labels"] = menu_labels
     if not types:
         types.append("general")
+    model_matches = [
+        match.group(0)
+        for match in re.finditer(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query)
+        if any(char.isdigit() for char in match.group(0))
+    ]
     model_match = re.search(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query)
     if model_match and not any(char.isdigit() for char in model_match.group(0)):
         model_match = None
+    family_matches = [
+        match.group(1).upper()
+        for match in re.finditer(
+            r"\b([A-Z]{1,5}-[A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    ]
     family_match = re.search(
         r"\b([A-Z]{1,5}-[A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
         query,
@@ -125,12 +139,17 @@ def analyze_query(query: str) -> QueryAnalysis:
             error_match = None
     explicit_identifier_count = int(bool(model_match)) + int(bool(error_match))
     filter_strictness = "strict" if explicit_identifier_count >= 2 else ("balanced" if explicit_identifier_count == 1 else "loose")
+    product_identifiers: list[str] = []
+    for identifier in [*model_matches, *family_matches]:
+        if identifier and identifier not in product_identifiers:
+            product_identifiers.append(identifier)
     return QueryAnalysis(
         raw_query=query,
         query_types=sorted(set(types)),
         normalized_terms=normalized_terms,
         product_family=family_match.group(1).upper() if family_match and not model_match else None,
         product_model=model_match.group(0) if model_match else None,
+        product_identifiers=product_identifiers,
         part_number=part_match.group(0) if part_match else None,
         error_code=error_match.group(0) if error_match and not part_match else None,
         requested_doc_kind=requested_doc_kind,

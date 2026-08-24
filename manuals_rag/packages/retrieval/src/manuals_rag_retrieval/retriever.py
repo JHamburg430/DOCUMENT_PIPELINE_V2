@@ -127,6 +127,8 @@ def select_documents_from_metadata(
 def _chunk_search_filters(filters: dict[str, object], metadata_filters: dict[str, object], analysis: QueryAnalysis) -> dict[str, object]:
     if _has_explicit_document_scope(filters):
         return metadata_filters
+    if "structured_lookup" in analysis.query_types and len(getattr(analysis, "product_identifiers", []) or []) >= 2:
+        return filters
     if (
         "structured_lookup" in analysis.query_types
         and analysis.product_family
@@ -264,6 +266,19 @@ def _query_terms(analysis: QueryAnalysis) -> set[str]:
     if normalized_terms is None:
         return set()
     return _term_variants(normalized_terms)
+
+
+def _query_product_identifier_terms(analysis: QueryAnalysis) -> set[str]:
+    identifiers = getattr(analysis, "product_identifiers", []) or []
+    if not identifiers:
+        identifiers = [item for item in [analysis.product_model, analysis.product_family, analysis.part_number] if item]
+    terms: set[str] = set()
+    for identifier in identifiers:
+        compact = _compact_identifier(str(identifier))
+        if compact:
+            terms.add(compact)
+        terms.update(_text_terms(str(identifier)))
+    return terms
 
 
 def _term_variants(terms: Iterable[str]) -> set[str]:
@@ -985,6 +1000,28 @@ def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> flo
     section_overlap = len(query_terms.intersection(section_terms))
     rerank_overlap = len(query_terms.intersection(rerank_terms))
     alignment = content_overlap * 0.045 + title_overlap * 0.015 + section_overlap * 0.025 + rerank_overlap * 0.02
+    identifier_terms = _query_product_identifier_terms(analysis)
+    if identifier_terms:
+        identifier_haystack = " ".join(
+            str(part)
+            for part in [
+                result.content,
+                result.title,
+                " ".join(result.section_path),
+                result.metadata.get("rerank_document"),
+                result.metadata.get("content_for_rerank"),
+                result.metadata.get("product_model"),
+                result.metadata.get("product_family"),
+                " ".join(str(item) for item in result.metadata.get("product_models") or []),
+                " ".join(str(item) for item in result.metadata.get("product_families") or []),
+                " ".join(str(item) for item in result.metadata.get("devices") or []),
+            ]
+            if part
+        )
+        compact_identifier_haystack = _compact_identifier(identifier_haystack)
+        identifier_overlap = sum(1 for term in identifier_terms if term and term in compact_identifier_haystack)
+        if identifier_overlap:
+            alignment += min(0.42, identifier_overlap * 0.14)
     if len(query_terms) >= 2 and content_overlap == 0 and rerank_overlap <= 1:
         alignment -= 0.04
     if len(query_terms) >= 3 and max(content_overlap, rerank_overlap) >= 3:

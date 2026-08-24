@@ -179,6 +179,14 @@ def test_query_analysis_marks_detection_applies_questions_as_structured_lookup()
     assert "comparison" not in analysis.query_types
 
 
+def test_query_analysis_marks_plural_values_apply_questions_as_structured_lookup():
+    analysis = analyze_query("What address values apply for IV4-G120 and IV4-G600CA?")
+
+    assert "structured_lookup" in analysis.query_types
+    assert analysis.product_model == "IV4-G120"
+    assert analysis.product_identifiers == ["IV4-G120", "IV4-G600CA"]
+
+
 def test_query_analysis_marks_data_number_applies_questions_as_structured_lookup():
     analysis = analyze_query("What 0068 data4 applies to VS Series Vision System with Built-in AI?")
 
@@ -221,6 +229,14 @@ def test_query_analysis_treats_letter_number_series_as_product_family_not_error_
 
     assert analysis.product_family == "X8000"
     assert analysis.error_code is None
+
+
+def test_query_analysis_tracks_multiple_series_identifiers():
+    analysis = analyze_query("What description values apply for LJ: S8000 Series and LJ: X8000 Series?")
+
+    assert "structured_lookup" in analysis.query_types
+    assert analysis.product_family == "S8000"
+    assert analysis.product_identifiers == ["S8000", "X8000"]
 
 
 def test_query_analysis_recognizes_models_with_numbered_prefixes():
@@ -1799,6 +1815,67 @@ def test_product_family_structured_lookup_does_not_hard_scope_chunk_search_to_me
     assert {"is_active": True, "chunk_type": ["table_record"]} in selected_filters
     assert all(filters.get("source_document_id") != ["doc-wrong"] for filters in selected_filters)
     assert results[0].metadata["selected_document_metadata_hits"][0]["source_document_id"] == "doc-wrong"
+
+
+def test_multi_identifier_structured_lookup_does_not_hard_scope_chunk_search(monkeypatch):
+    selected_filters: list[dict[str, object]] = []
+    first = SearchResult(
+        chunk_id="first-row",
+        score=0.9,
+        title="IV4 Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-first",
+        pages=[12],
+        section_path=["Specifications"],
+        content="Column headers: Address; Row headers: IV4-G120; Cell value: 1501",
+        metadata={"chunk_type": "table_record", "product_model": "IV4-G120"},
+    )
+    second = SearchResult(
+        chunk_id="second-row",
+        score=0.88,
+        title="IV4 Manual",
+        document_version_id="ver-2",
+        source_document_id="doc-second",
+        pages=[14],
+        section_path=["Specifications"],
+        content="Column headers: Address; Row headers: IV4-G600CA; Cell value: 1502",
+        metadata={"chunk_type": "table_record", "product_model": "IV4-G600CA"},
+    )
+
+    class FakeStore:
+        def search_document_metadata(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 5) -> list[dict[str, object]]:
+            return [
+                {
+                    "source_document_id": "doc-first",
+                    "score": 0.9,
+                    "retrieval_stage": "metadata_dense+metadata_sparse",
+                    "payload": {"title": "IV4 Manual", "source_filename": "iv4.pdf"},
+                }
+            ]
+
+        def search_dense(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            selected_filters.append(filters)
+            return [first, second] if filters == {"is_active": True, "chunk_type": ["table_record"]} else []
+
+        def search_sparse(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            selected_filters.append(filters)
+            return []
+
+        @staticmethod
+        def fuse_rrf(result_sets: list[list[SearchResult]], *, limit: int, k: int = 60) -> list[SearchResult]:
+            return QdrantStore.fuse_rrf(result_sets, limit=limit, k=k)
+
+    monkeypatch.setattr(retriever, "QdrantStore", FakeStore)
+    monkeypatch.setattr(retriever, "run_contextual_lexical_search", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(retriever, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "rerank_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "assemble_context", lambda results, **_kwargs: results)
+
+    results = retriever.retrieve("What address values apply for IV4-G120 and IV4-G600CA?", ["corpus-1"], {"is_active": True}, limit=5)
+
+    assert [item.chunk_id for item in results] == ["first-row", "second-row"]
+    assert {"is_active": True, "chunk_type": ["table_record"]} in selected_filters
+    assert all(filters.get("source_document_id") != ["doc-first"] for filters in selected_filters)
 
 
 def test_retrieve_keeps_table_chunks_available_for_safety_queries_without_table_only_route(monkeypatch):

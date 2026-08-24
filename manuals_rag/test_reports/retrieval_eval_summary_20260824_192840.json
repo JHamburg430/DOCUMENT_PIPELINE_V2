@@ -1,0 +1,69 @@
+{
+  "total_queries": 20,
+  "passed_queries": 20,
+  "failed_queries": 0,
+  "pass_rate": 1.0,
+  "pass_at_1": 0.95,
+  "pass_at_3": 1.0,
+  "pass_at_5": 1.0,
+  "mean_passing_rank": 1.1,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 15,
+      "passed": 15
+    },
+    "atomic_text": {
+      "total": 5,
+      "passed": 5
+    }
+  },
+  "by_retrieval_task": {
+    "single_step_retrieval": {
+      "total": 20,
+      "passed": 20
+    }
+  },
+  "by_document": {
+    "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf": {
+      "total": 3,
+      "passed": 3
+    },
+    "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf": {
+      "total": 3,
+      "passed": 3
+    },
+    "AS_160148_XG-X_C_689246_KA_US_2085_1.pdf": {
+      "total": 2,
+      "passed": 2
+    },
+    "AS_146087_IV4_UM_K08GB_WW_GB_2084_1.pdf": {
+      "total": 2,
+      "passed": 2
+    },
+    "AS_151292_VS_UM_J18GB_WW_GB_2035_7.pdf": {
+      "total": 4,
+      "passed": 4
+    },
+    "AS_112204_VJ_C_611L77_KA_US_2124_5.pdf": {
+      "total": 2,
+      "passed": 2
+    },
+    "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf": {
+      "total": 3,
+      "passed": 3
+    },
+    "AS_145624_IV_C_611Y54_KA_US_2084_2.pdf": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "failure_categories": {},
+  "benchmark_quality": {
+    "validated": 20
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 1.0,
+  "metadata_document_selection_attempts": 20,
+  "metadata_document_selection_recall_rate": 1.0,
+  "metadata_document_selection_rank_1_rate": 0.5
+}
