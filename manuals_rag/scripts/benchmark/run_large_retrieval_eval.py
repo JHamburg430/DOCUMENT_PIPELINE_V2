@@ -23,7 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 MANUALS_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(MANUALS_ROOT / "packages" / "evals" / "src"))
 
-from manuals_rag_evals.retrieval_eval import build_eval_cases_from_chunks, score_search_results
+from manuals_rag_evals.retrieval_eval import build_eval_cases_from_chunks, build_multi_step_eval_cases_from_chunks, score_search_results
 from manuals_rag_evals.retrieval_eval import RetrievalEvalCase
 
 
@@ -482,6 +482,12 @@ def main() -> int:
         action="store_true",
         help="Use deterministic eval question generation instead of local LLM rewrites.",
     )
+    parser.add_argument(
+        "--retrieval-task",
+        choices=["single_step_retrieval", "multi_step_retrieval"],
+        default="single_step_retrieval",
+        help="Generate cases for the selected retrieval task when --dataset-path is not provided.",
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -523,14 +529,23 @@ def main() -> int:
     else:
         chunk_rows = fetch_chunk_rows([item["document_id"] for item in ingested_docs])
         random.shuffle(chunk_rows)
-        cases = [
-            case.to_dict()
-            for case in build_eval_cases_from_chunks(
-                chunk_rows,
-                max_cases=args.max_queries,
-                use_llm_generation=not args.disable_llm_query_generation,
-            )
-        ]
+        if args.retrieval_task == "multi_step_retrieval":
+            cases = [
+                case.to_dict()
+                for case in build_multi_step_eval_cases_from_chunks(
+                    chunk_rows,
+                    max_cases=args.max_queries,
+                )
+            ]
+        else:
+            cases = [
+                case.to_dict()
+                for case in build_eval_cases_from_chunks(
+                    chunk_rows,
+                    max_cases=args.max_queries,
+                    use_llm_generation=not args.disable_llm_query_generation,
+                )
+            ]
 
     warmup_timeout_seconds = args.warmup_timeout_seconds
     if args.warmup_queries > 0 and warmup_timeout_seconds <= 0:

@@ -158,3 +158,21 @@ Next target:
 Next target:
 
 - Add the first true multi-step retrieval cases for table rows that require combining sibling cells, especially error-message/cause/corrective-action rows and IV4 address/stored-data rows, then improve context assembly so sibling row cells are available to the answerer.
+
+## 2026-08-24 Cron 39262386 Multi-Step Sibling Evidence
+
+- Target: add the first true multi-step retrieval cases for table rows requiring sibling evidence, starting with error-message/symptom, cause, and corrective-action rows.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus was usable with 53 indexed documents.
+- Changed eval logic in `packages/evals/src/manuals_rag_evals/retrieval_eval.py` to add optional `expected_source_chunk_ids` and `expected_evidence` to `RetrievalEvalCase`, generate deterministic `multi_step_retrieval` cases from sibling table cells with error/symptom, cause, and corrective-action evidence, and score multi-step cases by requiring each expected evidence item in the final top-k context.
+- Changed benchmark logic in `scripts/benchmark/run_large_retrieval_eval.py` to add `--retrieval-task single_step_retrieval|multi_step_retrieval` for deterministic generation when no saved dataset is provided.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for multi-step case generation and multi-step evidence scoring.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 32 passed.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 181 passed, 58 warnings in 151.13s. The full suite is now long enough that future cron runs should prefer focused tests unless shared behavior changed.
+- Live eval command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --retrieval-task multi_step_retrieval --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45 --disable-llm-query-generation`.
+- Live eval result: first exploratory multi-step bank completed 20 table-row sibling-evidence questions at 10/20 passed (50%), pass@1 40%, pass@3/pass@5 50%, candidate recall 85%, metadata-document recall 100% across 18 metadata-selection attempts. Failure categories: `ranking_or_context_loss: 7`, `eval_timeout: 2`, `candidate_miss: 1`. Warmup completed in 8.981s.
+- New artifacts: `test_reports/retrieval_eval_dataset_20260824_062714.jsonl`, `test_reports/retrieval_eval_results_20260824_062714.jsonl`, `test_reports/retrieval_eval_summary_20260824_062714.json`, `test_reports/retrieval_eval_manifest_20260824_062714.json`. The generated dataset is now tracked in the question-bank manifest as the first exploratory multi-step dataset.
+- Changed files: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `scripts/benchmark/run_large_retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus the new 06:27 UTC eval summary/manifest artifacts.
+
+Next target:
+
+- Improve context assembly for multi-step sibling-row evidence so answer/citation context includes the matching cause and corrective-action cells or row-group chunk together, then rerun the 20-case multi-step bank with a slightly higher per-query timeout or record a timeout/schedule recommendation if 8 seconds is still too tight.

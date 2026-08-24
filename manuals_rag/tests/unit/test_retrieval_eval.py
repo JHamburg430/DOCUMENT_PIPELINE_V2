@@ -1,6 +1,7 @@
 from manuals_rag_evals.retrieval_eval import (
     RetrievalEvalCase,
     build_eval_cases_from_chunks,
+    build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
     score_document_selection,
     score_search_results,
@@ -334,6 +335,71 @@ def test_table_cell_without_row_context_is_not_single_step_queryworthy():
     }
 
     assert not chunk_is_queryworthy(chunk, ["library", "conversion", "interrupted", "error"])
+
+
+def test_build_multi_step_eval_cases_from_sibling_error_rows():
+    base = {
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "chunk_type": "table_record",
+        "title": "XG-X",
+        "source_filename": "xgx.pdf",
+        "section_path_text": "Troubleshooting",
+        "page_from": 10,
+        "page_to": 10,
+        "product_model": "",
+    }
+    chunks = [
+        {
+            **base,
+            "id": "error-cell",
+            "content": "Column headers: Error Message; Cell value: Timeout error has occurred while waiting for encoder input.; Row: 10; Column: 0",
+            "metadata_json": {
+                "product_family": "XG-X Series",
+                "table_cell": True,
+                "table_row": 10,
+                "table_column": 0,
+                "table_column_headers": ["Error Message"],
+            },
+        },
+        {
+            **base,
+            "id": "cause-cell",
+            "content": "Column headers: Cause; Row headers: Timeout error has occurred while waiting for encoder input.; Cell value: Encoder input timeout was detected.; Row: 10; Column: 1",
+            "metadata_json": {
+                "product_family": "XG-X Series",
+                "table_cell": True,
+                "table_row": 10,
+                "table_column": 1,
+                "table_column_headers": ["Cause"],
+                "table_row_headers": ["Timeout error has occurred while waiting for encoder input."],
+            },
+        },
+        {
+            **base,
+            "id": "action-cell",
+            "content": "Column headers: Corrective Action; Row headers: Timeout error has occurred while waiting for encoder input. > Encoder input timeout was detected.; Cell value: Check the encoder connection and change the Detect Timeout time.; Row: 10; Column: 2",
+            "metadata_json": {
+                "product_family": "XG-X Series",
+                "table_cell": True,
+                "table_row": 10,
+                "table_column": 2,
+                "table_column_headers": ["Corrective Action"],
+                "table_row_headers": [
+                    "Timeout error has occurred while waiting for encoder input.",
+                    "Encoder input timeout was detected.",
+                ],
+            },
+        },
+    ]
+
+    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=5)
+
+    assert len(cases) == 1
+    assert cases[0].retrieval_task == "multi_step_retrieval"
+    assert "what causes timeout error" in cases[0].query.lower()
+    assert cases[0].expected_source_chunk_ids == ["error-cell", "cause-cell", "action-cell"]
+    assert len(cases[0].expected_evidence or []) == 3
 
 
 def test_build_eval_cases_skips_low_signal_atomic_queries():
@@ -1025,6 +1091,65 @@ def test_score_search_results_matches_slash_terms_across_table_evidence():
     assert evaluation["overlap_terms"] == 2
     assert evaluation["query_overlap_terms"] >= 2
     assert evaluation["match_reason"] == "same_document_answerable_evidence"
+
+
+def test_score_search_results_requires_multi_step_expected_evidence():
+    case = RetrievalEvalCase(
+        case_id="c-multi",
+        query="What causes timeout error, and how should it be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["timeout", "encoder", "connection", "detect"],
+        expected_snippet="Error, cause, and corrective action",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_family": "XG-X Series"},
+        retrieval_task="multi_step_retrieval",
+        expected_source_chunk_ids=["error-cell", "cause-cell", "action-cell"],
+        expected_evidence=[
+            {"chunk_id": "error-cell", "expected_terms": ["timeout", "encoder"]},
+            {"chunk_id": "cause-cell", "expected_terms": ["encoder", "timeout"]},
+            {"chunk_id": "action-cell", "expected_terms": ["connection", "detect"]},
+        ],
+    )
+    missing_action_results = [
+        {
+            "chunk_id": "error-cell",
+            "source_document_id": "doc-xgx",
+            "section_path": ["Troubleshooting"],
+            "content": "Timeout error has occurred while waiting for encoder input.",
+        },
+        {
+            "chunk_id": "cause-cell",
+            "source_document_id": "doc-xgx",
+            "section_path": ["Troubleshooting"],
+            "content": "Encoder input timeout was detected.",
+        },
+    ]
+    complete_results = [
+        *missing_action_results,
+        {
+            "chunk_id": "action-cell",
+            "source_document_id": "doc-xgx",
+            "section_path": ["Troubleshooting"],
+            "content": "Check the encoder connection and change the Detect Timeout time.",
+        },
+    ]
+
+    missing = score_search_results(case, missing_action_results)
+    complete = score_search_results(case, complete_results)
+
+    assert missing["passed"] is False
+    assert missing["failure_category"] == "ranking_or_context_loss"
+    assert missing["missing_evidence"][0]["chunk_id"] == "action-cell"
+    assert complete["passed"] is True
+    assert complete["match_reason"] == "multi_step_expected_evidence"
 
 
 def test_score_search_results_categorizes_candidate_miss():

@@ -208,6 +208,8 @@ class RetrievalEvalCase:
     benchmark_quality: str = "validated"
     anchor_terms: list[str] | None = None
     retrieval_task: str = "single_step_retrieval"
+    expected_source_chunk_ids: list[str] | None = None
+    expected_evidence: list[dict[str, Any]] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -859,6 +861,174 @@ def build_eval_cases_from_chunks(
     return cases
 
 
+def _cell_value(content: str) -> str:
+    match = re.search(r"Cell value:\s*([^;]+)", content)
+    if match:
+        return match.group(1).strip()
+    return content.strip()
+
+
+def _column_field(chunk: dict[str, Any]) -> str:
+    metadata = dict(chunk.get("metadata_json", {}))
+    headers = _metadata_list(metadata, "table_column_headers")
+    return normalize_text(" ".join(headers))
+
+
+def _row_group_key(chunk: dict[str, Any]) -> tuple[str, str, str, str] | None:
+    metadata = dict(chunk.get("metadata_json", {}))
+    table_row = metadata.get("table_row")
+    if table_row is None:
+        return None
+    return (
+        str(chunk.get("source_document_id", "")),
+        str(chunk.get("document_version_id", "")),
+        str(chunk.get("section_path_text", "")),
+        str(table_row),
+    )
+
+
+def _good_multi_step_anchor(value: str) -> bool:
+    compact = normalize_text(value)
+    if len(compact) < 18:
+        return False
+    if re.search(r"\.{4,}", compact):
+        return False
+    return bool(extract_anchor_terms(value, limit=2))
+
+
+def _row_header_text(chunk: dict[str, Any]) -> str:
+    metadata = dict(chunk.get("metadata_json", {}))
+    return normalize_text(" ".join(_metadata_list(metadata, "table_row_headers")))
+
+
+def _best_related_cell(cells: list[dict[str, Any]], field_terms: set[str], anchor_value: str) -> dict[str, Any] | None:
+    anchor_terms = set(extract_anchor_terms(anchor_value, limit=6))
+    best: tuple[int, dict[str, Any]] | None = None
+    for cell in cells:
+        field = _column_field(cell)
+        if not any(term in field for term in field_terms):
+            continue
+        evidence_text = f"{_row_header_text(cell)} {cell.get('content', '')}"
+        score = sum(1 for term in anchor_terms if _term_matches_evidence(term, evidence_text))
+        score += 2 if normalize_text(anchor_value)[:60] in normalize_text(evidence_text) else 0
+        if best is None or score > best[0]:
+            best = (score, cell)
+    if best and best[0] > 0:
+        return best[1]
+    return None
+
+
+def _short_answer_anchor(value: str) -> str:
+    clean = re.sub(r"\s+", " ", value).strip()
+    clean = re.sub(r"\s*\([^)]{18,}\)", "", clean).strip()
+    if len(clean) <= 90:
+        return clean
+    sentence = re.split(r"(?<=[.!?])\s+", clean)[0].strip()
+    return sentence[:90].strip() if sentence else clean[:90].strip()
+
+
+def _multi_step_expected_evidence(*cells: dict[str, Any]) -> list[dict[str, Any]]:
+    evidence: list[dict[str, Any]] = []
+    for cell in cells:
+        value = _cell_value(str(cell.get("content", "")))
+        terms = extract_anchor_terms(value, limit=4)
+        if not terms:
+            terms = extract_anchor_terms(str(cell.get("content", "")), limit=4)
+        evidence.append(
+            {
+                "chunk_id": str(cell.get("id", "")),
+                "field": _column_field(cell),
+                "expected_terms": terms[:4],
+                "snippet": content_preview(str(cell.get("content", "")), limit=180),
+            }
+        )
+    return evidence
+
+
+def build_multi_step_eval_cases_from_chunks(
+    chunks: list[dict[str, Any]],
+    *,
+    max_cases: int,
+) -> list[RetrievalEvalCase]:
+    grouped: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
+    for chunk in chunks:
+        if str(chunk.get("chunk_type", "")) != "table_record":
+            continue
+        metadata = dict(chunk.get("metadata_json", {}))
+        if not metadata.get("table_cell"):
+            continue
+        key = _row_group_key(chunk)
+        if key is None:
+            continue
+        grouped.setdefault(key, []).append(chunk)
+
+    cases: list[RetrievalEvalCase] = []
+    seen_queries: list[str] = []
+    for cells in grouped.values():
+        prompt_cells = [
+            cell
+            for cell in cells
+            if any(term in _column_field(cell) for term in {"error message", "symptom"})
+            and _good_multi_step_anchor(_cell_value(str(cell.get("content", ""))))
+        ]
+        for prompt_cell in prompt_cells:
+            prompt_value = _cell_value(str(prompt_cell.get("content", "")))
+            cause_cell = _best_related_cell(cells, {"cause"}, prompt_value)
+            action_cell = _best_related_cell(cells, {"corrective action", "countermeasure", "remedy"}, prompt_value)
+            if not cause_cell or not action_cell or len({prompt_cell["id"], cause_cell["id"], action_cell["id"]}) < 3:
+                continue
+            label = _safe_query_label(prompt_cell)
+            prompt_anchor = _short_answer_anchor(prompt_value)
+            if not prompt_anchor:
+                continue
+            if "symptom" in _column_field(prompt_cell):
+                query = f"What causes {prompt_anchor}{_for_label(label)}, and what should be checked or corrected?"
+            else:
+                query = f"What causes {prompt_anchor}{_for_label(label)}, and how should it be corrected?"
+            if _has_near_duplicate_query(query, seen_queries):
+                continue
+            evidence = _multi_step_expected_evidence(prompt_cell, cause_cell, action_cell)
+            expected_terms = []
+            for item in evidence:
+                for term in item["expected_terms"]:
+                    if term not in expected_terms:
+                        expected_terms.append(term)
+                    if len(expected_terms) >= 6:
+                        break
+                if len(expected_terms) >= 6:
+                    break
+            if len(expected_terms) < 4:
+                continue
+            seen_queries.append(query)
+            cases.append(
+                RetrievalEvalCase(
+                    case_id=f"{prompt_cell['id']}::multi_step::{len(cases) + 1}",
+                    query=query,
+                    source_document_id=str(prompt_cell["source_document_id"]),
+                    document_version_id=str(prompt_cell["document_version_id"]),
+                    source_chunk_id=str(prompt_cell["id"]),
+                    source_title=str(prompt_cell.get("title", "")),
+                    source_filename=str(prompt_cell.get("source_filename", "")),
+                    chunk_type=str(prompt_cell.get("chunk_type", "")),
+                    section_path=str(prompt_cell.get("section_path_text", "")),
+                    page_from=int(prompt_cell.get("page_from", 0)),
+                    page_to=int(prompt_cell.get("page_to", 0)),
+                    expected_terms=expected_terms[:6],
+                    expected_snippet=" | ".join(item["snippet"] for item in evidence),
+                    generation_method="table_sibling_error_cause_action",
+                    source_metadata=dict(prompt_cell.get("metadata_json", {})),
+                    benchmark_quality="validated",
+                    anchor_terms=expected_terms[:6],
+                    retrieval_task="multi_step_retrieval",
+                    expected_source_chunk_ids=[item["chunk_id"] for item in evidence],
+                    expected_evidence=evidence,
+                )
+            )
+            if len(cases) >= max_cases:
+                return cases
+    return cases
+
+
 def _term_matches_evidence(term: str, evidence_text: str) -> bool:
     normalized_term = normalize_text(term)
     if not normalized_term:
@@ -909,6 +1079,61 @@ def _result_evidence_text(result: dict[str, Any]) -> str:
 def _result_term_overlap(result: dict[str, Any], expected_terms: list[str]) -> int:
     evidence_text = _result_evidence_text(result)
     return sum(1 for term in expected_terms if _term_matches_evidence(term, evidence_text))
+
+
+def _score_multi_step_search_results(
+    case: RetrievalEvalCase,
+    results: list[dict[str, Any]],
+    *,
+    top_k: int,
+    document_selection: dict[str, Any],
+) -> dict[str, Any]:
+    considered = results[:top_k]
+    expected_evidence = case.expected_evidence or []
+    if not expected_evidence:
+        expected_evidence = [
+            {"chunk_id": chunk_id, "expected_terms": case.expected_terms}
+            for chunk_id in (case.expected_source_chunk_ids or [case.source_chunk_id])
+        ]
+    found_same_document = any(str(result.get("source_document_id", "")) == case.source_document_id for result in considered)
+    matched_items: list[dict[str, Any]] = []
+    missing_items: list[dict[str, Any]] = []
+    best_rank: int | None = None
+    for item in expected_evidence:
+        chunk_id = str(item.get("chunk_id") or "")
+        terms = [str(term) for term in item.get("expected_terms", []) if str(term)]
+        matched = False
+        item_rank: int | None = None
+        max_overlap = 0
+        for rank, result in enumerate(considered, start=1):
+            same_chunk = chunk_id and str(result.get("chunk_id", "")) == chunk_id
+            same_document = str(result.get("source_document_id", "")) == case.source_document_id
+            overlap = _result_term_overlap(result, terms)
+            max_overlap = max(max_overlap, overlap)
+            required_overlap = max(1, min(2, len(terms)))
+            if same_chunk or (same_document and overlap >= required_overlap):
+                matched = True
+                item_rank = rank
+                best_rank = rank if best_rank is None else min(best_rank, rank)
+                break
+        record = {"chunk_id": chunk_id, "matched": matched, "rank": item_rank, "overlap_terms": max_overlap}
+        if matched:
+            matched_items.append(record)
+        else:
+            missing_items.append(record)
+    passed = bool(expected_evidence) and not missing_items
+    failure_category = None if passed else ("ranking_or_context_loss" if found_same_document else "candidate_miss")
+    return {
+        "passed": passed,
+        "rank": best_rank if passed else None,
+        "match_reason": "multi_step_expected_evidence" if passed else "multi_step_missing_expected_evidence",
+        "matched_evidence": matched_items,
+        "missing_evidence": missing_items,
+        "failure_category": failure_category,
+        "retrieval_stage": "final_top_k",
+        "candidate_recall": found_same_document,
+        "metadata_document_selection": document_selection,
+    }
 
 
 def _query_evidence_overlap(query: str, result: dict[str, Any]) -> int:
@@ -976,6 +1201,8 @@ def score_search_results(
     top_k: int = 5,
 ) -> dict[str, Any]:
     document_selection = score_document_selection(case, results, top_k=top_k)
+    if case.retrieval_task == "multi_step_retrieval":
+        return _score_multi_step_search_results(case, results, top_k=top_k, document_selection=document_selection)
     considered = results[:top_k]
     found_same_document = False
     found_chunk_family = False
