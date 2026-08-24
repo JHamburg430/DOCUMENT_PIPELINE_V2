@@ -626,3 +626,23 @@ Next target:
 Next target:
 
 - Replace the retired low-quality single-step cases with fresh validated engineer questions, then broaden multi-step coverage to cross-document engineering questions.
+
+## 2026-08-24 Cron 39262386 Replacement Single-Step Question Quality
+
+- Target: replace retired low-quality single-step cases with fresh validated engineer questions without changing production retrieval behavior.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: a fresh deterministic 20-case single-step slice before the final cleanup was 18/20, but the remaining misses exposed stale eval-quality patterns: icon/placeholder-only table cells, bracketed page-reference fragments, and cross-reference-only atomic notes that should not become standalone engineer questions.
+- Changed eval logic in `packages/evals/src/manuals_rag_evals/retrieval_eval.py` so standalone single-step question generation rejects placeholder/icon-only table cells, short cross-reference-only atomic text, and bracketed page-reference fragments as TOC/index-like material.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for placeholder table cells, private-use icon cells, cross-reference-only atomic notes, and page-reference fragments.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 44 passed.
+- Replacement single-step eval command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --retrieval-task single_step_retrieval --max-queries 20 --seed 99 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45 --disable-llm-query-generation`.
+- Replacement single-step result: `retrieval_eval_20260824_173031` generated 20 validated questions and completed 17/20 (85%), pass@1 80%, pass@3/pass@5 85%, candidate recall 85%, metadata-document recall 100%, failures `eval_timeout: 3`. The generated cases no longer include the stale placeholder/icon/cross-reference/page-reference artifacts; remaining misses are retrieval latency pressure under the standard 8-second gate.
+- Saved cleaned single-step no-regression command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_165722.jsonl --max-queries 27 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved cleaned single-step result: `retrieval_eval_20260824_173222` stayed 27/27 (100%), pass@1 92.59%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`.
+- The saved warning-step 15-case bank was not rerun in this cron to stay inside the 30-minute budget; the latest prior gate `retrieval_eval_20260824_165909` remained 15/15 and this run changed eval question-generation/queryworthiness only.
+- Question-bank manifest now tracks 160 exploratory questions total: 87 single-step and 73 multi-step. New tracked artifacts: `test_reports/retrieval_eval_dataset_20260824_173031.jsonl`, `test_reports/retrieval_eval_results_20260824_173031.jsonl`, `test_reports/retrieval_eval_summary_20260824_173031.json`, `test_reports/retrieval_eval_manifest_20260824_173031.json`, `test_reports/retrieval_eval_summary_20260824_173222.json`, `test_reports/retrieval_eval_manifest_20260824_173222.json`.
+- Changed files: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 17:30 and 17:32 UTC.
+
+Next target:
+
+- Reduce structured/table retrieval latency for the new validated single-step replacement questions, then broaden multi-step coverage to cross-document engineering questions.

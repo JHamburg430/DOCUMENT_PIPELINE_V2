@@ -1,0 +1,81 @@
+{
+  "total_queries": 27,
+  "passed_queries": 27,
+  "failed_queries": 0,
+  "pass_rate": 1.0,
+  "pass_at_1": 0.9259,
+  "pass_at_3": 1.0,
+  "pass_at_5": 1.0,
+  "mean_passing_rank": 1.111,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 25,
+      "passed": 25
+    },
+    "atomic_text": {
+      "total": 1,
+      "passed": 1
+    },
+    "spec_record": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "by_retrieval_task": {
+    "single_step_retrieval": {
+      "total": 27,
+      "passed": 27
+    }
+  },
+  "by_document": {
+    "AS_151292_VS_UM_J18GB_WW_GB_2035_7.pdf": {
+      "total": 10,
+      "passed": 10
+    },
+    "AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_77987_LR-W_UM_542GB_WW_GB_1125_1.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_145895_KV-X_C_611X95_KA_US_2084_1.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf": {
+      "total": 2,
+      "passed": 2
+    },
+    "AS_146087_IV4_UM_K08GB_WW_GB_2084_1.pdf": {
+      "total": 3,
+      "passed": 3
+    },
+    "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf": {
+      "total": 4,
+      "passed": 4
+    },
+    "AS_126535_CV-X_C_611S71_KA_US_2124_5.pdf": {
+      "total": 2,
+      "passed": 2
+    },
+    "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf": {
+      "total": 2,
+      "passed": 2
+    },
+    "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "failure_categories": {},
+  "benchmark_quality": {
+    "validated": 27
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 1.0,
+  "metadata_document_selection_attempts": 27,
+  "metadata_document_selection_recall_rate": 1.0,
+  "metadata_document_selection_rank_1_rate": 0.6296
+}

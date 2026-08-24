@@ -416,6 +416,92 @@ def test_table_cell_without_row_context_is_not_single_step_queryworthy():
     assert not chunk_is_queryworthy(chunk, ["library", "conversion", "interrupted", "error"])
 
 
+def test_placeholder_table_cells_are_not_single_step_queryworthy():
+    chunk = {
+        "id": "placeholder-cell",
+        "source_document_id": "doc-ljs",
+        "document_version_id": "ver-ljs",
+        "chunk_type": "table_record",
+        "title": "LJ-S Manual",
+        "source_filename": "ljs.pdf",
+        "section_path_text": "Label Specification",
+        "page_from": 7,
+        "page_to": 7,
+        "content": "Column headers: Label Specification; Row headers: CC2D_LEN > Length of Data Read; Cell value: -; Row: 7; Column: 5",
+        "metadata_json": {
+            "product_family": "LJ-S8000 Series",
+            "table_cell": True,
+            "table_column_headers": ["Label Specification"],
+            "table_row_headers": ["CC2D_LEN", "Length of Data Read"],
+        },
+    }
+
+    assert not chunk_is_queryworthy(chunk, ["cc2d", "length", "data", "read"])
+    assert build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False) == []
+
+
+def test_icon_only_table_cells_are_not_single_step_queryworthy():
+    chunk = {
+        "id": "icon-cell",
+        "source_document_id": "doc-ljx",
+        "document_version_id": "ver-ljx",
+        "chunk_type": "table_record",
+        "title": "LJ-X Manual",
+        "source_filename": "ljx.pdf",
+        "section_path_text": "Label Specification",
+        "page_from": 8,
+        "page_to": 8,
+        "content": "Column headers: Label Specification Item ID; Row headers: PMH[] > Peak-to-Peak Height; Cell value: \uf0a1; Row: 25; Column: 6",
+        "metadata_json": {
+            "product_family": "LJ-X8000 Series",
+            "table_cell": True,
+            "table_column_headers": ["Label Specification Item ID"],
+            "table_row_headers": ["PMH[]", "Peak-to-Peak Height"],
+        },
+    }
+
+    assert not chunk_is_queryworthy(chunk, ["pmh", "peak-to-peak", "height"])
+    assert build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False) == []
+
+
+def test_cross_reference_only_atomic_text_is_not_single_step_queryworthy():
+    chunk = {
+        "id": "cross-reference-only",
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "chunk_type": "atomic_text",
+        "title": "XG-X Manual",
+        "source_filename": "xgx.pdf",
+        "section_path_text": "Representation Format",
+        "page_from": 9,
+        "page_to": 9,
+        "content": "For more information about the calculated result data, refer to the XG-X Series Communications Control Manual.",
+        "metadata_json": {"product_family": "XG-X Series"},
+    }
+
+    assert not chunk_is_queryworthy(chunk, ["calculated", "result", "data", "xg-x"])
+    assert build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False) == []
+
+
+def test_page_reference_fragments_are_not_single_step_queryworthy():
+    chunk = {
+        "id": "page-reference-fragment",
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "chunk_type": "atomic_text",
+        "title": "XG-X Manual",
+        "source_filename": "xgx.pdf",
+        "section_path_text": "3D Blob",
+        "page_from": 2,
+        "page_to": 2,
+        "content": "[Multi-point] (Page 2-497) region, with which regions of the same shape and size can be added to multiple points, is supported in 3D Blob only.",
+        "metadata_json": {"product_family": "XG-X Series"},
+    }
+
+    assert not chunk_is_queryworthy(chunk, ["multi-point", "2-497", "region", "regions"])
+    assert build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False) == []
+
+
 def test_build_multi_step_eval_cases_from_sibling_error_rows():
     base = {
         "source_document_id": "doc-xgx",

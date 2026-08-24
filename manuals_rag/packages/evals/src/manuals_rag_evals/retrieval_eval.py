@@ -311,6 +311,8 @@ def _looks_like_toc_line(content: str) -> bool:
     compact = normalize_text(content)
     if "procedure step" in compact and re.search(r"\d+-\d+\b", compact):
         return True
+    if re.match(r"^\[[^\]]+\]\s*\(page\s+\d+(?:-\d+)?\)", compact):
+        return True
     if re.search(r"\.{4,}\s*\d+(?:-\d+)?\b", content):
         return True
     return False
@@ -327,6 +329,35 @@ def _looks_like_legal_boilerplate(content: str) -> bool:
         "products/samples are provided",
     )
     return any(phrase in compact for phrase in phrases)
+
+
+def _table_cell_value(content: str) -> str:
+    match = re.search(r"Cell value:\s*([^;]+)", content)
+    return match.group(1).strip() if match else ""
+
+
+def _looks_like_placeholder_table_cell(content: str) -> bool:
+    value = _table_cell_value(content)
+    if not value:
+        return False
+    normalized = normalize_text(value)
+    if normalized in {"-", "--", "n/a", "na", "none", "not applicable"}:
+        return True
+    if not re.search(r"[A-Za-z0-9]", value):
+        return True
+    stripped = re.sub(r"[\s\u2713\u2714\u25cb\u25cf\u25ce\u25a0\u25a1\u25b3\u25b2\u25bd\u25bc\u25c7\u25c6\uf0fc]+", "", value)
+    return stripped == ""
+
+
+def _looks_like_cross_reference_only(content: str) -> bool:
+    compact = normalize_text(content)
+    if not re.search(r"\b(?:refer to|see)\b", compact):
+        return False
+    if re.search(r"\b(?:set|connect|install|select|enter|enable|disable|measure|adjust|capture|trigger|store|stores)\b", compact):
+        return False
+    if re.search(r"\b\d+(?:\.\d+)?(?:v|a|ma|w|kw|mm|cm|m|ms|s|hz|khz|mhz|fps|kg|g|n|mpa|°c|c|%)\b", compact):
+        return False
+    return len(compact) < 180
 
 
 def _has_concrete_technical_signal(content: str, anchors: list[str], chunk_type: str) -> bool:
@@ -365,9 +396,18 @@ def chunk_is_queryworthy(chunk: dict[str, Any], anchors: list[str]) -> bool:
         and not _meaningful_table_field_value_pairs(content)
     ):
         return False
+    if (
+        chunk_type == "table_record"
+        and metadata.get("table_cell")
+        and _looks_like_placeholder_table_cell(content)
+        and not _meaningful_table_field_value_pairs(content)
+    ):
+        return False
     if _looks_like_toc_line(content):
         return False
     if _looks_like_legal_boilerplate(content):
+        return False
+    if chunk_type == "atomic_text" and _looks_like_cross_reference_only(content):
         return False
     if len(anchors) < 1:
         return False
