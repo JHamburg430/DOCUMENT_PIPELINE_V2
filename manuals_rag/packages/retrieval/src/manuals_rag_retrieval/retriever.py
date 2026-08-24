@@ -796,6 +796,8 @@ def _apply_family_scoring(results: list[SearchResult], analysis: QueryAnalysis, 
 
 def _family_bucket(result: SearchResult) -> str:
     chunk_type = str(result.metadata.get("chunk_type", ""))
+    if chunk_type == "warning_record":
+        return "safety"
     if chunk_type in {"spec_record", "datasheet_record"}:
         return "spec"
     if chunk_type == "table_record":
@@ -808,6 +810,8 @@ def _family_bucket(result: SearchResult) -> str:
 
 
 def _preferred_family_order(analysis: QueryAnalysis) -> list[str]:
+    if analysis.safety_intent:
+        return ["safety", "procedure", "prose", "context", "table"]
     if "revision_history" in analysis.query_types:
         return ["context", "spec", "table", "prose"]
     if "structured_lookup" in analysis.query_types:
@@ -824,6 +828,8 @@ def _preferred_family_order(analysis: QueryAnalysis) -> list[str]:
 
 
 def _allowed_families(analysis: QueryAnalysis) -> set[str]:
+    if analysis.safety_intent:
+        return {"safety", "procedure", "prose", "context"}
     if "revision_history" in analysis.query_types:
         return {"context", "spec"}
     if "structured_lookup" in analysis.query_types:
@@ -851,6 +857,7 @@ def _families_from_chunk_type_filter(filters: dict[str, object]) -> tuple[list[s
             "datasheet_record": "spec",
             "table_record": "table",
             "procedure_record": "procedure",
+            "warning_record": "safety",
             "section_window": "context",
             "parent_section": "context",
             "atomic_text": "prose",
@@ -936,6 +943,15 @@ def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> flo
         if safety_overlap >= 2:
             alignment += 0.18
     if analysis.safety_intent and "how_to" in analysis.query_types:
+        warning_phrase = _safety_warning_phrase(analysis.raw_query)
+        if warning_phrase and chunk_type == "warning_record":
+            compact_warning_text = re.sub(
+                r"[^a-z0-9]+",
+                "",
+                str(result.metadata.get("rerank_document") or result.metadata.get("content_for_rerank") or result.content or "").lower(),
+            )
+            if warning_phrase in compact_warning_text:
+                alignment += 0.5
         action_terms = _safety_action_terms(analysis.raw_query)
         if action_terms:
             action_overlap = len(action_terms.intersection(content_terms.union(rerank_terms)))
@@ -966,6 +982,18 @@ def _safety_action_terms(query: str) -> set[str]:
             continue
         terms.add(normalized)
     return terms
+
+
+def _safety_warning_phrase(query: str) -> str:
+    match = re.search(
+        r"\b(?:warning|caution)\s+about\s+(?P<warning>.+?)\s+for\s+",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return ""
+    phrase = re.sub(r"\s+", " ", match.group("warning")).strip(" .,:;")
+    return re.sub(r"[^a-z0-9]+", "", phrase.lower())
 
 
 def _apply_query_alignment(results: list[SearchResult], analysis: QueryAnalysis, *, stage: str) -> list[SearchResult]:

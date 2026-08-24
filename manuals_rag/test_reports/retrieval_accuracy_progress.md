@@ -542,3 +542,23 @@ Next target:
 Next target:
 
 - Reconcile the 90-second 39/40 recovery with the standard 8-second cron gate: reduce KV/structured lookup latency and restore saved single-step to at least 38/40 plus warning-step to 15/15 under the normal timeout before promoting refreshed single-step data or broadening to cross-document multi-step cases.
+
+## 2026-08-24 Cron 39262386 Safety Warning Evidence Ranking
+
+- Target: restore the saved refined warning-plus-step multi-step bank to 15/15 under the normal 8-second timeout by keeping exact warning/status evidence with the action evidence in final top-k.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior saved refined warning-step run `retrieval_eval_20260824_150526` was 14/15 (93.33%). The failed IV4-G120 master-number query retrieved the correct action chunks but ranked the exact warning record (`Warning status can be cleared with a warning clear request.`) just below the final evidence window.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so `warning_record` chunks are a distinct `safety` family for safety-intent queries, safety route family mapping preserves that family, and exact `warning/caution about ... for ...` phrases receive generic alignment credit. This is ranking-only behavior and does not add document-specific routing or query-derived hard filters.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for safety warning family selection and exact warning-phrase alignment.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 73 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 217 passed, 58 warnings in 149.27s.
+- Live eval command (saved refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved refined warning-step result: `retrieval_eval_20260824_152955` improved from 14/15 (93.33%) to 15/15 (100%), pass@1 86.67%, pass@3 93.33%, pass@5 100%, candidate recall 100%, metadata-document recall 100%, failure categories `{}`.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_153051` held at 37/40 (92.5%), pass@1 82.5%, pass@3 90%, pass@5 92.5%, candidate recall 97.5%, metadata-document recall 97.44%, failures `eval_timeout: 1`, `ranking_or_context_loss: 2`.
+- Question-bank counts unchanged: 153 exploratory questions total, 80 single-step and 73 multi-step. New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_152955.json`, `test_reports/retrieval_eval_manifest_20260824_152955.json`, `test_reports/retrieval_eval_summary_20260824_153051.json`, `test_reports/retrieval_eval_manifest_20260824_153051.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for 15:29 and 15:30 UTC.
+
+Next target:
+
+- Reduce the remaining KV/structured lookup timeout in the saved single-step bank and then address the two remaining single-step ranking/context losses before promoting refreshed single-step data or broadening to cross-document multi-step cases.

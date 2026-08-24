@@ -1790,6 +1790,74 @@ def test_structured_lookup_keeps_table_candidates_when_query_also_says_how():
     assert selected[0].chunk_id == "table"
 
 
+def test_safety_queries_keep_warning_records_as_primary_family():
+    analysis = analyze_query(
+        "What warning or caution about Warning status can be cleared with a warning clear request. "
+        "for IV4-G120 applies when obtaining the master number?"
+    )
+    warning = SearchResult(
+        chunk_id="warning",
+        score=0.62,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Warnings"],
+        content="Warning: Warning status can be cleared with a warning clear request.",
+        metadata={"chunk_type": "warning_record", "family_bucket": "safety"},
+    )
+    action = SearchResult(
+        chunk_id="action",
+        score=0.9,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[11],
+        section_path=["Status"],
+        content="When obtaining the master number, set [Total status condition] as shown below.",
+        metadata={"chunk_type": "atomic_text", "family_bucket": "prose"},
+    )
+
+    selected = retriever._select_family_candidates([action, warning], analysis, limit=5)
+
+    assert selected[0].chunk_id == "warning"
+    assert any(result.chunk_id == "action" for result in selected)
+
+
+def test_safety_warning_phrase_alignment_boosts_exact_warning_record():
+    analysis = analyze_query(
+        "What warning or caution about Warning status can be cleared with a warning clear request. "
+        "for IV4-G120 applies when obtaining the master number?"
+    )
+    warning = SearchResult(
+        chunk_id="warning",
+        score=0.4,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Warnings"],
+        content="Warning: Warning status can be cleared with a warning clear request.",
+        metadata={"chunk_type": "warning_record"},
+    )
+    generic = SearchResult(
+        chunk_id="generic",
+        score=0.4,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Warnings"],
+        content="Warning: Check the controller status before clearing errors.",
+        metadata={"chunk_type": "warning_record"},
+    )
+
+    rescored = retriever._apply_query_alignment([generic, warning], analysis, stage="query_aligned")
+
+    assert rescored[0].chunk_id == "warning"
+    assert rescored[0].score > rescored[1].score
+
+
 def test_table_lexical_search_scores_structured_troubleshooting_row_groups(monkeypatch):
     captured: dict[str, object] = {}
 
