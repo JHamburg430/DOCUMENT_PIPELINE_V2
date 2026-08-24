@@ -744,18 +744,35 @@ def assemble_context(results: list[SearchResult], *, limit: int = 10) -> list[Se
         params.extend([document_version_id, section_path_text])
     context_rows = fetch_all(
         f"""
-        select document_version_id, section_path_text, chunk_level, content
+        select document_version_id, section_path_text, chunk_type, chunk_level, page_from, page_to, content, metadata_json
         from retrieval_chunks
         where (document_version_id, section_path_text) in ({placeholders})
-          and chunk_level in (2, 3)
+          and (
+            chunk_level in (2, 3)
+            or (chunk_level = 1 and chunk_type = 'table_record')
+          )
         """,
         tuple(params),
     )
     context_map: dict[tuple[str, str], dict[int, str]] = {}
+    table_groups: dict[tuple[str, str], list[dict[str, object]]] = {}
     for row in context_rows:
         key = (str(row["document_version_id"]), str(row["section_path_text"]))
-        bucket = context_map.setdefault(key, {})
-        bucket[int(row["chunk_level"])] = str(row["content"])
+        chunk_level = int(row["chunk_level"])
+        chunk_type = str(row["chunk_type"])
+        metadata = dict(row.get("metadata_json") or {})
+        if chunk_level in {2, 3}:
+            bucket = context_map.setdefault(key, {})
+            bucket[chunk_level] = str(row["content"])
+        if chunk_level == 1 and chunk_type == "table_record" and metadata.get("table_row_group"):
+            table_groups.setdefault(key, []).append(
+                {
+                    "content": str(row["content"]),
+                    "page_from": int(row["page_from"]),
+                    "page_to": int(row["page_to"]),
+                    **metadata,
+                }
+            )
     assembled: list[SearchResult] = []
     for result in base_results:
         if not _section_path_has_meaningful_signal(result.section_path):
@@ -767,11 +784,18 @@ def assemble_context(results: list[SearchResult], *, limit: int = 10) -> list[Se
             assembled.append(result.model_copy(update={"metadata": metadata}))
             continue
         section_key = " / ".join(result.section_path) or "Document"
-        context = context_map.get((result.document_version_id, section_key), {})
+        key = (result.document_version_id, section_key)
+        context = context_map.get(key, {})
+        table_row_group_context = None
+        if str(result.metadata.get("chunk_type") or "") == "table_record":
+            table_group = _nearest_lineage_chunk(result, table_groups.get(key, []), require_flag="table_row_group")
+            if table_group:
+                table_row_group_context = str(table_group["content"])
         metadata = {
             **result.metadata,
-            "context_window": context.get(2),
+            "context_window": table_row_group_context or context.get(2),
             "parent_context": context.get(3),
+            "table_row_group_context": table_row_group_context,
         }
         assembled.append(result.model_copy(update={"metadata": metadata}))
     return assembled

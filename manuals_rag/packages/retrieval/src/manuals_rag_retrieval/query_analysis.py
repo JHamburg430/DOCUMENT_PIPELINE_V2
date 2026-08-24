@@ -76,6 +76,10 @@ def analyze_query(query: str) -> QueryAnalysis:
         preferred_chunk_types.extend(["datasheet_record", "spec_record", "table_record"])
     if any(word in lowered for word in ["error", "alarm", "troubleshoot", "fault"]):
         types.append("troubleshooting")
+    if re.search(r"\bwhat\s+causes?\b", lowered) and re.search(r"\b(correct(?:ed|ive|ion)?|check(?:ed)?|remed(?:y|ied)|fix(?:ed)?)\b", lowered):
+        types.append("troubleshooting")
+        types.append("structured_lookup")
+        preferred_chunk_types.extend(["table_record", "section_window"])
     if any(word in lowered for word in ["compare", "difference", "versus", "vs "]):
         types.append("comparison")
         preferred_chunk_types.extend(["spec_record", "datasheet_record", "table_record"])

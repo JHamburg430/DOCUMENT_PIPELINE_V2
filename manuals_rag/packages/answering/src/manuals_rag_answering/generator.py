@@ -196,6 +196,8 @@ def _evidence_text(result: SearchResult) -> str:
     chunk_type = str(result.metadata.get("chunk_type") or "")
     context_window = str(result.metadata.get("context_window") or "").strip()
     content = str(result.content or "").strip()
+    if chunk_type == "table_record" and context_window:
+        return context_window
     if chunk_type in {"atomic_text", "table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
         return content
     if context_window:

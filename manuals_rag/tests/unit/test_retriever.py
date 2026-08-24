@@ -171,6 +171,13 @@ def test_query_analysis_marks_applies_to_field_questions_as_structured_lookup():
     assert "spec_record" in analysis.preferred_chunk_types
 
 
+def test_query_analysis_marks_cause_and_correction_questions_as_structured_lookup():
+    analysis = analyze_query("What causes EtherNet/IP output buffer is full, and how should it be corrected?")
+    assert "structured_lookup" in analysis.query_types
+    assert "troubleshooting" in analysis.query_types
+    assert "table_record" in analysis.preferred_chunk_types
+
+
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():
     analysis = analyze_query("What does LJ-X8000 say about trigger timing?")
     first = SearchResult(
@@ -514,6 +521,51 @@ def test_enrich_candidates_for_rerank_adds_grouped_procedure_context(monkeypatch
     rerank_document = enriched[0].metadata["rerank_document"]
     assert "Enable power" in rerank_document
     assert "Full procedure block" in rerank_document
+
+
+def test_assemble_context_uses_nearest_table_row_group_for_table_cells(monkeypatch):
+    result = SearchResult(
+        chunk_id="cell-action",
+        score=0.7,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content="Column headers: Corrective Action; Cell value: Check the cable.",
+        metadata={"chunk_type": "table_record", "table_cell": True},
+    )
+    monkeypatch.setattr(
+        retriever,
+        "fetch_all",
+        lambda *_args, **_kwargs: [
+            {
+                "document_version_id": "ver-1",
+                "section_path_text": "Troubleshooting",
+                "chunk_type": "table_record",
+                "chunk_level": 1,
+                "page_from": 10,
+                "page_to": 10,
+                "content": "Error Message: Link error; Cause: Cable disconnected; Corrective Action: Check the cable.",
+                "metadata_json": {"table_row_group": True},
+            },
+            {
+                "document_version_id": "ver-1",
+                "section_path_text": "Troubleshooting",
+                "chunk_type": "section_window",
+                "chunk_level": 2,
+                "page_from": 10,
+                "page_to": 10,
+                "content": "Troubleshooting section overview",
+                "metadata_json": {},
+            },
+        ],
+    )
+
+    assembled = retriever.assemble_context([result], limit=1)
+
+    assert assembled[0].metadata["context_window"].startswith("Error Message: Link error")
+    assert assembled[0].metadata["table_row_group_context"] == assembled[0].metadata["context_window"]
 
 
 def test_semantic_completeness_penalizes_heading_like_fragments():

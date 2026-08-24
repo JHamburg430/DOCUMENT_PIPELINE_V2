@@ -176,3 +176,22 @@ Next target:
 Next target:
 
 - Improve context assembly for multi-step sibling-row evidence so answer/citation context includes the matching cause and corrective-action cells or row-group chunk together, then rerun the 20-case multi-step bank with a slightly higher per-query timeout or record a timeout/schedule recommendation if 8 seconds is still too tight.
+
+## 2026-08-24 Cron 39262386 Table Row-Group Context
+
+- Target: improve multi-step context assembly for sibling table-row evidence so cause and corrective-action cells are available together for retrieval scoring and answer generation.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed query analysis in `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py` so natural cause/correction questions such as `What causes ... and how should it be corrected?` are treated as structured troubleshooting lookups with table/context preference instead of narrative-only troubleshooting.
+- Changed retrieval context assembly in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so table-record results receive the nearest same-section table row-group chunk as `context_window`/`table_row_group_context`, preserving section/parent context without adding document-specific routing or query-derived filters.
+- Changed answering/eval evidence handling in `packages/answering/src/manuals_rag_answering/generator.py` and `packages/evals/src/manuals_rag_evals/retrieval_eval.py` so table row-group context can support multi-step cause/remedy answers and retrieval scoring.
+- Added focused unit coverage in `tests/unit/test_retriever.py` and `tests/unit/test_retrieval_eval.py` for cause/correction intent detection, row-group context assembly, and multi-step evidence matching through context.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py tests/unit/test_retrieval_eval.py tests/unit/test_parser_and_answering.py -q` -> 100 passed, 24 warnings.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 184 passed, 58 warnings in 151.23s.
+- Live eval command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_062714.jsonl --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Live eval result: saved 20-case multi-step sibling table-row bank improved from 10/20 (50%) to 14/20 (70%), pass@1 60%, pass@3 65%, pass@5 70%, candidate recall 90%, metadata-document recall 100%, metadata-document rank-1 rate 85%, and no scored `eval_timeout` failures. Failure categories: `ranking_or_context_loss: 4`, `candidate_miss: 2`.
+- New artifacts: `test_reports/retrieval_eval_summary_20260824_065927.json`, `test_reports/retrieval_eval_manifest_20260824_065927.json`; generated dataset/results artifacts for the run are present under the same timestamp where tracked/available.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py`, `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `packages/answering/src/manuals_rag_answering/generator.py`, `tests/unit/test_retriever.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus the new 06:59 UTC eval summary/manifest artifacts.
+
+Next target:
+
+- Improve remaining multi-step candidate recall and ranking/context losses for cause/corrective-action rows, especially XG-X expansion/backup/firmware cases and CV-X light-controller/LJ-head misses, then add broader multi-step cases beyond sibling troubleshooting tables.

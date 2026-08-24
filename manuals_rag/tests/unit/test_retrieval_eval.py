@@ -1152,6 +1152,50 @@ def test_score_search_results_requires_multi_step_expected_evidence():
     assert complete["match_reason"] == "multi_step_expected_evidence"
 
 
+def test_score_search_results_counts_table_row_group_context_as_multi_step_evidence():
+    case = RetrievalEvalCase(
+        case_id="c-row-context",
+        query="What causes link error, and how should it be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["link", "cable", "check"],
+        expected_snippet="Error, cause, and corrective action",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_family": "XG-X Series"},
+        retrieval_task="multi_step_retrieval",
+        expected_source_chunk_ids=["error-cell", "cause-cell", "action-cell"],
+        expected_evidence=[
+            {"chunk_id": "error-cell", "expected_terms": ["link", "error"]},
+            {"chunk_id": "cause-cell", "expected_terms": ["cable", "disconnected"]},
+            {"chunk_id": "action-cell", "expected_terms": ["check", "cable"]},
+        ],
+    )
+    results = [
+        {
+            "chunk_id": "error-cell",
+            "source_document_id": "doc-xgx",
+            "section_path": ["Troubleshooting"],
+            "content": "Column headers: Error Message; Cell value: Link error.",
+            "metadata": {
+                "chunk_type": "table_record",
+                "context_window": "Error Message: Link error; Cause: Cable disconnected; Corrective Action: Check the cable.",
+            },
+        }
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is True
+    assert evaluation["match_reason"] == "multi_step_expected_evidence"
+
+
 def test_score_search_results_categorizes_candidate_miss():
     case = RetrievalEvalCase(
         case_id="c3",

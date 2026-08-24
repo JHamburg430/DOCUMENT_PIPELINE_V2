@@ -1058,6 +1058,9 @@ def _result_evidence_text(result: dict[str, Any]) -> str:
     else:
         section_text = str(section_path)
     metadata_values = [
+        metadata.get("context_window"),
+        metadata.get("table_row_group_context"),
+        metadata.get("parent_context"),
         metadata.get("product_model"),
         metadata.get("chunk_type"),
         metadata.get("row_header"),
