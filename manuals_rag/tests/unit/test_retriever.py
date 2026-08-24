@@ -185,6 +185,13 @@ def test_query_analysis_treats_letter_number_series_as_product_family_not_error_
     assert analysis.error_code is None
 
 
+def test_query_analysis_recognizes_models_with_numbered_prefixes():
+    analysis = analyze_query("What PDO Source Sub Index value applies to IV4-G600CA?")
+
+    assert analysis.product_model == "IV4-G600CA"
+    assert analysis.error_code is None
+
+
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():
     analysis = analyze_query("What does LJ-X8000 say about trigger timing?")
     first = SearchResult(
@@ -350,6 +357,58 @@ def test_contextual_lexical_search_scores_local_section_context(monkeypatch):
     )
 
     assert results[0].chunk_id == "procedure"
+
+
+def test_contextual_lexical_search_promotes_product_family_context(monkeypatch):
+    analysis = analyze_query(
+        "When Controlling the Image Capture Timing for X8000 Series - 3D, what related operations performed speed detail should be used?"
+    )
+
+    def fake_fetch_all(query, params):
+        assert "local_rerank_context" in query
+        return [
+            {
+                "id": "expected-section",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "Setup Guide",
+                "section_path_text": "1.2 Checking the Connection",
+                "page_from": 10,
+                "page_to": 11,
+                "content": "Controlling the Image Capture Timing. Operations are performed at high speed with images.",
+                "chunk_type": "section_window",
+                "metadata_json": {
+                    "product_family": "X8000 Series - 3D",
+                    "product_models": ["LJ-X8000"],
+                    "local_rerank_context": "Use discreet I/O on the terminal block to apply the triggers.",
+                    "section_path": ["1.2 Checking the Connection"],
+                },
+                "priority_score": 0.0,
+            },
+            {
+                "id": "generic-section",
+                "document_version_id": "ver-2",
+                "source_document_id": "doc-2",
+                "title": "Manual",
+                "section_path_text": "3D Capture",
+                "page_from": 20,
+                "page_to": 20,
+                "content": "Controlling image capture timing operations are performed at high speed with images.",
+                "chunk_type": "section_window",
+                "metadata_json": {
+                    "product_family": "XG-X Series",
+                    "local_rerank_context": "Specify the shutter speed for the 3D image to be captured.",
+                    "section_path": ["3D Capture"],
+                },
+                "priority_score": 0.0,
+            },
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(analysis.raw_query, ["corpus-1"], {"is_active": True}, analysis)
+
+    assert results[0].chunk_id == "expected-section"
 
 
 def test_family_scoring_demotes_spec_chunks_for_general_prose_queries():

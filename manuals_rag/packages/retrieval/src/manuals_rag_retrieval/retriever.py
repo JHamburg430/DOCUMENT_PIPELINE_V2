@@ -69,10 +69,7 @@ except ImportError:
 
 
 def build_filters(query: str, request_filters: dict[str, object]) -> dict[str, object]:
-    analysis = analyze_query(query)
     filters = dict(request_filters)
-    for key, value in analysis.preferred_metadata_filters.items():
-        filters.setdefault(key, value)
     filters.setdefault("is_active", True)
     return filters
 
@@ -430,13 +427,15 @@ def _context_lexical_score(row: dict[str, object], terms: list[str]) -> float:
     score = overlap * 0.1
     product_overlap = sum(1 for term in terms if any(char.isdigit() for char in term) and term in compact_haystack)
     score += min(0.28, product_overlap * 0.14)
+    family_overlap = sum(1 for term in terms if term in _text_terms(str(metadata.get("product_family") or "")))
+    score += min(0.24, family_overlap * 0.08)
     chunk_type = str(row.get("chunk_type") or "")
     if chunk_type == "procedure_record":
-        score += 0.2
+        score += 0.24
     elif chunk_type == "section_window":
-        score += 0.14
+        score += 0.2
     elif chunk_type == "atomic_text":
-        score += 0.1
+        score += 0.14
     if local_context:
         context_overlap = sum(1 for term in terms if term in re.sub(r"[^a-z0-9]+", "", local_context.lower()))
         score += min(0.24, context_overlap * 0.04)

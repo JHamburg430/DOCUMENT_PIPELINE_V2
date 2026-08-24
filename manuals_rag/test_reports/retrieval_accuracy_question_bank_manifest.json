@@ -95,21 +95,21 @@
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 52,
-      "warnings": 1,
-      "duration_seconds": 5.31,
-      "notes": "Focused retrieval tests passed after adding contextual lexical candidates, letter-number family parsing, stronger product identifier scoring, and broader family candidate selection."
+      "passed": 194,
+      "warnings": 58,
+      "duration_seconds": 149.76,
+      "notes": "Full unit suite passed after preserving explicit filters only, recognizing numbered-prefix product models, and strengthening contextual lexical family/context scoring."
     },
     "evals": [
       {
-        "run_id": "retrieval_eval_20260824_083633",
+        "run_id": "retrieval_eval_20260824_085757",
         "corpus_id": "manuals_vendor_keyence",
         "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-        "results_path": "test_reports/retrieval_eval_results_20260824_083633.jsonl",
-        "summary_path": "test_reports/retrieval_eval_summary_20260824_083633.json",
-        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_083633.json",
+        "results_path": "test_reports/retrieval_eval_results_20260824_085757.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_085757.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_085757.json",
         "status": "completed",
         "mode": "retrieval_only_saved_contextual_multi_step_question_bank_direct_timeout_warmup",
         "search_mode": "direct",
@@ -117,41 +117,41 @@
         "warmup_queries": 1,
         "warmup_timeout_seconds": 45,
         "warmup_status": "completed",
-        "warmup_elapsed_seconds": 10.759,
+        "warmup_elapsed_seconds": 10.594,
         "total_queries": 20,
-        "passed_queries": 18,
-        "failed_queries": 2,
-        "pass_rate": 0.9,
-        "pass_at_1": 0.85,
-        "pass_at_3": 0.85,
-        "pass_at_5": 0.9,
-        "candidate_recall_rate": 0.9,
-        "metadata_document_selection_recall_rate": 0.8889,
-        "metadata_document_selection_rank_1_rate": 0.7778,
+        "passed_queries": 19,
+        "failed_queries": 1,
+        "pass_rate": 0.95,
+        "pass_at_1": 0.9,
+        "pass_at_3": 0.9,
+        "pass_at_5": 0.95,
+        "candidate_recall_rate": 0.95,
+        "metadata_document_selection_recall_rate": 0.9,
+        "metadata_document_selection_rank_1_rate": 0.75,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 20,
-            "passed": 18
+            "passed": 19
           }
         },
         "by_chunk_type": {
           "procedure_record": {
             "total": 20,
-            "passed": 18
+            "passed": 19
           }
         },
         "failure_categories": {
-          "candidate_miss": 2
+          "candidate_miss": 1
         },
-        "notes": "Saved contextual procedure-plus-section multi-step bank improved from 17/20 (85%) to 18/20 (90%). Contextual lexical candidates fixed two LJ-X8000 setup-guide misses; remaining failures are candidate_miss: 2."
+        "notes": "Saved contextual procedure-plus-section multi-step bank improved from 18/20 (90%) to 19/20 (95%). Preserving inferred menu labels as scoring signals rather than hard filters fixed the XG-X Step 2/3 Trigger Settings case; one LJ-X8000 high-speed image-capture support case remains."
       },
       {
-        "run_id": "retrieval_eval_20260824_083824",
+        "run_id": "retrieval_eval_20260824_085932",
         "corpus_id": "manuals_vendor_keyence",
         "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
-        "results_path": "test_reports/retrieval_eval_results_20260824_083824.jsonl",
-        "summary_path": "test_reports/retrieval_eval_summary_20260824_083824.json",
-        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_083824.json",
+        "results_path": "test_reports/retrieval_eval_results_20260824_085932.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_085932.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_085932.json",
         "status": "completed",
         "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup",
         "search_mode": "direct",
@@ -159,7 +159,7 @@
         "warmup_queries": 1,
         "warmup_timeout_seconds": 45,
         "warmup_status": "completed",
-        "warmup_elapsed_seconds": 8.273,
+        "warmup_elapsed_seconds": 8.215,
         "total_queries": 40,
         "passed_queries": 37,
         "failed_queries": 3,
@@ -168,8 +168,8 @@
         "pass_at_3": 0.875,
         "pass_at_5": 0.925,
         "candidate_recall_rate": 0.975,
-        "metadata_document_selection_recall_rate": 0.9737,
-        "metadata_document_selection_rank_1_rate": 0.6842,
+        "metadata_document_selection_recall_rate": 0.975,
+        "metadata_document_selection_rank_1_rate": 0.675,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 40,
@@ -194,7 +194,7 @@
           "ranking_or_context_loss": 2,
           "wrong_document_or_filter_loss": 1
         },
-        "notes": "Saved 40-case single-step bank held at 37/40 (92.5%). Pass rate did not regress, but candidate recall was 97.5% and metadata-document recall 97.37%, so the next run should investigate the IV4 document-selection miss."
+        "notes": "Saved 40-case single-step bank held at 37/40 (92.5%). Numbered-prefix model parsing is covered, but the IV4-G600CA PDO row remains a wrong-document/filter-loss case and needs deeper generic metadata/table ranking work."
       },
       {
         "run_id": "retrieval_eval_20260824_080232",
@@ -858,5 +858,5 @@
       }
     ]
   },
-  "next_target": "Improve contextual multi-step candidate recall for procedure-plus-section questions, especially LJ-X8000 setup-guide image-capture timing cases where metadata document selection chooses XG-X/CV-X evidence; then add warning-plus-step and cross-document multi-step cases."
+  "next_target": "Fix the remaining LJ-X8000 high-speed image-capture contextual evidence miss and the IV4-G600CA PDO wrong-document table miss with generic metadata/table ranking improvements, then add warning-plus-step and cross-document multi-step cases."
 }

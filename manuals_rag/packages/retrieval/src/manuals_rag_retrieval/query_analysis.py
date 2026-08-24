@@ -103,7 +103,7 @@ def analyze_query(query: str) -> QueryAnalysis:
         preferred_metadata_filters["menu_labels"] = menu_labels
     if not types:
         types.append("general")
-    model_match = re.search(r"\b[A-Z]{1,5}(?:-[A-Z0-9]{1,8})+\b", query)
+    model_match = re.search(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query)
     if model_match and not any(char.isdigit() for char in model_match.group(0)):
         model_match = None
     family_match = re.search(

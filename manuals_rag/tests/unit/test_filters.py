@@ -56,3 +56,8 @@ def test_build_filters_does_not_add_family_or_part_number_filters_from_query():
 
     part_filters = build_filters("Which manual covers OP-88310 wiring?", {})
     assert part_filters == {"is_active": True}
+
+
+def test_build_filters_does_not_add_menu_label_filters_from_query():
+    filters = build_filters("When Change the trigger settings, what related [Step 2/3 Trigger Settings] detail should be used?", {})
+    assert filters == {"is_active": True}
