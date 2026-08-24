@@ -30,3 +30,20 @@ Next target:
 Next target:
 
 - Add an efficient retrieval-only focused eval path for the saved question bank, then start generating true multi-step cases with expected evidence from multiple chunks/sections.
+
+## 2026-08-24 Cron 39262386 Follow-up
+
+- Target: add the efficient retrieval-only focused eval path for saved question-bank datasets.
+- Local stack: compose services were up; API and Postgres were reachable through the existing compose environment.
+- Changed eval harness logic in `scripts/benchmark/run_large_retrieval_eval.py` to accept `--dataset-path` with `--existing-corpus-id`, load saved `RetrievalEvalCase` JSONL records, cap them with `--max-queries`, and write normal dataset/results/summary/manifest artifacts. The runner now uses `response_mode: retrieval_only` for `/search` calls and can read corpus metadata from either host-side `docker exec` or in-container `POSTGRES_DSN`.
+- Added focused test coverage in `tests/unit/test_retrieval_eval.py` for saved dataset loading, blank-line handling, wrapped `{"case": ...}` records, max-case limiting, and default `retrieval_task` preservation.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 23 passed.
+- Live eval attempts:
+  - `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl --max-queries 40` -> stopped after about 90 seconds; 1/40 cases completed, failed with rank null.
+  - Same command with `--max-queries 10` -> stopped after about 2 minutes after loading cases, before first completed case.
+- Completed eval result: none this run. Failure category evidence is evaluation latency/timeout rather than a measured retrieval regression.
+- Changed files: `scripts/benchmark/run_large_retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`.
+
+Next target:
+
+- Make saved-bank retrieval eval fast enough for cron by bypassing HTTP/query overhead or adding per-query timing/timeout controls in the eval harness, then rerun the 40-case single-step bank and generate the first true multi-step cases.

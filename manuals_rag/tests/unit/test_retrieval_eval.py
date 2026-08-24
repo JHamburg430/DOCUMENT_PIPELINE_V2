@@ -7,6 +7,52 @@ from manuals_rag_evals.retrieval_eval import (
 )
 
 
+def test_large_retrieval_eval_loads_saved_dataset(tmp_path):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    dataset_path = tmp_path / "cases.jsonl"
+    case = RetrievalEvalCase(
+        case_id="case-1",
+        query="What voltage does MODEL-1 require?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="spec_record",
+        section_path="Specifications",
+        page_from=1,
+        page_to=1,
+        expected_terms=["24", "vdc"],
+        expected_snippet="Power supply voltage: 24 VDC",
+        generation_method="unit_test",
+        source_metadata={"product_model": "MODEL-1"},
+    )
+    dataset_path.write_text(
+        "\n".join(
+            [
+                "",
+                __import__("json").dumps(case.to_dict()),
+                __import__("json").dumps({"case": {**case.to_dict(), "case_id": "case-2"}}),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    cases = module.load_eval_cases_from_dataset(dataset_path, max_cases=1)
+
+    assert len(cases) == 1
+    assert cases[0]["case_id"] == "case-1"
+    assert cases[0]["retrieval_task"] == "single_step_retrieval"
+
+
 def test_build_eval_cases_from_chunks_creates_queries():
     chunks = [
         {

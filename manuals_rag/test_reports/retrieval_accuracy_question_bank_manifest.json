@@ -51,12 +51,29 @@
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
       "status": "passed",
-      "passed": 165,
-      "warnings": 55
+      "passed": 23,
+      "warnings": 0,
+      "notes": "Focused harness/retrieval eval tests passed after adding saved question-bank loading."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_025651_aborted",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
+        "status": "aborted",
+        "mode": "retrieval_only_saved_question_bank",
+        "total_queries": 40,
+        "completed_queries": 1,
+        "passed_queries": 0,
+        "failed_queries": 1,
+        "failure_categories": {
+          "candidate_miss": 1,
+          "eval_timeout": 39
+        },
+        "notes": "Stopped after about 90 seconds to preserve cron budget; first completed case returned rank null. The smaller 10-query retry also stalled for about 2 minutes after loading cases and was stopped before first result."
+      },
       {
         "run_id": "retrieval_eval_20260824_024852",
         "corpus_id": "manuals_vendor_keyence",
@@ -87,5 +104,5 @@
       }
     ]
   },
-  "next_target": "Add an efficient retrieval-only focused eval path for saved question-bank datasets, then generate true multi-step cases with expected evidence from multiple chunks or sections."
+  "next_target": "Make saved-bank retrieval eval fast enough for cron by bypassing HTTP/query overhead or adding per-query timing/timeout controls in the eval harness, then rerun the 40-case single-step bank and generate the first true multi-step cases."
 }

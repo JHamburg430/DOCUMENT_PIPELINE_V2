@@ -6,6 +6,7 @@ import json
 import mimetypes
 import os
 import random
+import shutil
 import subprocess
 import sys
 import time
@@ -29,6 +30,23 @@ ADMIN_TOKEN = os.getenv("LOCAL_ADMIN_TOKEN", "admin-token")
 USER_TOKEN = os.getenv("LOCAL_END_USER_TOKEN", "user-token")
 DEFAULT_DOCS_DIR = REPO_ROOT / "Technical_Documents" / "Keyence"
 OUTPUT_DIR = MANUALS_ROOT / "test_reports"
+
+
+def _query_postgres_rows(sql: str) -> list[dict[str, Any]]:
+    if shutil.which("docker"):
+        copy_sql = f"COPY ({sql}) TO STDOUT WITH CSV HEADER"
+        cmd = ["docker", "exec", "-i", "compose-postgres-1", "psql", "-U", "manuals", "-d", "manuals_rag", "-c", copy_sql]
+        completed = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        reader = csv.DictReader(completed.stdout.splitlines())
+        return [dict(row) for row in reader]
+
+    import psycopg
+    from psycopg.rows import dict_row
+
+    with psycopg.connect(os.getenv("POSTGRES_DSN", "postgresql://manuals:manuals@postgres:5432/manuals_rag"), row_factory=dict_row) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(sql)
+            return [dict(row) for row in cursor.fetchall()]
 
 
 def _json_request(url: str, *, method: str = "GET", payload: dict[str, Any] | None = None, headers: dict[str, str] | None = None) -> Any:
@@ -163,7 +181,6 @@ def fetch_chunk_rows(document_ids: list[str]) -> list[dict[str, Any]]:
         return []
     id_list = ",".join(f"'{value}'" for value in document_ids)
     sql = f"""
-    COPY (
         SELECT
             rc.id,
             rc.source_document_id,
@@ -194,13 +211,9 @@ def fetch_chunk_rows(document_ids: list[str]) -> list[dict[str, Any]]:
             ELSE 6
           END,
           length(rc.content) DESC
-    ) TO STDOUT WITH CSV HEADER
     """
-    cmd = ["docker", "exec", "-i", "compose-postgres-1", "psql", "-U", "manuals", "-d", "manuals_rag", "-c", sql]
-    completed = subprocess.run(cmd, check=True, capture_output=True, text=True)
-    reader = csv.DictReader(completed.stdout.splitlines())
     rows: list[dict[str, Any]] = []
-    for row in reader:
+    for row in _query_postgres_rows(sql):
         row["metadata_json"] = json.loads(row.get("metadata_json") or "{}")
         row["page_from"] = int(row["page_from"])
         row["page_to"] = int(row["page_to"])
@@ -210,17 +223,12 @@ def fetch_chunk_rows(document_ids: list[str]) -> list[dict[str, Any]]:
 
 def fetch_documents_for_corpus(corpus_id: str) -> list[dict[str, Any]]:
     sql = f"""
-    COPY (
         SELECT id, current_version_id, source_filename, title, ingest_status
         FROM source_documents
         WHERE corpus_id = '{corpus_id}'
         ORDER BY created_at
-    ) TO STDOUT WITH CSV HEADER
     """
-    cmd = ["docker", "exec", "-i", "compose-postgres-1", "psql", "-U", "manuals", "-d", "manuals_rag", "-c", sql]
-    completed = subprocess.run(cmd, check=True, capture_output=True, text=True)
-    reader = csv.DictReader(completed.stdout.splitlines())
-    return [dict(row) for row in reader]
+    return _query_postgres_rows(sql)
 
 
 def run_search(query: str, *, corpus_id: str) -> list[dict[str, Any]]:
@@ -228,7 +236,7 @@ def run_search(query: str, *, corpus_id: str) -> list[dict[str, Any]]:
         "query": query,
         "corpus_ids": [corpus_id],
         "filters": {},
-        "response_mode": "answer_with_citations",
+        "response_mode": "retrieval_only",
     }
     return _json_request(
         f"{API_BASE}/search",
@@ -243,6 +251,34 @@ def write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
     with path.open("w", encoding="utf-8") as handle:
         for record in records:
             handle.write(json.dumps(record, ensure_ascii=True) + "\n")
+
+
+def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSONL record in {path} line {line_number}.") from exc
+    return records
+
+
+def load_eval_cases_from_dataset(path: Path, *, max_cases: int) -> list[dict[str, Any]]:
+    cases: list[dict[str, Any]] = []
+    for record in read_jsonl(path):
+        case = record.get("case") if isinstance(record.get("case"), dict) else record
+        if not isinstance(case, dict):
+            raise ValueError(f"Dataset record in {path} does not contain an eval case object.")
+        cases.append(RetrievalEvalCase(**case).to_dict())
+        if len(cases) >= max_cases:
+            break
+    if not cases:
+        raise ValueError(f"No eval cases found in {path}.")
+    return cases
 
 
 def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
@@ -312,9 +348,18 @@ def main() -> int:
     parser.add_argument("--max-doc-bytes", type=int, default=90000000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--existing-corpus-id", type=str, default=None)
+    parser.add_argument(
+        "--dataset-path",
+        type=Path,
+        default=None,
+        help="Existing RetrievalEvalCase JSONL dataset to score instead of generating new cases.",
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
+    if args.dataset_path and not args.existing_corpus_id:
+        raise SystemExit("--dataset-path requires --existing-corpus-id so saved cases are searched in the intended corpus.")
+
     if args.existing_corpus_id:
         corpus_id = args.existing_corpus_id
         corpus_documents = fetch_documents_for_corpus(corpus_id)
@@ -344,9 +389,13 @@ def main() -> int:
             print(json.dumps({"ingesting": path.name, "size_bytes": path.stat().st_size}, indent=2), flush=True)
             ingested_docs.append(upload_and_ingest(path, corpus_id=corpus_id))
 
-    chunk_rows = fetch_chunk_rows([item["document_id"] for item in ingested_docs])
-    random.shuffle(chunk_rows)
-    cases = [case.to_dict() for case in build_eval_cases_from_chunks(chunk_rows, max_cases=args.max_queries)]
+    if args.dataset_path:
+        cases = load_eval_cases_from_dataset(args.dataset_path, max_cases=args.max_queries)
+        print(json.dumps({"dataset_path": str(args.dataset_path), "loaded_cases": len(cases)}, indent=2), flush=True)
+    else:
+        chunk_rows = fetch_chunk_rows([item["document_id"] for item in ingested_docs])
+        random.shuffle(chunk_rows)
+        cases = [case.to_dict() for case in build_eval_cases_from_chunks(chunk_rows, max_cases=args.max_queries)]
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     dataset_path = OUTPUT_DIR / f"retrieval_eval_dataset_{timestamp}.jsonl"
@@ -371,6 +420,7 @@ def main() -> int:
             {
                 "corpus_id": corpus_id,
                 "documents": ingested_docs,
+                "input_dataset_path": str(args.dataset_path) if args.dataset_path else None,
                 "dataset_path": str(dataset_path),
                 "results_path": str(results_path),
                 "summary_path": str(summary_path),
