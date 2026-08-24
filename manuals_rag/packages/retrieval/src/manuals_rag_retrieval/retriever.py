@@ -234,6 +234,10 @@ def _text_terms(text: str) -> set[str]:
     return _term_variants(tokenize(text))
 
 
+def _compact_identifier(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", text.lower())
+
+
 def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
     if "structured_lookup" not in analysis.query_types:
         return []
@@ -661,6 +665,23 @@ def _family_score_adjustment(result: SearchResult, analysis: QueryAnalysis) -> f
             }
             adjustment += min(0.08, 0.02 * len(identifier_overlap))
             adjustment += min(0.18, 0.09 * len(product_identifier_overlap))
+        if analysis.product_model:
+            expected_model = _compact_identifier(analysis.product_model)
+            result_models = [
+                result.metadata.get("product_model", ""),
+                *(result.metadata.get("product_models") or []),
+                *(result.metadata.get("devices") or []),
+                *(result.metadata.get("part_numbers") or []),
+            ]
+            compact_models = {_compact_identifier(str(item)) for item in result_models if str(item)}
+            if expected_model and expected_model in compact_models:
+                adjustment += 0.32
+            elif compact_models and expected_model and any(
+                model.startswith(expected_model[:3]) or expected_model.startswith(model[:3])
+                for model in compact_models
+                if len(model) >= 3
+            ):
+                adjustment -= 0.12
     if _query_prefers_narrative_prose(analysis):
         if chunk_type in {"atomic_text", "section_window", "parent_section"}:
             adjustment += 0.03
@@ -825,7 +846,37 @@ def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> flo
         safety_overlap = len(laser_safety_terms.intersection(content_terms.union(rerank_terms)))
         if safety_overlap >= 2:
             alignment += 0.18
+    if analysis.safety_intent and "how_to" in analysis.query_types:
+        action_terms = _safety_action_terms(analysis.raw_query)
+        if action_terms:
+            action_overlap = len(action_terms.intersection(content_terms.union(rerank_terms)))
+            if chunk_type in {"atomic_text", "procedure_record", "warning_record"} and action_overlap >= 2:
+                alignment += min(0.16, action_overlap * 0.04)
+            elif chunk_type in {"section_window", "parent_section"} and action_overlap <= 1:
+                alignment -= 0.06
     return alignment
+
+
+def _safety_action_terms(query: str) -> set[str]:
+    match = re.search(r"\bapplies\s+when\s+(?P<action>.+?)(?:\?|$)", query, flags=re.IGNORECASE)
+    if not match:
+        return set()
+    stopwords = LEXICAL_CONTEXT_STOPWORDS.union(
+        {
+            "applies",
+            "caution",
+            "warning",
+            "should",
+            "about",
+        }
+    )
+    terms: set[str] = set()
+    for term in tokenize(match.group("action")):
+        normalized = re.sub(r"[^a-z0-9]+", "", term.lower())
+        if len(normalized) < 4 or normalized in stopwords:
+            continue
+        terms.add(normalized)
+    return terms
 
 
 def _apply_query_alignment(results: list[SearchResult], analysis: QueryAnalysis, *, stage: str) -> list[SearchResult]:

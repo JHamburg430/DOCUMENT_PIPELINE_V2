@@ -125,12 +125,101 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 199,
+      "passed": 201,
       "warnings": 58,
-      "duration_seconds": 150.83,
-      "notes": "Full unit suite passed after order-insensitive special route dedupe for safety/procedure retrieval."
+      "duration_seconds": 153.52,
+      "notes": "Full unit suite passed after exact product-model scoring and safety action-overlap ranking changes."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_115754",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_115754.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_115754.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_115754.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 12,
+        "failed_queries": 3,
+        "pass_rate": 0.8,
+        "pass_at_1": 0.6667,
+        "pass_at_3": 0.7333,
+        "pass_at_5": 0.8,
+        "candidate_recall_rate": 0.8,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.3333,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 12
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 15,
+            "passed": 12
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 3
+        },
+        "notes": "Safety action-overlap ranking improved the refined warning-step bank from 11/15 (73.33%) to 12/15 (80%); the previously exposed IV4 master-number warning/context miss now passes at rank 1. Remaining failures are three IV4 warning/status 8-second timeouts."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_115949",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_115949.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_115949.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_115949.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 40,
+        "passed_queries": 37,
+        "failed_queries": 3,
+        "pass_rate": 0.925,
+        "pass_at_1": 0.775,
+        "pass_at_3": 0.875,
+        "pass_at_5": 0.925,
+        "candidate_recall_rate": 0.975,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.6923,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 37
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 31
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 5
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 2
+        },
+        "notes": "Exact product-model scoring restored the saved single-step bank from 36/40 (90%) to 37/40 (92.5%); the IV4-G600CA PDO Source Sub Index case now passes at rank 1 and metadata document selection recall is 100%."
+      },
       {
         "run_id": "retrieval_eval_20260824_112647",
         "corpus_id": "manuals_vendor_keyence",
@@ -1267,5 +1356,5 @@
       }
     ]
   },
-  "next_target": "Continue reducing IV4 warning/status safety-route latency and fix the newly exposed warning-step ranking/context loss, then restore the saved single-step bank above 36/40 before broadening to cross-document multi-step cases."
+  "next_target": "Continue reducing IV4 warning/status safety-route latency causing three 8-second warning-step timeouts, then fix the remaining VS/IV4 single-step ranking/context losses before broadening to cross-document multi-step cases."
 }

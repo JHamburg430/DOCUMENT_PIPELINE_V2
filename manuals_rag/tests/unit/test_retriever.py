@@ -882,6 +882,66 @@ def test_structured_lookup_family_scoring_demotes_table_header_chunks():
     assert rescored[0].chunk_id == "row"
 
 
+def test_family_scoring_promotes_exact_product_model_over_similar_model():
+    analysis = analyze_query("What PDO Source Sub Index value applies to IV4-G600CA?")
+    expected = SearchResult(
+        chunk_id="expected",
+        score=0.5,
+        title="IV4 Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["PDO"],
+        content="Column headers: Source Sub Index*1 (HEX); Cell value: 02h+(M-1)xAh",
+        metadata={"chunk_type": "table_record", "product_model": "IV4-G600CA"},
+    )
+    similar = SearchResult(
+        chunk_id="similar",
+        score=0.58,
+        title="IV4 Manual",
+        document_version_id="ver-2",
+        source_document_id="doc-2",
+        pages=[1],
+        section_path=["PDO"],
+        content="Column headers: Source Sub Index *1 (HEX); Cell value: 02h + (L-1) x 28h",
+        metadata={"chunk_type": "table_record", "product_model": "IV4-G120"},
+    )
+
+    rescored = retriever._apply_family_scoring([similar, expected], analysis, stage="family_scored")
+
+    assert rescored[0].chunk_id == "expected"
+
+
+def test_safety_action_terms_boost_specific_step_evidence_over_broad_context():
+    analysis = analyze_query(
+        "What warning or caution about warning status applies when obtaining the master number, set total status condition?"
+    )
+    step = SearchResult(
+        chunk_id="step",
+        score=0.5,
+        title="IV4 Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Status"],
+        content="When obtaining the master number, set Total status condition as shown below.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    context = SearchResult(
+        chunk_id="context",
+        score=0.5,
+        title="IV4 Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Status"],
+        content="Warning status can be cleared with a warning clear request.",
+        metadata={"chunk_type": "section_window"},
+    )
+
+    assert retriever._query_alignment_score(step, analysis) > retriever._query_alignment_score(context, analysis)
+
+
 def test_run_dense_search_queries_each_corpus_and_returns_dense_hits():
     calls: list[tuple[str, str, dict[str, object], int]] = []
 
@@ -1504,6 +1564,62 @@ def test_retrieve_uses_metadata_document_selection_before_chunk_search(monkeypat
     assert all(filters["source_document_id"] == ["doc-selected"] for filters in selected_filters)
     assert results[0].metadata["document_selection_stage"] == "metadata_embedding"
     assert results[0].metadata["selected_document_metadata_hits"][0]["source_document_id"] == "doc-selected"
+
+
+def test_retrieve_keeps_table_chunks_available_for_safety_queries_without_table_only_route(monkeypatch):
+    query = "When installing the controller for LJ-X8000, what warning or caution about controller mounting should be followed?"
+    base_search_filters: list[dict[str, object]] = []
+    table_backed_warning = SearchResult(
+        chunk_id="table-backed-warning",
+        score=0.9,
+        title="LJ-X8000 Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[12],
+        section_path=["Mounting the controller"],
+        content="Warning: install the controller in the orientation listed in the mounting precautions table.",
+        metadata={"chunk_type": "table_record", "safety_flag": True},
+    )
+
+    class FakeStore:
+        def search_document_metadata(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 5) -> list[dict[str, object]]:
+            return []
+
+        def search_dense(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            base_search_filters.append(filters)
+            assert "chunk_type" not in filters
+            return [table_backed_warning]
+
+        def search_sparse(self, corpus_id: str, query: str, filters: dict[str, object], limit: int = 40) -> list[SearchResult]:
+            base_search_filters.append(filters)
+            assert "chunk_type" not in filters
+            return []
+
+        @staticmethod
+        def fuse_rrf(result_sets: list[list[SearchResult]], *, limit: int, k: int = 60) -> list[SearchResult]:
+            return QdrantStore.fuse_rrf(result_sets, limit=limit, k=k)
+
+    monkeypatch.setattr(retriever, "QdrantStore", FakeStore)
+    monkeypatch.setattr(
+        retriever,
+        "run_table_search",
+        lambda *_args, **_kwargs: pytest.fail("safety procedure queries should not run the extra table-only route"),
+    )
+    monkeypatch.setattr(retriever, "run_table_lexical_search", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(retriever, "run_contextual_lexical_search", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(retriever, "run_special_search", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(retriever, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "_annotate_completeness", lambda results: results)
+    monkeypatch.setattr(retriever, "_apply_query_alignment", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "_select_family_candidates", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "rerank_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "assemble_context", lambda results, **_kwargs: results)
+
+    results = retriever.retrieve(query, ["manuals_vendor_keyence"], {"is_active": True}, limit=5)
+
+    assert [result.chunk_id for result in results] == ["table-backed-warning"]
+    assert base_search_filters == [{"is_active": True}, {"is_active": True}]
 
 
 def test_repeatability_query_keeps_table_candidate_after_family_selection():

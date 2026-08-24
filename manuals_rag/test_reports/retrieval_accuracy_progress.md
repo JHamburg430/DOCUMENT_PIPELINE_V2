@@ -377,3 +377,24 @@ Next target:
 Next target:
 
 - Continue reducing IV4 warning/status safety-route latency and fix the newly exposed warning-step ranking/context loss, then restore the saved single-step bank above 36/40 before broadening to cross-document multi-step cases.
+
+## 2026-08-24 Cron 39262386 Product Model and Safety Action Ranking
+
+- Target: fix the newly exposed warning-step ranking/context loss and restore the saved single-step bank above 36/40 without changing models, ingestion, UI, schema, or adding document-specific routing.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior refined warning-step run `retrieval_eval_20260824_112647` was 11/15 (73.33%) with 3 `eval_timeout` failures and 1 `ranking_or_context_loss`; the ranking/context miss retrieved the correct IV4 document and warning context but left the exact master-number action chunk below top-k. Prior saved single-step run `retrieval_eval_20260824_112845` was 36/40 (90%) with an IV4-G600CA PDO row losing to similar IV4-G120 PDO rows.
+- Changed retrieval ranking logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so exact `product_model` matches receive a stronger generic ranking adjustment, while nearby but nonmatching model identifiers receive a small penalty. This stays in scoring only and does not turn query text into hard filters.
+- Changed safety/how-to query alignment so action terms after `applies when ...` give modest credit to atomic/procedure/warning chunks and lightly demote broad section/parent context when that action evidence is absent.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for exact product-model disambiguation and safety action-term ranking.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 59 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 201 passed, 58 warnings in 153.52s.
+- Live eval command (saved refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved refined warning-step result: `retrieval_eval_20260824_115754` improved from 11/15 (73.33%) to 12/15 (80%), pass@1 66.67%, pass@3 73.33%, pass@5 80%, candidate recall 80%, metadata-document recall 100%, and failures `eval_timeout: 3`. The previously exposed IV4 master-number warning/context miss now passes at rank 1; remaining misses are three IV4 warning/status queries hitting the 8-second per-query timeout.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_115949` restored the bank from 36/40 (90%) to 37/40 (92.5%), pass@1 77.5%, pass@3 87.5%, pass@5 92.5%, candidate recall 97.5%, metadata-document recall 100%, and failures `eval_timeout: 1`, `ranking_or_context_loss: 2`. The IV4-G600CA PDO Source Sub Index case now passes at rank 1.
+- New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_115754.json`, `test_reports/retrieval_eval_manifest_20260824_115754.json`, `test_reports/retrieval_eval_summary_20260824_115949.json`, `test_reports/retrieval_eval_manifest_20260824_115949.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 11:57 and 11:59 UTC.
+
+Next target:
+
+- Continue reducing IV4 warning/status safety-route latency causing three 8-second warning-step timeouts, then fix the remaining VS/IV4 single-step ranking/context losses before broadening to cross-document multi-step cases.
