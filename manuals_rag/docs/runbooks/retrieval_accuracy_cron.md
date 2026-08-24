@@ -6,10 +6,13 @@ This runbook is the standing brief for the recurring retrieval and answer accura
 
 Advance Manuals RAG until it can answer every reasonable engineering question that can be answered from the indexed documentation.
 
-The job must improve two capabilities:
+This is a production-system goal, not a leaderboard goal. The system must retrieve and generate grounded answers for the kinds of questions an engineer, salesperson, manager, technician, or support person would ask about the documents Manuals RAG is designed to serve.
+
+The job must improve three capabilities:
 
 1. Optimal and efficient single-step retrieval for direct questions whose answer is in one chunk, row, table cell, warning, step, or short section.
 2. Multi-step retrieval for questions that require gathering evidence from multiple chunks, sections, tables, pages, or documents before answering.
+3. Final answer generation that accurately uses the retrieved evidence, cites/grounds claims, and says when the indexed documents do not contain enough information.
 
 ## Hard Scope
 
@@ -19,6 +22,8 @@ The job must improve two capabilities:
 - Avoid ingestion, parser, UI, auth, infrastructure, Docker, schema, or deployment changes unless a test fixture or eval harness absolutely cannot run without a tiny scoped adjustment.
 - Never make document-specific routing rules, filename heuristics, vendor-specific shortcuts, or eval-only production behavior.
 - Preserve explicit user/request filters, but do not turn query text into hard document filters unless the request explicitly provides filters.
+- Do not optimize by deleting hard questions, narrowing to tiny green subsets, weakening expected evidence without a source-backed reason, or adding logic that only works for the current eval cases.
+- Before committing, ask whether the change would still be valid for an unseen manual, unseen vendor, and a question from an engineer, salesperson, manager, technician, or support person.
 
 ## Required State Files
 
