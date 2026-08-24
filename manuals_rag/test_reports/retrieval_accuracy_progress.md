@@ -238,3 +238,22 @@ Next target:
 Next target:
 
 - Improve contextual multi-step candidate recall for procedure-plus-section questions, especially LJ-X8000 setup-guide image-capture timing cases where metadata document selection chooses XG-X/CV-X evidence; then add warning-plus-step and cross-document multi-step cases.
+
+## 2026-08-24 Cron 39262386 Contextual Lexical Candidates
+
+- Target: improve contextual multi-step candidate recall for procedure-plus-section questions, especially LJ-X8000 setup-guide image-capture timing cases where retrieval drifted to XG-X/CV-X image-capture prose.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed query analysis in `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py` so letter-number family names such as `X8000 Series` are recognized as product families rather than error codes.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` to add a bounded contextual lexical candidate source for operational/procedure/configuration questions. It scores procedure, atomic, and section-window chunks using salient query terms plus `local_rerank_context`, honors explicit request filters, and only anchors the supplemental scan on product-like terms when the query includes them.
+- Adjusted operational-flow family ordering to prefer section context and procedure evidence before short prose, and changed family selection so one primary family cannot consume the entire rerank candidate budget.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for letter-number family parsing, product-identifier scoring, and contextual lexical section-context scoring.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 52 passed, 1 warning.
+- Live eval command (saved contextual multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved contextual multi-step result: `retrieval_eval_20260824_083633` improved from 17/20 (85%) to 18/20 (90%), pass@1 85%, pass@5 90%, candidate recall 90%, metadata-document recall 88.89%, failures `candidate_miss: 2`. Two LJ-X8000 setup-guide cases that previously missed now passed; remaining misses are one LJ-X8000 high-speed image-capture case and one XG-X contextual case.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_083824` held at 37/40 (92.5%), pass@1 77.5%, pass@3 87.5%, pass@5 92.5%, candidate recall 97.5%, metadata-document recall 97.37%, failures `ranking_or_context_loss: 2`, `wrong_document_or_filter_loss: 1`. Pass rate did not regress, but candidate/document recall was lower than the previous 100% run and should be watched next.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py`, `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for the 08:36 and 08:38 UTC runs.
+
+Next target:
+
+- Fix the remaining contextual candidate misses without harming the saved single-step bank, especially the LJ-X8000 high-speed image-capture support case and the single-step IV4 document-selection miss introduced in the regression run; then add warning-plus-step and cross-document multi-step cases.

@@ -95,14 +95,107 @@
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q",
       "status": "passed",
-      "passed": 34,
-      "warnings": 0,
-      "duration_seconds": 0.18,
-      "notes": "Focused eval-generation tests passed after adding contextual procedure-plus-section multi-step cases and stricter same-section linkage filters."
+      "passed": 52,
+      "warnings": 1,
+      "duration_seconds": 5.31,
+      "notes": "Focused retrieval tests passed after adding contextual lexical candidates, letter-number family parsing, stronger product identifier scoring, and broader family candidate selection."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_083633",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_083633.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_083633.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_083633.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_contextual_multi_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 10.759,
+        "total_queries": 20,
+        "passed_queries": 18,
+        "failed_queries": 2,
+        "pass_rate": 0.9,
+        "pass_at_1": 0.85,
+        "pass_at_3": 0.85,
+        "pass_at_5": 0.9,
+        "candidate_recall_rate": 0.9,
+        "metadata_document_selection_recall_rate": 0.8889,
+        "metadata_document_selection_rank_1_rate": 0.7778,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 20,
+            "passed": 18
+          }
+        },
+        "by_chunk_type": {
+          "procedure_record": {
+            "total": 20,
+            "passed": 18
+          }
+        },
+        "failure_categories": {
+          "candidate_miss": 2
+        },
+        "notes": "Saved contextual procedure-plus-section multi-step bank improved from 17/20 (85%) to 18/20 (90%). Contextual lexical candidates fixed two LJ-X8000 setup-guide misses; remaining failures are candidate_miss: 2."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_083824",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_083824.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_083824.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_083824.json",
+        "status": "completed",
+        "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "warmup_status": "completed",
+        "warmup_elapsed_seconds": 8.273,
+        "total_queries": 40,
+        "passed_queries": 37,
+        "failed_queries": 3,
+        "pass_rate": 0.925,
+        "pass_at_1": 0.775,
+        "pass_at_3": 0.875,
+        "pass_at_5": 0.925,
+        "candidate_recall_rate": 0.975,
+        "metadata_document_selection_recall_rate": 0.9737,
+        "metadata_document_selection_rank_1_rate": 0.6842,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 40,
+            "passed": 37
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 33,
+            "passed": 31
+          },
+          "atomic_text": {
+            "total": 6,
+            "passed": 5
+          },
+          "spec_record": {
+            "total": 1,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 2,
+          "wrong_document_or_filter_loss": 1
+        },
+        "notes": "Saved 40-case single-step bank held at 37/40 (92.5%). Pass rate did not regress, but candidate recall was 97.5% and metadata-document recall 97.37%, so the next run should investigate the IV4 document-selection miss."
+      },
       {
         "run_id": "retrieval_eval_20260824_080232",
         "corpus_id": "manuals_vendor_keyence",

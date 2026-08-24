@@ -106,9 +106,13 @@ def analyze_query(query: str) -> QueryAnalysis:
     model_match = re.search(r"\b[A-Z]{1,5}(?:-[A-Z0-9]{1,8})+\b", query)
     if model_match and not any(char.isdigit() for char in model_match.group(0)):
         model_match = None
-    family_match = re.search(r"\b([A-Z]{1,5}-[A-Z0-9]{1,6}|[A-Z]{2,5})\s+(?:series|family)\b", query, flags=re.IGNORECASE)
+    family_match = re.search(
+        r"\b([A-Z]{1,5}-[A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
+        query,
+        flags=re.IGNORECASE,
+    )
     part_match = re.search(r"\b(?:OP|CA|SZ|GL|SR|IV|LJ|LR|KV|XG|VS|WM|VJ)-[A-Z0-9]{2,12}[A-Z0-9-]*\b", query)
-    error_match = re.search(r"\b[A-Z]\d{2,4}\b", query)
+    error_match = re.search(r"\b[A-Z]\d{2,4}\b(?!\s+(?:series|family))", query, flags=re.IGNORECASE)
     explicit_identifier_count = int(bool(model_match)) + int(bool(error_match))
     filter_strictness = "strict" if explicit_identifier_count >= 2 else ("balanced" if explicit_identifier_count == 1 else "loose")
     return QueryAnalysis(

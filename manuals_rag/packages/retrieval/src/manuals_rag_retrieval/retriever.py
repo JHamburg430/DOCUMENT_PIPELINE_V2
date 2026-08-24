@@ -28,6 +28,8 @@ FUSED_CANDIDATE_POOL_LIMIT = 30
 DOCUMENT_METADATA_SELECTION_LIMIT = 5
 LEXICAL_TABLE_ROW_LIMIT = 24
 LEXICAL_TABLE_SCAN_LIMIT = 1500
+LEXICAL_CONTEXT_LIMIT = 24
+LEXICAL_CONTEXT_SCAN_LIMIT = 1500
 LEXICAL_TABLE_STOPWORDS = {
     "about",
     "after",
@@ -52,6 +54,13 @@ LEXICAL_TABLE_STOPWORDS = {
     "when",
     "with",
 }
+LEXICAL_CONTEXT_STOPWORDS = LEXICAL_TABLE_STOPWORDS.union(
+    {
+        "detail",
+        "related",
+        "used",
+    }
+)
 
 try:
     import torch
@@ -372,6 +381,173 @@ def run_table_lexical_search(
     return [result for _, result in ranked[:limit]]
 
 
+def _lexical_context_terms(query: str, analysis: QueryAnalysis) -> list[str]:
+    if not {"how_to", "configuration", "operational_flow"}.intersection(analysis.query_types):
+        return []
+    terms: list[str] = []
+    for term in tokenize(query):
+        normalized = re.sub(r"[^a-z0-9]+", "", term.lower())
+        if len(normalized) < 4 or normalized in LEXICAL_CONTEXT_STOPWORDS:
+            continue
+        if normalized not in terms:
+            terms.append(normalized)
+    return terms[:18]
+
+
+def _lexical_context_content_terms(terms: list[str]) -> list[str]:
+    product_terms = [term for term in terms if any(char.isdigit() for char in term)]
+    content_terms = sorted(
+        [term for term in terms if not any(char.isdigit() for char in term)],
+        key=lambda term: (len(term), term),
+        reverse=True,
+    )
+    return [*product_terms[:3], *content_terms[:6]]
+
+
+def _context_lexical_score(row: dict[str, object], terms: list[str]) -> float:
+    metadata = dict(row.get("metadata_json") or {})
+    content = str(row.get("content") or "")
+    local_context = str(metadata.get("local_rerank_context") or "")
+    haystack = " ".join(
+        str(part)
+        for part in [
+            content,
+            local_context,
+            metadata.get("product_model"),
+            metadata.get("product_family"),
+            " ".join(str(item) for item in metadata.get("product_models") or []),
+            " ".join(str(item) for item in metadata.get("devices") or []),
+            " ".join(str(item) for item in metadata.get("settings") or []),
+            " ".join(str(item) for item in metadata.get("parameters") or []),
+            " ".join(str(item) for item in metadata.get("document_protocol_terms") or []),
+        ]
+        if part
+    ).lower()
+    compact_haystack = re.sub(r"[^a-z0-9]+", "", haystack)
+    overlap = sum(1 for term in terms if term in compact_haystack)
+    if overlap <= 0:
+        return 0.0
+    score = overlap * 0.1
+    product_overlap = sum(1 for term in terms if any(char.isdigit() for char in term) and term in compact_haystack)
+    score += min(0.28, product_overlap * 0.14)
+    chunk_type = str(row.get("chunk_type") or "")
+    if chunk_type == "procedure_record":
+        score += 0.2
+    elif chunk_type == "section_window":
+        score += 0.14
+    elif chunk_type == "atomic_text":
+        score += 0.1
+    if local_context:
+        context_overlap = sum(1 for term in terms if term in re.sub(r"[^a-z0-9]+", "", local_context.lower()))
+        score += min(0.24, context_overlap * 0.04)
+    return score + float(row.get("priority_score") or 0.0) / 100.0
+
+
+def run_contextual_lexical_search(
+    query: str,
+    corpus_ids: list[str],
+    filters: dict[str, object],
+    analysis: QueryAnalysis,
+    limit: int = LEXICAL_CONTEXT_LIMIT,
+) -> list[SearchResult]:
+    terms = _lexical_context_terms(query, analysis)
+    if not terms:
+        return []
+    where = [
+        "chunk_type = any(%s)",
+        "is_active = true",
+        "metadata_json->>'corpus_id' = any(%s)",
+    ]
+    params: list[object] = [["procedure_record", "atomic_text", "section_window"], corpus_ids]
+    source_document_ids = filters.get("source_document_id")
+    if source_document_ids:
+        document_ids = source_document_ids if isinstance(source_document_ids, list) else [source_document_ids]
+        where.append("source_document_id = any(%s)")
+        params.append([str(item) for item in document_ids])
+    document_version_ids = filters.get("document_version_id")
+    if document_version_ids:
+        version_ids = document_version_ids if isinstance(document_version_ids, list) else [document_version_ids]
+        where.append("document_version_id = any(%s)")
+        params.append([str(item) for item in version_ids])
+    for key in ("product_model", "product_family", "document_kind"):
+        value = filters.get(key)
+        if value:
+            values = value if isinstance(value, list) else [value]
+            where.append("metadata_json->>%s = any(%s)")
+            params.extend([key, [str(item) for item in values]])
+    product_terms = [term for term in terms if any(char.isdigit() for char in term)]
+    if product_terms:
+        where.append(
+            "("
+            + " or ".join(
+                [
+                    "content ilike %s or metadata_json->>'local_rerank_context' ilike %s or metadata_json::text ilike %s"
+                ]
+                * min(3, len(product_terms))
+            )
+            + ")"
+        )
+        for term in product_terms[:3]:
+            params.extend([f"%{term}%", f"%{term}%", f"%{term}%"])
+    like_terms = _lexical_context_content_terms(terms) or terms[:8]
+    where.append(
+        "("
+        + " or ".join(["content ilike %s or metadata_json->>'local_rerank_context' ilike %s"] * len(like_terms))
+        + ")"
+    )
+    for term in like_terms:
+        params.extend([f"%{term}%", f"%{term}%"])
+    rows = fetch_all(
+        f"""
+        select id, document_version_id, source_document_id, title, section_path_text,
+               page_from, page_to, content, chunk_type, metadata_json, priority_score
+        from retrieval_chunks
+        where {" and ".join(where)}
+        limit {LEXICAL_CONTEXT_SCAN_LIMIT}
+        """,
+        tuple(params),
+    )
+    ranked: list[tuple[float, SearchResult]] = []
+    for row in rows:
+        score = _context_lexical_score(dict(row), terms)
+        if score <= 0:
+            continue
+        metadata = {
+            **dict(row.get("metadata_json") or {}),
+            "chunk_id": str(row["id"]),
+            "document_version_id": str(row["document_version_id"]),
+            "source_document_id": str(row["source_document_id"]),
+            "chunk_type": str(row["chunk_type"]),
+            "title": str(row["title"]),
+            "page_from": int(row["page_from"]),
+            "page_to": int(row["page_to"]),
+            "content": str(row["content"]),
+            "content_for_rerank": str(row["content"]),
+            "priority_score": float(row.get("priority_score") or 0.0),
+        }
+        section_path = metadata.get("section_path")
+        if not isinstance(section_path, list) or not section_path:
+            section_path = [str(row["section_path_text"])]
+        ranked.append(
+            (
+                score,
+                SearchResult(
+                    chunk_id=str(row["id"]),
+                    score=score,
+                    title=str(row["title"]),
+                    document_version_id=str(row["document_version_id"]),
+                    source_document_id=str(row["source_document_id"]),
+                    pages=list(range(int(row["page_from"]), int(row["page_to"]) + 1)),
+                    section_path=[str(part) for part in section_path],
+                    content=str(row["content"]),
+                    metadata=metadata,
+                ),
+            )
+        )
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return [result for _, result in ranked[:limit]]
+
+
 def _query_has_explicit_structure(analysis: QueryAnalysis) -> bool:
     structured_types = {"spec_lookup", "structured_lookup", "part_lookup", "comparison", "compatibility", "revision_history"}
     return bool(structured_types.intersection(analysis.query_types))
@@ -439,7 +615,13 @@ def _family_score_adjustment(result: SearchResult, analysis: QueryAnalysis) -> f
         identifier_terms = _text_terms(document_identifiers)
         identifier_overlap = query_terms.intersection(identifier_terms)
         if identifier_overlap:
-            adjustment += min(0.06, 0.02 * len(identifier_overlap))
+            product_identifier_overlap = {
+                term
+                for term in identifier_overlap
+                if any(char.isdigit() for char in term) or "-" in term or "/" in term
+            }
+            adjustment += min(0.08, 0.02 * len(identifier_overlap))
+            adjustment += min(0.18, 0.09 * len(product_identifier_overlap))
     if _query_prefers_narrative_prose(analysis):
         if chunk_type in {"atomic_text", "section_window", "parent_section"}:
             adjustment += 0.03
@@ -484,7 +666,7 @@ def _preferred_family_order(analysis: QueryAnalysis) -> list[str]:
     if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
         return ["procedure", "context", "prose", "table"]
     if "operational_flow" in analysis.query_types:
-        return ["prose", "context", "procedure", "table"]
+        return ["context", "procedure", "prose", "table"]
     if "spec_lookup" in analysis.query_types or "part_lookup" in analysis.query_types:
         return ["spec", "table", "prose", "context"]
     if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
@@ -641,13 +823,12 @@ def _select_family_candidates(
         buckets.setdefault(family, []).append(result)
     primary_family = next((family for family in family_order if buckets.get(family)), None)
     if primary_family:
-        chosen.extend(buckets[primary_family][: max(6, limit)])
-    fallback_family = next(
-        (family for family in family_order if family != primary_family and family in allowed_families and buckets.get(family)),
-        None,
-    )
-    if fallback_family:
-        chosen.extend(buckets[fallback_family][: max(4, limit // 2)])
+        chosen.extend(buckets[primary_family][: max(6, limit // 2)])
+    fallback_limit = max(4, limit // 2)
+    for fallback_family in family_order:
+        if fallback_family == primary_family or fallback_family not in allowed_families or not buckets.get(fallback_family):
+            continue
+        chosen.extend(buckets[fallback_family][:fallback_limit])
     if not chosen:
         chosen = results[:limit]
     deduped: dict[str, SearchResult] = {}
@@ -995,11 +1176,15 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     sparse_results = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, search_filters), "sparse")
     table_results = _annotate_stage_metadata(run_table_search(store, query, corpus_ids, search_filters), "table")
     table_lexical_results = _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis), "table_lexical")
+    contextual_lexical_results = _annotate_stage_metadata(
+        run_contextual_lexical_search(query, corpus_ids, filters, analysis),
+        "contextual_lexical",
+    )
     special_results = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, search_filters, analysis), "special")
     fused = _annotate_stage_metadata(
         fuse_results(
             store,
-            [dense_results, sparse_results, table_results, table_lexical_results, special_results],
+            [dense_results, sparse_results, table_results, table_lexical_results, contextual_lexical_results, special_results],
             limit=FUSED_CANDIDATE_POOL_LIMIT,
         ),
         "fused",

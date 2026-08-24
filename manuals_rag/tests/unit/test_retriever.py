@@ -178,6 +178,13 @@ def test_query_analysis_marks_cause_and_correction_questions_as_structured_looku
     assert "table_record" in analysis.preferred_chunk_types
 
 
+def test_query_analysis_treats_letter_number_series_as_product_family_not_error_code():
+    analysis = analyze_query("When controlling image capture timing for X8000 Series, what detail should be used?")
+
+    assert analysis.product_family == "X8000"
+    assert analysis.error_code is None
+
+
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():
     analysis = analyze_query("What does LJ-X8000 say about trigger timing?")
     first = SearchResult(
@@ -262,6 +269,87 @@ def test_family_scoring_uses_scalar_product_family_identifier():
     rescored = retriever._apply_family_scoring([generic, family_match], analysis, stage="family_scored")
 
     assert rescored[0].chunk_id == "family-match"
+
+
+def test_family_scoring_strongly_uses_letter_number_product_identifier():
+    analysis = analyze_query("X8000 Series image capture timing detail")
+    generic = SearchResult(
+        chunk_id="generic",
+        score=0.5,
+        title="Image Capture",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Image Capture"],
+        content="The image capture timing detail is configured here.",
+        metadata={"chunk_type": "atomic_text", "product_family": "XG-X Series"},
+    )
+    family_match = SearchResult(
+        chunk_id="family-match",
+        score=0.4,
+        title="Image Capture",
+        document_version_id="ver-2",
+        source_document_id="doc-2",
+        pages=[1],
+        section_path=["Image Capture"],
+        content="The image capture timing detail is configured here.",
+        metadata={"chunk_type": "atomic_text", "product_family": "X8000 Series - 3D", "product_models": ["LJ-X8000"]},
+    )
+
+    rescored = retriever._apply_family_scoring([generic, family_match], analysis, stage="family_scored")
+
+    assert rescored[0].chunk_id == "family-match"
+
+
+def test_contextual_lexical_search_scores_local_section_context(monkeypatch):
+    analysis = analyze_query("When image capture timing for X8000 Series, what Ethernet/IP memory monitor detail should be used?")
+
+    def fake_fetch_all(query, params):
+        assert "local_rerank_context" in query
+        assert params[0] == ["procedure_record", "atomic_text", "section_window"]
+        return [
+            {
+                "id": "procedure",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "Setup Guide",
+                "section_path_text": "Checking the Connection",
+                "page_from": 13,
+                "page_to": 13,
+                "content": "Procedure step 2: Controlling the Image Capture Timing",
+                "chunk_type": "procedure_record",
+                "metadata_json": {
+                    "product_family": "X8000 Series - 3D",
+                    "product_models": ["LJ-X8000"],
+                    "local_rerank_context": "Use the EtherNet/IP memory monitor of the LJ-X8000 to check the connection.",
+                },
+                "priority_score": 1.0,
+            },
+            {
+                "id": "generic",
+                "document_version_id": "ver-2",
+                "source_document_id": "doc-2",
+                "title": "Manual",
+                "section_path_text": "Capture",
+                "page_from": 99,
+                "page_to": 99,
+                "content": "Image capture timing settings",
+                "chunk_type": "atomic_text",
+                "metadata_json": {"product_family": "XG-X Series"},
+                "priority_score": 1.0,
+            },
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(
+        "When image capture timing for X8000 Series, what Ethernet/IP memory monitor detail should be used?",
+        ["manuals_vendor_keyence"],
+        {"is_active": True},
+        analysis,
+    )
+
+    assert results[0].chunk_id == "procedure"
 
 
 def test_family_scoring_demotes_spec_chunks_for_general_prose_queries():
