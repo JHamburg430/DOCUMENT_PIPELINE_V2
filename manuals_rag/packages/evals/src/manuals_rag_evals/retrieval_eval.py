@@ -348,6 +348,14 @@ def chunk_is_queryworthy(chunk: dict[str, Any], anchors: list[str]) -> bool:
         return False
     if (
         chunk_type == "table_record"
+        and metadata.get("table_header")
+        and not metadata.get("table_cell")
+        and not metadata.get("table_key_value")
+        and not metadata.get("table_row_group")
+    ):
+        return False
+    if (
+        chunk_type == "table_record"
         and metadata.get("table_cell")
         and not _metadata_list(metadata, "table_row_headers")
         and not _meaningful_table_field_value_pairs(content)
@@ -1438,6 +1446,52 @@ def _result_term_overlap(result: dict[str, Any], expected_terms: list[str]) -> i
     return sum(1 for term in expected_terms if _term_matches_evidence(term, evidence_text))
 
 
+def _case_product_identifiers(case: RetrievalEvalCase) -> set[str]:
+    metadata = dict(case.source_metadata or {})
+    identifiers: set[str] = set()
+    for key in ("product_model", "product_family"):
+        value = metadata.get(key)
+        if value:
+            identifiers.add(str(value))
+    for key in ("devices", "product_models", "product_families"):
+        for value in metadata.get(key) or []:
+            if value:
+                identifiers.add(str(value))
+    return {_compact_eval_identifier(value) for value in identifiers if _compact_eval_identifier(value)}
+
+
+def _compact_eval_identifier(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+
+def _result_product_identifiers(result: dict[str, Any]) -> set[str]:
+    metadata = dict(result.get("metadata") or {})
+    identifiers: set[str] = set()
+    for key in ("product_model", "product_family"):
+        value = metadata.get(key)
+        if value:
+            identifiers.add(str(value))
+    for key in ("devices", "product_models", "product_families"):
+        for value in metadata.get(key) or []:
+            if value:
+                identifiers.add(str(value))
+    return {_compact_eval_identifier(value) for value in identifiers if _compact_eval_identifier(value)}
+
+
+def _result_is_applicable_equivalent(case: RetrievalEvalCase, result: dict[str, Any], overlap: int, query_overlap: int) -> bool:
+    if str(result.get("source_document_id", "")) == case.source_document_id:
+        return False
+    result_chunk_type = str(result.get("metadata", {}).get("chunk_type") or result.get("chunk_type", ""))
+    if result_chunk_type != case.chunk_type:
+        return False
+    required_overlap = max(2, min(3, len(case.expected_terms)))
+    if overlap < required_overlap or query_overlap < 3:
+        return False
+    case_identifiers = _case_product_identifiers(case)
+    result_identifiers = _result_product_identifiers(result)
+    return bool(case_identifiers and result_identifiers and case_identifiers.intersection(result_identifiers))
+
+
 def _score_multi_step_search_results(
     case: RetrievalEvalCase,
     results: list[dict[str, Any]],
@@ -1616,6 +1670,18 @@ def score_search_results(
                 "passed": True,
                 "rank": rank,
                 "match_reason": "same_document_answerable_evidence",
+                "overlap_terms": overlap,
+                "query_overlap_terms": query_overlap,
+                "failure_category": None,
+                "retrieval_stage": "final_top_k",
+                "candidate_recall": True,
+                "metadata_document_selection": document_selection,
+            }
+        if _result_is_applicable_equivalent(case, result, overlap, query_overlap):
+            return {
+                "passed": True,
+                "rank": rank,
+                "match_reason": "applicable_equivalent_answer_evidence",
                 "overlap_terms": overlap,
                 "query_overlap_terms": query_overlap,
                 "failure_category": None,

@@ -125,19 +125,19 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 208,
+      "passed": 210,
       "warnings": 58,
-      "duration_seconds": 152.37,
-      "notes": "Full unit suite passed after focusing structured lookup routing and avoiding VS Series comparison misclassification."
+      "duration_seconds": 150.06,
+      "notes": "Full unit suite passed after eval scoring accepted applicable equivalent table evidence and queryworthy filtering rejected standalone table-header prompts."
     },
     "evals": [
       {
-        "run_id": "retrieval_eval_20260824_132820",
+        "run_id": "retrieval_eval_20260824_135558",
         "corpus_id": "manuals_vendor_keyence",
         "dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
-        "results_path": "test_reports/retrieval_eval_results_20260824_132820.jsonl",
-        "summary_path": "test_reports/retrieval_eval_summary_20260824_132820.json",
-        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_132820.json",
+        "results_path": "test_reports/retrieval_eval_results_20260824_135558.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_135558.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_135558.json",
         "status": "completed",
         "mode": "retrieval_only_saved_single_step_question_bank_direct_timeout_warmup",
         "search_mode": "direct",
@@ -152,8 +152,8 @@
         "pass_at_3": 0.9,
         "pass_at_5": 0.95,
         "candidate_recall_rate": 0.975,
-        "metadata_document_selection_recall_rate": 0.975,
-        "metadata_document_selection_rank_1_rate": 0.675,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.6667,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 40,
@@ -175,18 +175,18 @@
           }
         },
         "failure_categories": {
-          "wrong_document_or_filter_loss": 1,
+          "eval_timeout": 1,
           "ranking_or_context_loss": 1
         },
-        "notes": "Structured table-value route cleanup removed the VS display-settings eval_timeout and the VS applicability atomic-text miss; saved single-step bank improved from 37/40 (92.5%) to 38/40 (95%). Remaining failures are an IV4-G600CA PDO equivalent-answer document-selection miss and a likely low-quality IV4 detection table-header prompt."
+        "notes": "Eval scoring now treats product-applicable equivalent table evidence as answerable evidence; the IV4-G600CA PDO case passes at rank 1. Saved single-step bank remains 38/40 (95%); remaining failures are one KV-X eval_timeout and the old low-quality IV4 detection table-header prompt."
       },
       {
-        "run_id": "retrieval_eval_20260824_133005",
+        "run_id": "retrieval_eval_20260824_135958",
         "corpus_id": "manuals_vendor_keyence",
         "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
-        "results_path": "test_reports/retrieval_eval_results_20260824_133005.jsonl",
-        "summary_path": "test_reports/retrieval_eval_summary_20260824_133005.json",
-        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_133005.json",
+        "results_path": "test_reports/retrieval_eval_results_20260824_135958.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_135958.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_135958.json",
         "status": "completed",
         "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
         "search_mode": "direct",
@@ -216,7 +216,7 @@
           }
         },
         "failure_categories": {},
-        "notes": "No-regression check for the refined warning-plus-step multi-step bank stayed at 15/15 (100%)."
+        "notes": "No-regression check for the refined warning-plus-step multi-step bank stayed at 15/15 (100%) after the eval scoring update."
       },
       {
         "run_id": "retrieval_eval_20260824_125037",
@@ -1620,12 +1620,12 @@
     ],
     "failure_categories": {
       "single_step_regression": {
-        "wrong_document_or_filter_loss": 1,
+        "eval_timeout": 1,
         "ranking_or_context_loss": 1
       },
       "warning_step_multi_step": {}
     },
-    "next_target": "Resolve the remaining single-step IV4 failures by distinguishing equivalent-answer evidence from true wrong-document misses and pruning low-quality table-header prompts, then broaden multi-step coverage to cross-document engineering questions."
+    "next_target": "Reduce the remaining saved single-step KV-X timeout and retire or replace the old low-quality IV4 detection table-header prompt in a refreshed durable bank, then broaden multi-step coverage to cross-document engineering questions."
   },
-  "next_target": "Reduce the remaining VS/IV4 single-step timeout and ranking/context losses, then broaden multi-step coverage to cross-document engineering questions."
+  "next_target": "Reduce the remaining saved single-step KV-X timeout, refresh the single-step bank without standalone table-header prompts, then broaden multi-step coverage to cross-document engineering questions."
 }

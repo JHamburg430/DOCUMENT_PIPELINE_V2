@@ -921,6 +921,34 @@ def test_validate_eval_case_rejects_query_not_specific_to_source_context():
     assert validate_eval_case("What 3200 points/profile applies to LJ-X8000?", chunk, anchors) == (True, "validated")
 
 
+def test_table_header_chunks_are_not_queryworthy_as_standalone_questions():
+    chunk = {
+        "id": "header-row",
+        "source_document_id": "doc-iv4",
+        "document_version_id": "ver-iv4",
+        "chunk_type": "table_record",
+        "title": "IV4 Manual",
+        "source_filename": "iv4.pdf",
+        "section_path_text": "R1.20",
+        "page_from": 14,
+        "page_to": 14,
+        "content": "Table header: If the detection becomes unstable due to the effect of; Header role: row; Row: 32; Column: 0",
+        "metadata_json": {
+            "chunk_family": "table_record",
+            "product_model": "IV4-G120",
+            "table_header": True,
+            "table_header_role": "row",
+            "table_row": 32,
+            "table_column": 0,
+        },
+        "product_model": "IV4-G120",
+    }
+    anchors = ["detection", "becomes", "unstable"]
+
+    assert chunk_is_queryworthy(chunk, anchors) is False
+    assert build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False) == []
+
+
 def test_fallback_eval_queries_include_context_anchors_for_compact_specs():
     chunks = [
         {
@@ -1253,6 +1281,48 @@ def test_score_search_results_matches_slash_terms_across_table_evidence():
     assert evaluation["overlap_terms"] == 2
     assert evaluation["query_overlap_terms"] >= 2
     assert evaluation["match_reason"] == "same_document_answerable_evidence"
+
+
+def test_score_search_results_accepts_applicable_equivalent_table_evidence():
+    case = RetrievalEvalCase(
+        case_id="c-equivalent",
+        query="What 02h PDO Source Sub Index value applies to IV4-G600CA?",
+        source_document_id="doc-specific",
+        document_version_id="ver-specific",
+        source_chunk_id="chunk-specific",
+        source_title="IV4-G600CA Manual",
+        source_filename="iv4-g600ca.pdf",
+        chunk_type="table_record",
+        section_path="9-104",
+        page_from=386,
+        page_to=386,
+        expected_terms=["02h", "m-1", "process", "object"],
+        expected_snippet="Cell value: 02h+(M-1)xAh",
+        generation_method="table_row_column_value",
+        source_metadata={"product_model": "IV4-G600CA"},
+    )
+    results = [
+        {
+            "chunk_id": "chunk-family",
+            "source_document_id": "doc-family",
+            "section_path": ["9-106"],
+            "content": (
+                "Column headers: Process data object content (PDO Content) > Source Sub Index (HEX); "
+                "Cell value: 02h + (M-1) x Ah"
+            ),
+            "metadata": {
+                "chunk_type": "table_record",
+                "product_model": "IV4-G120",
+                "devices": ["IV4-G120", "IV4-G600CA"],
+            },
+        }
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is True
+    assert evaluation["candidate_recall"] is True
+    assert evaluation["match_reason"] == "applicable_equivalent_answer_evidence"
 
 
 def test_score_search_results_requires_multi_step_expected_evidence():
