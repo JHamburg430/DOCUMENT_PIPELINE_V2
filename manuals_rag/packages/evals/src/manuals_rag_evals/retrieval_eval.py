@@ -608,6 +608,44 @@ def _query_looks_meta(query: str) -> bool:
     return any(fragment in lowered for fragment in banned_fragments)
 
 
+def _query_looks_mechanical(query: str) -> bool:
+    tokens = tokenize(query)
+    if len(tokens) > 24:
+        return True
+    compact_tokens = [token for token in tokens if token not in STOPWORDS and token not in GENERIC_ANCHORS]
+    if len(compact_tokens) > 18:
+        return True
+    source_like_tokens = [
+        token
+        for token in compact_tokens
+        if len(token) >= 12 and (re.search(r"\d", token) or token.isupper())
+    ]
+    if len(source_like_tokens) >= 2:
+        return True
+    if len(re.findall(r"\b[A-Z][A-Z0-9]*\[\]", query)) >= 3:
+        return True
+    if re.search(r"\.\s*\.\s*\.", query):
+        return True
+    if len(re.findall(r"\.(?:bmp|jpg|jpeg|png|pdf|csv)\b", query, flags=re.IGNORECASE)) >= 2:
+        return True
+    if re.search(r"\b[A-Z0-9]{4,}\*", query):
+        return True
+    compact = normalize_text(query)
+    if re.search(r"\bwhat\s+items?\b", compact) or re.search(r"\bwhat\s+[^?]{1,40}\s+for\s+items?\b", compact):
+        return True
+    if (
+        compact.startswith("what ")
+        and compact.endswith(" applies")
+        and len(compact_tokens) <= 3
+        and not any(re.search(r"\d", token) for token in compact_tokens)
+    ):
+        return True
+    bracketed_phrases = re.findall(r"\[[^\]]+\]", query)
+    if sum(len(tokenize(phrase)) for phrase in bracketed_phrases) > 6:
+        return True
+    return False
+
+
 def _query_looks_like_question(query: str) -> bool:
     return query.strip().endswith("?")
 
@@ -651,6 +689,8 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "document_bound_query"
     if _query_looks_meta(query):
         return False, "meta_query"
+    if _query_looks_mechanical(query):
+        return False, "mechanical_query"
     if _query_uses_filename_artifact(query, chunk):
         return False, "filename_artifact_query"
     if _query_copies_unfair_source_phrase(query, chunk):

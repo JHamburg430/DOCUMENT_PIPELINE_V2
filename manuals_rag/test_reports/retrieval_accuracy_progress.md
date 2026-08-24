@@ -787,3 +787,26 @@ Next target:
 Next target:
 
 - Pay down the 13-question single-step replacement debt and keep accumulating validated single-step and multi-step engineer questions while preserving the existing green regression gates.
+
+## 2026-08-24 Cron 39262386 Single-Step Replacement Debt Paid
+
+- Target: pay down the 13-question single-step replacement debt created by retiring stale saved-bank cases, without reducing active coverage or changing production retrieval behavior.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed eval logic in `packages/evals/src/manuals_rag_evals/retrieval_eval.py` so deterministic single-step generation rejects mechanical source-dump questions: oversized variable lists, repeated TOC dot leaders, repeated file-extension lists, generic `item/items` prompts, and vague short `What <field> applies?` forms.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for mechanical variable dumps, TOC/file-list prompts, and generic item prompts.
+- Diagnostic generated replacement attempts before the final quality filter are present as artifacts for `retrieval_eval_20260824_205429` and `retrieval_eval_20260824_205729`; they were not promoted because prompt quality was still too noisy.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 50 passed.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 237 passed, 58 warnings in 161.73s.
+- Replacement eval command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --retrieval-task single_step_retrieval --max-queries 13 --seed 123 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45 --disable-llm-query-generation`.
+- Replacement result: `retrieval_eval_20260824_210121` generated 13 fresh validated exploratory single-step questions and completed at 12/13 passed (92.31%), pass@1/pass@3/pass@5 all 92.31%, candidate recall 100%, metadata-document recall 100%, with one `ranking_or_context_loss` on an LJ-X8000 table lookup.
+- No-regression command (replacement single-step): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_173031.jsonl --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Replacement single-step result: `retrieval_eval_20260824_210219` stayed 20/20 (100%), pass@1 95%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 95%, failures `{}`.
+- No-regression command (refined warning-step multi-step): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Warning-step multi-step result: `retrieval_eval_20260824_210311` stayed 15/15 (100%), pass@1 86.67%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`.
+- Question-bank manifest now tracks 193 exploratory questions: 100 single-step and 93 multi-step. Replacement debt is recorded as 0, with the retired reason code preserved as `not_queryworthy_source_chunk`.
+- New tracked artifacts: `test_reports/retrieval_eval_dataset_20260824_210121.jsonl`, `test_reports/retrieval_eval_results_20260824_210121.jsonl`, `test_reports/retrieval_eval_summary_20260824_210121.json`, `test_reports/retrieval_eval_manifest_20260824_210121.json`, plus no-regression summaries/manifests for `retrieval_eval_20260824_210219` and `retrieval_eval_20260824_210311`.
+- Changed files: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus the new promoted eval artifacts for 21:01-21:03 UTC.
+
+Next target:
+
+- Improve the remaining generated single-step LJ-X8000 ranking/context loss and continue expanding cross-document multi-step coverage while keeping replacement debt at zero.

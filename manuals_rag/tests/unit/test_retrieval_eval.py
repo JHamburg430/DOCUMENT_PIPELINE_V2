@@ -900,6 +900,109 @@ def test_build_eval_cases_skips_toc_style_procedure_chunks():
     assert build_eval_cases_from_chunks(chunks, max_cases=5, use_llm_generation=False) == []
 
 
+def test_validate_eval_case_rejects_mechanical_source_dump_query():
+    chunk = {
+        "id": "chunk-source-dump",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "table_record",
+        "title": "Manual",
+        "source_filename": "Manual.pdf",
+        "section_path_text": "Status table",
+        "page_from": 2,
+        "page_to": 2,
+        "content": (
+            "Column headers: Description of value; Row headers: PMSR[].PCNT[] PMSR[].MXPCNT "
+            "PMSR[].MNPCNT PMSR[].AVPCNT PMSR[].DVPCNT; Cell value: Measurement values"
+        ),
+        "metadata_json": {
+            "product_family": "LJ: S8000 Series",
+            "table_cell": True,
+            "table_row_headers": ["PMSR[].PCNT[] PMSR[].MXPCNT PMSR[].MNPCNT PMSR[].AVPCNT PMSR[].DVPCNT"],
+            "table_column_headers": ["Description of value"],
+        },
+    }
+
+    valid, reason = validate_eval_case(
+        (
+            "What PMSR[].PCNT[] PMSR[].MXPCNT PMSR[].MNPCNT PMSR[].AVPCNT PMSR[].DVPCNT "
+            "Description of value applies to LJ: S8000 Series?"
+        ),
+        chunk,
+        ["pmsr", "pcnt", "measurement", "values"],
+    )
+
+    assert not valid
+    assert reason == "mechanical_query"
+
+
+def test_validate_eval_case_rejects_toc_and_file_list_questions():
+    chunk = {
+        "id": "chunk-mechanical",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "table_record",
+        "title": "Manual",
+        "source_filename": "Manual.pdf",
+        "section_path_text": "Status table",
+        "page_from": 2,
+        "page_to": 2,
+        "content": "Column headers: Contained Data; Row headers: Output file name; Cell value: YYMMDD_HHMMSS.bmp / Sequential No._Specified string.jpg",
+        "metadata_json": {
+            "product_model": "MODEL-1",
+            "table_cell": True,
+            "table_row_headers": ["Output file name"],
+            "table_column_headers": ["Contained Data"],
+        },
+    }
+
+    toc_valid, toc_reason = validate_eval_case(
+        "What 9-44 MCR Read Measured Value Correction . . . . . .9-16 value applies to MODEL-1?",
+        chunk,
+        ["mcr", "measured", "value", "correction"],
+    )
+    file_valid, file_reason = validate_eval_case(
+        "What YYMMDD_HHMMSS.bmp and Sequential No._Specified string.jpg contained data applies to MODEL-1?",
+        chunk,
+        ["yymmdd", "hhmmss", "specified", "string"],
+    )
+
+    assert not toc_valid
+    assert toc_reason == "mechanical_query"
+    assert not file_valid
+    assert file_reason == "mechanical_query"
+
+
+def test_validate_eval_case_rejects_generic_short_item_queries():
+    chunk = {
+        "id": "chunk-items",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "table_record",
+        "title": "Manual",
+        "source_filename": "Manual.pdf",
+        "section_path_text": "Settings",
+        "page_from": 2,
+        "page_to": 2,
+        "content": "Column headers: Items for Setting contents; Row headers: MODEL-1; Cell value: 100 ms",
+        "metadata_json": {
+            "product_model": "MODEL-1",
+            "table_cell": True,
+            "table_row_headers": ["MODEL-1"],
+            "table_column_headers": ["Items for Setting contents"],
+        },
+    }
+
+    valid, reason = validate_eval_case(
+        "For MODEL-1, what Items for Setting contents 100?",
+        chunk,
+        ["items", "setting", "contents", "100"],
+    )
+
+    assert not valid
+    assert reason == "mechanical_query"
+
+
 def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
     call_count = 0
 

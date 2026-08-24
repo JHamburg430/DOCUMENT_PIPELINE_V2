@@ -15,10 +15,11 @@
     "retired_questions_create_replacement_debt": true,
     "max_queries_is_batch_size_not_bank_size": true,
     "replacement_debt": {
-      "single_step_retrieval": 13,
-      "reason": "13 stale saved single-step cases were dropped by queryworthiness cleaning and must be replaced with fresh validated engineer questions rather than treated as permanently deleted.",
+      "single_step_retrieval": 0,
+      "reason": "The 13 stale saved single-step cases retired by queryworthiness cleaning were replaced in this run by 13 fresh validated exploratory single-step engineer questions.",
       "source_dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
-      "cleaned_subset": "test_reports/retrieval_eval_dataset_20260824_165722.jsonl"
+      "replacement_dataset": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
+      "retired_reason_code": "not_queryworthy_source_chunk"
     }
   },
   "constraints": {
@@ -37,11 +38,11 @@
     "run_budget_minutes": 30
   },
   "question_bank": {
-    "total_questions": 180,
-    "single_step_questions": 87,
+    "total_questions": 193,
+    "single_step_questions": 100,
     "multi_step_questions": 93,
     "locked_regression_questions": 0,
-    "exploratory_questions": 180,
+    "exploratory_questions": 193,
     "datasets": [
       {
         "path": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
@@ -181,6 +182,22 @@
           "table_record": 20
         },
         "notes": "First explicit cross-document multi-step bank. Cases ask for the same meaningful table/spec field across two document labels and require evidence from both source chunks."
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_210121.json",
+        "created_at": "2026-08-24T21:01:21Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "deterministic_single_step_replacement_debt_questions_mechanical_query_filtered",
+        "status": "exploratory",
+        "total_questions": 13,
+        "single_step_questions": 13,
+        "multi_step_questions": 0,
+        "by_chunk_type": {
+          "table_record": 11,
+          "atomic_text": 2
+        },
+        "notes": "Pays down the 13-question single-step replacement debt created when stale saved cases were retired. Mechanical deterministic prompts with variable dumps, TOC fragments, file-extension lists, and generic item/function phrasing are now rejected before generation."
       }
     ]
   },
@@ -188,11 +205,132 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 234,
+      "passed": 237,
       "warnings": 58,
-      "notes": "Full unit suite passed after cross-document eval scoring and generation-quality changes."
+      "notes": "Full unit suite passed after tightening deterministic single-step eval query-quality filtering."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_210121",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_210121.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_210121.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_210121.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 13,
+        "passed_queries": 12,
+        "failed_queries": 1,
+        "pass_rate": 0.9231,
+        "pass_at_1": 0.9231,
+        "pass_at_3": 0.9231,
+        "pass_at_5": 0.9231,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 13,
+            "passed": 12
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 11,
+            "passed": 10
+          },
+          "atomic_text": {
+            "total": 2,
+            "passed": 2
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 1
+        },
+        "mode": "retrieval_only_generated_single_step_replacement_debt_direct_timeout_warmup",
+        "notes": "Fresh validated exploratory single-step replacements pay down the 13-question debt; one LJ-X8000 ranking/context loss remains as a retrieval target."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_210219",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_173031.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_210219.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_210219.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_210219.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 20,
+        "passed_queries": 20,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.95,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 0.95,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 20,
+            "passed": 20
+          }
+        },
+        "by_chunk_type": {
+          "table_record": {
+            "total": 15,
+            "passed": 15
+          },
+          "atomic_text": {
+            "total": 5,
+            "passed": 5
+          }
+        },
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_replacement_single_step_bank_direct_timeout_warmup",
+        "notes": "No-regression check for the existing 20-case replacement single-step bank stayed 20/20."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_210311",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_210311.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_210311.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_210311.json",
+        "status": "completed",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "by_chunk_type": {
+          "atomic_text": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
+        "notes": "No-regression check for the refined warning-plus-step multi-step bank stayed 15/15."
+      },
       {
         "run_id": "retrieval_eval_20260824_202725",
         "corpus_id": "manuals_vendor_keyence",
@@ -3147,30 +3285,28 @@
       }
     ],
     "failure_categories": {
-      "cross_document_multi_step_bank": {
-        "ranking_or_context_loss": 6,
-        "candidate_miss": 3
-      },
-      "failed_experimental_cross_document_run": {
-        "ranking_or_context_loss": 7,
-        "candidate_miss": 3
+      "replacement_debt_single_step_bank": {
+        "ranking_or_context_loss": 1
       },
       "replacement_single_step_bank": {},
-      "warning_step_multi_step_bank": {}
+      "warning_step_multi_step_bank": {},
+      "cross_document_multi_step_bank": {
+        "ranking_or_context_loss": 7,
+        "candidate_miss": 1
+      }
     },
-    "next_target": "Pay down single-step replacement debt and keep growing active question-bank coverage while improving cross-document multi-step retrieval/context assembly; preserve the 20/20 replacement single-step, 27/27 cleaned single-step, and 15/15 warning-step gates.",
+    "next_target": "Improve the remaining generated single-step LJ-X8000 ranking/context loss and continue expanding cross-document multi-step coverage while keeping replacement debt at zero.",
     "current_failure_categories": {
-      "cross_document_multi_step_bank": {
-        "ranking_or_context_loss": 6,
-        "candidate_miss": 3
-      },
-      "failed_experimental_cross_document_run": {
-        "ranking_or_context_loss": 7,
-        "candidate_miss": 3
+      "replacement_debt_single_step_bank": {
+        "ranking_or_context_loss": 1
       },
       "replacement_single_step_bank": {},
-      "warning_step_multi_step_bank": {}
+      "warning_step_multi_step_bank": {},
+      "cross_document_multi_step_bank": {
+        "ranking_or_context_loss": 7,
+        "candidate_miss": 1
+      }
     }
   },
-  "next_target": "Pay down single-step replacement debt and keep growing active question-bank coverage while refining cross-document multi-step evaluation/scoring; distinguish equivalent same-field table-row evidence from strict arbitrary chunk-id misses, filter overly generic cross-document fields such as item/items, and retest against the 20/20 replacement single-step, 27/27 cleaned single-step, and 15/15 warning-step gates."
+  "next_target": "Improve the remaining generated single-step LJ-X8000 ranking/context loss and continue expanding cross-document multi-step coverage while keeping replacement debt at zero."
 }
