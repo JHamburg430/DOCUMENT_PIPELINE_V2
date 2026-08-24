@@ -120,3 +120,22 @@ Next target:
 Next target:
 
 - Improve ranking/context selection for high-recall misses, especially IV4 address/detection and protocol-symbol table cases, then add the first true multi-step retrieval cases.
+
+## 2026-08-24 Cron 39262386 Structured Applies-To Lookups
+
+- Target: improve high-recall ranking/context misses for terse engineering field lookups such as address, symbol, message, and error-message questions.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus was usable with 53 indexed documents.
+- Failure review: prior refreshed bank run `retrieval_eval_20260824_045817` was 32/40 (80%) with candidate recall 97.5%, metadata-document recall 97.37%, and failures mostly `ranking_or_context_loss`. Several failed prompts used the generic form `What <field> ... applies to <model/family>?` and were analyzed as general prose or troubleshooting instead of structured table/spec lookups.
+- Changed retrieval query analysis in `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py` to classify `applies to/for` field questions as `structured_lookup` and prefer `table_record`, `spec_record`, and `section_window` candidates.
+- Changed retrieval family scoring/selection in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so `structured_lookup` queries prefer table evidence first, then spec/context evidence, without adding any query-derived document filters.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for structured applies-to classification and table-family candidate selection.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py tests/unit/test_filters.py -q` -> 51 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 176 passed, 58 warnings.
+- Live eval command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Live eval result: saved 40-question single-step bank improved to 34/40 passed (85%), pass@1 77.5%, pass@3/pass@5 85%, candidate recall 100%, metadata-document recall 100%, metadata-document rank-1 rate 68.42%. Failure categories: `ranking_or_context_loss: 6`; `wrong_document_or_filter_loss` dropped to 0. Table questions were 28/33, atomic text 5/6, spec 1/1.
+- New artifacts: `test_reports/retrieval_eval_dataset_20260824_052609.jsonl`, `test_reports/retrieval_eval_results_20260824_052609.jsonl`, `test_reports/retrieval_eval_summary_20260824_052609.json`, `test_reports/retrieval_eval_manifest_20260824_052609.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/query_analysis.py`, `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval summary/manifest artifacts for the 05:26 UTC run.
+
+Next target:
+
+- Improve context assembly/scoring for the remaining all-candidate-recall misses, especially IV4 address/detection table rows and short XG-X error-message table cells, then generate the first true multi-step retrieval cases.

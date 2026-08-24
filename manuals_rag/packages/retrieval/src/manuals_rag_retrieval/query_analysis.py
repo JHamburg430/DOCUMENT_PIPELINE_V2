@@ -46,6 +46,14 @@ def analyze_query(query: str) -> QueryAnalysis:
     if any(word in lowered for word in ["command", "timing", "flow", "handshake", "flag", "procedure"]):
         types.append("operational_flow")
         preferred_chunk_types.extend(["section_window", "procedure_record"])
+    structured_lookup_field = re.search(
+        r"\b(?:address|value|message|symbol|description|index|sub\s+index|stored\s+data|error\s+message)\b",
+        lowered,
+    )
+    structured_lookup_shape = re.search(r"\b(?:applies?\s+to|applies?\s+for)\b", lowered)
+    if structured_lookup_field and structured_lookup_shape:
+        types.append("structured_lookup")
+        preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
     requested_doc_kind = None
     if "datasheet" in lowered:
         requested_doc_kind = "datasheet"

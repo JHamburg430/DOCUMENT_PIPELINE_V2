@@ -187,7 +187,7 @@ def _text_terms(text: str) -> set[str]:
 
 
 def _query_has_explicit_structure(analysis: QueryAnalysis) -> bool:
-    structured_types = {"spec_lookup", "part_lookup", "comparison", "compatibility", "revision_history"}
+    structured_types = {"spec_lookup", "structured_lookup", "part_lookup", "comparison", "compatibility", "revision_history"}
     return bool(structured_types.intersection(analysis.query_types))
 
 
@@ -208,6 +208,13 @@ def _family_score_adjustment(result: SearchResult, analysis: QueryAnalysis) -> f
             adjustment += 0.06
         elif chunk_type == "atomic_text":
             adjustment -= 0.01
+    if "structured_lookup" in analysis.query_types:
+        if chunk_type == "table_record":
+            adjustment += 0.07
+        elif chunk_type in {"spec_record", "datasheet_record"}:
+            adjustment += 0.04
+        elif chunk_type == "section_window":
+            adjustment += 0.02
     if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
         if chunk_type == "procedure_record":
             adjustment += 0.06
@@ -288,6 +295,8 @@ def _preferred_family_order(analysis: QueryAnalysis) -> list[str]:
         return ["procedure", "context", "prose", "table"]
     if "operational_flow" in analysis.query_types:
         return ["prose", "context", "procedure", "table"]
+    if "structured_lookup" in analysis.query_types:
+        return ["table", "spec", "context", "prose"]
     if "spec_lookup" in analysis.query_types or "part_lookup" in analysis.query_types:
         return ["spec", "table", "prose", "context"]
     if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
@@ -302,6 +311,8 @@ def _allowed_families(analysis: QueryAnalysis) -> set[str]:
         return {"procedure", "context", "prose"}
     if "operational_flow" in analysis.query_types:
         return {"prose", "context", "procedure"}
+    if "structured_lookup" in analysis.query_types:
+        return {"table", "spec", "context"}
     if "spec_lookup" in analysis.query_types or "part_lookup" in analysis.query_types:
         return {"spec", "table", "context"}
     if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:

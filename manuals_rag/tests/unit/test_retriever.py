@@ -164,6 +164,13 @@ def test_query_analysis_handles_revision_history_queries():
     assert analysis.preferred_metadata_filters["version_signal"] == "true"
 
 
+def test_query_analysis_marks_applies_to_field_questions_as_structured_lookup():
+    analysis = analyze_query("What address 1041 applies to Model-120?")
+    assert "structured_lookup" in analysis.query_types
+    assert "table_record" in analysis.preferred_chunk_types
+    assert "spec_record" in analysis.preferred_chunk_types
+
+
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():
     analysis = analyze_query("What does LJ-X8000 say about trigger timing?")
     first = SearchResult(
@@ -581,6 +588,37 @@ def test_select_family_candidates_prefers_spec_family_for_spec_lookup():
     chosen = retriever._select_family_candidates([prose, spec], analysis, limit=4)
     assert chosen[0].chunk_id == "spec"
     assert "spec" in [item.chunk_id for item in chosen]
+
+
+def test_select_family_candidates_prefers_table_family_for_structured_lookup():
+    analysis = analyze_query("What error message value applies to Model-120?")
+    prose = SearchResult(
+        chunk_id="prose",
+        score=0.8,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Notes"],
+        content="An error occurs if the input is invalid.",
+        metadata={"chunk_type": "atomic_text", "family_bucket": "prose"},
+    )
+    table = SearchResult(
+        chunk_id="table",
+        score=0.6,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[5],
+        section_path=["Error Messages"],
+        content="Column headers: Error Message; Cell value: Library conversion was interrupted.",
+        metadata={"chunk_type": "table_record", "family_bucket": "table"},
+    )
+
+    chosen = retriever._select_family_candidates([prose, table], analysis, limit=4)
+
+    assert chosen[0].chunk_id == "table"
+    assert "prose" not in [item.chunk_id for item in chosen]
 
 
 def test_run_dense_search_queries_each_corpus_and_returns_dense_hits():
