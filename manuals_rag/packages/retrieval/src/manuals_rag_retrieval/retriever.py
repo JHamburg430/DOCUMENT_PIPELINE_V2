@@ -217,6 +217,14 @@ def _should_run_extra_table_vector_search(analysis: QueryAnalysis) -> bool:
     return _should_run_table_search(analysis)
 
 
+def _should_run_table_lexical_search(analysis: QueryAnalysis) -> bool:
+    if "structured_lookup" not in analysis.query_types:
+        return True
+    if analysis.product_model or analysis.part_number:
+        return False
+    return True
+
+
 def run_special_search(
     store: QdrantStore,
     query: str,
@@ -313,6 +321,23 @@ def _structured_prompt_phrase(query: str) -> str:
         return ""
     phrase = re.sub(r"\s+", " ", match.group("phrase")).strip(" .,:;")
     return re.sub(r"[^a-z0-9]+", "", phrase.lower())
+
+
+def _structured_lookup_subject_terms(query: str) -> set[str]:
+    match = re.search(
+        r"\bwhat\s+(?:error\s+)?(?:message|symbol|description|summary|detection)\s+(?P<subject>.+?)\s+(?:applies?\s+(?:to|for)|is\s+specified\s+for)\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return set()
+    terms: set[str] = set()
+    for term in tokenize(match.group("subject")):
+        normalized = re.sub(r"[^a-z0-9]+", "", term.lower())
+        if len(normalized) < 4 or normalized in LEXICAL_TABLE_STOPWORDS:
+            continue
+        terms.add(normalized)
+    return terms
 
 
 def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase: str = "") -> float:
@@ -419,6 +444,7 @@ def run_table_lexical_search(
                page_from, page_to, content, metadata_json, priority_score
         from retrieval_chunks
         where {" and ".join(where)}
+        order by priority_score desc, id
         limit {LEXICAL_TABLE_SCAN_LIMIT}
         """,
         tuple(params),
@@ -942,6 +968,19 @@ def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> flo
         safety_overlap = len(laser_safety_terms.intersection(content_terms.union(rerank_terms)))
         if safety_overlap >= 2:
             alignment += 0.18
+    if "structured_lookup" in analysis.query_types and chunk_type == "table_record":
+        subject_terms = _structured_lookup_subject_terms(analysis.raw_query)
+        if subject_terms:
+            compact_evidence = re.sub(
+                r"[^a-z0-9]+",
+                "",
+                str(result.metadata.get("rerank_document") or result.metadata.get("content_for_rerank") or result.content or "").lower(),
+            )
+            subject_overlap = sum(1 for term in subject_terms if term in compact_evidence)
+            if subject_overlap:
+                alignment += min(0.6, subject_overlap * 0.3)
+            elif content_overlap <= 1 and rerank_overlap <= 1:
+                alignment -= 0.08
     if analysis.safety_intent and "how_to" in analysis.query_types:
         warning_phrase = _safety_warning_phrase(analysis.raw_query)
         if warning_phrase and chunk_type == "warning_record":
@@ -1395,7 +1434,11 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
         if _should_run_extra_table_vector_search(analysis)
         else []
     )
-    table_lexical_results = _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis), "table_lexical")
+    table_lexical_results = (
+        _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis), "table_lexical")
+        if _should_run_table_lexical_search(analysis)
+        else []
+    )
     contextual_lexical_results = _annotate_stage_metadata(
         run_contextual_lexical_search(query, corpus_ids, filters, analysis),
         "contextual_lexical",

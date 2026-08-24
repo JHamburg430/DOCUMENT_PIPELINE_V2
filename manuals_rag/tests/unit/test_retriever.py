@@ -296,6 +296,14 @@ def test_structured_lookup_uses_focused_vector_route_instead_of_duplicate_broad_
     assert "structured_lookup" in analysis.query_types
     assert retriever._should_run_broad_vector_search(analysis) is False
     assert retriever._should_run_extra_table_vector_search(analysis) is True
+    assert retriever._should_run_table_lexical_search(analysis) is False
+
+
+def test_structured_lookup_without_explicit_identifier_keeps_table_lexical_search():
+    analysis = analyze_query("What message profinetunit applies to User's Manual (3D mode)?")
+
+    assert "structured_lookup" in analysis.query_types
+    assert retriever._should_run_table_lexical_search(analysis) is True
 
 
 def test_structured_lookup_skips_contextual_lexical_search_terms():
@@ -679,6 +687,36 @@ def test_query_alignment_promotes_generic_mixed_vendor_spec_lookup():
     rescored = retriever._apply_query_alignment([wrong_document, aligned], analysis, stage="query_aligned")
 
     assert rescored[0].chunk_id == "aligned"
+
+
+def test_query_alignment_promotes_structured_lookup_exact_subject():
+    analysis = analyze_query("What message profinetunit applies to User's Manual (3D mode)?")
+    generic_message = SearchResult(
+        chunk_id="generic",
+        score=0.5,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Errors"],
+        content="Message: Failed to register the pattern. Cause: The pattern region extends beyond the image.",
+        metadata={"chunk_type": "table_record"},
+    )
+    exact_subject = SearchResult(
+        chunk_id="exact",
+        score=0.45,
+        title="Manual",
+        document_version_id="ver-2",
+        source_document_id="doc-2",
+        pages=[2],
+        section_path=["Errors"],
+        content="Message: The PROFINETunit cannot be recognized. Cause: The PROFINET unit is not recognized.",
+        metadata={"chunk_type": "table_record"},
+    )
+
+    rescored = retriever._apply_query_alignment([generic_message, exact_subject], analysis, stage="query_aligned")
+
+    assert rescored[0].chunk_id == "exact"
 
 
 def test_query_alignment_keeps_generic_procedure_search_ahead_of_unrelated_spec_table():
@@ -1924,6 +1962,7 @@ def test_table_lexical_search_scores_structured_troubleshooting_row_groups(monke
     assert results[0].metadata["table_row_group"] is True
     assert results[0].section_path == ["A-1"]
     assert "source_document_id = any" in str(captured["query"])
+    assert "order by priority_score desc, id" in str(captured["query"])
     assert captured["params"][0] == ["corpus-1"]
     assert captured["params"][1] == ["doc-1"]
 

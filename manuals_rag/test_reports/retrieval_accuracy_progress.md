@@ -562,3 +562,25 @@ Next target:
 Next target:
 
 - Reduce the remaining KV/structured lookup timeout in the saved single-step bank and then address the two remaining single-step ranking/context losses before promoting refreshed single-step data or broadening to cross-document multi-step cases.
+
+## 2026-08-24 Cron 39262386 Structured Lexical Latency
+
+- Target: reduce the remaining saved single-step KV/structured lookup timeout while preserving the warning-step multi-step 15/15 gate.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Failure review: prior saved single-step run `retrieval_eval_20260824_153051` was 37/40 (92.5%) with `eval_timeout: 1` and `ranking_or_context_loss: 2`. The KV-NC32T vibration-resistance structured table query still timed out under the 8-second gate even though stage profiling showed the expected KV rows were already at the top from vector routes; the supplemental lexical table scan added about 3.8 seconds. The LJ-X8000 PROFINETunit message row was present in the DB, but unscored lexical SQL limiting could exclude high-priority exact rows before Python scoring.
+- Changed retrieval logic in `packages/retrieval/src/manuals_rag_retrieval/retriever.py` so structured lookup queries with an explicit product model or part number skip the expensive supplemental table lexical scan. This keeps focused vector/table routes and avoids adding query-derived document filters.
+- Changed lexical table candidate SQL to order bounded candidates by existing `priority_score desc, id` before applying the scan limit, so high-priority table row/key-value evidence is not arbitrarily dropped before lexical scoring.
+- Added generic structured lookup subject alignment for table queries such as `What message <subject> applies ...`, giving exact compact subject matches a boost and lightly demoting table rows that lack the subject.
+- Added focused unit coverage in `tests/unit/test_retriever.py` for explicit-identifier lexical scan skipping, retained lexical scan behavior when no identifier exists, deterministic lexical SQL ordering, and exact-subject structured lookup alignment.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 75 passed, 1 warning.
+- Full unit tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q` -> 219 passed, 58 warnings in 166.53s.
+- Live eval command (saved single-step regression bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl --max-queries 40 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step result: `retrieval_eval_20260824_155708` improved from 37/40 (92.5%) to 38/40 (95%), pass@1 87.5%, pass@3 92.5%, pass@5 95%, candidate recall 100%, metadata-document recall 97.5%, and failures `ranking_or_context_loss: 2`. The prior KV-NC32T timeout now passes at rank 1 in 5.361s; no `eval_timeout` failures remain.
+- Live eval command (saved refined warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved refined warning-step result: `retrieval_eval_20260824_160131` held at 15/15 (100%), pass@1 86.67%, pass@3 93.33%, pass@5 100%, candidate recall 100%, metadata-document recall 100%, failure categories `{}`.
+- Question-bank counts unchanged: 153 exploratory questions total, 80 single-step and 73 multi-step. New artifacts tracked in manifest: `test_reports/retrieval_eval_summary_20260824_155708.json`, `test_reports/retrieval_eval_manifest_20260824_155708.json`, `test_reports/retrieval_eval_summary_20260824_160131.json`, `test_reports/retrieval_eval_manifest_20260824_160131.json`.
+- Changed files: `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `tests/unit/test_retriever.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 15:57 and 16:01 UTC.
+
+Next target:
+
+- Fix the remaining saved single-step ranking/context losses: promote the exact LJ-X8000 PROFINETunit message row/group into final top-k without broadening lexical scans, and retire or replace the old low-information IV4 detection table-header prompt before refreshing/promoting the single-step bank or broadening to cross-document multi-step cases.
