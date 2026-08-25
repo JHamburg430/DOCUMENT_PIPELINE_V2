@@ -274,6 +274,18 @@
           "test_reports/retrieval_accuracy_progress.md 2026-08-25 Answer Rotation Offset Support"
         ],
         "remaining": "The full direct retrieval target remains retrieval_eval_20260825_072839 at 7/10; next retrieval work should use cheaper pre-rerank discovery or candidate-pool budgeting for case 6, case 7, and case 9 exact evidence while avoiding rejected broad scoring/prefilter paths."
+      },
+      "2026-08-25T13:44:00Z": {
+        "severity": "critical",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Contained the out-of-scope API/UI eval_preparing_questions production-surface change by reverting commit 1455441 while preserving the in-scope deeper retrieval diagnostic commit.",
+        "evidence": [
+          "git revert --no-commit 1455441",
+          "apps/api/main.py no longer emits eval_preparing_questions",
+          "apps/ui/app.js no longer handles eval_preparing_questions or resetEvalOutput",
+          "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_ui_server.py -q -> 20 passed, 9 warnings"
+        ],
+        "remaining": "No retrieval pass rate is marked resolved by this containment. Continue from retrieval_eval_20260825_072839 and retrieval_debug_report_20260825_132726_stage120; avoid the rejected broad scoring/prefilter paths and keep API/UI changes out of the retrieval accuracy cron unless John explicitly approves them."
       }
     }
   },

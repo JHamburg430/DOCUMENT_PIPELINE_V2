@@ -93,18 +93,6 @@ def test_progress_steps_have_clickable_detail_disclosures():
     assert ".progress-payload" in styles_css
 
 
-def test_eval_start_resets_stale_output_surfaces():
-    app_js = (UI_DIR / "app.js").read_text()
-
-    assert "eval_preparing_questions" in app_js
-    assert "resetEvalOutput(\"Preparing evaluation questions.\")" in app_js
-    assert "resetEvalOutput(\"Generating evaluation questions from indexed chunks.\")" in app_js
-    assert "localStorage.removeItem(STORAGE_KEY)" in app_js
-    assert "$(\"model-output\").innerHTML = \"\"" in app_js
-    assert "$(\"result-run-id\").textContent = \"\"" in app_js
-    assert "renderQuestionTrace(refs.runtime)" in app_js
-
-
 def test_api_proxy_keeps_manuals_rag_same_origin(monkeypatch):
     upstream = _serve(UpstreamHandler)
     monkeypatch.setattr(ui_server, "API_BASE", f"http://127.0.0.1:{upstream.server_port}")

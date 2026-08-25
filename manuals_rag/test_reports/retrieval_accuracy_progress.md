@@ -1508,3 +1508,20 @@ Next target:
 Next target:
 
 - Continue from the full curated cross-document v2 baseline `retrieval_eval_20260825_072839` using `test_reports/retrieval_debug_report_20260825_132726_stage120.json`. Case 9 now has evidence that a deeper candidate path can recover the XG-X unsupported-SD row, so the next safe production experiment should test a bounded comparison/corrective-action candidate-budget change against the full 10-case gate and saved single-step/warning-procedure gates. Case 6 and case 7 still need cheaper discovery work because their exact missing chunks do not appear even at 120-stage depth.
+
+## 2026-08-25 Cron 39262386 Critical Guardrail Containment
+
+- Target: address the latest guardrail `2026-08-25T13:44:00Z` `critical` finding before doing any further retrieval tuning.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. The critical finding said commit `1455441` reintroduced out-of-scope API/UI production-surface changes (`eval_preparing_questions` streaming event and UI eval-output reset handling), repeating a prior containment issue.
+- Local stack: compose services were running and usable: API, Postgres, Qdrant, Redis, workers, and UI were up; Postgres was healthy.
+- Containment change: reverted only commit `1455441` with `git revert --no-commit 1455441`. This removes the API `eval_preparing_questions` event, UI reset handler, asset-version churn, and UI/API tests that asserted the out-of-scope behavior, while preserving the prior in-scope deeper retrieval diagnostic work.
+- Focused validation: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_ui_server.py -q` -> 20 passed, 9 warnings.
+- No retrieval, answering, eval-generation/scoring, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment logic was changed by this containment run. Existing uncommitted answering/eval prompt edits were left untouched and not treated as part of this run's evidence.
+- Question-bank counts remain monotonic and unchanged at 203 exploratory questions total: 100 single-step and 103 multi-step. No questions were retired or added; replacement debt remains 0.
+- Current retrieval target remains unchanged: full curated cross-document v2 baseline `retrieval_eval_20260825_072839` at 7/10 with `candidate_miss: 1`, `eval_timeout: 1`, and `ranking_or_context_loss: 1`, using `retrieval_debug_report_20260825_132726_stage120` as diagnostic evidence.
+- Guardrail handling: the `2026-08-25T13:44:00Z` critical finding was addressed directly. No retrieval pass rate is marked resolved by this containment.
+- Generalization check before commit: reverting the API/UI production-surface drift is valid for unseen manuals, unseen vendors, and realistic users because it restores the cron scope to retrieval, evaluation, and answering work only.
+
+Next target:
+
+- Continue from the full curated cross-document v2 baseline `retrieval_eval_20260825_072839` using `test_reports/retrieval_debug_report_20260825_132726_stage120.json`. Test only bounded, general candidate-budget or evidence-diversity changes that can improve the full 10-case gate while preserving saved single-step and warning/procedure gates. Keep API/UI changes out of this cron unless John explicitly approves them.
