@@ -263,6 +263,17 @@
           "retrieval_eval_20260825_123052"
         ],
         "remaining": "Full v2 direct baseline remains retrieval_eval_20260825_072839 at 7/10. Avoid the rejected row-phrase/code-label scoring path; inspect cheaper pre-rerank discovery or candidate-pool budgeting for exact evidence retention."
+      },
+      "2026-08-25T12:44:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Added saved-dataset --query-offset support for slow actual HTTP API answer rotations and used it to score curated cross-document v2 cases 5-6 without rerunning cases 1-4.",
+        "evidence": [
+          "tests/unit/test_retrieval_eval.py -q -> 67 passed",
+          "retrieval_eval_20260825_125515",
+          "test_reports/retrieval_accuracy_progress.md 2026-08-25 Answer Rotation Offset Support"
+        ],
+        "remaining": "The full direct retrieval target remains retrieval_eval_20260825_072839 at 7/10; next retrieval work should use cheaper pre-rerank discovery or candidate-pool budgeting for case 6, case 7, and case 9 exact evidence while avoiding rejected broad scoring/prefilter paths."
       }
     }
   },
@@ -573,8 +584,41 @@
     "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. This is answer-rotation evidence and does not supersede the full 10-case direct v2 failure profile from retrieval_eval_20260825_072839. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s."
   },
   "latest_results": {
-    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning after reverting the rejected experiment.",
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -> 67 passed in 0.31s.",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_125515",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_125515.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_125515.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_125515.json",
+        "status": "completed",
+        "mode": "actual_http_api_answer_rotation_offset_4",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "query_offset": 4,
+        "per_query_timeout_seconds": 90,
+        "total_queries": 2,
+        "passed_queries": 1,
+        "failed_queries": 1,
+        "pass_rate": 0.5,
+        "pass_at_1": 0.5,
+        "pass_at_3": 0.5,
+        "pass_at_5": 0.5,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 1,
+        "answer_failed_queries": 1,
+        "answer_pass_rate": 0.5,
+        "failure_categories": {
+          "ranking_or_context_loss": 1
+        },
+        "answer_failure_reasons": {
+          "expected_document_not_cited_or_used": 1,
+          "retrieval_not_passed": 1
+        },
+        "notes": "Used new --query-offset support to rotate actual HTTP /query answer coverage to curated cross-document v2 cases 5-6 without rerunning cases 1-4. Case 5 passed retrieval and API answer at rank 1; case 6 completed under a 90s API-answer gate but failed retrieval as ranking/context loss, confirming it is not only an 8s timeout artifact."
+      },
       {
         "run_id": "retrieval_eval_20260825_123052",
         "corpus_id": "manuals_vendor_keyence",
@@ -5350,18 +5394,18 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 and the full-rank diagnostic retrieval_debug_report_20260825_115623_full_rank. The rejected row-phrase/code-label scoring experiment retrieval_eval_20260825_123052 regressed the v2 gate to 6/10 with eval_timeout: 3 and ranking_or_context_loss: 1, so avoid broad post-fetch score boosts that increase rerank/final-stage cost without improving expected-evidence retention. Next safe work should inspect cheaper pre-rerank discovery or candidate-pool budgeting for exact setting/code/error-row evidence, especially case 6 Condition list/Standard Angle, case 7 LJ-S RTO2L, and case 9 XG-X unsupported-SD corrective action, without document-specific routing or inferred hard filters. Rotate actual HTTP API answers only when retrieval evidence is stable or add offset support.",
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 and the full-rank diagnostic retrieval_debug_report_20260825_115623_full_rank. Offset support is now available for slow actual HTTP answer rotations, and retrieval_eval_20260825_125515 confirms case 6 completes in HTTP answer mode but remains a ranking/context loss. Avoid the rejected row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe retrieval work should inspect cheaper pre-rerank discovery or candidate-pool budgeting for exact setting/code/error-row evidence, especially case 6 Condition list/Standard Angle, case 7 LJ-S RTO2L, and case 9 XG-X unsupported-SD corrective action, without document-specific routing or inferred hard filters.",
     "current_failure_categories": {
       "candidate_miss": 1,
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. This is answer-rotation evidence and does not supersede the full 10-case direct v2 failure profile from retrieval_eval_20260825_072839. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s.",
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss. retrieval_debug_report_20260825_115623_full_rank shows exact case 6 chunks absent across scanned stages, case 7 LJ-X PMSR present but LJ-S RTO2L absent, and case 9 CV-X present but XG-X unsupported-SD absent. Rejected experiment retrieval_eval_20260825_123052 is diagnostic-only because it regressed to 6/10 and introduced three 8s timeouts.",
+    "answer_grounding_status": "Actual HTTP API answer grounding now has offset-rotated evidence beyond the first four curated cross-document v2 cases. retrieval_eval_20260825_125515 scored cases 5-6 with --query-offset 4: case 5 passed retrieval and answer; case 6 failed retrieval/answer as ranking_or_context_loss with expected_document_not_cited_or_used and retrieval_not_passed. Together with retrieval_eval_20260825_080303, this remains rotation evidence, not a release-level answer gate. Answer source api: 2; fallback rate 0%; mean answer latency 46.234s.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss. retrieval_debug_report_20260825_115623_full_rank shows exact case 6 chunks absent across scanned stages, case 7 LJ-X PMSR present but LJ-S RTO2L absent, and case 9 CV-X present but XG-X unsupported-SD absent. retrieval_eval_20260825_125515 adds actual HTTP API answer evidence for cases 5-6 using --query-offset 4 but does not supersede the direct 10-case retrieval target.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
-      "insufficient_evidence": 1,
-      "retrieval_not_passed": 1
+      "retrieval_not_passed": 1,
+      "ranking_or_context_loss": 1
     },
     "diagnostics": [
       {
@@ -5379,8 +5423,8 @@
       }
     ]
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 and the full-rank diagnostic retrieval_debug_report_20260825_115623_full_rank. The rejected row-phrase/code-label scoring experiment retrieval_eval_20260825_123052 regressed the v2 gate to 6/10 with eval_timeout: 3 and ranking_or_context_loss: 1, so avoid broad post-fetch score boosts that increase rerank/final-stage cost without improving expected-evidence retention. Next safe work should inspect cheaper pre-rerank discovery or candidate-pool budgeting for exact setting/code/error-row evidence, especially case 6 Condition list/Standard Angle, case 7 LJ-S RTO2L, and case 9 XG-X unsupported-SD corrective action, without document-specific routing or inferred hard filters. Rotate actual HTTP API answers only when retrieval evidence is stable or add offset support.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss. retrieval_debug_report_20260825_115623_full_rank shows exact case 6 chunks absent across scanned stages, case 7 LJ-X PMSR present but LJ-S RTO2L absent, and case 9 CV-X present but XG-X unsupported-SD absent. Rejected experiment retrieval_eval_20260825_123052 is diagnostic-only because it regressed to 6/10 and introduced three 8s timeouts.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 and the full-rank diagnostic retrieval_debug_report_20260825_115623_full_rank. Offset support is now available for slow actual HTTP answer rotations, and retrieval_eval_20260825_125515 confirms case 6 completes in HTTP answer mode but remains a ranking/context loss. Avoid the rejected row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe retrieval work should inspect cheaper pre-rerank discovery or candidate-pool budgeting for exact setting/code/error-row evidence, especially case 6 Condition list/Standard Angle, case 7 LJ-S RTO2L, and case 9 XG-X unsupported-SD corrective action, without document-specific routing or inferred hard filters.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss. retrieval_debug_report_20260825_115623_full_rank shows exact case 6 chunks absent across scanned stages, case 7 LJ-X PMSR present but LJ-S RTO2L absent, and case 9 CV-X present but XG-X unsupported-SD absent. retrieval_eval_20260825_125515 adds actual HTTP API answer evidence for cases 5-6 using --query-offset 4 but does not supersede the direct 10-case retrieval target.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,

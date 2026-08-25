@@ -453,8 +453,13 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return records
 
 
-def load_eval_cases_from_dataset(path: Path, *, max_cases: int) -> list[dict[str, Any]]:
-    cases, _ = load_eval_cases_and_rejections_from_dataset(path, max_cases=max_cases, drop_invalid_cases=False)
+def load_eval_cases_from_dataset(path: Path, *, max_cases: int, case_offset: int = 0) -> list[dict[str, Any]]:
+    cases, _ = load_eval_cases_and_rejections_from_dataset(
+        path,
+        max_cases=max_cases,
+        case_offset=case_offset,
+        drop_invalid_cases=False,
+    )
     return cases
 
 
@@ -490,10 +495,14 @@ def load_eval_cases_and_rejections_from_dataset(
     path: Path,
     *,
     max_cases: int,
+    case_offset: int = 0,
     drop_invalid_cases: bool = False,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if case_offset < 0:
+        raise ValueError("case_offset must be non-negative.")
     cases: list[dict[str, Any]] = []
     rejected: list[dict[str, Any]] = []
+    accepted_before_offset = 0
     for record in read_jsonl(path):
         case = record.get("case") if isinstance(record.get("case"), dict) else record
         if not isinstance(case, dict):
@@ -511,6 +520,9 @@ def load_eval_cases_and_rejections_from_dataset(
                     }
                 )
                 continue
+        if accepted_before_offset < case_offset:
+            accepted_before_offset += 1
+            continue
         cases.append(eval_case.to_dict())
         if len(cases) >= max_cases:
             break
@@ -632,6 +644,12 @@ def main() -> int:
     parser.add_argument("--docs-dir", type=Path, default=DEFAULT_DOCS_DIR)
     parser.add_argument("--max-docs", type=int, default=5)
     parser.add_argument("--max-queries", type=int, default=240)
+    parser.add_argument(
+        "--query-offset",
+        type=int,
+        default=0,
+        help="Skip this many accepted saved-dataset cases before applying --max-queries. Useful for rotating slow answer eval batches.",
+    )
     parser.add_argument("--max-doc-bytes", type=int, default=90000000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--existing-corpus-id", type=str, default=None)
@@ -732,12 +750,14 @@ def main() -> int:
         cases, rejected_cases = load_eval_cases_and_rejections_from_dataset(
             args.dataset_path,
             max_cases=args.max_queries,
+            case_offset=args.query_offset,
             drop_invalid_cases=args.drop_invalid_saved_cases,
         )
         print(
             json.dumps(
                 {
                     "dataset_path": str(args.dataset_path),
+                    "query_offset": args.query_offset,
                     "loaded_cases": len(cases),
                     "dropped_invalid_cases": len(rejected_cases),
                     "rejected_cases": rejected_cases,
@@ -869,6 +889,7 @@ def main() -> int:
                 "input_dataset_path": str(args.dataset_path) if args.dataset_path else None,
                 "search_mode": args.search_mode,
                 "response_mode": args.response_mode,
+                "query_offset": args.query_offset if args.dataset_path else 0,
                 "per_query_timeout_seconds": args.per_query_timeout_seconds,
                 "warmup_queries": args.warmup_queries,
                 "warmup_timeout_seconds": warmup_timeout_seconds,

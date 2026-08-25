@@ -58,6 +58,72 @@ def test_large_retrieval_eval_loads_saved_dataset(tmp_path):
     assert cases[0]["retrieval_task"] == "single_step_retrieval"
 
 
+def test_large_retrieval_eval_offsets_saved_dataset_after_validation(tmp_path):
+    import importlib.util
+    import json
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    def _case(case_id: str, query: str, source_chunk_id: str, *, stale: bool = False) -> RetrievalEvalCase:
+        return RetrievalEvalCase(
+            case_id=case_id,
+            query=query,
+            source_document_id="doc-1",
+            document_version_id="ver-1",
+            source_chunk_id=source_chunk_id,
+            source_title="Manual",
+            source_filename="manual.pdf",
+            chunk_type="table_record",
+            section_path="Specifications",
+            page_from=1,
+            page_to=1,
+            expected_terms=["24", "vdc", "power"],
+            expected_snippet=(
+                "Table header: Power supply voltage; Header role: row"
+                if stale
+                else "Column headers: Power supply voltage; Row headers: MODEL-1; Cell value: 24 VDC"
+            ),
+            generation_method="unit_test",
+            source_metadata={
+                "product_model": "MODEL-1",
+                "table_header": stale,
+                "table_cell": not stale,
+                "table_row_headers": [] if stale else ["MODEL-1"],
+                "table_column_headers": ["Power supply voltage"],
+            },
+            anchor_terms=["24", "vdc", "power"],
+        )
+
+    dataset_path = tmp_path / "cases.jsonl"
+    dataset_path.write_text(
+        "\n".join(
+            json.dumps(case.to_dict())
+            for case in [
+                _case("stale-header", "What voltage applies to MODEL-1?", "header-row", stale=True),
+                _case("case-1", "What power voltage does MODEL-1 require?", "chunk-1"),
+                _case("case-2", "Which supply voltage is listed for MODEL-1?", "chunk-2"),
+                _case("case-3", "What voltage should MODEL-1 use?", "chunk-3"),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    kept, rejected = module.load_eval_cases_and_rejections_from_dataset(
+        dataset_path,
+        max_cases=2,
+        case_offset=1,
+        drop_invalid_cases=True,
+    )
+
+    assert [case["case_id"] for case in kept] == ["case-2", "case-3"]
+    assert [case["case_id"] for case in rejected] == ["stale-header"]
+
+
 def test_large_retrieval_eval_can_drop_invalid_saved_single_step_cases(tmp_path):
     import importlib.util
     import json
