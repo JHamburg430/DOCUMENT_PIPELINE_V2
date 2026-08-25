@@ -18,6 +18,7 @@ def test_debug_report_includes_all_stages(monkeypatch):
     monkeypatch.setattr(retrieval_debug, "build_filters", lambda query, request_filters: {"is_active": True, **request_filters})
     monkeypatch.setattr(retrieval_debug, "analyze_query", lambda query: type("A", (), {"query_types": ["spec_lookup"], "preferred_chunk_types": ["spec_record"]})())
     monkeypatch.setattr(retrieval_debug, "QdrantStore", lambda: object())
+    monkeypatch.setattr(retrieval_debug, "_chunk_search_filters", lambda filters, metadata_filters, _analysis: metadata_filters)
     monkeypatch.setattr(
         retrieval_debug,
         "select_documents_from_metadata",
@@ -29,6 +30,8 @@ def test_debug_report_includes_all_stages(monkeypatch):
     monkeypatch.setattr(retrieval_debug, "run_dense_search", lambda *args, **kwargs: [result])
     monkeypatch.setattr(retrieval_debug, "run_sparse_search", lambda *args, **kwargs: [result])
     monkeypatch.setattr(retrieval_debug, "run_table_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_table_lexical_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_contextual_lexical_search", lambda *args, **kwargs: [])
     monkeypatch.setattr(retrieval_debug, "run_special_search", lambda *args, **kwargs: [])
     monkeypatch.setattr(retrieval_debug, "fuse_results", lambda *args, **kwargs: [result])
     monkeypatch.setattr(retrieval_debug, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)
@@ -36,6 +39,7 @@ def test_debug_report_includes_all_stages(monkeypatch):
     monkeypatch.setattr(retrieval_debug, "_select_family_candidates", lambda results, *_args, **_kwargs: results)
     monkeypatch.setattr(retrieval_debug, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
     monkeypatch.setattr(retrieval_debug, "rerank_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_promote_comparison_table_candidates", lambda results, *_args, **_kwargs: results)
     monkeypatch.setattr(retrieval_debug, "_dedupe_results", lambda results, *_args, **_kwargs: results)
     monkeypatch.setattr(retrieval_debug, "assemble_context", lambda results, **_kwargs: results)
 
@@ -50,11 +54,14 @@ def test_debug_report_includes_all_stages(monkeypatch):
     case = report["cases"][0]
     assert case["query_types"] == ["spec_lookup"]
     assert case["filters"]["source_document_id"] == ["doc-1"]
+    assert case["chunk_search_filters"]["source_document_id"] == ["doc-1"]
     assert [stage["name"] for stage in case["stages"]] == [
         "metadata_document_selection",
         "dense",
         "sparse",
         "table",
+        "table_lexical",
+        "contextual_lexical",
         "special",
         "fused",
         "family_scored",
@@ -62,6 +69,8 @@ def test_debug_report_includes_all_stages(monkeypatch):
         "query_aligned",
         "family_selected",
         "reranked",
+        "comparison_table_promoted",
+        "deduped",
         "assembled",
     ]
     assert case["stages"][0]["results"][0]["source_document_id"] == "doc-1"
@@ -97,6 +106,7 @@ def test_debug_report_summary_flags_low_information_stage_regressions(monkeypatc
     monkeypatch.setattr(retrieval_debug, "build_filters", lambda query, request_filters: {"is_active": True, **request_filters})
     monkeypatch.setattr(retrieval_debug, "analyze_query", lambda query: type("A", (), {"query_types": ["spec_lookup"], "preferred_chunk_types": ["spec_record"]})())
     monkeypatch.setattr(retrieval_debug, "QdrantStore", lambda: object())
+    monkeypatch.setattr(retrieval_debug, "_chunk_search_filters", lambda filters, metadata_filters, _analysis: metadata_filters)
     monkeypatch.setattr(
         retrieval_debug,
         "select_documents_from_metadata",
@@ -105,6 +115,8 @@ def test_debug_report_summary_flags_low_information_stage_regressions(monkeypatc
     monkeypatch.setattr(retrieval_debug, "run_dense_search", lambda *args, **kwargs: [low_info])
     monkeypatch.setattr(retrieval_debug, "run_sparse_search", lambda *args, **kwargs: [strong])
     monkeypatch.setattr(retrieval_debug, "run_table_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_table_lexical_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_contextual_lexical_search", lambda *args, **kwargs: [])
     monkeypatch.setattr(retrieval_debug, "run_special_search", lambda *args, **kwargs: [])
     monkeypatch.setattr(retrieval_debug, "fuse_results", lambda *args, **kwargs: [strong])
     monkeypatch.setattr(retrieval_debug, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)
@@ -112,6 +124,7 @@ def test_debug_report_summary_flags_low_information_stage_regressions(monkeypatc
     monkeypatch.setattr(retrieval_debug, "_select_family_candidates", lambda results, *_args, **_kwargs: results)
     monkeypatch.setattr(retrieval_debug, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
     monkeypatch.setattr(retrieval_debug, "rerank_results", lambda results, *_args, **_kwargs: [low_info])
+    monkeypatch.setattr(retrieval_debug, "_promote_comparison_table_candidates", lambda results, *_args, **_kwargs: results)
     monkeypatch.setattr(retrieval_debug, "_dedupe_results", lambda results, *_args, **_kwargs: results)
     monkeypatch.setattr(retrieval_debug, "assemble_context", lambda results, **_kwargs: results)
 
@@ -125,3 +138,78 @@ def test_debug_report_summary_flags_low_information_stage_regressions(monkeypatc
     assert report["summary"]["cases_with_low_information_top_hit"] == 1
     assert report["summary"]["cases_with_empty_special_stage"] == 1
     assert report["summary"]["cases_where_rerank_promoted_low_information"] == 1
+
+
+def test_debug_report_tracks_expected_evidence_stage_ranks(monkeypatch):
+    expected = SearchResult(
+        chunk_id="chunk-expected",
+        score=0.9,
+        title="Expected Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[8],
+        section_path=["Troubleshooting"],
+        content="Corrective Action: KEYENCE does not guarantee operation with commercial SD cards.",
+        metadata={"chunk_type": "table_record"},
+    )
+    distractor = SearchResult(
+        chunk_id="chunk-other",
+        score=0.95,
+        title="Other Manual",
+        document_version_id="ver-2",
+        source_document_id="doc-2",
+        pages=[3],
+        section_path=["Troubleshooting"],
+        content="Corrective Action: Check write protection on the SD card.",
+        metadata={"chunk_type": "table_record"},
+    )
+
+    monkeypatch.setattr(retrieval_debug, "build_filters", lambda query, request_filters: {"is_active": True, **request_filters})
+    monkeypatch.setattr(
+        retrieval_debug,
+        "analyze_query",
+        lambda query: type("A", (), {"query_types": ["comparison"], "preferred_chunk_types": ["table_record"]})(),
+    )
+    monkeypatch.setattr(retrieval_debug, "QdrantStore", lambda: object())
+    monkeypatch.setattr(retrieval_debug, "_chunk_search_filters", lambda filters, metadata_filters, _analysis: metadata_filters)
+    monkeypatch.setattr(
+        retrieval_debug,
+        "select_documents_from_metadata",
+        lambda store, query, corpus_ids, filters: (filters, []),
+    )
+    monkeypatch.setattr(retrieval_debug, "run_dense_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_sparse_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_table_search", lambda *args, **kwargs: [distractor])
+    monkeypatch.setattr(retrieval_debug, "run_table_lexical_search", lambda *args, **kwargs: [expected, distractor])
+    monkeypatch.setattr(retrieval_debug, "run_contextual_lexical_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_special_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "fuse_results", lambda _store, sets, **_kwargs: [item for group in sets for item in group])
+    monkeypatch.setattr(retrieval_debug, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_annotate_completeness", lambda results: results)
+    monkeypatch.setattr(retrieval_debug, "_apply_query_alignment", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_select_family_candidates", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "rerank_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_promote_comparison_table_candidates", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_dedupe_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "assemble_context", lambda results, **_kwargs: results)
+
+    report = retrieval_debug.debug_retrieval_report(
+        corpus_ids=["manuals_vendor_keyence"],
+        queries=["Compare unsupported SD-card corrective actions."],
+        top_k=5,
+        expected_evidence_by_query={
+            "Compare unsupported SD-card corrective actions.": [
+                {
+                    "chunk_id": "chunk-expected",
+                    "source_document_id": "doc-1",
+                    "expected_terms": ["keyence", "guarantee", "commercial"],
+                }
+            ]
+        },
+    )
+
+    ranks = report["cases"][0]["diagnostics"]["expected_evidence_stage_ranks"]
+    assert ranks["table_lexical"][0]["exact_rank"] == 1
+    assert ranks["table"][0]["exact_rank"] is None
+    assert ranks["assembled"][0]["same_document_best_overlap"] == 3
