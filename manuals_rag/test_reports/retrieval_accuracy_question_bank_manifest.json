@@ -342,6 +342,17 @@
           "post-revert tests/unit/test_retriever.py -q -> 91 passed, 1 warning"
         ],
         "remaining": "Continue from retrieval_eval_20260825_072839. Avoid the rejected compact-product SQL supplemental slice along with prior rejected comparison tuning paths; investigate cheaper SQL diagnostics or an indexed/bounded discovery design before another production retrieval commit."
+      },
+      "2026-08-25T21:44:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Followed the guardrail instruction to continue from the full curated cross-document v2 baseline and target bounded/indexed setting-item or row-code discovery for cases 6 and 7 while keeping case 9 separate.",
+        "evidence": [
+          "retrieval_eval_20260825_215706",
+          "tests/unit/test_retriever.py -q -> 93 passed during experiment",
+          "git diff -- packages/retrieval/src/manuals_rag_retrieval/retriever.py tests/unit/test_retriever.py empty after revert"
+        ],
+        "remaining": "The tested user-mentioned table-item focus lookup did not improve the 10-case v2 gate and was reverted. Continue from retrieval_eval_20260825_072839 and identifier-pool/source-stage diagnostics; avoid this rejected focus-phrase supplement along with earlier rejected comparison tuning paths."
       }
     },
     "diagnostics": [
@@ -680,8 +691,38 @@
     "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated."
   },
   "latest_results": {
-    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning after reverting the rejected compact-product SQL experiment.",
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 93 passed, 1 warning during the rejected user-mentioned table-item focus experiment; production retrieval/test edits were reverted afterward.",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_215706",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_215706.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_215706.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_215706.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "direct_cross_document_v2_user_named_table_item_focus_experiment",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 10,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 10,
+        "passed_queries": 7,
+        "failed_queries": 3,
+        "pass_rate": 0.7,
+        "pass_at_1": 0.6,
+        "pass_at_3": 0.7,
+        "pass_at_5": 0.7,
+        "candidate_recall_rate": 0.8,
+        "metadata_document_selection_recall_rate": 1.0,
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 1,
+          "candidate_miss": 1
+        },
+        "baseline": "retrieval_eval_20260825_072839",
+        "notes": "Rejected and reverted: a general user-mentioned table-item supplemental lookup for comparison queries left the full manually reviewed cross-document v2 gate at the 7/10 baseline with the same failure profile. Cases 6, 7, and 9 still failed as eval_timeout, ranking/context loss, and candidate miss, respectively, so no production retrieval/test code was retained."
+      },
       {
         "run_id": "retrieval_eval_20260825_142811",
         "corpus_id": "manuals_vendor_keyence",
@@ -5733,8 +5774,8 @@
       }
     ]
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_2129_identifier_pool plus source-stage, stage-timing, SQL order/pool, and top-k diagnostics. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, duplicate comparison special-table removal, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Cases 6 and 7 need a general indexed/bounded setting-item or row-code discovery path because exact validated rows match terms but rank hundreds deep in capped SQL pools; case 9 should remain a final top-5/context-selection target. Validate any production retrieval change against the full 10-case v2 gate plus saved single-step and warning/procedure gates.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_2129_identifier_pool is diagnostic-only SQL pool crowding evidence and does not supersede the baseline.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_2129_identifier_pool plus source-stage, stage-timing, SQL order/pool, and top-k diagnostics. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, duplicate comparison special-table removal, user-mentioned table-item focus supplements, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Cases 6 and 7 still need a truly bounded/indexed setting-item or row-code discovery design because exact validated rows match terms but rank hundreds deep in capped SQL pools; case 9 should remain a final top-5/context-selection target. Validate any production retrieval change against the full 10-case v2 gate plus saved single-step and warning/procedure gates.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_215706 is diagnostic-only after the user-mentioned table-item focus experiment stayed 7/10 with the same failure profile; all production retrieval/test edits were reverted.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
