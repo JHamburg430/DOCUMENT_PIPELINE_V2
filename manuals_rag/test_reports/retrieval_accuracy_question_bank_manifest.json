@@ -330,6 +330,18 @@
           "test_reports/retrieval_debug_report_20260825_1758_sql_pool_probe.json"
         ],
         "remaining": "Cases 6 and 7 need a bounded general discovery/order fix: their exact table chunks pass content prefilter and identifier checks but are below the current table-lexical raw SQL pool window. Case 9 should be handled separately as final-context selection once rank evidence is stable."
+      },
+      "2026-08-25T18:14:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Tested a bounded general table-lexical SQL ordering/pool experiment after the SQL pool diagnostics, then rejected and reverted it when the full curated cross-document v2 gate showed early timeout regression.",
+        "evidence": [
+          "tests/unit/test_retriever.py -q -> 91 passed, 1 warning before revert",
+          "retrieval_eval_20260825_182551 -> 1/10, failure_categories eval_timeout: 9",
+          "post-revert git diff -- packages/retrieval/src/manuals_rag_retrieval/retriever.py empty",
+          "post-revert tests/unit/test_retriever.py -q -> 91 passed, 1 warning"
+        ],
+        "remaining": "Continue from retrieval_eval_20260825_072839. Avoid the rejected compact-product SQL supplemental slice along with prior rejected comparison tuning paths; investigate cheaper SQL diagnostics or an indexed/bounded discovery design before another production retrieval commit."
       }
     }
   },
@@ -630,17 +642,17 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_1727_lexical_probe is diagnostic-only: it fetched exact expected chunks for cases 6, 7, and 9 and compared them with current table-lexical query terms, content-prefilter terms, identifier matching, and exact stage presence. Case 6 exact Condition list and Standard Angle chunks exist, match their expected terms, match the comparison content prefilter terms, and match the requested product identifiers, but still have no exact rank in any retrieval stage; this points to SQL/order/pool discovery rather than answer scoring. Case 7 exact LJ-S RTO2L also exists, matches rto2l/measurement lexical prefilter terms, matches expected equivalent/aspect/ratio terms, and matches the LJ-S8000 identifier, but has no exact stage rank while the LJ-X PMSR companion reaches assembled rank 4. Case 9 remains split evidence: the CV-X edge row appears in several stages while the XG-X unsupported-SD chunk matches lexical terms and identifier but did not appear in this latest exact-stage probe, so use the earlier top-k/same-document reports before changing final top-k selection. No retrieval pass rate is marked resolved by this diagnostic.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. The compact-product SQL supplemental-slice experiment was rejected after retrieval_eval_20260825_182551 regressed to 1/10 with eval_timeout: 9; no production retrieval code remains from that experiment.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "insufficient_evidence": 1,
       "retrieval_not_passed": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1727_lexical_probe plus retrieval_debug_report_20260825_1702_same_doc_crowding, retrieval_debug_report_20260825_155744_topk_windows, and retrieval_debug_report_20260825_132726_stage120. Avoid the rejected comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should inspect why exact validated table chunks that match current comparison lexical terms and product identifiers are absent from table_lexical and vector stages for case 6 and LJ-S RTO2L, focusing on cheap SQL/order/pool diagnostics or a bounded discovery fix with saved single-step and warning/procedure gates. Keep case 9 as a separate final-context-selection target only after confirming stable rank evidence.",
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1758_sql_pool_probe and prior diagnostics. Avoid the rejected compact-product SQL supplemental slice from 2026-08-25 18:27 UTC, along with rejected comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should either add cheaper SQL diagnostics that estimate candidate ordering features without running extra production queries, or design an indexed/bounded table-lexical discovery path that can be validated against saved single-step and warning/procedure gates before any production commit.",
     "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated."
   },
   "latest_results": {
-    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_debug.py -q -> 8 passed in 5.34s.",
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning after reverting the rejected compact-product SQL experiment.",
     "evals": [
       {
         "run_id": "retrieval_eval_20260825_142811",
@@ -5492,20 +5504,35 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1727_lexical_probe plus retrieval_debug_report_20260825_1702_same_doc_crowding, retrieval_debug_report_20260825_155744_topk_windows, and retrieval_debug_report_20260825_132726_stage120. Avoid the rejected comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should inspect why exact validated table chunks that match current comparison lexical terms and product identifiers are absent from table_lexical and vector stages for case 6 and LJ-S RTO2L, focusing on cheap SQL/order/pool diagnostics or a bounded discovery fix with saved single-step and warning/procedure gates. Keep case 9 as a separate final-context-selection target only after confirming stable rank evidence.",
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1758_sql_pool_probe and prior diagnostics. Avoid the rejected compact-product SQL supplemental slice from 2026-08-25 18:27 UTC, along with rejected comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should either add cheaper SQL diagnostics that estimate candidate ordering features without running extra production queries, or design an indexed/bounded table-lexical discovery path that can be validated against saved single-step and warning/procedure gates before any production commit.",
     "current_failure_categories": {
       "candidate_miss": 1,
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
     "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated.",
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_1727_lexical_probe is diagnostic-only: it fetched exact expected chunks for cases 6, 7, and 9 and compared them with current table-lexical query terms, content-prefilter terms, identifier matching, and exact stage presence. Case 6 exact Condition list and Standard Angle chunks exist, match their expected terms, match the comparison content prefilter terms, and match the requested product identifiers, but still have no exact rank in any retrieval stage; this points to SQL/order/pool discovery rather than answer scoring. Case 7 exact LJ-S RTO2L also exists, matches rto2l/measurement lexical prefilter terms, matches expected equivalent/aspect/ratio terms, and matches the LJ-S8000 identifier, but has no exact stage rank while the LJ-X PMSR companion reaches assembled rank 4. Case 9 remains split evidence: the CV-X edge row appears in several stages while the XG-X unsupported-SD chunk matches lexical terms and identifier but did not appear in this latest exact-stage probe, so use the earlier top-k/same-document reports before changing final top-k selection. No retrieval pass rate is marked resolved by this diagnostic.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. The compact-product SQL supplemental-slice experiment was rejected after retrieval_eval_20260825_182551 regressed to 1/10 with eval_timeout: 9; no production retrieval code remains from that experiment.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "retrieval_not_passed": 1,
       "ranking_or_context_loss": 1
     },
     "diagnostics": [
+      {
+        "path": "test_reports/retrieval_eval_summary_20260825_182551.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "compact_product_sql_supplemental_slice_experiment",
+        "baseline": "retrieval_eval_20260825_072839",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_182551.jsonl",
+        "completed_queries": 10,
+        "passed_queries": 1,
+        "failure_categories": {
+          "eval_timeout": 9
+        },
+        "notes": "Comparison-only compact-product SQL ordering and supplemental per-product/content-prefilter slice caused timeout regression and was reverted before commit.",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_182551.json",
+        "results_path": "test_reports/retrieval_eval_results_20260825_182551.jsonl"
+      },
       {
         "path": "test_reports/retrieval_debug_report_20260825_1727_lexical_probe.json",
         "status": "completed",
@@ -5635,16 +5662,15 @@
       "report": "test_reports/retrieval_debug_report_20260825_1758_sql_pool_probe.json",
       "type": "expected_evidence_table_lexical_sql_pool_probe",
       "scope": "curated_cross_document_v2_cases_6_7_9",
-      "status": "diagnostic_only_no_pass_rate_resolved",
+      "status": "still_current_after_rejected_compact_product_sql_experiment",
       "evidence": {
-        "case_6": "Condition list SQL rank 399; Standard Angle SQL rank 370; neither exact chunk appears in observed retrieval stages at stage_candidate_limit=120.",
-        "case_7": "LJ-X PMSR companion SQL rank 2 and assembled rank 4; LJ-S RTO2L SQL rank 431 and absent from observed stages.",
-        "case_9": "XG-X unsupported-SD SQL rank 3 but not reproduced in observed exact stages in this run; CV-X companion SQL rank 116 and present in several stages."
+        "rejected_experiment": "retrieval_eval_20260825_182551 completed at 1/10 with eval_timeout: 9 after the compact-product SQL supplemental-slice experiment; retrieval code was reverted.",
+        "current_baseline": "retrieval_eval_20260825_072839 remains 7/10 with candidate_miss: 1, eval_timeout: 1, ranking_or_context_loss: 1."
       }
     }
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1758_sql_pool_probe plus the lexical-probe, same-document-crowding, top-k-window, and stage-120 diagnostics. Avoid the rejected comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should investigate a bounded, general table-lexical SQL ordering/pool approach that lets exact setting/code rows with product-identifier and content-prefilter matches reach Python lexical scoring without expanding broad regexp scans or using document-specific routing. Preserve saved single-step and warning/procedure gates before committing any production retrieval change, and keep case 9 separate as a final-context-selection target.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_1758_sql_pool_probe is diagnostic-only: it confirms that case 6 exact Condition list and Standard Angle chunks pass current comparison content-prefilter terms but sit at raw table-lexical SQL pool ranks 399 and 370, respectively; case 7 exact LJ-S RTO2L passes prefilter terms and product identifier matching but sits at SQL pool rank 431, while the LJ-X PMSR companion is SQL rank 2 and assembled rank 4. Case 9 remains split: the XG-X unsupported-SD row is raw SQL rank 3 but absent from observed exact stages in this run, while earlier top-k diagnostics showed it can appear by assembled rank 7; the CV-X companion has SQL rank 116 and is observed in multiple stages. No retrieval pass rate is marked resolved by this diagnostic; the likely gap for cases 6 and 7 is table-lexical raw SQL ordering/pool crowding before Python lexical scoring.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1758_sql_pool_probe and prior diagnostics. Avoid the rejected compact-product SQL supplemental slice from 2026-08-25 18:27 UTC, along with rejected comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should either add cheaper SQL diagnostics that estimate candidate ordering features without running extra production queries, or design an indexed/bounded table-lexical discovery path that can be validated against saved single-step and warning/procedure gates before any production commit.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. The compact-product SQL supplemental-slice experiment was rejected after retrieval_eval_20260825_182551 regressed to 1/10 with eval_timeout: 9; no production retrieval code remains from that experiment.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
