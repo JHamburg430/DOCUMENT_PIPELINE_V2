@@ -504,16 +504,92 @@
       "ranking_or_context_loss": 1
     },
     "current_failure_categories": {
-      "candidate_miss": 2,
-      "eval_timeout": 1,
-      "ranking_or_context_loss": 1
+      "candidate_miss": 1
     },
-    "next_target": "Continue cross-document paired-evidence recall/context work on the manually reviewed v2 slice beyond the first two answer-smoke cases, especially IV-HG/IV4 memory-read and XG-X SD-card evidence, while rotating actual HTTP API answer batches and preserving saved single-step and warning/procedure gates.",
-    "answer_grounding_status": "Actual HTTP API /query answer batch on the first two curated cross-document v2 cases improved from 0/2 in retrieval_eval_20260825_060844 to 2/2 in retrieval_eval_20260825_065905 after the answer workflow began using the integrated retriever. Answer source was api for both, fallback rate 0%, mean latency 41.239s. Coverage is still small and should keep rotating; remaining direct cross-document retrieval failures on v2 still need recall/context work."
+    "next_target": "Fix cross-document v2 answer grounding and retrieval beyond the first two API-smoke cases: case 3 retrieves both documents but the actual API answer misses an expected document citation/use, and case 4 still misses IV-HG/IV4 startup-memory paired evidence. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.",
+    "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s."
   },
   "latest_results": {
-    "unit_tests": "Focused retriever tests: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning. Broader shared unit gate: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 269 passed, 59 warnings in 152.09s.",
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_080303",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_080303.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_080303.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_080303.json",
+        "status": "completed",
+        "mode": "http_answer_with_citations_actual_api_payload",
+        "total_queries": 4,
+        "passed_queries": 3,
+        "failed_queries": 1,
+        "pass_rate": 0.75,
+        "pass_at_1": 0.5,
+        "pass_at_3": 0.75,
+        "pass_at_5": 0.75,
+        "answer_eval_count": 4,
+        "answer_passed_queries": 2,
+        "answer_pass_rate": 0.5,
+        "answer_sources": {
+          "api": 4
+        },
+        "answer_failure_reasons": {
+          "expected_document_not_cited_or_used": 1,
+          "insufficient_evidence": 1,
+          "retrieval_not_passed": 1
+        },
+        "failure_categories": {
+          "candidate_miss": 1
+        },
+        "notes": "Rotated actual /query answer scoring beyond the first two v2 cases. Cases 1-2 stayed green; case 3 retrieval passed but answer missed an expected document citation/use; case 4 failed retrieval and answer."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_080126",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_080126.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_080126.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_080126.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "direct_retrieval_with_rejected_comparison_promotion_experiment",
+        "total_queries": 10,
+        "passed_queries": 7,
+        "failed_queries": 3,
+        "pass_rate": 0.7,
+        "pass_at_1": 0.5,
+        "pass_at_3": 0.7,
+        "pass_at_5": 0.7,
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 1,
+          "candidate_miss": 1
+        },
+        "notes": "Rejected because removing the comparison-promotion skip did not improve pass rate and reduced pass@1 versus retrieval_eval_20260825_072839. Production retrieval edits were reverted."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_075902",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_075902.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_075902.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_075902.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "direct_retrieval_with_rejected_comparison_abbreviation_experiment",
+        "total_queries": 10,
+        "passed_queries": 7,
+        "failed_queries": 3,
+        "pass_rate": 0.7,
+        "pass_at_1": 0.6,
+        "pass_at_3": 0.7,
+        "pass_at_5": 0.7,
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 1,
+          "candidate_miss": 1
+        },
+        "notes": "Rejected because adding short comparison abbreviations such as SD did not improve the 10-case curated v2 slice. Production retrieval edits were reverted."
+      },
       {
         "run_id": "retrieval_eval_20260825_072839",
         "corpus_id": "manuals_vendor_keyence",
@@ -5032,17 +5108,13 @@
       }
     ],
     "failure_categories": {
-      "eval_timeout": 1,
-      "ranking_or_context_loss": 1,
       "candidate_miss": 1
     },
-    "next_target": "Continue cross-document paired-evidence recall/context work on the manually reviewed v2 slice, especially the XG-X unsupported SD-card corrective-action candidate miss, LJ-X/LJ-S symbol row context ranking loss, and the CV-X/LJ-X condition/standard-angle timeout; rotate the next actual HTTP API answer batch beyond the first two v2 cases when cron budget allows.",
+    "next_target": "Fix cross-document v2 answer grounding and retrieval beyond the first two API-smoke cases: case 3 retrieves both documents but the actual API answer misses an expected document citation/use, and case 4 still misses IV-HG/IV4 startup-memory paired evidence. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.",
     "current_failure_categories": {
-      "eval_timeout": 1,
-      "ranking_or_context_loss": 1,
       "candidate_miss": 1
     },
-    "answer_grounding_status": "No new HTTP API answer batch was run this cycle because the production retrieval change required direct cross-document, saved single-step, warning/procedure, focused unit, and full unit gates inside the cron window. The latest actual /query answer evidence remains retrieval_eval_20260825_065905 at 2/2 on the first two curated cross-document v2 cases; rotate cases 3-4 next after restarting or confirming the API has loaded the retrieval change."
+    "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s."
   },
-  "next_target": "Continue cross-document paired-evidence recall/context work on the manually reviewed v2 slice, especially the XG-X unsupported SD-card corrective-action candidate miss, LJ-X/LJ-S symbol row context ranking loss, and the CV-X/LJ-X condition/standard-angle timeout; rotate the next actual HTTP API answer batch beyond the first two v2 cases when cron budget allows."
+  "next_target": "Fix cross-document v2 answer grounding and retrieval beyond the first two API-smoke cases: case 3 retrieves both documents but the actual API answer misses an expected document citation/use, and case 4 still misses IV-HG/IV4 startup-memory paired evidence. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice."
 }

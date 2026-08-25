@@ -1272,3 +1272,24 @@ Next target:
 Next target:
 
 - Continue cross-document paired-evidence recall/context work on the manually reviewed v2 slice, especially the XG-X unsupported SD-card corrective-action candidate miss, LJ-X/LJ-S symbol row context ranking loss, and the CV-X/LJ-X condition/standard-angle timeout; rotate the next actual HTTP API answer batch beyond the first two v2 cases when cron budget allows.
+
+## 2026-08-25 Cron 39262386 Cross-Document Answer Rotation
+
+- Target: follow up guardrail `2026-08-25T07:44:00Z` by continuing cross-document paired-evidence work and rotating actual HTTP API answer coverage beyond the first two curated v2 cases.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. Direct run summaries for guardrail job `ca862d7a-e46f-4de3-870e-1cca28a3510c` were unavailable because the cron tool is restricted to the current job. The latest finding was `ok`, with required next action to address XG-X SD-card candidate miss, LJ-X/LJ-S symbol ranking/context loss, CV-X/LJ-X timeout, and rotate API answer batches.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Attempted retrieval experiments: tried two small generic comparison changes: preserving short uppercase abbreviations such as `SD` in comparison table lexical terms, then always promoting one already-retrieved table candidate per explicitly named comparison product. Both were rejected before commit because they did not improve the 10-case curated v2 slice.
+- Rejected evidence:
+  - `retrieval_eval_20260825_075902` with the abbreviation experiment stayed 7/10, pass@1 60%, pass@3/pass@5 70%, failures `eval_timeout: 1`, `ranking_or_context_loss: 1`, `candidate_miss: 1`.
+  - `retrieval_eval_20260825_080126` with the additional promotion experiment stayed 7/10 and lowered pass@1 to 50%, so the production retrieval edits were reverted.
+- Containment: no production retrieval/answering/eval code changes remain from the rejected experiments. Focused retriever tests after revert: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 91 passed, 1 warning.
+- Actual HTTP API answer command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl --max-queries 4 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 90 --warmup-queries 0 --warmup-timeout-seconds 45`.
+- Actual HTTP API answer result: `retrieval_eval_20260825_080303` scored real `/query` payloads on the first four curated v2 cases. Retrieval passed 3/4 and actual API answers passed 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence at rank 2 but the answer missed an expected document citation/use; case 4 failed retrieval with `candidate_miss` and the answer failed with `insufficient_evidence`/`retrieval_not_passed`. Answer source was `api: 4`, fallback rate was 0%, and mean answer latency was 32.710s.
+- Question-bank counts remain monotonic and unchanged at 203 exploratory questions total: 100 single-step and 103 multi-step. No questions were retired or added; replacement debt remains 0.
+- New artifacts: `test_reports/retrieval_eval_summary_20260825_075902.json`, `test_reports/retrieval_eval_manifest_20260825_075902.json`, `test_reports/retrieval_eval_summary_20260825_080126.json`, `test_reports/retrieval_eval_manifest_20260825_080126.json`, `test_reports/retrieval_eval_summary_20260825_080303.json`, and `test_reports/retrieval_eval_manifest_20260825_080303.json`. JSONL dataset/results files for these evals remain present locally under the same timestamps.
+- Guardrail handling: the run did not commit the unproven retrieval experiments and closed the requested API-answer rotation gap for cases 3-4 with actual user-visible payload evidence. Remaining failures are explicitly not marked resolved.
+- Generalization check before commit: this tracking-only run preserves current production behavior after rejected experiments and records realistic cross-document answer/retrieval evidence that remains valid for unseen manuals, unseen vendors, and practical engineer, technician, support, sales, and manager questions.
+
+Next target:
+
+- Fix cross-document v2 answer grounding and retrieval beyond the first two API-smoke cases: case 3 retrieves both documents but the actual API answer misses an expected document citation/use, and case 4 still misses IV-HG/IV4 startup-memory paired evidence. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.
