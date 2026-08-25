@@ -5733,8 +5733,8 @@
       }
     ]
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_195622_stage_timing plus SQL order/pool and top-k diagnostics. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, duplicate comparison special-table removal, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should design a bounded/indexed table-lexical discovery or latency-reduction path that reduces table_lexical/special cost without dropping useful evidence, then validate against the full 10-case v2 gate plus saved single-step and warning/procedure gates before any production retrieval commit.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_202512 is diagnostic-only after a duplicate comparison special-table removal experiment stayed 7/10 and worsened timeout count to 2; it does not supersede the baseline.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_2053_stage_contribution plus stage timing, SQL order/pool, and top-k diagnostics. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, duplicate comparison special-table removal, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Case 6 remains absent from all first-pass source stages at depth 120, case 7 has only the LJ-X companion from table_lexical and still misses LJ-S RTO2L, and case 9 has both expected chunks discovered by ordinary source stages but outside the normal top-5 context. Next safe production work should target bounded/indexed discovery for setting/code rows in cases 6/7 and keep case 9 as final-context selection, with saved single-step and warning/procedure gates before any production retrieval commit.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_2053_stage_contribution is diagnostic-only source-stage contribution evidence and does not supersede the baseline.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
@@ -5796,51 +5796,69 @@
         "table_lexical": 11.828589
       },
       "notes": "Eval/debug-only per-stage timing probe. Across the three unresolved curated cross-document v2 cases, table_lexical had the largest total and max elapsed time, followed by special/contextual_lexical and rerank/enrichment. Case 6 still had no expected evidence matched by top 20, case 7 matched only the LJ-X companion, and case 9 passed by top 20 but remains outside the normal top-5 gate. No production retrieval behavior changed and no pass rate is marked resolved."
+    },
+    {
+      "path": "test_reports/retrieval_debug_report_20260825_2053_stage_contribution.json",
+      "status": "completed",
+      "mode": "source_stage_contribution_diagnostic",
+      "baseline": "retrieval_eval_20260825_072839",
+      "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "case_ids": [
+        "curated_cross_document_v2::6",
+        "curated_cross_document_v2::7",
+        "curated_cross_document_v2::9"
+      ],
+      "stage_candidate_limit": 120,
+      "top_k": 20,
+      "stage_timing_max_seconds": {
+        "dense": 0.133591,
+        "sparse": 0.072686,
+        "table": 0.330563,
+        "table_lexical": 5.064297,
+        "contextual_lexical": 3.351743,
+        "special": 3.390998,
+        "fused": 0.001831,
+        "family_scored": 0.015162,
+        "completeness_scored": 0.007083,
+        "query_aligned": 0.074915,
+        "family_selected": 0.000287,
+        "enrich_candidates_for_rerank": 0.633431,
+        "reranked": 2.475283,
+        "comparison_table_promoted": 0.000918,
+        "deduped": 0.000267,
+        "assembled": 0.476674
+      },
+      "stage_timing_totals_seconds": {
+        "dense": 0.373436,
+        "sparse": 0.192939,
+        "table": 0.899006,
+        "table_lexical": 11.834582,
+        "contextual_lexical": 3.351755,
+        "special": 6.992676,
+        "fused": 0.005349,
+        "family_scored": 0.039066,
+        "completeness_scored": 0.018976,
+        "query_aligned": 0.204241,
+        "family_selected": 0.00079,
+        "enrich_candidates_for_rerank": 1.386775,
+        "reranked": 3.642058,
+        "comparison_table_promoted": 0.001771,
+        "deduped": 0.000713,
+        "assembled": 0.767805
+      },
+      "notes": "Eval/debug-only source-stage contribution probe. Case 6 expected chunks were missed by all first-pass source stages; case 7 found the LJ-X companion only via table_lexical at rank 3 and missed LJ-S RTO2L across all source stages; case 9 found both expected chunks across ordinary source stages, confirming it is a final-context/top-k issue rather than raw discovery absence. No production retrieval behavior changed and no pass rate is marked resolved."
     }
   ],
   "latest_debug_report": {
-    "report": "test_reports/retrieval_debug_report_20260825_195622_stage_timing.json",
-    "type": "production_stage_timing_diagnostic",
+    "report": "test_reports/retrieval_debug_report_20260825_2053_stage_contribution.json",
+    "type": "source_stage_contribution_diagnostic",
     "scope": "curated_cross_document_v2_cases_6_7_9",
     "status": "diagnostic_only_no_production_change",
     "evidence": {
       "current_baseline": "retrieval_eval_20260825_072839 remains 7/10 with candidate_miss: 1, eval_timeout: 1, ranking_or_context_loss: 1.",
-      "dominant_timing_totals": {
-        "assembled": 0.891879,
-        "comparison_table_promoted": 0.001548,
-        "completeness_scored": 0.018982,
-        "contextual_lexical": 3.36394,
-        "deduped": 0.000816,
-        "dense": 0.376426,
-        "enrich_candidates_for_rerank": 1.210406,
-        "family_scored": 0.038644,
-        "family_selected": 0.000799,
-        "fused": 0.005518,
-        "query_aligned": 0.206067,
-        "reranked": 3.546022,
-        "sparse": 0.179613,
-        "special": 6.962306,
-        "table": 1.018685,
-        "table_lexical": 11.828589
-      },
-      "dominant_timing_max": {
-        "assembled": 0.474622,
-        "comparison_table_promoted": 0.000716,
-        "completeness_scored": 0.007054,
-        "contextual_lexical": 3.363928,
-        "deduped": 0.000358,
-        "dense": 0.13203,
-        "enrich_candidates_for_rerank": 0.623464,
-        "family_scored": 0.015091,
-        "family_selected": 0.000288,
-        "fused": 0.001874,
-        "query_aligned": 0.075444,
-        "reranked": 2.390356,
-        "sparse": 0.068406,
-        "special": 3.381819,
-        "table": 0.454199,
-        "table_lexical": 5.063087
-      }
+      "case_6": "Both expected chunks missed by all source stages at depth 120.",
+      "case_7": "LJ-X companion found only by table_lexical; LJ-S RTO2L missed by all source stages at depth 120.",
+      "case_9": "Both expected chunks discovered by ordinary source stages; unresolved failure is final top-5/context selection."
     }
   }
 }

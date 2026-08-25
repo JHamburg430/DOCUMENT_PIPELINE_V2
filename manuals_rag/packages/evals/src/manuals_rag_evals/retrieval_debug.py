@@ -41,6 +41,15 @@ from manuals_rag_retrieval.retriever import (
 )
 from manuals_rag_schemas.documents import SearchResult
 
+SOURCE_STAGE_NAMES = (
+    "dense",
+    "sparse",
+    "table",
+    "table_lexical",
+    "contextual_lexical",
+    "special",
+)
+
 
 @dataclass(frozen=True)
 class RetrievalDebugStage:
@@ -586,6 +595,61 @@ def _stage_expected_evidence_top_k_outcomes(
     return outcomes
 
 
+def _expected_evidence_source_stage_contribution(ranks_by_stage: dict[str, Any]) -> dict[str, Any]:
+    if not ranks_by_stage:
+        return {}
+    source_ranks = {stage: ranks_by_stage.get(stage) or [] for stage in SOURCE_STAGE_NAMES}
+    evidence_count = max((len(records) for records in source_ranks.values()), default=0)
+    exact_hits_by_stage = {stage: 0 for stage in SOURCE_STAGE_NAMES}
+    unique_exact_hits_by_stage = {stage: 0 for stage in SOURCE_STAGE_NAMES}
+    missed_by_source_stages: list[dict[str, Any]] = []
+    evidence_items: list[dict[str, Any]] = []
+    for index in range(evidence_count):
+        source_hits: list[dict[str, Any]] = []
+        chunk_id = ""
+        source_document_id = ""
+        for stage_name in SOURCE_STAGE_NAMES:
+            stage_records = source_ranks.get(stage_name) or []
+            if index >= len(stage_records):
+                continue
+            record = stage_records[index]
+            chunk_id = chunk_id or str(record.get("chunk_id") or "")
+            source_document_id = source_document_id or str(record.get("source_document_id") or "")
+            exact_rank = record.get("exact_rank")
+            if exact_rank is None:
+                continue
+            exact_hits_by_stage[stage_name] += 1
+            source_hits.append({"stage": stage_name, "exact_rank": exact_rank})
+        if len(source_hits) == 1:
+            unique_exact_hits_by_stage[source_hits[0]["stage"]] += 1
+        if not source_hits:
+            missed_by_source_stages.append(
+                {
+                    "chunk_id": chunk_id,
+                    "source_document_id": source_document_id,
+                    "evidence_index": index,
+                }
+            )
+        evidence_items.append(
+            {
+                "chunk_id": chunk_id,
+                "source_document_id": source_document_id,
+                "source_exact_hits": source_hits,
+                "unique_to_stage": source_hits[0]["stage"] if len(source_hits) == 1 else None,
+                "missed_by_all_source_stages": not bool(source_hits),
+            }
+        )
+    return {
+        "source_stage_names": list(SOURCE_STAGE_NAMES),
+        "expected_evidence_count": evidence_count,
+        "exact_hits_by_stage": exact_hits_by_stage,
+        "unique_exact_hits_by_stage": unique_exact_hits_by_stage,
+        "missed_by_source_stage_count": len(missed_by_source_stages),
+        "missed_by_source_stages": missed_by_source_stages,
+        "evidence_items": evidence_items,
+    }
+
+
 def _case_diagnostics(
     stages: list[RetrievalDebugStage],
     *,
@@ -630,6 +694,7 @@ def _case_diagnostics(
             stage_ranks,
             cutoffs=cutoffs,
         )
+        diagnostics["expected_evidence_source_stage_contribution"] = _expected_evidence_source_stage_contribution(stage_ranks)
         diagnostics["expected_evidence_same_document_crowding"] = _stage_same_document_crowding(
             stages,
             expected_evidence,

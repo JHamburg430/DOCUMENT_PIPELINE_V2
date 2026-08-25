@@ -233,6 +233,11 @@ def test_debug_report_tracks_expected_evidence_stage_ranks(monkeypatch):
     assert ranks["table_lexical"][0]["exact_rank"] == 1
     assert ranks["table"][0]["exact_rank"] is None
     assert ranks["assembled"][0]["same_document_best_overlap"] == 3
+    contribution = report["cases"][0]["diagnostics"]["expected_evidence_source_stage_contribution"]
+    assert contribution["exact_hits_by_stage"]["table_lexical"] == 1
+    assert contribution["unique_exact_hits_by_stage"]["table_lexical"] == 1
+    assert contribution["missed_by_source_stage_count"] == 0
+    assert contribution["evidence_items"][0]["unique_to_stage"] == "table_lexical"
 
 
 def test_debug_report_expected_evidence_ranks_scan_beyond_stage_preview(monkeypatch):
@@ -387,6 +392,94 @@ def test_debug_report_compares_normal_top_k_with_deeper_expected_evidence(monkey
     assert outcomes["assembled"]["5"]["passed"] is False
     assert outcomes["assembled"]["7"]["passed"] is True
     assert outcomes["assembled"]["5"]["missing_evidence"][0]["exact_rank"] == 7
+
+
+def test_debug_report_summarizes_source_stage_contribution_for_expected_evidence(monkeypatch):
+    dense_only = SearchResult(
+        chunk_id="chunk-dense",
+        score=0.9,
+        title="Dense Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Specs"],
+        content="The dense stage carries this expected condition evidence.",
+        metadata={"chunk_type": "section_window"},
+    )
+    shared = SearchResult(
+        chunk_id="chunk-shared",
+        score=0.8,
+        title="Shared Manual",
+        document_version_id="ver-2",
+        source_document_id="doc-2",
+        pages=[2],
+        section_path=["Troubleshooting"],
+        content="Corrective action is present in both sparse and table lexical results.",
+        metadata={"chunk_type": "table_record"},
+    )
+
+    monkeypatch.setattr(retrieval_debug, "build_filters", lambda query, request_filters: {"is_active": True, **request_filters})
+    monkeypatch.setattr(
+        retrieval_debug,
+        "analyze_query",
+        lambda query: type("A", (), {"query_types": ["comparison"], "preferred_chunk_types": ["table_record"]})(),
+    )
+    monkeypatch.setattr(retrieval_debug, "QdrantStore", lambda: object())
+    monkeypatch.setattr(retrieval_debug, "_chunk_search_filters", lambda filters, metadata_filters, _analysis: metadata_filters)
+    monkeypatch.setattr(retrieval_debug, "select_documents_from_metadata", lambda store, query, corpus_ids, filters: (filters, []))
+    monkeypatch.setattr(retrieval_debug, "run_dense_search", lambda *args, **kwargs: [dense_only])
+    monkeypatch.setattr(retrieval_debug, "run_sparse_search", lambda *args, **kwargs: [shared])
+    monkeypatch.setattr(retrieval_debug, "run_table_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_table_lexical_search", lambda *args, **kwargs: [shared])
+    monkeypatch.setattr(retrieval_debug, "run_contextual_lexical_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_special_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "fuse_results", lambda _store, sets, **_kwargs: [item for group in sets for item in group])
+    monkeypatch.setattr(retrieval_debug, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_annotate_completeness", lambda results: results)
+    monkeypatch.setattr(retrieval_debug, "_apply_query_alignment", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_select_family_candidates", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "rerank_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_promote_comparison_table_candidates", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_dedupe_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "assemble_context", lambda results, **_kwargs: results)
+
+    report = retrieval_debug.debug_retrieval_report(
+        corpus_ids=["manuals_vendor_keyence"],
+        queries=["Compare condition and corrective action evidence."],
+        top_k=5,
+        expected_evidence_by_query={
+            "Compare condition and corrective action evidence.": [
+                {
+                    "chunk_id": dense_only.chunk_id,
+                    "source_document_id": dense_only.source_document_id,
+                    "expected_terms": ["condition"],
+                },
+                {
+                    "chunk_id": shared.chunk_id,
+                    "source_document_id": shared.source_document_id,
+                    "expected_terms": ["corrective"],
+                },
+                {
+                    "chunk_id": "chunk-missing",
+                    "source_document_id": "doc-3",
+                    "expected_terms": ["missing"],
+                },
+            ]
+        },
+    )
+
+    contribution = report["cases"][0]["diagnostics"]["expected_evidence_source_stage_contribution"]
+    assert contribution["expected_evidence_count"] == 3
+    assert contribution["exact_hits_by_stage"]["dense"] == 1
+    assert contribution["exact_hits_by_stage"]["sparse"] == 1
+    assert contribution["exact_hits_by_stage"]["table_lexical"] == 1
+    assert contribution["unique_exact_hits_by_stage"]["dense"] == 1
+    assert contribution["unique_exact_hits_by_stage"]["sparse"] == 0
+    assert contribution["missed_by_source_stage_count"] == 1
+    assert contribution["missed_by_source_stages"][0]["chunk_id"] == "chunk-missing"
+    assert contribution["evidence_items"][0]["unique_to_stage"] == "dense"
+    assert contribution["evidence_items"][1]["unique_to_stage"] is None
 
 
 def test_debug_report_explains_same_document_crowding_for_missing_evidence(monkeypatch):
