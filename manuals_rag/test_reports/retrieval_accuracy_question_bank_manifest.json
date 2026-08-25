@@ -100,6 +100,18 @@
           "retrieval_eval_20260825_020243"
         ],
         "remaining": "Broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases; continue cross-document retrieval work."
+      },
+      "2026-08-25T02:10:00Z": {
+        "severity": "critical",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Removed the out-of-scope API/UI eval_preparing_questions production-surface event and UI handler/reset changes while preserving the in-scope eval-quality and curated replacement-slice work.",
+        "evidence": [
+          "apps/api/main.py no longer emits eval_preparing_questions",
+          "apps/ui/app.js no longer handles eval_preparing_questions or resetEvalOutput",
+          "tests/unit/test_api_debug.py restored the original streaming eval event sequence",
+          "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_retrieval_eval.py -q -> 76 passed, 9 warnings"
+        ],
+        "remaining": "No retrieval or answer behavior was changed in this containment run. Next run should broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases before further production answer tuning."
       }
     }
   },
@@ -322,11 +334,11 @@
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_retrieval_eval.py -q",
       "status": "passed",
-      "passed": 63,
-      "warnings": 0,
-      "notes": "Focused eval-quality tests passed after bracketed source-label validation and curated replacement v2 review."
+      "passed": 76,
+      "warnings": 9,
+      "notes": "Focused API streaming and eval-quality tests passed after removing the out-of-scope API/UI eval_preparing_questions event surface."
     },
     "evals": [
       {
@@ -4104,7 +4116,7 @@
     "failure_categories": {},
     "next_target": "Broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases, then resume cross-document multi-step retrieval/context improvements.",
     "current_failure_categories": {},
-    "answer_grounding_status": "HTTP API answer scoring was exercised on the cleaned v2 replacement slice: 2/2 actual /query answers passed with no fallback; broader realistic warning/procedure and cross-document answer coverage remains next."
+    "answer_grounding_status": "HTTP API answer scoring remains fixed from prior runs; no answer eval was run in this containment-only run. Broader realistic single-step, warning/procedure, and cross-document answer coverage remains next."
   },
   "next_target": "Broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases, then resume cross-document multi-step retrieval/context improvements."
 }

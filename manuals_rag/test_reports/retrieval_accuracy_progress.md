@@ -1007,6 +1007,22 @@ Next target:
 
 - Broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases, then resume cross-document multi-step retrieval/context improvements.
 
+## 2026-08-24 Cron 39262386 API/UI Scope Containment
+
+- Target: address guardrail `2026-08-25T02:10:00Z` critical finding before doing further retrieval or answer tuning.
+- Guardrail review status: direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was unavailable because the cron tool is restricted to the current job. The latest guardrail findings file was reviewed and treated as authoritative.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running.
+- Scoped containment: removed the out-of-scope API/UI production-surface event `eval_preparing_questions` from `apps/api/main.py`, removed the corresponding UI reset/handler code from `apps/ui/app.js`, and restored the streaming eval unit test expectation in `tests/unit/test_api_debug.py`.
+- Preserved in-scope work: did not revert the eval-quality validator and v2 curated replacement-slice work from the same historical commit range.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_retrieval_eval.py -q` -> 76 passed, 9 warnings.
+- Evaluation status: no retrieval or answer eval was run because this was a scope-containment change, not a retrieval/answering behavior change. Question-bank counts remain 193 exploratory questions total: 100 active single-step and 93 multi-step.
+- Changed files for this scoped commit: `apps/api/main.py`, `apps/ui/app.js`, `tests/unit/test_api_debug.py`, `test_reports/retrieval_accuracy_progress.md`, and `test_reports/retrieval_accuracy_question_bank_manifest.json`.
+- Generalization check before commit: reverting an out-of-scope API/UI progress event is valid for unseen manuals, unseen vendors, and all user roles because it restores the retrieval-accuracy cron to its allowed retrieval/eval/answering scope without changing retrieval or answer behavior.
+
+Next target:
+
+- Broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases, then resume cross-document multi-step retrieval/context improvements.
+
 ## 2026-08-24 Cron 39262386 Guardrail V2 Replacement Slice
 
 - Target: address guardrail `2026-08-25T01:40:00Z` by reopening the replacement-slice quality debt and replacing the remaining questionable curated rows before treating the slice as an answer-generation gate.
