@@ -520,18 +520,50 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline: 7/10 passed with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline: 7/10 passed with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_085751 repeated the same 7/10 profile under a rejected table-symbol diversity experiment.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "insufficient_evidence": 1,
       "retrieval_not_passed": 1
     },
-    "next_target": "Fix cross-document v2 retrieval using the full manually reviewed 10-case direct baseline, not only the four-case HTTP answer rotation: case 6 still times out on CV-X482/LJ-X8000 condition and standard-angle settings, case 7 has LJ-X/LJ-S symbol ranking/context loss, and case 9 misses XG-X unsupported SD-card corrective-action evidence. Also rotate actual HTTP API answer batches, especially case 3 where retrieval passes but the answer misses an expected document citation/use. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.",
+    "next_target": "Resume production work on the full curated cross-document v2 slice: case 6 eval_timeout on CV-X482/LJ-X8000 condition and standard-angle settings, case 7 LJ-X/LJ-S symbol ranking/context loss, and case 9 XG-X unsupported SD-card corrective-action candidate miss. Also rotate actual HTTP API answer batches, especially case 3 where retrieval passes but the answer misses an expected document citation/use. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.",
     "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. This is answer-rotation evidence and does not supersede the full 10-case direct v2 failure profile from retrieval_eval_20260825_072839. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s."
   },
   "latest_results": {
     "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_085751",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_085751.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_085751.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_085751.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "retrieval_only_saved_cross_document_v2_direct_after_symbol_diversity_experiment",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 10,
+        "total_queries": 10,
+        "passed_queries": 7,
+        "failed_queries": 3,
+        "pass_rate": 0.7,
+        "pass_at_1": 0.6,
+        "pass_at_3": 0.7,
+        "pass_at_5": 0.7,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 10,
+            "passed": 7
+          }
+        },
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 1,
+          "candidate_miss": 1
+        },
+        "candidate_recall_rate": 0.8,
+        "notes": "Rejected comparison table-symbol diversity experiment. It preserved an additional named symbol candidate in table lexical smoke output, but the full manually reviewed 10-case cross-document v2 slice stayed 7/10 with the same eval_timeout, ranking_or_context_loss, and candidate_miss profile, so production code and unit-test edits were reverted."
+      },
       {
         "run_id": "retrieval_eval_20260825_080303",
         "corpus_id": "manuals_vendor_keyence",
@@ -5128,13 +5160,23 @@
       }
     ],
     "failure_categories": {
-      "candidate_miss": 1
+      "candidate_miss": 1,
+      "eval_timeout": 1,
+      "ranking_or_context_loss": 1
     },
-    "next_target": "Fix cross-document v2 answer grounding and retrieval beyond the first two API-smoke cases: case 3 retrieves both documents but the actual API answer misses an expected document citation/use, and case 4 still misses IV-HG/IV4 startup-memory paired evidence. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.",
+    "next_target": "Resume production work on the full curated cross-document v2 slice: case 6 eval_timeout on CV-X482/LJ-X8000 condition and standard-angle settings, case 7 LJ-X/LJ-S symbol ranking/context loss, and case 9 XG-X unsupported SD-card corrective-action candidate miss. Also rotate actual HTTP API answer batches, especially case 3 where retrieval passes but the answer misses an expected document citation/use. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.",
     "current_failure_categories": {
-      "candidate_miss": 1
+      "candidate_miss": 1,
+      "eval_timeout": 1,
+      "ranking_or_context_loss": 1
     },
-    "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s."
+    "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. This is answer-rotation evidence and does not supersede the full 10-case direct v2 failure profile from retrieval_eval_20260825_072839. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline: 7/10 passed with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_085751 repeated the same 7/10 profile under a rejected table-symbol diversity experiment.",
+    "answer_current_failure_categories": {
+      "expected_document_not_cited_or_used": 1,
+      "insufficient_evidence": 1,
+      "retrieval_not_passed": 1
+    }
   },
-  "next_target": "Fix cross-document v2 answer grounding and retrieval beyond the first two API-smoke cases: case 3 retrieves both documents but the actual API answer misses an expected document citation/use, and case 4 still misses IV-HG/IV4 startup-memory paired evidence. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice."
+  "next_target": "Resume production work on the full curated cross-document v2 slice: case 6 eval_timeout on CV-X482/LJ-X8000 condition and standard-angle settings, case 7 LJ-X/LJ-S symbol ranking/context loss, and case 9 XG-X unsupported SD-card corrective-action candidate miss. Also rotate actual HTTP API answer batches, especially case 3 where retrieval passes but the answer misses an expected document citation/use. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice."
 }
