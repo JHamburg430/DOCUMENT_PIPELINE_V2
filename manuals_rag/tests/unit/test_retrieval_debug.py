@@ -555,6 +555,7 @@ def test_debug_report_probes_expected_evidence_lexical_discovery(monkeypatch):
     assert probe["items"][0]["expected_terms_matched_in_content"] == ["equivalent", "aspect", "ratio"]
     assert probe["items"][0]["matched_query_identifiers"] == ["LJ-S8000"]
     assert probe["items"][0]["stage_exact_ranks"]["table_lexical"] == 1
+    assert probe["items"][0]["table_lexical_sql_pool_rank"] == 1
 
 
 def test_debug_report_uses_stage_candidate_limit_for_deeper_stage_ranks(monkeypatch):

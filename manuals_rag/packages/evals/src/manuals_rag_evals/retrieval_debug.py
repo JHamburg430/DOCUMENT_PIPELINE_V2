@@ -11,6 +11,7 @@ from manuals_rag_evals.retrieval_quality import summarize_result_quality
 from manuals_rag_retrieval.query_analysis import analyze_query
 from manuals_rag_retrieval.qdrant_store import QdrantStore
 from manuals_rag_retrieval.retriever import (
+    LEXICAL_TABLE_SCAN_LIMIT,
     _annotate_completeness,
     _annotate_stage_metadata,
     _apply_family_scoring,
@@ -208,6 +209,8 @@ def _stage_same_document_crowding(
 
 def _expected_evidence_lexical_probe(
     query: str,
+    corpus_ids: list[str],
+    filters: dict[str, Any],
     analysis: Any,
     expected_evidence: list[dict[str, Any]],
     full_stage_results: dict[str, list[SearchResult]],
@@ -246,6 +249,20 @@ def _expected_evidence_lexical_probe(
     else:
         content_prefilter_terms = [*_lexical_table_content_terms(lexical_terms), *_lexical_table_symbol_terms(lexical_terms)]
     content_prefilter_terms = list(dict.fromkeys(content_prefilter_terms))
+    sql_pool_ranks: dict[str, int] = {}
+    sql_pool_error: str | None = None
+    if content_prefilter_terms:
+        try:
+            sql_pool_ranks = _table_lexical_sql_pool_ranks(
+                corpus_ids=corpus_ids,
+                filters=filters,
+                analysis=analysis,
+                terms=lexical_terms,
+                content_prefilter_terms=content_prefilter_terms,
+                is_comparison=is_comparison,
+            )
+        except Exception as exc:
+            sql_pool_error = str(exc)
     stage_presence: dict[str, dict[str, int]] = {}
     for stage_name, results in full_stage_results.items():
         for rank, result in enumerate(results, start=1):
@@ -309,6 +326,8 @@ def _expected_evidence_lexical_probe(
                 "expected_terms_matched_in_content": expected_terms_matched,
                 "expected_terms_missing_from_content": [term for term in expected_terms if term not in expected_terms_matched],
                 "table_lexical_score": round(_table_lexical_score(row, lexical_terms), 6),
+                "table_lexical_sql_pool_rank": sql_pool_ranks.get(chunk_id),
+                "table_lexical_sql_pool_limit": LEXICAL_TABLE_SCAN_LIMIT,
                 "matched_query_identifiers": [
                     identifier for identifier in identifiers if _result_matches_identifier(result_for_identifier, identifier)
                 ],
@@ -318,8 +337,100 @@ def _expected_evidence_lexical_probe(
     return {
         "lexical_terms": lexical_terms,
         "content_prefilter_terms": content_prefilter_terms,
+        "sql_pool_error": sql_pool_error,
         "items": probe_items,
     }
+
+
+def _table_lexical_sql_pool_ranks(
+    *,
+    corpus_ids: list[str],
+    filters: dict[str, Any],
+    analysis: Any,
+    terms: list[str],
+    content_prefilter_terms: list[str],
+    is_comparison: bool,
+) -> dict[str, int]:
+    where = [
+        "chunk_type = 'table_record'",
+        "is_active = true",
+        "metadata_json->>'corpus_id' = any(%s)",
+    ]
+    params: list[object] = [corpus_ids]
+    source_document_ids = filters.get("source_document_id")
+    if source_document_ids:
+        document_ids = source_document_ids if isinstance(source_document_ids, list) else [source_document_ids]
+        where.append("source_document_id = any(%s)")
+        params.append([str(item) for item in document_ids])
+    document_version_ids = filters.get("document_version_id")
+    if document_version_ids:
+        version_ids = document_version_ids if isinstance(document_version_ids, list) else [document_version_ids]
+        where.append("document_version_id = any(%s)")
+        params.append([str(item) for item in version_ids])
+    for key in ("product_model", "product_family", "document_kind"):
+        value = filters.get(key)
+        if value:
+            values = value if isinstance(value, list) else [value]
+            where.append("metadata_json->>%s = any(%s)")
+            params.extend([key, [str(item) for item in values]])
+    if is_comparison:
+        where.append("(" + " or ".join(["content ilike %s"] * len(content_prefilter_terms)) + ")")
+        params.extend([f"%{term}%" for term in content_prefilter_terms])
+    else:
+        where.append(
+            "("
+            + " or ".join(["regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s"] * len(content_prefilter_terms))
+            + ")"
+        )
+        params.extend([f"%{term}%" for term in content_prefilter_terms])
+    order_by = "order by priority_score desc, id"
+    order_params: list[object] = []
+    if is_comparison:
+        order_terms: list[str] = []
+        for term in terms:
+            if term not in order_terms:
+                order_terms.append(term)
+            if len(order_terms) >= 10:
+                break
+        if order_terms:
+            product_patterns = [
+                f"%{str(identifier).strip()}%"
+                for identifier in (getattr(analysis, "product_identifiers", []) or [])[:4]
+                if str(identifier).strip()
+            ]
+            product_fragments = [
+                (
+                    "case when metadata_json->>'product_model' ilike %s "
+                    "or metadata_json->>'product_family' ilike %s "
+                    "or metadata_json->>'product_models' ilike %s "
+                    "or metadata_json->>'devices' ilike %s then 3 else 0 end"
+                )
+                for _ in product_patterns
+            ]
+            order_by = (
+                "order by "
+                + " + ".join(
+                    [
+                        *product_fragments,
+                        *(["case when content ilike %s then 1 else 0 end"] * len(order_terms)),
+                    ]
+                )
+                + " desc, priority_score desc, id"
+            )
+            for pattern in product_patterns:
+                order_params.extend([pattern, pattern, pattern, pattern])
+            order_params.extend([f"%{term}%" for term in order_terms])
+    rows = fetch_all(
+        f"""
+        select id
+        from retrieval_chunks
+        where {" and ".join(where)}
+        {order_by}
+        limit {LEXICAL_TABLE_SCAN_LIMIT}
+        """,
+        tuple([*params, *order_params]),
+    )
+    return {str(row["id"]): index for index, row in enumerate(rows, start=1)}
 
 
 def _stage_expected_evidence_ranks(
@@ -421,6 +532,8 @@ def _case_diagnostics(
     stages: list[RetrievalDebugStage],
     *,
     query: str,
+    corpus_ids: list[str],
+    filters: dict[str, Any],
     analysis: Any,
     expected_evidence: list[dict[str, Any]] | None = None,
     full_stage_results: dict[str, list[SearchResult]] | None = None,
@@ -465,6 +578,8 @@ def _case_diagnostics(
         )
         diagnostics["expected_evidence_lexical_probe"] = _expected_evidence_lexical_probe(
             query,
+            corpus_ids,
+            filters,
             analysis,
             expected_evidence,
             full_stage_results or {},
@@ -585,6 +700,8 @@ def debug_retrieval_query(
         diagnostics=_case_diagnostics(
             stages,
             query=query,
+            corpus_ids=corpus_ids,
+            filters=filters,
             analysis=analysis,
             expected_evidence=expected_evidence,
             full_stage_results=full_stage_results,
