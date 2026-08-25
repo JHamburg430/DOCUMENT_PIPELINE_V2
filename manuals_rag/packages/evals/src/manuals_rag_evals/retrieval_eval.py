@@ -173,6 +173,8 @@ Rules:
 - Base every query on the provided context, especially the source snippet, structured fields, labels, and extracted terms.
 - Make each query answerable from the source snippet itself, not merely from a surrounding section.
 - Represent the kind of question a user would ask before seeing the answer text; do not turn source wording into a keyword query.
+- Start from a real user intent, such as configuring, selecting, troubleshooting, comparing, wiring, verifying, purchasing, or operating something.
+- Ask for the user's needed fact or action directly; do not ask a benchmark-shaped clue that merely points at a source cell.
 - Include enough fair discriminators that the intended row, warning, step, or spec can be found without reading adjacent context.
 - Use product names, model numbers, protocol names, units, and standardized technical terms as anchors when needed.
 - Treat source field labels, table headers, row headers, and UI labels as concepts to paraphrase, not text to copy verbatim.
@@ -181,14 +183,17 @@ Rules:
 - Paraphrase awkward or document-authored wording into natural user language; for example, do not copy phrases like "obtained authentication" or "there manners".
 - For compact specs or table rows, ask about the field, setting, action, or constraint in natural language and include one concrete value/unit/class/action when useful.
 - Do not say "this document", "this manual", "the datasheet", "this section", or similar.
-- Do not use meta phrasing like "what specification", "what value is listed", "where does", "what does the document say", or "which step in".
+- Do not use meta phrasing like "what specification", "what value is listed", "what set/import set is specified", "where does", "what does the document say", or "which step in".
+- Avoid unnatural retrieval-eval wording such as "what narrow range is specified for...", "what grouping range is specified for...", or "what command input/output is specified for...".
+- Rewrite those as ordinary user questions, for example "What grouping range can I set on the XG-X Series?" or "Which command reads the date and time on the VS Series?"
 - Do not mirror the source text mechanically.
 - Keep each query concise and natural, usually under 14 words.
 - End each query with a question mark.
-- Prefer direct technical questions:
-  What/which setting applies to model?
-  What value/unit/class is specified for model?
-  Which devices/actions are required?
+- Prefer direct technical questions about practical intent:
+  What range can I set for model/setting?
+  Which setting should I choose for condition?
+  Which command reads/writes the needed item?
+  Which devices/actions are required before doing task?
   How should a procedure step be performed?
 - If the snippet contains explicit fields, labels, units, steps, warnings, or settings, use those concrete concepts in the query.
 - Prefer concrete terms from the snippet such as field names, units, menu labels, protocol names, settings, or actions.

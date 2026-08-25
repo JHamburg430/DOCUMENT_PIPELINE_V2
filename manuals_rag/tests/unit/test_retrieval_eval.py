@@ -2,6 +2,7 @@ import pytest
 
 from manuals_rag_evals.retrieval_eval import (
     RetrievalEvalCase,
+    USER_STYLE_QUERY_SYSTEM_PROMPT,
     build_eval_cases_from_chunks,
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
@@ -2104,6 +2105,13 @@ def test_eval_generation_rejects_copied_source_phrasing(monkeypatch):
     assert cases[0].query == "Which controller combination has CSA approval for XG-X Series?"
     assert "Do not copy any other exact sentence, clause, or two-or-more-word phrase" in prompts[0]
     assert "obtained authentication" in prompts[0]
+
+
+def test_eval_question_prompt_requires_real_user_intent_not_benchmark_clues():
+    assert "Start from a real user intent" in USER_STYLE_QUERY_SYSTEM_PROMPT
+    assert "do not ask a benchmark-shaped clue" in USER_STYLE_QUERY_SYSTEM_PROMPT
+    assert "what narrow range is specified for" in USER_STYLE_QUERY_SYSTEM_PROMPT
+    assert "What grouping range can I set on the XG-X Series?" in USER_STYLE_QUERY_SYSTEM_PROMPT
 
 
 def test_eval_generation_rejects_bracketed_source_label_queries(monkeypatch):
