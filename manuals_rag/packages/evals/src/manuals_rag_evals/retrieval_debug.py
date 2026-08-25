@@ -127,13 +127,20 @@ def _term_overlap(result: dict[str, Any], terms: list[str]) -> int:
 def _stage_expected_evidence_ranks(
     stages: list[RetrievalDebugStage],
     expected_evidence: list[dict[str, Any]] | None,
+    *,
+    full_stage_results: dict[str, list[SearchResult]] | None = None,
 ) -> dict[str, Any]:
     if not expected_evidence:
         return {}
+    full_stage_results = full_stage_results or {}
     diagnostics: dict[str, Any] = {}
     for stage in stages:
         if stage.name == "metadata_document_selection":
             continue
+        if stage.name in full_stage_results:
+            stage_results = [_serialize_result(result) for result in full_stage_results[stage.name]]
+        else:
+            stage_results = stage.results
         stage_records: list[dict[str, Any]] = []
         for item in expected_evidence:
             chunk_id = str(item.get("chunk_id") or "")
@@ -142,7 +149,7 @@ def _stage_expected_evidence_ranks(
             exact_rank: int | None = None
             same_document_best_rank: int | None = None
             same_document_best_overlap = 0
-            for rank, result in enumerate(stage.results, start=1):
+            for rank, result in enumerate(stage_results, start=1):
                 if chunk_id and str(result.get("chunk_id") or "") == chunk_id:
                     exact_rank = rank
                 if document_id and str(result.get("source_document_id") or "") == document_id:
@@ -158,6 +165,7 @@ def _stage_expected_evidence_ranks(
                     "same_document_best_rank": same_document_best_rank,
                     "same_document_best_overlap": same_document_best_overlap,
                     "expected_term_count": len(terms),
+                    "rank_search_depth": len(stage_results),
                 }
             )
         diagnostics[stage.name] = stage_records
@@ -168,6 +176,7 @@ def _case_diagnostics(
     stages: list[RetrievalDebugStage],
     *,
     expected_evidence: list[dict[str, Any]] | None = None,
+    full_stage_results: dict[str, list[SearchResult]] | None = None,
 ) -> dict[str, Any]:
     top_results = {stage.name: (stage.results[0] if stage.results else None) for stage in stages}
     low_information_top_stages = [name for name, result in top_results.items() if result and result.get("low_information")]
@@ -190,7 +199,11 @@ def _case_diagnostics(
         ),
     }
     if expected_evidence:
-        diagnostics["expected_evidence_stage_ranks"] = _stage_expected_evidence_ranks(stages, expected_evidence)
+        diagnostics["expected_evidence_stage_ranks"] = _stage_expected_evidence_ranks(
+            stages,
+            expected_evidence,
+            full_stage_results=full_stage_results,
+        )
     return diagnostics
 
 
@@ -258,6 +271,23 @@ def debug_retrieval_query(
     )
     deduped = _annotate_stage_metadata(_dedupe_results(comparison_promoted, analysis), "deduped")
     assembled = _annotate_stage_metadata(assemble_context(deduped, limit=top_k), "assembled")
+    full_stage_results = {
+        "dense": dense,
+        "sparse": sparse,
+        "table": table,
+        "table_lexical": table_lexical,
+        "contextual_lexical": contextual_lexical,
+        "special": special,
+        "fused": fused,
+        "family_scored": family_scored,
+        "completeness_scored": completeness_scored,
+        "query_aligned": query_aligned,
+        "family_selected": family_selected,
+        "reranked": reranked,
+        "comparison_table_promoted": comparison_promoted,
+        "deduped": deduped,
+        "assembled": assembled,
+    }
     stages = [
         _metadata_document_selection_stage(metadata_document_hits, top_k=top_k),
         _stage("dense", dense, top_k=top_k),
@@ -284,7 +314,11 @@ def debug_retrieval_query(
         query_types=analysis.query_types,
         preferred_chunk_types=analysis.preferred_chunk_types,
         stages=stages,
-        diagnostics=_case_diagnostics(stages, expected_evidence=expected_evidence),
+        diagnostics=_case_diagnostics(
+            stages,
+            expected_evidence=expected_evidence,
+            full_stage_results=full_stage_results,
+        ),
     )
 
 

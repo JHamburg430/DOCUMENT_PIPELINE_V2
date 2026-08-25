@@ -553,17 +553,17 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss; retrieval_eval_20260825_100127, retrieval_eval_20260825_102700, and retrieval_eval_20260825_105626 repeated the 7/10 baseline under rejected comparison scoring/promotion/family-order experiments.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss. New full-rank diagnostic artifact test_reports/retrieval_debug_report_20260825_115623_full_rank.json scans the complete in-memory stage candidate lists (while keeping preview output top-k limited) and shows: case 6 exact expected chunks are absent across scanned stages; case 7 exact LJ-X row appears at table_lexical rank 3 and final assembled rank 2, but exact LJ-S RTO2L is absent while same-document LJ-S rows appear; case 9 exact CV-X row appears in dense/table/special/fused and final rank 17, but exact XG-X unsupported-SD row is absent while nearby same-document XG-X SD-card rows appear.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "insufficient_evidence": 1,
       "retrieval_not_passed": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. Use the new expected-evidence stage-rank diagnostic report retrieval_debug_report_20260825_112722 to target proven stage losses instead of retrying rejected broad comparison tweaks: case 6 needs better exact evidence discovery for CV-X Condition list and LJ-X Standard Angle, case 7 loses LJ-S RTO2L to easier same-document measurement rows after table lexical discovery, and case 9 surfaces nearby XG-X SD-card rows but not the unsupported-card corrective-action row into final context. Preserve saved single-step and warning/procedure gates and rotate actual HTTP API answer batches when retrieval evidence is stable.",
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. Use the full-rank diagnostic report retrieval_debug_report_20260825_115623_full_rank to target proven stage losses: case 6 exact CV-X Condition list and LJ-X Standard Angle chunks are absent from all scanned candidate pools even though same-document weak overlaps appear; case 7 finds the exact LJ-X PMSR row but not the exact LJ-S RTO2L row, so the issue is LJ-S row discovery/specificity rather than only rerank; case 9 finds the CV-X edge-detection row but not the exact XG-X unsupported-SD corrective-action row, only nearby XG-X SD-card rows. Next safe work should improve generic table-row discovery/specificity for user-mentioned setting/code/error-row phrases without document-specific routing or inferred hard filters, then rerun the 10-case v2 gate and rotate actual HTTP API answers when retrieval evidence is stable.",
     "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. This is answer-rotation evidence and does not supersede the full 10-case direct v2 failure profile from retrieval_eval_20260825_072839. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s."
   },
   "latest_results": {
-    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning after reverting the rejected table-first comparison experiment.",
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_debug.py -q -> 4 passed.",
     "evals": [
       {
         "run_id": "retrieval_eval_20260825_105626",
@@ -5316,19 +5316,45 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. The table-first comparison family-order experiment in retrieval_eval_20260825_105626 was rejected because it stayed 7/10 with the same failure profile, like the earlier rejected side-specific promotion, term-variant scoring, and broad prefilter paths. Next safe work should inspect the exact final-stage loss between table_lexical candidates and reranked/final context for LJ-S RTO2L and XG-X unsupported-SD rows, or add a narrow eval diagnostic that reports pre-rerank candidate-stage ranks for expected evidence. Preserve saved single-step and warning/procedure gates and rotate actual HTTP API answer batches when retrieval evidence is stable.",
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. Use the full-rank diagnostic report retrieval_debug_report_20260825_115623_full_rank to target proven stage losses: case 6 exact CV-X Condition list and LJ-X Standard Angle chunks are absent from all scanned candidate pools even though same-document weak overlaps appear; case 7 finds the exact LJ-X PMSR row but not the exact LJ-S RTO2L row, so the issue is LJ-S row discovery/specificity rather than only rerank; case 9 finds the CV-X edge-detection row but not the exact XG-X unsupported-SD corrective-action row, only nearby XG-X SD-card rows. Next safe work should improve generic table-row discovery/specificity for user-mentioned setting/code/error-row phrases without document-specific routing or inferred hard filters, then rerun the 10-case v2 gate and rotate actual HTTP API answers when retrieval evidence is stable.",
     "current_failure_categories": {
       "candidate_miss": 1,
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
     "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. This is answer-rotation evidence and does not supersede the full 10-case direct v2 failure profile from retrieval_eval_20260825_072839. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s.",
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss; retrieval_eval_20260825_100127, retrieval_eval_20260825_102700, and retrieval_eval_20260825_105626 repeated the 7/10 baseline under rejected comparison scoring/promotion/family-order experiments. New diagnostic artifact test_reports/retrieval_debug_report_20260825_112722.json records expected-evidence ranks across dense, sparse, table, table_lexical, contextual_lexical, special, fused, family_scored, query_aligned, family_selected, reranked, comparison_table_promoted, deduped, and assembled stages for cases 6, 7, and 9.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss. New full-rank diagnostic artifact test_reports/retrieval_debug_report_20260825_115623_full_rank.json scans the complete in-memory stage candidate lists (while keeping preview output top-k limited) and shows: case 6 exact expected chunks are absent across scanned stages; case 7 exact LJ-X row appears at table_lexical rank 3 and final assembled rank 2, but exact LJ-S RTO2L is absent while same-document LJ-S rows appear; case 9 exact CV-X row appears in dense/table/special/fused and final rank 17, but exact XG-X unsupported-SD row is absent while nearby same-document XG-X SD-card rows appear.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "insufficient_evidence": 1,
       "retrieval_not_passed": 1
-    }
+    },
+    "diagnostics": [
+      {
+        "path": "test_reports/retrieval_debug_report_20260825_115623_full_rank.json",
+        "status": "completed",
+        "mode": "full_stage_expected_evidence_rank_diagnostic",
+        "baseline": "retrieval_eval_20260825_072839",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "case_ids": [
+          "curated_cross_document_v2::6",
+          "curated_cross_document_v2::7",
+          "curated_cross_document_v2::9"
+        ],
+        "notes": "Expected-evidence ranks now scan complete stage candidate lists rather than only the serialized top-k preview; no retrieval pass rate is marked resolved."
+      }
+    ]
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. Use the new expected-evidence stage-rank diagnostic report retrieval_debug_report_20260825_112722 to target proven stage losses instead of retrying rejected broad comparison tweaks: case 6 needs better exact evidence discovery for CV-X Condition list and LJ-X Standard Angle, case 7 loses LJ-S RTO2L to easier same-document measurement rows after table lexical discovery, and case 9 surfaces nearby XG-X SD-card rows but not the unsupported-card corrective-action row into final context. Preserve saved single-step and warning/procedure gates and rotate actual HTTP API answer batches when retrieval evidence is stable."
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. Use the full-rank diagnostic report retrieval_debug_report_20260825_115623_full_rank to target proven stage losses: case 6 exact CV-X Condition list and LJ-X Standard Angle chunks are absent from all scanned candidate pools even though same-document weak overlaps appear; case 7 finds the exact LJ-X PMSR row but not the exact LJ-S RTO2L row, so the issue is LJ-S row discovery/specificity rather than only rerank; case 9 finds the CV-X edge-detection row but not the exact XG-X unsupported-SD corrective-action row, only nearby XG-X SD-card rows. Next safe work should improve generic table-row discovery/specificity for user-mentioned setting/code/error-row phrases without document-specific routing or inferred hard filters, then rerun the 10-case v2 gate and rotate actual HTTP API answers when retrieval evidence is stable.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss. New full-rank diagnostic artifact test_reports/retrieval_debug_report_20260825_115623_full_rank.json scans the complete in-memory stage candidate lists (while keeping preview output top-k limited) and shows: case 6 exact expected chunks are absent across scanned stages; case 7 exact LJ-X row appears at table_lexical rank 3 and final assembled rank 2, but exact LJ-S RTO2L is absent while same-document LJ-S rows appear; case 9 exact CV-X row appears in dense/table/special/fused and final rank 17, but exact XG-X unsupported-SD row is absent while nearby same-document XG-X SD-card rows appear.",
+  "current_failure_categories": {
+    "candidate_miss": 1,
+    "eval_timeout": 1,
+    "ranking_or_context_loss": 1
+  },
+  "failure_categories": {
+    "candidate_miss": 1,
+    "eval_timeout": 1,
+    "ranking_or_context_loss": 1
+  }
 }
