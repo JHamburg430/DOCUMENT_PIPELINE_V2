@@ -1,0 +1,79 @@
+{
+  "total_queries": 10,
+  "passed_queries": 7,
+  "failed_queries": 3,
+  "pass_rate": 0.7,
+  "pass_at_1": 0.6,
+  "pass_at_3": 0.7,
+  "pass_at_5": 0.7,
+  "mean_passing_rank": 1.143,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 10,
+      "passed": 7
+    }
+  },
+  "by_retrieval_task": {
+    "multi_step_retrieval": {
+      "total": 10,
+      "passed": 7
+    }
+  },
+  "by_document": {
+    "AS_151292_VS_UM_J18GB_WW_GB_2035_7.pdf": {
+      "total": 2,
+      "passed": 2
+    },
+    "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_146087_IV4_UM_K08GB_WW_GB_2084_1.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM_A61GB_WW_GB_2072_2.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf": {
+      "total": 2,
+      "passed": 1
+    },
+    "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf": {
+      "total": 1,
+      "passed": 0
+    },
+    "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf": {
+      "total": 1,
+      "passed": 0
+    },
+    "AS_145895_KV-X_C_611X95_KA_US_2084_1.pdf": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "failure_categories": {
+    "ranking_or_context_loss": 2,
+    "candidate_miss": 1
+  },
+  "benchmark_quality": {
+    "validated": 10
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 0.9,
+  "metadata_document_selection_attempts": 10,
+  "metadata_document_selection_recall_rate": 1.0,
+  "metadata_document_selection_rank_1_rate": 0.4,
+  "answer_eval_count": 0,
+  "answer_passed_queries": 0,
+  "answer_failed_queries": 0,
+  "answer_pass_rate": null,
+  "answer_failure_reasons": {},
+  "answer_latency": null,
+  "answer_fallback_count": null,
+  "answer_fallback_rate": null,
+  "answer_sources": {},
+  "answer_fallback_reasons": {},
+  "answer_mean_summary_count": null
+}
