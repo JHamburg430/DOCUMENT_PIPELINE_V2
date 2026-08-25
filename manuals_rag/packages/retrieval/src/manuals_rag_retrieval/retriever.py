@@ -307,15 +307,26 @@ def _compact_identifier(text: str) -> str:
 
 
 def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
-    if "structured_lookup" not in analysis.query_types:
+    if "structured_lookup" not in analysis.query_types and not (
+        "comparison" in analysis.query_types and analysis.product_identifiers
+    ):
         return []
     terms: list[str] = []
     for term in tokenize(query):
         normalized = re.sub(r"[^a-z0-9]+", "", term.lower())
-        if len(normalized) < 4 or normalized in LEXICAL_TABLE_STOPWORDS:
+        if (len(normalized) < 4 and not any(char.isdigit() for char in normalized)) or normalized in LEXICAL_TABLE_STOPWORDS:
             continue
         if normalized not in terms:
             terms.append(normalized)
+        if "comparison" in analysis.query_types:
+            for piece in re.split(r"[-/_.]+", term.lower()):
+                piece = re.sub(r"[^a-z0-9]+", "", piece)
+                if (
+                    (len(piece) >= 4 or any(char.isdigit() for char in piece))
+                    and piece not in LEXICAL_TABLE_STOPWORDS
+                    and piece not in terms
+                ):
+                    terms.append(piece)
     return terms[:16]
 
 
@@ -327,6 +338,19 @@ def _lexical_table_content_terms(terms: list[str]) -> list[str]:
         and term not in {"corrective", "corrected", "remedy", "cause"}
     ]
     return sorted(content_terms, key=lambda term: (len(term), term), reverse=True)[:1]
+
+
+def _comparison_table_content_terms(terms: list[str]) -> list[str]:
+    content_terms = [
+        term
+        for term in terms
+        if term
+        and len(term) >= 2
+        and not (any(char.isdigit() for char in term) and len(term) >= 3)
+        and term not in {"compare", "listed", "documentation"}
+        and term not in LEXICAL_TABLE_STOPWORDS
+    ]
+    return sorted(content_terms, key=lambda term: (any(char.isdigit() for char in term), len(term), term), reverse=True)[:12]
 
 
 def _lexical_table_symbol_terms(terms: list[str]) -> list[str]:
@@ -403,8 +427,15 @@ def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase
     if overlap <= 0:
         return 0.0
     score = overlap * 0.12
-    symbol_overlap = sum(1 for term in _lexical_table_symbol_terms(terms) if term in compact_haystack)
-    score += min(0.6, symbol_overlap * 0.12)
+    symbol_terms = _lexical_table_symbol_terms(terms)
+    symbol_overlap = sum(1 for term in symbol_terms if term in compact_haystack)
+    score += min(0.9, symbol_overlap * 0.22)
+    short_code_overlap = sum(1 for term in terms if any(char.isdigit() for char in term) and len(term) <= 4 and term in compact_haystack)
+    score += min(0.45, short_code_overlap * 0.15)
+    if {"measured", "data", "format"}.intersection(terms) and "formofmeasureddata" in compact_haystack:
+        score += 0.45
+    if "symbol" not in terms and re.match(r"\s*(?:symbol|tool):", content, flags=re.IGNORECASE):
+        score -= 0.85
     product_haystack = " ".join(
         str(part)
         for part in [
@@ -445,6 +476,7 @@ def run_table_lexical_search(
     terms = _lexical_table_terms(query, analysis)
     if not terms:
         return []
+    is_comparison_lookup = "comparison" in analysis.query_types and bool(analysis.product_identifiers)
     prompt_phrase = _structured_prompt_phrase(query)
     where = [
         "chunk_type = 'table_record'",
@@ -468,28 +500,74 @@ def run_table_lexical_search(
             values = value if isinstance(value, list) else [value]
             where.append(f"metadata_json->>%s = any(%s)")
             params.extend([key, [str(item) for item in values]])
-    required_terms = _lexical_table_content_terms(terms)
+    required_terms = [] if is_comparison_lookup else _lexical_table_content_terms(terms)
     symbol_terms = _lexical_table_symbol_terms(terms)
-    if required_terms and len(symbol_terms) < 3:
-        where.extend(["content ilike %s"] * len(required_terms))
+    if is_comparison_lookup:
+        like_terms = _comparison_table_content_terms(terms)
+        if like_terms:
+            where.append(
+                "("
+                + " or ".join(["content ilike %s"] * len(like_terms))
+                + ")"
+            )
+            params.extend([f"%{term}%" for term in like_terms])
+    elif required_terms and len(symbol_terms) < 3:
+        where.extend(["regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s"] * len(required_terms))
         params.extend([f"%{term}%" for term in required_terms])
-    if symbol_terms:
+    if symbol_terms and not is_comparison_lookup:
         where.append("(" + " or ".join(["regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s"] * len(symbol_terms)) + ")")
         params.extend([f"%{term}%" for term in symbol_terms])
-    if not required_terms and not symbol_terms:
+    if not is_comparison_lookup and not required_terms and not symbol_terms:
         like_terms = terms[:8]
         where.append("(" + " or ".join(["content ilike %s"] * len(like_terms)) + ")")
         params.extend([f"%{term}%" for term in like_terms])
+    order_by = "order by priority_score desc, id"
+    order_params: list[object] = []
+    if is_comparison_lookup:
+        order_terms: list[str] = []
+        for term in terms:
+            if term not in order_terms:
+                order_terms.append(term)
+            if len(order_terms) >= 10:
+                break
+        if order_terms:
+            product_patterns = [
+                f"%{str(identifier).strip()}%"
+                for identifier in (analysis.product_identifiers or [])[:4]
+                if str(identifier).strip()
+            ]
+            product_fragments = [
+                (
+                    "case when metadata_json->>'product_model' ilike %s "
+                    "or metadata_json->>'product_family' ilike %s "
+                    "or metadata_json->>'product_models' ilike %s "
+                    "or metadata_json->>'devices' ilike %s then 3 else 0 end"
+                )
+                for _ in product_patterns
+            ]
+            order_by = (
+                "order by "
+                + " + ".join(
+                    [
+                        *product_fragments,
+                        *(["case when content ilike %s then 1 else 0 end"] * len(order_terms)),
+                    ]
+                )
+                + " desc, priority_score desc, id"
+            )
+            for pattern in product_patterns:
+                order_params.extend([pattern, pattern, pattern, pattern])
+            order_params.extend([f"%{term}%" for term in order_terms])
     rows = fetch_all(
         f"""
         select id, document_version_id, source_document_id, title, section_path_text,
                page_from, page_to, content, metadata_json, priority_score
         from retrieval_chunks
         where {" and ".join(where)}
-        order by priority_score desc, id
+        {order_by}
         limit {LEXICAL_TABLE_SCAN_LIMIT}
         """,
-        tuple(params),
+        tuple([*params, *order_params]),
     )
     ranked: list[tuple[float, SearchResult]] = []
     for row in rows:
@@ -1119,6 +1197,81 @@ def _apply_query_alignment(results: list[SearchResult], analysis: QueryAnalysis,
     return sorted(aligned, key=lambda item: item.score, reverse=True)
 
 
+def _result_matches_identifier(result: SearchResult, identifier: str) -> bool:
+    expected = _compact_identifier(identifier)
+    if not expected:
+        return False
+    haystack = _compact_identifier(
+        " ".join(
+            str(part)
+            for part in [
+                result.metadata.get("product_model"),
+                result.metadata.get("product_family"),
+                " ".join(str(item) for item in result.metadata.get("product_models") or []),
+                " ".join(str(item) for item in result.metadata.get("product_families") or []),
+                " ".join(str(item) for item in result.metadata.get("devices") or []),
+                result.title,
+            ]
+            if part
+        )
+    )
+    return expected in haystack
+
+
+def _promote_comparison_table_candidates(
+    primary_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    analysis: QueryAnalysis,
+    *,
+    limit: int = 12,
+) -> list[SearchResult]:
+    identifiers = [str(identifier) for identifier in (analysis.product_identifiers or []) if str(identifier)]
+    if "comparison" not in analysis.query_types or len(identifiers) < 2 or not supplemental_results:
+        return primary_results
+    promoted: list[SearchResult] = []
+    seen: set[str] = set()
+    for identifier in identifiers:
+        if any(_result_matches_identifier(result, identifier) and result.metadata.get("table_column_headers") for result in primary_results[:5]):
+            continue
+        candidate = next(
+            (
+                result
+                for result in supplemental_results
+                if result.chunk_id not in seen
+                and str(result.metadata.get("chunk_type") or "") == "table_record"
+                and bool(result.metadata.get("table_column_headers"))
+                and _result_matches_identifier(result, identifier)
+            ),
+            None,
+        )
+        if candidate is None:
+            continue
+        seen.add(candidate.chunk_id)
+        promoted.append(
+            candidate.model_copy(
+                update={
+                    "metadata": {
+                        **candidate.metadata,
+                        "retrieval_stage": "comparison_table_promoted",
+                    }
+                }
+            )
+        )
+    if not promoted:
+        return primary_results
+    combined = [*promoted, *primary_results]
+    deduped: list[SearchResult] = []
+    seen_ids: set[str] = set()
+    for result in combined:
+        if result.chunk_id in seen_ids:
+            continue
+        seen_ids.add(result.chunk_id)
+        deduped.append(result)
+        if len(deduped) >= limit:
+            break
+    return deduped
+
+
 def _select_family_candidates(
     results: list[SearchResult],
     analysis: QueryAnalysis,
@@ -1530,6 +1683,7 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=chunk_search_filters, limit=12), "family_selected")
     enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=12)
     reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked")
+    reranked = _promote_comparison_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     deduped = _dedupe_results(reranked, analysis)
     assembled = assemble_context(deduped, limit=limit)
     if not metadata_document_hits:

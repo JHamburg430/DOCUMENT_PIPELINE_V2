@@ -158,6 +158,18 @@
           "retrieval_eval_20260825_042639"
         ],
         "remaining": "The curated slice is realistic and validated but retrieval is 3/5 with two ranking/context losses despite 100% candidate recall, so the next safe production target is cross-document paired-evidence context assembly with saved single-step and warning/procedure gates."
+      },
+      "2026-08-25T04:40:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Improved cross-document paired-evidence ranking/context assembly on the manually reviewed v1 slice with comparison table lexical candidates and per-explicit-product table-cell promotion. No diagnostic-only generated cross-document rows were used for production tuning.",
+        "evidence": [
+          "tests/unit/test_retriever.py -q -> 84 passed, 1 warning",
+          "retrieval_eval_20260825_050502",
+          "retrieval_eval_20260825_050627",
+          "retrieval_eval_20260825_050623"
+        ],
+        "remaining": "The v1 cross-document slice is now 5/5 but only five manually reviewed cases. Broaden cross-document coverage and rotate actual HTTP API answer-grounding batches before treating this as release-level evidence."
       }
     }
   },
@@ -431,17 +443,105 @@
         "quality_review": "Manual review rewrote generated cross-document prompts into user-style comparison/troubleshooting/spec questions while preserving source-backed expected evidence from two documents. No filename, chunk-id, parser-artifact, or table-coordinate prompt text is required of the user.",
         "notes": "Retrieval evidence retrieval_eval_20260825_042607: 3/5 passed, candidate recall 100%, metadata-document recall 100%, failures ranking_or_context_loss: 2. Promoted as realistic exploratory coverage, not as a green release gate."
       }
-    ]
+    ],
+    "failure_categories": {},
+    "current_failure_categories": {},
+    "next_target": "Broaden manually reviewed cross-document coverage beyond the 5-case v1 slice and rotate a small actual HTTP API answer-grounding batch, while watching comparison lexical latency and preserving saved single-step and warning/procedure gates.",
+    "answer_grounding_status": "No HTTP API answer-mode batch was run in this retrieval-focused cycle. Prior actual /query evidence remains 6/6 across realistic single-step, warning/procedure, and one cross-document case; coverage is still cron-sized and should keep rotating or move to a longer answer-eval schedule."
   },
   "latest_results": {
     "unit_tests": {
-      "command": "No code changes this run; focused validation used saved dataset loading plus retrieval eval gates.",
-      "status": "not_run_no_code_changes",
-      "passed": null,
-      "warnings": null,
-      "notes": "This run changed curated eval/tracking artifacts only. Prior focused eval-generation tests remained 66 passed from the preceding guardrail-quality run."
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q",
+      "status": "passed",
+      "passed": 84,
+      "warnings": 1,
+      "notes": "Focused retriever coverage for comparison short-code lexical terms and per-product table-cell promotion."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_050502",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0423_curated_cross_document_v1.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_050502.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_050502.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_050502.json",
+        "status": "completed_manual_curated_cross_document_v1_after_comparison_pairing",
+        "mode": "retrieval_only_curated_cross_document_multi_step",
+        "total_queries": 5,
+        "passed_queries": 5,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 5,
+            "passed": 5
+          }
+        },
+        "failure_categories": {},
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.6,
+        "notes": "Comparison table lexical candidates plus per-explicit-product table-cell promotion improved the manually reviewed cross-document v1 slice from 3/5 to 5/5; this is now green but still a 5-case exploratory slice, not broad release evidence."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_050627",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_050627.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_050627.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_050627.json",
+        "status": "completed_saved_single_step_regression_gate",
+        "mode": "retrieval_only_curated_single_step_v2_regression",
+        "total_queries": 13,
+        "passed_queries": 13,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 13,
+            "passed": 13
+          }
+        },
+        "failure_categories": {},
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.8462,
+        "notes": "Saved guardrail-v2 curated single-step gate stayed green after comparison retrieval changes."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_050623",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_050623.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_050623.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_050623.json",
+        "status": "completed_warning_procedure_regression_gate",
+        "mode": "retrieval_only_warning_step_multi_step_regression",
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "failure_categories": {},
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.4667,
+        "notes": "Saved warning/procedure multi-step gate stayed green after comparison retrieval changes."
+      },
       {
         "run_id": "retrieval_eval_20260825_042607",
         "corpus_id": "manuals_vendor_keyence",
@@ -4496,16 +4596,10 @@
         "notes": "Separate LLM-generated live eval attempt produced no completed cases after about 2 minutes and was stopped for cron budget; this completed run used deterministic fallback generation."
       }
     ],
-    "failure_categories": {
-      "candidate_miss": 3,
-      "ranking_or_context_loss": 1
-    },
-    "next_target": "Improve cross-document paired-evidence ranking/context assembly on the manually reviewed v1 slice, preserving curated single-step, warning/procedure, and small HTTP API answer-grounding gates.",
-    "current_failure_categories": {
-      "candidate_miss": 3,
-      "ranking_or_context_loss": 1
-    },
-    "answer_grounding_status": "No new answer-mode run this cycle; prior actual HTTP API /query answer evidence remains 6/6 across realistic single-step, warning/procedure multi-step, and one cross-document case, but coverage is still cron-sized and answer latency remains high."
+    "failure_categories": {},
+    "next_target": "Broaden manually reviewed cross-document coverage beyond the 5-case v1 slice and rotate a small actual HTTP API answer-grounding batch, while watching comparison lexical latency and preserving saved single-step and warning/procedure gates.",
+    "current_failure_categories": {},
+    "answer_grounding_status": "No HTTP API answer-mode batch was run in this retrieval-focused cycle. Prior actual /query evidence remains 6/6 across realistic single-step, warning/procedure, and one cross-document case; coverage is still cron-sized and should keep rotating or move to a longer answer-eval schedule."
   },
-  "next_target": "Manually review or further curate cross-document multi-step question generation before production retrieval tuning, then improve candidate recall and final context assembly while preserving saved single-step, warning/procedure, and HTTP API answer-grounding gates."
+  "next_target": "Broaden manually reviewed cross-document coverage beyond the 5-case v1 slice and rotate a small actual HTTP API answer-grounding batch, while watching comparison lexical latency and preserving saved single-step and warning/procedure gates."
 }

@@ -2152,6 +2152,65 @@ def test_table_lexical_search_scores_structured_troubleshooting_row_groups(monke
     assert captured["params"][1] == ["doc-1"]
 
 
+def test_table_lexical_terms_include_comparison_short_codes():
+    analysis = analyze_query(
+        "For LJ-S8000 and LJ-X8000, compare the measured-data format for the ERRC error code "
+        "with the T1 Angle 1 MS/AB value."
+    )
+
+    terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
+
+    assert {"ljs8000", "ljx8000", "errc", "t1", "msab"}.issubset(set(terms))
+
+
+def test_comparison_table_promotion_adds_named_product_table_cell():
+    analysis = analyze_query(
+        "For LJ-S8000 and LJ-X8000, compare the measured-data format for the ERRC error code "
+        "with the T1 Angle 1 MS/AB value."
+    )
+    reranked = [
+        SearchResult(
+            chunk_id="s8000-result",
+            score=3.0,
+            title="Manual",
+            document_version_id="ver-s",
+            source_document_id="doc-s",
+            pages=[10],
+            section_path=["A"],
+            content="Column headers: Form of measured data; Row headers: ERRC; Cell value: Integer 7 digits.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Form of measured data"],
+                "product_family": "LJ-S8000 Series",
+            },
+        )
+    ]
+    supplemental = [
+        SearchResult(
+            chunk_id="x8000-result",
+            score=1.5,
+            title="Manual",
+            document_version_id="ver-x",
+            source_document_id="doc-x",
+            pages=[20],
+            section_path=["A"],
+            content="Column headers: Form of measured data; Row headers: T1 > Angle 1 > MS,AB; Cell value: Sign, Integer 3 digits, 3 digits after the decimal point.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Form of measured data"],
+                "product_family": "LJ: X8000 Series",
+                "product_models": ["LJ-X8000"],
+            },
+        )
+    ]
+
+    promoted = retriever._promote_comparison_table_candidates(reranked, supplemental, analysis, limit=5)
+
+    assert promoted[0].chunk_id == "x8000-result"
+    assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
+    assert promoted[1].chunk_id == "s8000-result"
+
+
 def test_table_lexical_search_skips_unstructured_general_queries(monkeypatch):
     monkeypatch.setattr(retriever, "fetch_all", lambda *_args, **_kwargs: pytest.fail("fetch_all should not run"))
 
