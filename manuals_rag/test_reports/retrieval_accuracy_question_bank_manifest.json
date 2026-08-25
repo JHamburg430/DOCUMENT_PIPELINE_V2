@@ -208,6 +208,18 @@
           "retrieval_eval_20260825_070155"
         ],
         "remaining": "The first two curated cross-document API answers are now green, but broader answer coverage is still cron-sized and direct cross-document v2 retrieval remains 6/10 from retrieval_eval_20260825_060430 with candidate_miss/eval_timeout/ranking_or_context failures."
+      },
+      "2026-08-25T08:14:00Z": {
+        "severity": "needs_fix",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Corrected tracking so the four-case HTTP API answer rotation remains answer-grounding evidence and no longer hides the unresolved 10-case curated cross-document v2 direct-retrieval failure profile.",
+        "evidence": [
+          "retrieval_eval_20260825_072839",
+          "retrieval_eval_20260825_080303",
+          "test_reports/retrieval_accuracy_question_bank_manifest.json current_failure_categories",
+          "test_reports/retrieval_accuracy_progress.md 2026-08-25 08:23 UTC tracking note"
+        ],
+        "remaining": "Continue production work against the full manually reviewed 10-case cross-document v2 slice: case 6 eval_timeout, case 7 ranking/context loss, and case 9 candidate miss, while also rotating actual HTTP API answer batches for cases such as case 3 where retrieved evidence is not cited/used."
       }
     }
   },
@@ -504,10 +516,18 @@
       "ranking_or_context_loss": 1
     },
     "current_failure_categories": {
-      "candidate_miss": 1
+      "candidate_miss": 1,
+      "eval_timeout": 1,
+      "ranking_or_context_loss": 1
     },
-    "next_target": "Fix cross-document v2 answer grounding and retrieval beyond the first two API-smoke cases: case 3 retrieves both documents but the actual API answer misses an expected document citation/use, and case 4 still misses IV-HG/IV4 startup-memory paired evidence. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.",
-    "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s."
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline: 7/10 passed with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss.",
+    "answer_current_failure_categories": {
+      "expected_document_not_cited_or_used": 1,
+      "insufficient_evidence": 1,
+      "retrieval_not_passed": 1
+    },
+    "next_target": "Fix cross-document v2 retrieval using the full manually reviewed 10-case direct baseline, not only the four-case HTTP answer rotation: case 6 still times out on CV-X482/LJ-X8000 condition and standard-angle settings, case 7 has LJ-X/LJ-S symbol ranking/context loss, and case 9 misses XG-X unsupported SD-card corrective-action evidence. Also rotate actual HTTP API answer batches, especially case 3 where retrieval passes but the answer misses an expected document citation/use. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.",
+    "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. This is answer-rotation evidence and does not supersede the full 10-case direct v2 failure profile from retrieval_eval_20260825_072839. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s."
   },
   "latest_results": {
     "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning",

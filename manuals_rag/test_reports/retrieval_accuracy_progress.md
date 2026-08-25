@@ -1293,3 +1293,19 @@ Next target:
 Next target:
 
 - Fix cross-document v2 answer grounding and retrieval beyond the first two API-smoke cases: case 3 retrieves both documents but the actual API answer misses an expected document citation/use, and case 4 still misses IV-HG/IV4 startup-memory paired evidence. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.
+
+## 2026-08-25 Cron 39262386 Guardrail Tracking Correction
+
+- Target: address guardrail `2026-08-25T08:14:00Z` before further retrieval or answer tuning. The latest guardrail findings file was reviewed at run start; direct run summaries for guardrail job `ca862d7a-e46f-4de3-870e-1cca28a3510c` were unavailable because the cron tool is restricted to the current job.
+- Guardrail finding: the prior run correctly recorded rejected retrieval experiments and useful actual HTTP API answer rotation evidence, but the manifest promoted the four-case answer batch failure view into `current_failure_categories` and `next_target`, obscuring the unresolved 10-case manually reviewed cross-document v2 direct-retrieval baseline.
+- Local stack: compose services were running and usable: API, Postgres, Qdrant, Redis, workers, and UI were up; Postgres was healthy. The existing `manuals_vendor_keyence` corpus remained the active target.
+- Changed tracking files only: corrected `test_reports/retrieval_accuracy_question_bank_manifest.json` so `current_failure_categories` again reflects the full direct v2 baseline from `retrieval_eval_20260825_072839` (`eval_timeout: 1`, `ranking_or_context_loss: 1`, `candidate_miss: 1`) and moved the four-case actual `/query` answer failures from `retrieval_eval_20260825_080303` into a separate `answer_current_failure_categories` view.
+- Evidence reviewed: `retrieval_eval_20260825_072839` remains 7/10 on the manually reviewed 10-case cross-document v2 slice, with failures at case 6 (CV-X482/LJ-X8000 condition and standard-angle settings timeout), case 7 (LJ-X/LJ-S PMSR DC2LAR/RTO2L ranking/context loss), and case 9 (XG-X unsupported SD-card corrective-action candidate miss). `retrieval_eval_20260825_080303` remains useful answer-rotation evidence: 3/4 retrieval, 2/4 actual API answers, case 3 retrieved expected evidence but missed an expected document citation/use, and case 4 failed due retrieval insufficient evidence.
+- No production retrieval, answering, eval-generation, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment logic changed. Question-bank counts remain monotonic and unchanged at 203 exploratory questions total: 100 single-step and 103 multi-step. No questions were retired or added; replacement debt remains 0.
+- Focused validation: `jq empty test_reports/retrieval_accuracy_question_bank_manifest.json` -> passed; `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 66 passed in 0.30s.
+- Guardrail handling: `2026-08-25T08:14:00Z` is addressed by making the full 10-case v2 direct-retrieval failure profile visible again and explicitly labeling the four-case HTTP answer batch as answer-grounding rotation evidence, not the complete current failure state.
+- Generalization check before commit: this tracking-only correction is valid for unseen manuals and vendors because it prevents the work loop from overfitting to a smaller green-or-nearly-green answer slice and keeps the broader realistic cross-document retrieval failures visible.
+
+Next target:
+
+- Resume production work on the full curated cross-document v2 slice: case 6 eval timeout, case 7 ranking/context loss, and case 9 candidate miss, while rotating actual HTTP API answer batches for cases such as case 3 where retrieval passes but the answer misses an expected document citation/use. Preserve saved single-step and warning/procedure gates.
