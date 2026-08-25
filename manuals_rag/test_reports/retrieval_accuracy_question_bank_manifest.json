@@ -220,6 +220,16 @@
           "test_reports/retrieval_accuracy_progress.md 2026-08-25 08:23 UTC tracking note"
         ],
         "remaining": "Continue production work against the full manually reviewed 10-case cross-document v2 slice: case 6 eval_timeout, case 7 ranking/context loss, and case 9 candidate miss, while also rotating actual HTTP API answer batches for cases such as case 3 where retrieved evidence is not cited/used."
+      },
+      "2026-08-25T09:14:00Z": {
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Tested and rejected a targeted comparison candidate experiment because diagnostics did not surface the expected cross-document v2 rows and the metadata/content targeted fetch became too slow; reverted all production retrieval edits and kept the full 10-case baseline visible.",
+        "evidence": [
+          "tests/unit/test_retriever.py -q -> 91 passed, 1 warning",
+          "git diff -- packages/retrieval/src/manuals_rag_retrieval/retriever.py -> empty after revert",
+          "test_reports/retrieval_accuracy_progress.md 2026-08-25 Rejected Targeted Comparison Candidate Experiment"
+        ],
+        "remaining": "Continue from retrieval_eval_20260825_072839 on the full curated cross-document v2 baseline, but avoid the failed targeted metadata/content prefilter path. Prioritize case 6 timeout diagnosis and case 9 XG-X unsupported-SD recall through existing candidate stages, while preserving saved single-step and warning/procedure gates."
       }
     }
   },
@@ -520,13 +530,13 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline: 7/10 passed with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_085751 repeated the same 7/10 profile under a rejected table-symbol diversity experiment.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline: 7/10 passed with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. The 2026-08-25T09:30Z targeted comparison candidate experiment was rejected and reverted because it did not surface the expected rows and introduced slow metadata/content prefilter behavior.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "insufficient_evidence": 1,
       "retrieval_not_passed": 1
     },
-    "next_target": "Resume production work on the full curated cross-document v2 slice: case 6 eval_timeout on CV-X482/LJ-X8000 condition and standard-angle settings, case 7 LJ-X/LJ-S symbol ranking/context loss, and case 9 XG-X unsupported SD-card corrective-action candidate miss. Also rotate actual HTTP API answer batches, especially case 3 where retrieval passes but the answer misses an expected document citation/use. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.",
+    "next_target": "Resume from the full curated cross-document v2 baseline, but avoid the failed targeted metadata/content prefilter path. Prefer diagnosing case 6 timeout cost and case 9 XG-X unsupported-SD recall through existing vector/sparse/table candidate stages, then rotate actual HTTP API answer batches when retrieval evidence is stable. Preserve saved single-step and warning/procedure gates.",
     "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. This is answer-rotation evidence and does not supersede the full 10-case direct v2 failure profile from retrieval_eval_20260825_072839. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s."
   },
   "latest_results": {
@@ -5178,5 +5188,5 @@
       "retrieval_not_passed": 1
     }
   },
-  "next_target": "Resume production work on the full curated cross-document v2 slice: case 6 eval_timeout on CV-X482/LJ-X8000 condition and standard-angle settings, case 7 LJ-X/LJ-S symbol ranking/context loss, and case 9 XG-X unsupported SD-card corrective-action candidate miss. Also rotate actual HTTP API answer batches, especially case 3 where retrieval passes but the answer misses an expected document citation/use. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice."
+  "next_target": "Resume from the full curated cross-document v2 baseline, but avoid the failed targeted metadata/content prefilter path. Prefer diagnosing case 6 timeout cost and case 9 XG-X unsupported-SD recall through existing vector/sparse/table candidate stages, then rotate actual HTTP API answer batches when retrieval evidence is stable. Preserve saved single-step and warning/procedure gates."
 }

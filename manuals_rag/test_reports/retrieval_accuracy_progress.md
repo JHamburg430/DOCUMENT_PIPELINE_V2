@@ -1325,3 +1325,21 @@ Next target:
 Next target:
 
 - Resume production work on the full curated cross-document v2 slice: case 6 eval_timeout on CV-X482/LJ-X8000 condition and standard-angle settings, case 7 LJ-X/LJ-S symbol ranking/context loss, and case 9 XG-X unsupported SD-card corrective-action candidate miss. Also rotate actual HTTP API answer batches, especially case 3 where retrieval passes but the answer misses an expected document citation/use. Preserve saved single-step and warning/procedure gates; avoid committing unproven comparison lexical changes that do not improve the 10-case v2 slice.
+
+## 2026-08-25 Cron 39262386 Rejected Targeted Comparison Candidate Experiment
+
+- Target: follow up the latest guardrail `ok` finding and manifest target against the full manually reviewed 10-case cross-document v2 baseline, while keeping the four-case HTTP answer rotation separate.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. The most recent finding, `2026-08-25T09:14:00Z`, is `ok` and requires continued work on the full curated v2 direct-retrieval failures without committing unproven comparison lexical changes.
+- Local stack: compose services were running and usable: API, Postgres, Qdrant, Redis, workers, and UI were up; Postgres was healthy. The active corpus remained `manuals_vendor_keyence`.
+- Failure review: current full direct baseline remains `retrieval_eval_20260825_072839` at 7/10, with case 6 `eval_timeout`, case 7 `ranking_or_context_loss`, and case 9 `candidate_miss`. Separate actual HTTP API answer rotation remains `retrieval_eval_20260825_080303` at 2/4 answers and is not treated as the whole retrieval target.
+- Attempted retrieval experiment: tried generic comparison table-candidate refinements: scoring `failure`/`failed` variants, reducing ordinary-word symbol boosts, preferring named-product candidates with missing row-code coverage, and a bounded targeted table fetch for explicit comparison product identifiers plus salient row/content terms.
+- Rejected evidence: direct table-lexical diagnostics did not surface the expected case 7 RTO2L row or case 9 unsupported-SD row in the candidate set. The targeted fetch also became slow enough that the diagnostic process had to be interrupted before completing all inspected cases, repeating the guardrail concern about broad metadata/content comparison prefilters.
+- Containment: all production retrieval edits from the experiment were reverted. `git diff -- packages/retrieval/src/manuals_rag_retrieval/retriever.py` is empty. Focused retriever tests after revert: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 91 passed, 1 warning.
+- Question-bank counts remain monotonic and unchanged at 203 exploratory questions total: 100 single-step and 103 multi-step. No questions were retired or added; replacement debt remains 0.
+- No new eval summary was promoted this run because no safe production improvement survived containment. The existing current baseline remains `retrieval_eval_20260825_072839`; the rejected diagnostic work produced no committed eval artifact.
+- Guardrail handling: no unresolved `needs_fix` item was ignored. This run explicitly followed the `2026-08-25T09:14:00Z` instruction to avoid committing unproven comparison lexical changes that do not improve the full v2 slice.
+- Generalization check before commit: rejecting the targeted metadata/content candidate fetch is valid for unseen manuals and vendors because it avoided adding a slow, broad comparison prefilter that did not improve production-style retrieval evidence.
+
+Next target:
+
+- Resume from the full curated cross-document v2 baseline, but avoid the failed targeted metadata/content prefilter path. Prefer diagnosing case 6 timeout cost and case 9 XG-X unsupported-SD recall through existing vector/sparse/table candidate stages, then rotate actual HTTP API answer batches when retrieval evidence is stable. Preserve saved single-step and warning/procedure gates.
