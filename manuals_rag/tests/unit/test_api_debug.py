@@ -386,6 +386,7 @@ def test_streaming_eval_persists_completion_and_progress_events(monkeypatch):
     run_id = streamed[0]["run_id"]
     assert [event["event"] for event in streamed] == [
         "eval_queued",
+        "eval_preparing_questions",
         "eval_started",
         "eval_question_started",
         "eval_query_event",

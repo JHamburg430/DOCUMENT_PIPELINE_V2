@@ -1160,6 +1160,18 @@ def _start_end_to_end_eval_run(
 
         items: list[dict[str, Any]] = []
         try:
+            preparing_event = emit(
+                {
+                    "event": "eval_preparing_questions",
+                    "scope": {
+                        "corpus_ids": payload.get("corpus_ids") or [],
+                        "document_id": payload.get("document_id"),
+                    },
+                    "max_questions": payload.get("max_questions"),
+                    "use_llm_generation": bool(payload.get("use_llm_generation", True)),
+                }
+            )
+            _update_persisted_run(run_id, status="running", progress=preparing_event)
             corpus_ids, document_id, cases, warnings = _load_eval_cases(payload)
             start_event = emit(
                 {

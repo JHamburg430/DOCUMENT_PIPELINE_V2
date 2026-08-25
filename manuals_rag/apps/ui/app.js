@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260822-fetch-recovery-1";
+const ASSET_VERSION = "20260825-eval-reset-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
@@ -136,6 +136,26 @@ function renderMetrics(summary = {}) {
   ]
     .map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
     .join("");
+}
+
+function resetProgressState() {
+  progressState.sequence = [];
+  progressState.state = {};
+  progressState.details = {};
+  progressState.expanded = new Set();
+}
+
+function resetEvalOutput(message = "Waiting for completed questions.") {
+  state.currentEval = null;
+  state.selectedEvalIndex = 0;
+  localStorage.removeItem(STORAGE_KEY);
+  resetProgressState();
+  renderMetrics(summarizeVisibleItems([]));
+  $("result-run-id").textContent = "";
+  $("eval-table").innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
+  $("eval-detail").innerHTML = "";
+  $("model-output").innerHTML = "";
+  $("progress-list").innerHTML = '<div class="empty-state">No active question progress.</div>';
 }
 
 function summarizeVisibleItems(items = []) {
@@ -870,14 +890,8 @@ async function runEval() {
   if (state.running) return;
   state.running = true;
   $("run-eval").disabled = true;
-  $("model-output").innerHTML = "";
-  $("progress-list").innerHTML = "";
   renderQuestionTrace(null);
-  state.currentEval = null;
-  $("eval-summary").className = "metrics empty-state";
-  $("eval-summary").textContent = "No evaluation loaded.";
-  $("eval-table").innerHTML = "";
-  $("eval-detail").innerHTML = "";
+  resetEvalOutput("Starting a new evaluation.");
   setStatus("Starting", "running");
   const documentId = $("eval-document").value;
   let scope = $("eval-scope").value;
@@ -943,7 +957,14 @@ async function runEval() {
 function handleEvalEvent(event, refs) {
   if (event.event === "eval_queued") {
     setStatus(`Run ${event.run_id}: preparing questions`, "running");
+    resetEvalOutput("Preparing evaluation questions.");
     $("progress-list").innerHTML = '<div class="empty-state">Preparing evaluation questions.</div>';
+    if (refs.runtime) renderQuestionTrace(refs.runtime);
+  } else if (event.event === "eval_preparing_questions") {
+    setStatus(`Run ${event.run_id}: generating evaluation questions`, "running");
+    resetEvalOutput("Generating evaluation questions from indexed chunks.");
+    $("progress-list").innerHTML = '<div class="empty-state">Generating evaluation questions from indexed chunks.</div>';
+    if (refs.runtime) renderQuestionTrace(refs.runtime);
   } else if (event.event === "eval_started") {
     state.currentEval = { summary: summarizeVisibleItems([]), items: [], warnings: event.warnings || [] };
     renderMetrics(state.currentEval.summary);
