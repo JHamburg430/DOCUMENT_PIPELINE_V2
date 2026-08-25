@@ -112,6 +112,17 @@
           "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_retrieval_eval.py -q -> 76 passed, 9 warnings"
         ],
         "remaining": "No retrieval or answer behavior was changed in this containment run. Next run should broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases before further production answer tuning."
+      },
+      "2026-08-25T02:41:27Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Broadened actual HTTP API answer-grounding coverage after the API/UI scope containment: scored user-visible /query answers across curated single-step, warning/procedure multi-step, and cross-document multi-step slices without production retrieval/answering/API/UI changes.",
+        "evidence": [
+          "retrieval_eval_20260825_025418",
+          "retrieval_eval_20260825_025623",
+          "retrieval_eval_20260825_025743"
+        ],
+        "remaining": "HTTP API answer slices were all green but still tiny because each answer takes roughly 31-54 seconds. Continue rotating small answer batches or adjust the cron timeout/schedule before treating broader answer grounding as a release gate; resume cross-document retrieval/context improvements next."
       }
     }
   },
@@ -341,6 +352,87 @@
       "notes": "Focused API streaming and eval-quality tests passed after removing the out-of-scope API/UI eval_preparing_questions event surface."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_025418",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_025418.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_025418.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_025418.json",
+        "status": "completed_http_api_answer_curated_single_step_v2",
+        "mode": "http_api_answer_with_citations_realistic_single_step",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "total_queries": 3,
+        "passed_queries": 3,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "answer_eval_count": 3,
+        "answer_pass_rate": 1.0,
+        "answer_fallback_rate": 0.0,
+        "answer_sources": {
+          "api": 3
+        },
+        "answer_latency_mean_seconds": 39.082,
+        "answer_latency_p95_seconds": 53.903,
+        "failure_categories": {},
+        "notes": "Actual /query API answer payloads were scored on the guardrail-v2 curated realistic single-step replacement slice; all 3 passed at rank 1 with no fallback."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_025623",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_025623.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_025623.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_025623.json",
+        "status": "completed_http_api_answer_warning_procedure_multi_step",
+        "mode": "http_api_answer_with_citations_warning_procedure_multi_step",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "total_queries": 2,
+        "passed_queries": 2,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_pass_rate": 1.0,
+        "answer_fallback_rate": 0.0,
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_latency_mean_seconds": 35.172,
+        "answer_latency_p95_seconds": 39.185,
+        "failure_categories": {},
+        "notes": "Actual /query API answer payloads were scored on warning/procedure multi-step cases; both passed at rank 1 with no fallback."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_025743",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_190632.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_025743.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_025743.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_025743.json",
+        "status": "completed_http_api_answer_cross_document_multi_step",
+        "mode": "http_api_answer_with_citations_cross_document_multi_step",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "total_queries": 1,
+        "passed_queries": 1,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "answer_eval_count": 1,
+        "answer_pass_rate": 1.0,
+        "answer_fallback_rate": 0.0,
+        "answer_sources": {
+          "api": 1
+        },
+        "answer_latency_mean_seconds": 35.667,
+        "answer_latency_p95_seconds": 35.667,
+        "failure_categories": {},
+        "notes": "Actual /query API answer payload was scored on the first saved cross-document same-field case; retrieval passed at rank 2 and the final answer passed with no fallback."
+      },
       {
         "run_id": "retrieval_eval_20260825_020146",
         "corpus_id": "manuals_vendor_keyence",
@@ -4114,9 +4206,9 @@
       }
     ],
     "failure_categories": {},
-    "next_target": "Broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases, then resume cross-document multi-step retrieval/context improvements.",
+    "next_target": "Resume cross-document multi-step retrieval/context improvements, especially saved same-field ranking/context losses, while continuing rotating small HTTP API answer-grounding batches or recommending a longer answer-eval schedule if broader coverage cannot fit in 30 minutes.",
     "current_failure_categories": {},
-    "answer_grounding_status": "HTTP API answer scoring remains fixed from prior runs; no answer eval was run in this containment-only run. Broader realistic single-step, warning/procedure, and cross-document answer coverage remains next."
+    "answer_grounding_status": "Actual HTTP API /query answer payloads passed 6/6 across realistic curated single-step (3/3), warning/procedure multi-step (2/2), and cross-document multi-step (1/1) slices with answer_source api and fallback rate 0%. Coverage is broader than prior smokes but still cron-sized; answer latency remains high at roughly 31-54s per case."
   },
-  "next_target": "Broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases, then resume cross-document multi-step retrieval/context improvements."
+  "next_target": "Resume cross-document multi-step retrieval/context improvements, especially saved same-field ranking/context losses, while continuing rotating small HTTP API answer-grounding batches or recommending a longer answer-eval schedule if broader coverage cannot fit in 30 minutes."
 }
