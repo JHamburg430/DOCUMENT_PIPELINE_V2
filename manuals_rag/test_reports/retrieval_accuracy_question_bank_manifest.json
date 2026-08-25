@@ -5539,7 +5539,7 @@
       "ranking_or_context_loss": 1
     },
     "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated.",
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. The compact-product SQL supplemental-slice experiment was rejected after retrieval_eval_20260825_182551 regressed to 1/10 with eval_timeout: 9; no production retrieval code remains from that experiment.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_202512 is diagnostic-only after the comparison special-route duplicate-table experiment stayed 7/10 and increased timeout failures; all production edits were reverted.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "retrieval_not_passed": 1,
@@ -5705,18 +5705,36 @@
       }
     ],
     "latest_debug_report": {
-      "report": "test_reports/retrieval_debug_report_20260825_1904_sql_order_features.json",
-      "type": "expected_evidence_table_lexical_sql_order_features",
+      "report": "test_reports/retrieval_debug_report_20260825_195622_stage_timing.json",
+      "type": "production_stage_timing_diagnostic",
       "scope": "curated_cross_document_v2_cases_6_7_9",
-      "status": "still_current_after_rejected_compact_product_sql_and_paired_phrase_experiments",
+      "status": "still_current_after_rejected_special_table_duplicate_experiment",
       "evidence": {
-        "rejected_experiment": "retrieval_eval_20260825_193230 completed at 7/10 with unchanged eval_timeout: 1, ranking_or_context_loss: 1, and candidate_miss: 1 after the paired table-item phrase boost experiment; retrieval code was reverted.",
-        "current_baseline": "retrieval_eval_20260825_072839 remains 7/10 with candidate_miss: 1, eval_timeout: 1, ranking_or_context_loss: 1."
+        "current_baseline": "retrieval_eval_20260825_072839 remains 7/10 with candidate_miss: 1, eval_timeout: 1, ranking_or_context_loss: 1.",
+        "rejected_experiment": "retrieval_eval_20260825_202512 stayed 7/10 but increased eval_timeout failures to 2 after removing table_record from the comparison/compatibility special route; retrieval code was reverted."
       }
-    }
+    },
+    "recent_runs": [
+      {
+        "path": "test_reports/retrieval_eval_summary_20260825_202512.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_202512.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "comparison_special_table_duplicate_removal_experiment",
+        "baseline": "retrieval_eval_20260825_072839",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "total_queries": 10,
+        "passed_queries": 7,
+        "pass_rate": 0.7,
+        "failure_categories": {
+          "eval_timeout": 2,
+          "ranking_or_context_loss": 1
+        },
+        "notes": "Removing table_record from the comparison/compatibility special route avoided duplicate table vector search in shape, but did not improve the full manually reviewed cross-document v2 gate and shifted case 9 from candidate_miss to eval_timeout. The production retrieval edit and unit test were reverted before commit."
+      }
+    ]
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_195622_stage_timing plus SQL order/pool and top-k diagnostics. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should design a bounded/indexed table-lexical discovery or latency-reduction path that specifically addresses table_lexical/special/contextual_lexical cost and lets high-specificity setting/code rows reach scoring, then validate against the full 10-case v2 gate plus saved single-step and warning/procedure gates before any production retrieval commit.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_195622_stage_timing adds diagnostic-only per-stage latency evidence for cases 6, 7, and 9; it does not mark any retrieval pass rate resolved.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_195622_stage_timing plus SQL order/pool and top-k diagnostics. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, duplicate comparison special-table removal, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should design a bounded/indexed table-lexical discovery or latency-reduction path that reduces table_lexical/special cost without dropping useful evidence, then validate against the full 10-case v2 gate plus saved single-step and warning/procedure gates before any production retrieval commit.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_202512 is diagnostic-only after a duplicate comparison special-table removal experiment stayed 7/10 and worsened timeout count to 2; it does not supersede the baseline.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
