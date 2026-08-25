@@ -242,6 +242,17 @@
           "git diff -- packages/retrieval/src/manuals_rag_retrieval/retriever.py tests/unit/test_retriever.py -> empty after revert"
         ],
         "remaining": "Continue from retrieval_eval_20260825_072839; avoid broad targeted metadata/content prefilters and the rejected term-variant scoring path. Focus on existing candidate-stage evidence diversity for case 7 LJ-S RTO2L and case 9 XG-X unsupported-SD rows, while preserving saved single-step and warning/procedure gates."
+      },
+      "2026-08-25T10:15:55Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Tested and rejected a side-specific comparison promotion experiment because it did not improve the full manually reviewed 10-case cross-document v2 slice; reverted all production retrieval and test edits and kept the full baseline visible.",
+        "evidence": [
+          "retrieval_eval_20260825_102700",
+          "tests/unit/test_retriever.py -q -> 91 passed, 1 warning after revert",
+          "git diff -- packages/retrieval/src/manuals_rag_retrieval/retriever.py tests/unit/test_retriever.py -> empty after revert"
+        ],
+        "remaining": "Continue from retrieval_eval_20260825_072839 and avoid the rejected side-specific promotion, term-variant scoring, and broad metadata/content prefilter paths. Focus on candidate-stage evidence diversity for LJ-S RTO2L and XG-X unsupported-SD rows while preserving saved single-step and warning/procedure gates."
       }
     }
   },
@@ -542,18 +553,47 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss; retrieval_eval_20260825_100127 repeated the 7/10 baseline under a rejected comparison term-variant scoring experiment.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss; retrieval_eval_20260825_100127 and retrieval_eval_20260825_102700 repeated the 7/10 baseline under rejected comparison scoring/promotion experiments.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "insufficient_evidence": 1,
       "retrieval_not_passed": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. Use the 20s probe retrieval_eval_20260825_095434 to treat case 6 as both latency-sensitive and a ranking/context loss, not a true hang. Avoid the rejected comparison term-variant scoring path from retrieval_eval_20260825_100127 and the earlier broad targeted metadata/content prefilters. Next safe work should inspect existing vector/sparse/table candidates for side-specific evidence diversity, especially LJ-S RTO2L and XG-X unsupported-SD rows, then rotate actual HTTP API answer batches when retrieval evidence is stable.",
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. The side-specific comparison promotion experiment in retrieval_eval_20260825_102700 was rejected because it stayed 7/10 with the same failure profile, like the earlier rejected term-variant and broad prefilter paths. Next safe work should inspect why existing table/vector/sparse candidate stages still do not carry the LJ-S RTO2L and XG-X unsupported-SD rows into final context, and rotate actual HTTP API answer batches when retrieval evidence is stable. Preserve saved single-step and warning/procedure gates.",
     "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. This is answer-rotation evidence and does not supersede the full 10-case direct v2 failure profile from retrieval_eval_20260825_072839. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s."
   },
   "latest_results": {
-    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning after reverting rejected experiment",
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning after revert",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_102700",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_102700.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_102700.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_102700.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "direct_retrieval_with_rejected_side_specific_comparison_promotion",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 10,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 10,
+        "passed_queries": 7,
+        "failed_queries": 3,
+        "pass_rate": 0.7,
+        "pass_at_1": 0.6,
+        "pass_at_3": 0.7,
+        "pass_at_5": 0.7,
+        "candidate_recall_rate": 0.8,
+        "metadata_document_selection_recall_rate": 1.0,
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 1,
+          "candidate_miss": 1
+        },
+        "notes": "Rejected side-specific comparison promotion experiment. Focused retriever tests passed during the experiment, but the full manually reviewed 10-case cross-document v2 slice stayed at the 7/10 baseline with the same case 6 eval_timeout, case 7 ranking/context loss, and case 9 candidate miss, so production retrieval and unit-test edits were reverted."
+      },
       {
         "run_id": "retrieval_eval_20260825_100127",
         "corpus_id": "manuals_vendor_keyence",
@@ -5243,19 +5283,19 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. Use the 20s probe retrieval_eval_20260825_095434 to treat case 6 as both latency-sensitive and a ranking/context loss, not a true hang. Avoid the rejected comparison term-variant scoring path from retrieval_eval_20260825_100127 and the earlier broad targeted metadata/content prefilters. Next safe work should inspect existing vector/sparse/table candidates for side-specific evidence diversity, especially LJ-S RTO2L and XG-X unsupported-SD rows, then rotate actual HTTP API answer batches when retrieval evidence is stable.",
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. The side-specific comparison promotion experiment in retrieval_eval_20260825_102700 was rejected because it stayed 7/10 with the same failure profile, like the earlier rejected term-variant and broad prefilter paths. Next safe work should inspect why existing table/vector/sparse candidate stages still do not carry the LJ-S RTO2L and XG-X unsupported-SD rows into final context, and rotate actual HTTP API answer batches when retrieval evidence is stable. Preserve saved single-step and warning/procedure gates.",
     "current_failure_categories": {
       "candidate_miss": 1,
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
     "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. This is answer-rotation evidence and does not supersede the full 10-case direct v2 failure profile from retrieval_eval_20260825_072839. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s.",
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline: 7/10 passed with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_085751 repeated the same 7/10 profile under a rejected table-symbol diversity experiment.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with case 6 eval_timeout, case 7 ranking_or_context_loss, and case 9 candidate_miss. Diagnostic retrieval_eval_20260825_095434 showed case 6 completes at 20s but remains ranking/context loss; retrieval_eval_20260825_100127 and retrieval_eval_20260825_102700 repeated the 7/10 baseline under rejected comparison scoring/promotion experiments.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "insufficient_evidence": 1,
       "retrieval_not_passed": 1
     }
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. Use the 20s probe retrieval_eval_20260825_095434 to treat case 6 as both latency-sensitive and a ranking/context loss, not a true hang. Avoid the rejected comparison term-variant scoring path from retrieval_eval_20260825_100127 and the earlier broad targeted metadata/content prefilters. Next safe work should inspect existing vector/sparse/table candidates for side-specific evidence diversity, especially LJ-S RTO2L and XG-X unsupported-SD rows, then rotate actual HTTP API answer batches when retrieval evidence is stable."
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839. The side-specific comparison promotion experiment in retrieval_eval_20260825_102700 was rejected because it stayed 7/10 with the same failure profile, like the earlier rejected term-variant and broad prefilter paths. Next safe work should inspect why existing table/vector/sparse candidate stages still do not carry the LJ-S RTO2L and XG-X unsupported-SD rows into final context, and rotate actual HTTP API answer batches when retrieval evidence is stable. Preserve saved single-step and warning/procedure gates."
 }
