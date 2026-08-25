@@ -529,7 +529,7 @@ def test_table_eval_queries_use_row_column_and_cell_context():
 
     assert cases
     assert all("measurement range" in query for query in queries)
-    assert all("lj-x8200" in query for query in queries)
+    assert any("lj-x8200" in query for query in queries)
     assert all(query not in {"lj-x8000 column", "column headers lj-x8000"} for query in queries)
     assert any("2.83" in case.expected_terms or "2.83" in (case.anchor_terms or []) for case in cases)
 
@@ -558,7 +558,8 @@ def test_eval_queries_avoid_unwieldy_product_list_labels():
 
     assert cases
     assert all("vs-l160mx/" not in case.query.lower() for case in cases)
-    assert any("88ms capture settings value upper limit" in case.query.lower() for case in cases)
+    assert any("capture settings" in case.query.lower() for case in cases)
+    assert any("88ms" in case.expected_terms or "88ms" in (case.anchor_terms or []) for case in cases)
 
 
 def test_eval_queries_fall_back_to_product_family_for_long_model_lists():
@@ -1230,6 +1231,136 @@ def test_validate_eval_case_rejects_generic_short_item_queries():
     assert reason == "mechanical_query"
 
 
+def test_validate_eval_case_rejects_source_shaped_table_coordinate_queries():
+    chunk = {
+        "id": "chunk-table-coordinate",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "table_record",
+        "title": "Manual",
+        "source_filename": "Manual.pdf",
+        "section_path_text": "Command table",
+        "page_from": 2,
+        "page_to": 2,
+        "content": "Column headers: 6bit; Row headers: 0028 65.0 > Command output area; Cell value: Command Result",
+        "metadata_json": {
+            "product_model": "CV-X482",
+            "table_cell": True,
+            "table_row_headers": ["0028 65.0", "Command output area"],
+            "table_column_headers": ["6bit"],
+        },
+    }
+
+    valid, reason = validate_eval_case(
+        "What command 0028 65.0 Command output area 6bit value applies to CV-X482?",
+        chunk,
+        ["command", "result", "0028", "65.0"],
+    )
+
+    assert not valid
+    assert reason == "mechanical_query"
+
+
+def test_validate_eval_case_rejects_toc_like_described_queries():
+    chunk = {
+        "id": "chunk-contents",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "atomic_text",
+        "title": "Manual",
+        "source_filename": "Manual.pdf",
+        "section_path_text": "Contents",
+        "page_from": 16,
+        "page_to": 16,
+        "content": "Contents Output Assembly Address 6 to 11: FTP/SD Save File Name.",
+        "metadata_json": {"product_model": "IV4-G120"},
+    }
+
+    valid, reason = validate_eval_case(
+        "What contents is described for IV4-G120?",
+        chunk,
+        ["contents", "assembly", "address", "ftp/sd"],
+    )
+
+    assert not valid
+    assert reason == "mechanical_query"
+
+
+def test_validate_eval_case_rejects_generic_applies_phrasing():
+    chunk = {
+        "id": "chunk-generic-applies",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "table_record",
+        "title": "Manual",
+        "source_filename": "Manual.pdf",
+        "section_path_text": "Number format",
+        "page_from": 2,
+        "page_to": 2,
+        "content": "Column headers: Number Format > Integer Digits; Row headers: Fail Color: Red; Cell value: 3",
+        "metadata_json": {
+            "product_family": "VS Series",
+            "table_cell": True,
+            "table_row_headers": ["Fail Color: Red"],
+            "table_column_headers": ["Number Format", "Integer Digits"],
+        },
+    }
+
+    valid, reason = validate_eval_case(
+        "What format integer applies to VS Series?",
+        chunk,
+        ["inspection", "region", "color", "input.graphic.region.mask.colorfail.red"],
+    )
+
+    assert not valid
+    assert reason == "mechanical_query"
+
+
+def test_numbered_click_step_fragments_are_not_single_step_queryworthy():
+    chunk = {
+        "id": "chunk-numbered-click",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "atomic_text",
+        "title": "Manual",
+        "source_filename": "Manual.pdf",
+        "section_path_text": "Command setup",
+        "page_from": 2,
+        "page_to": 2,
+        "content": "10After completing the setting, left-click [OK]. 11Restart the controller.",
+        "metadata_json": {"product_model": "CV-X482"},
+    }
+
+    assert not chunk_is_queryworthy(chunk, ["10after", "completing", "left-click", "11restart"])
+
+
+def test_table_fallback_queries_are_user_style_not_table_coordinate_dumps():
+    chunk = {
+        "id": "chunk-table",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "table_record",
+        "title": "Manual",
+        "source_filename": "Manual.pdf",
+        "section_path_text": "Output symbols",
+        "page_from": 2,
+        "page_to": 2,
+        "content": "Column headers: Settings; Row headers: Output Symbol Identifier; Cell value: When enabled, a symbol identifier is added.",
+        "metadata_json": {
+            "product_family": "LJ-S8000 Series",
+            "table_cell": True,
+            "table_row_headers": ["Output Symbol Identifier"],
+            "table_column_headers": ["Settings"],
+        },
+    }
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
+
+    assert cases
+    assert all(" value applies " not in case.query.lower() for case in cases)
+    assert any("output symbol identifier" in case.query.lower() for case in cases)
+
+
 def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
     call_count = 0
 
@@ -1519,7 +1650,7 @@ def test_validate_eval_case_rejects_query_not_specific_to_source_context():
     assert validate_eval_case("New LJ-X8000 Series 3200", chunk, anchors) == (False, "not_question_form")
     valid, reason = validate_eval_case("What detail applies to New LJ-X8000 Series?", chunk, anchors)
     assert valid is False
-    assert reason in {"low_specificity", "weak_source_affinity", "weak_source_discriminator"}
+    assert reason in {"mechanical_query", "low_specificity", "weak_source_affinity", "weak_source_discriminator"}
     assert validate_eval_case("What 3200 points/profile applies to LJ-X8000?", chunk, anchors) == (True, "validated")
 
 

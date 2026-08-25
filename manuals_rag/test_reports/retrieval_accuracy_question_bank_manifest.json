@@ -21,7 +21,19 @@
       "replacement_dataset": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
       "retired_reason_code": "not_queryworthy_source_chunk",
       "answer_grounding_quality_debt": 13,
-      "answer_grounding_quality_debt_reason": "Guardrail review 2026-08-25T00:10:00Z found the 13-case replacement-debt slice too source-shaped for production answer tuning. Do not use test_reports/retrieval_eval_dataset_20260824_210121.jsonl as an answer-generation target until replaced or separately curated."
+      "answer_grounding_quality_debt_reason": "Guardrail review 2026-08-25T00:40:00Z confirmed HTTP API answer scoring is fixed, but the 13-case replacement-debt slice remains diagnostic-only for answer tuning. This run added stricter eval query filters and generated diagnostic replacements at test_reports/retrieval_eval_dataset_20260825_005912.jsonl and test_reports/retrieval_eval_dataset_20260825_010208.jsonl; the worst source-shaped patterns are now rejected, but deterministic replacement quality is still not strong enough to close the debt.",
+      "diagnostic_replacement_attempts": [
+        {
+          "dataset": "test_reports/retrieval_eval_dataset_20260825_005912.jsonl",
+          "summary": "test_reports/retrieval_eval_summary_20260825_005912.json",
+          "result": "11/13 retrieval passed; not promoted because review still found weak deterministic source-shaped prompts."
+        },
+        {
+          "dataset": "test_reports/retrieval_eval_dataset_20260825_010208.jsonl",
+          "summary": "test_reports/retrieval_eval_summary_20260825_010208.json",
+          "result": "12/13 retrieval passed; not promoted as an answer-generation gate because several deterministic table prompts remain source-shaped."
+        }
+      ]
     },
     "guardrail_findings": {
       "2026-08-25T00:10:00Z": {
@@ -34,6 +46,20 @@
           "retrieval_eval_20260825_002743"
         ],
         "remaining": "Weak source-shaped questions in test_reports/retrieval_eval_dataset_20260824_210121.jsonl still need replacement or diagnostic-only reclassification before they are used as production answer gates."
+      },
+      "2026-08-25T00:40:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Kept HTTP API answer scoring fix intact and targeted the remaining weak replacement-slice quality debt instead of making more production answering changes.",
+        "evidence": [
+          "tests/unit/test_retrieval_eval.py::test_validate_eval_case_rejects_source_shaped_table_coordinate_queries",
+          "tests/unit/test_retrieval_eval.py::test_validate_eval_case_rejects_toc_like_described_queries",
+          "tests/unit/test_retrieval_eval.py::test_validate_eval_case_rejects_generic_applies_phrasing",
+          "tests/unit/test_retrieval_eval.py::test_numbered_click_step_fragments_are_not_single_step_queryworthy",
+          "retrieval_eval_20260825_010302",
+          "retrieval_eval_20260825_010402"
+        ],
+        "remaining": "The old 13-case replacement-debt slice and the two deterministic replacement attempts remain diagnostic-only for answer generation. Next run should use LLM-assisted or manually reviewed curation to add 13 realistic user-style single-step replacements without shrinking active counts."
       }
     }
   },
@@ -212,8 +238,9 @@
           "table_record": 11,
           "atomic_text": 2
         },
-        "notes": "Pays down the 13-question single-step replacement debt created when stale saved cases were retired. Mechanical deterministic prompts with variable dumps, TOC fragments, file-extension lists, and generic item/function phrasing are now rejected before generation. Guardrail 2026-08-25T00:10:00Z: treat as diagnostic-only for answer-generation tuning until weak source-shaped prompts are replaced or curated.",
-        "answer_grounding_status": "diagnostic_only_quality_debt"
+        "notes": "Pays down the 13-question single-step replacement count mechanically, but guardrail reviews found weak source-shaped prompts. This run added stricter filters and diagnostic replacement attempts; do not use this dataset or the 20260825_005912/010208 attempts as production answer-generation gates until curated.",
+        "answer_grounding_status": "diagnostic_only_quality_debt",
+        "replacement_quality_status": "needs_curated_replacement"
       }
     ]
   },
@@ -221,11 +248,63 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
       "status": "passed",
-      "passed": 56,
+      "passed": 61,
       "warnings": 0,
-      "notes": "Focused eval-harness tests passed after changing HTTP answer mode to score API answer payloads."
+      "notes": "Focused eval-harness tests passed after tightening source-shaped query rejection and deterministic table fallback wording."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_010208",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_010208.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_010208.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_010208.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_010208.json",
+        "status": "completed_diagnostic_replacement_quality_attempt_not_promoted",
+        "search_mode": "direct",
+        "response_mode": "retrieval_only",
+        "total_queries": 13,
+        "passed_queries": 12,
+        "failed_queries": 1,
+        "pass_rate": 0.9231,
+        "failure_categories": {
+          "ranking_or_context_loss": 1
+        },
+        "mode": "diagnostic_single_step_replacement_quality_after_stricter_filters",
+        "notes": "Generated after stricter source-shaped query filters. Retrieval evidence is usable, but manual review still found deterministic prompts too source-shaped for answer-generation gates, so active counts and quality debt were not changed."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_010302",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_173031.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_010302.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_010302.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_010302.json",
+        "status": "completed_single_step_regression",
+        "search_mode": "direct",
+        "response_mode": "retrieval_only",
+        "total_queries": 20,
+        "passed_queries": 20,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "mode": "saved_realistic_single_step_regression_after_eval_quality_filters"
+      },
+      {
+        "run_id": "retrieval_eval_20260825_010402",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_010402.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_010402.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_010402.json",
+        "status": "completed_warning_step_regression",
+        "search_mode": "direct",
+        "response_mode": "retrieval_only",
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "mode": "saved_warning_step_multi_step_regression_after_eval_quality_filters"
+      },
       {
         "run_id": "retrieval_eval_20260825_002626",
         "corpus_id": "manuals_vendor_keyence",
@@ -3848,7 +3927,7 @@
       },
       "answer_grounding_smoke": {}
     },
-    "answer_grounding_status": "HTTP answer_with_citations scoring now evaluates actual /query API answers in HTTP mode. Live API-answer smoke passed 2/2 realistic single-step cases and 1/1 warning-step multi-step case. The weak 13-case replacement-debt slice is diagnostic-only for answer tuning until curated or replaced."
+    "answer_grounding_status": "HTTP answer_with_citations scoring remains fixed, but no new answer-generation gate was promoted this run because the replacement-debt slice still needs curated user-style replacements."
   },
-  "next_target": "Replace or curate weak source-shaped cases in test_reports/retrieval_eval_dataset_20260824_210121.jsonl before using them as answer-generation gates; then broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases while continuing cross-document retrieval improvements."
+  "next_target": "Curate or LLM-generate 13 realistic user-style single-step replacement questions to close the source-shaped replacement-slice quality debt, then run HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases."
 }

@@ -360,6 +360,14 @@ def _looks_like_cross_reference_only(content: str) -> bool:
     return len(compact) < 180
 
 
+def _looks_like_numbered_step_fragment(content: str) -> bool:
+    compact_tokens = [token for token in tokenize(content) if token not in STOPWORDS]
+    if len(compact_tokens) > 18:
+        return False
+    joined = " ".join(compact_tokens)
+    return bool(re.search(r"\b\d+[a-z]{3,}\b", joined) and re.search(r"\b(?:left-click|click|restart|ok)\b", joined))
+
+
 def _has_concrete_technical_signal(content: str, anchors: list[str], chunk_type: str) -> bool:
     field_pairs = _field_value_pairs(content)
     has_units_or_values = any(re.search(r"\b\d+(?:\.\d+)?(?:v|a|ma|w|kw|mm|cm|m|ms|s|hz|khz|mhz|fps|kg|g|n|mpa|°c|c|%)\b", token) for token in tokenize(content))
@@ -408,6 +416,8 @@ def chunk_is_queryworthy(chunk: dict[str, Any], anchors: list[str]) -> bool:
     if _looks_like_legal_boilerplate(content):
         return False
     if chunk_type == "atomic_text" and _looks_like_cross_reference_only(content):
+        return False
+    if chunk_type == "atomic_text" and _looks_like_numbered_step_fragment(content):
         return False
     if len(anchors) < 1:
         return False
@@ -514,6 +524,12 @@ def _allowed_copied_source_phrases(chunk: dict[str, Any]) -> set[tuple[str, ...]
     allowed_texts.extend(_quoted_menu_labels(str(chunk.get("content", ""))))
     allowed_texts.extend(_metadata_list(metadata, "table_column_headers"))
     allowed_texts.extend(_metadata_list(metadata, "table_row_headers"))
+    column_headers = _metadata_list(metadata, "table_column_headers")
+    row_headers = _metadata_list(metadata, "table_row_headers")
+    if len(column_headers) > 1:
+        allowed_texts.append(" ".join(column_headers))
+    if len(row_headers) > 1:
+        allowed_texts.append(" ".join(row_headers))
     for field, _ in _field_value_pairs(str(chunk.get("content", ""))):
         allowed_texts.append(field)
 
@@ -639,6 +655,43 @@ def _query_looks_mechanical(query: str) -> bool:
         and len(compact_tokens) <= 3
         and not any(re.search(r"\d", token) for token in compact_tokens)
     ):
+        return True
+    if re.search(r"\bwhat\s+\S+\s+is\s+described\s+for\b", compact):
+        described_subject = compact.split(" is described for ", 1)[0].removeprefix("what ").strip()
+        described_terms = [token for token in tokenize(described_subject) if token not in STOPWORDS and token not in GENERIC_ANCHORS]
+        if len(described_terms) <= 1:
+            return True
+    if re.search(r"\bwhat\s+.+\s+is\s+described\s+for\b", compact):
+        return True
+    applies_match = re.search(r"\bwhat\s+(.+?)\s+applies\s+(?:to|for)\b", compact)
+    if applies_match:
+        subject_terms = [token for token in tokenize(applies_match.group(1)) if token not in STOPWORDS and token not in GENERIC_ANCHORS]
+        has_domain_term = any(token in GENERIC_TECHNICAL_TERMS or token in TECHNICAL_VERBS for token in subject_terms)
+        if len(subject_terms) <= 3 and not has_domain_term and not any(re.search(r"\d|/|-", token) for token in subject_terms):
+            return True
+    if re.search(r"\bwhat\s+.+\s+value\s+applies\s+(?:to|for)\b", compact):
+        before_value = compact.split(" value applies ", 1)[0].removeprefix("what ").strip()
+        before_terms = [token for token in tokenize(before_value) if token not in STOPWORDS]
+        generic_table_terms = {
+            "area",
+            "bit",
+            "contents",
+            "description",
+            "field",
+            "identifier",
+            "status",
+            "symbol",
+            "word",
+        }
+        if len(before_terms) >= 5 or sum(1 for token in before_terms if token in generic_table_terms) >= 2:
+            return True
+        if len(before_terms) >= 4 and len(before_terms) != len(set(before_terms)):
+            return True
+    if re.search(r"\bwhat\s+\[[^\]]+\]\s+\w+\s+applies\s+(?:to|for)\b", query, flags=re.IGNORECASE):
+        return True
+    if re.search(r"\bwhat\s+[\d.]+\s+[a-z]+-?\d+\s+applies\s+(?:to|for)\b", compact):
+        return True
+    if re.search(r"\bwhat\s+\w+\s+when\s*=\s*.+\s+value\s+applies\s+(?:to|for)\b", compact):
         return True
     bracketed_phrases = re.findall(r"\[[^\]]+\]", query)
     if sum(len(tokenize(phrase)) for phrase in bracketed_phrases) > 6:
@@ -849,25 +902,38 @@ def _build_table_query_candidates(chunk: dict[str, Any], label: str) -> list[tup
         answer_field, _ = field_pairs[0]
         context_field, context_value = field_pairs[1]
         context_anchor = " ".join(extract_anchor_terms(context_value, limit=3)) or context_value.strip()
-        key_value_subject = f"{answer_field.strip()} for {context_field.strip()} {context_anchor}".strip()
+        answer_field_text = answer_field.strip()
+        context_field_text = context_field.strip()
         if label:
             return [
-                (f"For {label}, what {key_value_subject}?", "table_key_value_lookup"),
-                (f"What {answer_field.strip()} is listed for {context_field.strip()} {context_anchor} on {label}?", "table_key_value_reverse_lookup"),
+                (
+                    f"For {label}, which {answer_field_text} is used with {context_field_text} {context_anchor}?",
+                    "table_key_value_lookup",
+                ),
+                (
+                    f"Which {answer_field_text} matches {context_field_text} {context_anchor} on {label}?",
+                    "table_key_value_reverse_lookup",
+                ),
             ]
-        return [(f"What {key_value_subject}?", "table_key_value_lookup")]
+        return [(f"Which {answer_field_text} is used with {context_field_text} {context_anchor}?", "table_key_value_lookup")]
     if not query_terms or len(expected_terms) < 2:
         return []
-    subject = " ".join(query_terms[:3])
+    metadata = dict(chunk.get("metadata_json", {}))
+    row_headers = _metadata_list(metadata, "table_row_headers")
+    column_headers = _metadata_list(metadata, "table_column_headers")
+    subject = " ".join(row_headers[:1] or query_terms[:1])
+    column_label = " ".join(column_headers[:2]) or (query_terms[-1] if query_terms else "value")
     cell_anchor = expected_terms[0] if expected_terms and _is_high_signal_anchor(expected_terms[0]) else ""
     anchored_subject = f"{cell_anchor} {subject}".strip()
     if label:
-        return [
-            (f"What {anchored_subject} value applies to {label}?", "table_row_column_value"),
-            (f"For {label}, what value is listed for {anchored_subject}?", "table_row_column_lookup"),
-            (f"Which {anchored_subject} value should be used for {label}?", "table_row_column_engineer_lookup"),
+        candidates = [
+            (f"What is the {column_label} {subject} for {label}?", "table_row_column_lookup"),
+            (f"For {label}, which {column_label} entry applies to {subject}?", "table_row_column_engineer_lookup"),
         ]
-    return [(f"What value is listed for {anchored_subject}?", "table_row_column_lookup")]
+        if cell_anchor:
+            candidates.append((f"For {label}, which {subject} entry reports {cell_anchor}?", "table_row_column_reverse_lookup"))
+        return candidates
+    return [(f"What is the {column_label} {subject}?", "table_row_column_lookup")]
 
 
 def _parse_generated_queries(payload: str) -> list[dict[str, str]]:

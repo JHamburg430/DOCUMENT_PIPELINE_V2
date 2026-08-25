@@ -962,3 +962,25 @@ Next target:
 Next target:
 
 - Replace or curate weak source-shaped cases in `test_reports/retrieval_eval_dataset_20260824_210121.jsonl` before using them as answer-generation gates; then broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases while continuing cross-document retrieval improvements.
+
+## 2026-08-24 Cron 39262386 Replacement-Slice Quality Filters
+
+- Target: follow up guardrail `2026-08-25T00:40:00Z` by addressing the remaining weak source-shaped replacement-slice debt without making more production answering changes.
+- Guardrail review status: latest guardrail findings were reviewed. HTTP API answer scoring is now `ok`, but `test_reports/retrieval_eval_dataset_20260824_210121.jsonl` remains diagnostic-only for answer-generation tuning until weak source-shaped prompts are replaced or curated.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed eval logic in `packages/evals/src/manuals_rag_evals/retrieval_eval.py` so single-step query validation rejects source-shaped table-coordinate prompts, generic `What <few terms> applies...` prompts, `What ... is described for ...` prompts, and numbered click/restart fragments such as `10After ... 11Restart`. Deterministic table fallback wording now asks more natural field/row questions instead of always emitting `... value applies ...` table-coordinate dumps.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for the guardrail-cited source-shaped table-coordinate and TOC/contents patterns, generic applies phrasing, numbered step fragments, and improved table fallback wording.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 61 passed.
+- Diagnostic replacement attempt 1: `retrieval_eval_20260825_005912` generated 13 deterministic single-step cases and completed at 11/13 passed (84.62%), but manual review still found weak deterministic source-shaped prompts, so it was not promoted.
+- Diagnostic replacement attempt 2: `retrieval_eval_20260825_010208` generated 13 deterministic single-step cases and completed at 12/13 passed (92.31%), pass@1/pass@3/pass@5 all 92.31%, candidate recall 100%, metadata-document recall 100%, with `ranking_or_context_loss: 1`. This is better retrieval evidence, but still not promoted as an answer-generation gate because several deterministic table prompts remain source-shaped.
+- Regression command (realistic single-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_173031.jsonl --max-queries 20 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Regression result: `retrieval_eval_20260825_010302` stayed 20/20 (100%), pass@1 95%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 95%, failures `{}`.
+- Regression command (warning-step multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 15 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Regression result: `retrieval_eval_20260825_010402` stayed 15/15 (100%), pass@1 86.67%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`.
+- Question-bank counts unchanged: 193 exploratory questions total, 100 single-step and 93 multi-step. The old 13-case replacement-debt slice and the new 00:59/01:02 UTC deterministic attempts remain diagnostic-only for answer tuning; active counts were not shrunk and the quality debt remains open.
+- Changed files: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new eval artifacts for 00:59-01:04 UTC.
+- Generalization check before commit: the eval filters are source-shape and grammar based, not document/vendor/filename specific, and help avoid training answer generation on prompts a real engineer, technician, support user, salesperson, or manager would not ask.
+
+Next target:
+
+- Curate or LLM-generate 13 realistic user-style single-step replacement questions to close the source-shaped replacement-slice quality debt, then run HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases.
