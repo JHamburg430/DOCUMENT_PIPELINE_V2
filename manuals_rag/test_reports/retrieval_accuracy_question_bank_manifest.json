@@ -5715,8 +5715,8 @@
       }
     }
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1904_sql_order_features plus prior diagnostics. Avoid the rejected paired table-item phrase boost from retrieval_eval_20260825_193230, the rejected compact-product SQL supplemental slice, and earlier rejected comparison tuning paths. Next safe work should focus on the case 6 timeout path and case 7 final candidate selection with diagnostics that measure production-stage latency/rerank behavior, or design an indexed/bounded discovery path that improves the full 10-case gate before any production retrieval commit. Keep case 9 separate as a final-context-selection target because its XG-X evidence can already reach assembled rank 7 in deeper diagnostics.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. The SQL order-feature diagnostic retrieval_debug_report_20260825_1904_sql_order_features is diagnostic-only. The paired table-item phrase boost experiment retrieval_eval_20260825_193230 was rejected after staying at 7/10 with the same failure profile; no production retrieval change is marked resolved.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_195622_stage_timing plus SQL order/pool and top-k diagnostics. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should design a bounded/indexed table-lexical discovery or latency-reduction path that specifically addresses table_lexical/special/contextual_lexical cost and lets high-specificity setting/code rows reach scoring, then validate against the full 10-case v2 gate plus saved single-step and warning/procedure gates before any production retrieval commit.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_195622_stage_timing adds diagnostic-only per-stage latency evidence for cases 6, 7, and 9; it does not mark any retrieval pass rate resolved.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
@@ -5726,5 +5726,103 @@
     "candidate_miss": 1,
     "eval_timeout": 1,
     "ranking_or_context_loss": 1
+  },
+  "diagnostics": [
+    {
+      "path": "test_reports/retrieval_debug_report_20260825_195622_stage_timing.json",
+      "status": "completed",
+      "mode": "stage_timing_diagnostic",
+      "baseline": "retrieval_eval_20260825_072839",
+      "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "case_ids": [
+        "curated_cross_document_v2::6",
+        "curated_cross_document_v2::7",
+        "curated_cross_document_v2::9"
+      ],
+      "stage_candidate_limit": 120,
+      "top_k": 20,
+      "stage_timing_max_seconds": {
+        "assembled": 0.474622,
+        "comparison_table_promoted": 0.000716,
+        "completeness_scored": 0.007054,
+        "contextual_lexical": 3.363928,
+        "deduped": 0.000358,
+        "dense": 0.13203,
+        "enrich_candidates_for_rerank": 0.623464,
+        "family_scored": 0.015091,
+        "family_selected": 0.000288,
+        "fused": 0.001874,
+        "query_aligned": 0.075444,
+        "reranked": 2.390356,
+        "sparse": 0.068406,
+        "special": 3.381819,
+        "table": 0.454199,
+        "table_lexical": 5.063087
+      },
+      "stage_timing_totals_seconds": {
+        "assembled": 0.891879,
+        "comparison_table_promoted": 0.001548,
+        "completeness_scored": 0.018982,
+        "contextual_lexical": 3.36394,
+        "deduped": 0.000816,
+        "dense": 0.376426,
+        "enrich_candidates_for_rerank": 1.210406,
+        "family_scored": 0.038644,
+        "family_selected": 0.000799,
+        "fused": 0.005518,
+        "query_aligned": 0.206067,
+        "reranked": 3.546022,
+        "sparse": 0.179613,
+        "special": 6.962306,
+        "table": 1.018685,
+        "table_lexical": 11.828589
+      },
+      "notes": "Eval/debug-only per-stage timing probe. Across the three unresolved curated cross-document v2 cases, table_lexical had the largest total and max elapsed time, followed by special/contextual_lexical and rerank/enrichment. Case 6 still had no expected evidence matched by top 20, case 7 matched only the LJ-X companion, and case 9 passed by top 20 but remains outside the normal top-5 gate. No production retrieval behavior changed and no pass rate is marked resolved."
+    }
+  ],
+  "latest_debug_report": {
+    "report": "test_reports/retrieval_debug_report_20260825_195622_stage_timing.json",
+    "type": "production_stage_timing_diagnostic",
+    "scope": "curated_cross_document_v2_cases_6_7_9",
+    "status": "diagnostic_only_no_production_change",
+    "evidence": {
+      "current_baseline": "retrieval_eval_20260825_072839 remains 7/10 with candidate_miss: 1, eval_timeout: 1, ranking_or_context_loss: 1.",
+      "dominant_timing_totals": {
+        "assembled": 0.891879,
+        "comparison_table_promoted": 0.001548,
+        "completeness_scored": 0.018982,
+        "contextual_lexical": 3.36394,
+        "deduped": 0.000816,
+        "dense": 0.376426,
+        "enrich_candidates_for_rerank": 1.210406,
+        "family_scored": 0.038644,
+        "family_selected": 0.000799,
+        "fused": 0.005518,
+        "query_aligned": 0.206067,
+        "reranked": 3.546022,
+        "sparse": 0.179613,
+        "special": 6.962306,
+        "table": 1.018685,
+        "table_lexical": 11.828589
+      },
+      "dominant_timing_max": {
+        "assembled": 0.474622,
+        "comparison_table_promoted": 0.000716,
+        "completeness_scored": 0.007054,
+        "contextual_lexical": 3.363928,
+        "deduped": 0.000358,
+        "dense": 0.13203,
+        "enrich_candidates_for_rerank": 0.623464,
+        "family_scored": 0.015091,
+        "family_selected": 0.000288,
+        "fused": 0.001874,
+        "query_aligned": 0.075444,
+        "reranked": 2.390356,
+        "sparse": 0.068406,
+        "special": 3.381819,
+        "table": 0.454199,
+        "table_lexical": 5.063087
+      }
+    }
   }
 }

@@ -75,6 +75,26 @@ def test_debug_report_includes_all_stages(monkeypatch):
     ]
     assert case["stages"][0]["results"][0]["source_document_id"] == "doc-1"
     assert case["stages"][1]["results"][0]["chunk_type"] == "spec_record"
+    assert set(case["diagnostics"]["stage_timings_seconds"]) == {
+        "dense",
+        "sparse",
+        "table",
+        "table_lexical",
+        "contextual_lexical",
+        "special",
+        "fused",
+        "family_scored",
+        "completeness_scored",
+        "query_aligned",
+        "family_selected",
+        "enrich_candidates_for_rerank",
+        "reranked",
+        "comparison_table_promoted",
+        "deduped",
+        "assembled",
+    }
+    assert report["summary"]["stage_timing_totals_seconds"]["dense"] >= 0
+    assert report["summary"]["stage_timing_max_seconds"]["dense"] >= 0
     assert "summary" in report
     assert report["summary"]["cases_with_metadata_document_selection"] == 1
 

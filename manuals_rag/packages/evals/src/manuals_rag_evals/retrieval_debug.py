@@ -595,6 +595,7 @@ def _case_diagnostics(
     analysis: Any,
     expected_evidence: list[dict[str, Any]] | None = None,
     full_stage_results: dict[str, list[SearchResult]] | None = None,
+    stage_timings_seconds: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     top_results = {stage.name: (stage.results[0] if stage.results else None) for stage in stages}
     low_information_top_stages = [name for name, result in top_results.items() if result and result.get("low_information")]
@@ -615,6 +616,7 @@ def _case_diagnostics(
         "rerank_changed_top_chunk": bool(
             reranked and family_selected and reranked.get("chunk_id") != family_selected.get("chunk_id")
         ),
+        "stage_timings_seconds": stage_timings_seconds or {},
     }
     if expected_evidence:
         stage_ranks = _stage_expected_evidence_ranks(
@@ -654,6 +656,8 @@ def _report_summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
         "cases_where_rerank_promoted_low_information": 0,
         "cases_where_family_selection_changed_top_chunk": 0,
         "cases_where_rerank_changed_top_chunk": 0,
+        "stage_timing_totals_seconds": {},
+        "stage_timing_max_seconds": {},
     }
     for case in cases:
         diagnostics = case["diagnostics"]
@@ -666,6 +670,15 @@ def _report_summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
         summary["cases_where_rerank_promoted_low_information"] += int(diagnostics["rerank_promoted_low_information"])
         summary["cases_where_family_selection_changed_top_chunk"] += int(diagnostics["family_selection_changed_top_chunk"])
         summary["cases_where_rerank_changed_top_chunk"] += int(diagnostics["rerank_changed_top_chunk"])
+        for stage_name, elapsed in diagnostics.get("stage_timings_seconds", {}).items():
+            summary["stage_timing_totals_seconds"][stage_name] = round(
+                float(summary["stage_timing_totals_seconds"].get(stage_name, 0.0)) + float(elapsed),
+                6,
+            )
+            summary["stage_timing_max_seconds"][stage_name] = round(
+                max(float(summary["stage_timing_max_seconds"].get(stage_name, 0.0)), float(elapsed)),
+                6,
+            )
     return summary
 
 
@@ -687,31 +700,91 @@ def debug_retrieval_query(
     stage_limit = max(stage_candidate_limit or max(top_k * 2, 10), top_k)
     fused_limit = max(stage_limit * 2, top_k * 4, 20)
 
-    dense = _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, chunk_search_filters, limit=stage_limit), "dense")
-    sparse = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, chunk_search_filters, limit=stage_limit), "sparse")
-    table = _annotate_stage_metadata(run_table_search(store, query, corpus_ids, chunk_search_filters, limit=stage_limit), "table")
-    table_lexical = _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis, limit=stage_limit), "table_lexical")
-    contextual_lexical = _annotate_stage_metadata(
-        run_contextual_lexical_search(query, corpus_ids, filters, analysis, limit=stage_limit),
+    stage_timings_seconds: dict[str, float] = {}
+
+    def timed_stage(name: str, callback: Any) -> Any:
+        started_at = time.perf_counter()
+        try:
+            return callback()
+        finally:
+            stage_timings_seconds[name] = round(time.perf_counter() - started_at, 6)
+
+    dense = timed_stage(
+        "dense",
+        lambda: _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, chunk_search_filters, limit=stage_limit), "dense"),
+    )
+    sparse = timed_stage(
+        "sparse",
+        lambda: _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, chunk_search_filters, limit=stage_limit), "sparse"),
+    )
+    table = timed_stage(
+        "table",
+        lambda: _annotate_stage_metadata(run_table_search(store, query, corpus_ids, chunk_search_filters, limit=stage_limit), "table"),
+    )
+    table_lexical = timed_stage(
+        "table_lexical",
+        lambda: _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis, limit=stage_limit), "table_lexical"),
+    )
+    contextual_lexical = timed_stage(
         "contextual_lexical",
+        lambda: _annotate_stage_metadata(
+            run_contextual_lexical_search(query, corpus_ids, filters, analysis, limit=stage_limit),
+            "contextual_lexical",
+        ),
     )
-    special = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, chunk_search_filters, analysis, limit=stage_limit), "special")
-    fused = _annotate_stage_metadata(
-        fuse_results(store, [dense, sparse, table, table_lexical, contextual_lexical, special], limit=fused_limit),
+    special = timed_stage(
+        "special",
+        lambda: _annotate_stage_metadata(run_special_search(store, query, corpus_ids, chunk_search_filters, analysis, limit=stage_limit), "special"),
+    )
+    fused = timed_stage(
         "fused",
+        lambda: _annotate_stage_metadata(
+            fuse_results(store, [dense, sparse, table, table_lexical, contextual_lexical, special], limit=fused_limit),
+            "fused",
+        ),
     )
-    family_scored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored"), "family_scored")
-    completeness_scored = _annotate_stage_metadata(_annotate_completeness(family_scored), "completeness_scored")
-    query_aligned = _annotate_stage_metadata(_apply_query_alignment(completeness_scored, analysis, stage="query_aligned"), "query_aligned")
-    family_selected = _annotate_stage_metadata(_select_family_candidates(query_aligned, analysis, filters=search_filters, limit=stage_limit), "family_selected")
-    enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=stage_limit)
-    reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=stage_limit), "reranked")
-    comparison_promoted = _annotate_stage_metadata(
-        _promote_comparison_table_candidates(reranked, table_lexical, analysis, limit=stage_limit),
+    family_scored = timed_stage(
+        "family_scored",
+        lambda: _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored"), "family_scored"),
+    )
+    completeness_scored = timed_stage(
+        "completeness_scored",
+        lambda: _annotate_stage_metadata(_annotate_completeness(family_scored), "completeness_scored"),
+    )
+    query_aligned = timed_stage(
+        "query_aligned",
+        lambda: _annotate_stage_metadata(_apply_query_alignment(completeness_scored, analysis, stage="query_aligned"), "query_aligned"),
+    )
+    family_selected = timed_stage(
+        "family_selected",
+        lambda: _annotate_stage_metadata(
+            _select_family_candidates(query_aligned, analysis, filters=search_filters, limit=stage_limit),
+            "family_selected",
+        ),
+    )
+    enriched = timed_stage(
+        "enrich_candidates_for_rerank",
+        lambda: enrich_candidates_for_rerank(family_selected, analysis, limit=stage_limit),
+    )
+    reranked = timed_stage(
+        "reranked",
+        lambda: _annotate_stage_metadata(rerank_results(enriched, query, limit=stage_limit), "reranked"),
+    )
+    comparison_promoted = timed_stage(
         "comparison_table_promoted",
+        lambda: _annotate_stage_metadata(
+            _promote_comparison_table_candidates(reranked, table_lexical, analysis, limit=stage_limit),
+            "comparison_table_promoted",
+        ),
     )
-    deduped = _annotate_stage_metadata(_dedupe_results(comparison_promoted, analysis), "deduped")
-    assembled = _annotate_stage_metadata(assemble_context(deduped, limit=top_k), "assembled")
+    deduped = timed_stage(
+        "deduped",
+        lambda: _annotate_stage_metadata(_dedupe_results(comparison_promoted, analysis), "deduped"),
+    )
+    assembled = timed_stage(
+        "assembled",
+        lambda: _annotate_stage_metadata(assemble_context(deduped, limit=top_k), "assembled"),
+    )
     full_stage_results = {
         "dense": dense,
         "sparse": sparse,
@@ -763,6 +836,7 @@ def debug_retrieval_query(
             analysis=analysis,
             expected_evidence=expected_evidence,
             full_stage_results=full_stage_results,
+            stage_timings_seconds=stage_timings_seconds,
         ),
     )
 
