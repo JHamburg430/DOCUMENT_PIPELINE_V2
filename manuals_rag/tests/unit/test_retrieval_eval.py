@@ -1065,6 +1065,151 @@ def test_build_cross_document_cases_skip_generic_item_fields():
     assert build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="cross_document") == []
 
 
+def test_build_cross_document_cases_reject_parser_artifact_subjects():
+    left_base = {
+        "source_document_id": "doc-left",
+        "document_version_id": "ver-left",
+        "title": "Left",
+        "source_filename": "left.pdf",
+        "section_path_text": "Communication",
+        "page_from": 7,
+        "page_to": 7,
+        "product_model": "MODEL-A",
+        "chunk_level": 1,
+        "metadata_json": {
+            "product_model": "MODEL-A",
+            "table_cell": True,
+            "table_column_headers": ["Form of measured data"],
+            "table_row_headers": ["PMSR[]. \uf020 DC4WPOSM[]"],
+        },
+    }
+    right_base = {
+        "source_document_id": "doc-right",
+        "document_version_id": "ver-right",
+        "title": "Right",
+        "source_filename": "right.pdf",
+        "section_path_text": "Communication",
+        "page_from": 8,
+        "page_to": 8,
+        "product_model": "MODEL-B",
+        "chunk_level": 1,
+        "metadata_json": {
+            "product_model": "MODEL-B",
+            "table_cell": True,
+            "table_column_headers": ["Form of measured data"],
+            "table_row_headers": ["Controller"],
+        },
+    }
+    chunks = [
+        {
+            **left_base,
+            "id": "left-artifact",
+            "chunk_type": "table_record",
+            "content": "Column headers: Form of measured data; Row headers: PMSR[]. \uf020 DC4WPOSM[]; Cell value: Sign, Integer 5 digits and decimal 3 digits",
+        },
+        {
+            **right_base,
+            "id": "right-clean",
+            "chunk_type": "table_record",
+            "content": "Column headers: Form of measured data; Row headers: Controller; Cell value: Integer 3 digits, 3 digits after the decimal point",
+        },
+    ]
+
+    assert build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="cross_document") == []
+
+
+def test_build_cross_document_cases_reject_page_reference_subjects():
+    left_base = {
+        "source_document_id": "doc-left",
+        "document_version_id": "ver-left",
+        "title": "Left",
+        "source_filename": "left.pdf",
+        "section_path_text": "Settings",
+        "page_from": 7,
+        "page_to": 7,
+        "product_model": "MODEL-A",
+        "chunk_level": 1,
+        "metadata_json": {
+            "product_model": "MODEL-A",
+            "table_cell": True,
+            "table_column_headers": ["Item ID"],
+            "table_row_headers": ["Color grouping (page 2-355) color sorting"],
+        },
+    }
+    right_base = {
+        "source_document_id": "doc-right",
+        "document_version_id": "ver-right",
+        "title": "Right",
+        "source_filename": "right.pdf",
+        "section_path_text": "Settings",
+        "page_from": 8,
+        "page_to": 8,
+        "product_model": "MODEL-B",
+        "chunk_level": 1,
+        "metadata_json": {
+            "product_model": "MODEL-B",
+            "table_cell": True,
+            "table_column_headers": ["Item ID"],
+            "table_row_headers": ["Pattern search (page 5-85) with or without shading"],
+        },
+    }
+    chunks = [
+        {**left_base, "id": "left-page-ref", "chunk_type": "table_record", "content": "Column headers: Item ID; Row headers: Color grouping (page 2-355) color sorting; Cell value: 9553"},
+        {**right_base, "id": "right-page-ref", "chunk_type": "table_record", "content": "Column headers: Item ID; Row headers: Pattern search (page 5-85) with or without shading; Cell value: 9554"},
+    ]
+
+    assert build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="cross_document") == []
+
+
+def test_build_cross_document_cases_reject_truncated_setting_subjects():
+    left_base = {
+        "source_document_id": "doc-left",
+        "document_version_id": "ver-left",
+        "title": "Left",
+        "source_filename": "left.pdf",
+        "section_path_text": "Settings",
+        "page_from": 7,
+        "page_to": 7,
+        "product_model": "MODEL-A",
+        "chunk_level": 1,
+        "metadata_json": {
+            "product_model": "MODEL-A",
+            "table_key_value": True,
+        },
+    }
+    right_base = {
+        "source_document_id": "doc-right",
+        "document_version_id": "ver-right",
+        "title": "Right",
+        "source_filename": "right.pdf",
+        "section_path_text": "Settings",
+        "page_from": 8,
+        "page_to": 8,
+        "product_model": "MODEL-B",
+        "chunk_level": 1,
+        "metadata_json": {
+            "product_model": "MODEL-B",
+            "table_key_value": True,
+        },
+    }
+    chunks = [
+        {
+            **left_base,
+            "id": "left-truncated",
+            "chunk_type": "table_record",
+            "content": "Setting item: Condition list; Settings: A maximum of 16 reference conditions can be set. By setting multiple reference c",
+        },
+        {
+            **right_base,
+            "id": "right-truncated",
+            "chunk_type": "table_record",
+            "content": "Setting item: Reference Height; Settings: Specify the reference method of the height data to use in detecting the plane. Average detects the plane wit",
+        },
+    ]
+
+    assert build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="cross_document") == []
+
+
 def test_build_eval_cases_skips_low_signal_atomic_queries():
     chunks = [
         {

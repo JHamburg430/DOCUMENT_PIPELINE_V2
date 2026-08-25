@@ -134,6 +134,18 @@
           "retrieval_eval_20260825_032835"
         ],
         "remaining": "Saved cross-document same-field retrieval remains 12/20, and the new subject-anchored diagnostic bank is 2/20. Next run should improve cross-document candidate recall/final context assembly using the stronger diagnostic prompts while preserving existing green gates."
+      },
+      "2026-08-25T03:40:00Z": {
+        "severity": "needs_fix",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Tightened cross-document eval generation so parser artifacts, page-reference fragments, truncated source text, generic setting-item fields, and key-value-only table rows without row-header context are rejected before generated prompts can become optimization targets.",
+        "evidence": [
+          "tests/unit/test_retrieval_eval.py -q -> 66 passed",
+          "retrieval_eval_20260825_035846",
+          "retrieval_eval_20260825_040054",
+          "retrieval_eval_20260825_040340"
+        ],
+        "remaining": "The generated cross-document slices remain diagnostic-only. The 20-case pre-final diagnostic reached 6/20 and the 5-case post-final smoke reached 1/5, so production retrieval tuning should wait for a manually reviewed or stronger generated cross-document slice plus saved-bank regression gates."
       }
     }
   },
@@ -369,18 +381,93 @@
           }
         },
         "notes": "Generated after adding row-subject anchors to cross-document prompts. Questions are more user-style than generic same-field values prompts, but 2/20 retrieval is too low for durable active promotion; use as diagnostic coverage for cross-document retrieval/context work."
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260825_040054.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_040054.json",
+        "created_at": "2026-08-25T04:00:54Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "deterministic_cross_document_subject_quality_smoke",
+        "status": "diagnostic_only_not_promoted",
+        "total_questions": 5,
+        "single_step_questions": 0,
+        "multi_step_questions": 5,
+        "by_chunk_type": {
+          "table_record": {
+            "total": 5,
+            "passed": 1
+          }
+        },
+        "notes": "Post-filter smoke after guardrail 2026-08-25T03:40:00Z. Active bank counts are unchanged; this slice is not promoted because it is small, retrieval is 1/5, and broader cross-document question quality still needs manual review before production retrieval tuning."
       }
     ]
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_retrieval_eval.py -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
       "status": "passed",
-      "passed": 76,
-      "warnings": 9,
-      "notes": "Focused API streaming and eval-quality tests passed after removing the out-of-scope API/UI eval_preparing_questions event surface."
+      "passed": 66,
+      "warnings": 0,
+      "notes": "Focused eval-generation and scoring tests passed after adding cross-document subject-quality gates."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_040054",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_040054.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_040054.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_040054.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_040054.json",
+        "status": "diagnostic_only_cross_document_quality_smoke",
+        "mode": "retrieval_only_generated_cross_document_multi_step_subject_quality_smoke",
+        "total_queries": 5,
+        "passed_queries": 1,
+        "failed_queries": 4,
+        "pass_rate": 0.2,
+        "pass_at_1": 0.2,
+        "pass_at_3": 0.2,
+        "pass_at_5": 0.2,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 5,
+            "passed": 1
+          }
+        },
+        "failure_categories": {
+          "candidate_miss": 3,
+          "ranking_or_context_loss": 1
+        },
+        "candidate_recall_rate": 0.4,
+        "metadata_document_selection_recall_rate": 1.0,
+        "notes": "Short post-filter generated cross-document smoke. Kept diagnostic-only because retrieval is weak and active counts should not grow from a tiny unreviewed slice."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_040340",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_040340.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_040340.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_040340.json",
+        "status": "completed_saved_single_step_regression_gate",
+        "mode": "retrieval_only_curated_single_step_v2_regression",
+        "total_queries": 13,
+        "passed_queries": 13,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 13,
+            "passed": 13
+          }
+        },
+        "failure_categories": {},
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "notes": "Saved guardrail-v2 curated single-step replacement gate remained green after cross-document eval-quality changes."
+      },
       {
         "run_id": "retrieval_eval_20260825_032835",
         "corpus_id": "manuals_vendor_keyence",
@@ -4296,17 +4383,15 @@
       }
     ],
     "failure_categories": {
-      "candidate_miss": 8,
-      "ranking_or_context_loss": 9,
-      "eval_timeout": 1
+      "candidate_miss": 3,
+      "ranking_or_context_loss": 1
     },
-    "next_target": "Improve cross-document multi-step candidate recall and final context assembly for subject-anchored row comparison prompts, while preserving saved single-step, warning/procedure, and HTTP API answer-grounding gates.",
+    "next_target": "Manually review or further curate cross-document multi-step question generation before production retrieval tuning, then improve candidate recall and final context assembly while preserving saved single-step, warning/procedure, and HTTP API answer-grounding gates.",
     "current_failure_categories": {
-      "candidate_miss": 8,
-      "ranking_or_context_loss": 9,
-      "eval_timeout": 1
+      "candidate_miss": 3,
+      "ranking_or_context_loss": 1
     },
     "answer_grounding_status": "No new answer-mode run this cycle; prior actual HTTP API /query answer evidence remains 6/6 across realistic single-step, warning/procedure multi-step, and one cross-document case, but coverage is still cron-sized and answer latency remains high."
   },
-  "next_target": "Improve cross-document multi-step candidate recall and final context assembly for subject-anchored row comparison prompts, while preserving saved single-step, warning/procedure, and HTTP API answer-grounding gates."
+  "next_target": "Manually review or further curate cross-document multi-step question generation before production retrieval tuning, then improve candidate recall and final context assembly while preserving saved single-step, warning/procedure, and HTTP API answer-grounding gates."
 }

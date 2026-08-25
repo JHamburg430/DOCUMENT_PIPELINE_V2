@@ -1090,3 +1090,24 @@ Next target:
 Next target:
 
 - Improve cross-document multi-step candidate recall and final context assembly for subject-anchored row comparison prompts, while preserving saved single-step, warning/procedure, and HTTP API answer-grounding gates.
+
+## 2026-08-24 Cron 39262386 Cross-Document Query Quality Guardrail
+
+- Target: address guardrail `2026-08-25T03:40:00Z` before production retrieval tuning. The latest guardrail findings file was reviewed; direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was unavailable because the cron tool is restricted to the current job.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed eval generation only: cross-document subjects now reject parser artifacts/private-use glyphs, underscore/star code fragments, page-reference fragments, unmatched/truncated source text, generic `setting item` fields, and key-value-only table rows without row-header context. No production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, or deployment logic changed.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` for cross-document parser-artifact, page-reference, and truncated setting-subject rejection.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 66 passed.
+- Diagnostic eval evidence:
+  - Pre-final 20-case generated cross-document diagnostic `retrieval_eval_20260825_035846` completed at 6/20 (30%), candidate recall 70%, failures `ranking_or_context_loss: 9`, `candidate_miss: 4`, `eval_timeout: 1`; inspection still found weak generated rows, so it was not promoted.
+  - Post-final 5-case generated cross-document smoke `retrieval_eval_20260825_040054` completed at 1/5 (20%), candidate recall 40%, failures `candidate_miss: 3`, `ranking_or_context_loss: 1`; it is recorded as diagnostic-only, not active coverage.
+- Saved single-step regression command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --max-queries 13 --search-mode direct --per-query-timeout-seconds 8 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Saved single-step regression result: `retrieval_eval_20260825_040340` stayed 13/13 (100%), pass@1/pass@3/pass@5 all 100%, candidate recall 100%, metadata-document recall 100%, failures `{}`.
+- Question-bank counts remain monotonic and unchanged: 193 exploratory questions total, 100 active single-step and 93 multi-step. The new generated smoke slices were not promoted because cross-document quality still needs manual review or stronger generation before retrieval optimization.
+- Changed files for this scoped commit: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus new tracked summary/manifest artifacts for 03:58, 04:00, and 04:03 UTC. Generated JSONL dataset/results artifacts remain local diagnostic outputs.
+- Guardrail handling: `2026-08-25T03:40:00Z` is addressed for the cited page-reference/parser/truncated-subject leakage, but cross-document generated slices remain diagnostic-only. Do not tune production retrieval against them until a manually reviewed or stronger generated cross-document slice is available.
+- Generalization check before commit: rejecting parser and page artifacts from generated questions is valid for unseen manuals and vendors, and keeps eval questions closer to realistic engineer, technician, support, sales, and manager phrasing.
+
+Next target:
+
+- Manually review or further curate cross-document multi-step question generation before production retrieval tuning, then improve candidate recall and final context assembly while preserving saved single-step, warning/procedure, and HTTP API answer-grounding gates.

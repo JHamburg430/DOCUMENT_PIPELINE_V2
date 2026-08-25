@@ -1205,6 +1205,45 @@ def _short_answer_anchor(value: str) -> str:
     return sentence[:90].strip() if sentence else clean[:90].strip()
 
 
+def _looks_like_parser_artifact(text: str) -> bool:
+    if "_" in text or "*" in text:
+        return True
+    if re.search(r"[\ue000-\uf8ff\ufffd]", text):
+        return True
+    tokens = tokenize(text)
+    if sum(1 for token in tokens if "[]" in token or "_" in token) >= 2:
+        return True
+    if re.search(r"\b[A-Za-z0-9_]+\[\]\.?", text):
+        return True
+    return False
+
+
+def _looks_like_page_reference_fragment(text: str) -> bool:
+    compact = normalize_text(text)
+    page_refs = re.findall(r"\bpage\s+\d+(?:-\d+)?\b", compact)
+    if page_refs:
+        return True
+    return bool(re.search(r"\b\d+-\d+\b", compact) and re.search(r"\b(?:page|section)\b", compact))
+
+
+def _looks_like_truncated_source_fragment(text: str) -> bool:
+    stripped = re.sub(r"\s+", " ", text).strip()
+    if not stripped:
+        return False
+    if stripped.count("(") != stripped.count(")") or stripped.count('"') % 2 == 1 or stripped.count("\u201c") != stripped.count("\u201d"):
+        return True
+    if re.match(r"^[A-Za-z]\s+[A-Z]", stripped):
+        return True
+    if len(stripped) >= 85 and not re.search(r"[.!?)]$", stripped):
+        return True
+    compact = normalize_text(stripped)
+    if compact.endswith((" c", " im", " po", " to", " wit", " cannot", "distribu", "increas")):
+        return True
+    if len(tokenize(stripped)) > 14:
+        return True
+    return False
+
+
 def _multi_step_expected_evidence(*cells: dict[str, Any]) -> list[dict[str, Any]]:
     evidence: list[dict[str, Any]] = []
     for cell in cells:
@@ -1408,6 +1447,8 @@ def _good_cross_document_field(field: str) -> bool:
         return False
     if compact in STOPWORDS or compact in GENERIC_ANCHORS:
         return False
+    if compact.startswith("description "):
+        return False
     if compact in {
         "cell value",
         "value",
@@ -1418,6 +1459,7 @@ def _good_cross_document_field(field: str) -> bool:
         "page",
         "item",
         "items",
+        "setting item",
         "model",
         "model name",
         "name",
@@ -1459,7 +1501,7 @@ def _cross_document_lookup_subject(chunk: dict[str, Any], *, field: str, value: 
     for candidate in candidates:
         subject = re.sub(r"\s+", " ", candidate).strip(" ;:,-")
         if _good_cross_document_subject(subject, field=field, value=value):
-            return subject[:90]
+            return subject
     return ""
 
 
@@ -1467,11 +1509,25 @@ def _good_cross_document_subject(subject: str, *, field: str, value: str) -> boo
     compact = normalize_text(subject)
     if len(compact) < 4:
         return False
+    if len(subject) > 80:
+        return False
     if compact in STOPWORDS or compact in GENERIC_ANCHORS:
         return False
     if compact == normalize_text(field) or compact == normalize_text(value):
         return False
     if compact in {"row", "column", "item", "items", "value", "values", "description"}:
+        return False
+    if compact.startswith(("item ", "items ", "setting ", "settings ")):
+        return False
+    if _looks_like_parser_artifact(subject):
+        return False
+    if _looks_like_page_reference_fragment(subject):
+        return False
+    if _looks_like_truncated_source_fragment(subject):
+        return False
+    if sum(1 for token in tokenize(subject) if re.search(r"[a-z]+-\d|\d+[a-z]+|/", token)) >= 3:
+        return False
+    if re.search(r"\b(?:can be set|specify|specifies|set this option|select this option)\b", compact):
         return False
     if re.fullmatch(r"\d+(?:\.\d+)?%?", compact):
         return False
@@ -1494,7 +1550,9 @@ def _build_cross_document_multi_step_cases(
         if chunk_type not in {"table_record", "spec_record", "datasheet_record"}:
             continue
         metadata = dict(chunk.get("metadata_json", {}))
-        if chunk_type == "table_record" and not (metadata.get("table_cell") or metadata.get("table_key_value")):
+        if chunk_type == "table_record" and not metadata.get("table_cell"):
+            continue
+        if chunk_type == "table_record" and not _metadata_list(metadata, "table_row_headers"):
             continue
         anchors = extract_anchor_terms(str(chunk.get("content", "")), limit=4)
         if not chunk_is_queryworthy(chunk, anchors):
