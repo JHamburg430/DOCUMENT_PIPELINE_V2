@@ -70,6 +70,8 @@ def _serialize_result(result: SearchResult) -> dict[str, Any]:
         "content_preview": str(result.content)[:220],
         "context_preview": str(result.metadata.get("context_window") or "")[:220],
         "table_row_group_context_preview": str(result.metadata.get("table_row_group_context") or "")[:220],
+        "table_column_headers": result.metadata.get("table_column_headers"),
+        "table_row_headers": result.metadata.get("table_row_headers"),
         "low_information": quality["low_information"],
         "structured_low_information": quality["structured_low_information"],
         "technical_signal_score": quality["technical_signal_score"],
@@ -122,6 +124,78 @@ def _evidence_text(result: dict[str, Any]) -> str:
 def _term_overlap(result: dict[str, Any], terms: list[str]) -> int:
     text = _evidence_text(result)
     return sum(1 for term in terms if _normalize_text(str(term)) and _normalize_text(str(term)) in text)
+
+
+def _matched_terms(result: dict[str, Any], terms: list[str]) -> list[str]:
+    text = _evidence_text(result)
+    matched: list[str] = []
+    for term in terms:
+        normalized = _normalize_text(str(term))
+        if normalized and normalized in text and str(term) not in matched:
+            matched.append(str(term))
+    return matched
+
+
+def _stage_same_document_crowding(
+    stages: list[RetrievalDebugStage],
+    expected_evidence: list[dict[str, Any]],
+    ranks_by_stage: dict[str, Any],
+    *,
+    full_stage_results: dict[str, list[SearchResult]] | None = None,
+    top_matches: int = 5,
+) -> dict[str, Any]:
+    full_stage_results = full_stage_results or {}
+    crowding: dict[str, Any] = {}
+    for stage in stages:
+        if stage.name == "metadata_document_selection":
+            continue
+        if stage.name in full_stage_results:
+            stage_results = [_serialize_result(result) for result in full_stage_results[stage.name]]
+        else:
+            stage_results = stage.results
+        stage_ranks = ranks_by_stage.get(stage.name) or []
+        stage_items: list[dict[str, Any]] = []
+        for index, item in enumerate(expected_evidence):
+            rank_record = stage_ranks[index] if index < len(stage_ranks) else {}
+            if rank_record.get("exact_rank") is not None:
+                continue
+            document_id = str(item.get("source_document_id") or "")
+            if not document_id:
+                continue
+            terms = [str(term) for term in item.get("expected_terms", []) if str(term)]
+            candidates: list[dict[str, Any]] = []
+            for rank, result in enumerate(stage_results, start=1):
+                if str(result.get("source_document_id") or "") != document_id:
+                    continue
+                matched = _matched_terms(result, terms)
+                if not matched:
+                    continue
+                candidates.append(
+                    {
+                        "rank": rank,
+                        "chunk_id": result.get("chunk_id"),
+                        "chunk_type": result.get("chunk_type"),
+                        "overlap_terms": len(matched),
+                        "matched_terms": matched,
+                        "missing_terms": [term for term in terms if term not in matched],
+                        "content_preview": result.get("content_preview"),
+                        "context_preview": result.get("context_preview"),
+                        "table_column_headers": result.get("table_column_headers"),
+                        "table_row_headers": result.get("table_row_headers"),
+                    }
+                )
+            if candidates:
+                stage_items.append(
+                    {
+                        "chunk_id": item.get("chunk_id"),
+                        "source_document_id": document_id,
+                        "expected_terms": terms,
+                        "same_document_candidates": candidates[:top_matches],
+                    }
+                )
+        if stage_items:
+            crowding[stage.name] = stage_items
+    return crowding
 
 
 def _stage_expected_evidence_ranks(
@@ -256,6 +330,12 @@ def _case_diagnostics(
         diagnostics["expected_evidence_top_k_outcomes"] = _stage_expected_evidence_top_k_outcomes(
             stage_ranks,
             cutoffs=cutoffs,
+        )
+        diagnostics["expected_evidence_same_document_crowding"] = _stage_same_document_crowding(
+            stages,
+            expected_evidence,
+            stage_ranks,
+            full_stage_results=full_stage_results,
         )
     return diagnostics
 

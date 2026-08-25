@@ -369,6 +369,98 @@ def test_debug_report_compares_normal_top_k_with_deeper_expected_evidence(monkey
     assert outcomes["assembled"]["5"]["missing_evidence"][0]["exact_rank"] == 7
 
 
+def test_debug_report_explains_same_document_crowding_for_missing_evidence(monkeypatch):
+    expected = SearchResult(
+        chunk_id="chunk-expected",
+        score=0.1,
+        title="Expected Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[8],
+        section_path=["Settings"],
+        content="Setting item: RTO2L; Settings: Equivalent Oval Aspect Ratio Min.",
+        metadata={
+            "chunk_type": "table_record",
+            "table_column_headers": ["Description of measurement item selection"],
+            "table_row_headers": ["RTO2L"],
+        },
+    )
+    weak_same_document = SearchResult(
+        chunk_id="chunk-weak",
+        score=0.9,
+        title="Expected Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[7],
+        section_path=["Settings"],
+        content="Setting item: RTO1L; Settings: Equivalent Oval Diameter.",
+        metadata={
+            "chunk_type": "table_record",
+            "table_column_headers": ["Description of measurement item selection"],
+            "table_row_headers": ["RTO1L"],
+        },
+    )
+    other_document = SearchResult(
+        chunk_id="chunk-other",
+        score=0.8,
+        title="Other Manual",
+        document_version_id="ver-2",
+        source_document_id="doc-2",
+        pages=[3],
+        section_path=["Settings"],
+        content="Setting item: PMSR DC2LAR; Settings: Cross-sectionArea Surrounded by a Straight Line.",
+        metadata={"chunk_type": "table_record"},
+    )
+
+    monkeypatch.setattr(retrieval_debug, "build_filters", lambda query, request_filters: {"is_active": True, **request_filters})
+    monkeypatch.setattr(
+        retrieval_debug,
+        "analyze_query",
+        lambda query: type("A", (), {"query_types": ["comparison"], "preferred_chunk_types": ["table_record"]})(),
+    )
+    monkeypatch.setattr(retrieval_debug, "QdrantStore", lambda: object())
+    monkeypatch.setattr(retrieval_debug, "_chunk_search_filters", lambda filters, metadata_filters, _analysis: metadata_filters)
+    monkeypatch.setattr(retrieval_debug, "select_documents_from_metadata", lambda store, query, corpus_ids, filters: (filters, []))
+    monkeypatch.setattr(retrieval_debug, "run_dense_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_sparse_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_table_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_table_lexical_search", lambda *args, **kwargs: [weak_same_document, other_document])
+    monkeypatch.setattr(retrieval_debug, "run_contextual_lexical_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_special_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "fuse_results", lambda _store, sets, **_kwargs: [item for group in sets for item in group])
+    monkeypatch.setattr(retrieval_debug, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_annotate_completeness", lambda results: results)
+    monkeypatch.setattr(retrieval_debug, "_apply_query_alignment", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_select_family_candidates", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "rerank_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_promote_comparison_table_candidates", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_dedupe_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "assemble_context", lambda results, **_kwargs: results)
+
+    report = retrieval_debug.debug_retrieval_report(
+        corpus_ids=["manuals_vendor_keyence"],
+        queries=["Compare PMSR DC2LAR and RTO2L."],
+        top_k=5,
+        expected_evidence_by_query={
+            "Compare PMSR DC2LAR and RTO2L.": [
+                {
+                    "chunk_id": expected.chunk_id,
+                    "source_document_id": expected.source_document_id,
+                    "expected_terms": ["equivalent", "aspect", "ratio"],
+                }
+            ]
+        },
+    )
+
+    crowding = report["cases"][0]["diagnostics"]["expected_evidence_same_document_crowding"]
+    same_doc_candidates = crowding["table_lexical"][0]["same_document_candidates"]
+    assert same_doc_candidates[0]["chunk_id"] == "chunk-weak"
+    assert same_doc_candidates[0]["matched_terms"] == ["equivalent"]
+    assert same_doc_candidates[0]["missing_terms"] == ["aspect", "ratio"]
+    assert same_doc_candidates[0]["table_row_headers"] == ["RTO1L"]
+
+
 def test_debug_report_uses_stage_candidate_limit_for_deeper_stage_ranks(monkeypatch):
     captured_limits: dict[str, int] = {}
 
