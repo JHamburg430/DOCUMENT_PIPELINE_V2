@@ -286,6 +286,18 @@
           "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_ui_server.py -q -> 20 passed, 9 warnings"
         ],
         "remaining": "No retrieval pass rate is marked resolved by this containment. Continue from retrieval_eval_20260825_072839 and retrieval_debug_report_20260825_132726_stage120; avoid the rejected broad scoring/prefilter paths and keep API/UI changes out of the retrieval accuracy cron unless John explicitly approves them."
+      },
+      "2026-08-25T14:16:24Z": {
+        "severity": "critical",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Reverted commit 0f3a8e1 after the required answer/eval validation showed the prompt change regressed a curated single-step actual HTTP API answer with insufficient_evidence. Kept the earlier API/UI containment commit intact and made no new retrieval/API/UI/parser/ingestion/model/provider/infrastructure changes.",
+        "evidence": [
+          "commit e3c537a",
+          "tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -> 92 passed, 23 warnings",
+          "retrieval_eval_20260825_142811",
+          "retrieval_eval_20260825_142948"
+        ],
+        "remaining": "Resume the full curated cross-document v2 retrieval target retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120. Keep answer prompt changes gated by actual HTTP API answer evidence before committing."
       }
     }
   },
@@ -592,12 +604,54 @@
       "insufficient_evidence": 1,
       "retrieval_not_passed": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 and the full-rank diagnostic retrieval_debug_report_20260825_115623_full_rank. The rejected row-phrase/code-label scoring experiment retrieval_eval_20260825_123052 regressed the v2 gate to 6/10 with eval_timeout: 3 and ranking_or_context_loss: 1, so avoid broad post-fetch score boosts that increase rerank/final-stage cost without improving expected-evidence retention. Next safe work should inspect cheaper pre-rerank discovery or candidate-pool budgeting for exact setting/code/error-row evidence, especially case 6 Condition list/Standard Angle, case 7 LJ-S RTO2L, and case 9 XG-X unsupported-SD corrective action, without document-specific routing or inferred hard filters. Rotate actual HTTP API answers only when retrieval evidence is stable or add offset support.",
-    "answer_grounding_status": "Rotated actual HTTP API answer grounding on the first four curated cross-document v2 cases in retrieval_eval_20260825_080303: retrieval was 3/4 and actual API answers were 2/4. Cases 1-2 stayed green; case 3 retrieved expected evidence but missed an expected document citation/use; case 4 failed retrieval and answer due insufficient evidence. This is answer-rotation evidence and does not supersede the full 10-case direct v2 failure profile from retrieval_eval_20260825_072839. Answer source api: 4; fallback rate 0%; mean answer latency 32.710s."
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120. The latest critical answer-prompt guardrail is contained by reverting 0f3a8e1 and validating post-revert actual API answers. Next safe production work should return to bounded comparison/corrective-action candidate-budget or evidence-diversity changes against the full 10-case gate plus saved single-step/warning-procedure gates; avoid API/UI scope drift and gate any future answer prompt changes with actual HTTP API answer evidence before committing.",
+    "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated."
   },
   "latest_results": {
-    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_debug.py -q -> 5 passed in 5.30s.",
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q -> 92 passed, 23 warnings in 76.43s (post-revert answer/eval prompt containment gate).",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_142811",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_142811.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_142811.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_142811.json",
+        "status": "completed",
+        "mode": "http_api_answer_with_citations_post_revert_metadata_tempting_smoke",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "total_queries": 2,
+        "passed_queries": 2,
+        "failed_queries": 0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 2,
+        "answer_failed_queries": 0,
+        "answer_pass_rate": 1.0,
+        "failure_categories": {},
+        "notes": "Post-revert actual /query answer smoke on curated single-step replacement v2 metadata/table cases. The pre-revert prompt change produced 1/2 answer pass with an insufficient_evidence failure on the first case, so the prompt commit was reverted instead of promoted."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_142948",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_142948.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_142948.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_142948.json",
+        "status": "completed",
+        "mode": "http_api_answer_with_citations_post_revert_prior_green_smoke",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "total_queries": 1,
+        "passed_queries": 1,
+        "failed_queries": 0,
+        "answer_eval_count": 1,
+        "answer_passed_queries": 1,
+        "answer_failed_queries": 0,
+        "answer_pass_rate": 1.0,
+        "failure_categories": {},
+        "notes": "Post-revert actual /query answer smoke on a prior green curated cross-document case; confirms the containment did not break the first v2 answer case."
+      },
       {
         "run_id": "retrieval_eval_20260825_125515",
         "corpus_id": "manuals_vendor_keyence",
@@ -5406,13 +5460,13 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120. The deeper stage-candidate diagnostic shows case 9's exact XG-X unsupported-SD corrective-action row can enter assembled context at rank 7 when stage pools are widened, but case 6 exact Condition list/Standard Angle chunks and case 7 LJ-S RTO2L remain absent even at 120-stage depth. Next safe production work should test a bounded comparison/corrective-action candidate-budget change against the full 10-case v2 gate and saved single-step/warning-procedure gates, while separately investigating cheaper discovery for case 6 and case 7. Avoid the rejected row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths.",
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120. The latest critical answer-prompt guardrail is contained by reverting 0f3a8e1 and validating post-revert actual API answers. Next safe production work should return to bounded comparison/corrective-action candidate-budget or evidence-diversity changes against the full 10-case gate plus saved single-step/warning-procedure gates; avoid API/UI scope drift and gate any future answer prompt changes with actual HTTP API answer evidence before committing.",
     "current_failure_categories": {
       "candidate_miss": 1,
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "answer_grounding_status": "Actual HTTP API answer grounding now has offset-rotated evidence beyond the first four curated cross-document v2 cases. retrieval_eval_20260825_125515 scored cases 5-6 with --query-offset 4: case 5 passed retrieval and answer; case 6 failed retrieval/answer as ranking_or_context_loss with expected_document_not_cited_or_used and retrieval_not_passed. Together with retrieval_eval_20260825_080303, this remains rotation evidence, not a release-level answer gate. Answer source api: 2; fallback rate 0%; mean answer latency 46.234s.",
+    "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated.",
     "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_132726_stage120 is diagnostic-only: deeper stage pools recover the exact case 9 XG-X unsupported-SD corrective-action chunk into assembled rank 7, but case 6 exact chunks and case 7 LJ-S RTO2L remain absent. No retrieval pass rate is marked resolved.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
@@ -5450,7 +5504,7 @@
       }
     ]
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120. The deeper stage-candidate diagnostic shows case 9's exact XG-X unsupported-SD corrective-action row can enter assembled context at rank 7 when stage pools are widened, but case 6 exact Condition list/Standard Angle chunks and case 7 LJ-S RTO2L remain absent even at 120-stage depth. Next safe production work should test a bounded comparison/corrective-action candidate-budget change against the full 10-case v2 gate and saved single-step/warning-procedure gates, while separately investigating cheaper discovery for case 6 and case 7. Avoid the rejected row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120. The latest critical answer-prompt guardrail is contained by reverting 0f3a8e1 and validating post-revert actual API answers. Next safe production work should return to bounded comparison/corrective-action candidate-budget or evidence-diversity changes against the full 10-case gate plus saved single-step/warning-procedure gates; avoid API/UI scope drift and gate any future answer prompt changes with actual HTTP API answer evidence before committing.",
   "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_132726_stage120 is diagnostic-only: deeper stage pools recover the exact case 9 XG-X unsupported-SD corrective-action chunk into assembled rank 7, but case 6 exact chunks and case 7 LJ-S RTO2L remain absent. No retrieval pass rate is marked resolved.",
   "current_failure_categories": {
     "candidate_miss": 1,

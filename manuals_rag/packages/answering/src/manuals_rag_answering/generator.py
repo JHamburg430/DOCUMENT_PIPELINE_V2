@@ -21,10 +21,6 @@ Use used_documents as an array of objects with document_id, title, version, page
 Use citations as an array of objects with chunk_id, document_id, pages, and quote_span.
 If evidence is weak, set insufficient_evidence=true and explain the gap.
 Always mention version awareness and cite pages/sections.
-Answer the user's technical question in plain language using the evidence content or summaries.
-Do not use document titles, filenames, import-set names, storage paths, chunk ids, or other metadata identifiers as the substantive answer.
-Treat titles and filenames only as citation metadata. If the evidence only identifies a document/file/import set but does not contain the requested fact, say the evidence is insufficient.
-For table/spec evidence, include the field or setting name plus the value, range, unit, command, condition, or action that answers the question.
 """.strip()
 
 RELEVANCE_PROMPT = """
@@ -39,9 +35,6 @@ Guidance:
 - `relevant`: directly answers or strongly supports the request
 - `potentially_relevant`: related but indirect, partial, broader, or ambiguous
 - `not_relevant`: does not materially help answer the request
-- Judge relevance from the evidence content, table/spec fields, section path, and summaries.
-- Do not mark an item relevant only because its title, filename, import-set identifier, or document metadata resembles the question.
-- If the only apparent match is filenames, titles, import-set tokens, or metadata and the content does not answer the user's question, use `not_relevant`.
 """.strip()
 
 SUMMARY_PROMPT = """
@@ -52,16 +45,12 @@ The summary must:
 - mention concrete settings, constraints, or procedures when present
 - stay concise
 - avoid speculation
-- summarize answer-bearing content, not document titles, filenames, import-set names, chunk ids, or storage metadata
-- if the evidence only names a file/document/import set and lacks the requested fact, say the requested fact is not present in this evidence
 """.strip()
 
 RECURSIVE_SUMMARY_PROMPT = """
 You compress multiple evidence summaries into a smaller summary for downstream answer generation.
 Return strict JSON with a top-level key `summary`.
 Keep only details relevant to the user's request and remove repetition.
-Do not promote document titles, filenames, import-set names, chunk ids, or other metadata identifiers into answer facts.
-If the summaries do not contain the requested fact, preserve that insufficiency instead of guessing from metadata.
 """.strip()
 
 ANSWER_SCHEMA = {

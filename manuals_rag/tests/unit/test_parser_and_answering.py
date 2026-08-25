@@ -2,18 +2,7 @@ from pathlib import Path
 
 import fitz
 
-from manuals_rag_answering.generator import (
-    RECURSIVE_SUMMARY_PROMPT,
-    RELEVANCE_PROMPT,
-    SUMMARY_PROMPT,
-    SYSTEM_PROMPT,
-    _parse_relevance_response,
-    generate_answer,
-    generate_answer_with_trace,
-    judge_retrieval_relevance,
-    prioritize_results_for_answer,
-    validate_answer,
-)
+from manuals_rag_answering.generator import _parse_relevance_response, generate_answer, generate_answer_with_trace, judge_retrieval_relevance, prioritize_results_for_answer, validate_answer
 from manuals_rag_parsers.docling_parser import (
     _classify_block,
     _docling_page_batches,
@@ -200,16 +189,6 @@ def test_validate_answer_expands_terse_structured_table_answer():
 
     assert validated.answer == 'Part number: 19.69" OP-42284; Applicable light: CA-DRx9'
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
-
-
-def test_answering_prompts_reject_metadata_as_substantive_answers():
-    for prompt in [SYSTEM_PROMPT, RELEVANCE_PROMPT, SUMMARY_PROMPT, RECURSIVE_SUMMARY_PROMPT]:
-        assert "filenames" in prompt
-        assert "metadata" in prompt
-    assert "Do not use document titles, filenames, import-set names" in SYSTEM_PROMPT
-    assert "only apparent match is filenames, titles, import-set tokens, or metadata" in RELEVANCE_PROMPT
-    assert "summarize answer-bearing content" in SUMMARY_PROMPT
-    assert "do not contain the requested fact" in RECURSIVE_SUMMARY_PROMPT
 
 
 def test_parse_relevance_response_detects_missing_chunk_ids_and_normalizes_null_fields():

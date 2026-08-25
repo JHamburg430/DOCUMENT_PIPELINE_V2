@@ -1,0 +1,55 @@
+{
+  "total_queries": 1,
+  "passed_queries": 1,
+  "failed_queries": 0,
+  "pass_rate": 1.0,
+  "pass_at_1": 1.0,
+  "pass_at_3": 1.0,
+  "pass_at_5": 1.0,
+  "mean_passing_rank": 1.0,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "by_retrieval_task": {
+    "multi_step_retrieval": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "by_document": {
+    "AS_151292_VS_UM_J18GB_WW_GB_2035_7.pdf": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "failure_categories": {},
+  "benchmark_quality": {
+    "validated": 1
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 1.0,
+  "metadata_document_selection_attempts": 1,
+  "metadata_document_selection_recall_rate": 1.0,
+  "metadata_document_selection_rank_1_rate": 0.0,
+  "answer_eval_count": 1,
+  "answer_passed_queries": 1,
+  "answer_failed_queries": 0,
+  "answer_pass_rate": 1.0,
+  "answer_failure_reasons": {},
+  "answer_latency": {
+    "min_seconds": 34.551,
+    "max_seconds": 34.551,
+    "mean_seconds": 34.551,
+    "p95_seconds": 34.551
+  },
+  "answer_fallback_count": 0,
+  "answer_fallback_rate": 0.0,
+  "answer_sources": {
+    "api": 1
+  },
+  "answer_fallback_reasons": {},
+  "answer_mean_summary_count": null
+}

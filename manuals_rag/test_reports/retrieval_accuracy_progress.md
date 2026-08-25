@@ -1525,3 +1525,24 @@ Next target:
 Next target:
 
 - Continue from the full curated cross-document v2 baseline `retrieval_eval_20260825_072839` using `test_reports/retrieval_debug_report_20260825_132726_stage120.json`. Test only bounded, general candidate-budget or evidence-diversity changes that can improve the full 10-case gate while preserving saved single-step and warning/procedure gates. Keep API/UI changes out of this cron unless John explicitly approves them.
+
+## 2026-08-25 Cron 39262386 Answer Prompt Guardrail Containment
+
+- Target: address the latest guardrail `2026-08-25T14:16:24Z` `critical` finding before doing any further retrieval tuning. The guardrail said commit `0f3a8e1` changed production answer-generation prompts without meaningful recorded answer-grounding gates, and required either reverting it or validating it with focused answer/eval tests plus actual HTTP API answer evidence.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. The critical finding was treated as the first-class target. Direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was unavailable because the cron tool is restricted to the current job.
+- Local stack: compose services were running and usable: API, Postgres, Qdrant, Redis, workers, and UI were up; Postgres was healthy.
+- Pre-containment validation: focused answer/eval tests passed with the prompt change present (`tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q` -> 94 passed, 23 warnings), and a prior-green cross-document actual API answer smoke was green. However, the metadata/table single-step actual API answer smoke exposed a regression: one of the first two curated replacement v2 cases failed answer scoring with `insufficient_evidence` despite retrieval passing at rank 1.
+- Containment change: reverted commit `0f3a8e1` with `git revert --no-edit 0f3a8e1`, creating commit `e3c537a`. This removed the unvalidated answer/eval prompt changes instead of trying to tune around the regression. The earlier API/UI scope containment remains intact.
+- Focused validation after revert: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q` -> 92 passed, 23 warnings.
+- Post-revert actual HTTP API answer validation:
+  - `retrieval_eval_20260825_142811` on `test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl`, `--max-queries 2`, actual `/query` answer payloads: 2/2 retrieval passed, 2/2 answers passed, answer source `api`, fallback 0%, mean answer latency 43.141s.
+  - `retrieval_eval_20260825_142948` on `test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl`, `--max-queries 1`, actual `/query` answer payload: 1/1 retrieval passed, 1/1 answer passed, answer source `api`, fallback 0%, latency 34.551s.
+- No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment logic changed. The only production answering change this run was the revert of the unvalidated prompt commit.
+- Question-bank counts remain monotonic and unchanged at 203 exploratory questions total: 100 single-step and 103 multi-step. No questions were retired or added; replacement debt remains 0.
+- Current retrieval target remains unchanged: full curated cross-document v2 baseline `retrieval_eval_20260825_072839` at 7/10 with `candidate_miss: 1`, `eval_timeout: 1`, and `ranking_or_context_loss: 1`, using `retrieval_debug_report_20260825_132726_stage120` as diagnostic evidence.
+- Guardrail handling: the `2026-08-25T14:16:24Z` critical finding was addressed directly by reverting the prompt commit after actual API validation found a regression. No retrieval pass rate is marked resolved by this containment.
+- Generalization check before commit: reverting the unvalidated prompt change is valid for unseen manuals, unseen vendors, and realistic users because it avoids shipping answer behavior that made a source-backed curated table question incorrectly report insufficient evidence.
+
+Next target:
+
+- Continue from the full curated cross-document v2 baseline `retrieval_eval_20260825_072839` using `test_reports/retrieval_debug_report_20260825_132726_stage120.json`. Test only bounded, general candidate-budget or evidence-diversity changes that can improve the full 10-case gate while preserving saved single-step and warning/procedure gates. Keep API/UI changes out of this cron unless John explicitly approves them, and gate any future answer prompt changes with actual HTTP API answer evidence before committing.
