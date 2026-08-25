@@ -1,3 +1,5 @@
+import pytest
+
 from manuals_rag_evals.retrieval_eval import (
     RetrievalEvalCase,
     build_eval_cases_from_chunks,
@@ -395,7 +397,7 @@ def test_large_retrieval_eval_summarizes_answer_metrics():
     assert summary["answer_mean_summary_count"] == 3.0
 
 
-def test_large_retrieval_eval_generates_answers_after_http_retrieval(monkeypatch):
+def test_large_retrieval_eval_scores_api_answer_payload_for_http_answer_mode(monkeypatch):
     import importlib.util
     from pathlib import Path
 
@@ -405,15 +407,15 @@ def test_large_retrieval_eval_generates_answers_after_http_retrieval(monkeypatch
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
+    calls = []
     monkeypatch.setattr(module, "run_search", lambda query, *, corpus_id, response_mode: [{"chunk_id": "hit"}])
     monkeypatch.setattr(
         module,
-        "generate_answer_payload",
-        lambda query, results: {
-            "answer": "24 VDC",
-            "_eval_trace": {"used_fallback": False, "answer_source": "model", "summary_count": 1},
-        },
+        "run_query_answer",
+        lambda query, *, corpus_id: calls.append((query, corpus_id))
+        or {"answer": "24 VDC", "citations": [], "used_documents": []},
     )
+    monkeypatch.setattr(module, "generate_answer_payload", lambda query, results: pytest.fail("HTTP answer mode must not regenerate a local answer"))
 
     payload = module.run_case_search(
         "What voltage?",
@@ -426,8 +428,44 @@ def test_large_retrieval_eval_generates_answers_after_http_retrieval(monkeypatch
         "top_results": [{"chunk_id": "hit"}],
         "answer": {
             "answer": "24 VDC",
-            "_eval_trace": {"used_fallback": False, "answer_source": "model", "summary_count": 1},
+            "citations": [],
+            "used_documents": [],
+            "_eval_trace": {"answer_transport": "http_api", "answer_source": "api", "used_fallback": False},
         },
+    }
+    assert calls == [("What voltage?", "manuals")]
+
+
+def test_large_retrieval_eval_uses_embedded_http_answer_when_present(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    monkeypatch.setattr(
+        module,
+        "run_search",
+        lambda query, *, corpus_id, response_mode: {
+            "top_results": [{"chunk_id": "hit"}],
+            "answer": {"answer": "Use shielded cable.", "_eval_trace": {"answer_source": "api_model"}},
+        },
+    )
+    monkeypatch.setattr(module, "run_query_answer", lambda query, *, corpus_id: pytest.fail("Embedded API answer should be scored directly"))
+
+    payload = module.run_case_search(
+        "What cable?",
+        corpus_id="manuals",
+        search_mode="http",
+        response_mode="answer_with_citations",
+    )
+
+    assert payload["answer"] == {
+        "answer": "Use shielded cable.",
+        "_eval_trace": {"answer_source": "api_model", "answer_transport": "http_api", "used_fallback": False},
     }
 
 

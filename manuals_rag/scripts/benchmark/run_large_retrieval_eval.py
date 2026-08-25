@@ -306,6 +306,21 @@ def run_search(query: str, *, corpus_id: str, response_mode: str = "retrieval_on
     )
 
 
+def run_query_answer(query: str, *, corpus_id: str) -> dict[str, Any]:
+    payload = {
+        "query": query,
+        "corpus_ids": [corpus_id],
+        "filters": {},
+        "response_mode": "answer_with_citations",
+    }
+    return _json_request(
+        f"{API_BASE}/query",
+        method="POST",
+        payload=payload,
+        headers={"Authorization": f"Bearer {USER_TOKEN}"},
+    )
+
+
 def run_search_direct(query: str, *, corpus_id: str) -> list[dict[str, Any]]:
     from manuals_rag_retrieval.retriever import build_filters, retrieve
 
@@ -329,6 +344,20 @@ def generate_answer_payload(query: str, results: list[dict[str, Any]]) -> dict[s
     return payload
 
 
+def normalize_api_answer_payload(answer: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(answer)
+    trace = normalized.get("_eval_trace")
+    if not isinstance(trace, dict):
+        trace = {}
+    normalized["_eval_trace"] = {
+        **trace,
+        "answer_transport": "http_api",
+        "answer_source": trace.get("answer_source") or "api",
+        "used_fallback": bool(trace.get("used_fallback", False)),
+    }
+    return normalized
+
+
 def _answer_trace(answer: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(answer, dict):
         return {}
@@ -350,7 +379,10 @@ def run_case_search(query: str, *, corpus_id: str, search_mode: str, response_mo
         results = list(payload.get("top_results") or payload.get("results") or [])
     normalized = {"top_results": results}
     if response_mode == "answer_with_citations":
-        normalized["answer"] = generate_answer_payload(query, results)
+        if isinstance(payload, dict) and isinstance(payload.get("answer"), dict):
+            normalized["answer"] = normalize_api_answer_payload(payload["answer"])
+        else:
+            normalized["answer"] = normalize_api_answer_payload(run_query_answer(query, corpus_id=corpus_id))
     return normalized
 
 

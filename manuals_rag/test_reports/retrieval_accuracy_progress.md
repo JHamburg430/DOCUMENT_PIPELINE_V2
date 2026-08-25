@@ -940,3 +940,25 @@ Next target:
 Next target:
 
 - Reduce remaining relevance-judgment and recursive-summary JSON fallback frequency/latency, then expand answer-grounding coverage beyond the 5-case single-step smoke while preserving the 13/13 single-step and 15/15 warning-step gates; continue cross-document multi-step retrieval work after answer metrics stabilize.
+
+## 2026-08-24 Cron 39262386 HTTP API Answer Scoring
+
+- Target: address guardrail finding `2026-08-25T00:10:00Z` that HTTP answer-mode benchmarking was not scoring the actual user-visible/API answer payload.
+- Guardrail review status: direct cron run history for guardrail job `ca862d7a-e46f-4de3-870e-1cca28a3510c` was unavailable because the cron tool is restricted to the current cron job. The latest guardrail findings file was reviewed and treated as the authoritative audit source.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Changed benchmark logic in `scripts/benchmark/run_large_retrieval_eval.py` so HTTP `answer_with_citations` mode scores the API `/query` answer payload instead of discarding it and regenerating a direct in-process answer from `/search` results. Direct mode still uses the local answer generator and HTTP answer traces are now labeled with `answer_transport: http_api` and `answer_source: api` when the API does not expose a deeper trace.
+- Added focused unit coverage in `tests/unit/test_retrieval_eval.py` proving HTTP answer mode does not call `generate_answer_payload`, and that an embedded API answer payload is scored directly when present.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 56 passed.
+- Live HTTP API-answer command (realistic single-step replacement bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_173031.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 75 --warmup-queries 1 --warmup-timeout-seconds 45`.
+- Live HTTP API-answer result: `retrieval_eval_20260825_002626` passed 2/2 retrieval and 2/2 actual API answers, answer sources `api: 2`, fallback rate 0%, answer latency min/max/mean/p95 27.846s/39.577s/33.712s/39.577s.
+- Live HTTP API-answer command (warning/procedure multi-step bank): `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_105701.jsonl --max-queries 1 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 75 --warmup-queries 0 --warmup-timeout-seconds 45`.
+- Live HTTP API-answer result: `retrieval_eval_20260825_002743` passed 1/1 retrieval and 1/1 actual API answer, answer source `api: 1`, fallback rate 0%, answer latency 37.854s.
+- New artifacts: `test_reports/retrieval_eval_summary_20260825_002626.json`, `test_reports/retrieval_eval_manifest_20260825_002626.json`, `test_reports/retrieval_eval_summary_20260825_002743.json`, and `test_reports/retrieval_eval_manifest_20260825_002743.json`. JSONL datasets/results are present locally under the same timestamps.
+- Weak replacement-debt dataset status: `test_reports/retrieval_eval_dataset_20260824_210121.jsonl` remains useful as a diagnostic retrieval slice, but guardrail findings say it is source-shaped for answer-generation tuning. The manifest now marks this as answer-grounding quality debt and says not to use it as a production answer gate until replaced or curated.
+- Question-bank counts unchanged this run: 193 exploratory questions total, 100 single-step and 93 multi-step. No questions were retired or added; the active-count issue is intentionally left for a replacement/curation run rather than silently shrinking coverage.
+- Changed files: `scripts/benchmark/run_large_retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, plus the new 00:26 and 00:27 UTC eval summary/manifest artifacts.
+- Generalization check before commit: the harness change is valid for unseen manuals and vendors because HTTP answer evaluation now measures the actual API contract users hit. It does not add document, vendor, filename, query, provider, model, ingestion, parser, UI, schema, or deployment changes.
+
+Next target:
+
+- Replace or curate weak source-shaped cases in `test_reports/retrieval_eval_dataset_20260824_210121.jsonl` before using them as answer-generation gates; then broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases while continuing cross-document retrieval improvements.
