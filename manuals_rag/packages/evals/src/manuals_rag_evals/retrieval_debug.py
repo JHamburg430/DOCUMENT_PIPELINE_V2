@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from manuals_rag_common.db import fetch_all
 from manuals_rag_evals.retrieval_quality import summarize_result_quality
 from manuals_rag_retrieval.query_analysis import analyze_query
 from manuals_rag_retrieval.qdrant_store import QdrantStore
@@ -14,9 +16,15 @@ from manuals_rag_retrieval.retriever import (
     _apply_family_scoring,
     _apply_query_alignment,
     _chunk_search_filters,
+    _comparison_table_content_terms,
     _dedupe_results,
+    _lexical_table_content_terms,
+    _lexical_table_symbol_terms,
+    _lexical_table_terms,
     _promote_comparison_table_candidates,
+    _result_matches_identifier,
     _select_family_candidates,
+    _table_lexical_score,
     assemble_context,
     build_filters,
     enrich_candidates_for_rerank,
@@ -198,6 +206,122 @@ def _stage_same_document_crowding(
     return crowding
 
 
+def _expected_evidence_lexical_probe(
+    query: str,
+    analysis: Any,
+    expected_evidence: list[dict[str, Any]],
+    full_stage_results: dict[str, list[SearchResult]],
+) -> dict[str, Any]:
+    chunk_ids = [str(item.get("chunk_id") or "") for item in expected_evidence if item.get("chunk_id")]
+    if not chunk_ids:
+        return {}
+    try:
+        rows = fetch_all(
+            """
+            select id, document_version_id, source_document_id, title, section_path_text, chunk_type,
+                   page_from, page_to, content, metadata_json, priority_score
+            from retrieval_chunks
+            where id = any(%s)
+            """,
+            (chunk_ids,),
+        )
+    except Exception as exc:
+        return {"database_probe_error": str(exc), "items": [{"chunk_id": chunk_id, "found_in_database": False} for chunk_id in chunk_ids]}
+    rows_by_id = {str(row["id"]): dict(row) for row in rows}
+    try:
+        lexical_terms = _lexical_table_terms(query, analysis)
+    except AttributeError:
+        lexical_terms = [
+            term
+            for term in (re.sub(r"[^a-z0-9]+", "", raw.lower()) for raw in query.split())
+            if len(term) >= 3
+        ][:16]
+    is_comparison = "comparison" in getattr(analysis, "query_types", []) and bool(getattr(analysis, "product_identifiers", []))
+    if is_comparison:
+        content_prefilter_terms = [
+            term
+            for term in [*_comparison_table_content_terms(lexical_terms), *_lexical_table_symbol_terms(lexical_terms)]
+            if term
+        ]
+    else:
+        content_prefilter_terms = [*_lexical_table_content_terms(lexical_terms), *_lexical_table_symbol_terms(lexical_terms)]
+    content_prefilter_terms = list(dict.fromkeys(content_prefilter_terms))
+    stage_presence: dict[str, dict[str, int]] = {}
+    for stage_name, results in full_stage_results.items():
+        for rank, result in enumerate(results, start=1):
+            if result.chunk_id in chunk_ids:
+                stage_presence.setdefault(result.chunk_id, {})[stage_name] = rank
+    probe_items: list[dict[str, Any]] = []
+    for item in expected_evidence:
+        chunk_id = str(item.get("chunk_id") or "")
+        if not chunk_id:
+            continue
+        row = rows_by_id.get(chunk_id)
+        if row is None:
+            probe_items.append({"chunk_id": chunk_id, "found_in_database": False})
+            continue
+        metadata = dict(row.get("metadata_json") or {})
+        content = str(row.get("content") or "")
+        compact_content = "".join(char for char in content.lower() if char.isalnum())
+        lower_content = content.lower()
+        matched_prefilter_terms = [
+            term
+            for term in content_prefilter_terms
+            if (term.lower() in lower_content if is_comparison else term.lower() in compact_content)
+        ]
+        expected_terms = [str(term) for term in item.get("expected_terms", []) if str(term)]
+        expected_terms_matched = [
+            term
+            for term in expected_terms
+            if " ".join(str(term).lower().split()) in " ".join(content.lower().split())
+        ]
+        identifiers = [str(identifier) for identifier in getattr(analysis, "product_identifiers", []) or [] if str(identifier)]
+        result_for_identifier = SearchResult(
+            chunk_id=chunk_id,
+            score=float(row.get("priority_score") or 0.0),
+            title=str(row.get("title") or ""),
+            document_version_id=str(row.get("document_version_id") or ""),
+            source_document_id=str(row.get("source_document_id") or ""),
+            pages=list(range(int(row["page_from"]), int(row["page_to"]) + 1)),
+            section_path=[str(part) for part in metadata.get("section_path") or [row.get("section_path_text") or "Document"]],
+            content=content,
+            metadata={
+                **metadata,
+                "chunk_id": chunk_id,
+                "document_version_id": str(row.get("document_version_id") or ""),
+                "source_document_id": str(row.get("source_document_id") or ""),
+                "chunk_type": str(row.get("chunk_type") or metadata.get("chunk_type") or "table_record"),
+                "title": str(row.get("title") or ""),
+                "content": content,
+                "content_for_rerank": content,
+                "priority_score": float(row.get("priority_score") or 0.0),
+            },
+        )
+        probe_items.append(
+            {
+                "chunk_id": chunk_id,
+                "found_in_database": True,
+                "source_document_id": str(row.get("source_document_id") or ""),
+                "chunk_type": str(row.get("chunk_type") or metadata.get("chunk_type") or ""),
+                "table_column_headers": metadata.get("table_column_headers"),
+                "table_row_headers": metadata.get("table_row_headers"),
+                "lexical_terms_matched_by_content_prefilter": matched_prefilter_terms,
+                "expected_terms_matched_in_content": expected_terms_matched,
+                "expected_terms_missing_from_content": [term for term in expected_terms if term not in expected_terms_matched],
+                "table_lexical_score": round(_table_lexical_score(row, lexical_terms), 6),
+                "matched_query_identifiers": [
+                    identifier for identifier in identifiers if _result_matches_identifier(result_for_identifier, identifier)
+                ],
+                "stage_exact_ranks": stage_presence.get(chunk_id, {}),
+            }
+        )
+    return {
+        "lexical_terms": lexical_terms,
+        "content_prefilter_terms": content_prefilter_terms,
+        "items": probe_items,
+    }
+
+
 def _stage_expected_evidence_ranks(
     stages: list[RetrievalDebugStage],
     expected_evidence: list[dict[str, Any]] | None,
@@ -296,6 +420,8 @@ def _stage_expected_evidence_top_k_outcomes(
 def _case_diagnostics(
     stages: list[RetrievalDebugStage],
     *,
+    query: str,
+    analysis: Any,
     expected_evidence: list[dict[str, Any]] | None = None,
     full_stage_results: dict[str, list[SearchResult]] | None = None,
 ) -> dict[str, Any]:
@@ -336,6 +462,12 @@ def _case_diagnostics(
             expected_evidence,
             stage_ranks,
             full_stage_results=full_stage_results,
+        )
+        diagnostics["expected_evidence_lexical_probe"] = _expected_evidence_lexical_probe(
+            query,
+            analysis,
+            expected_evidence,
+            full_stage_results or {},
         )
     return diagnostics
 
@@ -452,6 +584,8 @@ def debug_retrieval_query(
         stages=stages,
         diagnostics=_case_diagnostics(
             stages,
+            query=query,
+            analysis=analysis,
             expected_evidence=expected_evidence,
             full_stage_results=full_stage_results,
         ),

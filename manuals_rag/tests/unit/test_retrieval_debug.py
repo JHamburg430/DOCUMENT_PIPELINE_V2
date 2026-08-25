@@ -461,6 +461,102 @@ def test_debug_report_explains_same_document_crowding_for_missing_evidence(monke
     assert same_doc_candidates[0]["table_row_headers"] == ["RTO1L"]
 
 
+def test_debug_report_probes_expected_evidence_lexical_discovery(monkeypatch):
+    expected = SearchResult(
+        chunk_id="chunk-expected",
+        score=0.1,
+        title="Expected Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[8],
+        section_path=["Settings"],
+        content="Setting item: RTO2L; Settings: Equivalent Oval Aspect Ratio Min.",
+        metadata={
+            "chunk_type": "table_record",
+            "table_column_headers": ["Description of measurement item selection"],
+            "table_row_headers": ["RTO2L"],
+            "product_family": "LJ-S8000 Series",
+            "content_for_rerank": "Setting item: RTO2L; Settings: Equivalent Oval Aspect Ratio Min.",
+        },
+    )
+    analysis = type(
+        "A",
+        (),
+        {
+            "query_types": ["comparison"],
+            "preferred_chunk_types": ["table_record"],
+            "product_identifiers": ["LJ-S8000", "LJ-X8000"],
+        },
+    )()
+
+    monkeypatch.setattr(retrieval_debug, "build_filters", lambda query, request_filters: {"is_active": True, **request_filters})
+    monkeypatch.setattr(retrieval_debug, "analyze_query", lambda query: analysis)
+    monkeypatch.setattr(retrieval_debug, "QdrantStore", lambda: object())
+    monkeypatch.setattr(retrieval_debug, "_chunk_search_filters", lambda filters, metadata_filters, _analysis: metadata_filters)
+    monkeypatch.setattr(retrieval_debug, "select_documents_from_metadata", lambda store, query, corpus_ids, filters: (filters, []))
+    monkeypatch.setattr(retrieval_debug, "run_dense_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_sparse_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_table_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_table_lexical_search", lambda *args, **kwargs: [expected])
+    monkeypatch.setattr(retrieval_debug, "run_contextual_lexical_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "run_special_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(retrieval_debug, "fuse_results", lambda _store, sets, **_kwargs: [item for group in sets for item in group])
+    monkeypatch.setattr(retrieval_debug, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_annotate_completeness", lambda results: results)
+    monkeypatch.setattr(retrieval_debug, "_apply_query_alignment", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_select_family_candidates", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "rerank_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_promote_comparison_table_candidates", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_dedupe_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "assemble_context", lambda results, **_kwargs: results)
+    monkeypatch.setattr(
+        retrieval_debug,
+        "fetch_all",
+        lambda *_args, **_kwargs: [
+            {
+                "id": "chunk-expected",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "Expected Manual",
+                "section_path_text": "Settings",
+                "page_from": 8,
+                "page_to": 8,
+                "content": "Setting item: RTO2L; Settings: Equivalent Oval Aspect Ratio Min.",
+                "metadata_json": {
+                    "chunk_type": "table_record",
+                    "table_column_headers": ["Description of measurement item selection"],
+                    "table_row_headers": ["RTO2L"],
+                    "product_family": "LJ-S8000 Series",
+                },
+                "priority_score": 0.0,
+            }
+        ],
+    )
+
+    report = retrieval_debug.debug_retrieval_report(
+        corpus_ids=["manuals_vendor_keyence"],
+        queries=["For LJ-X8000 and LJ-S8000, compare what PMSR DC2LAR and RTO2L represent."],
+        top_k=5,
+        expected_evidence_by_query={
+            "For LJ-X8000 and LJ-S8000, compare what PMSR DC2LAR and RTO2L represent.": [
+                {
+                    "chunk_id": "chunk-expected",
+                    "source_document_id": "doc-1",
+                    "expected_terms": ["equivalent", "aspect", "ratio"],
+                }
+            ]
+        },
+    )
+
+    probe = report["cases"][0]["diagnostics"]["expected_evidence_lexical_probe"]
+    assert "rto2l" in probe["lexical_terms"]
+    assert probe["items"][0]["found_in_database"] is True
+    assert probe["items"][0]["expected_terms_matched_in_content"] == ["equivalent", "aspect", "ratio"]
+    assert probe["items"][0]["matched_query_identifiers"] == ["LJ-S8000"]
+    assert probe["items"][0]["stage_exact_ranks"]["table_lexical"] == 1
+
+
 def test_debug_report_uses_stage_candidate_limit_for_deeper_stage_ranks(monkeypatch):
     captured_limits: dict[str, int] = {}
 
