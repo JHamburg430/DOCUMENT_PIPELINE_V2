@@ -205,11 +205,108 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q",
       "status": "passed",
-      "passed": 79,
+      "passed": 80,
       "warnings": 23,
-      "notes": "Focused answering/eval tests passed after direct structured evidence summaries and table-cell-first validation support checks."
+      "notes": "Focused answering/eval tests passed after adding structured-answer completeness validation for terse table/spec answers."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260824_235630",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_235630.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_235630.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_235630.json",
+        "status": "completed_answer_grounding_terse_structured_answer_validation",
+        "search_mode": "direct",
+        "response_mode": "answer_with_citations",
+        "per_query_timeout_seconds": 60,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 5,
+        "passed_queries": 5,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "answer_eval_count": 5,
+        "answer_passed_queries": 5,
+        "answer_failed_queries": 0,
+        "answer_pass_rate": 1.0,
+        "answer_failure_reasons": {},
+        "answer_latency": {
+          "min_seconds": 12.358,
+          "max_seconds": 32.138,
+          "mean_seconds": 18.938,
+          "p95_seconds": 32.138
+        },
+        "answer_fallback_count": 2,
+        "answer_fallback_rate": 0.4,
+        "answer_sources": {
+          "model": 3,
+          "fallback_validation": 2
+        },
+        "answer_fallback_reasons": {
+          "Generated answer was replaced by retrieval-grounded fallback during validation.": 2
+        },
+        "mode": "answer_with_citations_saved_single_step_replacement_debt_terse_structured_validation",
+        "notes": "Terse structured table answers are now considered incomplete when the retrieved table/spec evidence has important field context. The prior 5-case answer batch recovered from 4/5 to 5/5 answers passed. Fallback-validation use rose to 2/5 because terse but supported model answers are expanded to grounded table evidence; recursive-summary/relevance JSON fallbacks remain a latency/watch item."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_235822",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_235822.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_235822.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_235822.json",
+        "status": "completed_retrieval_only_regression",
+        "search_mode": "direct",
+        "response_mode": "retrieval_only",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 13,
+        "passed_queries": 13,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_single_step_replacement_debt_regression",
+        "notes": "Replacement-debt single-step retrieval gate stayed 13/13 after the answer validation change."
+      },
+      {
+        "run_id": "retrieval_eval_20260824_235856",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260824_235856.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260824_235856.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260824_235856.json",
+        "status": "completed_multi_step_warning_step_regression",
+        "search_mode": "direct",
+        "response_mode": "retrieval_only",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "failure_categories": {},
+        "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
+        "notes": "Warning-plus-step multi-step retrieval gate stayed 15/15 after answer validation changes."
+      },
       {
         "run_id": "retrieval_eval_20260824_233118",
         "corpus_id": "manuals_vendor_keyence",
@@ -3666,11 +3763,9 @@
         "ranking_or_context_loss": 7,
         "candidate_miss": 1
       },
-      "answer_grounding_smoke": {
-        "expected_terms_missing": 1
-      }
+      "answer_grounding_smoke": {}
     },
-    "next_target": "Reduce remaining relevance-judgment and recursive-summary JSON fallback frequency, then fix the remaining 5-case answer-mode expected-term miss while preserving the 13/13 replacement-debt retrieval gate and the green warning-step/cross-document tracking gates.",
+    "next_target": "Reduce remaining relevance-judgment and recursive-summary JSON fallback frequency/latency, then expand answer-grounding coverage beyond the 5-case single-step smoke while preserving 13/13 single-step and 15/15 warning-step gates; continue cross-document multi-step retrieval after answer metrics stabilize.",
     "current_failure_categories": {
       "replacement_debt_single_step_bank": {},
       "replacement_single_step_bank": {},
@@ -3679,25 +3774,9 @@
         "ranking_or_context_loss": 7,
         "candidate_miss": 1
       },
-      "answer_grounding_smoke": {
-        "expected_terms_missing": 1
-      }
+      "answer_grounding_smoke": {}
     },
-    "answer_grounding_status": {
-      "status": "smoke_measured_direct_structured_evidence",
-      "latest_run_id": "retrieval_eval_20260824_233118",
-      "answer_eval_count": 5,
-      "answer_passed_queries": 4,
-      "answer_pass_rate": 0.8,
-      "answer_fallback_rate": 0.2,
-      "answer_latency": {
-        "min_seconds": 13.323,
-        "max_seconds": 21.937,
-        "mean_seconds": 16.724,
-        "p95_seconds": 21.937
-      },
-      "notes": "Focused structured chunks now bypass chunk-summary JSON calls and table validation keeps focused cell text before broad context. Remaining live logs still show relevance and recursive-summary JSON fallbacks, and one model answer missed expected terms."
-    }
+    "answer_grounding_status": "5-case saved single-step answer-grounding batch is now 5/5, with terse structured model answers expanded to cited table evidence when necessary. Remaining watch item: relevance/recursive-summary JSON fallback frequency and answer latency."
   },
-  "next_target": "Reduce remaining relevance-judgment and recursive-summary JSON fallback frequency, then fix the remaining 5-case answer-mode expected-term miss while preserving the 13/13 replacement-debt retrieval gate and the green warning-step/cross-document tracking gates."
+  "next_target": "Reduce remaining relevance-judgment and recursive-summary JSON fallback frequency/latency, then expand answer-grounding coverage beyond the 5-case single-step smoke while preserving 13/13 single-step and 15/15 warning-step gates; continue cross-document multi-step retrieval after answer metrics stabilize."
 }

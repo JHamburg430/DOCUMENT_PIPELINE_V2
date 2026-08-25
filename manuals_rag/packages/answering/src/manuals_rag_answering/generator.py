@@ -307,8 +307,29 @@ def _normalize_generated_answer_payload(payload: dict[str, Any], results: list[S
     return normalized
 
 
+def _structured_answer_is_too_terse(answer: str, results: list[SearchResult]) -> bool:
+    if not results:
+        return False
+    top = results[0]
+    chunk_type = str(top.metadata.get("chunk_type") or "")
+    if chunk_type not in {"table_record", "spec_record", "datasheet_record"}:
+        return False
+    answer_terms = _answer_terms(answer)
+    if not answer_terms or len(answer_terms) > 2:
+        return False
+    evidence_text = _fallback_answer_text(top)
+    evidence_terms = _answer_terms(evidence_text)
+    if len(evidence_terms) <= len(answer_terms) + 2:
+        return False
+    answer_lower = answer.lower()
+    return bool(
+        ":" in evidence_text
+        and any(term in evidence_terms and term not in answer_lower for term in {"applicable", "value", "setting", "part", "number", "cell"})
+    )
+
+
 def validate_answer(answer: AnswerResponse, results: list[SearchResult]) -> AnswerResponse:
-    if results and not _answer_supported_by_results(answer.answer, results):
+    if results and (not _answer_supported_by_results(answer.answer, results) or _structured_answer_is_too_terse(answer.answer, results)):
         fallback = _fallback_answer("", results)
         answer = fallback.model_copy(
             update={

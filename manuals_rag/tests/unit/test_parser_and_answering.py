@@ -161,6 +161,36 @@ def test_validate_answer_accepts_short_identifier_answer_when_supported():
     assert not any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_expands_terse_structured_table_answer():
+    answer = AnswerResponse(
+        answer="OP-42284",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="c-table",
+            score=0.9,
+            title="Ring light options",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[13],
+            section_path=["Options"],
+            content='Part number: 19.69" OP-42284; Applicable light: CA-DRx9',
+            metadata={"chunk_type": "table_record"},
+        )
+    ]
+
+    validated = validate_answer(answer, results)
+
+    assert validated.answer == 'Part number: 19.69" OP-42284; Applicable light: CA-DRx9'
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_parse_relevance_response_detects_missing_chunk_ids_and_normalizes_null_fields():
     results = [
         SearchResult(
