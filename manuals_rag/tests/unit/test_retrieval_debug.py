@@ -556,6 +556,13 @@ def test_debug_report_probes_expected_evidence_lexical_discovery(monkeypatch):
     assert probe["items"][0]["matched_query_identifiers"] == ["LJ-S8000"]
     assert probe["items"][0]["stage_exact_ranks"]["table_lexical"] == 1
     assert probe["items"][0]["table_lexical_sql_pool_rank"] == 1
+    assert probe["items"][0]["table_lexical_sql_pool_order_features"] == {
+        "sql_product_match_score": 3,
+        "sql_content_match_score": 1,
+        "matched_product_identifiers": ["LJ-S8000"],
+        "matched_order_terms": ["rto2l"],
+        "priority_score": 0.0,
+    }
 
 
 def test_debug_report_uses_stage_candidate_limit_for_deeper_stage_ranks(monkeypatch):

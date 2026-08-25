@@ -249,11 +249,11 @@ def _expected_evidence_lexical_probe(
     else:
         content_prefilter_terms = [*_lexical_table_content_terms(lexical_terms), *_lexical_table_symbol_terms(lexical_terms)]
     content_prefilter_terms = list(dict.fromkeys(content_prefilter_terms))
-    sql_pool_ranks: dict[str, int] = {}
+    sql_pool_details: dict[str, dict[str, Any]] = {}
     sql_pool_error: str | None = None
     if content_prefilter_terms:
         try:
-            sql_pool_ranks = _table_lexical_sql_pool_ranks(
+            sql_pool_details = _table_lexical_sql_pool_details(
                 corpus_ids=corpus_ids,
                 filters=filters,
                 analysis=analysis,
@@ -326,8 +326,9 @@ def _expected_evidence_lexical_probe(
                 "expected_terms_matched_in_content": expected_terms_matched,
                 "expected_terms_missing_from_content": [term for term in expected_terms if term not in expected_terms_matched],
                 "table_lexical_score": round(_table_lexical_score(row, lexical_terms), 6),
-                "table_lexical_sql_pool_rank": sql_pool_ranks.get(chunk_id),
+                "table_lexical_sql_pool_rank": (sql_pool_details.get(chunk_id) or {}).get("rank"),
                 "table_lexical_sql_pool_limit": LEXICAL_TABLE_SCAN_LIMIT,
+                "table_lexical_sql_pool_order_features": (sql_pool_details.get(chunk_id) or {}).get("order_features"),
                 "matched_query_identifiers": [
                     identifier for identifier in identifiers if _result_matches_identifier(result_for_identifier, identifier)
                 ],
@@ -342,7 +343,7 @@ def _expected_evidence_lexical_probe(
     }
 
 
-def _table_lexical_sql_pool_ranks(
+def _table_lexical_sql_pool_details(
     *,
     corpus_ids: list[str],
     filters: dict[str, Any],
@@ -393,11 +394,7 @@ def _table_lexical_sql_pool_ranks(
             if len(order_terms) >= 10:
                 break
         if order_terms:
-            product_patterns = [
-                f"%{str(identifier).strip()}%"
-                for identifier in (getattr(analysis, "product_identifiers", []) or [])[:4]
-                if str(identifier).strip()
-            ]
+            product_patterns = _sql_pool_product_patterns(analysis)
             product_fragments = [
                 (
                     "case when metadata_json->>'product_model' ilike %s "
@@ -422,7 +419,7 @@ def _table_lexical_sql_pool_ranks(
             order_params.extend([f"%{term}%" for term in order_terms])
     rows = fetch_all(
         f"""
-        select id
+        select id, content, metadata_json, priority_score
         from retrieval_chunks
         where {" and ".join(where)}
         {order_by}
@@ -430,7 +427,68 @@ def _table_lexical_sql_pool_ranks(
         """,
         tuple([*params, *order_params]),
     )
-    return {str(row["id"]): index for index, row in enumerate(rows, start=1)}
+    return {
+        str(row["id"]): {
+            "rank": index,
+            "order_features": _sql_pool_order_features(
+                row,
+                analysis=analysis,
+                terms=terms,
+                is_comparison=is_comparison,
+            ),
+        }
+        for index, row in enumerate(rows, start=1)
+    }
+
+
+def _sql_pool_product_patterns(analysis: Any) -> list[str]:
+    return [
+        f"%{str(identifier).strip()}%"
+        for identifier in (getattr(analysis, "product_identifiers", []) or [])[:4]
+        if str(identifier).strip()
+    ]
+
+
+def _sql_pool_order_features(
+    row: dict[str, Any],
+    *,
+    analysis: Any,
+    terms: list[str],
+    is_comparison: bool,
+) -> dict[str, Any]:
+    metadata = dict(row.get("metadata_json") or {})
+    content = str(row.get("content") or "")
+    content_lower = content.lower()
+    order_terms: list[str] = []
+    for term in terms:
+        if term not in order_terms:
+            order_terms.append(term)
+        if len(order_terms) >= 10:
+            break
+    matched_order_terms = [term for term in order_terms if term.lower() in content_lower]
+    identifiers = [str(identifier) for identifier in getattr(analysis, "product_identifiers", []) or [] if str(identifier)]
+    product_haystack = " ".join(
+        str(part)
+        for part in [
+            metadata.get("product_model"),
+            metadata.get("product_family"),
+            metadata.get("product_models"),
+            metadata.get("devices"),
+        ]
+        if part
+    ).lower()
+    matched_identifiers = [
+        identifier
+        for identifier in identifiers[:4]
+        if str(identifier).strip().lower() in product_haystack
+    ]
+    return {
+        "sql_product_match_score": len(matched_identifiers) * 3 if is_comparison else 0,
+        "sql_content_match_score": len(matched_order_terms) if is_comparison else 0,
+        "matched_product_identifiers": matched_identifiers,
+        "matched_order_terms": matched_order_terms,
+        "priority_score": float(row.get("priority_score") or 0.0),
+    }
 
 
 def _stage_expected_evidence_ranks(

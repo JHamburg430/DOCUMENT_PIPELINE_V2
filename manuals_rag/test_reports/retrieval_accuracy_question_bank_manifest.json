@@ -343,7 +343,35 @@
         ],
         "remaining": "Continue from retrieval_eval_20260825_072839. Avoid the rejected compact-product SQL supplemental slice along with prior rejected comparison tuning paths; investigate cheaper SQL diagnostics or an indexed/bounded discovery design before another production retrieval commit."
       }
-    }
+    },
+    "diagnostics": [
+      {
+        "path": "test_reports/retrieval_debug_report_20260825_1904_sql_order_features.json",
+        "status": "completed",
+        "mode": "table_lexical_sql_pool_order_feature_diagnostic",
+        "baseline": "retrieval_eval_20260825_072839",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "case_ids": [
+          "curated_cross_document_v2::6",
+          "curated_cross_document_v2::7",
+          "curated_cross_document_v2::9"
+        ],
+        "stage_candidate_limit": 120,
+        "top_k": 20,
+        "notes": "Eval/debug-only SQL ordering-feature probe. Case 6 rows match one product and two SQL order terms each but sit at SQL ranks 399 and 370; case 7 LJ-S RTO2L matches one product and two SQL order terms but sits at rank 431 while the LJ-X companion with three content matches is rank 2; case 9 XG-X evidence is rank 3 and assembled rank 7, so it remains a final-context-selection target. No production retrieval behavior changed and no pass rate is marked resolved."
+      }
+    ],
+    "latest_debug_report": {
+      "report": "test_reports/retrieval_debug_report_20260825_1904_sql_order_features.json",
+      "type": "table_lexical_sql_pool_order_feature_diagnostic",
+      "scope": "curated_cross_document_v2_cases_6_7_9",
+      "status": "current_diagnostic_after_rejected_compact_product_sql_experiment",
+      "evidence": {
+        "current_baseline": "retrieval_eval_20260825_072839 remains 7/10 with candidate_miss: 1, eval_timeout: 1, ranking_or_context_loss: 1.",
+        "ordering_finding": "case 6 and case 7 exact expected rows pass content/product checks but are crowded to SQL ranks 370-431 before Python lexical scoring; case 9 XG-X evidence is already SQL rank 3 and assembled rank 7."
+      }
+    },
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1904_sql_order_features plus the SQL-pool, lexical-probe, same-document-crowding, top-k-window, and stage-120 diagnostics. Avoid the rejected compact-product SQL supplemental slice and prior rejected comparison tuning paths. Next safe production work should design an indexed or bounded table-lexical discovery path that can promote high-specificity product/content matches like case 6 and case 7 without broad scans or timeout regressions, and validate it against the full 10-case cross-document v2 gate plus saved single-step and warning/procedure gates. Keep case 9 separate as a final-context-selection target because its XG-X evidence can already reach assembled rank 7."
   },
   "constraints": {
     "models": "use existing local application model settings only",
@@ -5669,8 +5697,8 @@
       }
     }
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1758_sql_pool_probe and prior diagnostics. Avoid the rejected compact-product SQL supplemental slice from 2026-08-25 18:27 UTC, along with rejected comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should either add cheaper SQL diagnostics that estimate candidate ordering features without running extra production queries, or design an indexed/bounded table-lexical discovery path that can be validated against saved single-step and warning/procedure gates before any production commit.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. The compact-product SQL supplemental-slice experiment was rejected after retrieval_eval_20260825_182551 regressed to 1/10 with eval_timeout: 9; no production retrieval code remains from that experiment.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1904_sql_order_features plus the SQL-pool, lexical-probe, same-document-crowding, top-k-window, and stage-120 diagnostics. Avoid the rejected compact-product SQL supplemental slice and prior rejected comparison tuning paths. Next safe production work should design an indexed or bounded table-lexical discovery path that can promote high-specificity product/content matches like case 6 and case 7 without broad scans or timeout regressions, and validate it against the full 10-case cross-document v2 gate plus saved single-step and warning/procedure gates. Keep case 9 separate as a final-context-selection target because its XG-X evidence can already reach assembled rank 7.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. The SQL order-feature diagnostic retrieval_debug_report_20260825_1904_sql_order_features is diagnostic-only; no production retrieval change is marked resolved.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
