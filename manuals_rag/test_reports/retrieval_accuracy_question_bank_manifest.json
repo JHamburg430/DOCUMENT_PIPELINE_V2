@@ -5547,6 +5547,24 @@
     },
     "diagnostics": [
       {
+        "path": "test_reports/retrieval_eval_summary_20260825_193230.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_193230.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "paired_table_item_phrase_boost_experiment",
+        "baseline": "retrieval_eval_20260825_072839",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "total_queries": 10,
+        "passed_queries": 7,
+        "pass_rate": 0.7,
+        "failure_categories": {
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 1,
+          "candidate_miss": 1
+        },
+        "notes": "Comparison-only product/table-item phrase specificity boost moved some exact setting/code rows within the bounded table-lexical list but did not improve the full manually reviewed cross-document v2 gate; all production retrieval/test edits were reverted before commit.",
+        "results_path": "test_reports/retrieval_eval_results_20260825_193230.jsonl"
+      },
+      {
         "path": "test_reports/retrieval_eval_summary_20260825_182551.json",
         "status": "diagnostic_only_rejected_change",
         "mode": "compact_product_sql_supplemental_slice_experiment",
@@ -5687,18 +5705,18 @@
       }
     ],
     "latest_debug_report": {
-      "report": "test_reports/retrieval_debug_report_20260825_1758_sql_pool_probe.json",
-      "type": "expected_evidence_table_lexical_sql_pool_probe",
+      "report": "test_reports/retrieval_debug_report_20260825_1904_sql_order_features.json",
+      "type": "expected_evidence_table_lexical_sql_order_features",
       "scope": "curated_cross_document_v2_cases_6_7_9",
-      "status": "still_current_after_rejected_compact_product_sql_experiment",
+      "status": "still_current_after_rejected_compact_product_sql_and_paired_phrase_experiments",
       "evidence": {
-        "rejected_experiment": "retrieval_eval_20260825_182551 completed at 1/10 with eval_timeout: 9 after the compact-product SQL supplemental-slice experiment; retrieval code was reverted.",
+        "rejected_experiment": "retrieval_eval_20260825_193230 completed at 7/10 with unchanged eval_timeout: 1, ranking_or_context_loss: 1, and candidate_miss: 1 after the paired table-item phrase boost experiment; retrieval code was reverted.",
         "current_baseline": "retrieval_eval_20260825_072839 remains 7/10 with candidate_miss: 1, eval_timeout: 1, ranking_or_context_loss: 1."
       }
     }
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1904_sql_order_features plus the SQL-pool, lexical-probe, same-document-crowding, top-k-window, and stage-120 diagnostics. Avoid the rejected compact-product SQL supplemental slice and prior rejected comparison tuning paths. Next safe production work should design an indexed or bounded table-lexical discovery path that can promote high-specificity product/content matches like case 6 and case 7 without broad scans or timeout regressions, and validate it against the full 10-case cross-document v2 gate plus saved single-step and warning/procedure gates. Keep case 9 separate as a final-context-selection target because its XG-X evidence can already reach assembled rank 7.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. The SQL order-feature diagnostic retrieval_debug_report_20260825_1904_sql_order_features is diagnostic-only; no production retrieval change is marked resolved.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1904_sql_order_features plus prior diagnostics. Avoid the rejected paired table-item phrase boost from retrieval_eval_20260825_193230, the rejected compact-product SQL supplemental slice, and earlier rejected comparison tuning paths. Next safe work should focus on the case 6 timeout path and case 7 final candidate selection with diagnostics that measure production-stage latency/rerank behavior, or design an indexed/bounded discovery path that improves the full 10-case gate before any production retrieval commit. Keep case 9 separate as a final-context-selection target because its XG-X evidence can already reach assembled rank 7 in deeper diagnostics.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. The SQL order-feature diagnostic retrieval_debug_report_20260825_1904_sql_order_features is diagnostic-only. The paired table-item phrase boost experiment retrieval_eval_20260825_193230 was rejected after staying at 7/10 with the same failure profile; no production retrieval change is marked resolved.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
