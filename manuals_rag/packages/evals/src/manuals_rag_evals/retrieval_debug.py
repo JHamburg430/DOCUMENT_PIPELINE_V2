@@ -237,6 +237,7 @@ def debug_retrieval_query(
     corpus_ids: list[str],
     request_filters: dict[str, Any] | None = None,
     top_k: int = 5,
+    stage_candidate_limit: int | None = None,
     expected_evidence: list[dict[str, Any]] | None = None,
 ) -> RetrievalDebugCase:
     request_filters = dict(request_filters or {})
@@ -245,28 +246,30 @@ def debug_retrieval_query(
     store = QdrantStore()
     search_filters, metadata_document_hits = select_documents_from_metadata(store, query, corpus_ids, filters)
     chunk_search_filters = _chunk_search_filters(filters, search_filters, analysis)
+    stage_limit = max(stage_candidate_limit or max(top_k * 2, 10), top_k)
+    fused_limit = max(stage_limit * 2, top_k * 4, 20)
 
-    dense = _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, chunk_search_filters, limit=max(top_k * 2, 10)), "dense")
-    sparse = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, chunk_search_filters, limit=max(top_k * 2, 10)), "sparse")
-    table = _annotate_stage_metadata(run_table_search(store, query, corpus_ids, chunk_search_filters, limit=max(top_k * 2, 10)), "table")
-    table_lexical = _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis, limit=max(top_k * 2, 10)), "table_lexical")
+    dense = _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, chunk_search_filters, limit=stage_limit), "dense")
+    sparse = _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, chunk_search_filters, limit=stage_limit), "sparse")
+    table = _annotate_stage_metadata(run_table_search(store, query, corpus_ids, chunk_search_filters, limit=stage_limit), "table")
+    table_lexical = _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis, limit=stage_limit), "table_lexical")
     contextual_lexical = _annotate_stage_metadata(
-        run_contextual_lexical_search(query, corpus_ids, filters, analysis, limit=max(top_k * 2, 10)),
+        run_contextual_lexical_search(query, corpus_ids, filters, analysis, limit=stage_limit),
         "contextual_lexical",
     )
-    special = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, chunk_search_filters, analysis, limit=max(top_k * 2, 10)), "special")
+    special = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, chunk_search_filters, analysis, limit=stage_limit), "special")
     fused = _annotate_stage_metadata(
-        fuse_results(store, [dense, sparse, table, table_lexical, contextual_lexical, special], limit=max(top_k * 4, 20)),
+        fuse_results(store, [dense, sparse, table, table_lexical, contextual_lexical, special], limit=fused_limit),
         "fused",
     )
     family_scored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored"), "family_scored")
     completeness_scored = _annotate_stage_metadata(_annotate_completeness(family_scored), "completeness_scored")
     query_aligned = _annotate_stage_metadata(_apply_query_alignment(completeness_scored, analysis, stage="query_aligned"), "query_aligned")
-    family_selected = _annotate_stage_metadata(_select_family_candidates(query_aligned, analysis, filters=search_filters, limit=max(top_k * 2, 10)), "family_selected")
-    enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=max(top_k * 2, 10))
-    reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=max(top_k * 2, 10)), "reranked")
+    family_selected = _annotate_stage_metadata(_select_family_candidates(query_aligned, analysis, filters=search_filters, limit=stage_limit), "family_selected")
+    enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=stage_limit)
+    reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=stage_limit), "reranked")
     comparison_promoted = _annotate_stage_metadata(
-        _promote_comparison_table_candidates(reranked, table_lexical, analysis, limit=max(top_k * 2, 10)),
+        _promote_comparison_table_candidates(reranked, table_lexical, analysis, limit=stage_limit),
         "comparison_table_promoted",
     )
     deduped = _annotate_stage_metadata(_dedupe_results(comparison_promoted, analysis), "deduped")
@@ -328,6 +331,7 @@ def debug_retrieval_report(
     queries: list[str],
     request_filters: dict[str, Any] | None = None,
     top_k: int = 5,
+    stage_candidate_limit: int | None = None,
     expected_evidence_by_query: dict[str, list[dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     expected_evidence_by_query = expected_evidence_by_query or {}
@@ -338,6 +342,7 @@ def debug_retrieval_report(
                 corpus_ids=corpus_ids,
                 request_filters=request_filters,
                 top_k=top_k,
+                stage_candidate_limit=stage_candidate_limit,
                 expected_evidence=expected_evidence_by_query.get(query),
             )
         )
@@ -347,6 +352,7 @@ def debug_retrieval_report(
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "corpus_ids": corpus_ids,
         "top_k": top_k,
+        "stage_candidate_limit": stage_candidate_limit or max(top_k * 2, 10),
         "query_count": len(queries),
         "cases": cases,
     }
@@ -366,6 +372,7 @@ def debug_report_to_markdown(report: dict[str, Any]) -> str:
         f"- Corpus IDs: `{', '.join(report['corpus_ids'])}`",
         f"- Query count: `{report['query_count']}`",
         f"- Top K per stage: `{report['top_k']}`",
+        f"- Stage candidate limit: `{report.get('stage_candidate_limit', max(report['top_k'] * 2, 10))}`",
         "",
         "## Summary",
         "",

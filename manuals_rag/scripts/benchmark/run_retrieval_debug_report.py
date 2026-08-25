@@ -29,10 +29,16 @@ def main() -> None:
     parser.add_argument("--corpus-id", action="append", dest="corpus_ids", required=True)
     parser.add_argument("--query", action="append", dest="queries")
     parser.add_argument("--top-k", type=int, default=5)
+    parser.add_argument("--stage-candidate-limit", type=int)
     args = parser.parse_args()
 
     queries = args.queries or DEFAULT_QUERIES
-    report = debug_retrieval_report(corpus_ids=args.corpus_ids, queries=queries, top_k=args.top_k)
+    report = debug_retrieval_report(
+        corpus_ids=args.corpus_ids,
+        queries=queries,
+        top_k=args.top_k,
+        stage_candidate_limit=args.stage_candidate_limit,
+    )
     timestamp = report["generated_at"].replace(":", "").replace("-", "").replace("T", "_")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     json_path = OUTPUT_DIR / f"retrieval_debug_{timestamp}.json"

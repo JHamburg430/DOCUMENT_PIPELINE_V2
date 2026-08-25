@@ -289,3 +289,65 @@ def test_debug_report_expected_evidence_ranks_scan_beyond_stage_preview(monkeypa
     assert ranks["table_lexical"][0]["exact_rank"] == 4
     assert ranks["table_lexical"][0]["rank_search_depth"] == 4
     assert ranks["assembled"][0]["exact_rank"] is None
+
+
+def test_debug_report_uses_stage_candidate_limit_for_deeper_stage_ranks(monkeypatch):
+    captured_limits: dict[str, int] = {}
+
+    def _record_limit(name):
+        def _inner(*_args, **kwargs):
+            captured_limits[name] = kwargs["limit"]
+            return []
+
+        return _inner
+
+    monkeypatch.setattr(retrieval_debug, "build_filters", lambda query, request_filters: {"is_active": True, **request_filters})
+    monkeypatch.setattr(
+        retrieval_debug,
+        "analyze_query",
+        lambda query: type("A", (), {"query_types": ["comparison"], "preferred_chunk_types": ["table_record"]})(),
+    )
+    monkeypatch.setattr(retrieval_debug, "QdrantStore", lambda: object())
+    monkeypatch.setattr(retrieval_debug, "_chunk_search_filters", lambda filters, metadata_filters, _analysis: metadata_filters)
+    monkeypatch.setattr(retrieval_debug, "select_documents_from_metadata", lambda store, query, corpus_ids, filters: (filters, []))
+    monkeypatch.setattr(retrieval_debug, "run_dense_search", _record_limit("dense"))
+    monkeypatch.setattr(retrieval_debug, "run_sparse_search", _record_limit("sparse"))
+    monkeypatch.setattr(retrieval_debug, "run_table_search", _record_limit("table"))
+    monkeypatch.setattr(retrieval_debug, "run_table_lexical_search", _record_limit("table_lexical"))
+    monkeypatch.setattr(retrieval_debug, "run_contextual_lexical_search", _record_limit("contextual_lexical"))
+    monkeypatch.setattr(retrieval_debug, "run_special_search", _record_limit("special"))
+    monkeypatch.setattr(retrieval_debug, "fuse_results", lambda _store, sets, **_kwargs: [item for group in sets for item in group])
+    monkeypatch.setattr(retrieval_debug, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_annotate_completeness", lambda results: results)
+    monkeypatch.setattr(retrieval_debug, "_apply_query_alignment", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "_select_family_candidates", lambda results, *_args, **kwargs: captured_limits.setdefault("family_selected", kwargs["limit"]) and results)
+    monkeypatch.setattr(retrieval_debug, "enrich_candidates_for_rerank", lambda results, *_args, **kwargs: captured_limits.setdefault("enriched", kwargs["limit"]) and results)
+    monkeypatch.setattr(retrieval_debug, "rerank_results", lambda results, *_args, **kwargs: captured_limits.setdefault("reranked", kwargs["limit"]) and results)
+    monkeypatch.setattr(
+        retrieval_debug,
+        "_promote_comparison_table_candidates",
+        lambda results, *_args, **kwargs: captured_limits.setdefault("comparison_promoted", kwargs["limit"]) and results,
+    )
+    monkeypatch.setattr(retrieval_debug, "_dedupe_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retrieval_debug, "assemble_context", lambda results, **_kwargs: results)
+
+    report = retrieval_debug.debug_retrieval_report(
+        corpus_ids=["manuals_vendor_keyence"],
+        queries=["Compare setting rows."],
+        top_k=2,
+        stage_candidate_limit=25,
+    )
+
+    assert report["stage_candidate_limit"] == 25
+    assert captured_limits == {
+        "dense": 25,
+        "sparse": 25,
+        "table": 25,
+        "table_lexical": 25,
+        "contextual_lexical": 25,
+        "special": 25,
+        "family_selected": 25,
+        "enriched": 25,
+        "reranked": 25,
+        "comparison_promoted": 25,
+    }
