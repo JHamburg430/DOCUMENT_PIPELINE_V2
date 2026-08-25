@@ -681,7 +681,7 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. The compact-product SQL supplemental-slice experiment was rejected after retrieval_eval_20260825_182551 regressed to 1/10 with eval_timeout: 9; no production retrieval code remains from that experiment.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_232955 is diagnostic-only after the row-key table discovery experiment regressed to 3/10 with eval_timeout: 7; all production edits were reverted.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "insufficient_evidence": 1,
@@ -691,8 +691,36 @@
     "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated."
   },
   "latest_results": {
-    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_debug.py -q -> 10 passed in 23.45s.",
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning after reverting the rejected row-key experiment.",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_232955",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_232955.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_232955.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_232955.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_232955.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "direct_cross_document_v2_row_key_table_discovery_experiment",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 10,
+        "passed_queries": 3,
+        "failed_queries": 7,
+        "pass_rate": 0.3,
+        "pass_at_1": 0.2,
+        "pass_at_3": 0.3,
+        "pass_at_5": 0.3,
+        "candidate_recall_rate": 0.3,
+        "metadata_document_selection_recall_rate": 1.0,
+        "failure_categories": {
+          "eval_timeout": 7
+        },
+        "baseline": "retrieval_eval_20260825_072839",
+        "notes": "Rejected and reverted: row-key discovery found useful-looking normalized setting/table-row keys in diagnostics, but adding it as a per-query production retrieval stage regressed the full manually reviewed cross-document v2 gate from 7/10 to 3/10 with seven timeouts."
+      },
       {
         "run_id": "retrieval_eval_20260825_215706",
         "corpus_id": "manuals_vendor_keyence",
@@ -5573,14 +5601,14 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1758_sql_pool_probe and prior diagnostics. Avoid the rejected compact-product SQL supplemental slice from 2026-08-25 18:27 UTC, along with rejected comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should either add cheaper SQL diagnostics that estimate candidate ordering features without running extra production queries, or design an indexed/bounded table-lexical discovery path that can be validated against saved single-step and warning/procedure gates before any production commit.",
+    "next_target": "Continue from retrieval_eval_20260825_072839 and the row-key/identifier/source-stage/stage-timing diagnostics, but avoid the rejected row-key table discovery stage from retrieval_eval_20260825_232955 along with broad SQL pool expansions and all prior comparison promotion/scoring/budget/table-first/term-variant paths. Cases 6 and 7 still need a genuinely indexed or precomputed row-key discovery design that avoids per-query regexp scans/timeouts; case 9 remains separate as final-context/top-k or timeout work. Validate any production retrieval change against the full 10-case cross-document v2 gate plus saved single-step and warning/procedure gates.",
     "current_failure_categories": {
       "candidate_miss": 1,
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
     "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated.",
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_202512 is diagnostic-only after the comparison special-route duplicate-table experiment stayed 7/10 and increased timeout failures; all production edits were reverted.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_232955 is diagnostic-only after the row-key table discovery experiment regressed to 3/10 with eval_timeout: 7; all production edits were reverted.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "retrieval_not_passed": 1,
@@ -5789,8 +5817,8 @@
       "notes": "Eval/debug-only row-key feasibility probe. Cases 6 and 7 exact expected rows have query-mentioned setting-item/table-row keys with small corpus-wide normalized pools: Condition list 24, Standard Angle 31, PMSR DC2LAR 23, and RTO2L 51, while each row also matches the requested product identifier. This supports a future bounded/indexed row-key discovery design rather than another broad SQL pool expansion. Case 9 row keys are not directly mentioned in the query and should remain separate as a final-context/top-k or timeout target. No production retrieval behavior changed and no pass rate is marked resolved."
     }
   },
-  "next_target": "Use test_reports/retrieval_debug_report_20260825_2259_row_key_probe.json plus identifier-pool/source-stage/stage-timing diagnostics to design a genuinely bounded/indexed row-key discovery path for cases 6 and 7. The promising general signal is query-mentioned setting-item/table-row keys with small normalized corpus pools plus requested product-identifier matches; avoid broad SQL pool expansions and all rejected comparison promotion/scoring/budget/table-first/term-variant paths. Keep case 9 separate as final-context/top-k or timeout work. Do not commit production retrieval changes until the full 10-case cross-document v2 gate improves and saved single-step plus warning/procedure gates are preserved.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_222607 is a no-production-change validation run at 7/10; the new row-key probe is diagnostic-only and does not mark the baseline resolved.",
+  "next_target": "Continue from retrieval_eval_20260825_072839 and the row-key/identifier/source-stage/stage-timing diagnostics, but avoid the rejected row-key table discovery stage from retrieval_eval_20260825_232955 along with broad SQL pool expansions and all prior comparison promotion/scoring/budget/table-first/term-variant paths. Cases 6 and 7 still need a genuinely indexed or precomputed row-key discovery design that avoids per-query regexp scans/timeouts; case 9 remains separate as final-context/top-k or timeout work. Validate any production retrieval change against the full 10-case cross-document v2 gate plus saved single-step and warning/procedure gates.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_232955 is diagnostic-only after the row-key table discovery experiment regressed to 3/10 with eval_timeout: 7; all production edits were reverted.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
@@ -5945,6 +5973,22 @@
         "ranking_or_context_loss": 1
       },
       "notes": "Run start guardrail review left no unresolved needs_fix/critical finding. The obvious case 9 adjustment would repeat rejected comparison top-k/promotion paths, so no production retrieval or answering change was made."
+    },
+    {
+      "path": "test_reports/retrieval_eval_summary_20260825_232955.json",
+      "manifest_path": "test_reports/retrieval_eval_manifest_20260825_232955.json",
+      "results_path": "test_reports/retrieval_eval_results_20260825_232955.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260825_232955.jsonl",
+      "status": "diagnostic_only_rejected_change",
+      "mode": "row_key_table_discovery_experiment",
+      "baseline": "retrieval_eval_20260825_072839",
+      "total_queries": 10,
+      "passed_queries": 3,
+      "pass_rate": 0.3,
+      "failure_categories": {
+        "eval_timeout": 7
+      },
+      "notes": "Rejected and reverted: a comparison-only row-key table discovery stage used query-mentioned normalized setting/table-row keys plus product-identifier matches, but the full manually reviewed cross-document v2 gate regressed to 3/10 with eval_timeout: 7. No production retrieval/test code was retained."
     }
   ],
   "latest_debug_report": {
@@ -5972,5 +6016,21 @@
       "ranking_or_context_loss": 1
     },
     "notes": "Run start guardrail review left no unresolved needs_fix/critical finding. The obvious case 9 adjustment would repeat rejected comparison top-k/promotion paths, so no production retrieval or answering change was made."
+  },
+  "latest_rejected_experiment": {
+    "path": "test_reports/retrieval_eval_summary_20260825_232955.json",
+    "manifest_path": "test_reports/retrieval_eval_manifest_20260825_232955.json",
+    "results_path": "test_reports/retrieval_eval_results_20260825_232955.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260825_232955.jsonl",
+    "status": "diagnostic_only_rejected_change",
+    "mode": "row_key_table_discovery_experiment",
+    "baseline": "retrieval_eval_20260825_072839",
+    "total_queries": 10,
+    "passed_queries": 3,
+    "pass_rate": 0.3,
+    "failure_categories": {
+      "eval_timeout": 7
+    },
+    "notes": "Rejected and reverted: a comparison-only row-key table discovery stage used query-mentioned normalized setting/table-row keys plus product-identifier matches, but the full manually reviewed cross-document v2 gate regressed to 3/10 with eval_timeout: 7. No production retrieval/test code was retained."
   }
 }
