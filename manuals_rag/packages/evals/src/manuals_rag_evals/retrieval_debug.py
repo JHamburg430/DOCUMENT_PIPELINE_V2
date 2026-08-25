@@ -172,6 +172,53 @@ def _stage_expected_evidence_ranks(
     return diagnostics
 
 
+def _stage_expected_evidence_top_k_outcomes(
+    ranks_by_stage: dict[str, Any],
+    *,
+    cutoffs: list[int],
+) -> dict[str, Any]:
+    outcomes: dict[str, Any] = {}
+    for stage_name, records in ranks_by_stage.items():
+        stage_outcomes: dict[str, Any] = {}
+        for cutoff in cutoffs:
+            matched_items: list[dict[str, Any]] = []
+            missing_items: list[dict[str, Any]] = []
+            for record in records:
+                required_overlap = max(1, min(2, int(record.get("expected_term_count") or 0)))
+                exact_rank = record.get("exact_rank")
+                same_document_rank = record.get("same_document_best_rank")
+                same_document_overlap = int(record.get("same_document_best_overlap") or 0)
+                matched = bool(
+                    (exact_rank is not None and exact_rank <= cutoff)
+                    or (
+                        same_document_rank is not None
+                        and same_document_rank <= cutoff
+                        and same_document_overlap >= required_overlap
+                    )
+                )
+                item = {
+                    "chunk_id": record.get("chunk_id"),
+                    "matched": matched,
+                    "exact_rank": exact_rank,
+                    "same_document_best_rank": same_document_rank,
+                    "same_document_best_overlap": same_document_overlap,
+                    "required_overlap": required_overlap,
+                }
+                if matched:
+                    matched_items.append(item)
+                else:
+                    missing_items.append(item)
+            stage_outcomes[str(cutoff)] = {
+                "passed": bool(records) and not missing_items,
+                "matched_count": len(matched_items),
+                "missing_count": len(missing_items),
+                "matched_evidence": matched_items,
+                "missing_evidence": missing_items,
+            }
+        outcomes[stage_name] = stage_outcomes
+    return outcomes
+
+
 def _case_diagnostics(
     stages: list[RetrievalDebugStage],
     *,
@@ -199,10 +246,16 @@ def _case_diagnostics(
         ),
     }
     if expected_evidence:
-        diagnostics["expected_evidence_stage_ranks"] = _stage_expected_evidence_ranks(
+        stage_ranks = _stage_expected_evidence_ranks(
             stages,
             expected_evidence,
             full_stage_results=full_stage_results,
+        )
+        cutoffs = sorted({5, 10, *[stage.count for stage in stages if stage.name != "metadata_document_selection"]})
+        diagnostics["expected_evidence_stage_ranks"] = stage_ranks
+        diagnostics["expected_evidence_top_k_outcomes"] = _stage_expected_evidence_top_k_outcomes(
+            stage_ranks,
+            cutoffs=cutoffs,
         )
     return diagnostics
 
