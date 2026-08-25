@@ -309,6 +309,17 @@
           "git diff -- packages/retrieval/src/manuals_rag_retrieval/retriever.py tests/unit/test_retriever.py -> empty after revert"
         ],
         "remaining": "Continue from retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120; avoid the rejected candidate-budget path and earlier rejected comparison/ranking/prefilter paths."
+      },
+      "2026-08-25T16:14:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Tested and rejected a bounded comparison top-k selection experiment against the full curated cross-document v2 gate; reverted all production retrieval/test edits when the gate stayed 7/10 with the same failure profile.",
+        "evidence": [
+          "retrieval_eval_20260825_162717",
+          "tests/unit/test_retriever.py -q -> 92 passed during experiment, 91 passed after revert",
+          "git diff -- packages/retrieval/src/manuals_rag_retrieval/retriever.py tests/unit/test_retriever.py -> empty after revert"
+        ],
+        "remaining": "Continue from retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_155744_topk_windows and retrieval_debug_report_20260825_132726_stage120; avoid the rejected comparison top-k selection path and inspect cheaper discovery for cases 6 and 7."
       }
     }
   },
@@ -5471,20 +5482,37 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_155744_topk_windows and retrieval_debug_report_20260825_132726_stage120. Do not retry the rejected candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, or broad metadata/content prefilter paths. Next safe work should either improve final top-k context selection for comparison cases where both expected items are assembled by rank 10, or inspect cheaper discovery for exact case 6 setting rows and case 7 LJ-S RTO2L. Preserve saved single-step and warning/procedure gates, and use query-offset for slow actual HTTP API answer rotations when retrieval evidence is stable.",
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_155744_topk_windows and retrieval_debug_report_20260825_132726_stage120. Do not retry the rejected comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, or broad metadata/content prefilter paths. Next safe work should inspect cheaper discovery for exact case 6 setting rows and case 7 LJ-S RTO2L, or add diagnostics for why same-document weak overlaps crowd those exact rows before final context selection. Preserve saved single-step and warning/procedure gates, and use query-offset for slow actual HTTP API answer rotations when retrieval evidence is stable.",
     "current_failure_categories": {
       "candidate_miss": 1,
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
     "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated.",
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_155744_topk_windows is diagnostic-only: it compares expected-evidence outcomes at normal top-5, top-10, and displayed top-20 windows for cases 6, 7, and 9. Case 9 fails the normal top-5 gate but passes at top-10/top-20 because the exact XG-X unsupported-SD row is assembled at rank 7 while the CV-X companion evidence is represented at rank 1; this explains the candidate_miss as a final top-k cutoff/context-selection issue rather than raw discovery absence. Cases 6 and 7 still fail through top-20: case 6 has only weak same-document overlaps for Condition list/Standard Angle, and case 7 still lacks the exact LJ-S RTO2L row. retrieval_eval_20260825_152606 remains diagnostic-only rejected-change evidence; no retrieval pass rate is marked resolved.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_155744_topk_windows is diagnostic-only: it compares expected-evidence outcomes at normal top-5, top-10, and displayed top-20 windows for cases 6, 7, and 9. Case 9 fails the normal top-5 gate but passes at top-10/top-20 because the exact XG-X unsupported-SD row is assembled at rank 7 while the CV-X companion evidence is represented at rank 1; this explains the candidate_miss as a final top-k cutoff/context-selection issue rather than raw discovery absence. Cases 6 and 7 still fail through top-20: case 6 has only weak same-document overlaps for Condition list/Standard Angle, and case 7 still lacks the exact LJ-S RTO2L row. retrieval_eval_20260825_162717 and retrieval_eval_20260825_152606 remain diagnostic-only rejected-change evidence; no retrieval pass rate is marked resolved.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "retrieval_not_passed": 1,
       "ranking_or_context_loss": 1
     },
     "diagnostics": [
+      {
+        "path": "test_reports/retrieval_eval_summary_20260825_162717.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_162717.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "comparison_top_k_selection_experiment",
+        "baseline": "retrieval_eval_20260825_072839",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "total_queries": 10,
+        "passed_queries": 7,
+        "pass_rate": 0.7,
+        "failure_categories": {
+          "candidate_miss": 1,
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 1
+        },
+        "notes": "Generic comparison table promotion by best same-product table fit did not improve the full manually reviewed cross-document v2 gate; all production retrieval/test edits were reverted before commit."
+      },
       {
         "path": "test_reports/retrieval_debug_report_20260825_155744_topk_windows.json",
         "status": "completed",
@@ -5564,8 +5592,8 @@
       }
     ]
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_155744_topk_windows and retrieval_debug_report_20260825_132726_stage120. Do not retry the rejected candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, or broad metadata/content prefilter paths. Next safe work should either improve final top-k context selection for comparison cases where both expected items are assembled by rank 10, or inspect cheaper discovery for exact case 6 setting rows and case 7 LJ-S RTO2L. Preserve saved single-step and warning/procedure gates, and use query-offset for slow actual HTTP API answer rotations when retrieval evidence is stable.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_155744_topk_windows is diagnostic-only: it compares expected-evidence outcomes at normal top-5, top-10, and displayed top-20 windows for cases 6, 7, and 9. Case 9 fails the normal top-5 gate but passes at top-10/top-20 because the exact XG-X unsupported-SD row is assembled at rank 7 while the CV-X companion evidence is represented at rank 1; this explains the candidate_miss as a final top-k cutoff/context-selection issue rather than raw discovery absence. Cases 6 and 7 still fail through top-20: case 6 has only weak same-document overlaps for Condition list/Standard Angle, and case 7 still lacks the exact LJ-S RTO2L row. retrieval_eval_20260825_152606 remains diagnostic-only rejected-change evidence; no retrieval pass rate is marked resolved.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_155744_topk_windows and retrieval_debug_report_20260825_132726_stage120. Do not retry the rejected comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, or broad metadata/content prefilter paths. Next safe work should inspect cheaper discovery for exact case 6 setting rows and case 7 LJ-S RTO2L, or add diagnostics for why same-document weak overlaps crowd those exact rows before final context selection. Preserve saved single-step and warning/procedure gates, and use query-offset for slow actual HTTP API answer rotations when retrieval evidence is stable.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_155744_topk_windows is diagnostic-only: it compares expected-evidence outcomes at normal top-5, top-10, and displayed top-20 windows for cases 6, 7, and 9. Case 9 fails the normal top-5 gate but passes at top-10/top-20 because the exact XG-X unsupported-SD row is assembled at rank 7 while the CV-X companion evidence is represented at rank 1; this explains the candidate_miss as a final top-k cutoff/context-selection issue rather than raw discovery absence. Cases 6 and 7 still fail through top-20: case 6 has only weak same-document overlaps for Condition list/Standard Angle, and case 7 still lacks the exact LJ-S RTO2L row. retrieval_eval_20260825_162717 and retrieval_eval_20260825_152606 remain diagnostic-only rejected-change evidence; no retrieval pass rate is marked resolved.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
