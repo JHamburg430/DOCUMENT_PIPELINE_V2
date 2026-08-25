@@ -1448,6 +1448,37 @@ def _good_cross_document_value(value: str) -> bool:
     return bool(extract_anchor_terms(value, limit=1) or re.search(r"\d", value))
 
 
+def _cross_document_lookup_subject(chunk: dict[str, Any], *, field: str, value: str) -> str:
+    row_subject = _row_header_text(chunk)
+    row_subject = re.sub(r"\brow headers?\b", "", row_subject, flags=re.IGNORECASE).strip()
+    candidates = [row_subject]
+    for pair_field, pair_value in _meaningful_table_field_value_pairs(str(chunk.get("content", ""))):
+        if normalize_text(pair_field) != normalize_text(field):
+            candidates.append(f"{pair_field.strip()} {pair_value.strip()}".strip())
+    candidates.append(_short_answer_anchor(value))
+    for candidate in candidates:
+        subject = re.sub(r"\s+", " ", candidate).strip(" ;:,-")
+        if _good_cross_document_subject(subject, field=field, value=value):
+            return subject[:90]
+    return ""
+
+
+def _good_cross_document_subject(subject: str, *, field: str, value: str) -> bool:
+    compact = normalize_text(subject)
+    if len(compact) < 4:
+        return False
+    if compact in STOPWORDS or compact in GENERIC_ANCHORS:
+        return False
+    if compact == normalize_text(field) or compact == normalize_text(value):
+        return False
+    if compact in {"row", "column", "item", "items", "value", "values", "description"}:
+        return False
+    if re.fullmatch(r"\d+(?:\.\d+)?%?", compact):
+        return False
+    terms = [term for term in extract_anchor_terms(subject, limit=4) if term not in {"row", "column"}]
+    return bool(terms)
+
+
 def _build_cross_document_multi_step_cases(
     chunks: list[dict[str, Any]],
     *,
@@ -1493,7 +1524,14 @@ def _build_cross_document_multi_step_cases(
             right_terms = set(extract_anchor_terms(value, limit=4))
             if left_terms and right_terms and left_terms == right_terms:
                 continue
-            query = f"What {field} values apply for {left_label} and {label}?"
+            left_subject = _cross_document_lookup_subject(left, field=field, value=left_value)
+            right_subject = _cross_document_lookup_subject(grouped, field=field, value=value)
+            if not left_subject or not right_subject:
+                continue
+            query = (
+                f"For {left_label} and {label}, what {field} entries are listed for "
+                f"{left_subject} and {right_subject}?"
+            )
             if _has_near_duplicate_query(query, seen_queries):
                 continue
             evidence = _multi_step_expected_evidence(left, grouped)

@@ -1,0 +1,76 @@
+{
+  "total_queries": 20,
+  "passed_queries": 2,
+  "failed_queries": 18,
+  "pass_rate": 0.1,
+  "pass_at_1": 0.1,
+  "pass_at_3": 0.1,
+  "pass_at_5": 0.1,
+  "mean_passing_rank": 1.0,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 20,
+      "passed": 2
+    }
+  },
+  "by_retrieval_task": {
+    "multi_step_retrieval": {
+      "total": 20,
+      "passed": 2
+    }
+  },
+  "by_document": {
+    "AS_151292_VS_UM_J18GB_WW_GB_2035_7.pdf": {
+      "total": 3,
+      "passed": 0
+    },
+    "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf": {
+      "total": 4,
+      "passed": 1
+    },
+    "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf": {
+      "total": 5,
+      "passed": 1
+    },
+    "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf": {
+      "total": 5,
+      "passed": 0
+    },
+    "AS_140519_LR-W500_LR-W500-_LR-W500C_IM_96M17798_WW_GB_2034_1.pdf": {
+      "total": 1,
+      "passed": 0
+    },
+    "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf": {
+      "total": 1,
+      "passed": 0
+    },
+    "AS_145895_KV-X_C_611X95_KA_US_2084_1.pdf": {
+      "total": 1,
+      "passed": 0
+    }
+  },
+  "failure_categories": {
+    "candidate_miss": 8,
+    "ranking_or_context_loss": 9,
+    "eval_timeout": 1
+  },
+  "benchmark_quality": {
+    "validated": 20
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 0.55,
+  "metadata_document_selection_attempts": 19,
+  "metadata_document_selection_recall_rate": 1.0,
+  "metadata_document_selection_rank_1_rate": 0.6316,
+  "answer_eval_count": 0,
+  "answer_passed_queries": 0,
+  "answer_failed_queries": 0,
+  "answer_pass_rate": null,
+  "answer_failure_reasons": {},
+  "answer_latency": null,
+  "answer_fallback_count": null,
+  "answer_fallback_rate": null,
+  "answer_sources": {},
+  "answer_fallback_reasons": {},
+  "answer_mean_summary_count": null
+}

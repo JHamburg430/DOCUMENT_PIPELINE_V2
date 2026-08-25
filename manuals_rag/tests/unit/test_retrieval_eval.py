@@ -1012,7 +1012,8 @@ def test_build_multi_step_eval_cases_from_cross_document_same_field_values():
     assert len(cases) == 1
     assert cases[0].retrieval_task == "multi_step_retrieval"
     assert cases[0].generation_method == "cross_document_same_field_evidence"
-    assert "power supply voltage values" in cases[0].query.lower()
+    assert "power supply voltage entries" in cases[0].query.lower()
+    assert "controller" in cases[0].query.lower()
     assert "IV4-G120" in cases[0].query
     assert "LJ-X8000" in cases[0].query
     assert cases[0].expected_source_chunk_ids == ["iv-voltage", "lj-voltage"]

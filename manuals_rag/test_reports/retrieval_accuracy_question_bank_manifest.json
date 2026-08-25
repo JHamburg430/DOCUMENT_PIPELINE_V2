@@ -123,6 +123,17 @@
           "retrieval_eval_20260825_025743"
         ],
         "remaining": "HTTP API answer slices were all green but still tiny because each answer takes roughly 31-54 seconds. Continue rotating small answer batches or adjust the cron timeout/schedule before treating broader answer grounding as a release gate; resume cross-document retrieval/context improvements next."
+      },
+      "2026-08-25T03:10:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Kept scope to eval generation/tracking and resumed cross-document retrieval/context work. No production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, or deployment logic changed.",
+        "evidence": [
+          "tests/unit/test_retrieval_eval.py -q -> 63 passed",
+          "retrieval_eval_20260825_032406",
+          "retrieval_eval_20260825_032835"
+        ],
+        "remaining": "Saved cross-document same-field retrieval remains 12/20, and the new subject-anchored diagnostic bank is 2/20. Next run should improve cross-document candidate recall/final context assembly using the stronger diagnostic prompts while preserving existing green gates."
       }
     }
   },
@@ -340,6 +351,24 @@
           "atomic_text": 3
         },
         "quality_review": "All 13 questions pass the current query-quality validator, use 13 unique source chunks, and replace the guardrail-cited source/table-shaped, TOC/contents, duplicate-source, and bracket-label-like cases with realistic user-style questions."
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260825_032835.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_032835.json",
+        "created_at": "2026-08-25T03:28:35Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "deterministic_cross_document_same_field_subject_anchored",
+        "status": "diagnostic_only_not_promoted",
+        "total_questions": 20,
+        "single_step_questions": 0,
+        "multi_step_questions": 20,
+        "by_chunk_type": {
+          "table_record": {
+            "total": 20,
+            "passed": 2
+          }
+        },
+        "notes": "Generated after adding row-subject anchors to cross-document prompts. Questions are more user-style than generic same-field values prompts, but 2/20 retrieval is too low for durable active promotion; use as diagnostic coverage for cross-document retrieval/context work."
       }
     ]
   },
@@ -352,6 +381,67 @@
       "notes": "Focused API streaming and eval-quality tests passed after removing the out-of-scope API/UI eval_preparing_questions event surface."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_032835",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_032835.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_032835.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_032835.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_032835.json",
+        "status": "diagnostic_only_cross_document_subject_anchored_generation",
+        "mode": "retrieval_only_generated_cross_document_multi_step_subject_anchored",
+        "total_queries": 20,
+        "passed_queries": 2,
+        "failed_queries": 18,
+        "pass_rate": 0.1,
+        "pass_at_1": 0.1,
+        "pass_at_3": 0.1,
+        "pass_at_5": 0.1,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 20,
+            "passed": 2
+          }
+        },
+        "failure_categories": {
+          "candidate_miss": 8,
+          "ranking_or_context_loss": 9,
+          "eval_timeout": 1
+        },
+        "candidate_recall_rate": 0.55,
+        "metadata_document_selection_recall_rate": 1.0,
+        "notes": "New subject-anchored cross-document question generation produced more realistic row-specific comparison questions, but retrieval was only 2/20 with candidate recall 55%; leave diagnostic-only and do not promote to active counts until retrieval/context improves."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_032406",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_190632.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_032406.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_032406.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_032406.json",
+        "status": "completed_saved_cross_document_current_baseline",
+        "mode": "retrieval_only_saved_cross_document_multi_step",
+        "total_queries": 20,
+        "passed_queries": 12,
+        "failed_queries": 8,
+        "pass_rate": 0.6,
+        "pass_at_1": 0.4,
+        "pass_at_3": 0.55,
+        "pass_at_5": 0.6,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 20,
+            "passed": 12
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 7,
+          "candidate_miss": 1
+        },
+        "candidate_recall_rate": 0.85,
+        "metadata_document_selection_recall_rate": 0.95,
+        "notes": "Current baseline for the saved cross-document same-field bank remained 12/20; failures are mostly ranking/context losses, with one candidate miss. This preserves the prior target rather than proving a production retrieval improvement."
+      },
       {
         "run_id": "retrieval_eval_20260825_025418",
         "corpus_id": "manuals_vendor_keyence",
@@ -4205,10 +4295,18 @@
         "notes": "Separate LLM-generated live eval attempt produced no completed cases after about 2 minutes and was stopped for cron budget; this completed run used deterministic fallback generation."
       }
     ],
-    "failure_categories": {},
-    "next_target": "Resume cross-document multi-step retrieval/context improvements, especially saved same-field ranking/context losses, while continuing rotating small HTTP API answer-grounding batches or recommending a longer answer-eval schedule if broader coverage cannot fit in 30 minutes.",
-    "current_failure_categories": {},
-    "answer_grounding_status": "Actual HTTP API /query answer payloads passed 6/6 across realistic curated single-step (3/3), warning/procedure multi-step (2/2), and cross-document multi-step (1/1) slices with answer_source api and fallback rate 0%. Coverage is broader than prior smokes but still cron-sized; answer latency remains high at roughly 31-54s per case."
+    "failure_categories": {
+      "candidate_miss": 8,
+      "ranking_or_context_loss": 9,
+      "eval_timeout": 1
+    },
+    "next_target": "Improve cross-document multi-step candidate recall and final context assembly for subject-anchored row comparison prompts, while preserving saved single-step, warning/procedure, and HTTP API answer-grounding gates.",
+    "current_failure_categories": {
+      "candidate_miss": 8,
+      "ranking_or_context_loss": 9,
+      "eval_timeout": 1
+    },
+    "answer_grounding_status": "No new answer-mode run this cycle; prior actual HTTP API /query answer evidence remains 6/6 across realistic single-step, warning/procedure multi-step, and one cross-document case, but coverage is still cron-sized and answer latency remains high."
   },
-  "next_target": "Resume cross-document multi-step retrieval/context improvements, especially saved same-field ranking/context losses, while continuing rotating small HTTP API answer-grounding batches or recommending a longer answer-eval schedule if broader coverage cannot fit in 30 minutes."
+  "next_target": "Improve cross-document multi-step candidate recall and final context assembly for subject-anchored row comparison prompts, while preserving saved single-step, warning/procedure, and HTTP API answer-grounding gates."
 }
