@@ -12,6 +12,7 @@ from manuals_rag_retrieval.retriever import (
     build_filters,
     fuse_results,
     rerank_results,
+    retrieve,
     run_dense_search,
     run_sparse_search,
     run_special_search,
@@ -93,6 +94,11 @@ def assemble(state: QueryState) -> QueryState:
     return {**state, "retrieval_results": [result.model_dump() for result in assembled]}
 
 
+def retrieve_documents(state: QueryState) -> QueryState:
+    results = retrieve(state["query"], state["corpus_ids"], state["filters"])
+    return {**state, "retrieval_results": [result.model_dump() for result in results]}
+
+
 def validate_or_answer(state: QueryState) -> QueryState:
     from manuals_rag_schemas.documents import SearchResult
 
@@ -117,6 +123,16 @@ def build_workflow(*, include_answer: bool = True):
     graph = StateGraph(QueryState)
     graph.add_node("classify_query", _timed_node("classify_query", classify_query))
     graph.add_node("build_filters", _timed_node("build_filters", build_query_filters))
+    if include_answer:
+        graph.add_node("retrieve_documents", _timed_node("retrieve_documents", retrieve_documents))
+        graph.add_node("generate_answer", _timed_node("generate_answer", validate_or_answer))
+        graph.add_edge(START, "classify_query")
+        graph.add_edge("classify_query", "build_filters")
+        graph.add_edge("build_filters", "retrieve_documents")
+        graph.add_edge("retrieve_documents", "generate_answer")
+        graph.add_edge("generate_answer", END)
+        return graph.compile()
+
     graph.add_node("run_dense_search", _timed_node("run_dense_search", run_dense))
     graph.add_node("run_sparse_search", _timed_node("run_sparse_search", run_sparse))
     graph.add_node("run_special_search", _timed_node("run_special_search", run_special))
@@ -132,9 +148,5 @@ def build_workflow(*, include_answer: bool = True):
     graph.add_edge("run_special_search", "fuse_results")
     graph.add_edge("fuse_results", "rerank_results")
     graph.add_edge("rerank_results", "assemble_context")
-    if include_answer:
-        graph.add_edge("assemble_context", "generate_answer")
-        graph.add_edge("generate_answer", END)
-    else:
-        graph.add_edge("assemble_context", END)
+    graph.add_edge("assemble_context", END)
     return graph.compile()

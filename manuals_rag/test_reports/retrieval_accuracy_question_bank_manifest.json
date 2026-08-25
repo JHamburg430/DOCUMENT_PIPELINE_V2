@@ -196,6 +196,18 @@
           "retrieval_eval_20260825_060844"
         ],
         "remaining": "Curated cross-document v2 retrieval improved from 5/10 to 6/10, but remaining failures are candidate_miss: 2, eval_timeout: 1, ranking_or_context_loss: 1. Actual HTTP API answer grounding remains 0/2 because expected documents are not cited or used; prioritize answer citation/use and remaining paired-evidence recall next."
+      },
+      "2026-08-25T06:44:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Aligned normal /query answer-mode retrieval with the integrated retriever used by /search, then reran the prior failing actual HTTP API cross-document answer smoke.",
+        "evidence": [
+          "tests/unit/test_answering_workflow.py plus focused answer/API/retriever suite -> 129 passed",
+          "retrieval_eval_20260825_065905",
+          "retrieval_eval_20260825_070054",
+          "retrieval_eval_20260825_070155"
+        ],
+        "remaining": "The first two curated cross-document API answers are now green, but broader answer coverage is still cron-sized and direct cross-document v2 retrieval remains 6/10 from retrieval_eval_20260825_060430 with candidate_miss/eval_timeout/ranking_or_context failures."
       }
     }
   },
@@ -496,19 +508,87 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Improve cross-document answer citation/use and the remaining cross-document candidate recall on the manually reviewed v2 slice, especially IV-HG/IV4 memory-read and XG-X SD-card paired evidence, while preserving saved single-step and warning/procedure gates.",
-    "answer_grounding_status": "Actual HTTP API /query answer batch after the comparison retrieval change remains 0/2 on the curated cross-document v2 slice: retrieval passed 1/2, but both answers missed an expected document citation/use. Answer source was api for both, fallback rate was 0%, mean latency was 42.085s. This is still a first-class guardrail follow-up target before broader answer tuning."
+    "next_target": "Continue cross-document paired-evidence recall/context work on the manually reviewed v2 slice beyond the first two answer-smoke cases, especially IV-HG/IV4 memory-read and XG-X SD-card evidence, while rotating actual HTTP API answer batches and preserving saved single-step and warning/procedure gates.",
+    "answer_grounding_status": "Actual HTTP API /query answer batch on the first two curated cross-document v2 cases improved from 0/2 in retrieval_eval_20260825_060844 to 2/2 in retrieval_eval_20260825_065905 after the answer workflow began using the integrated retriever. Answer source was api for both, fallback rate 0%, mean latency 41.239s. Coverage is still small and should keep rotating; remaining direct cross-document retrieval failures on v2 still need recall/context work."
   },
   "latest_results": {
-    "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
-      "status": "passed",
-      "passed": 265,
-      "warnings": 58,
-      "duration_seconds": 159.25,
-      "notes": "Broader shared unit gate after production retrieval query-analysis and comparison lexical changes."
-    },
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_answering_workflow.py tests/unit/test_api_debug.py tests/unit/test_parser_and_answering.py tests/unit/test_retriever.py -q -> 129 passed, 29 warnings",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_065905",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_065905.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_065905.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_065905.json",
+        "status": "passed_actual_http_api_answer_grounding_after_workflow_retrieval_alignment",
+        "mode": "answer_with_citations_actual_http_api",
+        "total_queries": 2,
+        "passed_queries": 2,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 2,
+        "answer_failed_queries": 0,
+        "answer_pass_rate": 1.0,
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_fallback_count": 0,
+        "answer_failure_reasons": {},
+        "answer_latency": {
+          "min_seconds": 37.158,
+          "max_seconds": 45.32,
+          "mean_seconds": 41.239,
+          "p95_seconds": 45.32
+        },
+        "notes": "Scores actual user-visible /query answers after aligning the answering workflow with the integrated retriever used by /search. This directly follows up the prior 0/2 expected-document citation/use failure on the same first two curated cross-document v2 cases."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_070054",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_070054.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_070054.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_070054.json",
+        "status": "passed_saved_curated_single_step_regression",
+        "mode": "retrieval_only_single_step_regression",
+        "total_queries": 13,
+        "passed_queries": 13,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "failure_categories": {},
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "notes": "Saved realistic single-step replacement v2 regression stayed green after the answer workflow retrieval alignment."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_070155",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_070155.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_070155.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_070155.json",
+        "status": "passed_warning_procedure_regression",
+        "mode": "retrieval_only_warning_procedure_multi_step_regression",
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "failure_categories": {},
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "notes": "Saved warning/procedure multi-step regression stayed green after the answer workflow retrieval alignment."
+      },
       {
         "run_id": "retrieval_eval_20260825_063702",
         "corpus_id": "manuals_vendor_keyence",
@@ -4856,13 +4936,13 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Improve cross-document answer citation/use and remaining paired-evidence recall on the manually reviewed v2 slice, especially IV-HG/IV4 memory-read and XG-X SD-card evidence. Avoid broad unindexed metadata regexp prefilters; preserve saved single-step and warning/procedure gates.",
+    "next_target": "Continue cross-document paired-evidence recall/context work on the manually reviewed v2 slice beyond the first two answer-smoke cases, especially IV-HG/IV4 memory-read and XG-X SD-card evidence, while rotating actual HTTP API answer batches and preserving saved single-step and warning/procedure gates.",
     "current_failure_categories": {
       "candidate_miss": 2,
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "answer_grounding_status": "Actual HTTP API /query answer batch on curated cross-document v2 remains 0/2 from retrieval_eval_20260825_060844 because expected documents were not cited or used. No answer-generation change was made in the 06:23 cron run."
+    "answer_grounding_status": "Actual HTTP API /query answer batch on the first two curated cross-document v2 cases improved from 0/2 in retrieval_eval_20260825_060844 to 2/2 in retrieval_eval_20260825_065905 after the answer workflow began using the integrated retriever. Answer source was api for both, fallback rate 0%, mean latency 41.239s. Coverage is still small and should keep rotating; remaining direct cross-document retrieval failures on v2 still need recall/context work."
   },
-  "next_target": "Improve cross-document answer citation/use and remaining paired-evidence recall on the manually reviewed v2 slice, especially IV-HG/IV4 memory-read and XG-X SD-card evidence. Avoid broad unindexed metadata regexp prefilters; preserve saved single-step and warning/procedure gates."
+  "next_target": "Continue cross-document paired-evidence recall/context work on the manually reviewed v2 slice beyond the first two answer-smoke cases, especially IV-HG/IV4 memory-read and XG-X SD-card evidence, while rotating actual HTTP API answer batches and preserving saved single-step and warning/procedure gates."
 }
