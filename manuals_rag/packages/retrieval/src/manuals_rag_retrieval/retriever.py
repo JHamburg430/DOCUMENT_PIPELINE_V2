@@ -330,6 +330,21 @@ def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
     return terms[:16]
 
 
+def _comparison_term_variants(term: str) -> list[str]:
+    variants: list[str] = []
+    if term.endswith("ies") and len(term) > 5:
+        variants.append(f"{term[:-3]}y")
+    elif term.endswith("s") and len(term) > 4:
+        variants.append(term[:-1])
+    if term in {"failure", "failures"}:
+        variants.extend(["failed", "fail"])
+    if term in {"failed", "failing"}:
+        variants.extend(["failure", "fail"])
+    if term in {"error", "errors"}:
+        variants.extend(["error", "errors"])
+    return [variant for variant in variants if variant and variant != term]
+
+
 def _lexical_table_content_terms(terms: list[str]) -> list[str]:
     content_terms = [
         term
@@ -350,7 +365,12 @@ def _comparison_table_content_terms(terms: list[str]) -> list[str]:
         and term not in {"compare", "listed", "documentation"}
         and term not in LEXICAL_TABLE_STOPWORDS
     ]
-    return sorted(content_terms, key=lambda term: (any(char.isdigit() for char in term), len(term), term), reverse=True)[:12]
+    expanded_terms: list[str] = []
+    for term in sorted(content_terms, key=lambda term: (any(char.isdigit() for char in term), len(term), term), reverse=True):
+        for variant in [term, *_comparison_term_variants(term)]:
+            if variant not in expanded_terms:
+                expanded_terms.append(variant)
+    return expanded_terms[:16]
 
 
 def _lexical_table_symbol_terms(terms: list[str]) -> list[str]:

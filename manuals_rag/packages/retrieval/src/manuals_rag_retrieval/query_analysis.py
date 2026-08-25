@@ -118,11 +118,13 @@ def analyze_query(query: str) -> QueryAnalysis:
         preferred_metadata_filters["menu_labels"] = menu_labels
     if not types:
         types.append("general")
-    model_matches = [
-        match.group(0)
-        for match in re.finditer(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query)
-        if any(char.isdigit() for char in match.group(0))
-    ]
+    model_match_spans: list[tuple[int, int]] = []
+    model_matches = []
+    for match in re.finditer(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query):
+        if not any(char.isdigit() for char in match.group(0)):
+            continue
+        model_matches.append(match.group(0))
+        model_match_spans.append(match.span())
     comparison_identifier_matches: list[str] = []
     if "comparison" in types or "compatibility" in types:
         comparison_identifier_matches = [
@@ -132,6 +134,10 @@ def analyze_query(query: str) -> QueryAnalysis:
                 query,
             )
             if not re.fullmatch(r"[A-Z]\d{1,5}", match.group(0))
+            and not any(
+                start <= match.start() and match.end() <= end and (match.start(), match.end()) != (start, end)
+                for start, end in model_match_spans
+            )
         ]
     model_match = re.search(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query)
     if model_match and not any(char.isdigit() for char in model_match.group(0)):

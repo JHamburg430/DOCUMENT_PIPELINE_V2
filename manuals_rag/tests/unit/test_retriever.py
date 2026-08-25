@@ -209,6 +209,15 @@ def test_query_analysis_extracts_short_letter_number_products_in_comparisons():
     assert "LJ-S8000" in analysis.product_identifiers
 
 
+def test_query_analysis_does_not_extract_embedded_model_prefix_in_comparisons():
+    analysis = analyze_query("Compare IV-HG500CA and IV4-G600CA memory read errors.")
+
+    assert "comparison" in analysis.query_types
+    assert "IV-HG500CA" in analysis.product_identifiers
+    assert "IV4-G600CA" in analysis.product_identifiers
+    assert "IV4" not in analysis.product_identifiers
+
+
 def test_query_analysis_marks_data_number_applies_questions_as_structured_lookup():
     analysis = analyze_query("What 0068 data4 applies to VS Series Vision System with Built-in AI?")
 
@@ -2183,6 +2192,15 @@ def test_table_lexical_terms_include_comparison_short_codes():
     terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
 
     assert {"ljs8000", "ljx8000", "errc", "t1", "msab"}.issubset(set(terms))
+
+
+def test_comparison_table_content_terms_include_failure_and_plural_variants():
+    analysis = analyze_query("Compare IV-HG500CA memory read errors with XG-X unsupported SD card access failure.")
+    terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
+    content_terms = retriever._comparison_table_content_terms(terms)
+
+    assert "error" in content_terms
+    assert "failed" in content_terms
 
 
 def test_comparison_configuration_queries_keep_table_family_allowed():
