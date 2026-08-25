@@ -1,0 +1,1251 @@
+{
+  "baseline": "retrieval_eval_20260825_072839",
+  "cases": [
+    {
+      "analysis": {
+        "content_prefilter_terms": [
+          "condition",
+          "standard",
+          "control",
+          "angle",
+          "list",
+          "cvx482",
+          "x482",
+          "ljx8000",
+          "x8000"
+        ],
+        "lexical_terms": [
+          "cvx482",
+          "x482",
+          "ljx8000",
+          "x8000",
+          "compare",
+          "condition",
+          "list",
+          "standard",
+          "angle",
+          "control"
+        ],
+        "product_identifiers": [
+          "CV-X482",
+          "LJ-X8000"
+        ],
+        "query_types": [
+          "comparison",
+          "configuration"
+        ]
+      },
+      "case_id": "curated_cross_document_v2::6",
+      "expected_evidence_lexical_probe": {
+        "content_prefilter_terms": [
+          "condition",
+          "standard",
+          "control",
+          "angle",
+          "list",
+          "cvx482",
+          "x482",
+          "ljx8000",
+          "x8000"
+        ],
+        "items": [
+          {
+            "chunk_id": "7361e08a-84bb-5f53-954c-819d2c179a3e",
+            "chunk_type": "table_record",
+            "expected_terms_matched_in_content": [
+              "condition",
+              "maximum",
+              "reference",
+              "conditions"
+            ],
+            "expected_terms_missing_from_content": [],
+            "found_in_database": true,
+            "lexical_terms_matched_by_content_prefilter": [
+              "condition",
+              "list"
+            ],
+            "matched_query_identifiers": [
+              "CV-X482"
+            ],
+            "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+            "stage_exact_ranks": {},
+            "table_column_headers": null,
+            "table_lexical_score": 1.5,
+            "table_lexical_sql_pool_limit": 1500,
+            "table_lexical_sql_pool_order_features": {
+              "matched_order_terms": [
+                "condition",
+                "list"
+              ],
+              "matched_product_identifiers": [
+                "CV-X482"
+              ],
+              "priority_score": 12.0,
+              "sql_content_match_score": 2,
+              "sql_product_match_score": 3
+            },
+            "table_lexical_sql_pool_rank": 399,
+            "table_row_headers": null
+          },
+          {
+            "chunk_id": "125b3908-de90-53b8-809e-b367bcc83548",
+            "chunk_type": "table_record",
+            "expected_terms_matched_in_content": [
+              "standard",
+              "angle",
+              "start",
+              "numbering"
+            ],
+            "expected_terms_missing_from_content": [],
+            "found_in_database": true,
+            "lexical_terms_matched_by_content_prefilter": [
+              "standard",
+              "angle"
+            ],
+            "matched_query_identifiers": [
+              "LJ-X8000"
+            ],
+            "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+            "stage_exact_ranks": {},
+            "table_column_headers": null,
+            "table_lexical_score": 1.44,
+            "table_lexical_sql_pool_limit": 1500,
+            "table_lexical_sql_pool_order_features": {
+              "matched_order_terms": [
+                "standard",
+                "angle"
+              ],
+              "matched_product_identifiers": [
+                "LJ-X8000"
+              ],
+              "priority_score": 12.0,
+              "sql_content_match_score": 2,
+              "sql_product_match_score": 3
+            },
+            "table_lexical_sql_pool_rank": 370,
+            "table_row_headers": null
+          }
+        ],
+        "lexical_terms": [
+          "cvx482",
+          "x482",
+          "ljx8000",
+          "x8000",
+          "compare",
+          "condition",
+          "list",
+          "standard",
+          "angle",
+          "control"
+        ],
+        "sql_pool_error": null
+      },
+      "identifier_pool_summaries": [
+        {
+          "best_scored_rows": [
+            {
+              "chunk_id": "0e6086fe-290b-59fb-810a-79b64c868c52",
+              "content_preview": "Row headers: Tools (Continued) > Function List > Height measurement (only when LJ-V Series head is connected), trend height measurement (only when LJ-V Series head is connected), Auto-Teach Inspection, area, pattern sear",
+              "pool_rank": 172,
+              "score": 1.79,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [],
+              "table_row_headers": [
+                "Tools (Continued)",
+                "Function List",
+                "Height measurement (only when LJ-V Series head is connected), trend height measurement (only when LJ-V Series head is connected), Auto-Teach Inspection, area, pattern search, PatternTrax, edge position, edge angle, edge width, edge pitch, edge pairs, defect, blob, grayscale blob, profile position, profile width, profile defect, intensity, color detection, OCR, 1D code reader, 2D code reader, Auto-Teach Inspection (pattern search), Auto-Teach Inspection (PatternTrax), image region generator CV-X292"
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "339a8904-ec1f-5fd7-b16d-1981eb93d3c2",
+              "content_preview": "Column headers: CV-X492 CV-X482 > CV-X480LJ; Row headers: Function List *6; Cell value: 3D Comparison (Only in 3D Capture Mode), Section Area Comparison (Only in 3D Capture Mode), Outline Comparison (Only in 3D Capture M",
+              "pool_rank": 609,
+              "score": 1.79,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "CV-X492 CV-X482",
+                "CV-X480LJ"
+              ],
+              "table_row_headers": [
+                "Function List *6"
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "34242877-3e65-5a44-8a4d-8e3775d0e6bb",
+              "content_preview": "Row headers: Tools (Continued) > Function List; Cell value: Height measurement (only when LJ-V Series head is connected), trend height measurement (only when LJ-V Series head is connected), Auto-Teach Inspection, area, p",
+              "pool_rank": 620,
+              "score": 1.79,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [],
+              "table_row_headers": [
+                "Tools (Continued)",
+                "Function List"
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "06e5025d-8101-5785-b2fd-3e2e20512d35",
+              "content_preview": "Column headers: Corrective action; Row headers: Overlapping targets cannot be detected. > \uf071; Cell value: Reduce [Minimum Distance] and [Angle Range] in [Minimum Settings] ([Minimum Distance] and [Angle Range] operate in ",
+              "pool_rank": 81,
+              "score": 1.73,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "Overlapping targets cannot be detected.",
+                "\uf071"
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "09e608cf-128f-5236-837c-9d00ca0af054",
+              "content_preview": "Column headers: Corrective action; Row headers: Overlapping targets cannot be detected. > \uf071; Cell value: Reduce [Minimum Distance] and [Angle Range] in [Minimum Settings] ([Minimum Distance] and [Angle Range] operate in ",
+              "pool_rank": 116,
+              "score": 1.73,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "Overlapping targets cannot be detected.",
+                "\uf071"
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "0f94f541-7b50-54cf-ac4d-935aaa09717c",
+              "content_preview": "Column headers: Corrective action; Row headers: Overlapping targets cannot be detected.; Cell value: \uf071 Reduce [Minimum Distance] and [Angle Range] in [Minimum Settings] ([Minimum Distance] and [Angle Range] operate in lo",
+              "pool_rank": 185,
+              "score": 1.73,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "Overlapping targets cannot be detected."
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "14a371c3-4ce9-5681-ab22-a2a6d399bb5d",
+              "content_preview": "Column headers: Corrective action; Row headers: To judge acceptance by position gap; Cell value: \uf071 Set upper/lower limit of [Position] or [Angle] in [Judgment Conditions].; Row: 7; Column: 1",
+              "pool_rank": 254,
+              "score": 1.73,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "To judge acceptance by position gap"
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "481e0615-f444-52a8-8173-72c40d6fcd4a",
+              "content_preview": "Column headers: Corrective action; Row headers: To give NG if the angle changes greatly; Cell value: \uf071 Set the upper/lower limits for Angle in judgment conditions.; Row: 7; Column: 1",
+              "pool_rank": 864,
+              "score": 1.73,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "To give NG if the angle changes greatly"
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            }
+          ],
+          "identifier": "CV-X482",
+          "matched_pool_rows": 1500
+        },
+        {
+          "best_scored_rows": [
+            {
+              "chunk_id": "0b67267f-e63e-52ce-8144-5e193cdbd27d",
+              "content_preview": "Column headers: communication .........................................9-116; Row headers: communication Command communication Acquiring message ..................................................................9-118 Cha",
+              "pool_rank": 104,
+              "score": 1.57,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "communication .........................................9-116"
+              ],
+              "table_row_headers": [
+                "communication Command communication Acquiring message ..................................................................9-118 Changing message Condition Overview of ................................................................... Operation Prepare PROFINET NPN20E/CB-NPN20EA) Installing CB-NPN20E/CB-NPN20EA Specifications Connecting PROFINET communication Standard Cyclic (3D Changing the Displaying Output of measurement cyclic communications Data output PLC Controlling the communication Flow of (Example unit) Changing the cyclic communication Change) Flow of PROFINET PROFINET Troubleshooting When Error Message Overview of ................................................................... Operation Prepare EtherCAT Installing CB-NEC20E Connecting EtherCAT Communication Standard EtherCAT Process Cyclic (3D Changing the Opening EtherCAT system Output of measurement"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "1f75ecba-53af-5654-835b-bf5859f1f7fd",
+              "content_preview": "Column headers: communication .........................................9-116; Row headers: communication Command communication Acquiring message ..................................................................9-118 Cha",
+              "pool_rank": 265,
+              "score": 1.57,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "communication .........................................9-116"
+              ],
+              "table_row_headers": [
+                "communication Command communication Acquiring message ..................................................................9-118 Changing message Condition Overview of ................................................................... Operation Prepare PROFINET NPN20E/CB-NPN20EA) Installing CB-NPN20E/CB-NPN20EA Specifications Connecting PROFINET communication Standard Cyclic (3D Changing the Displaying Output of measurement cyclic communications Data output PLC Controlling the communication Flow of (Example unit) Changing the cyclic communication Change) Flow of PROFINET PROFINET Troubleshooting When Error Message Overview of ................................................................... Operation Prepare EtherCAT Installing CB-NEC20E Connecting EtherCAT Communication Standard EtherCAT Process Cyclic (3D Changing the Opening EtherCAT system Output of measurement"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "34518180-7f2d-5357-a2d1-41446d41a2fe",
+              "content_preview": "Column headers: communications (Data Output) .................; Row headers: communication Command communication Acquiring message ..................................................................9-118 Changing message ",
+              "pool_rank": 446,
+              "score": 1.57,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "communications (Data Output) ................."
+              ],
+              "table_row_headers": [
+                "communication Command communication Acquiring message ..................................................................9-118 Changing message Condition Overview of ................................................................... Operation Prepare PROFINET NPN20E/CB-NPN20EA) Installing CB-NPN20E/CB-NPN20EA Specifications Connecting PROFINET communication Standard Cyclic (3D Changing the Displaying Output of measurement cyclic communications Data output PLC Controlling the communication Flow of (Example unit) Changing the cyclic communication Change) Flow of PROFINET PROFINET Troubleshooting When Error Message Overview of ................................................................... Operation Prepare EtherCAT Installing CB-NEC20E Connecting EtherCAT Communication Standard EtherCAT Process Cyclic (3D Changing the Opening EtherCAT system Output of measurement",
+                "..................................................................9-118 Changing the execute number using EtherNet/IP"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "4741d648-ce16-5f1a-ad1d-be39d580f887",
+              "content_preview": "Column headers: communication .........................................9-116; Row headers: communication Command communication Acquiring message ..................................................................9-118 Cha",
+              "pool_rank": 598,
+              "score": 1.57,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "communication .........................................9-116"
+              ],
+              "table_row_headers": [
+                "communication Command communication Acquiring message ..................................................................9-118 Changing message Condition Overview of ................................................................... Operation Prepare PROFINET NPN20E/CB-NPN20EA) Installing CB-NPN20E/CB-NPN20EA Specifications Connecting PROFINET communication Standard Cyclic (3D Changing the Displaying Output of measurement cyclic communications Data output PLC Controlling the communication Flow of (Example unit) Changing the cyclic communication Change) Flow of PROFINET PROFINET Troubleshooting When Error Message Overview of ................................................................... Operation Prepare EtherCAT Installing CB-NEC20E Connecting EtherCAT Communication Standard EtherCAT Process Cyclic (3D Changing the Opening EtherCAT system Output of measurement"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "5f80f580-22f3-5000-afe3-c03d26248392",
+              "content_preview": "Column headers: communications (Data Output) .................; Row headers: communication Command communication Acquiring message ..................................................................9-118 Changing message ",
+              "pool_rank": 817,
+              "score": 1.57,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "communications (Data Output) ................."
+              ],
+              "table_row_headers": [
+                "communication Command communication Acquiring message ..................................................................9-118 Changing message Condition Overview of ................................................................... Operation Prepare PROFINET NPN20E/CB-NPN20EA) Installing CB-NPN20E/CB-NPN20EA Specifications Connecting PROFINET communication Standard Cyclic (3D Changing the Displaying Output of measurement cyclic communications Data output PLC Controlling the communication Flow of (Example unit) Changing the cyclic communication Change) Flow of PROFINET PROFINET Troubleshooting When Error Message Overview of ................................................................... Operation Prepare EtherCAT Installing CB-NEC20E Connecting EtherCAT Communication Standard EtherCAT Process Cyclic (3D Changing the Opening EtherCAT system Output of measurement",
+                "Condition Number) ...................................9-119"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "65130846-f837-501d-b98d-855ff7e27e36",
+              "content_preview": "Column headers: communication .........................................9-116; Row headers: communication Command communication Acquiring message ..................................................................9-118 Cha",
+              "pool_rank": 856,
+              "score": 1.57,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "communication .........................................9-116"
+              ],
+              "table_row_headers": [
+                "communication Command communication Acquiring message ..................................................................9-118 Changing message Condition Overview of ................................................................... Operation Prepare PROFINET NPN20E/CB-NPN20EA) Installing CB-NPN20E/CB-NPN20EA Specifications Connecting PROFINET communication Standard Cyclic (3D Changing the Displaying Output of measurement cyclic communications Data output PLC Controlling the communication Flow of (Example unit) Changing the cyclic communication Change) Flow of PROFINET PROFINET Troubleshooting When Error Message Overview of ................................................................... Operation Prepare EtherCAT Installing CB-NEC20E Connecting EtherCAT Communication Standard EtherCAT Process Cyclic (3D Changing the Opening EtherCAT system Output of measurement"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "7dbe47d0-d8a8-5e4a-9789-43728a2dcb6e",
+              "content_preview": "Column headers: communications (Data Output) .................; Row headers: communication Command communication Acquiring message ..................................................................9-118 Changing message ",
+              "pool_rank": 1046,
+              "score": 1.57,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "communications (Data Output) ................."
+              ],
+              "table_row_headers": [
+                "communication Command communication Acquiring message ..................................................................9-118 Changing message Condition Overview of ................................................................... Operation Prepare PROFINET NPN20E/CB-NPN20EA) Installing CB-NPN20E/CB-NPN20EA Specifications Connecting PROFINET communication Standard Cyclic (3D Changing the Displaying Output of measurement cyclic communications Data output PLC Controlling the communication Flow of (Example unit) Changing the cyclic communication Change) Flow of PROFINET PROFINET Troubleshooting When Error Message Overview of ................................................................... Operation Prepare EtherCAT Installing CB-NEC20E Connecting EtherCAT Communication Standard EtherCAT Process Cyclic (3D Changing the Opening EtherCAT system Output of measurement",
+                "communication .........................................9-117"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "20fe84a6-2e50-544e-910b-41588fdc957e",
+              "content_preview": "Column headers: Error Messages; Cell value: AngleConv function abnormally terminated.; Row: 24; Column: 1",
+              "pool_rank": 280,
+              "score": 1.55,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "Error Messages"
+              ],
+              "table_row_headers": [],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            }
+          ],
+          "identifier": "LJ-X8000",
+          "matched_pool_rows": 1500
+        }
+      ],
+      "query": "For CV-X482 and LJ-X8000, compare what the Condition list and Standard Angle settings control."
+    },
+    {
+      "analysis": {
+        "content_prefilter_terms": [
+          "measurement",
+          "represent",
+          "outputs",
+          "output",
+          "pmsr",
+          "ljx8000",
+          "x8000",
+          "ljs8000",
+          "s8000",
+          "dc2lar",
+          "rto2l"
+        ],
+        "lexical_terms": [
+          "ljx8000",
+          "x8000",
+          "ljs8000",
+          "s8000",
+          "measurement",
+          "outputs",
+          "compare",
+          "pmsr",
+          "dc2lar",
+          "rto2l",
+          "represent"
+        ],
+        "product_identifiers": [
+          "LJ-X8000",
+          "LJ-S8000"
+        ],
+        "query_types": [
+          "comparison",
+          "spec_lookup"
+        ]
+      },
+      "case_id": "curated_cross_document_v2::7",
+      "expected_evidence_lexical_probe": {
+        "content_prefilter_terms": [
+          "measurement",
+          "represent",
+          "outputs",
+          "output",
+          "pmsr",
+          "ljx8000",
+          "x8000",
+          "ljs8000",
+          "s8000",
+          "dc2lar",
+          "rto2l"
+        ],
+        "items": [
+          {
+            "chunk_id": "af1d8a26-c533-50a2-92d7-e5d1ee16598b",
+            "chunk_type": "table_record",
+            "expected_terms_matched_in_content": [
+              "condition",
+              "cross-sectionarea",
+              "surrounded",
+              "straight"
+            ],
+            "expected_terms_missing_from_content": [],
+            "found_in_database": true,
+            "lexical_terms_matched_by_content_prefilter": [
+              "measurement",
+              "pmsr",
+              "dc2lar"
+            ],
+            "matched_query_identifiers": [
+              "LJ-X8000"
+            ],
+            "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+            "stage_exact_ranks": {},
+            "table_column_headers": [
+              "Description of measurement item selection"
+            ],
+            "table_lexical_score": 1.85,
+            "table_lexical_sql_pool_limit": 1500,
+            "table_lexical_sql_pool_order_features": {
+              "matched_order_terms": [
+                "measurement",
+                "pmsr",
+                "dc2lar"
+              ],
+              "matched_product_identifiers": [
+                "LJ-X8000"
+              ],
+              "priority_score": 13.0,
+              "sql_content_match_score": 3,
+              "sql_product_match_score": 3
+            },
+            "table_lexical_sql_pool_rank": 2,
+            "table_row_headers": [
+              "PMSR[].DC2LAR[]"
+            ]
+          },
+          {
+            "chunk_id": "7469d2a2-b0b6-5b53-aea2-335f61269609",
+            "chunk_type": "table_record",
+            "expected_terms_matched_in_content": [
+              "equivalent",
+              "aspect",
+              "ratio"
+            ],
+            "expected_terms_missing_from_content": [],
+            "found_in_database": true,
+            "lexical_terms_matched_by_content_prefilter": [
+              "measurement",
+              "rto2l"
+            ],
+            "matched_query_identifiers": [
+              "LJ-S8000"
+            ],
+            "source_document_id": "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+            "stage_exact_ranks": {},
+            "table_column_headers": [
+              "Description of measurement item selection"
+            ],
+            "table_lexical_score": 1.51,
+            "table_lexical_sql_pool_limit": 1500,
+            "table_lexical_sql_pool_order_features": {
+              "matched_order_terms": [
+                "measurement",
+                "rto2l"
+              ],
+              "matched_product_identifiers": [
+                "LJ-S8000"
+              ],
+              "priority_score": 13.0,
+              "sql_content_match_score": 2,
+              "sql_product_match_score": 3
+            },
+            "table_lexical_sql_pool_rank": 431,
+            "table_row_headers": [
+              "RTO2L"
+            ]
+          }
+        ],
+        "lexical_terms": [
+          "ljx8000",
+          "x8000",
+          "ljs8000",
+          "s8000",
+          "measurement",
+          "outputs",
+          "compare",
+          "pmsr",
+          "dc2lar",
+          "rto2l",
+          "represent"
+        ],
+        "sql_pool_error": null
+      },
+      "identifier_pool_summaries": [
+        {
+          "best_scored_rows": [
+            {
+              "chunk_id": "29463a67-576a-5348-a3b5-08fe5f216960",
+              "content_preview": "Column headers: Item ID; Row headers: PMSR[].DC2LAR[]; Cell value: -; Row: 33; Column: 7",
+              "pool_rank": 726,
+              "score": 1.73,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "Item ID"
+              ],
+              "table_row_headers": [
+                "PMSR[].DC2LAR[]"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "506449a0-59af-5f4e-8160-c14a4d5348c4",
+              "content_preview": "Column headers: Label Specification; Row headers: PMSR[].DC2LAR[]; Cell value: \uf0a1; Row: 33; Column: 6",
+              "pool_rank": 1396,
+              "score": 1.73,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "Label Specification"
+              ],
+              "table_row_headers": [
+                "PMSR[].DC2LAR[]"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "00bf5c9d-b3c8-5d33-919c-05ee2f835193",
+              "content_preview": "Column headers: Description of measurement item selection; Row headers: Continuous profile\uf020 measurement\uf020 (continued) > (continued) > PMSR[].CPOS2[]; Cell value: Position2; Row: 3; Column: 2",
+              "pool_rank": 11,
+              "score": 1.51,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "Description of measurement item selection"
+              ],
+              "table_row_headers": [
+                "Continuous profile\uf020 measurement\uf020 (continued)",
+                "(continued)",
+                "PMSR[].CPOS2[]"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "0133a997-e9f7-5360-9ed3-1843197b0779",
+              "content_preview": "Column headers: Form of measured data; Row headers: Continuous profile\uf020 measurement\uf020 (continued) > Continuous profile \uf020 measurement \uf020 > PMSR[].DC3LAR[]; Cell value: Sign, Integer 5 digits and decimal 3 digits; Row: 1; Co",
+              "pool_rank": 16,
+              "score": 1.51,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "Form of measured data"
+              ],
+              "table_row_headers": [
+                "Continuous profile\uf020 measurement\uf020 (continued)",
+                "Continuous profile \uf020 measurement \uf020",
+                "PMSR[].DC3LAR[]"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "01c0554a-2525-5511-88ba-1d55639b49c3",
+              "content_preview": "Column headers: Description of measurement item selection; Row headers: PMSR[]. DC1LPDST[]; Cell value: (Condition 1) \uf020 Throat Thickness; Row: 32; Column: 2",
+              "pool_rank": 27,
+              "score": 1.51,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "Description of measurement item selection"
+              ],
+              "table_row_headers": [
+                "PMSR[]. DC1LPDST[]"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "020441da-4690-53d0-8fa2-dc8e1760ef02",
+              "content_preview": "Column headers: Description of measurement item selection; Row headers: PMSR[]. DC4LPDST[]; Cell value: (Condition 4) Distance Between a Point andaStraight Line; Row: 29; Column: 2",
+              "pool_rank": 30,
+              "score": 1.51,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "Description of measurement item selection"
+              ],
+              "table_row_headers": [
+                "PMSR[]. DC4LPDST[]"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "021a6c8f-804a-5771-820b-41a623596854",
+              "content_preview": "Column headers: Description of separation/ selection; Row headers: measurement > PMSR[].DC2HGT[]; Cell value: MS,JG; Row: 19; Column: 3",
+              "pool_rank": 34,
+              "score": 1.51,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "Description of separation/ selection"
+              ],
+              "table_row_headers": [
+                "measurement",
+                "PMSR[].DC2HGT[]"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            },
+            {
+              "chunk_id": "032418fe-7784-5cc4-a5be-b19a86cff835",
+              "content_preview": "Column headers: Description of measurement item selection; Row headers: (continued) > PMSR[].MNCTRZ; Cell value: Center Position (Minimum)Z; Row: 13; Column: 2",
+              "pool_rank": 51,
+              "score": 1.51,
+              "source_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+              "table_column_headers": [
+                "Description of measurement item selection"
+              ],
+              "table_row_headers": [
+                "(continued)",
+                "PMSR[].MNCTRZ"
+              ],
+              "title": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf"
+            }
+          ],
+          "identifier": "LJ-X8000",
+          "matched_pool_rows": 1500
+        },
+        {
+          "best_scored_rows": [
+            {
+              "chunk_id": "42f75a33-2230-51f5-b245-f90fd25894f6",
+              "content_preview": "Column headers: Description of measurement item selection; Row headers: PMSR[].DC2LAR[]; Cell value: (Condition 2) Cross-section Area Surrounded by a Straight Line; Row: 34; Column: 1",
+              "pool_rank": 1189,
+              "score": 1.85,
+              "source_document_id": "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+              "table_column_headers": [
+                "Description of measurement item selection"
+              ],
+              "table_row_headers": [
+                "PMSR[].DC2LAR[]"
+              ],
+              "title": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf"
+            },
+            {
+              "chunk_id": "033301ab-1186-5f60-bd3b-f5db71fd6c3c",
+              "content_preview": "Column headers: Item ID; Row headers: PMSR[].DC2LAR[] > (Condition 2) Cross-section Area Surrounded by a Straight Line > MS,JG > Sign, Integer 5 digits, 3 digits after the decimal point > - > \uf0fc; Cell value: -; Row: 34; C",
+              "pool_rank": 59,
+              "score": 1.73,
+              "source_document_id": "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+              "table_column_headers": [
+                "Item ID"
+              ],
+              "table_row_headers": [
+                "PMSR[].DC2LAR[]",
+                "(Condition 2) Cross-section Area Surrounded by a Straight Line",
+                "MS,JG",
+                "Sign, Integer 5 digits, 3 digits after the decimal point",
+                "-",
+                "\uf0fc"
+              ],
+              "title": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf"
+            },
+            {
+              "chunk_id": "0f170c25-8f90-5af9-adda-595c7c2f7f47",
+              "content_preview": "Column headers: Form of measured data; Row headers: PMSR[].DC2LAR[] > (Condition 2) Cross-section Area Surrounded by a Straight Line > MS,JG; Cell value: Sign, Integer 5 digits, 3 digits after the decimal point; Row: 34;",
+              "pool_rank": 275,
+              "score": 1.73,
+              "source_document_id": "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+              "table_column_headers": [
+                "Form of measured data"
+              ],
+              "table_row_headers": [
+                "PMSR[].DC2LAR[]",
+                "(Condition 2) Cross-section Area Surrounded by a Straight Line",
+                "MS,JG"
+              ],
+              "title": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf"
+            },
+            {
+              "chunk_id": "0020a455-268e-5145-868c-da972b416bad",
+              "content_preview": "Column headers: Description of measurement; Row headers: PMSR[].PCNT[] PMSR[].MXPCNT PMSR[].MNPCNT PMSR[].AVPCNT PMSR[].DVPCNT PMSR[].DC1PCNT[] PMSR[].DC2PCNT[] PMSR[].DC3PCNT[] PMSR[].DC4PCNT[] PMSR[].STG[] PMSR[].STD[]",
+              "pool_rank": 5,
+              "score": 1.51,
+              "source_document_id": "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+              "table_column_headers": [
+                "Description of measurement"
+              ],
+              "table_row_headers": [
+                "PMSR[].PCNT[] PMSR[].MXPCNT PMSR[].MNPCNT PMSR[].AVPCNT PMSR[].DVPCNT PMSR[].DC1PCNT[] PMSR[].DC2PCNT[] PMSR[].DC3PCNT[] PMSR[].DC4PCNT[] PMSR[].STG[] PMSR[].STD[] PMSR[].MXSTG PMSR[].MNSTG PMSR[].AVSTG PMSR[].DVSTG PMSR[].DC1STG[]",
+                "PMSR[].DC3PCNT[]"
+              ],
+              "title": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf"
+            },
+            {
+              "chunk_id": "0062f957-ab04-5133-87e4-59dc90ac4fc0",
+              "content_preview": "Column headers: Description of measurement; Row headers: PMSR[].PRMTR[] PMSR[].MXPRMTR PMSR[].MNPRMTR PMSR[].AVPRMTR PMSR[].DVPRMTR PMSR[].DC1PRMTR[] PMSR[].DC2PRMTR[] PMSR[].DC3PRMTR[] PMSR[].DC4PRMTR[] PMSR[].LPDST[] P",
+              "pool_rank": 6,
+              "score": 1.51,
+              "source_document_id": "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+              "table_column_headers": [
+                "Description of measurement"
+              ],
+              "table_row_headers": [
+                "PMSR[].PRMTR[] PMSR[].MXPRMTR PMSR[].MNPRMTR PMSR[].AVPRMTR PMSR[].DVPRMTR PMSR[].DC1PRMTR[] PMSR[].DC2PRMTR[] PMSR[].DC3PRMTR[] PMSR[].DC4PRMTR[] PMSR[].LPDST[] PMSR[].MXLPDST PMSR[].MNLPDST PMSR[].AVLPDST PMSR[].DVLPDST",
+                "PMSR[].DC2PRMTR[]"
+              ],
+              "title": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf"
+            },
+            {
+              "chunk_id": "00f15c68-1a1c-5aed-81ea-e19cd49285fc",
+              "content_preview": "Column headers: Description of measurement; Row headers: PMSR[].DC1STG[]; Cell value: (Condition 1) Defect Amount; Row: 27; Column: 1",
+              "pool_rank": 15,
+              "score": 1.51,
+              "source_document_id": "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+              "table_column_headers": [
+                "Description of measurement"
+              ],
+              "table_row_headers": [
+                "PMSR[].DC1STG[]"
+              ],
+              "title": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf"
+            },
+            {
+              "chunk_id": "017d3879-2ad2-5ab8-bc84-8b219b9bb99e",
+              "content_preview": "Column headers: Description of measurement; Row headers: PMSR[].DC1CPOS1[]; Cell value: (Condition 1) Center Position: Position (1); Row: 16; Column: 1",
+              "pool_rank": 25,
+              "score": 1.51,
+              "source_document_id": "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+              "table_column_headers": [
+                "Description of measurement"
+              ],
+              "table_row_headers": [
+                "PMSR[].DC1CPOS1[]"
+              ],
+              "title": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf"
+            },
+            {
+              "chunk_id": "01f23d9b-ef12-53c6-adea-51abba065a44",
+              "content_preview": "Column headers: Description of measurement item selection; Row headers: PMSR[].MXZAR PMSR[].MNZAR; Cell value: Cross-section Area (Maximum) Cross-section Area (Minimum); Row: 22; Column: 1",
+              "pool_rank": 32,
+              "score": 1.51,
+              "source_document_id": "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+              "table_column_headers": [
+                "Description of measurement item selection"
+              ],
+              "table_row_headers": [
+                "PMSR[].MXZAR PMSR[].MNZAR"
+              ],
+              "title": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf"
+            }
+          ],
+          "identifier": "LJ-S8000",
+          "matched_pool_rows": 1500
+        }
+      ],
+      "query": "For LJ-X8000 and LJ-S8000 measurement outputs, compare what PMSR DC2LAR and RTO2L represent."
+    },
+    {
+      "analysis": {
+        "content_prefilter_terms": [
+          "unsupported",
+          "corrective",
+          "detection",
+          "through",
+          "halfway",
+          "failure",
+          "failed",
+          "fail",
+          "region",
+          "action",
+          "access",
+          "acces",
+          "stops",
+          "stop",
+          "point",
+          "edge",
+          "card",
+          "cvx482",
+          "x482"
+        ],
+        "lexical_terms": [
+          "compare",
+          "corrective",
+          "action",
+          "unsupported",
+          "card",
+          "access",
+          "failure",
+          "cvx482",
+          "x482",
+          "edge",
+          "detection",
+          "point",
+          "stops",
+          "halfway",
+          "through",
+          "region"
+        ],
+        "product_identifiers": [
+          "CV-X482",
+          "XG-X"
+        ],
+        "query_types": [
+          "comparison",
+          "compatibility"
+        ]
+      },
+      "case_id": "curated_cross_document_v2::9",
+      "expected_evidence_lexical_probe": {
+        "content_prefilter_terms": [
+          "unsupported",
+          "corrective",
+          "detection",
+          "through",
+          "halfway",
+          "failure",
+          "failed",
+          "fail",
+          "region",
+          "action",
+          "access",
+          "acces",
+          "stops",
+          "stop",
+          "point",
+          "edge",
+          "card",
+          "cvx482",
+          "x482"
+        ],
+        "items": [
+          {
+            "chunk_id": "b577062c-6512-51b9-95a9-beee52862525",
+            "chunk_type": "table_record",
+            "expected_terms_matched_in_content": [
+              "keyence",
+              "guarantee",
+              "operation",
+              "commercially"
+            ],
+            "expected_terms_missing_from_content": [],
+            "found_in_database": true,
+            "lexical_terms_matched_by_content_prefilter": [
+              "unsupported",
+              "corrective",
+              "failed",
+              "fail",
+              "action",
+              "access",
+              "acces",
+              "card"
+            ],
+            "matched_query_identifiers": [
+              "XG-X"
+            ],
+            "source_document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+            "stage_exact_ranks": {},
+            "table_column_headers": [
+              "Corrective Action"
+            ],
+            "table_lexical_score": 1.61,
+            "table_lexical_sql_pool_limit": 1500,
+            "table_lexical_sql_pool_order_features": {
+              "matched_order_terms": [
+                "corrective",
+                "action",
+                "unsupported",
+                "card",
+                "access"
+              ],
+              "matched_product_identifiers": [
+                "XG-X"
+              ],
+              "priority_score": 13.0,
+              "sql_content_match_score": 5,
+              "sql_product_match_score": 3
+            },
+            "table_lexical_sql_pool_rank": 3,
+            "table_row_headers": [
+              "Failed to access SD Card 1.",
+              "An unsupported SD card is being used."
+            ]
+          },
+          {
+            "chunk_id": "73da44a7-2e0a-56ce-80b2-88bda317a82b",
+            "chunk_type": "table_record",
+            "expected_terms_matched_in_content": [
+              "increase",
+              "segments"
+            ],
+            "expected_terms_missing_from_content": [],
+            "found_in_database": true,
+            "lexical_terms_matched_by_content_prefilter": [
+              "corrective",
+              "detection",
+              "halfway",
+              "region",
+              "action",
+              "point",
+              "edge"
+            ],
+            "matched_query_identifiers": [
+              "CV-X482"
+            ],
+            "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+            "stage_exact_ranks": {},
+            "table_column_headers": [
+              "Corrective action"
+            ],
+            "table_lexical_score": 2.57,
+            "table_lexical_sql_pool_limit": 1500,
+            "table_lexical_sql_pool_order_features": {
+              "matched_order_terms": [
+                "corrective",
+                "action",
+                "edge"
+              ],
+              "matched_product_identifiers": [
+                "CV-X482"
+              ],
+              "priority_score": 13.0,
+              "sql_content_match_score": 3,
+              "sql_product_match_score": 3
+            },
+            "table_lexical_sql_pool_rank": 116,
+            "table_row_headers": [
+              "The edge detection point ends halfway in the region."
+            ]
+          }
+        ],
+        "lexical_terms": [
+          "compare",
+          "corrective",
+          "action",
+          "unsupported",
+          "card",
+          "access",
+          "failure",
+          "cvx482",
+          "x482",
+          "edge",
+          "detection",
+          "point",
+          "stops",
+          "halfway",
+          "through",
+          "region"
+        ],
+        "sql_pool_error": null
+      },
+      "identifier_pool_summaries": [
+        {
+          "best_scored_rows": [
+            {
+              "chunk_id": "09e9f9a8-7481-5568-b5fc-bcb170c10bfe",
+              "content_preview": "Column headers: Corrective action; Row headers: The edge detection point ends halfway in the region.; Cell value: \uf071 Increase the Max. Segments.; Row: 3; Column: 1",
+              "pool_rank": 137,
+              "score": 2.57,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "The edge detection point ends halfway in the region."
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "4839c226-75ee-5bc7-9235-4f4fb1ef639b",
+              "content_preview": "Column headers: Corrective action; Row headers: The edge detection point ends halfway in the region.; Cell value: \uf071 Increase the Max. Segments.; Row: 4; Column: 1",
+              "pool_rank": 971,
+              "score": 2.57,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "The edge detection point ends halfway in the region."
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "4d3fcf23-6760-53a1-b48d-1f7e08dde514",
+              "content_preview": "Column headers: Corrective action; Row headers: When the region direction cannot > The edge detection point ends halfway in the region.; Cell value: \uf071 Increase the Max. Segments.; Row: 2; Column: 1",
+              "pool_rank": 1040,
+              "score": 2.57,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "When the region direction cannot",
+                "The edge detection point ends halfway in the region."
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "73da44a7-2e0a-56ce-80b2-88bda317a82b",
+              "content_preview": "Column headers: Corrective action; Row headers: The edge detection point ends halfway in the region.; Cell value: \uf071 Increase the Max. Segments.; Row: 4; Column: 1",
+              "pool_rank": 1492,
+              "score": 2.57,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "The edge detection point ends halfway in the region."
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "4c3d94f2-53b8-5122-9b95-c6704183972d",
+              "content_preview": "Column headers: Corrective action; Row headers: When detecting detected. > When detecting a sharp target, the tip cannot be detected.; Cell value: \uf071 While viewing the edge detection point (orange) with Filtered, reduce t",
+              "pool_rank": 1018,
+              "score": 2.33,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "When detecting detected.",
+                "When detecting a sharp target, the tip cannot be detected."
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "5e2b1cc3-d0fb-5610-af2f-d140c583965b",
+              "content_preview": "Column headers: Corrective action; Row headers: A minor defect cannot be detected as detection point.; Cell value: \uf071 While viewing the edge detection point (orange) with Filtered, reduce the segment size and the segment ",
+              "pool_rank": 1229,
+              "score": 2.33,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "A minor defect cannot be detected as detection point."
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "43901d77-0912-53c3-975d-d70f3af9926d",
+              "content_preview": "Column headers: Corrective action; Row headers: Detection of the inward. > A dense edge in the region, not the desired edge, is detected erroneously. > \uf071; Cell value: Reduce the edge sensitivity while viewing the Edge Gr",
+              "pool_rank": 913,
+              "score": 2.31,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "Detection of the inward.",
+                "A dense edge in the region, not the desired edge, is detected erroneously.",
+                "\uf071"
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            },
+            {
+              "chunk_id": "448e3e9a-46fc-5282-a90a-2df251fc1a5f",
+              "content_preview": "Column headers: Corrective action; Row headers: Detection of the inward. > A dense edge in the region, not the desired edge, is detected erroneously.; Cell value: \uf071 Reduce the edge sensitivity while viewing the Edge Grap",
+              "pool_rank": 927,
+              "score": 2.31,
+              "source_document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+              "table_column_headers": [
+                "Corrective action"
+              ],
+              "table_row_headers": [
+                "Detection of the inward.",
+                "A dense edge in the region, not the desired edge, is detected erroneously."
+              ],
+              "title": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf"
+            }
+          ],
+          "identifier": "CV-X482",
+          "matched_pool_rows": 1500
+        },
+        {
+          "best_scored_rows": [
+            {
+              "chunk_id": "a19267bf-4586-5908-a1d4-5366902953f5",
+              "content_preview": "Column headers: Corrective Action; Row headers: Please select \"Stop Operation\" before SD card. The card and files damaged. > Please select \"Stop SD2 Operation\" before removing the SD card. The card and files may be damag",
+              "pool_rank": 1418,
+              "score": 1.83,
+              "source_document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+              "table_column_headers": [
+                "Corrective Action"
+              ],
+              "table_row_headers": [
+                "Please select \"Stop Operation\" before SD card. The card and files damaged.",
+                "Please select \"Stop SD2 Operation\" before removing the SD card. The card and files may be damaged.",
+                "The SD card was removed without using the [Stop SD2 Operation]."
+              ],
+              "title": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf"
+            },
+            {
+              "chunk_id": "0fb61316-25b2-5eb0-a118-bb4e25caac0c",
+              "content_preview": "Column headers: Corrective Action; Row headers: Library conversion was interrupted. > The version conversion of the library settings was cancelled because of the access failure to the library setting file etc.; Cell valu",
+              "pool_rank": 145,
+              "score": 1.61,
+              "source_document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+              "table_column_headers": [
+                "Corrective Action"
+              ],
+              "table_row_headers": [
+                "Library conversion was interrupted.",
+                "The version conversion of the library settings was cancelled because of the access failure to the library setting file etc."
+              ],
+              "title": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf"
+            },
+            {
+              "chunk_id": "1063a1fe-70e8-5538-a7b1-890b2f0564ba",
+              "content_preview": "Column headers: Corrective Action; Row headers: Failed to access SD Card 2. > An unsupported SD card is being used.; Cell value: KEYENCE does not guarantee operation with commercially available (non-industrial rated) SD ",
+              "pool_rank": 152,
+              "score": 1.61,
+              "source_document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+              "table_column_headers": [
+                "Corrective Action"
+              ],
+              "table_row_headers": [
+                "Failed to access SD Card 2.",
+                "An unsupported SD card is being used."
+              ],
+              "title": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf"
+            },
+            {
+              "chunk_id": "0b6cf71c-0633-58e7-b258-7188a92e02e2",
+              "content_preview": "Column headers: Corrective Action; Row headers: This menu cannot as there is a setting unit. > Library conversion was interrupted because library backup failed. > Failed to access the library setting file or create a bac",
+              "pool_rank": 110,
+              "score": 1.49,
+              "source_document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+              "table_column_headers": [
+                "Corrective Action"
+              ],
+              "table_row_headers": [
+                "This menu cannot as there is a setting unit.",
+                "Library conversion was interrupted because library backup failed.",
+                "Failed to access the library setting file or create a back up file for the library setting file."
+              ],
+              "title": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf"
+            },
+            {
+              "chunk_id": "11d6a5e2-9c9e-5ea5-a2e3-ca1b942b80ed",
+              "content_preview": "Column headers: Corrective Action; Row headers: Please insert SD Card 2. > No SD card in SD2 slot. Run the [Stop SD2 Operation], then re- insert the SD card into the SD2 slot; Cell value: Properly insert an SD card into ",
+              "pool_rank": 167,
+              "score": 1.49,
+              "source_document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+              "table_column_headers": [
+                "Corrective Action"
+              ],
+              "table_row_headers": [
+                "Please insert SD Card 2.",
+                "No SD card in SD2 slot. Run the [Stop SD2 Operation], then re- insert the SD card into the SD2 slot"
+              ],
+              "title": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf"
+            },
+            {
+              "chunk_id": "19ec97d4-6a59-5d24-89b9-73db4c6fe939",
+              "content_preview": "Column headers: Corrective Action; Row headers: An error has occurred file access. Failed to save data. > Calibration data under different conditions the \"Axes Configuration\" stage setting. This calibration edited. > An ",
+              "pool_rank": 254,
+              "score": 1.49,
+              "source_document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+              "table_column_headers": [
+                "Corrective Action"
+              ],
+              "table_row_headers": [
+                "An error has occurred file access. Failed to save data.",
+                "Calibration data under different conditions the \"Axes Configuration\" stage setting. This calibration edited.",
+                "An error has occurred in the",
+                "The SD card free space is insufficient."
+              ],
+              "title": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf"
+            },
+            {
+              "chunk_id": "23273bea-52e6-5903-8b22-24ebceb79334",
+              "content_preview": "Column headers: Corrective Action; Row headers: Failed to access SD Card 2. > A large number of files was output to one folder.; Cell value: There is a limit to the number of files that can be output to one folder and th",
+              "pool_rank": 339,
+              "score": 1.49,
+              "source_document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+              "table_column_headers": [
+                "Corrective Action"
+              ],
+              "table_row_headers": [
+                "Failed to access SD Card 2.",
+                "A large number of files was output to one folder."
+              ],
+              "title": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf"
+            },
+            {
+              "chunk_id": "2ac3289d-30b8-58ef-92d3-b18c4ef0cb63",
+              "content_preview": "Column headers: Corrective Action; Row headers: Calibration data under different conditions the \"Axes Configuration\" stage setting. This calibration edited. > file access. Failed to save the calibration data. > The SD ca",
+              "pool_rank": 410,
+              "score": 1.49,
+              "source_document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+              "table_column_headers": [
+                "Corrective Action"
+              ],
+              "table_row_headers": [
+                "Calibration data under different conditions the \"Axes Configuration\" stage setting. This calibration edited.",
+                "file access. Failed to save the calibration data.",
+                "The SD card is write-protected."
+              ],
+              "title": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf"
+            }
+          ],
+          "identifier": "XG-X",
+          "matched_pool_rows": 1500
+        }
+      ],
+      "query": "Compare the XG-X corrective action for an unsupported SD card access failure with the CV-X482 corrective action when an edge detection point stops halfway through the region."
+    }
+  ],
+  "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+  "generated_at": "2026-08-25T21:25:49+00:00",
+  "mode": "comparison_table_identifier_pool_diagnostic",
+  "notes": "Eval/debug-only bounded SQL diagnostic. It measures product-identifier table rows inside the existing table lexical content prefilter without changing production retrieval behavior."
+}

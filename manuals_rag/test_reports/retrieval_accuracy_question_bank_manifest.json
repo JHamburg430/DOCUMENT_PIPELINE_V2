@@ -5733,8 +5733,8 @@
       }
     ]
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_2053_stage_contribution plus stage timing, SQL order/pool, and top-k diagnostics. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, duplicate comparison special-table removal, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Case 6 remains absent from all first-pass source stages at depth 120, case 7 has only the LJ-X companion from table_lexical and still misses LJ-S RTO2L, and case 9 has both expected chunks discovered by ordinary source stages but outside the normal top-5 context. Next safe production work should target bounded/indexed discovery for setting/code rows in cases 6/7 and keep case 9 as final-context selection, with saved single-step and warning/procedure gates before any production retrieval commit.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_2053_stage_contribution is diagnostic-only source-stage contribution evidence and does not supersede the baseline.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_2129_identifier_pool plus source-stage, stage-timing, SQL order/pool, and top-k diagnostics. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, duplicate comparison special-table removal, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Cases 6 and 7 need a general indexed/bounded setting-item or row-code discovery path because exact validated rows match terms but rank hundreds deep in capped SQL pools; case 9 should remain a final top-5/context-selection target. Validate any production retrieval change against the full 10-case v2 gate plus saved single-step and warning/procedure gates.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_2129_identifier_pool is diagnostic-only SQL pool crowding evidence and does not supersede the baseline.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
@@ -5746,6 +5746,19 @@
     "ranking_or_context_loss": 1
   },
   "diagnostics": [
+    {
+      "path": "test_reports/retrieval_debug_report_20260825_2129_identifier_pool.json",
+      "status": "completed",
+      "mode": "comparison_table_identifier_pool_diagnostic",
+      "baseline": "retrieval_eval_20260825_072839",
+      "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "case_ids": [
+        "curated_cross_document_v2::6",
+        "curated_cross_document_v2::7",
+        "curated_cross_document_v2::9"
+      ],
+      "notes": "Eval/debug-only bounded SQL pool diagnostic. Case 6 exact Condition list and Standard Angle rows match product/content terms but sit around SQL pool ranks 399 and 370; case 7 exact LJ-S RTO2L sits around rank 431 while the per-identifier pools hit the 1500-row cap. Case 9 remains a final-context issue because exact XG-X evidence is high in the SQL pool and was previously observed at assembled rank 7. No production retrieval behavior changed and no pass rate is marked resolved."
+    },
     {
       "path": "test_reports/retrieval_debug_report_20260825_195622_stage_timing.json",
       "status": "completed",
@@ -5850,15 +5863,15 @@
     }
   ],
   "latest_debug_report": {
-    "report": "test_reports/retrieval_debug_report_20260825_2053_stage_contribution.json",
-    "type": "source_stage_contribution_diagnostic",
+    "report": "test_reports/retrieval_debug_report_20260825_2129_identifier_pool.json",
+    "type": "comparison_table_identifier_pool_diagnostic",
     "scope": "curated_cross_document_v2_cases_6_7_9",
     "status": "diagnostic_only_no_production_change",
     "evidence": {
       "current_baseline": "retrieval_eval_20260825_072839 remains 7/10 with candidate_miss: 1, eval_timeout: 1, ranking_or_context_loss: 1.",
-      "case_6": "Both expected chunks missed by all source stages at depth 120.",
-      "case_7": "LJ-X companion found only by table_lexical; LJ-S RTO2L missed by all source stages at depth 120.",
-      "case_9": "Both expected chunks discovered by ordinary source stages; unresolved failure is final top-5/context selection."
+      "case_6": "Expected Condition list and Standard Angle table rows match product/content terms but rank roughly 399 and 370 in the existing SQL pool, which explains source-stage misses and timeout pressure.",
+      "case_7": "Expected LJ-S RTO2L row matches LJ-S8000/content terms but ranks roughly 431 while product-specific pools hit the 1500-row cap, so discovery needs a bounded/indexed row-code or setting-item strategy rather than another broad scan.",
+      "case_9": "Exact XG-X evidence is already high in table lexical SQL ordering and was observed by prior top-k diagnostics as assembled rank 7; keep it as a final-context selection target."
     }
   }
 }
