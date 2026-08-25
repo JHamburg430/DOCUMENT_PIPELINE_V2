@@ -298,6 +298,17 @@
           "retrieval_eval_20260825_142948"
         ],
         "remaining": "Resume the full curated cross-document v2 retrieval target retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120. Keep answer prompt changes gated by actual HTTP API answer evidence before committing."
+      },
+      "2026-08-25T15:14:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Tested and rejected a bounded comparison/table candidate-budget experiment against the full curated cross-document v2 gate; reverted all production retrieval/test edits when the gate stayed 7/10 and timeout failures increased.",
+        "evidence": [
+          "retrieval_eval_20260825_152606",
+          "tests/unit/test_retriever.py -q -> 91 passed, 1 warning after revert",
+          "git diff -- packages/retrieval/src/manuals_rag_retrieval/retriever.py tests/unit/test_retriever.py -> empty after revert"
+        ],
+        "remaining": "Continue from retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120; avoid the rejected candidate-budget path and earlier rejected comparison/ranking/prefilter paths."
       }
     }
   },
@@ -5460,20 +5471,36 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120. The latest critical answer-prompt guardrail is contained by reverting 0f3a8e1 and validating post-revert actual API answers. Next safe production work should return to bounded comparison/corrective-action candidate-budget or evidence-diversity changes against the full 10-case gate plus saved single-step/warning-procedure gates; avoid API/UI scope drift and gate any future answer prompt changes with actual HTTP API answer evidence before committing.",
+    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120. The latest comparison/table candidate-budget experiment retrieval_eval_20260825_152606 was rejected after it stayed at 7/10 and increased timeouts. Avoid that path along with the earlier rejected row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should inspect cheaper discovery for exact case 6 setting rows and case 7 LJ-S RTO2L, or add a diagnostic comparing normal production top-k scoring with deeper assembled ranks for case 9.",
     "current_failure_categories": {
       "candidate_miss": 1,
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
     "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated.",
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_132726_stage120 is diagnostic-only: deeper stage pools recover the exact case 9 XG-X unsupported-SD corrective-action chunk into assembled rank 7, but case 6 exact chunks and case 7 LJ-S RTO2L remain absent. retrieval_eval_20260825_145619 is diagnostic-only rejected-change evidence: a generic row-alignment comparison promotion stayed at 7/10 with the same failure profile and was reverted. No retrieval pass rate is marked resolved.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_132726_stage120 is diagnostic-only: deeper stage pools recover the exact case 9 XG-X unsupported-SD corrective-action chunk into assembled rank 7, but case 6 exact chunks and case 7 LJ-S RTO2L remain absent. retrieval_eval_20260825_152606 is diagnostic-only rejected-change evidence: a generic comparison/table candidate-budget increase stayed at 7/10 and worsened timeout count, so it was reverted. No retrieval pass rate is marked resolved.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "retrieval_not_passed": 1,
       "ranking_or_context_loss": 1
     },
     "diagnostics": [
+      {
+        "path": "test_reports/retrieval_eval_summary_20260825_152606.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_152606.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "comparison_table_candidate_budget_experiment",
+        "baseline": "retrieval_eval_20260825_072839",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "total_queries": 10,
+        "passed_queries": 7,
+        "pass_rate": 0.7,
+        "failure_categories": {
+          "eval_timeout": 2,
+          "ranking_or_context_loss": 1
+        },
+        "notes": "Generic comparison/table-intent candidate budget increase from 12 to 16 did not improve the full manually reviewed cross-document v2 gate and increased timeout failures; all production retrieval/test edits were reverted before commit."
+      },
       {
         "path": "test_reports/retrieval_eval_summary_20260825_145619.json",
         "manifest_path": "test_reports/retrieval_eval_manifest_20260825_145619.json",
@@ -5521,8 +5548,8 @@
       }
     ]
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120. The latest comparison row-alignment promotion experiment retrieval_eval_20260825_145619 was rejected after it stayed at 7/10 with the same failure profile. Avoid that path along with the earlier rejected row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should inspect cheaper discovery for exact case 6 setting rows and case 7 LJ-S RTO2L, or add eval/debug diagnostics for why case 9's recovered rank-7 unsupported-SD row is still scored as a candidate miss in the normal 10s gate.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_132726_stage120 is diagnostic-only: deeper stage pools recover the exact case 9 XG-X unsupported-SD corrective-action chunk into assembled rank 7, but case 6 exact chunks and case 7 LJ-S RTO2L remain absent. retrieval_eval_20260825_145619 is diagnostic-only rejected-change evidence: a generic row-alignment comparison promotion stayed at 7/10 with the same failure profile and was reverted. No retrieval pass rate is marked resolved.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_132726_stage120. The latest comparison/table candidate-budget experiment retrieval_eval_20260825_152606 was rejected after it stayed at 7/10 and increased timeouts. Avoid that path along with the earlier rejected row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should inspect cheaper discovery for exact case 6 setting rows and case 7 LJ-S RTO2L, or add a diagnostic comparing normal production top-k scoring with deeper assembled ranks for case 9.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_debug_report_20260825_132726_stage120 is diagnostic-only: deeper stage pools recover the exact case 9 XG-X unsupported-SD corrective-action chunk into assembled rank 7, but case 6 exact chunks and case 7 LJ-S RTO2L remain absent. retrieval_eval_20260825_152606 is diagnostic-only rejected-change evidence: a generic comparison/table candidate-budget increase stayed at 7/10 and worsened timeout count, so it was reverted. No retrieval pass rate is marked resolved.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
