@@ -5774,11 +5774,10 @@
       }
     ]
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_2129_identifier_pool plus source-stage, stage-timing, SQL order/pool, and top-k diagnostics. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, duplicate comparison special-table removal, user-mentioned table-item focus supplements, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Cases 6 and 7 still need a truly bounded/indexed setting-item or row-code discovery design because exact validated rows match terms but rank hundreds deep in capped SQL pools; case 9 should remain a final top-5/context-selection target. Validate any production retrieval change against the full 10-case v2 gate plus saved single-step and warning/procedure gates.",
+  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 and the no-change validation run retrieval_eval_20260825_222607. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, duplicate comparison special-table removal, user-mentioned table-item focus supplements, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Cases 6 and 7 still need a truly bounded/indexed setting-item or row-code discovery design because exact validated rows match terms but rank hundreds deep in capped SQL pools; case 9 also has timeout sensitivity in the normal gate even though prior diagnostics showed both expected items can appear by top 10. Do not commit another production retrieval tweak until it improves the full 10-case v2 gate and preserves saved single-step and warning/procedure gates.",
   "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_215706 is diagnostic-only after the user-mentioned table-item focus experiment stayed 7/10 with the same failure profile; all production retrieval/test edits were reverted.",
   "current_failure_categories": {
-    "candidate_miss": 1,
-    "eval_timeout": 1,
+    "eval_timeout": 2,
     "ranking_or_context_loss": 1
   },
   "failure_categories": {
@@ -5901,6 +5900,20 @@
         "assembled": 0.767805
       },
       "notes": "Eval/debug-only source-stage contribution probe. Case 6 expected chunks were missed by all first-pass source stages; case 7 found the LJ-X companion only via table_lexical at rank 3 and missed LJ-S RTO2L across all source stages; case 9 found both expected chunks across ordinary source stages, confirming it is a final-context/top-k issue rather than raw discovery absence. No production retrieval behavior changed and no pass rate is marked resolved."
+    },
+    {
+      "summary": "test_reports/retrieval_eval_summary_20260825_222607.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260825_222607.json",
+      "dataset": "test_reports/retrieval_eval_dataset_20260825_222607.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260825_222607.jsonl",
+      "status": "no_production_change_validation",
+      "baseline": "retrieval_eval_20260825_072839",
+      "result": "7/10 direct retrieval, pass@1 60%, pass@3/pass@5 70%, candidate recall 80%, metadata document recall 100%.",
+      "failure_categories": {
+        "eval_timeout": 2,
+        "ranking_or_context_loss": 1
+      },
+      "notes": "Run start guardrail review left no unresolved needs_fix/critical finding. The obvious case 9 adjustment would repeat rejected comparison top-k/promotion paths, so no production retrieval or answering change was made."
     }
   ],
   "latest_debug_report": {
@@ -5914,5 +5927,19 @@
       "case_7": "Expected LJ-S RTO2L row matches LJ-S8000/content terms but ranks roughly 431 while product-specific pools hit the 1500-row cap, so discovery needs a bounded/indexed row-code or setting-item strategy rather than another broad scan.",
       "case_9": "Exact XG-X evidence is already high in table lexical SQL ordering and was observed by prior top-k diagnostics as assembled rank 7; keep it as a final-context selection target."
     }
+  },
+  "latest_no_change_validation": {
+    "summary": "test_reports/retrieval_eval_summary_20260825_222607.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260825_222607.json",
+    "dataset": "test_reports/retrieval_eval_dataset_20260825_222607.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260825_222607.jsonl",
+    "status": "no_production_change_validation",
+    "baseline": "retrieval_eval_20260825_072839",
+    "result": "7/10 direct retrieval, pass@1 60%, pass@3/pass@5 70%, candidate recall 80%, metadata document recall 100%.",
+    "failure_categories": {
+      "eval_timeout": 2,
+      "ranking_or_context_loss": 1
+    },
+    "notes": "Run start guardrail review left no unresolved needs_fix/critical finding. The obvious case 9 adjustment would repeat rejected comparison top-k/promotion paths, so no production retrieval or answering change was made."
   }
 }
