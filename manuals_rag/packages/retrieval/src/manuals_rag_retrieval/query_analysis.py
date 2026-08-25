@@ -123,6 +123,16 @@ def analyze_query(query: str) -> QueryAnalysis:
         for match in re.finditer(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query)
         if any(char.isdigit() for char in match.group(0))
     ]
+    comparison_identifier_matches: list[str] = []
+    if "comparison" in types or "compatibility" in types:
+        comparison_identifier_matches = [
+            match.group(0)
+            for match in re.finditer(
+                r"\b(?:[A-Z]{2,5}\d{1,5}|[A-Z]{1,5}-[A-Z]{1,8})\b",
+                query,
+            )
+            if not re.fullmatch(r"[A-Z]\d{1,5}", match.group(0))
+        ]
     model_match = re.search(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query)
     if model_match and not any(char.isdigit() for char in model_match.group(0)):
         model_match = None
@@ -148,7 +158,7 @@ def analyze_query(query: str) -> QueryAnalysis:
     explicit_identifier_count = int(bool(model_match)) + int(bool(error_match))
     filter_strictness = "strict" if explicit_identifier_count >= 2 else ("balanced" if explicit_identifier_count == 1 else "loose")
     product_identifiers: list[str] = []
-    for identifier in [*model_matches, *family_matches]:
+    for identifier in [*model_matches, *family_matches, *comparison_identifier_matches]:
         if identifier and identifier not in product_identifiers:
             product_identifiers.append(identifier)
     return QueryAnalysis(

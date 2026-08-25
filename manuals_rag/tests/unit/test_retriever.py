@@ -187,6 +187,28 @@ def test_query_analysis_marks_plural_values_apply_questions_as_structured_lookup
     assert analysis.product_identifiers == ["IV4-G120", "IV4-G600CA"]
 
 
+def test_query_analysis_extracts_bare_product_names_in_comparisons():
+    analysis = analyze_query(
+        "Compare the XG-X corrective action for an unsupported SD card access failure "
+        "with the CV-X482 corrective action."
+    )
+
+    assert "comparison" in analysis.query_types
+    assert "XG-X" in analysis.product_identifiers
+    assert "CV-X482" in analysis.product_identifiers
+
+
+def test_query_analysis_extracts_short_letter_number_products_in_comparisons():
+    analysis = analyze_query(
+        "For SV2 and LJ-S8000 data tables, compare the details listed for symptom monitoring "
+        "supported data types with the Index UINT entry."
+    )
+
+    assert "comparison" in analysis.query_types
+    assert "SV2" in analysis.product_identifiers
+    assert "LJ-S8000" in analysis.product_identifiers
+
+
 def test_query_analysis_marks_data_number_applies_questions_as_structured_lookup():
     analysis = analyze_query("What 0068 data4 applies to VS Series Vision System with Built-in AI?")
 
@@ -2161,6 +2183,91 @@ def test_table_lexical_terms_include_comparison_short_codes():
     terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
 
     assert {"ljs8000", "ljx8000", "errc", "t1", "msab"}.issubset(set(terms))
+
+
+def test_comparison_configuration_queries_keep_table_family_allowed():
+    analysis = analyze_query(
+        "For CV-X482 and LJ-X8000, compare what the Condition list and Standard Angle settings control."
+    )
+
+    assert "comparison" in analysis.query_types
+    assert "configuration" in analysis.query_types
+    assert retriever._preferred_family_order(analysis)[:2] == ["spec", "table"]
+    assert "table" in retriever._allowed_families(analysis)
+
+
+def test_comparison_table_lexical_prefilter_includes_symbol_terms(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_fetch_all(query: str, params: tuple[object, ...]) -> list[dict[str, object]]:
+        captured["query"] = query
+        captured["params"] = params
+        return []
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+    analysis = analyze_query(
+        "For LJ-X8000 and LJ-S8000 measurement outputs, compare what PMSR DC2LAR and RTO2L represent."
+    )
+
+    results = retriever.run_table_lexical_search(analysis.raw_query, ["corpus-1"], {}, analysis)
+
+    assert results == []
+    assert "%rto2l%" in captured["params"]
+    assert "%dc2lar%" in captured["params"]
+
+
+def test_comparison_table_lexical_preserves_candidate_per_explicit_product(monkeypatch):
+    def fake_fetch_all(_query: str, _params: tuple[object, ...]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for index in range(3):
+            rows.append(
+                {
+                    "id": f"cv-{index}",
+                    "document_version_id": "ver-cv",
+                    "source_document_id": "doc-cv",
+                    "title": "CV Manual",
+                    "section_path_text": "A",
+                    "page_from": 1,
+                    "page_to": 1,
+                    "content": "Corrective action: edge detection point halfway through the region. Increase the Max. Segments.",
+                    "metadata_json": {
+                        "chunk_type": "table_record",
+                        "table_column_headers": ["Corrective action"],
+                        "product_model": "CV-X482",
+                        "product_family": "CV-X Series",
+                    },
+                    "priority_score": 0.0,
+                }
+            )
+        rows.append(
+            {
+                "id": "xgx",
+                "document_version_id": "ver-xgx",
+                "source_document_id": "doc-xgx",
+                "title": "XG-X Manual",
+                "section_path_text": "B",
+                "page_from": 2,
+                "page_to": 2,
+                "content": "Corrective Action: KEYENCE does not guarantee operation with commercially available SD cards.",
+                "metadata_json": {
+                    "chunk_type": "table_record",
+                    "table_column_headers": ["Corrective Action"],
+                    "product_family": "XG-X Series",
+                },
+                "priority_score": 0.0,
+            }
+        )
+        return rows
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+    analysis = analyze_query(
+        "Compare the XG-X corrective action for an unsupported SD card access failure "
+        "with the CV-X482 corrective action when an edge detection point stops halfway through the region."
+    )
+
+    results = retriever.run_table_lexical_search(analysis.raw_query, ["corpus-1"], {}, analysis, limit=2)
+
+    assert {result.chunk_id for result in results} == {"xgx", "cv-0"}
 
 
 def test_comparison_table_promotion_adds_named_product_table_cell():

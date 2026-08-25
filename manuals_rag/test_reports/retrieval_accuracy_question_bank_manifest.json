@@ -182,6 +182,20 @@
           "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 260 passed, 58 warnings"
         ],
         "remaining": "The 10-case v2 slice is 5/10 direct retrieval with 3 ranking/context losses and 2 candidate misses. The actual HTTP API answer batch is 0/2 because expected documents were not cited or used. Next work should improve cross-document retrieval context assembly and final answer citation/use rather than broadening further first."
+      },
+      "2026-08-25T05:40:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Made a scoped general retrieval improvement for cross-document comparison queries after the v2 slice and HTTP answer smoke exposed expected-document grounding gaps. The change extracts bare comparison product identifiers such as XG-X and SV2, gives comparison evidence precedence over configuration family selection, includes compact symbol/code terms in comparison lexical table search, and preserves a table candidate per explicitly named product before lexical truncation.",
+        "evidence": [
+          "tests/unit/test_retriever.py -q -> 89 passed, 1 warning",
+          "tests/unit -q -> 265 passed, 58 warnings",
+          "retrieval_eval_20260825_060430",
+          "retrieval_eval_20260825_060605",
+          "retrieval_eval_20260825_060601",
+          "retrieval_eval_20260825_060844"
+        ],
+        "remaining": "Curated cross-document v2 retrieval improved from 5/10 to 6/10, but remaining failures are candidate_miss: 2, eval_timeout: 1, ranking_or_context_loss: 1. Actual HTTP API answer grounding remains 0/2 because expected documents are not cited or used; prioritize answer citation/use and remaining paired-evidence recall next."
       }
     }
   },
@@ -473,26 +487,127 @@
       }
     ],
     "failure_categories": {
-      "ranking_or_context_loss": 3,
-      "candidate_miss": 2
+      "candidate_miss": 2,
+      "eval_timeout": 1,
+      "ranking_or_context_loss": 1
     },
     "current_failure_categories": {
-      "ranking_or_context_loss": 3,
-      "candidate_miss": 2
+      "candidate_miss": 2,
+      "eval_timeout": 1,
+      "ranking_or_context_loss": 1
     },
-    "next_target": "Improve cross-document answer citation/use and retrieval context assembly on the manually reviewed v2 slice, especially expected-document grounding, while preserving saved single-step and warning/procedure gates.",
-    "answer_grounding_status": "Actual HTTP API /query answer batch after the comparison retrieval change failed 0/2 on the new curated cross-document v2 slice: both answers missed an expected document citation/use, with one retrieval_not_passed. Answer source was api for both and fallback rate was 0%."
+    "next_target": "Improve cross-document answer citation/use and the remaining cross-document candidate recall on the manually reviewed v2 slice, especially IV-HG/IV4 memory-read and XG-X SD-card paired evidence, while preserving saved single-step and warning/procedure gates.",
+    "answer_grounding_status": "Actual HTTP API /query answer batch after the comparison retrieval change remains 0/2 on the curated cross-document v2 slice: retrieval passed 1/2, but both answers missed an expected document citation/use. Answer source was api for both, fallback rate was 0%, mean latency was 42.085s. This is still a first-class guardrail follow-up target before broader answer tuning."
   },
   "latest_results": {
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 260,
+      "passed": 265,
       "warnings": 58,
-      "duration_seconds": 154.7,
-      "notes": "Broader shared unit gate requested by guardrail watch after the comparison retrieval change."
+      "duration_seconds": 159.25,
+      "notes": "Broader shared unit gate after production retrieval query-analysis and comparison lexical changes."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_060430",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_060430.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_060430.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_060430.json",
+        "status": "completed_manual_curated_cross_document_v2_after_comparison_identifier_change",
+        "mode": "retrieval_only_curated_cross_document_multi_step",
+        "total_queries": 10,
+        "passed_queries": 6,
+        "failed_queries": 4,
+        "pass_rate": 0.6,
+        "pass_at_1": 0.5,
+        "pass_at_3": 0.6,
+        "pass_at_5": 0.6,
+        "failure_categories": {
+          "candidate_miss": 2,
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 1
+        },
+        "candidate_recall_rate": 0.7,
+        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_rank_1_rate": 0.3333,
+        "notes": "Improved over the prior v2 retrieval gate at 5/10 by passing the SV2/LJ-S8000 case and the CV-X/XG-X gray-binary/SD-card case. An attempted metadata-wide comparison prefilter was abandoned because it caused timeouts and was not committed."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_060844",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_060844.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_060844.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_060844.json",
+        "status": "completed_actual_http_api_answer_grounding_cross_document_v2_after_retrieval_change",
+        "mode": "answer_with_citations_actual_http_api",
+        "total_queries": 2,
+        "passed_queries": 1,
+        "failed_queries": 1,
+        "pass_rate": 0.5,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 0,
+        "answer_failed_queries": 2,
+        "answer_pass_rate": 0.0,
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_fallback_count": 0,
+        "answer_failure_reasons": {
+          "expected_document_not_cited_or_used": 2,
+          "retrieval_not_passed": 1
+        },
+        "answer_latency": {
+          "min_seconds": 38.6,
+          "max_seconds": 45.569,
+          "mean_seconds": 42.085,
+          "p95_seconds": 45.569
+        },
+        "notes": "Scores actual user-visible /query answers; failures remain expected-document citation/use gaps, so this is still the next answer-generation target."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_060605",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_060605.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_060605.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_060605.json",
+        "status": "passed_saved_curated_single_step_regression",
+        "mode": "retrieval_only_single_step_regression",
+        "total_queries": 13,
+        "passed_queries": 13,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "failure_categories": {},
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0
+      },
+      {
+        "run_id": "retrieval_eval_20260825_060601",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_060601.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_060601.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_060601.json",
+        "status": "passed_saved_warning_procedure_regression",
+        "mode": "retrieval_only_warning_procedure_regression",
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "failure_categories": {},
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0
+      },
       {
         "run_id": "retrieval_eval_20260825_052554",
         "corpus_id": "manuals_vendor_keyence",
@@ -509,8 +624,16 @@
         "pass_at_1": 0.4,
         "pass_at_3": 0.5,
         "pass_at_5": 0.5,
-        "by_retrieval_task": {"multi_step_retrieval": {"total": 10, "passed": 5}},
-        "failure_categories": {"ranking_or_context_loss": 3, "candidate_miss": 2},
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 10,
+            "passed": 5
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 3,
+          "candidate_miss": 2
+        },
         "candidate_recall_rate": 0.8,
         "metadata_document_selection_recall_rate": 1.0,
         "notes": "The prior five curated v1 questions stayed green; the five added reviewed user-style cases exposed new cross-document context and candidate gaps."
@@ -532,10 +655,20 @@
         "answer_passed_queries": 0,
         "answer_failed_queries": 2,
         "answer_pass_rate": 0.0,
-        "answer_sources": {"api": 2},
+        "answer_sources": {
+          "api": 2
+        },
         "answer_fallback_count": 0,
-        "answer_failure_reasons": {"expected_document_not_cited_or_used": 2, "retrieval_not_passed": 1},
-        "answer_latency": {"min_seconds": 35.361, "max_seconds": 44.284, "mean_seconds": 39.822, "p95_seconds": 44.284},
+        "answer_failure_reasons": {
+          "expected_document_not_cited_or_used": 2,
+          "retrieval_not_passed": 1
+        },
+        "answer_latency": {
+          "min_seconds": 35.361,
+          "max_seconds": 44.284,
+          "mean_seconds": 39.822,
+          "p95_seconds": 44.284
+        },
         "notes": "Scores actual user-visible /query answers after the comparison retrieval change; failures show expected-document citation/use gap for cross-document answers."
       },
       {
@@ -4687,5 +4820,5 @@
     },
     "answer_grounding_status": "Actual HTTP API /query answer batch on curated cross-document v2 failed 0/2 due to expected_document_not_cited_or_used, with no fallback. This is the next answer-generation target."
   },
-  "next_target": "Improve cross-document answer citation/use and retrieval context assembly on the manually reviewed v2 slice, especially expected-document grounding, while preserving saved single-step and warning/procedure gates."
+  "next_target": "Improve cross-document answer citation/use and the remaining cross-document candidate recall on the manually reviewed v2 slice, especially IV-HG/IV4 memory-read and XG-X SD-card paired evidence, while preserving saved single-step and warning/procedure gates."
 }

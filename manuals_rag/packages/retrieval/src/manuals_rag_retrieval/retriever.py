@@ -503,7 +503,10 @@ def run_table_lexical_search(
     required_terms = [] if is_comparison_lookup else _lexical_table_content_terms(terms)
     symbol_terms = _lexical_table_symbol_terms(terms)
     if is_comparison_lookup:
-        like_terms = _comparison_table_content_terms(terms)
+        like_terms: list[str] = []
+        for term in [*_comparison_table_content_terms(terms), *_lexical_table_symbol_terms(terms)]:
+            if term not in like_terms:
+                like_terms.append(term)
         if like_terms:
             where.append(
                 "("
@@ -608,7 +611,33 @@ def run_table_lexical_search(
             )
         )
     ranked.sort(key=lambda item: item[0], reverse=True)
-    return [result for _, result in ranked[:limit]]
+    results = [result for _, result in ranked]
+    if is_comparison_lookup and len(analysis.product_identifiers) >= 2:
+        promoted: list[SearchResult] = []
+        seen_ids: set[str] = set()
+        for identifier in analysis.product_identifiers:
+            candidate = next(
+                (
+                    result
+                    for result in results
+                    if result.chunk_id not in seen_ids and _result_matches_identifier(result, identifier)
+                ),
+                None,
+            )
+            if candidate is None:
+                continue
+            seen_ids.add(candidate.chunk_id)
+            promoted.append(candidate)
+        if promoted:
+            deduped: list[SearchResult] = []
+            for result in [*promoted, *results]:
+                if result.chunk_id in seen_ids and result not in promoted:
+                    continue
+                if any(existing.chunk_id == result.chunk_id for existing in deduped):
+                    continue
+                deduped.append(result)
+            results = deduped
+    return results[:limit]
 
 
 def _lexical_context_terms(query: str, analysis: QueryAnalysis) -> list[str]:
@@ -962,14 +991,14 @@ def _preferred_family_order(analysis: QueryAnalysis) -> list[str]:
         return ["context", "spec", "table", "prose"]
     if "structured_lookup" in analysis.query_types:
         return ["table", "spec", "context", "prose"]
-    if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
-        return ["procedure", "context", "prose", "table"]
-    if "operational_flow" in analysis.query_types:
-        return ["context", "procedure", "prose", "table"]
     if "spec_lookup" in analysis.query_types or "part_lookup" in analysis.query_types:
         return ["spec", "table", "prose", "context"]
     if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
         return ["spec", "table", "context", "prose"]
+    if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
+        return ["procedure", "context", "prose", "table"]
+    if "operational_flow" in analysis.query_types:
+        return ["context", "procedure", "prose", "table"]
     return ["prose", "context", "spec", "table"]
 
 
@@ -980,14 +1009,14 @@ def _allowed_families(analysis: QueryAnalysis) -> set[str]:
         return {"context", "spec"}
     if "structured_lookup" in analysis.query_types:
         return {"table", "spec", "context"}
-    if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
-        return {"procedure", "context", "prose"}
-    if "operational_flow" in analysis.query_types:
-        return {"prose", "context", "procedure"}
     if "spec_lookup" in analysis.query_types or "part_lookup" in analysis.query_types:
         return {"spec", "table", "context"}
     if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
         return {"spec", "table", "context"}
+    if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
+        return {"procedure", "context", "prose"}
+    if "operational_flow" in analysis.query_types:
+        return {"prose", "context", "procedure"}
     return {"prose", "context"}
 
 
