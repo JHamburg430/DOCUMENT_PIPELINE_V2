@@ -676,6 +676,66 @@ def test_debug_report_probes_expected_evidence_lexical_discovery(monkeypatch):
         "matched_order_terms": ["rto2l"],
         "priority_score": 0.0,
     }
+    row_key_probe = report["cases"][0]["diagnostics"]["expected_evidence_row_key_probe"]
+    assert row_key_probe["items"][0]["row_key_candidates"][0]["text"] == "RTO2L"
+    assert row_key_probe["items"][0]["row_key_candidates"][0]["normalized"] == "rto2l"
+    assert row_key_probe["items"][0]["row_key_candidates"][0]["mentioned_in_query"] is True
+    assert row_key_probe["items"][0]["matched_query_identifiers"] == ["LJ-S8000"]
+
+
+def test_debug_report_counts_expected_row_key_candidate_pool(monkeypatch):
+    analysis = type(
+        "Analysis",
+        (),
+        {
+            "query_types": ["comparison"],
+            "preferred_metadata_filters": {},
+            "preferred_chunk_types": ["table_record"],
+            "product_identifiers": ["CV-X482"],
+        },
+    )()
+    expected = {
+        "id": "chunk-expected",
+        "document_version_id": "ver-1",
+        "source_document_id": "doc-1",
+        "title": "Expected Manual",
+        "section_path_text": "Settings",
+        "page_from": 8,
+        "page_to": 8,
+        "content": "Setting item: Condition list; Settings: A maximum of 16 reference conditions can be set.",
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_key_value": True,
+            "product_model": "CV-X482",
+        },
+        "priority_score": 0.0,
+    }
+
+    def fake_fetch_all(sql, *_args, **_kwargs):
+        if "count(*) as pool_count" in sql:
+            return [{"pool_count": 24}]
+        return [expected]
+
+    monkeypatch.setattr(retrieval_debug, "fetch_all", fake_fetch_all)
+
+    probe = retrieval_debug._expected_evidence_row_key_probe(
+        "For CV-X482, what does the Condition list setting control?",
+        ["manuals_vendor_keyence"],
+        analysis,
+        [{"chunk_id": "chunk-expected", "source_document_id": "doc-1"}],
+    )
+
+    item = probe["items"][0]
+    assert item["matched_query_identifiers"] == ["CV-X482"]
+    assert item["row_key_candidates"] == [
+        {
+            "source": "setting_item",
+            "text": "Condition list",
+            "normalized": "conditionlist",
+            "mentioned_in_query": True,
+            "corpus_pool_count": 24,
+        }
+    ]
 
 
 def test_debug_report_uses_stage_candidate_limit_for_deeper_stage_ranks(monkeypatch):

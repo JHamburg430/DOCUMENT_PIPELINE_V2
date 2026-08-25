@@ -352,6 +352,132 @@ def _expected_evidence_lexical_probe(
     }
 
 
+def _normalized_row_key(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", text.lower())
+
+
+def _row_key_candidates(content: str, metadata: dict[str, Any]) -> list[dict[str, str]]:
+    candidates: list[dict[str, str]] = []
+    setting_match = re.search(r"\bSetting item:\s*([^;\n]+)", content, flags=re.IGNORECASE)
+    if setting_match:
+        candidates.append({"source": "setting_item", "text": setting_match.group(1).strip()})
+    for header in metadata.get("table_row_headers") or []:
+        text = str(header).strip()
+        if text:
+            candidates.append({"source": "table_row_header", "text": text})
+    deduped: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for candidate in candidates:
+        normalized = _normalized_row_key(candidate["text"])
+        if len(normalized) < 3:
+            continue
+        key = (candidate["source"], normalized)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append({**candidate, "normalized": normalized})
+    return deduped
+
+
+def _row_key_pool_count(corpus_ids: list[str], normalized_key: str) -> int | None:
+    try:
+        rows = fetch_all(
+            """
+            select count(*) as pool_count
+            from retrieval_chunks
+            where chunk_type = 'table_record'
+              and is_active = true
+              and metadata_json->>'corpus_id' = any(%s)
+              and regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s
+            """,
+            (corpus_ids, f"%{normalized_key}%"),
+        )
+    except Exception:
+        return None
+    if not rows:
+        return None
+    value = rows[0].get("pool_count", rows[0].get("c"))
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _expected_evidence_row_key_probe(
+    query: str,
+    corpus_ids: list[str],
+    analysis: Any,
+    expected_evidence: list[dict[str, Any]],
+) -> dict[str, Any]:
+    chunk_ids = [str(item.get("chunk_id")) for item in expected_evidence if item.get("chunk_id")]
+    if not chunk_ids:
+        return {"items": []}
+    rows = fetch_all(
+        """
+        select id, document_version_id, source_document_id, title, section_path_text,
+               page_from, page_to, content, metadata_json, priority_score
+        from retrieval_chunks
+        where id = any(%s)
+        """,
+        (chunk_ids,),
+    )
+    rows_by_id = {str(row["id"]): row for row in rows}
+    normalized_query = _normalized_row_key(query)
+    query_row_keys = [_normalized_row_key(match.group(0)) for match in re.finditer(r"\b[A-Z][A-Za-z0-9]*(?:[-\s][A-Z0-9][A-Za-z0-9]*)*\b", query)]
+    query_row_keys = list(dict.fromkeys(key for key in query_row_keys if len(key) >= 3))
+    items: list[dict[str, Any]] = []
+    identifiers = [str(identifier) for identifier in getattr(analysis, "product_identifiers", []) or [] if str(identifier)]
+    for evidence in expected_evidence:
+        chunk_id = str(evidence.get("chunk_id") or "")
+        row = rows_by_id.get(chunk_id)
+        if row is None:
+            items.append({"chunk_id": chunk_id, "found_in_database": False})
+            continue
+        metadata = dict(row.get("metadata_json") or {})
+        content = str(row.get("content") or "")
+        row_keys = _row_key_candidates(content, metadata)
+        result_for_identifier = SearchResult(
+            chunk_id=chunk_id,
+            score=float(row.get("priority_score") or 0.0),
+            title=str(row.get("title") or ""),
+            document_version_id=str(row.get("document_version_id") or ""),
+            source_document_id=str(row.get("source_document_id") or ""),
+            pages=list(range(int(row["page_from"]), int(row["page_to"]) + 1)),
+            section_path=[str(part) for part in metadata.get("section_path") or [row.get("section_path_text") or "Document"]],
+            content=content,
+            metadata={
+                **metadata,
+                "chunk_id": chunk_id,
+                "document_version_id": str(row.get("document_version_id") or ""),
+                "source_document_id": str(row.get("source_document_id") or ""),
+                "chunk_type": str(row.get("chunk_type") or metadata.get("chunk_type") or "table_record"),
+                "title": str(row.get("title") or ""),
+                "content": content,
+                "content_for_rerank": content,
+                "priority_score": float(row.get("priority_score") or 0.0),
+            },
+        )
+        items.append(
+            {
+                "chunk_id": chunk_id,
+                "found_in_database": True,
+                "source_document_id": str(row.get("source_document_id") or ""),
+                "matched_query_identifiers": [
+                    identifier for identifier in identifiers if _result_matches_identifier(result_for_identifier, identifier)
+                ],
+                "row_key_candidates": [
+                    {
+                        **candidate,
+                        "mentioned_in_query": candidate["normalized"] in normalized_query,
+                        "corpus_pool_count": _row_key_pool_count(corpus_ids, candidate["normalized"]),
+                    }
+                    for candidate in row_keys
+                ],
+            }
+        )
+    return {"query_row_keys": query_row_keys, "items": items}
+
+
 def _table_lexical_sql_pool_details(
     *,
     corpus_ids: list[str],
@@ -708,6 +834,12 @@ def _case_diagnostics(
             analysis,
             expected_evidence,
             full_stage_results or {},
+        )
+        diagnostics["expected_evidence_row_key_probe"] = _expected_evidence_row_key_probe(
+            query,
+            corpus_ids,
+            analysis,
+            expected_evidence,
         )
     return diagnostics
 

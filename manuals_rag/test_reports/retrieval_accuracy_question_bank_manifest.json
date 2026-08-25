@@ -691,7 +691,7 @@
     "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated."
   },
   "latest_results": {
-    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 93 passed, 1 warning during the rejected user-mentioned table-item focus experiment; production retrieval/test edits were reverted afterward.",
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_debug.py -q -> 10 passed in 23.45s.",
     "evals": [
       {
         "run_id": "retrieval_eval_20260825_215706",
@@ -5772,12 +5772,28 @@
         },
         "notes": "Removing table_record from the comparison/compatibility special route avoided duplicate table vector search in shape, but did not improve the full manually reviewed cross-document v2 gate and shifted case 9 from candidate_miss to eval_timeout. The production retrieval edit and unit test were reverted before commit."
       }
-    ]
+    ],
+    "debug_report": {
+      "path": "test_reports/retrieval_debug_report_20260825_2259_row_key_probe.json",
+      "status": "completed",
+      "mode": "expected_evidence_row_key_probe",
+      "baseline": "retrieval_eval_20260825_072839",
+      "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "case_ids": [
+        "curated_cross_document_v2::6",
+        "curated_cross_document_v2::7",
+        "curated_cross_document_v2::9"
+      ],
+      "stage_candidate_limit": 120,
+      "top_k": 20,
+      "notes": "Eval/debug-only row-key feasibility probe. Cases 6 and 7 exact expected rows have query-mentioned setting-item/table-row keys with small corpus-wide normalized pools: Condition list 24, Standard Angle 31, PMSR DC2LAR 23, and RTO2L 51, while each row also matches the requested product identifier. This supports a future bounded/indexed row-key discovery design rather than another broad SQL pool expansion. Case 9 row keys are not directly mentioned in the query and should remain separate as a final-context/top-k or timeout target. No production retrieval behavior changed and no pass rate is marked resolved."
+    }
   },
-  "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 and the no-change validation run retrieval_eval_20260825_222607. Avoid rejected compact-product SQL supplemental slices, paired table-item phrase boosts, duplicate comparison special-table removal, user-mentioned table-item focus supplements, comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Cases 6 and 7 still need a truly bounded/indexed setting-item or row-code discovery design because exact validated rows match terms but rank hundreds deep in capped SQL pools; case 9 also has timeout sensitivity in the normal gate even though prior diagnostics showed both expected items can appear by top 10. Do not commit another production retrieval tweak until it improves the full 10-case v2 gate and preserves saved single-step and warning/procedure gates.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_215706 is diagnostic-only after the user-mentioned table-item focus experiment stayed 7/10 with the same failure profile; all production retrieval/test edits were reverted.",
+  "next_target": "Use test_reports/retrieval_debug_report_20260825_2259_row_key_probe.json plus identifier-pool/source-stage/stage-timing diagnostics to design a genuinely bounded/indexed row-key discovery path for cases 6 and 7. The promising general signal is query-mentioned setting-item/table-row keys with small normalized corpus pools plus requested product-identifier matches; avoid broad SQL pool expansions and all rejected comparison promotion/scoring/budget/table-first/term-variant paths. Keep case 9 separate as final-context/top-k or timeout work. Do not commit production retrieval changes until the full 10-case cross-document v2 gate improves and saved single-step plus warning/procedure gates are preserved.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_222607 is a no-production-change validation run at 7/10; the new row-key probe is diagnostic-only and does not mark the baseline resolved.",
   "current_failure_categories": {
-    "eval_timeout": 2,
+    "candidate_miss": 1,
+    "eval_timeout": 1,
     "ranking_or_context_loss": 1
   },
   "failure_categories": {
@@ -5786,6 +5802,21 @@
     "ranking_or_context_loss": 1
   },
   "diagnostics": [
+    {
+      "path": "test_reports/retrieval_debug_report_20260825_2259_row_key_probe.json",
+      "status": "completed",
+      "mode": "expected_evidence_row_key_probe",
+      "baseline": "retrieval_eval_20260825_072839",
+      "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "case_ids": [
+        "curated_cross_document_v2::6",
+        "curated_cross_document_v2::7",
+        "curated_cross_document_v2::9"
+      ],
+      "stage_candidate_limit": 120,
+      "top_k": 20,
+      "notes": "Eval/debug-only row-key feasibility probe. Cases 6 and 7 exact expected rows have query-mentioned setting-item/table-row keys with small corpus-wide normalized pools: Condition list 24, Standard Angle 31, PMSR DC2LAR 23, and RTO2L 51, while each row also matches the requested product identifier. This supports a future bounded/indexed row-key discovery design rather than another broad SQL pool expansion. Case 9 row keys are not directly mentioned in the query and should remain separate as a final-context/top-k or timeout target. No production retrieval behavior changed and no pass rate is marked resolved."
+    },
     {
       "path": "test_reports/retrieval_debug_report_20260825_2129_identifier_pool.json",
       "status": "completed",
@@ -5917,15 +5948,15 @@
     }
   ],
   "latest_debug_report": {
-    "report": "test_reports/retrieval_debug_report_20260825_2129_identifier_pool.json",
-    "type": "comparison_table_identifier_pool_diagnostic",
+    "report": "test_reports/retrieval_debug_report_20260825_2259_row_key_probe.json",
+    "type": "expected_evidence_row_key_probe",
     "scope": "curated_cross_document_v2_cases_6_7_9",
     "status": "diagnostic_only_no_production_change",
     "evidence": {
-      "current_baseline": "retrieval_eval_20260825_072839 remains 7/10 with candidate_miss: 1, eval_timeout: 1, ranking_or_context_loss: 1.",
-      "case_6": "Expected Condition list and Standard Angle table rows match product/content terms but rank roughly 399 and 370 in the existing SQL pool, which explains source-stage misses and timeout pressure.",
-      "case_7": "Expected LJ-S RTO2L row matches LJ-S8000/content terms but ranks roughly 431 while product-specific pools hit the 1500-row cap, so discovery needs a bounded/indexed row-code or setting-item strategy rather than another broad scan.",
-      "case_9": "Exact XG-X evidence is already high in table lexical SQL ordering and was observed by prior top-k diagnostics as assembled rank 7; keep it as a final-context selection target."
+      "current_baseline": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 baseline at 7/10; no retrieval pass rate is marked resolved.",
+      "case_6": "Expected Condition list and Standard Angle rows each match a requested product identifier and query-mentioned normalized row keys with small corpus pools (24 and 31), despite ranking hundreds deep in the current broad SQL pool.",
+      "case_7": "Expected LJ-X PMSR DC2LAR and LJ-S RTO2L rows match requested product identifiers and query-mentioned normalized row keys with small corpus pools (23 and 51).",
+      "case_9": "Expected row keys are not directly mentioned in the query; keep this separate from the row-key discovery design as final-context/top-k or timeout work."
     }
   },
   "latest_no_change_validation": {
