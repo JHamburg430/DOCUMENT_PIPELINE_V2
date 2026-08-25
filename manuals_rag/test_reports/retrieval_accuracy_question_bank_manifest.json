@@ -16,12 +16,12 @@
     "max_queries_is_batch_size_not_bank_size": true,
     "replacement_debt": {
       "single_step_retrieval": 0,
-      "reason": "The 13 stale saved single-step cases remain replaced without shrinking active coverage; the previously weak deterministic replacement slice is now superseded by a manually curated 13-case user-style single-step replacement dataset.",
+      "reason": "Closed by guardrail v2 curation: the previous curated slice was reopened after guardrail 2026-08-25T01:40:00Z, questionable rows were replaced one-for-one, duplicate source_chunk_id coverage was removed, and active single-step coverage stayed at 100.",
       "source_dataset": "test_reports/retrieval_accuracy_question_bank_20260824_045817.jsonl",
-      "replacement_dataset": "test_reports/retrieval_eval_dataset_20260825_0123_curated_single_step_replacements.jsonl",
+      "replacement_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
       "retired_reason_code": "not_queryworthy_source_chunk",
       "answer_grounding_quality_debt": 0,
-      "answer_grounding_quality_debt_reason": "Closed by manual guardrail curation of 13 realistic user-style single-step questions, validator review with 13/13 accepted, direct retrieval eval retrieval_eval_20260825_012733 at 13/13 rank-1, and HTTP API answer smoke retrieval_eval_20260825_012839 at 2/2 actual API answers with no fallback.",
+      "answer_grounding_quality_debt_reason": "Closed for the replacement slice by full validator review, direct retrieval eval retrieval_eval_20260825_020146 at 13/13 rank-1, and HTTP API answer smoke retrieval_eval_20260825_020243 at 2/2 actual API answers with no fallback. Broader answer grounding remains the next target, not replacement debt.",
       "diagnostic_replacement_attempts": [
         {
           "dataset": "test_reports/retrieval_eval_dataset_20260825_005912.jsonl",
@@ -41,6 +41,13 @@
           "answer_summary": "test_reports/retrieval_eval_summary_20260825_012839.json",
           "result": "13/13 direct retrieval passed at rank 1; 2/2 HTTP API answer smoke passed using actual API answer payloads.",
           "review": "Manual curation replaced source-shaped/table-coordinate prompts with realistic engineer, technician, or support phrasing while preserving source-backed expected evidence."
+        },
+        {
+          "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+          "retrieval_summary": "test_reports/retrieval_eval_summary_20260825_020146.json",
+          "answer_summary": "test_reports/retrieval_eval_summary_20260825_020243.json",
+          "result": "13/13 direct retrieval passed at rank 1; 2/2 HTTP API answer smoke passed using actual API answer payloads; all 13 questions passed validator review and use unique source chunks.",
+          "review": "Guardrail v2 reopened the prior closure and replaced line 3 source/table-shaped, line 7 TOC/contents, duplicated line 5 source chunk, and line 13 bracket-label-like questions; two additional source-close prompts were rephrased after validator review."
         }
       ]
     },
@@ -81,6 +88,18 @@
           "retrieval_eval_20260825_012839"
         ],
         "remaining": "Broaden HTTP API answer-grounding coverage across realistic warning/procedure and cross-document multi-step cases; continue cross-document retrieval work."
+      },
+      "2026-08-25T01:40:00Z": {
+        "severity": "needs_fix",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Reopened the curated replacement-slice quality debt, superseded the v1 curated dataset, created a v2 13-question user-style replacement slice with unique source chunks, and kept active single-step counts monotonic.",
+        "evidence": [
+          "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+          "tests/unit/test_retrieval_eval.py::test_eval_generation_rejects_bracketed_source_label_queries",
+          "retrieval_eval_20260825_020146",
+          "retrieval_eval_20260825_020243"
+        ],
+        "remaining": "Broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases; continue cross-document retrieval work."
       }
     }
   },
@@ -270,7 +289,7 @@
         "created_at": "2026-08-25T01:23:00Z",
         "corpus_id": "manuals_vendor_keyence",
         "generation": "manual_guardrail_curated_single_step_replacement",
-        "status": "exploratory",
+        "status": "superseded_by_guardrail_v2",
         "supersedes": "test_reports/retrieval_eval_dataset_20260824_210121.jsonl",
         "total_questions": 13,
         "single_step_questions": 13,
@@ -279,7 +298,25 @@
           "table_record": 11,
           "atomic_text": 2
         },
-        "notes": "Manual user-style replacements for the weak source-shaped 13-case replacement-debt slice. All cases passed validate_eval_case and direct retrieval eval at rank 1; first two cases passed HTTP API answer scoring using actual /query answers."
+        "notes": "Superseded after guardrail 2026-08-25T01:40:00Z found a source/table-shaped row, a TOC/contents-derived row, and duplicate source_chunk_id coverage.",
+        "superseded_by": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl"
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_020146.json",
+        "created_at": "2026-08-25T01:53:00Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "manual_guardrail_curated_single_step_replacement_v2",
+        "status": "exploratory",
+        "supersedes": "test_reports/retrieval_eval_dataset_20260825_0123_curated_single_step_replacements.jsonl",
+        "total_questions": 13,
+        "single_step_questions": 13,
+        "multi_step_questions": 0,
+        "by_chunk_type": {
+          "table_record": 10,
+          "atomic_text": 3
+        },
+        "quality_review": "All 13 questions pass the current query-quality validator, use 13 unique source chunks, and replace the guardrail-cited source/table-shaped, TOC/contents, duplicate-source, and bracket-label-like cases with realistic user-style questions."
       }
     ]
   },
@@ -287,11 +324,82 @@
     "unit_tests": {
       "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
       "status": "passed",
-      "passed": 62,
+      "passed": 63,
       "warnings": 0,
-      "notes": "Focused eval-harness tests passed after adding access-control anchors for realistic MAC/password questions."
+      "notes": "Focused eval-quality tests passed after bracketed source-label validation and curated replacement v2 review."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_020146",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_020146.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_020146.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_020146.json",
+        "status": "completed_guardrail_v2_curated_single_step_replacement_retrieval_gate",
+        "search_mode": "direct",
+        "response_mode": "retrieval_only",
+        "total_queries": 13,
+        "passed_queries": 13,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "failure_categories": {},
+        "mode": "manual_curated_single_step_replacement_v2_quality_debt_closure",
+        "notes": "V2 curation replaced the guardrail-cited weak rows and duplicate source coverage; all 13 cases validated and passed at rank 1."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_020243",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_020243.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_020243.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_020243.json",
+        "status": "completed_http_api_answer_smoke_curated_single_step_replacements_v2",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "per_query_timeout_seconds": 75,
+        "warmup_queries": 0,
+        "total_queries": 2,
+        "passed_queries": 2,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 2,
+        "answer_failed_queries": 0,
+        "answer_pass_rate": 1.0,
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_fallback_rate": 0.0,
+        "answer_latency": {
+          "mean_seconds": 43.13,
+          "p95_seconds": 49.106
+        },
+        "mode": "http_api_answer_with_citations_curated_single_step_v2_smoke",
+        "notes": "Scores actual /query API answer payloads on the cleaned v2 replacement slice; no local answer regeneration or fallback use."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_015932",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_015932.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_015932.json",
+        "status": "diagnostic_not_promoted",
+        "search_mode": "direct",
+        "response_mode": "retrieval_only",
+        "total_queries": 13,
+        "passed_queries": 11,
+        "failed_queries": 2,
+        "pass_rate": 0.8462,
+        "failure_categories": {
+          "ranking_or_context_loss": 2
+        },
+        "mode": "draft_v2_retrieval_diagnostic",
+        "notes": "First v2 draft kept all questions valid but two rephrasings lost ranking/context; dataset was revised before promotion."
+      },
       {
         "run_id": "retrieval_eval_20260825_012733",
         "corpus_id": "manuals_vendor_keyence",
@@ -3993,28 +4101,10 @@
         "notes": "Separate LLM-generated live eval attempt produced no completed cases after about 2 minutes and was stopped for cron budget; this completed run used deterministic fallback generation."
       }
     ],
-    "failure_categories": {
-      "replacement_debt_single_step_bank": {},
-      "replacement_single_step_bank": {},
-      "warning_step_multi_step_bank": {},
-      "cross_document_multi_step_bank": {
-        "ranking_or_context_loss": 7,
-        "candidate_miss": 1
-      },
-      "answer_grounding_smoke": {}
-    },
-    "next_target": "Replace or curate weak source-shaped cases in test_reports/retrieval_eval_dataset_20260824_210121.jsonl before using them as answer-generation gates; then broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases while continuing cross-document retrieval improvements.",
-    "current_failure_categories": {
-      "replacement_debt_single_step_bank": {},
-      "replacement_single_step_bank": {},
-      "warning_step_multi_step_bank": {},
-      "cross_document_multi_step_bank": {
-        "ranking_or_context_loss": 7,
-        "candidate_miss": 1
-      },
-      "answer_grounding_smoke": {}
-    },
-    "answer_grounding_status": "HTTP answer_with_citations scoring remains fixed, but no new answer-generation gate was promoted this run because the replacement-debt slice still needs curated user-style replacements."
+    "failure_categories": {},
+    "next_target": "Broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases, then resume cross-document multi-step retrieval/context improvements.",
+    "current_failure_categories": {},
+    "answer_grounding_status": "HTTP API answer scoring was exercised on the cleaned v2 replacement slice: 2/2 actual /query answers passed with no fallback; broader realistic warning/procedure and cross-document answer coverage remains next."
   },
-  "next_target": "Curate or LLM-generate 13 realistic user-style single-step replacement questions to close the source-shaped replacement-slice quality debt, then run HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases."
+  "next_target": "Broaden HTTP API answer-grounding coverage across realistic single-step, warning/procedure, and cross-document multi-step cases, then resume cross-document multi-step retrieval/context improvements."
 }
