@@ -1893,6 +1893,29 @@ def test_eval_generation_rejects_copied_source_phrasing(monkeypatch):
     assert "obtained authentication" in prompts[0]
 
 
+def test_validate_eval_case_accepts_access_control_user_question():
+    chunk = {
+        "chunk_type": "atomic_text",
+        "title": "VS Series",
+        "source_filename": "vs-series.pdf",
+        "section_path_text": "Program setting protection",
+        "content": (
+            "To allow the use of a program setting saved in the computer only for a restricted set of "
+            "VS cameras, set a password and the MAC addresses of the target VS cameras."
+        ),
+        "metadata_json": {"product_family": "VS Series"},
+        "product_model": "VS Series",
+    }
+
+    valid, reason = validate_eval_case(
+        "How do I limit a saved VS program setting so only selected cameras can use it?",
+        chunk,
+        ["password", "mac", "addresses", "program"],
+    )
+
+    assert (valid, reason) == (True, "validated")
+
+
 def test_score_search_results_passes_on_same_document_term_overlap():
     case = RetrievalEvalCase(
         case_id="c1",

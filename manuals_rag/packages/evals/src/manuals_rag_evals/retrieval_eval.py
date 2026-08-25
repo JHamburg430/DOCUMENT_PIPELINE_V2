@@ -154,6 +154,8 @@ GENERIC_TECHNICAL_TERMS = {
     "ethernet/ip",
     "laser",
     "wavelength",
+    "mac",
+    "password",
 }
 
 USER_STYLE_QUERY_SYSTEM_PROMPT = """
