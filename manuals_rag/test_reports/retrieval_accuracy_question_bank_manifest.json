@@ -170,6 +170,18 @@
           "retrieval_eval_20260825_050623"
         ],
         "remaining": "The v1 cross-document slice is now 5/5 but only five manually reviewed cases. Broaden cross-document coverage and rotate actual HTTP API answer-grounding batches before treating this as release-level evidence."
+      },
+      "2026-08-25T05:10:00Z": {
+        "severity": "watch",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Broadened manually reviewed cross-document coverage from 5 to 10 cases, ran an actual HTTP API answer-grounding batch after the comparison retrieval change, and ran the broader shared unit gate.",
+        "evidence": [
+          "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+          "retrieval_eval_20260825_052554",
+          "retrieval_eval_20260825_052658",
+          "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 260 passed, 58 warnings"
+        ],
+        "remaining": "The 10-case v2 slice is 5/10 direct retrieval with 3 ranking/context losses and 2 candidate misses. The actual HTTP API answer batch is 0/2 because expected documents were not cited or used. Next work should improve cross-document retrieval context assembly and final answer citation/use rather than broadening further first."
       }
     }
   },
@@ -189,11 +201,11 @@
     "run_budget_minutes": 30
   },
   "question_bank": {
-    "total_questions": 198,
+    "total_questions": 203,
     "single_step_questions": 100,
-    "multi_step_questions": 98,
+    "multi_step_questions": 103,
     "locked_regression_questions": 0,
-    "exploratory_questions": 198,
+    "exploratory_questions": 203,
     "datasets": [
       {
         "path": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
@@ -442,22 +454,90 @@
         },
         "quality_review": "Manual review rewrote generated cross-document prompts into user-style comparison/troubleshooting/spec questions while preserving source-backed expected evidence from two documents. No filename, chunk-id, parser-artifact, or table-coordinate prompt text is required of the user.",
         "notes": "Retrieval evidence retrieval_eval_20260825_042607: 3/5 passed, candidate recall 100%, metadata-document recall 100%, failures ranking_or_context_loss: 2. Promoted as realistic exploratory coverage, not as a green release gate."
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_052554.json",
+        "created_at": "2026-08-25T05:28:00Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "manual_curated_cross_document_v2_from_diagnostic_evidence",
+        "status": "exploratory",
+        "supersedes": "test_reports/retrieval_eval_dataset_20260825_0423_curated_cross_document_v1.jsonl",
+        "total_questions": 10,
+        "single_step_questions": 0,
+        "multi_step_questions": 10,
+        "by_chunk_type": {
+          "table_record": 10
+        },
+        "notes": "Extends the manually reviewed v1 slice with five additional user-style cross-document questions rewritten from source-backed diagnostic evidence; loaded with dropped_invalid_cases=0 and benchmark_validity_rate=100%."
       }
     ],
-    "failure_categories": {},
-    "current_failure_categories": {},
-    "next_target": "Broaden manually reviewed cross-document coverage beyond the 5-case v1 slice and rotate a small actual HTTP API answer-grounding batch, while watching comparison lexical latency and preserving saved single-step and warning/procedure gates.",
-    "answer_grounding_status": "No HTTP API answer-mode batch was run in this retrieval-focused cycle. Prior actual /query evidence remains 6/6 across realistic single-step, warning/procedure, and one cross-document case; coverage is still cron-sized and should keep rotating or move to a longer answer-eval schedule."
+    "failure_categories": {
+      "ranking_or_context_loss": 3,
+      "candidate_miss": 2
+    },
+    "current_failure_categories": {
+      "ranking_or_context_loss": 3,
+      "candidate_miss": 2
+    },
+    "next_target": "Improve cross-document answer citation/use and retrieval context assembly on the manually reviewed v2 slice, especially expected-document grounding, while preserving saved single-step and warning/procedure gates.",
+    "answer_grounding_status": "Actual HTTP API /query answer batch after the comparison retrieval change failed 0/2 on the new curated cross-document v2 slice: both answers missed an expected document citation/use, with one retrieval_not_passed. Answer source was api for both and fallback rate was 0%."
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q",
+      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q",
       "status": "passed",
-      "passed": 84,
-      "warnings": 1,
-      "notes": "Focused retriever coverage for comparison short-code lexical terms and per-product table-cell promotion."
+      "passed": 260,
+      "warnings": 58,
+      "duration_seconds": 154.7,
+      "notes": "Broader shared unit gate requested by guardrail watch after the comparison retrieval change."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_052554",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_052554.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_052554.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_052554.json",
+        "status": "completed_manual_curated_cross_document_v2",
+        "mode": "retrieval_only_curated_cross_document_multi_step",
+        "total_queries": 10,
+        "passed_queries": 5,
+        "failed_queries": 5,
+        "pass_rate": 0.5,
+        "pass_at_1": 0.4,
+        "pass_at_3": 0.5,
+        "pass_at_5": 0.5,
+        "by_retrieval_task": {"multi_step_retrieval": {"total": 10, "passed": 5}},
+        "failure_categories": {"ranking_or_context_loss": 3, "candidate_miss": 2},
+        "candidate_recall_rate": 0.8,
+        "metadata_document_selection_recall_rate": 1.0,
+        "notes": "The prior five curated v1 questions stayed green; the five added reviewed user-style cases exposed new cross-document context and candidate gaps."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_052658",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_052658.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_052658.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_052658.json",
+        "status": "completed_actual_http_api_answer_grounding_cross_document_v2",
+        "mode": "answer_with_citations_actual_http_api",
+        "total_queries": 2,
+        "passed_queries": 1,
+        "failed_queries": 1,
+        "pass_rate": 0.5,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 0,
+        "answer_failed_queries": 2,
+        "answer_pass_rate": 0.0,
+        "answer_sources": {"api": 2},
+        "answer_fallback_count": 0,
+        "answer_failure_reasons": {"expected_document_not_cited_or_used": 2, "retrieval_not_passed": 1},
+        "answer_latency": {"min_seconds": 35.361, "max_seconds": 44.284, "mean_seconds": 39.822, "p95_seconds": 44.284},
+        "notes": "Scores actual user-visible /query answers after the comparison retrieval change; failures show expected-document citation/use gap for cross-document answers."
+      },
       {
         "run_id": "retrieval_eval_20260825_050502",
         "corpus_id": "manuals_vendor_keyence",
@@ -4596,10 +4676,16 @@
         "notes": "Separate LLM-generated live eval attempt produced no completed cases after about 2 minutes and was stopped for cron budget; this completed run used deterministic fallback generation."
       }
     ],
-    "failure_categories": {},
-    "next_target": "Broaden manually reviewed cross-document coverage beyond the 5-case v1 slice and rotate a small actual HTTP API answer-grounding batch, while watching comparison lexical latency and preserving saved single-step and warning/procedure gates.",
-    "current_failure_categories": {},
-    "answer_grounding_status": "No HTTP API answer-mode batch was run in this retrieval-focused cycle. Prior actual /query evidence remains 6/6 across realistic single-step, warning/procedure, and one cross-document case; coverage is still cron-sized and should keep rotating or move to a longer answer-eval schedule."
+    "failure_categories": {
+      "ranking_or_context_loss": 3,
+      "candidate_miss": 2
+    },
+    "next_target": "Improve cross-document answer citation/use and retrieval context assembly on the manually reviewed v2 slice, especially expected-document grounding, while preserving saved single-step and warning/procedure gates.",
+    "current_failure_categories": {
+      "ranking_or_context_loss": 3,
+      "candidate_miss": 2
+    },
+    "answer_grounding_status": "Actual HTTP API /query answer batch on curated cross-document v2 failed 0/2 due to expected_document_not_cited_or_used, with no fallback. This is the next answer-generation target."
   },
-  "next_target": "Broaden manually reviewed cross-document coverage beyond the 5-case v1 slice and rotate a small actual HTTP API answer-grounding batch, while watching comparison lexical latency and preserving saved single-step and warning/procedure gates."
+  "next_target": "Improve cross-document answer citation/use and retrieval context assembly on the manually reviewed v2 slice, especially expected-document grounding, while preserving saved single-step and warning/procedure gates."
 }
