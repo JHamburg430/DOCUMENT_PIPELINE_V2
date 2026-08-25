@@ -146,6 +146,18 @@
           "retrieval_eval_20260825_040340"
         ],
         "remaining": "The generated cross-document slices remain diagnostic-only. The 20-case pre-final diagnostic reached 6/20 and the 5-case post-final smoke reached 1/5, so production retrieval tuning should wait for a manually reviewed or stronger generated cross-document slice plus saved-bank regression gates."
+      },
+      "2026-08-25T04:10:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Created a manually reviewed five-case cross-document multi-step slice from source-backed diagnostic evidence before doing any production retrieval tuning.",
+        "evidence": [
+          "test_reports/retrieval_eval_dataset_20260825_0423_curated_cross_document_v1.jsonl",
+          "retrieval_eval_20260825_042607",
+          "retrieval_eval_20260825_042643",
+          "retrieval_eval_20260825_042639"
+        ],
+        "remaining": "The curated slice is realistic and validated but retrieval is 3/5 with two ranking/context losses despite 100% candidate recall, so the next safe production target is cross-document paired-evidence context assembly with saved single-step and warning/procedure gates."
       }
     }
   },
@@ -165,11 +177,11 @@
     "run_budget_minutes": 30
   },
   "question_bank": {
-    "total_questions": 193,
+    "total_questions": 198,
     "single_step_questions": 100,
-    "multi_step_questions": 93,
+    "multi_step_questions": 98,
     "locked_regression_questions": 0,
-    "exploratory_questions": 193,
+    "exploratory_questions": 198,
     "datasets": [
       {
         "path": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
@@ -399,18 +411,120 @@
           }
         },
         "notes": "Post-filter smoke after guardrail 2026-08-25T03:40:00Z. Active bank counts are unchanged; this slice is not promoted because it is small, retrieval is 1/5, and broader cross-document question quality still needs manual review before production retrieval tuning."
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260825_0423_curated_cross_document_v1.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_042607.json",
+        "created_at": "2026-08-25T04:23:00Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "manual_curated_cross_document_evidence_v1",
+        "status": "exploratory",
+        "total_questions": 5,
+        "single_step_questions": 0,
+        "multi_step_questions": 5,
+        "by_chunk_type": {
+          "table_record": {
+            "total": 5,
+            "passed": 3
+          }
+        },
+        "quality_review": "Manual review rewrote generated cross-document prompts into user-style comparison/troubleshooting/spec questions while preserving source-backed expected evidence from two documents. No filename, chunk-id, parser-artifact, or table-coordinate prompt text is required of the user.",
+        "notes": "Retrieval evidence retrieval_eval_20260825_042607: 3/5 passed, candidate recall 100%, metadata-document recall 100%, failures ranking_or_context_loss: 2. Promoted as realistic exploratory coverage, not as a green release gate."
       }
     ]
   },
   "latest_results": {
     "unit_tests": {
-      "command": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q",
-      "status": "passed",
-      "passed": 66,
-      "warnings": 0,
-      "notes": "Focused eval-generation and scoring tests passed after adding cross-document subject-quality gates."
+      "command": "No code changes this run; focused validation used saved dataset loading plus retrieval eval gates.",
+      "status": "not_run_no_code_changes",
+      "passed": null,
+      "warnings": null,
+      "notes": "This run changed curated eval/tracking artifacts only. Prior focused eval-generation tests remained 66 passed from the preceding guardrail-quality run."
     },
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_042607",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0423_curated_cross_document_v1.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_042607.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_042607.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_042607.json",
+        "status": "completed_manual_curated_cross_document_v1",
+        "mode": "retrieval_only_curated_cross_document_multi_step",
+        "total_queries": 5,
+        "passed_queries": 3,
+        "failed_queries": 2,
+        "pass_rate": 0.6,
+        "pass_at_1": 0.4,
+        "pass_at_3": 0.6,
+        "pass_at_5": 0.6,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 5,
+            "passed": 3
+          }
+        },
+        "failure_categories": {
+          "ranking_or_context_loss": 2
+        },
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "notes": "Manual-review slice gives a realistic production target: both missed cases had expected candidates available but not assembled into final top-k paired context."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_042643",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_042643.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_042643.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_042643.json",
+        "status": "completed_saved_single_step_regression_gate",
+        "mode": "retrieval_only_curated_single_step_v2_regression",
+        "total_queries": 13,
+        "passed_queries": 13,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "by_retrieval_task": {
+          "single_step_retrieval": {
+            "total": 13,
+            "passed": 13
+          }
+        },
+        "failure_categories": {},
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "notes": "Saved guardrail-v2 curated single-step gate stayed green."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_042639",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_042639.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_042639.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_042639.json",
+        "status": "completed_warning_procedure_regression_gate",
+        "mode": "retrieval_only_warning_step_multi_step_regression",
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "by_retrieval_task": {
+          "multi_step_retrieval": {
+            "total": 15,
+            "passed": 15
+          }
+        },
+        "failure_categories": {},
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "notes": "Saved warning/procedure multi-step gate stayed green."
+      },
       {
         "run_id": "retrieval_eval_20260825_040054",
         "corpus_id": "manuals_vendor_keyence",
@@ -4386,7 +4500,7 @@
       "candidate_miss": 3,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Manually review or further curate cross-document multi-step question generation before production retrieval tuning, then improve candidate recall and final context assembly while preserving saved single-step, warning/procedure, and HTTP API answer-grounding gates.",
+    "next_target": "Improve cross-document paired-evidence ranking/context assembly on the manually reviewed v1 slice, preserving curated single-step, warning/procedure, and small HTTP API answer-grounding gates.",
     "current_failure_categories": {
       "candidate_miss": 3,
       "ranking_or_context_loss": 1
