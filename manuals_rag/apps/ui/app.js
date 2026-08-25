@@ -138,6 +138,16 @@ function renderMetrics(summary = {}) {
     .join("");
 }
 
+function resetEvalOutput(message = "Waiting for completed questions.") {
+  state.currentEval = null;
+  state.selectedEvalIndex = 0;
+  renderMetrics(summarizeVisibleItems([]));
+  $("eval-table").innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
+  $("eval-detail").innerHTML = "";
+  $("model-output").innerHTML = "";
+  $("progress-list").innerHTML = '<div class="empty-state">No active question progress.</div>';
+}
+
 function summarizeVisibleItems(items = []) {
   const total = items.length;
   const retrievalCorrect = items.filter((item) => item.retrieval_evaluation?.passed).length;
@@ -870,14 +880,8 @@ async function runEval() {
   if (state.running) return;
   state.running = true;
   $("run-eval").disabled = true;
-  $("model-output").innerHTML = "";
-  $("progress-list").innerHTML = "";
   renderQuestionTrace(null);
-  state.currentEval = null;
-  $("eval-summary").className = "metrics empty-state";
-  $("eval-summary").textContent = "No evaluation loaded.";
-  $("eval-table").innerHTML = "";
-  $("eval-detail").innerHTML = "";
+  resetEvalOutput("Starting a new evaluation.");
   setStatus("Starting", "running");
   const documentId = $("eval-document").value;
   let scope = $("eval-scope").value;
@@ -943,7 +947,12 @@ async function runEval() {
 function handleEvalEvent(event, refs) {
   if (event.event === "eval_queued") {
     setStatus(`Run ${event.run_id}: preparing questions`, "running");
+    resetEvalOutput("Preparing evaluation questions.");
     $("progress-list").innerHTML = '<div class="empty-state">Preparing evaluation questions.</div>';
+  } else if (event.event === "eval_preparing_questions") {
+    setStatus(`Run ${event.run_id}: generating evaluation questions`, "running");
+    resetEvalOutput("Generating evaluation questions from indexed chunks.");
+    $("progress-list").innerHTML = '<div class="empty-state">Generating evaluation questions from indexed chunks.</div>';
   } else if (event.event === "eval_started") {
     state.currentEval = { summary: summarizeVisibleItems([]), items: [], warnings: event.warnings || [] };
     renderMetrics(state.currentEval.summary);

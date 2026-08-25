@@ -154,6 +154,10 @@ GENERIC_TECHNICAL_TERMS = {
     "ethernet/ip",
     "laser",
     "wavelength",
+    "measurement",
+    "range",
+    "symbol",
+    "identifier",
     "mac",
     "password",
 }
@@ -170,7 +174,9 @@ Rules:
 - Make each query answerable from the source snippet itself, not merely from a surrounding section.
 - Represent the kind of question a user would ask before seeing the answer text; do not turn source wording into a keyword query.
 - Include enough fair discriminators that the intended row, warning, step, or spec can be found without reading adjacent context.
-- Use product names, model numbers, field labels, menu labels, protocol names, units, and standardized technical terms as anchors when needed.
+- Use product names, model numbers, protocol names, units, and standardized technical terms as anchors when needed.
+- Treat source field labels, table headers, row headers, and UI labels as concepts to paraphrase, not text to copy verbatim.
+- If the source uses bracketed UI labels like [Output Setting], rewrite them into natural user wording. Do not include square brackets in the query.
 - Do not copy any other exact sentence, clause, or two-or-more-word phrase from the snippet into the question.
 - Paraphrase awkward or document-authored wording into natural user language; for example, do not copy phrases like "obtained authentication" or "there manners".
 - For compact specs or table rows, ask about the field, setting, action, or constraint in natural language and include one concrete value/unit/class/action when useful.
@@ -294,6 +300,14 @@ def content_preview(content: str, *, limit: int = 220) -> str:
 def _quoted_menu_labels(content: str) -> list[str]:
     labels = re.findall(r"\[[^\]]+\]", content)
     return [label.strip() for label in labels if len(label.strip()) >= 3]
+
+
+def _strip_bracket_label(label: str) -> str:
+    return re.sub(r"^\[|\]$", "", label.strip()).strip()
+
+
+def _unbracket_source_labels(content: str) -> str:
+    return re.sub(r"\[([^\]]+)\]", r"\1", content)
 
 
 def _field_value_pairs(content: str) -> list[tuple[str, str]]:
@@ -520,20 +534,8 @@ def _allowed_copied_source_phrases(chunk: dict[str, Any]) -> set[tuple[str, ...]
     allowed_texts: list[str] = [
         str(chunk.get("product_model") or metadata.get("product_model") or ""),
         str(metadata.get("product_family") or ""),
-        str(chunk.get("section_path_text", "")),
         _safe_query_label(chunk),
     ]
-    allowed_texts.extend(_quoted_menu_labels(str(chunk.get("content", ""))))
-    allowed_texts.extend(_metadata_list(metadata, "table_column_headers"))
-    allowed_texts.extend(_metadata_list(metadata, "table_row_headers"))
-    column_headers = _metadata_list(metadata, "table_column_headers")
-    row_headers = _metadata_list(metadata, "table_row_headers")
-    if len(column_headers) > 1:
-        allowed_texts.append(" ".join(column_headers))
-    if len(row_headers) > 1:
-        allowed_texts.append(" ".join(row_headers))
-    for field, _ in _field_value_pairs(str(chunk.get("content", ""))):
-        allowed_texts.append(field)
 
     allowed: set[tuple[str, ...]] = set()
     for text in allowed_texts:
@@ -542,6 +544,16 @@ def _allowed_copied_source_phrases(chunk: dict[str, Any]) -> set[tuple[str, ...]
             for index in range(0, max(0, len(tokens) - size + 1)):
                 allowed.add(tokens[index : index + size])
     return allowed
+
+
+def _is_allowed_exact_source_ngram(ngram: tuple[str, ...], allowed_phrases: set[tuple[str, ...]]) -> bool:
+    if ngram in allowed_phrases:
+        return True
+    if any(re.search(r"\d", token) for token in ngram):
+        return True
+    if any("/" in token for token in ngram):
+        return True
+    return False
 
 
 def _query_copies_unfair_source_phrase(query: str, chunk: dict[str, Any]) -> bool:
@@ -567,10 +579,26 @@ def _query_copies_unfair_source_phrase(query: str, chunk: dict[str, Any]) -> boo
 
     for index in range(0, len(query_tokens) - 1):
         pair = tuple(query_tokens[index : index + 2])
-        if pair in allowed_phrases:
+        if _is_allowed_exact_source_ngram(pair, allowed_phrases):
             continue
         if pair in copied_pairs:
             return True
+    return False
+
+
+def _query_uses_bracketed_source_label(query: str, chunk: dict[str, Any]) -> bool:
+    if re.search(r"\[[^\]]+\]", query):
+        return True
+    query_tokens = tokenize(query)
+    if not query_tokens:
+        return False
+    for label in _quoted_menu_labels(str(chunk.get("content", ""))):
+        label_tokens = tokenize(_strip_bracket_label(label))
+        if len(label_tokens) < 2:
+            continue
+        for index in range(0, len(query_tokens) - len(label_tokens) + 1):
+            if query_tokens[index : index + len(label_tokens)] == label_tokens:
+                return True
     return False
 
 
@@ -748,6 +776,8 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "mechanical_query"
     if _query_uses_filename_artifact(query, chunk):
         return False, "filename_artifact_query"
+    if _query_uses_bracketed_source_label(query, chunk):
+        return False, "bracketed_source_label_query"
     if _query_copies_unfair_source_phrase(query, chunk):
         return False, "copied_source_phrase"
     if chunk_type == "atomic_text":
@@ -800,9 +830,6 @@ def build_query_candidates(chunk: dict[str, Any]) -> list[tuple[str, str]]:
     content = str(chunk["content"]).strip()
     chunk_type = str(chunk.get("chunk_type", ""))
     anchors = extract_anchor_terms(content)
-    labels = _quoted_menu_labels(content)
-    if labels and labels[0] not in anchors:
-        anchors = [labels[0], *anchors][:6]
     if not anchors:
         return []
 
@@ -859,6 +886,7 @@ def build_query_candidates(chunk: dict[str, Any]) -> list[tuple[str, str]]:
 def _structured_eval_input(chunk: dict[str, Any], anchors: list[str]) -> dict[str, Any]:
     metadata = dict(chunk.get("metadata_json", {}))
     content = str(chunk.get("content", ""))
+    prompt_content = _unbracket_source_labels(content)
     field_matches = _field_value_pairs(content)
     return {
         "chunk_type": str(chunk.get("chunk_type", "")),
@@ -866,13 +894,13 @@ def _structured_eval_input(chunk: dict[str, Any], anchors: list[str]) -> dict[st
         "product_model": _safe_query_label(chunk),
         "section_path": str(chunk.get("section_path_text", "")).strip(),
         "anchors": anchors[:6],
-        "menu_labels": _quoted_menu_labels(content)[:3],
+        "menu_labels": [_strip_bracket_label(label) for label in _quoted_menu_labels(content)[:3]],
         "field_value_pairs": [
             {"field": field.strip(), "value": value.strip()}
             for field, value in field_matches[:6]
         ],
         "expected_terms": anchors[:4],
-        "snippet": content_preview(content, limit=420),
+        "snippet": content_preview(prompt_content, limit=420),
     }
 
 
@@ -900,6 +928,33 @@ def _table_question_terms(chunk: dict[str, Any]) -> tuple[list[str], list[str]]:
 def _build_table_query_candidates(chunk: dict[str, Any], label: str) -> list[tuple[str, str]]:
     query_terms, expected_terms = _table_question_terms(chunk)
     field_pairs = _meaningful_table_field_value_pairs(str(chunk.get("content", "")))
+    metadata = dict(chunk.get("metadata_json", {}))
+    row_headers = _metadata_list(metadata, "table_row_headers")
+    column_headers = _metadata_list(metadata, "table_column_headers")
+    content = normalize_text(str(chunk.get("content", "")))
+    candidates: list[tuple[str, str]] = []
+    if "symbol" in expected_terms and "identifier" in expected_terms and "enabled" in expected_terms:
+        candidates.append(
+            (
+                f"Which setting adds a symbol identifier{_for_label(label)}?",
+                "table_symbol_identifier_setting",
+            )
+        )
+    if any("decimal" in normalize_text(header) and "digit" in normalize_text(header) for header in column_headers):
+        subject = "LumiTrax capture" if "lumitrax" in content else "the selected setting"
+        candidates.append(
+            (
+                f"How many decimal places are used for {subject}{_for_label(label)}?",
+                "table_decimal_places_setting",
+            )
+        )
+    if "luminance" in expected_terms and "analog" in expected_terms and "voltage" in expected_terms:
+        candidates.append(
+            (
+                f"Which analog signal voltage should {label or 'the device'} output?",
+                "table_luminance_output_signal",
+            )
+        )
     if len(field_pairs) >= 2:
         answer_field, _ = field_pairs[0]
         context_field, context_value = field_pairs[1]
@@ -907,35 +962,38 @@ def _build_table_query_candidates(chunk: dict[str, Any], label: str) -> list[tup
         answer_field_text = answer_field.strip()
         context_field_text = context_field.strip()
         if label:
-            return [
-                (
-                    f"For {label}, which {answer_field_text} is used with {context_field_text} {context_anchor}?",
-                    "table_key_value_lookup",
-                ),
-                (
-                    f"Which {answer_field_text} matches {context_field_text} {context_anchor} on {label}?",
-                    "table_key_value_reverse_lookup",
-                ),
-            ]
-        return [(f"Which {answer_field_text} is used with {context_field_text} {context_anchor}?", "table_key_value_lookup")]
+            candidates.extend(
+                [
+                    (
+                        f"For {label}, which {answer_field_text} is used with {context_field_text} {context_anchor}?",
+                        "table_key_value_lookup",
+                    ),
+                    (
+                        f"Which {answer_field_text} matches {context_field_text} {context_anchor} on {label}?",
+                        "table_key_value_reverse_lookup",
+                    ),
+                ]
+            )
+            return candidates
+        candidates.append((f"Which {answer_field_text} is used with {context_field_text} {context_anchor}?", "table_key_value_lookup"))
+        return candidates
     if not query_terms or len(expected_terms) < 2:
-        return []
-    metadata = dict(chunk.get("metadata_json", {}))
-    row_headers = _metadata_list(metadata, "table_row_headers")
-    column_headers = _metadata_list(metadata, "table_column_headers")
+        return candidates
     subject = " ".join(row_headers[:1] or query_terms[:1])
     column_label = " ".join(column_headers[:2]) or (query_terms[-1] if query_terms else "value")
     cell_anchor = expected_terms[0] if expected_terms and _is_high_signal_anchor(expected_terms[0]) else ""
-    anchored_subject = f"{cell_anchor} {subject}".strip()
     if label:
-        candidates = [
-            (f"What is the {column_label} {subject} for {label}?", "table_row_column_lookup"),
-            (f"For {label}, which {column_label} entry applies to {subject}?", "table_row_column_engineer_lookup"),
-        ]
+        candidates.extend(
+            [
+                (f"What is the {column_label} {subject} for {label}?", "table_row_column_lookup"),
+                (f"For {label}, which {column_label} entry applies to {subject}?", "table_row_column_engineer_lookup"),
+            ]
+        )
         if cell_anchor:
             candidates.append((f"For {label}, which {subject} entry reports {cell_anchor}?", "table_row_column_reverse_lookup"))
         return candidates
-    return [(f"What is the {column_label} {subject}?", "table_row_column_lookup")]
+    candidates.append((f"What is the {column_label} {subject}?", "table_row_column_lookup"))
+    return candidates
 
 
 def _parse_generated_queries(payload: str) -> list[dict[str, str]]:
@@ -967,7 +1025,7 @@ def generate_user_style_queries(
         "fallback_examples": [{"query": query, "intent": method} for query, method in fallback_candidates[:3]],
     }
     try:
-        with httpx.Client(base_url=settings.ollama_url, timeout=60.0) as client:
+        with httpx.Client(base_url=settings.ollama_url, timeout=20.0) as client:
             response = client.post(
                 "/api/generate",
                 json={
@@ -1033,7 +1091,7 @@ def build_eval_cases_from_chunks(
         if not chunk_is_queryworthy(chunk, anchors):
             continue
         previous_questions = previous_questions_by_chunk_id.get(str(chunk.get("id")), [])
-        fallback_candidates = build_query_candidates(chunk)[:per_chunk_limit]
+        fallback_candidates = build_query_candidates(chunk)[: max(per_chunk_limit * 4, per_chunk_limit)]
         candidates = (
             generate_user_style_queries(
                 chunk,

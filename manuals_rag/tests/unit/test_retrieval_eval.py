@@ -1358,7 +1358,8 @@ def test_table_fallback_queries_are_user_style_not_table_coordinate_dumps():
 
     assert cases
     assert all(" value applies " not in case.query.lower() for case in cases)
-    assert any("output symbol identifier" in case.query.lower() for case in cases)
+    assert any("symbol identifier" in case.query.lower() for case in cases)
+    assert all("output symbol identifier" not in case.query.lower() for case in cases)
 
 
 def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
@@ -1891,6 +1892,76 @@ def test_eval_generation_rejects_copied_source_phrasing(monkeypatch):
     assert cases[0].query == "Which controller combination has CSA approval for XG-X Series?"
     assert "Do not copy any other exact sentence, clause, or two-or-more-word phrase" in prompts[0]
     assert "obtained authentication" in prompts[0]
+
+
+def test_eval_generation_rejects_bracketed_source_label_queries(monkeypatch):
+    prompts = []
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "response": (
+                    '{"queries":['
+                    '{"query":"What is [Luminance Output Type] for VS Series?","intent":"bad_brackets","reason":"copied label"},'
+                    '{"query":"Which luminance signal should the VS Series output?","intent":"fair_user_question","reason":"natural phrasing"}'
+                    ']}'
+                )
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            prompts.append(kwargs["json"]["prompt"])
+            return FakeResponse()
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+
+    chunk = {
+        "id": "chunk-luminance-output",
+        "source_document_id": "doc-vs",
+        "document_version_id": "ver-vs",
+        "chunk_type": "table_record",
+        "title": "VS Series",
+        "source_filename": "vs-series.pdf",
+        "section_path_text": "Output settings",
+        "page_from": 12,
+        "page_to": 12,
+        "content": "[Luminance Output Type]: Analog output; Output voltage: 0 to 10 V.",
+        "metadata_json": {
+            "product_model": "VS Series",
+            "table_column_headers": ["Luminance Output Type", "Output voltage"],
+        },
+        "product_model": "VS Series",
+    }
+    anchors = ["luminance", "output", "analog", "voltage"]
+
+    assert validate_eval_case("What is [Luminance Output Type] for VS Series?", chunk, anchors) == (
+        False,
+        "bracketed_source_label_query",
+    )
+    assert validate_eval_case("What is the Luminance Output Type for VS Series?", chunk, anchors) == (
+        False,
+        "bracketed_source_label_query",
+    )
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=1)
+
+    assert cases
+    assert cases[0].query == "Which analog signal voltage should VS Series output?"
+    assert prompts
+    assert "[Luminance Output Type]" not in prompts[0]
+    assert "Do not include square brackets" in prompts[0]
 
 
 def test_validate_eval_case_accepts_access_control_user_question():
