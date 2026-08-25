@@ -1204,3 +1204,21 @@ Next target:
 Next target:
 
 - Improve actual cross-document answer citation/use and the remaining paired-evidence candidate recall on the manually reviewed v2 slice, especially IV-HG/IV4 memory-read and XG-X SD-card evidence, while preserving saved single-step and warning/procedure gates.
+
+## 2026-08-25 Cron 39262386 Cross-Document Rejected Lexical Experiment
+
+- Target: follow up guardrail `2026-08-25T06:14:00Z` by improving actual cross-document answer citation/use and remaining paired-evidence recall on the manually reviewed v2 slice, especially IV-HG/IV4 memory-read and XG-X SD-card evidence.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. The latest severity is `ok`, but it requires continued work on cross-document answer grounding and paired-evidence recall. Direct guardrail cron summaries for `ca862d7a-e46f-4de3-870e-1cca28a3510c` were unavailable because the cron tool is restricted to the current job.
+- Local stack: compose services were up; API, Postgres, Qdrant, Redis, workers, and UI were running. The existing `manuals_vendor_keyence` corpus remained usable with 53 indexed documents.
+- Attempted retrieval experiment: tried a generic comparison lexical adjustment to keep short uppercase table codes such as `SD`, boost distinctive long query terms in table rows, and promote focused table cells for explicit product/code pairs. A broader metadata-product regexp prefilter was also tried briefly to recover IV-HG/IV4 memory-read evidence.
+- Rejected evidence: the broad metadata regexp prefilter caused `retrieval_eval_20260825_063432` to time out 9/10 scored curated cross-document v2 cases, so that SQL shape was removed before the run ended. The remaining cheaper symbol/scoring experiment still regressed the curated v2 slice in `retrieval_eval_20260825_063702` from the prior 6/10 baseline to 4/10, with failures `candidate_miss: 2`, `eval_timeout: 1`, and `ranking_or_context_loss: 3`.
+- Containment: all production retrieval and unit-test edits from this experiment were reverted. Focused retriever tests after revert: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q` -> 89 passed, 1 warning.
+- Question-bank counts remain unchanged and monotonic at 203 exploratory questions total: 100 single-step and 103 multi-step. No questions were retired or added; replacement debt remains 0. The new `063432` and `063702` eval artifacts are diagnostic-only rejected-change evidence, not production evidence.
+- Answer-grounding status: no new HTTP API answer batch was run after the rejected retrieval experiment because the cron budget was spent proving and reverting the regression. The previous actual `/query` cross-document v2 result `retrieval_eval_20260825_060844` remains 0/2 and unresolved.
+- Changed files for the tracking-only commit: `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, and new diagnostic eval summary/manifest artifacts for `retrieval_eval_20260825_063432` and `retrieval_eval_20260825_063702`.
+- Guardrail handling: the run intentionally did not commit a retrieval change because the evidence was weaker than the existing committed baseline and the broad SQL path violated the latency budget. This avoids optimizing against a narrow slice with a regressing or slow production path.
+- Generalization check before commit: no production behavior is retained. The tracking update is valid for unseen manuals and vendors because it records a rejected general approach and preserves the safer previous retrieval behavior.
+
+Next target:
+
+- Improve cross-document answer citation/use and remaining paired-evidence recall on the manually reviewed v2 slice, especially IV-HG/IV4 memory-read and XG-X SD-card evidence. Avoid broad unindexed metadata regexp prefilters; preserve saved single-step and warning/procedure gates.

@@ -510,6 +510,48 @@
     },
     "evals": [
       {
+        "run_id": "retrieval_eval_20260825_063702",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_063702.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_063702.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "direct_cross_document_v2_after_reverted_symbol_promotion_experiment",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 10,
+        "warmup_queries": 1,
+        "total_queries": 10,
+        "passed_queries": 4,
+        "failed_queries": 6,
+        "pass_rate": 0.4,
+        "failure_categories": {
+          "candidate_miss": 2,
+          "eval_timeout": 1,
+          "ranking_or_context_loss": 3
+        },
+        "notes": "Rejected/reverted comparison lexical scoring and symbol-promotion experiment. It recovered latency after removing the broad metadata regexp prefilter, but still regressed curated cross-document v2 from the prior 6/10 baseline to 4/10, so no production retrieval change was retained."
+      },
+      {
+        "run_id": "retrieval_eval_20260825_063432",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_063432.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_063432.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "direct_cross_document_v2_with_reverted_broad_metadata_regexp_prefilter",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 10,
+        "warmup_queries": 1,
+        "total_queries": 10,
+        "passed_queries": 1,
+        "failed_queries": 9,
+        "pass_rate": 0.1,
+        "failure_categories": {
+          "eval_timeout": 9
+        },
+        "notes": "Rejected broad comparison metadata regexp prefilter: it caused 9/10 scored eval timeouts and was removed before the run ended. Do not repeat this SQL shape without an indexed/cheaper metadata path or a longer diagnostic schedule."
+      },
+      {
         "run_id": "retrieval_eval_20260825_060430",
         "corpus_id": "manuals_vendor_keyence",
         "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
@@ -4810,15 +4852,17 @@
       }
     ],
     "failure_categories": {
-      "ranking_or_context_loss": 3,
-      "candidate_miss": 2
+      "candidate_miss": 2,
+      "eval_timeout": 1,
+      "ranking_or_context_loss": 1
     },
-    "next_target": "Improve cross-document answer citation/use and retrieval context assembly on the manually reviewed v2 slice, especially expected-document grounding, while preserving saved single-step and warning/procedure gates.",
+    "next_target": "Improve cross-document answer citation/use and remaining paired-evidence recall on the manually reviewed v2 slice, especially IV-HG/IV4 memory-read and XG-X SD-card evidence. Avoid broad unindexed metadata regexp prefilters; preserve saved single-step and warning/procedure gates.",
     "current_failure_categories": {
-      "ranking_or_context_loss": 3,
-      "candidate_miss": 2
+      "candidate_miss": 2,
+      "eval_timeout": 1,
+      "ranking_or_context_loss": 1
     },
-    "answer_grounding_status": "Actual HTTP API /query answer batch on curated cross-document v2 failed 0/2 due to expected_document_not_cited_or_used, with no fallback. This is the next answer-generation target."
+    "answer_grounding_status": "Actual HTTP API /query answer batch on curated cross-document v2 remains 0/2 from retrieval_eval_20260825_060844 because expected documents were not cited or used. No answer-generation change was made in the 06:23 cron run."
   },
-  "next_target": "Improve cross-document answer citation/use and the remaining cross-document candidate recall on the manually reviewed v2 slice, especially IV-HG/IV4 memory-read and XG-X SD-card paired evidence, while preserving saved single-step and warning/procedure gates."
+  "next_target": "Improve cross-document answer citation/use and remaining paired-evidence recall on the manually reviewed v2 slice, especially IV-HG/IV4 memory-read and XG-X SD-card evidence. Avoid broad unindexed metadata regexp prefilters; preserve saved single-step and warning/procedure gates."
 }
