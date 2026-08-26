@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-26T22:31:00Z",
+  "updated_at": "2026-08-26T22:58:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1199,7 +1199,18 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-26T22:31:00Z"
+    "updated_at": "2026-08-26T22:58:00Z",
+    "latest_false_negative_repair": {
+      "scope": "live_app_false_negative_question_4_luminance_output_type",
+      "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
+      "original_question_index": 4,
+      "classification": "dataset_scoring_false_negative_not_production_answer_miss",
+      "original_visible_query": "What setting is required when a luminance output head is connected?",
+      "reason": "The visible query omitted CV-X482 and grayscale-image constraints; XG-X page 953 directly supports selecting [Luminance Output Type] for the literal question, while the hidden expected evidence required CV-X482 page 1056 grayscale-image context.",
+      "repaired_dataset": "test_reports/retrieval_eval_dataset_20260826_2229_luminance_cvx482_false_negative_repair.jsonl",
+      "repaired_run": "retrieval_eval_20260826_222558",
+      "repaired_result": "1/1 retrieval rank 1 and 1/1 actual HTTP API answer citing CV-X482 chunk ab54caf6-e6c3-5ab4-ac57-536f3b7624be on page 1056."
+    }
   },
   "latest_false_negative_repair": {
     "scope": "live_app_false_negative_question_4_luminance_output_type",
