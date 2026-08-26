@@ -905,9 +905,60 @@ def test_build_multi_step_eval_cases_from_contextual_procedure_section():
     assert len(cases) == 1
     assert cases[0].retrieval_task == "multi_step_retrieval"
     assert cases[0].generation_method == "contextual_procedure_plus_section_evidence"
-    assert "connect the plc-link ethernet cable" in cases[0].query.lower()
+    assert cases[0].query == (
+        "For CV-X482, when you need to connect the PLC-Link Ethernet cable and set the link unit, "
+        "what should be checked about port number for communication port settings, '9010', cannot be used?"
+    )
     assert "9010" in cases[0].query
     assert cases[0].expected_source_chunk_ids == ["procedure-cell", "constraint-cell"]
+
+
+def test_contextual_procedure_questions_do_not_duplicate_when_prefix():
+    base = {
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "title": "XG-X",
+        "source_filename": "xgx.pdf",
+        "section_path_text": "Asynchronous capture",
+        "page_from": 15,
+        "page_to": 15,
+        "product_family": "XG-X Series",
+    }
+    chunks = [
+        {
+            **base,
+            "id": "procedure-cell",
+            "chunk_type": "procedure_record",
+            "chunk_level": 1,
+            "content": "Procedure step 2: 2. When multiple capture units are used.",
+            "metadata_json": {
+                "product_family": "XG-X Series",
+                "procedure_flag": True,
+                "local_rerank_context": "When multiple capture units are used, branch by the passing status.",
+            },
+        },
+        {
+            **base,
+            "id": "support-cell",
+            "chunk_type": "atomic_text",
+            "chunk_level": 1,
+            "content": "On a flowchart branched by the passing status of the first capture unit, image capture is processed independently.",
+            "metadata_json": {
+                "product_family": "XG-X Series",
+                "local_rerank_context": "When multiple capture units are used, branch by the passing status.",
+            },
+        },
+    ]
+
+    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="contextual_section")
+
+    assert len(cases) == 1
+    assert "when when" not in cases[0].query.lower()
+    assert "what related" not in cases[0].query.lower()
+    assert cases[0].query == (
+        "For XG-X Series, when multiple capture units are used, "
+        "what should be checked about flowchart branched by the passing status of the first capture?"
+    )
 
 
 def test_build_multi_step_eval_cases_from_warning_step_neighborhood():

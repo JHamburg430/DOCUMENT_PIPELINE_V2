@@ -2068,3 +2068,25 @@ Next target:
 Next target:
 
 - With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Before any generated eval questions are promoted, require manual/validator review that excludes source-address, table-artifact, source-shaped, and weak-affinity prompts. Continue broadening actual HTTP API answer-grounding across validated slices, especially remaining contextual procedure, warning/procedure, sibling troubleshooting, and single-step offsets, while preserving the unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cases 6, 7, and 9.
+
+## 2026-08-26 Cron 39262386 Contextual Query Quality Watch
+
+- Target: address guardrail `2026-08-26T04:14:00Z` `watch`, which said the contextual procedure answer rotation used two source-shaped generated queries with duplicated `When When` wording and mechanical `what related ... detail should be used?` phrasing.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. Direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was unavailable because the cron tool is restricted to the current job.
+- Local stack: compose services were running and usable: API, Postgres, Qdrant, Redis, workers, and UI were up; Postgres was healthy. The active corpus remained `manuals_vendor_keyence`.
+- Changed eval-generation logic only: contextual procedure-plus-section queries now strip a leading `when` from procedure subjects, use natural `when ...` / `when you need to ...` clauses, remove row/column/page/table-label artifacts from support fragments, and avoid the old `what related ... detail should be used?` template.
+- Manually rephrased the two flagged contextual cases in `test_reports/retrieval_eval_dataset_20260824_080232.jsonl` while preserving the same expected evidence ids and expected terms:
+  - Case 1: `For XG-X asynchronous capture with multiple capture units, what flowchart branching rule should be followed?`
+  - Case 2: `For XG-X asynchronous capture with multiple cameras, can multiple capture units be placed in the flow?`
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 74 passed.
+- Live answer-grounding command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 0 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0`.
+- Result: `retrieval_eval_20260826_042753` completed actual user-visible `/query` answer scoring for the corrected contextual procedure cases 1-2 at 2/2 retrieval and 2/2 answers passed. Both cases passed at rank 1, both answers came from the API path with no fallback, and answer latency averaged 49.983s.
+- Prior evidence handling: `retrieval_eval_20260826_035410` is superseded as contextual cases 1-2 answer evidence because it scored the pre-review weak query wording. The corrected rerun is recorded in `test_reports/retrieval_eval_quality_review_20260826_042753.json`.
+- No production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, or Docker code changed. Active question-bank counts remain monotonic and unchanged at 203 exploratory questions total: 100 single-step and 103 multi-step; replacement debt remains 0.
+- New artifacts: `test_reports/retrieval_eval_summary_20260826_042753.json`, `test_reports/retrieval_eval_manifest_20260826_042753.json`, and `test_reports/retrieval_eval_quality_review_20260826_042753.json`. The generated dataset/results JSONL files for the rerun are present locally under the same timestamp but remain ignored by the repository's `test_reports/*.jsonl` rule.
+- Guardrail handling: `2026-08-26T04:14:00Z` is addressed by repairing the weak contextual rows and rerunning the actual HTTP API answer batch before using those rows as answer evidence. No unresolved `needs_fix` or `critical` item was ignored.
+- Generalization check before commit: this eval-generation and dataset-quality change is valid for unseen manuals and vendors because it improves source-neutral question phrasing and evidence accounting without adding document-specific routing, inferred hard filters, eval-only production behavior, or production answer changes.
+
+Next target:
+
+- With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Continue broadening actual HTTP API answer-grounding across manually reviewed or validator-clean slices, and keep generated contextual questions under quality review before promotion. Preserve the unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cross-document cases 6, 7, and 9.

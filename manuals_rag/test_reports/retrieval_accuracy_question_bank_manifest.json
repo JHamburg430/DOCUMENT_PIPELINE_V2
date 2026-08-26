@@ -424,6 +424,17 @@
           "tests/unit/test_retrieval_eval.py -q -> 73 passed"
         ],
         "remaining": "Generated-question samples remain diagnostic-only until manual/validator review confirms realistic user phrasing. Active question-bank counts stay unchanged; production retrieval remains unchanged and the direct cross-document v2 baseline remains unresolved."
+      },
+      "2026-08-26T04:14:00Z": {
+        "guardrail_finding": "2026-08-26T04:14:00Z watch",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Manually rephrased contextual procedure dataset cases 1-2 to remove duplicated When prefixes and mechanical related-detail wording, then reran actual HTTP API answer scoring on the corrected rows.",
+        "evidence": [
+          "test_reports/retrieval_eval_dataset_20260824_080232.jsonl cases 1-2 rephrased in place",
+          "tests/unit/test_retrieval_eval.py -q -> 74 passed",
+          "retrieval_eval_20260826_042753 -> 2/2 retrieval and 2/2 actual API answers, answer_sources {api: 2}, fallback 0"
+        ],
+        "remaining": "Keep generated contextual questions under manual/validator review before using them as durable answer gates; continue broadening answer-grounding coverage while preserving retrieval_eval_20260826_005723 direct cross-document baseline."
       }
     },
     "diagnostics": [
@@ -6248,7 +6259,7 @@
       "notes": "Broadened actual API answer-grounding coverage on validated contextual procedure and curated single-step slices while leaving production retrieval and answering unchanged. This is answer coverage evidence, not a direct retrieval improvement."
     }
   },
-  "next_target": "With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Before any generated eval questions are promoted, require manual/validator review that excludes source-address, table-artifact, source-shaped, and weak-affinity prompts. Continue broadening actual HTTP API answer-grounding across validated slices, especially remaining contextual procedure, warning/procedure, sibling troubleshooting, and single-step offsets, while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cases 6, 7, and 9.",
+  "next_target": "With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Continue broadening actual HTTP API answer-grounding across manually reviewed or validator-clean slices, and keep generated contextual questions under quality review before promotion. Preserve the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9.",
   "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1 after the b51a22c containment revert. Earlier retrieval_eval_20260825_072839 remains the pre-containment reference baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
   "current_failure_categories": {
     "candidate_miss": 1,
@@ -6515,25 +6526,25 @@
     "expected_document_not_cited_or_used": 3,
     "retrieval_not_passed": 3
   },
-  "answer_grounding_status": "Actual HTTP API answer evidence now includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses, the prior validated non-cross-document rotation retrieval_eval_20260826_022437/022513/022635 at 6/6 answers, and this run's contextual procedure plus curated single-step rotation retrieval_eval_20260826_035410 and retrieval_eval_20260826_035548 at 4/4 retrieval and 4/4 user-visible API answers with answer source api and fallback 0. Continue rotating broader validated slices while preserving the unresolved direct cross-document baseline.",
+  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses, validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers, curated single-step/contextual rotation retrieval_eval_20260826_035548 at 2/2, and corrected contextual procedure cases 1-2 in retrieval_eval_20260826_042753 at 2/2 retrieval and 2/2 user-visible API answers with answer source api and fallback 0. The older retrieval_eval_20260826_035410 contextual answer evidence is superseded for quality by the rephrased 042753 rerun.",
   "answer_grounding_rotation": {
-    "status": "broadened_no_production_change",
+    "status": "contextual_quality_watch_addressed_no_production_change",
     "latest_runs": [
-      "retrieval_eval_20260826_035410",
-      "retrieval_eval_20260826_035548"
+      "retrieval_eval_20260826_042753"
     ],
-    "scope": "contextual_procedure_cases_1_2_and_curated_single_step_v2_cases_5_6_actual_http_api_answers",
-    "total_queries": 4,
-    "retrieval_passed_queries": 4,
-    "answer_passed_queries": 4,
+    "supersedes_for_contextual_cases_1_2": "retrieval_eval_20260826_035410",
+    "scope": "rephrased_contextual_procedure_cases_1_2_actual_http_api_answers",
+    "total_queries": 2,
+    "retrieval_passed_queries": 2,
+    "answer_passed_queries": 2,
     "answer_pass_rate": 1,
     "answer_sources": {
-      "api": 4
+      "api": 2
     },
     "answer_fallback_count": 0,
     "failure_categories": {},
     "answer_failure_reasons": {},
-    "notes": "Broadened actual API answer-grounding coverage on validated contextual procedure and curated single-step slices while leaving production retrieval and answering unchanged. This is answer coverage evidence, not a direct retrieval improvement."
+    "notes": "Addressed guardrail 2026-08-26T04:14:00Z by repairing weak contextual query phrasing and rerunning actual API answer scoring. No production retrieval or answering behavior changed."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -6587,5 +6598,17 @@
       "manifest_path": "test_reports/retrieval_eval_manifest_20260826_032531.json",
       "result": "5 generated single-step cases, 4/5 retrieval passed; conservative replay review found 4/5 valid and one weak_source_affinity row, so the sample remains diagnostic-only and is not active bank growth."
     }
+  },
+  "latest_contextual_question_quality": {
+    "status": "guardrail_watch_addressed",
+    "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+    "changed_cases": 2,
+    "bad_pattern_removed": [
+      "duplicated When prefix",
+      "mechanical what related detail should be used wording"
+    ],
+    "rerun_summary": "test_reports/retrieval_eval_summary_20260826_042753.json",
+    "rerun_manifest": "test_reports/retrieval_eval_manifest_20260826_042753.json",
+    "result": "2/2 retrieval and 2/2 actual HTTP API answers passed; answer_sources {api: 2}; fallback 0."
   }
 }

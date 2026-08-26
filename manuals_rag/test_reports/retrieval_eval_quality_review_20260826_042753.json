@@ -1,0 +1,33 @@
+{
+  "schema": "manuals_rag.retrieval_eval_quality_review.v1",
+  "reviewed_at": "2026-08-26T04:29:00Z",
+  "guardrail_finding": "2026-08-26T04:14:00Z watch",
+  "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+  "rerun_summary": "test_reports/retrieval_eval_summary_20260826_042753.json",
+  "rerun_manifest": "test_reports/retrieval_eval_manifest_20260826_042753.json",
+  "action": "manual_rephrase_contextual_cases_1_2",
+  "changed_cases": [
+    {
+      "case_id": "0d116180-22a3-511a-b00b-9fb8c4ea796a::contextual_multi_step::1",
+      "old_query": "When When multiple capture units are used for XG-X Series, what related flowchart branched passing detail should be used?",
+      "new_query": "For XG-X asynchronous capture with multiple capture units, what flowchart branching rule should be followed?",
+      "review": "Validated user-style phrasing; expected evidence ids and terms unchanged."
+    },
+    {
+      "case_id": "0d116180-22a3-511a-b00b-9fb8c4ea796a::contextual_multi_step::2",
+      "old_query": "When When multiple capture units are used for XG-X Series, what related multiple cameras asynchronously detail should be used?",
+      "new_query": "For XG-X asynchronous capture with multiple cameras, can multiple capture units be placed in the flow?",
+      "review": "Validated user-style phrasing; expected evidence ids and terms unchanged."
+    }
+  ],
+  "rerun_result": {
+    "total_queries": 2,
+    "retrieval_passed_queries": 2,
+    "answer_passed_queries": 2,
+    "answer_sources": {
+      "api": 2
+    },
+    "answer_fallback_count": 0
+  },
+  "status": "guardrail_watch_addressed"
+}

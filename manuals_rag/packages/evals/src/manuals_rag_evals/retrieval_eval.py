@@ -1499,8 +1499,38 @@ def _support_subject(chunk: dict[str, Any]) -> str:
     labels = _quoted_menu_labels(content)
     if labels:
         return " ".join(labels[:2])
-    anchors = extract_anchor_terms(content, limit=3)
-    return " ".join(anchors)
+    return _short_answer_anchor(content)
+
+
+def _natural_contextual_fragment(subject: str) -> str:
+    fragment = re.sub(r"\bPage\s+\d+(?:-\d+)?\b", "", subject, flags=re.IGNORECASE)
+    fragment = re.sub(r"\b(?:Row|Column)\s*:?\s*\d+\b", "", fragment, flags=re.IGNORECASE)
+    fragment = re.sub(r"\b(?:Cell value|Column headers?|Row headers?)\s*:?", "", fragment, flags=re.IGNORECASE)
+    fragment = re.sub(r"\s+", " ", fragment).strip(" ;:-,.")
+    fragment = re.sub(r"^(?:the|a|an|on a|on an)\s+", "", fragment, flags=re.IGNORECASE)
+    tokens = fragment.split()
+    if len(tokens) > 10:
+        fragment = " ".join(tokens[:10])
+    if fragment:
+        fragment = fragment[0].lower() + fragment[1:]
+    return fragment
+
+
+def _contextual_multi_step_query(procedure_subject: str, label: str, support_subject: str) -> str:
+    procedure_fragment = _natural_contextual_fragment(procedure_subject)
+    support_fragment = _natural_contextual_fragment(support_subject)
+    if not procedure_fragment or not support_fragment:
+        return ""
+    label_fragment = _for_label(label).removeprefix(" for ").strip()
+    procedure_action = _warning_step_action_phrase(procedure_fragment)
+    if procedure_action.lower().startswith("when "):
+        procedure_action = procedure_action[5:].strip()
+        procedure_clause = f"when {procedure_action}"
+    else:
+        procedure_clause = f"when you need to {procedure_action}"
+    if label_fragment:
+        return f"For {label_fragment}, {procedure_clause}, what should be checked about {support_fragment}?"
+    return f"{procedure_clause.capitalize()}, what should be checked about {support_fragment}?"
 
 
 def _support_chunks_for_contextual_multi_step(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1852,10 +1882,9 @@ def _build_contextual_multi_step_cases(
                 if len(set(procedure_terms).intersection(support_terms)) >= min(2, len(support_terms)):
                     continue
                 label = _safe_query_label(procedure) or _safe_query_label(support)
-                query = (
-                    f"When {procedure_subject}{_for_label(label)}, "
-                    f"what related {support_subject} detail should be used?"
-                )
+                query = _contextual_multi_step_query(procedure_subject, label, support_subject)
+                if not query:
+                    continue
                 if _has_near_duplicate_query(query, seen_queries):
                     continue
                 evidence = _multi_step_expected_evidence(procedure, support)
