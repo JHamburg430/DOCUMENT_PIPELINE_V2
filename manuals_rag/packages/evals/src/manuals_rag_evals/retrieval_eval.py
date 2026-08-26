@@ -2780,34 +2780,8 @@ def _material_answer_terms_from_sentence(sentence: str) -> list[str]:
     return material
 
 
-def _answer_action_source_text(answer: dict[str, Any], item: dict[str, Any]) -> str:
-    snippets = [str(item.get("snippet") or "")]
-    expected_chunk_id = str(item.get("chunk_id") or "")
-    expected_terms = {
-        normalize_text(str(term))
-        for term in item.get("expected_terms") or []
-        if str(term).strip()
-    }
-    for citation in answer.get("citations") or []:
-        if not isinstance(citation, dict):
-            continue
-        quote = str(citation.get("quote_span") or "")
-        if not quote:
-            continue
-        citation_chunk_id = str(citation.get("chunk_id") or "")
-        quote_tokens = _answer_overlap_tokens(quote)
-        expected_overlap = {
-            term
-            for term in expected_terms
-            if term and _expected_term_matches_text(term, normalize_text(quote), quote_tokens)
-        }
-        if (
-            citation_chunk_id == expected_chunk_id
-            or "corrective action" in normalize_text(quote)
-            or len(expected_overlap) >= 2
-        ):
-            snippets.append(quote)
-    return " ".join(snippets)
+def _answer_action_source_text(item: dict[str, Any]) -> str:
+    return str(item.get("snippet") or "")
 
 
 def _without_table_row_header_metadata(text: str) -> str:
@@ -2815,7 +2789,7 @@ def _without_table_row_header_metadata(text: str) -> str:
     return re.sub(r"\b(?:Row|Column):\s*\d+\b", "", without_row_headers)
 
 
-def _answer_required_action_terms(case: RetrievalEvalCase, answer: dict[str, Any]) -> tuple[list[str], str]:
+def _answer_required_action_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
     if case.generation_method != "table_sibling_error_cause_action" or not case.expected_evidence:
         return [], "none"
     required_terms: list[str] = []
@@ -2827,7 +2801,7 @@ def _answer_required_action_terms(case: RetrievalEvalCase, answer: dict[str, Any
         if field not in action_fields:
             continue
         candidates: list[str] = []
-        source_text = _answer_action_source_text(answer, item)
+        source_text = _answer_action_source_text(item)
         action_text = _without_table_row_header_metadata(source_text)
         source_tokens = _answer_overlap_tokens(action_text)
         source_action_verbs = [
@@ -2866,7 +2840,7 @@ def _answer_required_action_terms(case: RetrievalEvalCase, answer: dict[str, Any
 def _answer_required_material_terms(case: RetrievalEvalCase, answer: dict[str, Any]) -> tuple[list[str], str]:
     if not case.expected_evidence:
         return [], "none"
-    action_terms, action_source = _answer_required_action_terms(case, answer)
+    action_terms, action_source = _answer_required_action_terms(case)
     query_tokens = _answer_overlap_tokens(case.query)
     if not _is_quantity_answer_query(case.query):
         return action_terms, action_source
@@ -2895,6 +2869,65 @@ def _answer_required_material_terms(case: RetrievalEvalCase, answer: dict[str, A
     if required_terms and action_terms:
         return required_terms, "troubleshooting_action_and_quantity_terms"
     return required_terms, "quantity_evidence_terms" if required_terms else "none"
+
+
+def _normalized_quote_text(text: str) -> str:
+    return re.sub(r"\s+", " ", normalize_text(text)).strip()
+
+
+def _retrieved_chunk_texts(results: list[dict[str, Any]] | None) -> dict[str, str]:
+    chunk_texts: dict[str, str] = {}
+    for result in results or []:
+        if not isinstance(result, dict):
+            continue
+        chunk_id = str(result.get("chunk_id") or result.get("id") or "")
+        if not chunk_id:
+            continue
+        text_parts = [
+            str(result.get("content") or ""),
+            str((result.get("metadata") or {}).get("content") or "") if isinstance(result.get("metadata"), dict) else "",
+        ]
+        chunk_texts[chunk_id] = "\n".join(part for part in text_parts if part)
+    return chunk_texts
+
+
+def _answer_citation_fidelity(
+    answer: dict[str, Any],
+    retrieved_results: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    if retrieved_results is None:
+        return {"passed": True, "checked": False, "unsupported_quotes": [], "missing_cited_chunks": []}
+    chunk_texts = _retrieved_chunk_texts(retrieved_results)
+    unsupported_quotes: list[dict[str, Any]] = []
+    missing_cited_chunks: list[str] = []
+    checked_count = 0
+    for citation in answer.get("citations") or []:
+        if not isinstance(citation, dict):
+            continue
+        quote = str(citation.get("quote_span") or "").strip()
+        if not quote:
+            continue
+        checked_count += 1
+        chunk_id = str(citation.get("chunk_id") or "")
+        chunk_text = chunk_texts.get(chunk_id)
+        if chunk_text is None:
+            missing_cited_chunks.append(chunk_id)
+            continue
+        if _normalized_quote_text(quote) not in _normalized_quote_text(chunk_text):
+            unsupported_quotes.append(
+                {
+                    "chunk_id": chunk_id,
+                    "quote_span": quote,
+                    "reason": "quote_span_not_in_cited_chunk",
+                }
+            )
+    return {
+        "passed": not unsupported_quotes and not missing_cited_chunks,
+        "checked": True,
+        "checked_quote_count": checked_count,
+        "unsupported_quotes": unsupported_quotes,
+        "missing_cited_chunks": missing_cited_chunks,
+    }
 
 
 def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str]) -> bool:
@@ -2931,6 +2964,7 @@ def score_answer_response(
     case: RetrievalEvalCase,
     answer: dict[str, Any],
     retrieval_evaluation: dict[str, Any] | None = None,
+    retrieved_results: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     citation_document_ids = _answer_document_ids(answer, "citations")
     used_document_ids = _answer_document_ids(answer, "used_documents")
@@ -2942,12 +2976,14 @@ def score_answer_response(
     terms = _answer_contains_expected_terms(answer, expected_terms, required_terms=material_terms)
     terms["term_source"] = term_source
     terms["material_term_source"] = material_source
+    citation_fidelity = _answer_citation_fidelity(answer, retrieved_results)
     answer_text = str(answer.get("answer") or "").strip()
     passed = bool(
         answer_text
         and not answer.get("insufficient_evidence")
         and not missing_document_ids
         and terms["passed"]
+        and citation_fidelity["passed"]
     )
     failure_reasons: list[str] = []
     if not answer_text:
@@ -2958,6 +2994,8 @@ def score_answer_response(
         failure_reasons.append("expected_document_not_cited_or_used")
     if not terms["passed"]:
         failure_reasons.append("expected_terms_missing")
+    if not citation_fidelity["passed"]:
+        failure_reasons.append("unsupported_citation_quote")
     if retrieval_evaluation and not retrieval_evaluation.get("passed"):
         failure_reasons.append("retrieval_not_passed")
     return {
@@ -2969,4 +3007,5 @@ def score_answer_response(
         "missing_document_ids": missing_document_ids,
         "expected_document_used": not missing_document_ids,
         "term_check": terms,
+        "citation_fidelity": citation_fidelity,
     }

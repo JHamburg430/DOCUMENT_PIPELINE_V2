@@ -862,6 +862,128 @@ def test_answer_response_scoring_requires_action_verb_even_when_query_mentions_c
     assert "change" in grounded_action["term_check"]["material_matched_terms"]
 
 
+def test_answer_response_scoring_uses_source_only_action_terms():
+    case = RetrievalEvalCase(
+        case_id="case-unsupported-trigger-signal",
+        query=(
+            "On an XG-X Series controller, if Allow Trigger Input During Line Capture and "
+            "End Capture By EXT Signal are enabled together and the invalid camera setting "
+            "error says a trigger signal that cannot be used is assigned, what should I change?"
+        ),
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1,
+        page_to=1,
+        expected_terms=["image", "capture", "trigger", "signal"],
+        expected_snippet="Error, cause, and corrective action",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_family": "XG-X Series"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "action-cell",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["change", "trigger", "signal"],
+                "snippet": "Cell value: Change to a trigger signal that can be used.; Row: 3; Column: 2",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Change the trigger signal assignment to one that is valid for the settings.",
+            "citations": [
+                {
+                    "document_id": "doc-xgx",
+                    "chunk_id": "settings-page",
+                    "pages": [985],
+                    "quote_span": (
+                        "Change the trigger signal assignment to one that is valid for the settings."
+                    ),
+                }
+            ],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert scored["term_check"]["material_expected_terms"] == ["change"]
+    assert "one" not in scored["term_check"]["material_expected_terms"]
+
+
+def test_answer_response_scoring_rejects_unsupported_citation_quote_spans():
+    case = RetrievalEvalCase(
+        case_id="case-unsupported-trigger-signal",
+        query=(
+            "On an XG-X Series controller, if Allow Trigger Input During Line Capture and "
+            "End Capture By EXT Signal are enabled together and the invalid camera setting "
+            "error says a trigger signal that cannot be used is assigned, what should I change?"
+        ),
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1,
+        page_to=1,
+        expected_terms=["image", "capture", "trigger", "signal"],
+        expected_snippet="Error, cause, and corrective action",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_family": "XG-X Series"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "action-cell",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["change", "trigger", "signal"],
+                "snippet": "Cell value: Change to a trigger signal that can be used.; Row: 3; Column: 2",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Change to a trigger signal that can be used.",
+            "citations": [
+                {
+                    "document_id": "doc-xgx",
+                    "chunk_id": "settings-page",
+                    "pages": [985],
+                    "quote_span": "Change to a trigger signal that can be used.",
+                }
+            ],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "settings-page",
+                "content": (
+                    "Trigger delay can be set when capture-on-trigger input is enabled. "
+                    "Live image display is disabled for some trigger settings."
+                ),
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "unsupported_citation_quote" in scored["failure_reasons"]
+    assert scored["citation_fidelity"]["unsupported_quotes"][0]["chunk_id"] == "settings-page"
+
+
 def test_large_retrieval_eval_summarizes_answer_metrics():
     import importlib.util
     from pathlib import Path

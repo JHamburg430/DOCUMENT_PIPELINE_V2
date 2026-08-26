@@ -1,0 +1,73 @@
+{
+  "created_at": "2026-08-26T17:57:41Z",
+  "updated_at": "2026-08-26T18:00:00Z",
+  "purpose": "Replay retrieval_eval_20260826_170130 with source-only material term derivation and citation quote-span fidelity validation.",
+  "source_results": "test_reports/retrieval_eval_results_20260826_170130.jsonl",
+  "scorer_changes": [
+    "Troubleshooting material action terms are derived only from source-reviewed expected evidence snippets.",
+    "Generated answer text and citation quote_span fields cannot create required material terms.",
+    "Returned citation quote_span values are checked against the cited result content rather than broader context windows."
+  ],
+  "summary": {
+    "total_queries": 2,
+    "old_answer_passed_queries": 2,
+    "replayed_answer_passed_queries": 0,
+    "answer_failure_reasons": {
+      "unsupported_citation_quote": 2
+    }
+  },
+  "rows": [
+    {
+      "row": 15,
+      "case_id": "a21da6fb-62df-51da-ab0d-706189859c08::multi_step::15",
+      "old_answer_passed": true,
+      "replayed_answer_passed": false,
+      "failure_reasons": [
+        "unsupported_citation_quote"
+      ],
+      "material_expected_terms": [
+        "change"
+      ],
+      "material_matched_terms": [
+        "change"
+      ],
+      "citation_fidelity": {
+        "passed": false,
+        "checked": true,
+        "checked_quote_count": 1,
+        "unsupported_quotes": [
+          {
+            "chunk_id": "3a456e41-7c29-5d9d-b420-267b5810ff7b",
+            "quote_span": "To resolve the 'invalid camera setting error' when both 'Allow Trigger Input During Line Capture' and 'End Capture By EXT Signal' are enabled, you must change the trigger signal assignment to one that is valid for use with these settings.",
+            "reason": "quote_span_not_in_cited_chunk"
+          }
+        ],
+        "missing_cited_chunks": []
+      }
+    },
+    {
+      "row": 16,
+      "case_id": "1391632e-874b-56c1-aa2e-eb3858c8dc9c::multi_step::16",
+      "old_answer_passed": true,
+      "replayed_answer_passed": false,
+      "failure_reasons": [
+        "unsupported_citation_quote"
+      ],
+      "material_expected_terms": [],
+      "material_matched_terms": [],
+      "citation_fidelity": {
+        "passed": false,
+        "checked": true,
+        "checked_quote_count": 2,
+        "unsupported_quotes": [
+          {
+            "chunk_id": "e68da6c2-861b-5374-badc-fed5b71d75ff",
+            "quote_span": "In the Capture unit camera settings, be sure the line scan camera or LJ-X/LJ-V series head capture methods assigned to the same trigger are the same. Or, assign the other camera which is assigned to the same trigger to a different trigger.",
+            "reason": "quote_span_not_in_cited_chunk"
+          }
+        ],
+        "missing_cited_chunks": []
+      }
+    }
+  ]
+}

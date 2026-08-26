@@ -829,7 +829,7 @@ def main() -> int:
             evaluation["elapsed_seconds"] = round(time.time() - start_time, 3)
             if args.response_mode == "answer_with_citations":
                 answer = dict(search_payload.get("answer") or {})
-                answer_evaluation = score_answer_response(eval_case, answer, evaluation)
+                answer_evaluation = score_answer_response(eval_case, answer, evaluation, results)
                 answer_evaluation["elapsed_seconds"] = evaluation["elapsed_seconds"]
             elapsed_seconds = enforce_completed_query_timeout(
                 start_time=start_time,
