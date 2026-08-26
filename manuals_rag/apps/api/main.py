@@ -37,13 +37,7 @@ from manuals_rag_common.logging import configure_logging
 from manuals_rag_common.ollama import build_chat_payload, ensure_model_loaded, extract_chat_content, recent_ollama_calls
 from manuals_rag_common.queue import enqueue, redis_client
 from manuals_rag_common.storage import ObjectStore
-from manuals_rag_evals.retrieval_eval import (
-    RetrievalEvalCase,
-    build_eval_cases_from_chunks,
-    score_answer_response,
-    score_search_results,
-    tokenize,
-)
+from manuals_rag_evals.retrieval_eval import RetrievalEvalCase, build_eval_cases_from_chunks, score_search_results, tokenize
 from manuals_rag_observability.metrics import QUERY_DURATION
 from manuals_rag_parsers.metadata import infer_document_metadata
 from manuals_rag_permissions.auth import Principal, require_role
@@ -222,7 +216,40 @@ def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str
 
 
 def _score_answer(case: RetrievalEvalCase, answer: dict[str, Any], retrieval_evaluation: dict[str, Any]) -> dict[str, Any]:
-    return score_answer_response(case, answer, retrieval_evaluation)
+    citation_document_ids = {
+        str(citation.get("document_id") or citation.get("source_document_id") or "")
+        for citation in answer.get("citations", [])
+        if isinstance(citation, dict)
+    }
+    used_document_ids = {
+        str(document.get("document_id") or document.get("source_document_id") or "")
+        for document in answer.get("used_documents", [])
+        if isinstance(document, dict)
+    }
+    expected_document_used = case.source_document_id in citation_document_ids or case.source_document_id in used_document_ids
+    terms = _answer_contains_expected_terms(answer, case.expected_terms)
+    answer_text = str(answer.get("answer") or "").strip()
+    passed = bool(
+        answer_text
+        and not answer.get("insufficient_evidence")
+        and expected_document_used
+        and terms["passed"]
+    )
+    failure_reasons = []
+    if not answer_text:
+        failure_reasons.append("empty_answer")
+    if answer.get("insufficient_evidence"):
+        failure_reasons.append("insufficient_evidence")
+    if not expected_document_used:
+        failure_reasons.append("expected_document_not_cited_or_used")
+    if not terms["passed"]:
+        failure_reasons.append("expected_terms_missing")
+    return {
+        "passed": passed,
+        "failure_reasons": failure_reasons,
+        "expected_document_used": expected_document_used,
+        "term_check": terms,
+    }
 
 
 def _answer_document_ids(answer: dict[str, Any], key: str) -> list[str]:

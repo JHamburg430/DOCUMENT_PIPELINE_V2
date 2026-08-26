@@ -2335,6 +2335,21 @@ Next target:
 
 - Continue broadening actual HTTP API answer-grounding on validated sibling troubleshooting rows 5-20, warning/procedure, or curated single-step slices while preserving the unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cross-document cases 6, 7, and 9. Keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design; preserve contextual row 14 as separate candidate-miss evidence.
 
+## 2026-08-26 Cron 39262386 Critical Dirty-Tree Containment
+
+- Target: address guardrail `2026-08-26T11:44:00Z` `critical`, which found out-of-scope API/UI eval-surface changes and a no-scorable-term answer-scoring relaxation after the corrected troubleshooting scorer commit.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. The latest finding was `critical`; no retrieval tuning, answer-generation tuning, new answer rotation, API/UI feature work, parser, ingestion, model/provider, schema, infrastructure, or Docker work was attempted before containment.
+- Local stack: compose services were running and usable: API, Postgres, Qdrant, Redis, workers, and UI were up; Postgres was healthy. The active corpus remained `manuals_vendor_keyence`.
+- Containment changes: restored `apps/api/main.py` to its local eval answer scorer instead of importing `score_answer_response` from the eval package; restored the UI completed-run trace/cache-busting changes in `apps/ui/app.js` and `apps/ui/index.html` to the prior state; tightened `_answer_contains_expected_terms` so zero scorable expected terms fail rather than passing; updated the no-scorable-term unit test to require failure with `expected_terms_missing`.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_api_debug.py -q` -> 91 passed, 9 warnings.
+- No live retrieval or answer eval was run under this containment change because the guardrail target was to stop the unsafe dirty-tree path before continuing rotations. No question-bank counts changed: 203 exploratory questions total, 100 single-step and 103 multi-step; replacement debt remains 0.
+- Guardrail handling: `2026-08-26T11:44:00Z` is addressed by removing the committed API/UI surface changes from the current branch and preventing no-scorable-term answer cases from passing. `retrieval_eval_20260826_113115` remains the corrected rows 3-4 sibling troubleshooting answer evidence; `retrieval_eval_20260826_105344` row 3 remains excluded as clean evidence.
+- Generalization check before commit: containment is valid for unseen manuals and vendors because it removes out-of-scope API/UI changes and strengthens eval answer-grounding requirements without adding document-specific routing, query hardcoding, inferred hard filters, eval-only production retrieval behavior, or model/provider changes.
+
+Next target:
+
+- Continue broadening actual HTTP API answer-grounding on validated sibling troubleshooting rows 5-20, warning/procedure, or curated single-step slices only after this containment commit. Preserve unresolved direct cross-document baseline `retrieval_eval_20260826_005723` for cases 6, 7, and 9 plus contextual row 14 as retrieval-gap evidence, and keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design.
+
 ## 2026-08-26 Cron 39262386 Troubleshooting Corrective-Action Answer Scoring
 
 - Target: address guardrail `2026-08-26T11:14:00Z`, which found that `retrieval_eval_20260826_105344` row 3 was recorded as a green sibling troubleshooting answer even though the answer missed the expected corrective action to stay within the OCR2 200-pattern limit and delete unnecessary character patterns.

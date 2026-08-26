@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260826-eval-ui-scoring-1";
+const ASSET_VERSION = "20260822-fetch-recovery-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
@@ -352,13 +352,6 @@ function renderQuestionTrace(runtime) {
     .join("");
 }
 
-function renderCompletedTracePlaceholder() {
-  const node = $("question-trace");
-  $("trace-status").textContent = "Completed run loaded";
-  node.className = "question-trace empty-state";
-  node.textContent = "Completed question results are shown below.";
-}
-
 function scheduleQuestionTraceRender(runtime) {
   if (runtime.traceRenderTimer) return;
   runtime.traceRenderTimer = setTimeout(() => {
@@ -450,9 +443,10 @@ function renderCompletedEvalRun(run, source) {
   if (!run?.result_json) return;
   state.selectedEvalIndex = 0;
   renderEval(run.result_json, { id: run.id, updated_at: run.updated_at, source });
-  state.evalRuntime = null;
+  const runtime = runtimeFromEvalResult(run.result_json, run.id);
+  state.evalRuntime = runtime;
   $("model-output").innerHTML = "";
-  renderCompletedTracePlaceholder();
+  renderQuestionTrace(runtime);
 }
 
 function renderProgress(stepSequence = [], stepState = {}, detailState = progressState.details, expandedSteps = progressState.expanded) {

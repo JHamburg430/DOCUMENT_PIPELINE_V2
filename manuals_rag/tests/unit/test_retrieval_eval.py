@@ -369,7 +369,7 @@ def test_answer_response_scoring_requires_terms_and_expected_document():
     assert scored["term_check"]["matched_terms"] == ["24", "vdc"]
 
 
-def test_answer_response_scoring_ignores_non_answer_source_address_anchors():
+def test_answer_response_scoring_rejects_cases_without_scorable_answer_terms():
     case = RetrievalEvalCase(
         case_id="case-command-error-flag",
         query="Which state should the command error tag display when assigned?",
@@ -402,10 +402,10 @@ def test_answer_response_scoring_ignores_non_answer_source_address_anchors():
         {"passed": True},
     )
 
-    assert scored["passed"] is True
+    assert scored["passed"] is False
     assert scored["term_check"]["term_source"] == "no_scorable_case_expected_terms"
     assert scored["term_check"]["expected_terms"] == []
-    assert scored["failure_reasons"] == []
+    assert scored["failure_reasons"] == ["expected_terms_missing"]
 
 
 def test_answer_response_scoring_requires_all_multi_step_documents():

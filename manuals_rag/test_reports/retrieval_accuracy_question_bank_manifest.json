@@ -526,6 +526,18 @@
           "retrieval_eval_20260826_113115"
         ],
         "remaining": "Sibling troubleshooting rows 3-4 are now revalidated at 2/2 actual API answers under the stricter scorer, but rows 5-20 still need future answer rotations. Preserve unresolved direct cross-document baseline retrieval_eval_20260826_005723 for cases 6, 7, and 9, and contextual row 14 as separate candidate-miss evidence."
+      },
+      "2026-08-26T11:44:00Z": {
+        "severity": "critical",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Contained the critical dirty-tree finding by removing the committed API/UI eval-surface changes from the current branch and tightening the no-scorable-term eval scorer path so cases with only generic/source-address expected terms fail instead of passing as grounded evidence.",
+        "evidence": [
+          "apps/api/main.py restored local _score_answer instead of importing score_answer_response from the eval package",
+          "apps/ui/app.js and apps/ui/index.html restored the prior completed-run trace behavior and asset version",
+          "tests/unit/test_retrieval_eval.py::test_answer_response_scoring_rejects_cases_without_scorable_answer_terms",
+          "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_api_debug.py -q -> 91 passed, 9 warnings"
+        ],
+        "remaining": "No later answer-green result produced under the no-scorable-term relaxation should be counted as clean grounding evidence. Continue sibling rows 5-20 answer rotations only after this containment commit, and preserve retrieval_eval_20260826_005723 plus contextual row 14 as unresolved retrieval-gap evidence."
       }
     },
     "diagnostics": [
@@ -6541,7 +6553,7 @@
       "result": "2/2 retrieval and 2/2 actual API answers passed at rank 1; answer_sources api:2; fallback 0; mean answer latency 41.752s."
     }
   },
-  "next_target": "Continue broadening actual HTTP API answer-grounding on validated sibling troubleshooting rows 5-20, warning/procedure, or curated single-step slices while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9. Keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design; preserve contextual row 14 as separate candidate-miss evidence. Do not count retrieval_eval_20260826_105344 row 3 as clean answer evidence; use retrieval_eval_20260826_113115 for rows 3-4 under the stricter scorer.",
+  "next_target": "Continue broadening actual HTTP API answer-grounding on validated sibling troubleshooting rows 5-20, warning/procedure, or curated single-step slices after the 2026-08-26T11:44Z critical containment commit. Preserve the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9, keep contextual row 14 as separate candidate-miss evidence, and keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design. Do not count retrieval_eval_20260826_105344 row 3 as clean answer evidence; use retrieval_eval_20260826_113115 for rows 3-4 under the stricter scorer, and do not count any later green answer result produced under the no-scorable-term relaxation.",
   "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10. Focused 20s probes on 2026-08-26T09:57Z reclassified cases 6 and 7 as ranking_or_context_loss with candidate recall and case 9 as candidate_miss; no production change was made.",
   "current_failure_categories": {
     "candidate_miss": 1,
@@ -6809,7 +6821,7 @@
     "expected_document_not_cited_or_used": 4,
     "retrieval_not_passed": 4
   },
-  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-4 at 4/4 user-visible API answers, using retrieval_eval_20260826_113115 as the corrected rows 3-4 evidence under the stricter corrective-action scorer. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; this answer/scorer work is not a direct-retrieval improvement.",
+  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-4 at 4/4 user-visible API answers, using retrieval_eval_20260826_113115 as the corrected rows 3-4 evidence under the stricter corrective-action scorer. The 2026-08-26T11:44Z critical containment prevents any no-scorable-term answer result from passing as grounded evidence; no green result produced under that relaxed path should be counted. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; this answer/scorer work is not a direct-retrieval improvement.",
   "answer_grounding_rotation": {
     "status": "scorer_tightened_and_sibling_rows_3_4_revalidated",
     "latest_runs": [

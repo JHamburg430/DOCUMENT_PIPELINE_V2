@@ -2642,7 +2642,7 @@ def _answer_contains_expected_terms(
     required = min(2, len(expected))
     material_required = len(material_expected)
     material_passed = len(material_matched) >= material_required if material_required else True
-    base_terms_passed = len(matched) >= required if required else True
+    base_terms_passed = len(matched) >= required if required else False
     return {
         "passed": base_terms_passed and material_passed,
         "matched_terms": matched,
