@@ -1,5 +1,15 @@
 # Retrieval Accuracy Guardrail Findings
 
+## 2026-08-26T10:44:00Z Guardrail Review
+
+- Reviewed accuracy job: `39262386-1bb6-4571-98e1-13a30047ddb8`
+- Reviewed commits: `bbd8277..1615aef` (`Record sibling troubleshooting answer rotation`), where `bbd8277` was the prior guardrail note.
+- Reviewed run evidence: progress-log entry `2026-08-26 Cron 39262386 Sibling Troubleshooting Answer Rotation Rows 1-2`, committed summary/manifest for `retrieval_eval_20260826_102401`, and current manifest tracking; direct audited cron run history was unavailable because the cron tool is restricted to the current job.
+- Severity: `ok`
+- Finding: no new counterproductive or biased production change found. The latest accuracy commit adds only eval/tracking artifacts for a two-case actual HTTP API answer-grounding rotation over a previously validated sibling troubleshooting slice. It does not edit production retrieval, answering, eval-generation/scoring, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, docs, or tests; it does not add document/vendor/product/filename/query-specific routing, inferred hard filters, eval-only production behavior, coverage shrinkage, deleted hard cases, or weakened expected evidence.
+- Evidence: `git diff --name-status bbd8277..1615aef` lists only `test_reports/retrieval_accuracy_progress.md`, `test_reports/retrieval_accuracy_question_bank_manifest.json`, `test_reports/retrieval_eval_manifest_20260826_102401.json`, and `test_reports/retrieval_eval_summary_20260826_102401.json`. `git diff bbd8277..1615aef -- packages/retrieval packages/answering packages/evals scripts/benchmark apps infra docs tests --stat` is empty. `retrieval_eval_20260826_102401` reports 2/2 retrieval and 2/2 actual API answers, `answer_sources: {"api": 2}`, fallback 0, benchmark quality `validated`, and no failure categories. Active coverage remains unchanged at 203 exploratory questions, 100 single-step and 103 multi-step, with replacement debt 0. The manifest continues to preserve unresolved cross-document direct-retrieval failures from `retrieval_eval_20260826_005723` as `candidate_miss: 1` and `ranking_or_context_loss: 2`, and states this green answer slice is not a direct-retrieval improvement. `jq empty` passed for the manifest and new 102401 artifact files; `git diff --check bbd8277..1615aef` passed.
+- Required next action: continue broadening actual HTTP API answer-grounding on validated slices only, while preserving the unresolved direct cross-document baseline and contextual row 14 candidate miss. Do not repeat rejected broad scoring, promotion, metadata/content prefilter, or tiny-slice retrieval experiments; retrieval work still needs explicit approval for a small indexed/bounded row-key/product-signal discovery design or equivalent general approach.
+
 ## 2026-08-24T21:10:00Z Guardrail Review
 
 - Reviewed accuracy job: `39262386-1bb6-4571-98e1-13a30047ddb8`
