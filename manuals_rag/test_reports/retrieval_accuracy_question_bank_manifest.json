@@ -353,6 +353,20 @@
           "git diff -- packages/retrieval/src/manuals_rag_retrieval/retriever.py tests/unit/test_retriever.py empty after revert"
         ],
         "remaining": "The tested user-mentioned table-item focus lookup did not improve the 10-case v2 gate and was reverted. Continue from retrieval_eval_20260825_072839 and identifier-pool/source-stage diagnostics; avoid this rejected focus-phrase supplement along with earlier rejected comparison tuning paths."
+      },
+      "2026-08-26T00:44:00Z": {
+        "severity": "critical",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Reverted b51a22c, removing out-of-scope API/UI question-generation progress events/timeline changes and restoring the stricter eval-question safeguards before any further retrieval or answering tuning.",
+        "evidence": [
+          "commit 1d6a385 Revert \"Improve eval tracing and question generation\"",
+          "rg for question_generation_/event_callback/eval_preparing/vague fallback templates across touched API/UI/eval/test files returned no matches",
+          "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_retrieval_eval.py -q -> 80 passed, 9 warnings",
+          "retrieval_eval_20260826_005521 -> curated single-step v2 13/13 direct retrieval",
+          "retrieval_eval_20260826_005622 -> warning/procedure 15/15 direct retrieval",
+          "retrieval_eval_20260826_005723 -> curated cross-document v2 7/10 direct retrieval, unresolved failure profile retained"
+        ],
+        "remaining": "No production retrieval or answering improvement was attempted this containment run. Cross-document v2 remains unresolved at 7/10; because schema/ingestion remains out of scope, avoid more case 6/7 row-key production experiments unless John allows a precomputed/indexed row-key design, or rotate broader actual HTTP API answer-grounding batches instead."
       }
     },
     "diagnostics": [
@@ -691,8 +705,84 @@
     "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated."
   },
   "latest_results": {
-    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning during experiment; production retrieval edit was reverted after the full gate stayed 7/10.",
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_retrieval_eval.py -q -> 80 passed, 9 warnings after reverting b51a22c.",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260826_005521",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_005521.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_005521.json",
+        "status": "containment_regression_gate_passed",
+        "mode": "direct_curated_single_step_v2_after_b51a22c_revert",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 13,
+        "passed_queries": 13,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "failure_categories": {},
+        "notes": "Guardrail containment regression gate; validates strict curated single-step replacement slice after reverting out-of-scope API/UI eval tracing and loose eval-generation changes."
+      },
+      {
+        "run_id": "retrieval_eval_20260826_005622",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_005622.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_005622.json",
+        "status": "containment_regression_gate_passed",
+        "mode": "direct_warning_procedure_after_b51a22c_revert",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 15,
+        "passed_queries": 15,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 0.8667,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "failure_categories": {},
+        "notes": "Guardrail containment regression gate; warning/procedure multi-step retrieval remains green after the revert."
+      },
+      {
+        "run_id": "retrieval_eval_20260826_005723",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_005723.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_005723.json",
+        "status": "containment_regression_gate_unresolved_baseline_retained",
+        "mode": "direct_curated_cross_document_v2_after_b51a22c_revert",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 10,
+        "passed_queries": 7,
+        "failed_queries": 3,
+        "pass_rate": 0.7,
+        "pass_at_1": 0.6,
+        "pass_at_3": 0.7,
+        "pass_at_5": 0.7,
+        "candidate_recall_rate": 0.8,
+        "metadata_document_selection_recall_rate": 1.0,
+        "failure_categories": {
+          "eval_timeout": 2,
+          "ranking_or_context_loss": 1
+        },
+        "baseline": "retrieval_eval_20260825_072839",
+        "notes": "No production retrieval change; verifies the full curated cross-document v2 target remains unresolved after containment. Cases 6 and 9 timed out at 8s, and case 7 remains ranking/context loss."
+      },
       {
         "run_id": "retrieval_eval_20260825_235830",
         "corpus_id": "manuals_vendor_keyence",
@@ -5846,16 +5936,14 @@
       "notes": "Eval/debug-only row-key feasibility probe. Cases 6 and 7 exact expected rows have query-mentioned setting-item/table-row keys with small corpus-wide normalized pools: Condition list 24, Standard Angle 31, PMSR DC2LAR 23, and RTO2L 51, while each row also matches the requested product identifier. This supports a future bounded/indexed row-key discovery design rather than another broad SQL pool expansion. Case 9 row keys are not directly mentioned in the query and should remain separate as a final-context/top-k or timeout target. No production retrieval behavior changed and no pass rate is marked resolved."
     }
   },
-  "next_target": "Escalate the row-key discovery design decision: either allow a small schema/ingestion/index change to persist normalized table row keys, setting-item keys, and product identifiers for bounded lookup, or keep production retrieval code unchanged and rotate broader actual HTTP API answer-grounding batches. If schema/ingestion remains out of scope, avoid further case 6/7 row-key production experiments; they have no safe in-scope indexed path. Keep case 9 separate as final-context/top-k or timeout work, but avoid rejected comparison top-k/promotion variants unless a clearly general design improves the full 10-case v2 gate and preserves saved single-step plus warning/procedure gates.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_235830 is diagnostic-only after the exact row-key metadata/setting-item experiment stayed 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1; all production edits were reverted. retrieval_eval_20260826_002431 is a no-change 12-second timeout validation that also stayed 7/10; it confirms case 6 is still a ranking/context problem once timeout pressure is relaxed.",
+  "next_target": "After guardrail containment, either get explicit approval for a small schema/ingestion/index change to persist normalized table row keys, setting-item keys, and product identifiers for bounded case 6/7 discovery, or keep production retrieval unchanged and rotate broader actual HTTP API answer-grounding batches. If schema/ingestion remains out of scope, avoid further case 6/7 row-key production experiments; previous in-scope per-query lookup variants have repeatedly timed out or failed the full curated cross-document v2 gate. Keep case 9 separate as final-context/top-k or timeout work.",
+  "current_retrieval_failure_source": "retrieval_eval_20260826_005723",
   "current_failure_categories": {
-    "candidate_miss": 1,
-    "eval_timeout": 1,
+    "eval_timeout": 2,
     "ranking_or_context_loss": 1
   },
   "failure_categories": {
-    "candidate_miss": 1,
-    "eval_timeout": 1,
+    "eval_timeout": 2,
     "ranking_or_context_loss": 1
   },
   "diagnostics": [
@@ -6068,18 +6156,17 @@
     }
   },
   "latest_no_change_validation": {
-    "summary": "test_reports/retrieval_eval_summary_20260826_002431.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260826_002431.json",
-    "dataset": "test_reports/retrieval_eval_dataset_20260826_002431.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260826_002431.jsonl",
-    "status": "no_production_change_validation",
+    "summary": "test_reports/retrieval_eval_summary_20260826_005723.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260826_005723.json",
+    "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+    "status": "containment_regression_validation_after_b51a22c_revert",
     "baseline": "retrieval_eval_20260825_072839",
-    "result": "7/10 direct retrieval with a 12-second per-query timeout, pass@1 60%, pass@3/pass@5 70%, candidate recall 90%, metadata document recall 100%.",
+    "result": "7/10 direct retrieval with pass@1 60%, pass@3/pass@5 70%, candidate recall 80%, metadata document recall 100%.",
     "failure_categories": {
-      "ranking_or_context_loss": 2,
-      "candidate_miss": 1
+      "eval_timeout": 2,
+      "ranking_or_context_loss": 1
     },
-    "notes": "Run start guardrail review left no unresolved needs_fix/critical finding. No production retrieval or answering change was made because the only promising case 6/7 row-key design now requires a precomputed/indexed signal outside the current hard scope, while the in-scope per-query lookup variants have already been rejected."
+    "notes": "Run addressed guardrail 2026-08-26T00:44:00Z by reverting out-of-scope API/UI progress-surface and loose eval-generation changes, then rerunning saved direct retrieval gates. No production retrieval or answering change was attempted."
   },
   "latest_rejected_experiment": {
     "path": "test_reports/retrieval_eval_summary_20260825_235830.json",
@@ -6097,5 +6184,17 @@
       "ranking_or_context_loss": 1
     },
     "notes": "Rejected and reverted: exact metadata table_row_headers and anchored Setting item lookup avoided regexp normalization but did not improve the full manually reviewed cross-document v2 gate; cases 6 and 9 timed out and case 7 remained a ranking/context loss. No production retrieval/test code was retained."
+  },
+  "latest_containment": {
+    "guardrail_finding": "2026-08-26T00:44:00Z",
+    "reverted_commit": "b51a22c",
+    "revert_commit": "1d6a385",
+    "status": "addressed",
+    "validation": [
+      "test_api_debug.py + test_retrieval_eval.py -> 80 passed",
+      "retrieval_eval_20260826_005521 -> 13/13 single-step",
+      "retrieval_eval_20260826_005622 -> 15/15 warning/procedure",
+      "retrieval_eval_20260826_005723 -> 7/10 cross-document v2 unresolved baseline retained"
+    ]
   }
 }
