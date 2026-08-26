@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260822-fetch-recovery-1";
+const ASSET_VERSION = "20260826-trace-generation-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
@@ -469,6 +469,31 @@ function renderProgress(stepSequence = [], stepState = {}, detailState = progres
     .join("");
 }
 
+function ensureProgressStep(name, label) {
+  if (!name) return;
+  if (!progressState.sequence.some((step) => step.name === name)) {
+    progressState.sequence.push({ name, label: label || name });
+  }
+}
+
+function setActiveProgressStep(name) {
+  if (!name) return;
+  progressState.expanded = new Set([name]);
+}
+
+function setProgressStatus(name, status, label = null) {
+  ensureProgressStep(name, label || name);
+  progressState.state[name] = { ...(progressState.state[name] || {}), status };
+}
+
+function resetProgressTimeline() {
+  progressState.sequence = [];
+  progressState.state = {};
+  progressState.details = {};
+  progressState.expanded = new Set();
+  renderProgress(progressState.sequence, progressState.state);
+}
+
 function renderProgressStepDetails(step, detail = null) {
   const rows = detail?.events || [];
   const tokenCount = Number(detail?.tokens || 0);
@@ -570,6 +595,23 @@ function recordProgressDetail(queryEvent) {
   detail.events = detail.events.slice(-12);
 }
 
+function recordTimelineDetail(stepName, event) {
+  if (!stepName) return;
+  const detail = (progressState.details[stepName] ||= { events: [], tokens: 0 });
+  detail.events.push({
+    event: event.event,
+    label: event.label || event.query || event.reason || "",
+    model: event.model || "",
+    callId: event.call_id || "",
+    duration: event.duration_ms != null ? `${Number(event.duration_ms).toFixed(0)} ms` : "",
+    error: event.error || "",
+    response: event.query || "",
+    payloadObject: event,
+    payload: formatProgressPayload(event),
+  });
+  detail.events = detail.events.slice(-30);
+}
+
 function toggleProgressStep(stepName) {
   if (!stepName) return;
   if (progressState.expanded.has(stepName)) {
@@ -582,9 +624,11 @@ function toggleProgressStep(stepName) {
 
 function renderEvalWarnings(warnings = []) {
   if (!warnings.length) return;
-  $("progress-list").innerHTML = warnings
-    .map((warning) => `<div class="error-box">${escapeHtml(warning)}</div>`)
-    .join("");
+  setProgressStatus("warnings", "failed", "Warnings");
+  for (const warning of warnings) {
+    recordTimelineDetail("warnings", { event: "warning", error: warning });
+  }
+  renderProgress(progressState.sequence, progressState.state);
 }
 
 function resetRunDebug(payload, sampleLimit) {
@@ -941,16 +985,16 @@ async function runEval() {
 }
 
 function handleEvalEvent(event, refs) {
+  updateRunTimelineEvent(event);
   if (event.event === "eval_queued") {
     setStatus(`Run ${event.run_id}: preparing questions`, "running");
-    $("progress-list").innerHTML = '<div class="empty-state">Preparing evaluation questions.</div>';
   } else if (event.event === "eval_started") {
     state.currentEval = { summary: summarizeVisibleItems([]), items: [], warnings: event.warnings || [] };
     renderMetrics(state.currentEval.summary);
     $("eval-table").innerHTML = '<div class="empty-state">Waiting for completed questions.</div>';
     $("eval-detail").innerHTML = "";
     setStatus(`Run ${event.run_id}: ${event.total_questions} questions`, "running");
-    renderEvalWarnings(event.warnings || []);
+    if (event.warnings?.length) renderEvalWarnings(event.warnings || []);
   } else if (event.event === "eval_question_started") {
     setStatus(`Question ${event.question_index}/${event.total_questions}`, "running");
   } else if (event.event === "eval_query_event") {
@@ -958,12 +1002,11 @@ function handleEvalEvent(event, refs) {
     if (queryEvent.event === "run_started") {
       refs.stepSequenceRef(queryEvent.step_sequence || []);
       refs.stepStateRef({});
-      renderProgress(queryEvent.step_sequence || [], {});
     } else if (queryEvent.event === "step_started") {
       const current = Object.fromEntries([...document.querySelectorAll(".progress-row")].map((row) => [row.textContent, row.className]));
       void current;
     }
-    updateNestedProgress(queryEvent);
+    updateNestedProgress(queryEvent, event.question_index);
     updateModelOutput(event.question_index, queryEvent, refs.llmOutputs);
   } else if (event.event === "eval_question_completed") {
     renderEval({ summary: event.summary, items: [...(state.currentEval?.items || []), event.item], warnings: [] }, { id: event.run_id, source: "partial run" });
@@ -975,20 +1018,74 @@ function handleEvalEvent(event, refs) {
 
 const progressState = { sequence: [], state: {}, details: {}, expanded: new Set() };
 
-function updateNestedProgress(queryEvent) {
+function progressQuestionPrefix(questionIndex) {
+  return questionIndex ? `q${questionIndex}:` : "";
+}
+
+function progressStepLabel(questionIndex, step) {
+  const label = step.label || step.name || "Step";
+  return questionIndex ? `Q${questionIndex} · ${label}` : label;
+}
+
+function updateNestedProgress(queryEvent, questionIndex = null) {
+  const prefix = progressQuestionPrefix(questionIndex);
   if (queryEvent.event === "run_started") {
-    progressState.sequence = queryEvent.step_sequence || [];
-    progressState.state = {};
-    progressState.details = {};
-    progressState.expanded = new Set();
+    for (const step of queryEvent.step_sequence || []) {
+      ensureProgressStep(`${prefix}${step.name}`, progressStepLabel(questionIndex, step));
+    }
   } else if (queryEvent.event === "step_started") {
-    recordProgressDetail(queryEvent);
-    progressState.state[queryEvent.step] = { ...(progressState.state[queryEvent.step] || {}), status: "running" };
+    const stepName = `${prefix}${queryEvent.step}`;
+    ensureProgressStep(stepName, progressStepLabel(questionIndex, { name: queryEvent.step, label: queryEvent.label }));
+    recordProgressDetail({ ...queryEvent, step: stepName });
+    progressState.state[stepName] = { ...(progressState.state[stepName] || {}), status: "running" };
+    setActiveProgressStep(stepName);
   } else if (queryEvent.event === "step_completed") {
-    recordProgressDetail(queryEvent);
-    progressState.state[queryEvent.step] = { ...(progressState.state[queryEvent.step] || {}), status: "completed" };
+    const stepName = `${prefix}${queryEvent.step}`;
+    ensureProgressStep(stepName, progressStepLabel(questionIndex, { name: queryEvent.step, label: queryEvent.label }));
+    recordProgressDetail({ ...queryEvent, step: stepName });
+    progressState.state[stepName] = { ...(progressState.state[stepName] || {}), status: "completed" };
   } else {
-    recordProgressDetail(queryEvent);
+    const stepName = queryEvent.step ? `${prefix}${queryEvent.step}` : null;
+    if (stepName) recordProgressDetail({ ...queryEvent, step: stepName });
+  }
+  renderProgress(progressState.sequence, progressState.state);
+}
+
+function updateRunTimelineEvent(event) {
+  if (event.event === "eval_queued") {
+    resetProgressTimeline();
+    setProgressStatus("request", "completed", "Start persisted run");
+    setProgressStatus("question_generation", "running", "Generate evaluation questions");
+    setActiveProgressStep("question_generation");
+    recordTimelineDetail("request", event);
+  } else if (event.event?.startsWith("question_generation")) {
+    const status = event.event === "question_generation_completed" ? "completed" : "running";
+    setProgressStatus("question_generation", status, "Generate evaluation questions");
+    recordTimelineDetail("question_generation", event);
+    if (status === "running") setActiveProgressStep("question_generation");
+  } else if (event.event === "eval_started") {
+    setProgressStatus("question_generation", "completed", "Generate evaluation questions");
+    setProgressStatus("evaluation", "running", "Run retrieval and answer eval");
+    setActiveProgressStep("evaluation");
+    recordTimelineDetail("evaluation", event);
+  } else if (event.event === "eval_question_started") {
+    const stepName = `q${event.question_index}:case`;
+    setProgressStatus(stepName, "running", `Q${event.question_index} · Selected question`);
+    setActiveProgressStep(stepName);
+    recordTimelineDetail(stepName, event);
+  } else if (event.event === "eval_question_completed") {
+    setProgressStatus(`q${event.question_index}:case`, "completed", `Q${event.question_index} · Selected question`);
+    setProgressStatus(`q${event.question_index}:scoring`, "completed", `Q${event.question_index} · Score result`);
+    recordTimelineDetail(`q${event.question_index}:scoring`, event);
+  } else if (event.event === "eval_completed") {
+    setProgressStatus("evaluation", "completed", "Run retrieval and answer eval");
+    setProgressStatus("completed", "completed", "Finalize run");
+    setActiveProgressStep("completed");
+    recordTimelineDetail("completed", event);
+  } else if (event.event === "eval_failed") {
+    setProgressStatus("failed", "failed", "Run failed");
+    setActiveProgressStep("failed");
+    recordTimelineDetail("failed", event);
   }
   renderProgress(progressState.sequence, progressState.state);
 }
@@ -1009,6 +1106,13 @@ function updateModelOutput(questionIndex, queryEvent, llmOutputs) {
     call.model = queryEvent.model || call.model;
     call.status = "completed";
     call.text = queryEvent.raw_response || call.text || "";
+    appendModelOutput(baseId, call);
+  } else if (nested === "llm_call_failed") {
+    const call = (llmOutputs[baseId] ||= { text: "" });
+    call.label = queryEvent.label || call.label;
+    call.model = queryEvent.model || call.model;
+    call.status = "failed";
+    call.text = queryEvent.error || call.text || "";
     appendModelOutput(baseId, call);
   }
 }

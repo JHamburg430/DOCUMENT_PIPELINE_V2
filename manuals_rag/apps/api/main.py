@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import inspect
 import os
 import queue
 from contextlib import asynccontextmanager
@@ -517,7 +518,10 @@ def _finalize_abandoned_run(run_id: str, message: str) -> None:
         _update_persisted_run(run_id, status="failed", error=message)
 
 
-def _load_eval_cases(payload: dict[str, Any]) -> tuple[list[str], str | None, list[RetrievalEvalCase], list[str]]:
+def _load_eval_cases(
+    payload: dict[str, Any],
+    event_callback: Any | None = None,
+) -> tuple[list[str], str | None, list[RetrievalEvalCase], list[str]]:
     corpus_ids = [str(item).strip() for item in payload.get("corpus_ids", []) if str(item).strip()]
     document_id = str(payload.get("document_id") or "").strip() or None
     max_questions = max(1, min(int(payload.get("max_questions") or 10), 50))
@@ -526,14 +530,33 @@ def _load_eval_cases(payload: dict[str, Any]) -> tuple[list[str], str | None, li
     if not document_id and not corpus_ids:
         raise HTTPException(status_code=400, detail="Provide corpus_ids for all-doc eval or document_id for a single-document eval.")
     chunk_rows = _fetch_eval_chunk_rows(corpus_ids=corpus_ids, document_id=document_id, max_chunks=max_chunks)
+    if event_callback:
+        event_callback(
+            {
+                "event": "question_generation_chunks_loaded",
+                "candidate_chunk_count": len(chunk_rows),
+                "max_questions": max_questions,
+                "max_chunks": max_chunks,
+                "use_llm_generation": use_llm_generation,
+            }
+        )
     previous_questions_by_chunk_id = _fetch_previous_eval_questions_by_chunk_id(
         [str(row.get("id")) for row in chunk_rows if row.get("id")]
     )
+    if event_callback:
+        event_callback(
+            {
+                "event": "question_generation_history_loaded",
+                "chunk_history_count": len(previous_questions_by_chunk_id),
+                "previous_question_count": sum(len(items) for items in previous_questions_by_chunk_id.values()),
+            }
+        )
     cases = build_eval_cases_from_chunks(
         chunk_rows,
         max_cases=max_questions,
         use_llm_generation=use_llm_generation,
         previous_questions_by_chunk_id=previous_questions_by_chunk_id,
+        event_callback=event_callback,
     )
     warnings = [] if cases else ["No query-worthy indexed chunks were found for the requested scope."]
     return corpus_ids, document_id, cases, warnings
@@ -548,6 +571,16 @@ def _eval_search_scope(corpus_ids: list[str], document_id: str | None) -> tuple[
         if document and document.get("corpus_id"):
             search_corpus_ids = [str(document["corpus_id"])]
     return search_corpus_ids, filters
+
+
+def _load_eval_cases_with_optional_progress(
+    payload: dict[str, Any],
+    event_callback: Any,
+) -> tuple[list[str], str | None, list[RetrievalEvalCase], list[str]]:
+    parameters = inspect.signature(_load_eval_cases).parameters
+    if "event_callback" in parameters:
+        return _load_eval_cases(payload, event_callback=event_callback)
+    return _load_eval_cases(payload)
 
 
 def _top_results_from_query_debug(result: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1160,7 +1193,39 @@ def _start_end_to_end_eval_run(
 
         items: list[dict[str, Any]] = []
         try:
-            corpus_ids, document_id, cases, warnings = _load_eval_cases(payload)
+            generation_started = emit(
+                {
+                    "event": "question_generation_started",
+                    "scope": {
+                        "corpus_ids": payload.get("corpus_ids") or [],
+                        "document_id": payload.get("document_id"),
+                    },
+                    "max_questions": payload.get("max_questions"),
+                    "use_llm_generation": bool(payload.get("use_llm_generation", True)),
+                }
+            )
+            _update_persisted_run(run_id, status="running", progress=generation_started)
+
+            def emit_generation_event(event: dict[str, Any]) -> None:
+                generated = emit(event)
+                if event.get("event") in {
+                    "question_generation_chunks_loaded",
+                    "question_generation_candidate_accepted",
+                    "question_generation_model_failed",
+                    "question_generation_chunk_skipped",
+                }:
+                    _update_persisted_run(run_id, status="running", progress=generated)
+
+            corpus_ids, document_id, cases, warnings = _load_eval_cases_with_optional_progress(payload, emit_generation_event)
+            generation_completed = emit(
+                {
+                    "event": "question_generation_completed",
+                    "scope": {"corpus_ids": corpus_ids, "document_id": document_id},
+                    "total_questions": len(cases),
+                    "warnings": warnings,
+                }
+            )
+            _update_persisted_run(run_id, status="running", progress=generation_completed)
             start_event = emit(
                 {
                     "event": "eval_started",

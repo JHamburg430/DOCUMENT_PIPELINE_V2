@@ -358,6 +358,11 @@ summary {
   border-color: #b8dfc2;
 }
 
+.progress-row.failed {
+  border-color: #efc2bd;
+  background: #fff7f6;
+}
+
 .progress-details {
   display: grid;
   gap: 6px;
@@ -372,10 +377,12 @@ summary {
   gap: 2px;
   font-size: 12px;
   line-height: 1.35;
+  min-width: 0;
 }
 
 .progress-detail-row strong {
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 .progress-detail-row span {
