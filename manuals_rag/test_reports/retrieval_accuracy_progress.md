@@ -2618,3 +2618,19 @@ Next target:
 Next target:
 
 - Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and do not emit unsupported quote spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded. Preserve unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cross-document cases 6, 7, and 9, and keep contextual row 14 as separate candidate-miss evidence.
+
+## 2026-08-26 Cron 39262386 Citation-Fidelity State Verification
+
+- Target: execute the scheduled run after the citation-fidelity/source-only scoring containment had already been committed, verify the durable state is internally consistent, and avoid making speculative retrieval or answering changes without new source-backed evidence.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. Direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was requested but unavailable because this cron run is restricted to the current job. The current checked-in guardrail state has no unresolved `needs_fix` or `critical` item after `73827b3`.
+- Local stack: compose services were usable; API, Postgres, Qdrant, Redis, workers, and UI were up. The unrelated uncommitted `infra/compose/docker-compose.yml` `OLLAMA_URL` port change remains user-owned and was not modified or committed.
+- Verification: the manifest semantic aliases are consistent across top-level and `question_bank` copies for `next_target`, retrieval failure categories, all four answer-failure aliases, `answer_grounding_status`, `answer_grounding_rotation`, and `run_exclusions`.
+- Evidence reviewed: `retrieval_eval_20260826_170130` remains excluded as false-green clean evidence; `retrieval_eval_20260826_182611` records corrected citation-wiring evidence at 2/2 retrieval and 0/2 API answers due `unsupported_citation_quote: 2`; `retrieval_eval_20260826_191119` records the latest rerun at 2/2 retrieval and 0/2 API answers with `expected_terms_missing: 1` and `unsupported_citation_quote: 1`.
+- No new eval was run because the current durable state already contains the corrected live rerun and this cron-sized window was not enough to design, implement, validate, and rerun a general answer evidence-selection/citation-generation fix. Counting another tiny answer slice without resolving row-level citation behavior would not improve production confidence.
+- No production retrieval, answering, eval-generation/scoring, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, docs, or test code changed in this verification run. This run changes only tracking.
+- Question-bank counts remain monotonic and unchanged at 203 exploratory questions total: 100 single-step and 103 multi-step. No questions were retired or added; replacement debt remains 0.
+- Generalization check before commit: preserving the failing citation-fidelity classification and declining an under-evidenced production tweak is valid for unseen manuals and vendors because it keeps the evaluation honest without adding document-specific routing, query hardcoding, inferred hard filters, eval-only production behavior, API/UI changes, parser/ingestion/schema/infrastructure changes, or model/provider changes.
+
+Next target:
+
+- Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and do not emit unsupported quote spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded. Preserve unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cross-document cases 6, 7, and 9, and keep contextual row 14 as separate candidate-miss evidence.
