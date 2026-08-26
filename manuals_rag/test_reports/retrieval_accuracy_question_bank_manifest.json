@@ -411,6 +411,19 @@
           "retrieval_eval_20260826_030204 after final tightening accepted 3 source-backed single-step table prompts; all remain diagnostic-only because retrieval was 0/3 candidate_miss"
         ],
         "remaining": "Do not promote the small generated samples as active bank growth. Continue preserving the unresolved direct cross-document baseline and use the tightened generator only with manual/validator review before adding durable coverage."
+      },
+      "2026-08-26T03:16:22Z": {
+        "severity": "needs_fix",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Reclassified retrieval_eval_20260826_030204 so the Input.ToolID source-address row is diagnostic_rejected_source_address_syntax instead of accepted validation evidence, and ran a current-state generated-question diagnostic without promoting any rows to active coverage.",
+        "evidence": [
+          "test_reports/retrieval_eval_dataset_20260826_030204.jsonl line 3 reclassified",
+          "test_reports/retrieval_eval_summary_20260826_030204.json diagnostic_reclassification",
+          "test_reports/retrieval_eval_quality_review_20260826_032531.json",
+          "retrieval_eval_20260826_032531 diagnostic-only current-state sample",
+          "tests/unit/test_retrieval_eval.py -q -> 73 passed"
+        ],
+        "remaining": "Generated-question samples remain diagnostic-only until manual/validator review confirms realistic user phrasing. Active question-bank counts stay unchanged; production retrieval remains unchanged and the direct cross-document v2 baseline remains unresolved."
       }
     },
     "diagnostics": [
@@ -6242,7 +6255,7 @@
       "notes": "Rotated actual API answer-grounding coverage beyond the first four cross-document v2 cases. Cases 5 and 8 passed; cases 6 and 7 failed because expected evidence was not retrieved/cited. This is answer coverage evidence, not a retrieval improvement."
     }
   },
-  "next_target": "With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Use the tightened eval-generation path only with review before adding durable question-bank coverage. Continue broadening actual HTTP API answer-grounding across validated slices while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cases 6, 7, and 9.",
+  "next_target": "With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Before any generated eval questions are promoted, require manual/validator review that excludes source-address, table-artifact, source-shaped, and weak-affinity prompts. Continue broadening actual HTTP API answer-grounding across validated slices while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cases 6, 7, and 9.",
   "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1 after the b51a22c containment revert. Earlier retrieval_eval_20260825_072839 remains the pre-containment reference baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
   "current_failure_categories": {
     "candidate_miss": 1,
@@ -6531,8 +6544,8 @@
     "notes": "Broadened actual API answer-grounding coverage beyond curated cross-document v2 while leaving production retrieval and answering unchanged. This is answer coverage evidence, not a direct retrieval improvement."
   },
   "latest_eval_generation_quality": {
-    "status": "validated_code_change_diagnostic_samples_only",
-    "guardrail_finding": "2026-08-26T02:44:00Z watch",
+    "status": "diagnostic_samples_only_reclassified_after_guardrail",
+    "guardrail_finding": "2026-08-26T03:16:22Z needs_fix",
     "code_scope": "eval_generation_and_validation_only",
     "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -> 73 passed",
     "diagnostic_runs": [
@@ -6566,6 +6579,21 @@
     ],
     "active_counts_changed": false,
     "replacement_debt_changed": false,
-    "notes": "This resolves the dirty-diff guardrail watch without claiming retrieval improvement or promoting the tiny generated samples."
+    "notes": "Guardrail 2026-08-26T03:16:22Z is addressed by reclassifying stale accepted evidence and keeping both generated samples diagnostic-only; no retrieval or answering improvement is claimed.",
+    "latest_reclassification": {
+      "run_id": "retrieval_eval_20260826_030204",
+      "status": "reclassified_diagnostic_only",
+      "validated_after_replay": 2,
+      "rejected_after_replay": 1,
+      "rejected_reason": "source_address_syntax_query",
+      "review_path": "test_reports/retrieval_eval_quality_review_20260826_032531.json"
+    },
+    "latest_current_state_sample": {
+      "run_id": "retrieval_eval_20260826_032531",
+      "dataset_path": "test_reports/retrieval_eval_dataset_20260826_032531.jsonl",
+      "summary_path": "test_reports/retrieval_eval_summary_20260826_032531.json",
+      "manifest_path": "test_reports/retrieval_eval_manifest_20260826_032531.json",
+      "result": "5 generated single-step cases, 4/5 retrieval passed; conservative replay review found 4/5 valid and one weak_source_affinity row, so the sample remains diagnostic-only and is not active bank growth."
+    }
   }
 }

@@ -2032,3 +2032,20 @@ Next target:
 Next target:
 
 - With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Use the tightened eval-generation path only with review before adding durable question-bank coverage. Continue broadening actual HTTP API answer-grounding across validated slices while preserving the unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cases 6, 7, and 9.
+
+## 2026-08-25 Cron 39262386 Eval Generation Diagnostic Reclassification
+
+- Target: address guardrail `2026-08-26T03:16:22Z` `needs_fix`, which found that `retrieval_eval_20260826_030204` still labeled an `Input.ToolID` source-address prompt as `benchmark_quality: "validated"` even though the final validator rejects that query shape.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. The latest finding was `needs_fix`; no production retrieval or answering work was attempted before fixing the evidence/tracking gap.
+- Local stack: compose services were running and usable: API, Postgres, Qdrant, Redis, workers, and UI were up; Postgres was healthy. The active corpus remained `manuals_vendor_keyence`.
+- Reclassification: updated `test_reports/retrieval_eval_dataset_20260826_030204.jsonl` line 3 from `validated` to `diagnostic_rejected_source_address_syntax`, and added matching `diagnostic_reclassification` metadata to the `030204` summary and manifest. The run is now recorded as 2/3 validator-replay-valid plus one rejected diagnostic row, not as three accepted prompts.
+- Current-state validation sample: reran generated single-step retrieval with the current validator: `retrieval_eval_20260826_032531` completed 5 generated cases at 4/5 retrieval passed. Conservative replay review in `test_reports/retrieval_eval_quality_review_20260826_032531.json` found 4/5 validator-replay-valid and one `weak_source_affinity` row, so this sample remains diagnostic-only and is not promoted as active question-bank growth.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 73 passed.
+- No production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, docs, or benchmark scoring code changed. No durable question-bank counts changed: active coverage remains 203 exploratory questions total, with 100 single-step and 103 multi-step; replacement debt remains 0.
+- New/updated artifacts: `test_reports/retrieval_eval_dataset_20260826_030204.jsonl`, `test_reports/retrieval_eval_summary_20260826_030204.json`, `test_reports/retrieval_eval_manifest_20260826_030204.json`, `test_reports/retrieval_eval_summary_20260826_032531.json`, `test_reports/retrieval_eval_manifest_20260826_032531.json`, and `test_reports/retrieval_eval_quality_review_20260826_032531.json`.
+- Guardrail handling: `2026-08-26T03:16:22Z` is addressed by reclassifying stale accepted evidence and recording a current diagnostic sample without promoting generated questions. Generated-question samples remain diagnostic-only until manual/validator review confirms realistic user phrasing.
+- Generalization check before commit: this fix is valid for unseen manuals and vendors because it tightens evidence accounting for source-address and weak-affinity generated prompts without adding document-specific routing, inferred hard filters, eval-only production behavior, or production answer changes.
+
+Next target:
+
+- With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Before any generated eval questions are promoted, require manual/validator review that excludes source-address, table-artifact, source-shaped, and weak-affinity prompts. Continue broadening actual HTTP API answer-grounding across validated slices while preserving the unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cases 6, 7, and 9.

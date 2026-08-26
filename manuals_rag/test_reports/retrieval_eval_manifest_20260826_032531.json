@@ -488,18 +488,18 @@
   "warmup_timeout_seconds": 45,
   "warmups": [
     {
-      "case_id": "9e1af15f-5c6d-5c2b-a328-d7c13ea86490::1",
+      "case_id": "3f778092-203e-590c-a6d5-3c9b85e57725::1",
       "status": "completed",
-      "elapsed_seconds": 14.473,
+      "elapsed_seconds": 8.854,
       "result_count": 6,
       "answer_generated": false
     }
   ],
   "dropped_invalid_cases": 0,
   "rejected_cases": [],
-  "dataset_path": "/workspace/manuals_rag/test_reports/retrieval_eval_dataset_20260826_030204.jsonl",
-  "results_path": "/workspace/manuals_rag/test_reports/retrieval_eval_results_20260826_030204.jsonl",
-  "summary_path": "/workspace/manuals_rag/test_reports/retrieval_eval_summary_20260826_030204.json",
+  "dataset_path": "/workspace/manuals_rag/test_reports/retrieval_eval_dataset_20260826_032531.jsonl",
+  "results_path": "/workspace/manuals_rag/test_reports/retrieval_eval_results_20260826_032531.jsonl",
+  "summary_path": "/workspace/manuals_rag/test_reports/retrieval_eval_summary_20260826_032531.json",
   "selected_documents": [
     "CA-EN100U_Datasheet.pdf",
     "AS_103012_LineScan_C_611J12_KA_US_2073_3.pdf",
@@ -554,11 +554,5 @@
     "VJ-3302_Datasheet.pdf",
     "VJ-H500CX_Datasheet.pdf",
     "WM-6025_Datasheet.pdf"
-  ],
-  "diagnostic_reclassification": {
-    "reviewed_at": "2026-08-26T03:31:00Z",
-    "guardrail_finding": "2026-08-26T03:16:22Z",
-    "status": "reclassified_diagnostic_only",
-    "reason": "Line 3 is rejected by the current validator as source_address_syntax_query and is no longer counted as accepted validation evidence."
-  }
+  ]
 }

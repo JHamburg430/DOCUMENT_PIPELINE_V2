@@ -1,0 +1,96 @@
+{
+  "schema": "manuals_rag.eval_generation_quality_review.v1",
+  "created_at": "2026-08-26T03:31:00Z",
+  "guardrail_finding": "2026-08-26T03:16:22Z",
+  "review_method": "Replay validate_eval_case against saved case metadata and expected snippets; this is a conservative diagnostic check, not durable bank promotion.",
+  "datasets": [
+    {
+      "dataset_path": "test_reports/retrieval_eval_dataset_20260826_030204.jsonl",
+      "total_cases": 3,
+      "valid_after_replay": 2,
+      "invalid_after_replay": [
+        {
+          "line": 3,
+          "case_id": "c7c68503-0652-5295-a6d4-87dbbc3bc1e0::1",
+          "query": "What is the Input.ToolID for the first command in Command Settings?",
+          "valid_after_replay": false,
+          "reason": "source_address_syntax_query"
+        }
+      ],
+      "case_reviews": [
+        {
+          "line": 1,
+          "case_id": "9e1af15f-5c6d-5c2b-a328-d7c13ea86490::1",
+          "query": "What is the integer digit setting when the input is the blue mask color pass?",
+          "valid_after_replay": true,
+          "reason": "validated"
+        },
+        {
+          "line": 2,
+          "case_id": "9e1af15f-5c6d-5c2b-a328-d7c13ea86490::2",
+          "query": "Which integer digit count corresponds to the blue region mask color pass?",
+          "valid_after_replay": true,
+          "reason": "validated"
+        },
+        {
+          "line": 3,
+          "case_id": "c7c68503-0652-5295-a6d4-87dbbc3bc1e0::1",
+          "query": "What is the Input.ToolID for the first command in Command Settings?",
+          "valid_after_replay": false,
+          "reason": "source_address_syntax_query"
+        }
+      ]
+    },
+    {
+      "dataset_path": "test_reports/retrieval_eval_dataset_20260826_032531.jsonl",
+      "total_cases": 5,
+      "valid_after_replay": 4,
+      "invalid_after_replay": [
+        {
+          "line": 5,
+          "case_id": "93abacb5-2642-55c7-92b3-ee8864800d3c::1",
+          "query": "Why should I apply ISO 13849-1:2006 for my safety system?",
+          "valid_after_replay": false,
+          "reason": "weak_source_affinity"
+        }
+      ],
+      "case_reviews": [
+        {
+          "line": 1,
+          "case_id": "3f778092-203e-590c-a6d5-3c9b85e57725::1",
+          "query": "Does the system output a value of 0 when a pair is not detected in the specified segment?",
+          "valid_after_replay": true,
+          "reason": "validated"
+        },
+        {
+          "line": 2,
+          "case_id": "3f778092-203e-590c-a6d5-3c9b85e57725::2",
+          "query": "What measurement results applies to VS Series Vision System with Built: in AI?",
+          "valid_after_replay": true,
+          "reason": "validated"
+        },
+        {
+          "line": 3,
+          "case_id": "fcbae7b2-dfad-510e-8d5c-e6dd2412cd6b::1",
+          "query": "What display setting corresponds to section 5-552?",
+          "valid_after_replay": true,
+          "reason": "validated"
+        },
+        {
+          "line": 4,
+          "case_id": "fcbae7b2-dfad-510e-8d5c-e6dd2412cd6b::2",
+          "query": "What display 5-552 applies to VS Series Vision System with Built: in AI?",
+          "valid_after_replay": true,
+          "reason": "validated"
+        },
+        {
+          "line": 5,
+          "case_id": "93abacb5-2642-55c7-92b3-ee8864800d3c::1",
+          "query": "Why should I apply ISO 13849-1:2006 for my safety system?",
+          "valid_after_replay": false,
+          "reason": "weak_source_affinity"
+        }
+      ]
+    }
+  ]
+}
