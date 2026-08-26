@@ -2,17 +2,12 @@ from __future__ import annotations
 
 import json
 import re
-import time
 from dataclasses import asdict, dataclass
-from typing import Any, Callable
+from typing import Any
 
 import httpx
 
 from manuals_rag_common.config import settings
-
-
-EvalGenerationEventCallback = Callable[[dict[str, Any]], None]
-QUESTION_GENERATION_RETRY_DELAYS_SECONDS = (0.5, 1.5)
 
 
 STOPWORDS = {
@@ -165,24 +160,6 @@ GENERIC_TECHNICAL_TERMS = {
     "identifier",
     "mac",
     "password",
-    "focus",
-    "adjustment",
-    "position",
-    "memory",
-    "standard",
-    "standards",
-    "characters",
-    "detection",
-    "profinet",
-    "image",
-    "height",
-}
-
-AWKWARD_SOURCE_PHRASES = {
-    ("obtained", "authentication"),
-    ("there", "manners"),
-    ("check", "whether"),
-    ("therefore", "performance"),
 }
 
 USER_STYLE_QUERY_SYSTEM_PROMPT = """
@@ -334,7 +311,7 @@ def _unbracket_source_labels(content: str) -> str:
 
 
 def _field_value_pairs(content: str) -> list[tuple[str, str]]:
-    return re.findall(r"(?:^|[;\n])\s*([A-Za-z][A-Za-z0-9 /_()-]{1,40})\s*:\s*([^\n;]{1,80})", content)
+    return re.findall(r"([A-Za-z][A-Za-z0-9 /_()-]{1,40})\s*:\s*([^\n;]{1,80})", content)
 
 
 def _meaningful_table_field_value_pairs(content: str) -> list[tuple[str, str]]:
@@ -576,8 +553,6 @@ def _is_allowed_exact_source_ngram(ngram: tuple[str, ...], allowed_phrases: set[
         return True
     if any("/" in token for token in ngram):
         return True
-    if any(token in GENERIC_TECHNICAL_TERMS or token in TECHNICAL_VERBS for token in ngram):
-        return True
     return False
 
 
@@ -604,8 +579,6 @@ def _query_copies_unfair_source_phrase(query: str, chunk: dict[str, Any]) -> boo
 
     for index in range(0, len(query_tokens) - 1):
         pair = tuple(query_tokens[index : index + 2])
-        if pair in AWKWARD_SOURCE_PHRASES:
-            return True
         if _is_allowed_exact_source_ngram(pair, allowed_phrases):
             continue
         if pair in copied_pairs:
@@ -853,78 +826,6 @@ def _to_label(label: str) -> str:
     return f" to {label}" if label else ""
 
 
-def _dedupe_candidates(candidates: list[tuple[str, str]]) -> list[tuple[str, str]]:
-    deduped: list[tuple[str, str]] = []
-    seen: set[str] = set()
-    for query, method in candidates:
-        cleaned = re.sub(r"\s+", " ", query).strip()
-        if not cleaned:
-            continue
-        if not cleaned.endswith("?"):
-            cleaned = f"{cleaned}?"
-        key = _normalized_query_key(cleaned)
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append((cleaned, method))
-    return deduped
-
-
-def _readable_phrase(value: str, *, max_words: int = 5) -> str:
-    cleaned = _strip_bracket_label(str(value))
-    cleaned = re.sub(r"\s+", " ", cleaned.replace("_", " ")).strip(" ;:,.")
-    return " ".join(cleaned.split()[:max_words])
-
-
-def _field_value_query_candidates(chunk: dict[str, Any], label: str) -> list[tuple[str, str]]:
-    ignored_fields = {"column headers", "row headers", "cell value", "table header", "header role", "row", "column"}
-    candidates: list[tuple[str, str]] = []
-    for field, value in _field_value_pairs(str(chunk.get("content", "")))[:6]:
-        if normalize_text(field) in ignored_fields:
-            continue
-        field_text = _readable_phrase(field)
-        value_text = _readable_phrase(value, max_words=6)
-        if not field_text or not value_text:
-            continue
-        if label:
-            candidates.append((f"For {label}, what {field_text} uses {value_text}?", "field_value_lookup"))
-            candidates.append((f"Which {field_text} setting uses {value_text} on {label}?", "field_value_setting_lookup"))
-        else:
-            candidates.append((f"What {field_text} uses {value_text}?", "field_value_lookup"))
-    return candidates
-
-
-def _menu_label_query_candidates(chunk: dict[str, Any], label: str) -> list[tuple[str, str]]:
-    candidates: list[tuple[str, str]] = []
-    for menu_label in [_readable_phrase(item, max_words=4) for item in _quoted_menu_labels(str(chunk.get("content", "")))[:3]]:
-        if not menu_label:
-            continue
-        if label:
-            candidates.append((f"How is {menu_label} configured for {label}?", "menu_label_configuration"))
-        else:
-            candidates.append((f"How is {menu_label} configured?", "menu_label_configuration"))
-    return candidates
-
-
-def _technical_term_query_candidates(label: str, anchors: list[str]) -> list[tuple[str, str]]:
-    terms = [term for term in anchors if term not in GENERIC_ANCHORS and term not in STOPWORDS]
-    if not terms:
-        return []
-    primary = terms[0]
-    secondary = terms[1] if len(terms) > 1 else ""
-    candidates: list[tuple[str, str]] = []
-    if label:
-        if secondary:
-            candidates.append((f"For {label}, what should I know about {primary} {secondary}?", "technical_concept_lookup"))
-            candidates.append((f"How does {primary} {secondary} work on {label}?", "technical_concept_how"))
-        candidates.append((f"What {primary} detail matters for {label}?", "technical_detail_lookup"))
-    else:
-        if secondary:
-            candidates.append((f"What should I know about {primary} {secondary}?", "technical_concept_lookup"))
-        candidates.append((f"What {primary} detail matters?", "technical_detail_lookup"))
-    return candidates
-
-
 def build_query_candidates(chunk: dict[str, Any]) -> list[tuple[str, str]]:
     content = str(chunk["content"]).strip()
     chunk_type = str(chunk.get("chunk_type", ""))
@@ -951,10 +852,6 @@ def build_query_candidates(chunk: dict[str, Any]) -> list[tuple[str, str]]:
             candidates.append(("What specified-command number does the PLC store?", "specified_command_question"))
 
     if chunk_type in {"spec_record", "datasheet_record"}:
-        if label:
-            if secondary != primary:
-                candidates.append((f"For {label}, which {primary} {secondary} detail is needed?", "spec_user_detail"))
-            candidates.append((f"What {primary} requirement applies to {label}?", "spec_user_requirement"))
         if secondary != primary:
             candidates.append((f"What {primary} {secondary} is specified{_for_label(label)}?", "spec_primary_multi"))
         if tertiary not in {primary, secondary}:
@@ -983,11 +880,7 @@ def build_query_candidates(chunk: dict[str, Any]) -> list[tuple[str, str]]:
             candidates.append((f"What {primary} {secondary} is described{_for_label(label)}?", "general_multi"))
         candidates.append((f"What {primary} is described{_for_label(label)}?", "general_primary"))
 
-    if chunk_type != "table_record":
-        candidates.extend(_field_value_query_candidates(chunk, label))
-        candidates.extend(_menu_label_query_candidates(chunk, label))
-        candidates.extend(_technical_term_query_candidates(label, anchors))
-    return _dedupe_candidates(candidates)
+    return candidates
 
 
 def _structured_eval_input(chunk: dict[str, Any], anchors: list[str]) -> dict[str, Any]:
@@ -1123,7 +1016,6 @@ def generate_user_style_queries(
     fallback_candidates: list[tuple[str, str]],
     previous_questions: list[str] | None = None,
     limit: int,
-    event_callback: EvalGenerationEventCallback | None = None,
 ) -> list[tuple[str, str]]:
     previous_questions = previous_questions or []
     prompt = {
@@ -1132,61 +1024,22 @@ def generate_user_style_queries(
         "previous_questions_for_this_chunk": previous_questions[:10],
         "fallback_examples": [{"query": query, "intent": method} for query, method in fallback_candidates[:3]],
     }
-    generated: list[dict[str, str]] = []
-    prompt_text = f"{USER_STYLE_QUERY_SYSTEM_PROMPT}\n\nInput: {json.dumps(prompt, ensure_ascii=True)}"
-    for attempt in range(1, len(QUESTION_GENERATION_RETRY_DELAYS_SECONDS) + 2):
-        if event_callback:
-            event_callback(
-                {
-                    "event": "question_generation_model_started",
-                    "source_chunk_id": str(chunk.get("id", "")),
-                    "attempt": attempt,
+    try:
+        with httpx.Client(base_url=settings.ollama_url, timeout=20.0) as client:
+            response = client.post(
+                "/api/generate",
+                json={
                     "model": settings.ollama_eval_model,
-                    "fallback_count": len(fallback_candidates),
-                }
+                    "prompt": f"{USER_STYLE_QUERY_SYSTEM_PROMPT}\n\nInput: {json.dumps(prompt, ensure_ascii=True)}",
+                    "stream": False,
+                    "format": "json",
+                },
             )
-        try:
-            with httpx.Client(base_url=settings.ollama_url, timeout=20.0) as client:
-                response = client.post(
-                    "/api/generate",
-                    json={
-                        "model": settings.ollama_eval_model,
-                        "prompt": prompt_text,
-                        "stream": False,
-                        "format": "json",
-                    },
-                )
-                response.raise_for_status()
-                payload: dict[str, Any] = response.json()
-                generated = _parse_generated_queries(str(payload.get("response", "{}")))
-            if event_callback:
-                event_callback(
-                    {
-                        "event": "question_generation_model_completed",
-                        "source_chunk_id": str(chunk.get("id", "")),
-                        "attempt": attempt,
-                        "model": settings.ollama_eval_model,
-                        "generated_count": len(generated),
-                    }
-                )
-            break
-        except Exception as exc:
-            retry_delay = QUESTION_GENERATION_RETRY_DELAYS_SECONDS[attempt - 1] if attempt <= len(QUESTION_GENERATION_RETRY_DELAYS_SECONDS) else None
-            if event_callback:
-                event_callback(
-                    {
-                        "event": "question_generation_model_failed",
-                        "source_chunk_id": str(chunk.get("id", "")),
-                        "attempt": attempt,
-                        "model": settings.ollama_eval_model,
-                        "error": str(exc),
-                        "retry_delay_seconds": retry_delay,
-                    }
-                )
-            if retry_delay is None:
-                generated = []
-                break
-            time.sleep(retry_delay)
+            response.raise_for_status()
+            payload: dict[str, Any] = response.json()
+            generated = _parse_generated_queries(str(payload.get("response", "{}")))
+    except Exception:
+        generated = []
 
     queries: list[tuple[str, str]] = []
     seen: set[str] = {_normalized_query_key(question) for question in previous_questions}
@@ -1197,37 +1050,14 @@ def generate_user_style_queries(
             continue
         if _has_near_duplicate_query(item["query"], accepted_query_texts):
             continue
-        is_valid, reason = validate_eval_case(item["query"], chunk, anchors)
+        is_valid, _ = validate_eval_case(item["query"], chunk, anchors)
         if not is_valid:
-            if event_callback:
-                event_callback(
-                    {
-                        "event": "question_generation_candidate_rejected",
-                        "source_chunk_id": str(chunk.get("id", "")),
-                        "query": item["query"],
-                        "method": item["intent"],
-                        "reason": reason,
-                    }
-                )
             continue
         seen.add(normalized)
         accepted_query_texts.append(item["query"])
         queries.append((item["query"], item["intent"]))
-        if event_callback:
-            event_callback(
-                {
-                    "event": "question_generation_candidate_accepted",
-                    "source_chunk_id": str(chunk.get("id", "")),
-                    "query": item["query"],
-                    "method": item["intent"],
-                    "source": "llm",
-                }
-            )
         if len(queries) >= limit:
             return queries
-    if queries:
-        return queries
-
     for query, method in fallback_candidates:
         normalized = _normalized_query_key(query)
         if normalized in seen:
@@ -1237,15 +1067,6 @@ def generate_user_style_queries(
         seen.add(normalized)
         accepted_query_texts.append(query)
         queries.append((query, method))
-        if event_callback:
-            event_callback(
-                {
-                    "event": "question_generation_fallback_selected",
-                    "source_chunk_id": str(chunk.get("id", "")),
-                    "query": query,
-                    "method": method,
-                }
-            )
         if len(queries) >= limit:
             break
     return queries
@@ -1258,53 +1079,19 @@ def build_eval_cases_from_chunks(
     per_chunk_limit: int = 3,
     use_llm_generation: bool = True,
     previous_questions_by_chunk_id: dict[str, list[str]] | None = None,
-    event_callback: EvalGenerationEventCallback | None = None,
 ) -> list[RetrievalEvalCase]:
     cases: list[RetrievalEvalCase] = []
     previous_questions_by_chunk_id = previous_questions_by_chunk_id or {}
-    for chunk_index, chunk in enumerate(chunks, start=1):
+    for chunk in chunks:
         anchors = extract_anchor_terms(str(chunk["content"]))
         if str(chunk.get("chunk_type", "")) == "table_record":
             _, table_expected_terms = _table_question_terms(chunk)
             if table_expected_terms:
                 anchors = table_expected_terms
-        if event_callback:
-            event_callback(
-                {
-                    "event": "question_generation_chunk_started",
-                    "chunk_index": chunk_index,
-                    "source_chunk_id": str(chunk.get("id", "")),
-                    "source_document_id": str(chunk.get("source_document_id", "")),
-                    "title": str(chunk.get("title", "")),
-                    "chunk_type": str(chunk.get("chunk_type", "")),
-                    "anchors": anchors[:6],
-                }
-            )
         if not chunk_is_queryworthy(chunk, anchors):
-            if event_callback:
-                event_callback(
-                    {
-                        "event": "question_generation_chunk_skipped",
-                        "chunk_index": chunk_index,
-                        "source_chunk_id": str(chunk.get("id", "")),
-                        "reason": "not_queryworthy",
-                    }
-                )
             continue
         previous_questions = previous_questions_by_chunk_id.get(str(chunk.get("id")), [])
         fallback_candidates = build_query_candidates(chunk)[: max(per_chunk_limit * 4, per_chunk_limit)]
-        if event_callback:
-            event_callback(
-                {
-                    "event": "question_generation_candidates_built",
-                    "chunk_index": chunk_index,
-                    "source_chunk_id": str(chunk.get("id", "")),
-                    "fallback_count": len(fallback_candidates),
-                    "previous_question_count": len(previous_questions),
-                    "use_llm_generation": use_llm_generation,
-                    "samples": [{"query": query, "method": method} for query, method in fallback_candidates[:5]],
-                }
-            )
         candidates = (
             generate_user_style_queries(
                 chunk,
@@ -1312,7 +1099,6 @@ def build_eval_cases_from_chunks(
                 fallback_candidates=fallback_candidates,
                 previous_questions=previous_questions,
                 limit=per_chunk_limit,
-                event_callback=event_callback,
             )
             if use_llm_generation
             else fallback_candidates
@@ -1322,45 +1108,11 @@ def build_eval_cases_from_chunks(
         accepted_query_texts: list[str] = list(previous_questions)
         for index, (query, method) in enumerate(candidates, start=1):
             if _has_near_duplicate_query(query, accepted_query_texts):
-                if event_callback:
-                    event_callback(
-                        {
-                            "event": "question_generation_candidate_rejected",
-                            "chunk_index": chunk_index,
-                            "source_chunk_id": str(chunk.get("id", "")),
-                            "query": query,
-                            "method": method,
-                            "reason": "near_duplicate",
-                        }
-                    )
                 continue
             is_valid, quality = validate_eval_case(query, chunk, anchors)
             if not is_valid:
-                if event_callback:
-                    event_callback(
-                        {
-                            "event": "question_generation_candidate_rejected",
-                            "chunk_index": chunk_index,
-                            "source_chunk_id": str(chunk.get("id", "")),
-                            "query": query,
-                            "method": method,
-                            "reason": quality,
-                        }
-                    )
                 continue
             accepted_query_texts.append(query)
-            if event_callback:
-                event_callback(
-                    {
-                        "event": "question_generation_candidate_accepted",
-                        "chunk_index": chunk_index,
-                        "source_chunk_id": str(chunk.get("id", "")),
-                        "query": query,
-                        "method": method,
-                        "quality": quality,
-                        "accepted_count": len(cases) + 1,
-                    }
-                )
             cases.append(
                 RetrievalEvalCase(
                     case_id=f"{chunk['id']}::{index}",

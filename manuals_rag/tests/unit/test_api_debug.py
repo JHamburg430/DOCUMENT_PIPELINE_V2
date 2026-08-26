@@ -386,8 +386,6 @@ def test_streaming_eval_persists_completion_and_progress_events(monkeypatch):
     run_id = streamed[0]["run_id"]
     assert [event["event"] for event in streamed] == [
         "eval_queued",
-        "question_generation_started",
-        "question_generation_completed",
         "eval_started",
         "eval_question_started",
         "eval_query_event",
@@ -400,7 +398,6 @@ def test_streaming_eval_persists_completion_and_progress_events(monkeypatch):
     assert runs[run_id]["status"] == "completed"
     assert runs[run_id]["result_json"]["summary"]["total_questions"] == 1
     assert events[-1]["event_json"]["event"] == "eval_completed"
-    assert any(event["event_json"]["event"] == "question_generation_completed" for event in events)
 
 
 def test_async_eval_start_returns_run_id_and_persists_queued_event(monkeypatch):
