@@ -3,7 +3,7 @@
   "created_at": "2026-08-23",
   "updated_at": "2026-08-25",
   "goal": {
-    "target_answer_accuracy": 1.0,
+    "target_answer_accuracy": 1,
     "target_question_count": 10000,
     "components": [
       "single_step_retrieval",
@@ -681,18 +681,47 @@
       "eval_timeout": 1,
       "ranking_or_context_loss": 1
     },
-    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_232955 is diagnostic-only after the row-key table discovery experiment regressed to 3/10 with eval_timeout: 7; all production edits were reverted.",
+    "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_235830 is diagnostic-only after the exact row-key metadata/setting-item experiment stayed 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1; all production edits were reverted.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 1,
       "insufficient_evidence": 1,
       "retrieval_not_passed": 1
     },
-    "next_target": "Continue from the full curated cross-document v2 baseline retrieval_eval_20260825_072839 using retrieval_debug_report_20260825_1758_sql_pool_probe and prior diagnostics. Avoid the rejected compact-product SQL supplemental slice from 2026-08-25 18:27 UTC, along with rejected comparison top-k selection, candidate-budget, row-alignment promotion, row-phrase/code-label scoring, table-first, side-promotion, term-variant, and broad metadata/content prefilter paths. Next safe work should either add cheaper SQL diagnostics that estimate candidate ordering features without running extra production queries, or design an indexed/bounded table-lexical discovery path that can be validated against saved single-step and warning/procedure gates before any production commit.",
+    "next_target": "Continue from retrieval_eval_20260825_072839 and the row-key/identifier/source-stage/stage-timing diagnostics, but avoid the rejected exact row-key metadata/setting-item experiment from retrieval_eval_20260825_235830, the earlier row-key table discovery stage from retrieval_eval_20260825_232955, broad SQL pool expansions, and all prior comparison promotion/scoring/budget/table-first/term-variant paths. Cases 6 and 7 still need a genuinely precomputed or indexed row-key discovery design that does not add per-query table scans; case 9 remains separate as final-context/top-k or timeout work. Validate any production retrieval change against the full 10-case cross-document v2 gate plus saved single-step and warning/procedure gates.",
     "answer_grounding_status": "Post-revert actual HTTP API answer evidence: retrieval_eval_20260825_142811 scored two curated single-step replacement v2 metadata/table cases at 2/2 retrieval and 2/2 answers, answer source api, fallback 0%; retrieval_eval_20260825_142948 scored one prior-green curated cross-document v2 case at 1/1 retrieval and 1/1 answer, answer source api, fallback 0%. A pre-revert smoke exposed an insufficient_evidence answer regression on the first single-step case, so commit 0f3a8e1 was reverted in e3c537a rather than treated as validated."
   },
   "latest_results": {
-    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning after reverting the rejected row-key experiment.",
+    "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 91 passed, 1 warning during experiment; production retrieval edit was reverted after the full gate stayed 7/10.",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260825_235830",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260825_235830.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260825_235830.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260825_235830.json",
+        "status": "diagnostic_only_rejected_change",
+        "mode": "direct_cross_document_v2_exact_row_key_metadata_setting_item_experiment",
+        "search_mode": "direct",
+        "per_query_timeout_seconds": 8,
+        "warmup_queries": 1,
+        "warmup_timeout_seconds": 45,
+        "total_queries": 10,
+        "passed_queries": 7,
+        "failed_queries": 3,
+        "pass_rate": 0.7,
+        "pass_at_1": 0.6,
+        "pass_at_3": 0.7,
+        "pass_at_5": 0.7,
+        "candidate_recall_rate": 0.8,
+        "metadata_document_selection_recall_rate": 1,
+        "failure_categories": {
+          "eval_timeout": 2,
+          "ranking_or_context_loss": 1
+        },
+        "baseline": "retrieval_eval_20260825_072839",
+        "notes": "Rejected and reverted: exact row-key lookup was cheaper than the normalized regexp row-key experiment but still did not improve the full manually reviewed cross-document v2 gate or stabilize timeouts."
+      },
       {
         "run_id": "retrieval_eval_20260825_232955",
         "corpus_id": "manuals_vendor_keyence",
@@ -714,7 +743,7 @@
         "pass_at_3": 0.3,
         "pass_at_5": 0.3,
         "candidate_recall_rate": 0.3,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "failure_categories": {
           "eval_timeout": 7
         },
@@ -742,7 +771,7 @@
         "pass_at_3": 0.7,
         "pass_at_5": 0.7,
         "candidate_recall_rate": 0.8,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "failure_categories": {
           "eval_timeout": 1,
           "ranking_or_context_loss": 1,
@@ -768,7 +797,7 @@
         "answer_eval_count": 2,
         "answer_passed_queries": 2,
         "answer_failed_queries": 0,
-        "answer_pass_rate": 1.0,
+        "answer_pass_rate": 1,
         "failure_categories": {},
         "notes": "Post-revert actual /query answer smoke on curated single-step replacement v2 metadata/table cases. The pre-revert prompt change produced 1/2 answer pass with an insufficient_evidence failure on the first case, so the prompt commit was reverted instead of promoted."
       },
@@ -789,7 +818,7 @@
         "answer_eval_count": 1,
         "answer_passed_queries": 1,
         "answer_failed_queries": 0,
-        "answer_pass_rate": 1.0,
+        "answer_pass_rate": 1,
         "failure_categories": {},
         "notes": "Post-revert actual /query answer smoke on a prior green curated cross-document case; confirms the containment did not break the first v2 answer case."
       },
@@ -904,7 +933,7 @@
         "pass_at_3": 0.7,
         "pass_at_5": 0.7,
         "candidate_recall_rate": 0.8,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "failure_categories": {
           "eval_timeout": 1,
           "ranking_or_context_loss": 1,
@@ -933,7 +962,7 @@
         "pass_at_3": 0.7,
         "pass_at_5": 0.7,
         "candidate_recall_rate": 0.8,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "failure_categories": {
           "eval_timeout": 1,
           "ranking_or_context_loss": 1,
@@ -962,7 +991,7 @@
         "pass_at_3": 0.7,
         "pass_at_5": 0.7,
         "candidate_recall_rate": 0.9,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "failure_categories": {
           "ranking_or_context_loss": 2,
           "candidate_miss": 1
@@ -1100,7 +1129,7 @@
         "pass_at_3": 0.7,
         "pass_at_5": 0.7,
         "candidate_recall_rate": 0.8,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.3333,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -1131,12 +1160,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.4667,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -1163,12 +1192,12 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.8462,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -1191,14 +1220,14 @@
         "total_queries": 2,
         "passed_queries": 2,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "answer_eval_count": 2,
         "answer_passed_queries": 2,
         "answer_failed_queries": 0,
-        "answer_pass_rate": 1.0,
+        "answer_pass_rate": 1,
         "answer_sources": {
           "api": 2
         },
@@ -1224,13 +1253,13 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "failure_categories": {},
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "notes": "Saved realistic single-step replacement v2 regression stayed green after the answer workflow retrieval alignment."
       },
       {
@@ -1245,13 +1274,13 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "failure_categories": {},
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "notes": "Saved warning/procedure multi-step regression stayed green after the answer workflow retrieval alignment."
       },
       {
@@ -1318,7 +1347,7 @@
           "ranking_or_context_loss": 1
         },
         "candidate_recall_rate": 0.7,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.3333,
         "notes": "Improved over the prior v2 retrieval gate at 5/10 by passing the SV2/LJ-S8000 case and the CV-X/XG-X gray-binary/SD-card case. An attempted metadata-wide comparison prefilter was abandoned because it caused timeouts and was not committed."
       },
@@ -1338,7 +1367,7 @@
         "answer_eval_count": 2,
         "answer_passed_queries": 0,
         "answer_failed_queries": 2,
-        "answer_pass_rate": 0.0,
+        "answer_pass_rate": 0,
         "answer_sources": {
           "api": 2
         },
@@ -1367,13 +1396,13 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "failure_categories": {},
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1
       },
       {
         "run_id": "retrieval_eval_20260825_060601",
@@ -1387,13 +1416,13 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "failure_categories": {},
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1
       },
       {
         "run_id": "retrieval_eval_20260825_052554",
@@ -1422,7 +1451,7 @@
           "candidate_miss": 2
         },
         "candidate_recall_rate": 0.8,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "notes": "The prior five curated v1 questions stayed green; the five added reviewed user-style cases exposed new cross-document context and candidate gaps."
       },
       {
@@ -1441,7 +1470,7 @@
         "answer_eval_count": 2,
         "answer_passed_queries": 0,
         "answer_failed_queries": 2,
-        "answer_pass_rate": 0.0,
+        "answer_pass_rate": 0,
         "answer_sources": {
           "api": 2
         },
@@ -1470,10 +1499,10 @@
         "total_queries": 5,
         "passed_queries": 5,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 5,
@@ -1481,8 +1510,8 @@
           }
         },
         "failure_categories": {},
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.6,
         "notes": "Comparison table lexical candidates plus per-explicit-product table-cell promotion improved the manually reviewed cross-document v1 slice from 3/5 to 5/5; this is now green but still a 5-case exploratory slice, not broad release evidence."
       },
@@ -1498,10 +1527,10 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 13,
@@ -1509,8 +1538,8 @@
           }
         },
         "failure_categories": {},
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.8462,
         "notes": "Saved guardrail-v2 curated single-step gate stayed green after comparison retrieval changes."
       },
@@ -1526,10 +1555,10 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -1537,8 +1566,8 @@
           }
         },
         "failure_categories": {},
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.4667,
         "notes": "Saved warning/procedure multi-step gate stayed green after comparison retrieval changes."
       },
@@ -1567,8 +1596,8 @@
         "failure_categories": {
           "ranking_or_context_loss": 2
         },
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "notes": "Manual-review slice gives a realistic production target: both missed cases had expected candidates available but not assembled into final top-k paired context."
       },
       {
@@ -1583,10 +1612,10 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 13,
@@ -1594,8 +1623,8 @@
           }
         },
         "failure_categories": {},
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "notes": "Saved guardrail-v2 curated single-step gate stayed green."
       },
       {
@@ -1610,10 +1639,10 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -1621,8 +1650,8 @@
           }
         },
         "failure_categories": {},
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "notes": "Saved warning/procedure multi-step gate stayed green."
       },
       {
@@ -1652,7 +1681,7 @@
           "ranking_or_context_loss": 1
         },
         "candidate_recall_rate": 0.4,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "notes": "Short post-filter generated cross-document smoke. Kept diagnostic-only because retrieval is weak and active counts should not grow from a tiny unreviewed slice."
       },
       {
@@ -1667,10 +1696,10 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 13,
@@ -1678,8 +1707,8 @@
           }
         },
         "failure_categories": {},
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "notes": "Saved guardrail-v2 curated single-step replacement gate remained green after cross-document eval-quality changes."
       },
       {
@@ -1710,7 +1739,7 @@
           "eval_timeout": 1
         },
         "candidate_recall_rate": 0.55,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "notes": "New subject-anchored cross-document question generation produced more realistic row-specific comparison questions, but retrieval was only 2/20 with candidate recall 55%; leave diagnostic-only and do not promote to active counts until retrieval/context improves."
       },
       {
@@ -1757,10 +1786,10 @@
         "total_queries": 3,
         "passed_queries": 3,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "answer_eval_count": 3,
-        "answer_pass_rate": 1.0,
-        "answer_fallback_rate": 0.0,
+        "answer_pass_rate": 1,
+        "answer_fallback_rate": 0,
         "answer_sources": {
           "api": 3
         },
@@ -1783,10 +1812,10 @@
         "total_queries": 2,
         "passed_queries": 2,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "answer_eval_count": 2,
-        "answer_pass_rate": 1.0,
-        "answer_fallback_rate": 0.0,
+        "answer_pass_rate": 1,
+        "answer_fallback_rate": 0,
         "answer_sources": {
           "api": 2
         },
@@ -1809,13 +1838,13 @@
         "total_queries": 1,
         "passed_queries": 1,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 0.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
         "answer_eval_count": 1,
-        "answer_pass_rate": 1.0,
-        "answer_fallback_rate": 0.0,
+        "answer_pass_rate": 1,
+        "answer_fallback_rate": 0,
         "answer_sources": {
           "api": 1
         },
@@ -1837,10 +1866,10 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "failure_categories": {},
         "mode": "manual_curated_single_step_replacement_v2_quality_debt_closure",
         "notes": "V2 curation replaced the guardrail-cited weak rows and duplicate source coverage; all 13 cases validated and passed at rank 1."
@@ -1860,15 +1889,15 @@
         "total_queries": 2,
         "passed_queries": 2,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "answer_eval_count": 2,
         "answer_passed_queries": 2,
         "answer_failed_queries": 0,
-        "answer_pass_rate": 1.0,
+        "answer_pass_rate": 1,
         "answer_sources": {
           "api": 2
         },
-        "answer_fallback_rate": 0.0,
+        "answer_fallback_rate": 0,
         "answer_latency": {
           "mean_seconds": 43.13,
           "p95_seconds": 49.106
@@ -1908,10 +1937,10 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "failure_categories": {},
         "mode": "manual_curated_single_step_replacement_quality_debt_closure",
         "notes": "Manual curation replaced weak source-shaped prompts while preserving expected evidence; all 13 cases validated and passed at rank 1."
@@ -1931,15 +1960,15 @@
         "total_queries": 2,
         "passed_queries": 2,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "answer_eval_count": 2,
         "answer_passed_queries": 2,
         "answer_failed_queries": 0,
-        "answer_pass_rate": 1.0,
+        "answer_pass_rate": 1,
         "answer_sources": {
           "api": 2
         },
-        "answer_fallback_rate": 0.0,
+        "answer_fallback_rate": 0,
         "mode": "http_api_answer_with_citations_curated_single_step_smoke",
         "notes": "Scores actual /query API answer payloads on the curated replacement slice; no local answer regeneration or fallback use."
       },
@@ -1976,7 +2005,7 @@
         "total_queries": 20,
         "passed_queries": 20,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "mode": "saved_realistic_single_step_regression_after_eval_quality_filters"
       },
       {
@@ -1992,7 +2021,7 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "mode": "saved_warning_step_multi_step_regression_after_eval_quality_filters"
       },
       {
@@ -2011,15 +2040,15 @@
         "total_queries": 2,
         "passed_queries": 2,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "answer_eval_count": 2,
         "answer_passed_queries": 2,
         "answer_failed_queries": 0,
-        "answer_pass_rate": 1.0,
+        "answer_pass_rate": 1,
         "answer_sources": {
           "api": 2
         },
-        "answer_fallback_rate": 0.0,
+        "answer_fallback_rate": 0,
         "mode": "http_api_answer_with_citations_realistic_single_step_smoke",
         "notes": "Scores actual /query API answers while using /search only for retrieval ranking evidence; no local in-process answer regeneration in HTTP mode."
       },
@@ -2039,15 +2068,15 @@
         "total_queries": 1,
         "passed_queries": 1,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "answer_eval_count": 1,
         "answer_passed_queries": 1,
         "answer_failed_queries": 0,
-        "answer_pass_rate": 1.0,
+        "answer_pass_rate": 1,
         "answer_sources": {
           "api": 1
         },
-        "answer_fallback_rate": 0.0,
+        "answer_fallback_rate": 0,
         "mode": "http_api_answer_with_citations_warning_step_multi_step_smoke",
         "notes": "Adds one realistic warning/procedure multi-step API-answer smoke using the actual /query payload."
       },
@@ -2067,16 +2096,16 @@
         "total_queries": 5,
         "passed_queries": 5,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "answer_eval_count": 5,
         "answer_passed_queries": 5,
         "answer_failed_queries": 0,
-        "answer_pass_rate": 1.0,
+        "answer_pass_rate": 1,
         "answer_failure_reasons": {},
         "answer_latency": {
           "min_seconds": 12.358,
@@ -2112,12 +2141,12 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "failure_categories": {},
         "mode": "retrieval_only_saved_single_step_replacement_debt_regression",
         "notes": "Replacement-debt single-step retrieval gate stayed 13/13 after the answer validation change."
@@ -2138,12 +2167,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "failure_categories": {},
         "mode": "retrieval_only_saved_refined_warning_step_multi_step_direct_timeout_warmup",
         "notes": "Warning-plus-step multi-step retrieval gate stayed 15/15 after answer validation changes."
@@ -2164,12 +2193,12 @@
         "total_queries": 5,
         "passed_queries": 5,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "answer_eval_count": 5,
         "answer_passed_queries": 4,
         "answer_failed_queries": 1,
@@ -2211,12 +2240,12 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "failure_categories": {},
         "mode": "retrieval_only_saved_single_step_replacement_debt_regression",
         "notes": "Replacement-debt single-step retrieval gate stayed green after answer-generation changes."
@@ -2237,16 +2266,16 @@
         "total_queries": 3,
         "passed_queries": 3,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "answer_eval_count": 3,
         "answer_passed_queries": 3,
         "answer_failed_queries": 0,
-        "answer_pass_rate": 1.0,
+        "answer_pass_rate": 1,
         "answer_failure_reasons": {},
         "answer_latency": {
           "min_seconds": 18.804,
@@ -2255,7 +2284,7 @@
           "p95_seconds": 44.588
         },
         "answer_fallback_count": 0,
-        "answer_fallback_rate": 0.0,
+        "answer_fallback_rate": 0,
         "answer_sources": {
           "model": 3
         },
@@ -2279,12 +2308,12 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "mode": "saved_single_step_replacement_debt_retrieval_only_regression",
         "notes": "Retrieval-only regression gate stayed green after the answering-only production change."
       },
@@ -2304,12 +2333,12 @@
         "total_queries": 3,
         "passed_queries": 3,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "answer_eval_count": 3,
         "answer_passed_queries": 2,
         "answer_failed_queries": 1,
@@ -2351,16 +2380,16 @@
         "total_queries": 2,
         "passed_queries": 2,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "answer_eval_count": 2,
         "answer_passed_queries": 2,
         "answer_failed_queries": 0,
-        "answer_pass_rate": 1.0,
+        "answer_pass_rate": 1,
         "answer_failure_reasons": {},
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -2394,11 +2423,11 @@
         "total_queries": 3,
         "passed_queries": 3,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "answer_eval_count": 3,
         "answer_passed_queries": 3,
         "answer_failed_queries": 0,
-        "answer_pass_rate": 1.0,
+        "answer_pass_rate": 1,
         "failure_categories": {},
         "mode": "answer_with_citations_timeout_accounting_diagnostic",
         "notes": "Diagnostic run exposed that answer-generation code could swallow the signal timeout and return after the nominal cap; the benchmark now enforces elapsed timeout after completed calls too."
@@ -2418,12 +2447,12 @@
         "total_queries": 13,
         "passed_queries": 13,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 13,
@@ -2459,11 +2488,11 @@
         "total_queries": 20,
         "passed_queries": 20,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.95,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
         "metadata_document_selection_recall_rate": 0.95,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -2500,12 +2529,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -2541,8 +2570,8 @@
         "pass_at_1": 0.9231,
         "pass_at_3": 0.9231,
         "pass_at_5": 0.9231,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 13,
@@ -2580,11 +2609,11 @@
         "total_queries": 20,
         "passed_queries": 20,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.95,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
         "metadata_document_selection_recall_rate": 0.95,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -2621,12 +2650,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -2742,11 +2771,11 @@
         "total_queries": 20,
         "passed_queries": 20,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.95,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
         "metadata_document_selection_recall_rate": 0.95,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -2783,12 +2812,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -2940,12 +2969,12 @@
         "total_queries": 20,
         "passed_queries": 20,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.95,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 20,
@@ -2981,12 +3010,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -3058,11 +3087,11 @@
         "total_queries": 20,
         "passed_queries": 20,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.95,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
         "metadata_document_selection_recall_rate": 0.95,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -3099,12 +3128,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
         "pass_at_3": 0.9333,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -3136,11 +3165,11 @@
         "total_queries": 20,
         "passed_queries": 20,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.95,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
         "metadata_document_selection_recall_rate": 0.95,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -3177,12 +3206,12 @@
         "total_queries": 27,
         "passed_queries": 27,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8889,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 27,
@@ -3222,12 +3251,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
         "pass_at_3": 0.9333,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -3302,12 +3331,12 @@
         "total_queries": 27,
         "passed_queries": 27,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8889,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 27,
@@ -3347,12 +3376,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
         "pass_at_3": 0.9333,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -3390,7 +3419,7 @@
         "pass_at_3": 0.85,
         "pass_at_5": 0.85,
         "candidate_recall_rate": 0.85,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 20,
@@ -3428,12 +3457,12 @@
         "total_queries": 27,
         "passed_queries": 27,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.9259,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 27,
@@ -3474,12 +3503,12 @@
         "total_queries": 27,
         "passed_queries": 27,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.9259,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 27,
@@ -3520,12 +3549,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
         "pass_at_3": 0.9333,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -3561,7 +3590,7 @@
         "pass_at_1": 0.9,
         "pass_at_3": 0.95,
         "pass_at_5": 0.975,
-        "candidate_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
         "metadata_document_selection_recall_rate": 0.975,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -3604,12 +3633,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
         "pass_at_3": 0.9333,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -3645,7 +3674,7 @@
         "pass_at_1": 0.875,
         "pass_at_3": 0.925,
         "pass_at_5": 0.95,
-        "candidate_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
         "metadata_document_selection_recall_rate": 0.975,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -3688,12 +3717,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
         "pass_at_3": 0.9333,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -3724,12 +3753,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
         "pass_at_3": 0.9333,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -3906,8 +3935,8 @@
         "pass_at_1": 0.8,
         "pass_at_3": 0.8667,
         "pass_at_5": 0.9333,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "by_retrieval_task": {
           "multi_step_retrieval": {
             "total": 15,
@@ -3945,7 +3974,7 @@
         "pass_at_1": 0.85,
         "pass_at_3": 0.925,
         "pass_at_5": 0.975,
-        "candidate_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
         "metadata_document_selection_recall_rate": 0.975,
         "metadata_document_selection_rank_1_rate": 0.7,
         "by_retrieval_task": {
@@ -4038,12 +4067,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
         "pass_at_3": 0.9333,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.4667,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -4130,7 +4159,7 @@
         "pass_at_3": 0.9,
         "pass_at_5": 0.95,
         "candidate_recall_rate": 0.975,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.6667,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -4174,12 +4203,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
         "pass_at_3": 0.9333,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.4667,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -4212,12 +4241,12 @@
         "total_queries": 15,
         "passed_queries": 15,
         "failed_queries": 0,
-        "pass_rate": 1.0,
+        "pass_rate": 1,
         "pass_at_1": 0.8667,
         "pass_at_3": 0.9333,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.4667,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -4255,7 +4284,7 @@
         "pass_at_3": 0.875,
         "pass_at_5": 0.925,
         "candidate_recall_rate": 0.975,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.6667,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -4303,8 +4332,8 @@
         "pass_at_1": 0.7333,
         "pass_at_3": 0.8667,
         "pass_at_5": 0.9333,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.4667,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -4344,7 +4373,7 @@
         "pass_at_3": 0.875,
         "pass_at_5": 0.925,
         "candidate_recall_rate": 0.975,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.7179,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -4393,7 +4422,7 @@
         "pass_at_3": 0.7333,
         "pass_at_5": 0.8,
         "candidate_recall_rate": 0.8,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.3333,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -4433,7 +4462,7 @@
         "pass_at_3": 0.875,
         "pass_at_5": 0.925,
         "candidate_recall_rate": 0.975,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.6923,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -4482,7 +4511,7 @@
         "pass_at_3": 0.7333,
         "pass_at_5": 0.7333,
         "candidate_recall_rate": 0.8,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.3333,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -4575,7 +4604,7 @@
         "pass_at_3": 0.5333,
         "pass_at_5": 0.5333,
         "candidate_recall_rate": 0.5333,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.25,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -4635,7 +4664,7 @@
         "pass_at_3": 0.6111,
         "pass_at_5": 0.6111,
         "candidate_recall_rate": 0.6667,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.5833,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -4730,7 +4759,7 @@
         "pass_at_3": 0.5556,
         "pass_at_5": 0.5556,
         "candidate_recall_rate": 0.5556,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.6,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -4772,7 +4801,7 @@
         "pass_at_3": 0.875,
         "pass_at_5": 0.925,
         "candidate_recall_rate": 0.975,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.6923,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -4995,12 +5024,12 @@
         "total_queries": 20,
         "passed_queries": 20,
         "failed_queries": 0,
-        "pass_rate": 1.0,
-        "pass_at_1": 1.0,
-        "pass_at_3": 1.0,
-        "pass_at_5": 1.0,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "pass_rate": 1,
+        "pass_at_1": 1,
+        "pass_at_3": 1,
+        "pass_at_5": 1,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.85,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -5039,8 +5068,8 @@
         "pass_at_1": 0.8,
         "pass_at_3": 0.9,
         "pass_at_5": 0.925,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.6842,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -5090,7 +5119,7 @@
         "pass_at_3": 0.65,
         "pass_at_5": 0.7,
         "candidate_recall_rate": 0.9,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.85,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -5133,7 +5162,7 @@
         "pass_at_3": 0.5,
         "pass_at_5": 0.5,
         "candidate_recall_rate": 0.85,
-        "metadata_document_selection_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.8333,
         "by_retrieval_task": {
           "multi_step_retrieval": {
@@ -5176,8 +5205,8 @@
         "pass_at_1": 0.8,
         "pass_at_3": 0.875,
         "pass_at_5": 0.875,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.7368,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -5279,8 +5308,8 @@
         "pass_at_1": 0.775,
         "pass_at_3": 0.85,
         "pass_at_5": 0.85,
-        "candidate_recall_rate": 1.0,
-        "metadata_document_selection_recall_rate": 1.0,
+        "candidate_recall_rate": 1,
+        "metadata_document_selection_recall_rate": 1,
         "metadata_document_selection_rank_1_rate": 0.6842,
         "by_retrieval_task": {
           "single_step_retrieval": {
@@ -5510,10 +5539,10 @@
         "total_queries": 3,
         "passed_queries": 0,
         "failed_queries": 3,
-        "pass_rate": 0.0,
-        "pass_at_1": 0.0,
-        "pass_at_3": 0.0,
-        "pass_at_5": 0.0,
+        "pass_rate": 0,
+        "pass_at_1": 0,
+        "pass_at_3": 0,
+        "pass_at_5": 0,
         "by_retrieval_task": {
           "single_step_retrieval": {
             "total": 3,
@@ -5817,8 +5846,8 @@
       "notes": "Eval/debug-only row-key feasibility probe. Cases 6 and 7 exact expected rows have query-mentioned setting-item/table-row keys with small corpus-wide normalized pools: Condition list 24, Standard Angle 31, PMSR DC2LAR 23, and RTO2L 51, while each row also matches the requested product identifier. This supports a future bounded/indexed row-key discovery design rather than another broad SQL pool expansion. Case 9 row keys are not directly mentioned in the query and should remain separate as a final-context/top-k or timeout target. No production retrieval behavior changed and no pass rate is marked resolved."
     }
   },
-  "next_target": "Continue from retrieval_eval_20260825_072839 and the row-key/identifier/source-stage/stage-timing diagnostics, but avoid the rejected row-key table discovery stage from retrieval_eval_20260825_232955 along with broad SQL pool expansions and all prior comparison promotion/scoring/budget/table-first/term-variant paths. Cases 6 and 7 still need a genuinely indexed or precomputed row-key discovery design that avoids per-query regexp scans/timeouts; case 9 remains separate as final-context/top-k or timeout work. Validate any production retrieval change against the full 10-case cross-document v2 gate plus saved single-step and warning/procedure gates.",
-  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_232955 is diagnostic-only after the row-key table discovery experiment regressed to 3/10 with eval_timeout: 7; all production edits were reverted.",
+  "next_target": "Continue from retrieval_eval_20260825_072839 and the row-key/identifier/source-stage/stage-timing diagnostics, but avoid the rejected exact row-key metadata/setting-item experiment from retrieval_eval_20260825_235830, the earlier row-key table discovery stage from retrieval_eval_20260825_232955, broad SQL pool expansions, and all prior comparison promotion/scoring/budget/table-first/term-variant paths. Cases 6 and 7 still need a genuinely precomputed or indexed row-key discovery design that does not add per-query table scans; case 9 remains separate as final-context/top-k or timeout work. Validate any production retrieval change against the full 10-case cross-document v2 gate plus saved single-step and warning/procedure gates.",
+  "current_retrieval_failure_source": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. retrieval_eval_20260825_235830 is diagnostic-only after the exact row-key metadata/setting-item experiment stayed 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1; all production edits were reverted.",
   "current_failure_categories": {
     "candidate_miss": 1,
     "eval_timeout": 1,
@@ -5830,6 +5859,23 @@
     "ranking_or_context_loss": 1
   },
   "diagnostics": [
+    {
+      "path": "test_reports/retrieval_eval_summary_20260825_235830.json",
+      "manifest_path": "test_reports/retrieval_eval_manifest_20260825_235830.json",
+      "results_path": "test_reports/retrieval_eval_results_20260825_235830.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
+      "status": "diagnostic_only_rejected_change",
+      "mode": "exact_row_key_metadata_setting_item_experiment",
+      "baseline": "retrieval_eval_20260825_072839",
+      "total_queries": 10,
+      "passed_queries": 7,
+      "pass_rate": 0.7,
+      "failure_categories": {
+        "eval_timeout": 2,
+        "ranking_or_context_loss": 1
+      },
+      "notes": "Rejected and reverted: exact metadata table_row_headers and anchored Setting item lookup avoided regexp normalization but did not improve the full manually reviewed cross-document v2 gate; cases 6 and 9 timed out and case 7 remained a ranking/context loss. No production retrieval/test code was retained."
+    },
     {
       "path": "test_reports/retrieval_debug_report_20260825_2259_row_key_probe.json",
       "status": "completed",
@@ -6018,19 +6064,20 @@
     "notes": "Run start guardrail review left no unresolved needs_fix/critical finding. The obvious case 9 adjustment would repeat rejected comparison top-k/promotion paths, so no production retrieval or answering change was made."
   },
   "latest_rejected_experiment": {
-    "path": "test_reports/retrieval_eval_summary_20260825_232955.json",
-    "manifest_path": "test_reports/retrieval_eval_manifest_20260825_232955.json",
-    "results_path": "test_reports/retrieval_eval_results_20260825_232955.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260825_232955.jsonl",
+    "path": "test_reports/retrieval_eval_summary_20260825_235830.json",
+    "manifest_path": "test_reports/retrieval_eval_manifest_20260825_235830.json",
+    "results_path": "test_reports/retrieval_eval_results_20260825_235830.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
     "status": "diagnostic_only_rejected_change",
-    "mode": "row_key_table_discovery_experiment",
+    "mode": "exact_row_key_metadata_setting_item_experiment",
     "baseline": "retrieval_eval_20260825_072839",
     "total_queries": 10,
-    "passed_queries": 3,
-    "pass_rate": 0.3,
+    "passed_queries": 7,
+    "pass_rate": 0.7,
     "failure_categories": {
-      "eval_timeout": 7
+      "eval_timeout": 2,
+      "ranking_or_context_loss": 1
     },
-    "notes": "Rejected and reverted: a comparison-only row-key table discovery stage used query-mentioned normalized setting/table-row keys plus product-identifier matches, but the full manually reviewed cross-document v2 gate regressed to 3/10 with eval_timeout: 7. No production retrieval/test code was retained."
+    "notes": "Rejected and reverted: exact metadata table_row_headers and anchored Setting item lookup avoided regexp normalization but did not improve the full manually reviewed cross-document v2 gate; cases 6 and 9 timed out and case 7 remained a ranking/context loss. No production retrieval/test code was retained."
   }
 }
