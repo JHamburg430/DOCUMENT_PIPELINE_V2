@@ -1,5 +1,15 @@
 # Retrieval Accuracy Guardrail Findings
 
+## 2026-08-26T15:17:00Z Guardrail Review
+
+- Reviewed accuracy job: `39262386-1bb6-4571-98e1-13a30047ddb8`
+- Reviewed commits: `d20be10..3db1178` (`Tighten troubleshooting answer scoring`), where `d20be10` was the prior guardrail note.
+- Reviewed run evidence: progress-log entry `2026-08-26 Cron 39262386 Corrective-State Answer Scoring Containment`, committed summary/manifest for `retrieval_eval_20260826_145540`, actual results JSONL for `retrieval_eval_20260826_145540`, and current manifest tracking. Direct audited cron run history was unavailable because the cron tool is restricted to the current job.
+- Severity: `ok`
+- Finding: no new counterproductive or biased production change found. The latest accuracy commit addresses the required containment for false-green `retrieval_eval_20260826_142837` row 13 by tightening eval answer scoring for source-backed corrective-action state terms, adding focused negative coverage, rerunning rows 13-14 through the user-visible HTTP API answer path, and reclassifying row 13 plus the combined rows 13-14 result as not clean answer evidence. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed.
+- Evidence: `git diff --name-status d20be10..3db1178` changes only eval scoring/tests, progress/manifest tracking, and the new `145540` summary/manifest artifacts. `packages/evals/src/manuals_rag_evals/retrieval_eval.py` now includes generic state terms such as `offline`, `online`, `enabled`, and `disabled` when they appear in expected corrective-action evidence and are not merely query terms; `tests/unit/test_retrieval_eval.py::test_answer_response_scoring_requires_corrective_action_state_terms` verifies a sibling camera-model remedy fails without `offline`. `retrieval_eval_summary_20260826_145540.json` reports 2/2 retrieval but only 1/2 actual API answers, with `expected_terms_missing: 1`, `answer_sources: {"api": 2}`, and fallback 0. Manual JSONL inspection confirms row 13's API answer still recommends the sibling camera-model remedy and omits setting `[System Processing]` to `[Offline]`, so it is correctly not clean; row 14's API answer cites the image-archive/display-focus row and includes the expected remedy to move focus to an image display set for camera images. Active coverage remains unchanged at 203 exploratory questions, 100 single-step and 103 multi-step, with replacement debt 0. `git diff --check d20be10..HEAD` and `jq empty` passed for the manifest and new `145540` artifact files.
+- Required next action: continue broadening actual HTTP API answer-grounding on validated sibling rows 15-20 or other reviewed slices, or revisit sibling rows 12/13 only with a stronger general answer evidence-selection design. Do not count `retrieval_eval_20260826_142837` row 13, the combined rows 13-14 result, rejected `retrieval_eval_20260826_142651`, or any no-scorable-term-relaxation result as clean answer evidence.
+
 ## 2026-08-26T10:44:00Z Guardrail Review
 
 - Reviewed accuracy job: `39262386-1bb6-4571-98e1-13a30047ddb8`
