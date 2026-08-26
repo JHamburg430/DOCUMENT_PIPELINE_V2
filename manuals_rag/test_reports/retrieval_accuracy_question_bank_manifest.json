@@ -474,6 +474,15 @@
           "retrieval_eval_20260826_065345"
         ],
         "remaining": "Continue actual HTTP API answer rotations for repaired contextual rows 13-20 before treating them as answer-grounding evidence; preserve unresolved direct cross-document baseline retrieval_eval_20260826_005723."
+      },
+      "2026-08-26T07:14:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Continued actual HTTP API answer scoring for repaired contextual rows 13-14 without production retrieval or answering changes, preserving the unresolved direct cross-document baseline.",
+        "evidence": [
+          "retrieval_eval_20260826_072353"
+        ],
+        "remaining": "Rows 15-20 still need actual HTTP API answer rotations before being counted as contextual answer-grounding evidence. Row 14 failed from a retrieval candidate miss and should be tracked as retrieval-gap evidence, while retrieval_eval_20260826_005723 remains the cross-document direct-retrieval baseline."
       }
     },
     "diagnostics": [
@@ -835,6 +844,54 @@
   "latest_results": {
     "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_retrieval_eval.py -q -> 80 passed, 9 warnings after reverting b51a22c.",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260826_072353",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260826_072353.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_072353.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_072353.json",
+        "status": "completed_answer_grounding_rotation_with_retrieval_gap",
+        "mode": "actual_http_api_answer_rotation_contextual_procedure_offset_12",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "query_offset": 12,
+        "per_query_timeout_seconds": 120,
+        "total_queries": 2,
+        "passed_queries": 1,
+        "failed_queries": 1,
+        "pass_rate": 0.5,
+        "pass_at_1": 0.0,
+        "pass_at_3": 0.5,
+        "pass_at_5": 0.5,
+        "candidate_recall_rate": 0.5,
+        "metadata_document_selection_recall_rate": 0.5,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 1,
+        "answer_failed_queries": 1,
+        "answer_pass_rate": 0.5,
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_fallback_count": 0,
+        "answer_latency": {
+          "min_seconds": 45.395,
+          "max_seconds": 54.009,
+          "mean_seconds": 49.702,
+          "p95_seconds": 54.009
+        },
+        "failure_categories": {
+          "candidate_miss": 1
+        },
+        "answer_failure_reasons": {
+          "expected_document_not_cited_or_used": 1,
+          "retrieval_not_passed": 1
+        },
+        "benchmark_quality": {
+          "validated": 2
+        },
+        "notes": "Repaired contextual row 13 passed through the actual user-visible /query answer path at rank 2; row 14 failed because retrieval missed the expected LJ-X8000 cyclic-communication evidence, so the API answer could not cite/use it. This is answer-grounding and retrieval-gap evidence, not a production retrieval change."
+      },
       {
         "run_id": "retrieval_eval_20260826_052406",
         "corpus_id": "manuals_vendor_keyence",
@@ -6141,20 +6198,19 @@
       }
     ],
     "failure_categories": {
-      "candidate_miss": 1,
-      "eval_timeout": 1,
+      "eval_timeout": 2,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Continue actual HTTP API answer-grounding rotations on the newly reviewed contextual procedure rows 11-20, while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9. Keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design; do not promote generated questions without manual/validator review.",
+    "next_target": "Continue actual HTTP API answer-grounding rotations on the newly reviewed contextual procedure rows 15-20, while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9 and recording the new contextual row 14 candidate miss as answer-grounding/retrieval-gap evidence. Keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design; do not promote generated questions without manual/validator review.",
     "current_failure_categories": {
       "eval_timeout": 2,
       "ranking_or_context_loss": 1
     },
-    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses, validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers, curated single-step retrieval_eval_20260826_035548 at 2/2, corrected contextual procedure cases 1-2 in retrieval_eval_20260826_042753 at 2/2, newly rephrased contextual cases 3-4 in retrieval_eval_20260826_050007 at 2/2, repaired contextual cases 5-6 in retrieval_eval_20260826_052406 at 2/2, repaired contextual cases 7-8 in retrieval_eval_20260826_055358 at 2/2, and repaired contextual cases 9-10 in retrieval_eval_20260826_062401 at 2/2 user-visible API answers with answer source api and fallback 0. Rows 11-20 of the contextual dataset still require fresh actual API answer rotations before being counted as answer-grounding evidence.",
+    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses, validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers, curated single-step retrieval_eval_20260826_035548 at 2/2, and repaired contextual procedure rows 1-12 at 12/12 plus rows 13-14 in retrieval_eval_20260826_072353 at 1/2 user-visible API answers with answer source api and fallback 0. Contextual row 14 failed because retrieval missed expected LJ-X8000 cyclic-communication evidence. Rows 15-20 of the contextual dataset still require fresh actual API answer rotations before being counted as answer-grounding evidence.",
     "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1 after the b51a22c containment revert. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
     "answer_current_failure_categories": {
-      "expected_document_not_cited_or_used": 3,
-      "retrieval_not_passed": 3
+      "expected_document_not_cited_or_used": 4,
+      "retrieval_not_passed": 4
     },
     "diagnostics": [
       {
@@ -6359,26 +6415,31 @@
       "notes": "Eval/debug-only row-key feasibility probe. Cases 6 and 7 exact expected rows have query-mentioned setting-item/table-row keys with small corpus-wide normalized pools: Condition list 24, Standard Angle 31, PMSR DC2LAR 23, and RTO2L 51, while each row also matches the requested product identifier. This supports a future bounded/indexed row-key discovery design rather than another broad SQL pool expansion. Case 9 row keys are not directly mentioned in the query and should remain separate as a final-context/top-k or timeout target. No production retrieval behavior changed and no pass rate is marked resolved."
     },
     "answer_grounding_rotation": {
-      "status": "broadened_no_production_change",
+      "status": "broadened_no_production_change_with_retrieval_gap",
       "latest_runs": [
-        "retrieval_eval_20260826_062401"
+        "retrieval_eval_20260826_072353"
       ],
-      "scope": "repaired_contextual_procedure_cases_9_10_actual_http_api_answers",
+      "scope": "repaired_contextual_procedure_cases_13_14_actual_http_api_answers",
       "total_queries": 2,
-      "retrieval_passed_queries": 2,
-      "answer_passed_queries": 2,
-      "answer_pass_rate": 1,
+      "retrieval_passed_queries": 1,
+      "answer_passed_queries": 1,
+      "answer_pass_rate": 0.5,
       "answer_sources": {
         "api": 2
       },
       "answer_fallback_count": 0,
-      "failure_categories": {},
-      "answer_failure_reasons": {},
-      "notes": "Continued actual API answer-grounding rotation on the fully reviewed contextual procedure dataset while leaving production retrieval and answering unchanged. This is answer coverage evidence, not a direct retrieval improvement."
+      "failure_categories": {
+        "candidate_miss": 1
+      },
+      "answer_failure_reasons": {
+        "expected_document_not_cited_or_used": 1,
+        "retrieval_not_passed": 1
+      },
+      "notes": "Continued actual API answer-grounding rotation on the fully reviewed contextual procedure dataset while leaving production retrieval and answering unchanged; row 14 exposes a retrieval miss. This is coverage evidence, not a direct retrieval improvement."
     }
   },
-  "next_target": "Continue actual HTTP API answer-grounding rotations on the newly reviewed contextual procedure rows 13-20, while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9. Keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design; do not promote generated questions without manual/validator review.",
-  "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1 after the b51a22c containment revert. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
+  "next_target": "Continue actual HTTP API answer-grounding rotations on the newly reviewed contextual procedure rows 15-20, while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9 and recording the new contextual row 14 candidate miss as answer-grounding/retrieval-gap evidence. Keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design; do not promote generated questions without manual/validator review.",
+  "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1 after the b51a22c containment revert. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements; retrieval_eval_20260826_072353 additionally exposes a contextual LJ-X8000 row 14 candidate miss under actual API answer scoring.",
   "current_failure_categories": {
     "eval_timeout": 2,
     "ranking_or_context_loss": 1
@@ -6640,27 +6701,32 @@
     ]
   },
   "answer_current_failure_categories": {
-    "expected_document_not_cited_or_used": 3,
-    "retrieval_not_passed": 3
+    "expected_document_not_cited_or_used": 4,
+    "retrieval_not_passed": 4
   },
-  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses, validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers, curated single-step retrieval_eval_20260826_035548 at 2/2, corrected contextual procedure cases 1-2 in retrieval_eval_20260826_042753 at 2/2, newly rephrased contextual cases 3-4 in retrieval_eval_20260826_050007 at 2/2, repaired contextual cases 5-6 in retrieval_eval_20260826_052406 at 2/2, repaired contextual cases 7-8 in retrieval_eval_20260826_055358 at 2/2, repaired contextual cases 9-10 in retrieval_eval_20260826_062401 at 2/2, and repaired contextual cases 11-12 in retrieval_eval_20260826_065345 at 2/2 user-visible API answers with answer source api and fallback 0. Rows 13-20 of the contextual dataset still require fresh actual API answer rotations before being counted as answer-grounding evidence.",
+  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses, validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers, curated single-step retrieval_eval_20260826_035548 at 2/2, and repaired contextual procedure rows 1-12 at 12/12 plus rows 13-14 in retrieval_eval_20260826_072353 at 1/2 user-visible API answers with answer source api and fallback 0. Contextual row 14 failed because retrieval missed expected LJ-X8000 cyclic-communication evidence. Rows 15-20 of the contextual dataset still require fresh actual API answer rotations before being counted as answer-grounding evidence.",
   "answer_grounding_rotation": {
-    "status": "broadened_no_production_change",
+    "status": "broadened_no_production_change_with_retrieval_gap",
     "latest_runs": [
-      "retrieval_eval_20260826_065345"
+      "retrieval_eval_20260826_072353"
     ],
-    "scope": "repaired_contextual_procedure_cases_11_12_actual_http_api_answers",
+    "scope": "repaired_contextual_procedure_cases_13_14_actual_http_api_answers",
     "total_queries": 2,
-    "retrieval_passed_queries": 2,
-    "answer_passed_queries": 2,
-    "answer_pass_rate": 1,
+    "retrieval_passed_queries": 1,
+    "answer_passed_queries": 1,
+    "answer_pass_rate": 0.5,
     "answer_sources": {
       "api": 2
     },
     "answer_fallback_count": 0,
-    "failure_categories": {},
-    "answer_failure_reasons": {},
-    "notes": "Continued actual API answer-grounding rotation on the fully reviewed contextual procedure dataset while leaving production retrieval and answering unchanged. This is answer coverage evidence, not a direct retrieval improvement."
+    "failure_categories": {
+      "candidate_miss": 1
+    },
+    "answer_failure_reasons": {
+      "expected_document_not_cited_or_used": 1,
+      "retrieval_not_passed": 1
+    },
+    "notes": "Continued actual API answer-grounding rotation on the fully reviewed contextual procedure dataset while leaving production retrieval and answering unchanged; row 14 exposes a retrieval miss. This is coverage evidence, not a direct retrieval improvement."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
