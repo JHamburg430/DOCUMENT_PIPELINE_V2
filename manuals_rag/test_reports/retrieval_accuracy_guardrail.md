@@ -1,5 +1,15 @@
 # Retrieval Accuracy Guardrail Findings
 
+## 2026-08-26T15:44:00Z Guardrail Review
+
+- Reviewed accuracy job: `39262386-1bb6-4571-98e1-13a30047ddb8`
+- Reviewed commits: `0795443..2d166f8` (`Reconcile retrieval manifest state`), where `0795443` was the prior guardrail note.
+- Reviewed run evidence: progress-log entry `2026-08-26 Cron 39262386 Manifest Integrity Reconciliation`, current question-bank manifest, committed `145540` summary/manifest, and actual results JSONL for `retrieval_eval_20260826_145540` plus the false-green `retrieval_eval_20260826_142837`. Direct audited cron run history was unavailable because the cron tool is restricted to the current job.
+- Severity: `ok`
+- Finding: no new counterproductive or biased production change found. The latest commit is tracking-only and reconciles stale duplicated manifest state under `question_bank` with the top-level state. It does not edit production retrieval, answering, eval generation/scoring, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, docs, or tests; it does not add document/vendor/product/filename/query-specific routing, inferred hard filters, eval-only production behavior, coverage shrinkage, deleted hard cases, or weakened expected evidence.
+- Evidence: `git diff --name-status 0795443..HEAD` lists only `test_reports/retrieval_accuracy_progress.md` and `test_reports/retrieval_accuracy_question_bank_manifest.json`. A whole-manifest consistency check confirms top-level and `question_bank` copies now agree for `next_target`, `current_failure_categories`, `answer_current_failure_categories`, `answer_grounding_status`, `answer_grounding_rotation`, `current_run`, and `run_exclusions`. The manifest now excludes `retrieval_eval_20260826_142837` row 13 and the combined rows 13-14 result as clean evidence, keeps sibling troubleshooting rows 1-14 at 12/14 with rows 12 and 13 failing, preserves current retrieval failures as `candidate_miss: 1` and `ranking_or_context_loss: 2`, and keeps current answer failures as `expected_document_not_cited_or_used: 4`, `retrieval_not_passed: 4`, and `expected_terms_missing: 2`. Manual JSONL inspection of `retrieval_eval_20260826_145540` confirms row 13 is correctly failed because the API answer omits the expected `Offline` corrective state and recommends the sibling camera-model remedy; row 14 is clean because its answer cites the image-archive/display-focus evidence and includes the move-focus remedy. `jq empty` and `git diff --check 0795443..HEAD` passed.
+- Required next action: continue from the reconciled manifest target: broaden actual HTTP API answer-grounding on validated sibling rows 15-20 or other reviewed slices, or revisit sibling rows 12/13 only with a stronger general answer evidence-selection design. Keep `retrieval_eval_20260826_142837` row 13 and the combined rows 13-14 result excluded from clean answer evidence.
+
 ## 2026-08-26T15:17:00Z Guardrail Review
 
 - Reviewed accuracy job: `39262386-1bb6-4571-98e1-13a30047ddb8`
