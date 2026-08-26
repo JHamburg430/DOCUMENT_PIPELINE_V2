@@ -13,6 +13,7 @@ from manuals_rag_common.config import settings
 STOPWORDS = {
     "the",
     "and",
+    "assigned",
     "for",
     "with",
     "from",
@@ -65,6 +66,7 @@ GENERIC_ANCHORS = {
     "use",
     "used",
     "using",
+    "check",
     "click",
     "only",
     "one",
@@ -115,6 +117,8 @@ ANSWER_SCORING_GENERIC_TERMS = QUERY_DEDUPE_FILLER.union(
         "descriptions",
         "detail",
         "details",
+        "flag",
+        "whether",
         "executed",
         "having",
         "inputting",
@@ -2638,8 +2642,9 @@ def _answer_contains_expected_terms(
     required = min(2, len(expected))
     material_required = len(material_expected)
     material_passed = len(material_matched) >= material_required if material_required else True
+    base_terms_passed = len(matched) >= required if required else True
     return {
-        "passed": (len(matched) >= required if required else False) and material_passed,
+        "passed": base_terms_passed and material_passed,
         "matched_terms": matched,
         "expected_terms": expected,
         "required_terms": required,
@@ -2651,7 +2656,10 @@ def _answer_contains_expected_terms(
 
 def _answer_scoring_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
     if not case.expected_evidence:
-        return case.expected_terms, "case_expected_terms"
+        specific_terms = _scorable_answer_terms(case.expected_terms, case.expected_snippet)
+        if specific_terms:
+            return specific_terms, "case_expected_terms"
+        return [], "no_scorable_case_expected_terms"
     evidence_terms: list[str] = []
     seen: set[str] = set()
 
@@ -2683,6 +2691,36 @@ def _answer_scoring_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
     if evidence_terms:
         return evidence_terms, "expected_evidence_terms"
     return case.expected_terms, "case_expected_terms"
+
+
+def _scorable_answer_terms(terms: list[str], source_text: str = "") -> list[str]:
+    source_address_terms = _source_address_terms(source_text)
+    scorable: list[str] = []
+    for term in terms:
+        normalized = str(term).strip()
+        key = normalized.lower()
+        if not normalized:
+            continue
+        if key in ANSWER_SCORING_GENERIC_TERMS:
+            continue
+        if key in source_address_terms:
+            continue
+        scorable.append(normalized)
+    return scorable
+
+
+def _source_address_terms(text: str) -> set[str]:
+    terms: set[str] = set()
+    for match in re.finditer(r"\b[A-Z][A-Z0-9-]*\s*:\s*[A-Za-z][A-Za-z0-9_.]*(?:\[[^\]]+\])?(?:\.\d+)?", text):
+        address = match.group(0)
+        terms.update(tokenize(address))
+        if ":" in address:
+            lhs, rhs = address.split(":", 1)
+            terms.add(lhs.strip().lower())
+            rhs_base = re.sub(r"\[[^\]]+\](?:\.\d+)?", "", rhs.strip().lower())
+            if rhs_base:
+                terms.add(rhs_base)
+    return {term for term in terms if term}
 
 
 def _is_quantity_answer_query(query: str) -> bool:
