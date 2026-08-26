@@ -332,10 +332,18 @@ def _normalized_citation_text(text: str) -> str:
     return " ".join(text.lower().split())
 
 
+def _citation_evidence_text(result: SearchResult) -> str:
+    content = str(result.content or "").strip()
+    metadata_content = str(result.metadata.get("content") or "").strip()
+    if metadata_content and metadata_content != content:
+        return f"{content}\n{metadata_content}" if content else metadata_content
+    return content
+
+
 def _citation_quotes_are_supported(citations: list[dict[str, Any]], results: list[SearchResult]) -> bool:
     if not citations:
         return True
-    evidence_by_chunk_id = {result.chunk_id: _evidence_text(result) for result in results}
+    evidence_by_chunk_id = {result.chunk_id: _citation_evidence_text(result) for result in results}
     for citation in citations:
         chunk_id = str(citation.get("chunk_id") or "")
         if chunk_id not in evidence_by_chunk_id:

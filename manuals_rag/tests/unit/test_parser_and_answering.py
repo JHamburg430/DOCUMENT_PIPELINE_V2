@@ -221,6 +221,48 @@ def test_validate_answer_does_not_repair_unsupported_citation_from_answer_overla
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_rejects_quote_from_context_window_under_cited_chunk():
+    answer = AnswerResponse(
+        answer="The light-controller communication error is corrected by setting FLASH output time to 0.1 msec.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "nearby-row",
+                "document_id": "d1",
+                "pages": [10],
+                "quote_span": "Set the FLASH output time to 0.1 msec.",
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="nearby-row",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content="Error Number: 13001; Error Messages: Failed in the communication with the PC Program.",
+            metadata={
+                "chunk_type": "table_record",
+                "context_window": "Error Number: 10109; Remedy: Set the FLASH output time to 0.1 msec.",
+            },
+        )
+    ]
+
+    validated = validate_answer(answer, results)
+
+    assert validated.answer.startswith("Error Number: 13001; Error Messages: Failed in the communication with the PC Program.")
+    assert validated.citations[0]["chunk_id"] == "nearby-row"
+    assert validated.citations[0]["quote_span"] is None
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_accepts_citation_quote_from_cited_chunk():
     answer = AnswerResponse(
         answer="Change to a trigger signal that can be used.",
