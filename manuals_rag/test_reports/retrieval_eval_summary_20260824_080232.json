@@ -43,5 +43,15 @@
   "candidate_recall_rate": 0.85,
   "metadata_document_selection_attempts": 18,
   "metadata_document_selection_recall_rate": 0.8889,
-  "metadata_document_selection_rank_1_rate": 0.7778
+  "metadata_document_selection_rank_1_rate": 0.7778,
+  "quality_review": {
+    "reviewed_at": "2026-08-26T04:55:08Z",
+    "review_path": "test_reports/retrieval_eval_quality_review_20260826_045508.json",
+    "guardrail_finding": "2026-08-26T04:44:00Z",
+    "action": "manual_rephrase_full_contextual_procedure_slice",
+    "benchmark_quality_after_review": {
+      "validated": 20
+    },
+    "active_count_impact": "none"
+  }
 }

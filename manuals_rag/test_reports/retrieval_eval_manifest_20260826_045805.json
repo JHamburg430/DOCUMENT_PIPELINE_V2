@@ -96,7 +96,7 @@
       "version_id": "9f58b1dc-3a0a-4036-b6a0-605037457d4f",
       "filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
       "document": {
-        "title": "EtherNet/IP™ Edition (Allen-Brauldly CompactLogix/ControlLogix Series)",
+        "title": "EtherNet/IP\u2122 Edition (Allen-Brauldly CompactLogix/ControlLogix Series)",
         "ingest_status": "indexed"
       }
     },
@@ -479,8 +479,10 @@
       }
     }
   ],
-  "input_dataset_path": null,
+  "input_dataset_path": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
   "search_mode": "direct",
+  "response_mode": "retrieval_only",
+  "query_offset": 0,
   "per_query_timeout_seconds": 8,
   "warmup_queries": 1,
   "warmup_timeout_seconds": 45,
@@ -488,13 +490,16 @@
     {
       "case_id": "0d116180-22a3-511a-b00b-9fb8c4ea796a::contextual_multi_step::1",
       "status": "completed",
-      "elapsed_seconds": 9.197,
-      "result_count": 10
+      "elapsed_seconds": 15.32,
+      "result_count": 10,
+      "answer_generated": false
     }
   ],
-  "dataset_path": "/workspace/manuals_rag/test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-  "results_path": "/workspace/manuals_rag/test_reports/retrieval_eval_results_20260824_080232.jsonl",
-  "summary_path": "/workspace/manuals_rag/test_reports/retrieval_eval_summary_20260824_080232.json",
+  "dropped_invalid_cases": 0,
+  "rejected_cases": [],
+  "dataset_path": "/workspace/manuals_rag/test_reports/retrieval_eval_dataset_20260826_045805.jsonl",
+  "results_path": "/workspace/manuals_rag/test_reports/retrieval_eval_results_20260826_045805.jsonl",
+  "summary_path": "/workspace/manuals_rag/test_reports/retrieval_eval_summary_20260826_045805.json",
   "selected_documents": [
     "CA-EN100U_Datasheet.pdf",
     "AS_103012_LineScan_C_611J12_KA_US_2073_3.pdf",
@@ -549,15 +554,5 @@
     "VJ-3302_Datasheet.pdf",
     "VJ-H500CX_Datasheet.pdf",
     "WM-6025_Datasheet.pdf"
-  ],
-  "quality_review": {
-    "reviewed_at": "2026-08-26T04:55:08Z",
-    "review_path": "test_reports/retrieval_eval_quality_review_20260826_045508.json",
-    "guardrail_finding": "2026-08-26T04:44:00Z",
-    "action": "manual_rephrase_full_contextual_procedure_slice",
-    "benchmark_quality_after_review": {
-      "validated": 20
-    },
-    "active_count_impact": "none"
-  }
+  ]
 }

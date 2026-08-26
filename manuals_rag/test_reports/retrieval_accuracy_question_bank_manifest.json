@@ -435,6 +435,18 @@
           "retrieval_eval_20260826_042753 -> 2/2 retrieval and 2/2 actual API answers, answer_sources {api: 2}, fallback 0"
         ],
         "remaining": "Keep generated contextual questions under manual/validator review before using them as durable answer gates; continue broadening answer-grounding coverage while preserving retrieval_eval_20260826_005723 direct cross-document baseline."
+      },
+      "2026-08-26T04:44:00Z": {
+        "severity": "needs_fix",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Manually reviewed the full committed contextual procedure dataset, rephrased rows 3-20 to remove source-shaped/table/page/screen-label artifacts while preserving expected evidence, and kept active multi-step counts monotonic.",
+        "evidence": [
+          "test_reports/retrieval_eval_dataset_20260824_080232.jsonl rows 1-20 now user-style reviewed",
+          "test_reports/retrieval_eval_quality_review_20260826_045508.json",
+          "retrieval_eval_20260826_045805 direct retrieval rerun: 16/20, validated:20, failures eval_timeout:4 only",
+          "retrieval_eval_20260826_050007 actual HTTP API answer rerun on rows 3-4: 2/2 answers, answer_sources api:2, fallback 0"
+        ],
+        "remaining": "Run actual HTTP API answer rotations on rephrased contextual rows 5-20 before treating those rows as answer-grounding evidence; preserve unresolved direct cross-document baseline retrieval_eval_20260826_005723."
       }
     },
     "diagnostics": [
@@ -547,7 +559,12 @@
         "multi_step_questions": 20,
         "by_chunk_type": {
           "procedure_record": 20
-        }
+        },
+        "quality_review": "Full 20-case contextual procedure slice manually reviewed on 2026-08-26T04:55:08Z; cases 1-2 had prior guardrail rephrase, cases 3-20 were rephrased to remove mechanical/source-shaped artifacts while preserving expected evidence.",
+        "quality_review_path": "test_reports/retrieval_eval_quality_review_20260826_045508.json",
+        "latest_retrieval_summary": "test_reports/retrieval_eval_summary_20260826_045805.json",
+        "latest_answer_summary": "test_reports/retrieval_eval_summary_20260826_050007.json",
+        "notes": "Contextual procedure-plus-section multi-step bank is now fully manual-reviewed for query phrasing. Post-review direct rerun retrieval_eval_20260826_045805 passed 16/20 with four eval timeouts; rows 3-4 actual API answer rerun retrieval_eval_20260826_050007 passed 2/2."
       },
       {
         "path": "test_reports/retrieval_eval_dataset_20260824_095925.jsonl",
@@ -6259,7 +6276,7 @@
       "notes": "Broadened actual API answer-grounding coverage on validated contextual procedure and curated single-step slices while leaving production retrieval and answering unchanged. This is answer coverage evidence, not a direct retrieval improvement."
     }
   },
-  "next_target": "With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Continue broadening actual HTTP API answer-grounding across manually reviewed or validator-clean slices, and keep generated contextual questions under quality review before promotion. Preserve the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9.",
+  "next_target": "Continue actual HTTP API answer-grounding rotations on the newly reviewed contextual procedure rows 5-20, while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9. Keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design; do not promote generated questions without manual/validator review.",
   "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1 after the b51a22c containment revert. Earlier retrieval_eval_20260825_072839 remains the pre-containment reference baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
   "current_failure_categories": {
     "candidate_miss": 1,
@@ -6526,7 +6543,7 @@
     "expected_document_not_cited_or_used": 3,
     "retrieval_not_passed": 3
   },
-  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses, validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers, curated single-step/contextual rotation retrieval_eval_20260826_035548 at 2/2, and corrected contextual procedure cases 1-2 in retrieval_eval_20260826_042753 at 2/2 retrieval and 2/2 user-visible API answers with answer source api and fallback 0. The older retrieval_eval_20260826_035410 contextual answer evidence is superseded for quality by the rephrased 042753 rerun.",
+  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses, validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers, curated single-step retrieval_eval_20260826_035548 at 2/2, corrected contextual procedure cases 1-2 in retrieval_eval_20260826_042753 at 2/2, and newly rephrased contextual cases 3-4 in retrieval_eval_20260826_050007 at 2/2 user-visible API answers with answer source api and fallback 0. Rows 5-20 of the contextual dataset were manually rephrased after guardrail 2026-08-26T04:44:00Z and require fresh actual API answer rotations before being counted as answer-grounding evidence.",
   "answer_grounding_rotation": {
     "status": "contextual_quality_watch_addressed_no_production_change",
     "latest_runs": [
@@ -6600,15 +6617,26 @@
     }
   },
   "latest_contextual_question_quality": {
-    "status": "guardrail_watch_addressed",
+    "status": "guardrail_needs_fix_addressed_full_slice_reviewed_with_eval_evidence",
+    "guardrail_finding": "2026-08-26T04:44:00Z",
     "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-    "changed_cases": 2,
-    "bad_pattern_removed": [
-      "duplicated When prefix",
-      "mechanical what related detail should be used wording"
-    ],
-    "rerun_summary": "test_reports/retrieval_eval_summary_20260826_042753.json",
-    "rerun_manifest": "test_reports/retrieval_eval_manifest_20260826_042753.json",
-    "result": "2/2 retrieval and 2/2 actual HTTP API answers passed; answer_sources {api: 2}; fallback 0."
+    "review_path": "test_reports/retrieval_eval_quality_review_20260826_045508.json",
+    "changed_cases": 18,
+    "validated_cases_after_review": 20,
+    "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step, 103 multi-step",
+    "direct_retrieval_rerun": {
+      "run_id": "retrieval_eval_20260826_045805",
+      "summary": "test_reports/retrieval_eval_summary_20260826_045805.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260826_045805.json",
+      "result": "16/20 direct retrieval passed after full-slice rephrase; benchmark_quality validated:20; failures eval_timeout:4 only"
+    },
+    "actual_api_answer_rerun": {
+      "run_id": "retrieval_eval_20260826_050007",
+      "summary": "test_reports/retrieval_eval_summary_20260826_050007.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260826_050007.json",
+      "scope": "newly rephrased contextual rows 3-4",
+      "result": "2/2 retrieval and 2/2 actual HTTP API answers passed; answer_sources api:2; fallback 0"
+    },
+    "remaining": "Continue rotating actual HTTP API answer scoring for rephrased contextual rows 5-20; do not count those rows as answer-grounding gates until rerun."
   }
 }

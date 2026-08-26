@@ -1,0 +1,248 @@
+{
+  "schema": "manuals_rag.eval_quality_review.v1",
+  "reviewed_at": "2026-08-26T04:55:08Z",
+  "guardrail_finding": "2026-08-26T04:44:00Z",
+  "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+  "action": "manual_rephrase_full_contextual_procedure_slice",
+  "scope": "contextual procedure-plus-section cases 1-20",
+  "changed_cases": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "confirmed_cases": [
+    1,
+    2
+  ],
+  "benchmark_quality_after_review": {
+    "validated": 20
+  },
+  "active_count_impact": "none; preserved 20 active contextual multi-step questions and original expected evidence",
+  "removed_patterns": [
+    "mechanical what related detail should be used template",
+    "leading generated When fragments",
+    "page-reference support fragments in query text",
+    "table row/column/cell coordinate artifacts in query text",
+    "bracketed source screen-label wording in query text",
+    "truncated copied-source fragments in query text"
+  ],
+  "review_result": "all 20 contextual questions are manually reviewed user-style prompts with source-backed expected evidence preserved",
+  "notes": "Rows 3-20 were rewritten in place because the committed dataset is already part of active exploratory coverage; reclassification would have created replacement debt. No production retrieval, answering, parser, API, UI, schema, infrastructure, Docker, model, or provider code changed.",
+  "cases": [
+    {
+      "line": 1,
+      "case_id": "0d116180-22a3-511a-b00b-9fb8c4ea796a::contextual_multi_step::1",
+      "query": "For XG-X asynchronous capture with multiple capture units, what flowchart branching rule should be followed?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "0d116180-22a3-511a-b00b-9fb8c4ea796a",
+        "7ba4e5f2-1885-5368-bb46-6054719f8780"
+      ]
+    },
+    {
+      "line": 2,
+      "case_id": "0d116180-22a3-511a-b00b-9fb8c4ea796a::contextual_multi_step::2",
+      "query": "For XG-X asynchronous capture with multiple cameras, can multiple capture units be placed in the flow?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "0d116180-22a3-511a-b00b-9fb8c4ea796a",
+        "9c81b132-3be8-5eda-b60e-cdfc6a17003c"
+      ]
+    },
+    {
+      "line": 3,
+      "case_id": "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::3",
+      "query": "For CV-X multi-capture triggering, which capture option uses the image buffer once?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "02b921f5-082d-5b31-8565-8d22f5023169",
+        "a487f889-812f-5566-ac59-dd3d824b668a"
+      ]
+    },
+    {
+      "line": 4,
+      "case_id": "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::4",
+      "query": "For CV-X multi-capture mode, what trigger mode uses external triggers 1 and 2?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "02b921f5-082d-5b31-8565-8d22f5023169",
+        "781856dd-3726-53a8-ad75-3945fc66fbb5"
+      ]
+    },
+    {
+      "line": 5,
+      "case_id": "02b921f5-082d-5b31-8565-8d22f5023169::contextual_multi_step::5",
+      "query": "For CV-X multi-capture trigger timing, which control/data I/O timing chart should I check?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "02b921f5-082d-5b31-8565-8d22f5023169",
+        "878ea631-da45-5385-8868-5cc5f197b8dc"
+      ]
+    },
+    {
+      "line": 6,
+      "case_id": "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::6",
+      "query": "For XG-X line-scan camera setup, which camera, trigger, and lighting settings are tied to simulation image capture?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "ece874eb-6b99-52c5-9a83-d2bcce1d9a75",
+        "3a64a87a-eb90-599e-90e2-05ffe036af7d"
+      ]
+    },
+    {
+      "line": 7,
+      "case_id": "ece874eb-6b99-52c5-9a83-d2bcce1d9a75::contextual_multi_step::7",
+      "query": "For XG-X line-scan camera setup, what camera configuration area is used for trigger and light settings?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "ece874eb-6b99-52c5-9a83-d2bcce1d9a75",
+        "93d11edf-51b6-50a8-8f6a-5f787588e05f"
+      ]
+    },
+    {
+      "line": 8,
+      "case_id": "3a9570f2-e15b-5214-82d4-c70ef88c0499::contextual_multi_step::8",
+      "query": "For XG-X image capture buffer enabled with one capture unit, what is shown for capture unit U0001 while triggers are being received?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "3a9570f2-e15b-5214-82d4-c70ef88c0499",
+        "71bb7b7b-0142-5e4e-9faa-1cbe607516b3"
+      ]
+    },
+    {
+      "line": 9,
+      "case_id": "b2e9c647-ba17-55e6-afc6-ee778d11a9c9::contextual_multi_step::9",
+      "query": "For XG-X with image capture buffer disabled, are trigger inputs allowed while capture is in progress?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "b2e9c647-ba17-55e6-afc6-ee778d11a9c9",
+        "8f91cb39-359c-5227-b4c6-2baf6eb57099"
+      ]
+    },
+    {
+      "line": 10,
+      "case_id": "b2e9c647-ba17-55e6-afc6-ee778d11a9c9::contextual_multi_step::10",
+      "query": "For XG-X with image capture buffer disabled, can it be used with one camera or multiple cameras sharing the same capture-priority condition?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "b2e9c647-ba17-55e6-afc6-ee778d11a9c9",
+        "bc2a9550-cfe5-5a1d-be36-6bc9c3a647b5"
+      ]
+    },
+    {
+      "line": 11,
+      "case_id": "7aaa0e2c-4919-59cf-877a-8f665bafacaf::contextual_multi_step::11",
+      "query": "For LJ-X8000 image capture timing, what PLC communication task does the setup chapter cover before configuration?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "7aaa0e2c-4919-59cf-877a-8f665bafacaf",
+        "82880372-1b33-53dc-b501-2975c75379e1"
+      ]
+    },
+    {
+      "line": 12,
+      "case_id": "7aaa0e2c-4919-59cf-877a-8f665bafacaf::contextual_multi_step::12",
+      "query": "For LJ-X8000 image capture timing, how do I check whether the sensor is connected to the PLC over EtherNet/IP?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "7aaa0e2c-4919-59cf-877a-8f665bafacaf",
+        "e6d1ab33-b31e-5444-9ad9-c00119c69eae"
+      ]
+    },
+    {
+      "line": 13,
+      "case_id": "7aaa0e2c-4919-59cf-877a-8f665bafacaf::contextual_multi_step::13",
+      "query": "For LJ-X8000 high-speed triggering, when should I use discrete I/O for image capture timing?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "7aaa0e2c-4919-59cf-877a-8f665bafacaf",
+        "f4bbc0fe-569f-5d3c-ad12-367341dbe129"
+      ]
+    },
+    {
+      "line": 14,
+      "case_id": "7aaa0e2c-4919-59cf-877a-8f665bafacaf::contextual_multi_step::14",
+      "query": "For LJ-X8000 EtherNet/IP setup, what should I check if cyclic communication status shows Not Connected?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "7aaa0e2c-4919-59cf-877a-8f665bafacaf",
+        "5e2de0a8-a30b-5e6c-abd2-eca16fdd30b7"
+      ]
+    },
+    {
+      "line": 15,
+      "case_id": "993dbb43-01b5-5a98-a33c-75c4c07cf7e7::contextual_multi_step::15",
+      "query": "For CV-X with an LJ-V head in continuous mode, what example line count and overlap count does the timing description use?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "993dbb43-01b5-5a98-a33c-75c4c07cf7e7",
+        "022d11ce-e84f-527c-9dce-139b848ce0e0"
+      ]
+    },
+    {
+      "line": 16,
+      "case_id": "f6eb3a39-b829-5959-95e3-9aaef776ec00::contextual_multi_step::16",
+      "query": "For CV-X asynchronous trigger input, what happens when TRG1 is input for camera 1?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "f6eb3a39-b829-5959-95e3-9aaef776ec00",
+        "cc991e20-5df4-5a6b-bd15-6c61f052ca29"
+      ]
+    },
+    {
+      "line": 17,
+      "case_id": "18961d4d-ba4f-5bbe-b084-ad511f9d7d40::contextual_multi_step::17",
+      "query": "For CV-X with an LJ-V head in sheet-fed mode, what camera line settings are shown for line count and line scan interval?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "18961d4d-ba4f-5bbe-b084-ad511f9d7d40",
+        "0ae083ce-91ad-5902-951e-ce922b5636ba"
+      ]
+    },
+    {
+      "line": 18,
+      "case_id": "b1b02544-c196-515f-a22f-44e29961fcf4::contextual_multi_step::18",
+      "query": "For XG-X line camera setup, which screen is used to change trigger settings?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "b1b02544-c196-515f-a22f-44e29961fcf4",
+        "b5c56332-221d-5dcf-b71d-052cbc078e0e"
+      ]
+    },
+    {
+      "line": 19,
+      "case_id": "09e5b601-a5d1-5368-b4fd-5cb78c1da211::contextual_multi_step::19",
+      "query": "For XG-X line camera setup, what screen is used to adjust the image X:Y ratio to 1:1?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "09e5b601-a5d1-5368-b4fd-5cb78c1da211",
+        "e1acf656-997c-5336-b657-47bad8566277"
+      ]
+    },
+    {
+      "line": 20,
+      "case_id": "09e5b601-a5d1-5368-b4fd-5cb78c1da211::contextual_multi_step::20",
+      "query": "For XG-X line camera setup, what procedure is the image-ratio adjustment part of?",
+      "benchmark_quality": "validated",
+      "expected_source_chunk_ids": [
+        "09e5b601-a5d1-5368-b4fd-5cb78c1da211",
+        "679269a7-4dfc-5151-b972-e318df26a196"
+      ]
+    }
+  ]
+}
