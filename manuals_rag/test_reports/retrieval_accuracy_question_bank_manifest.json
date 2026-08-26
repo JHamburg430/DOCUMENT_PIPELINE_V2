@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-26T22:00:00Z",
+  "updated_at": "2026-08-26T22:31:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -652,11 +652,11 @@
     "run_budget_minutes": 30
   },
   "question_bank": {
-    "total_questions": 203,
-    "single_step_questions": 100,
+    "total_questions": 204,
+    "single_step_questions": 101,
     "multi_step_questions": 103,
     "locked_regression_questions": 0,
-    "exploratory_questions": 203,
+    "exploratory_questions": 204,
     "datasets": [
       {
         "path": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
@@ -930,6 +930,22 @@
           "table_record": 10
         },
         "notes": "Extends the manually reviewed v1 slice with five additional user-style cross-document questions rewritten from source-backed diagnostic evidence; loaded with dropped_invalid_cases=0 and benchmark_validity_rate=100%."
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260826_2229_luminance_cvx482_false_negative_repair.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_222558.json",
+        "created_at": "2026-08-26T22:29:00Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "manual_guardrail_false_negative_repair",
+        "status": "exploratory",
+        "total_questions": 1,
+        "single_step_questions": 1,
+        "multi_step_questions": 0,
+        "by_chunk_type": {
+          "spec_record": 1
+        },
+        "quality_review": "Manual source review repaired live app run aa4d2bdc question 4 by adding the missing CV-X482 and grayscale-image constraints in realistic user wording while preserving the same source-backed expected evidence.",
+        "notes": "retrieval_eval_20260826_222558: 1/1 retrieval and 1/1 actual HTTP API answer. Original live-app question remains diagnostic dataset/scoring false-negative evidence because the visible question was broader than the hidden CV-X482/grayscale expectation."
       }
     ],
     "failure_categories": {
@@ -947,8 +963,8 @@
       "expected_terms_missing": 5,
       "unsupported_citation_quote": 1
     },
-    "next_target": "Continue from source-first citation-fidelity containment: validated sibling rows 15-17 and 19 remain diagnostic/failing answer evidence-selection/context-use cases, while rows 18 and 20 are clean after source-backed expected-evidence repairs. Fix source-first answer evidence selection so troubleshooting questions cite/use the actual corrective-action row when retrieved, or continue other validated answer rotations with endpoint and citation-fidelity status recorded. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence; keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design. Do not count retrieval_eval_20260826_170130, retrieval_eval_20260826_182611, retrieval_eval_20260826_191119, retrieval_eval_20260826_205630, retrieval_eval_20260826_212535, retrieval_eval_20260826_215400 row 20/the combined rows 19-20 claim, or earlier excluded false-green/diagnostic runs as clean answer evidence.",
-    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; sibling troubleshooting multi-step rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing; rows 15-16 remain diagnostic/failing after source-only citation-fidelity follow-up; rows 17-18 are 1/2 after retrieval_eval_20260826_213131 with row 17 failing and row 18 clean; and rows 19-20 are 1/2 after retrieval_eval_20260826_215400 plus source-backed row-20 expected-evidence repair/rerun retrieval_eval_20260826_215624, with row 19 failing expected_terms_missing and row 20 clean. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements.",
+    "next_target": "Continue from source-first citation-fidelity containment after completing the user-reported false-negative repair: validated sibling rows 15-17 and 19 remain diagnostic/failing answer evidence-selection/context-use cases. Fix source-first answer evidence selection so troubleshooting questions cite/use the actual corrective-action row when retrieved, or continue other validated answer rotations with endpoint and citation-fidelity status recorded. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence. Keep aa4d2bdc question 4 diagnostic-only and use retrieval_eval_20260826_222558 as the corrected CV-X482/grayscale user-style coverage; do not globally relax document, citation, or term requirements.",
+    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; sibling troubleshooting multi-step rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing; rows 15-16 remain diagnostic/failing after source-only citation-fidelity follow-up; rows 17-18 are 1/2 after retrieval_eval_20260826_213131 with row 17 failing and row 18 clean; and rows 19-20 are 1/2 after retrieval_eval_20260826_215400 plus source-backed row-20 expected-evidence repair/rerun retrieval_eval_20260826_215624, with row 19 failing expected_terms_missing and row 20 clean. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only because its visible query omitted CV-X482/grayscale constraints while the cited XG-X evidence directly supports the literal [Luminance Output Type] answer; repaired case retrieval_eval_20260826_222558 adds those constraints and passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
     "answer_grounding_rotation": {
       "scope": "validated_sibling_troubleshooting_rows_19_20_actual_http_api_answers_with_source_backed_row_20_expected_evidence_repair",
       "status": "row_20_clean_after_source_backed_expected_evidence_repair_row_19_remains_answer_evidence_selection_failure",
@@ -1090,6 +1106,18 @@
           "retrieval_eval_20260826_215624 -> row 20 at 1/1 retrieval and 1/1 actual API answer after source-backed expected-evidence repair"
         ],
         "required_next_action": "Do not count rows 15-17 or 19 as clean evidence. Fix source-first answer evidence selection/citation generation for these row-level troubleshooting misses, or continue other validated answer rotations with endpoint and citation-fidelity status recorded."
+      },
+      {
+        "timestamp": "2026-08-26T22:23:00Z",
+        "severity": "needs_fix",
+        "status": "addressed_this_run",
+        "finding": "Repeated-deferral priority for live app run aa4d2bdc question 4 required durable false-negative classification plus source review and a repaired user-style rerun.",
+        "evidence": [
+          "Postgres app_run_events event 8235 preserves question 4 answer/telemetry: XG-X page 953 answer selected [Luminance Output Type], retrieval rank 5, expected CV-X document reached summaries and was lost after summarization.",
+          "test_reports/retrieval_eval_dataset_20260826_2229_luminance_cvx482_false_negative_repair.jsonl repaired query includes CV-X482 and grayscale-image purpose without filename/chunk/internal metadata.",
+          "retrieval_eval_20260826_222558 -> 1/1 retrieval rank 1 and 1/1 actual HTTP API answer; JSONL inspection confirms citation to CV-X482 chunk ab54caf6-e6c3-5ab4-ac57-536f3b7624be."
+        ],
+        "required_next_action": "No further action for this false-negative before optional rotations; preserve the original diagnostic and do not globally relax scoring. Existing rows 15-17/19 answer evidence-selection failures remain open."
       }
     ],
     "answer_grounding_sibling_rows_15_16": {
@@ -1171,7 +1199,18 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-26T20:59:00Z"
+    "updated_at": "2026-08-26T22:31:00Z"
+  },
+  "latest_false_negative_repair": {
+    "scope": "live_app_false_negative_question_4_luminance_output_type",
+    "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
+    "original_question_index": 4,
+    "classification": "dataset_scoring_false_negative_not_production_answer_miss",
+    "original_visible_query": "What setting is required when a luminance output head is connected?",
+    "reason": "The visible query omitted CV-X482 and grayscale-image constraints; XG-X page 953 directly supports selecting [Luminance Output Type] for the literal question, while the hidden expected evidence required CV-X482 page 1056 grayscale-image context.",
+    "repaired_dataset": "test_reports/retrieval_eval_dataset_20260826_2229_luminance_cvx482_false_negative_repair.jsonl",
+    "repaired_run": "retrieval_eval_20260826_222558",
+    "repaired_result": "1/1 retrieval rank 1 and 1/1 actual HTTP API answer citing CV-X482 chunk ab54caf6-e6c3-5ab4-ac57-536f3b7624be on page 1056."
   },
   "latest_results": {
     "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_parser_and_answering.py -q -> 112 passed, 23 warnings",
@@ -6670,12 +6709,12 @@
       "eval_timeout": 2,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Continue from corrected citation-fidelity containment by fixing answer citation generation/use for validated sibling troubleshooting rows 15-16, or continue rows 17-20, warning/procedure, or curated single-step answer rotations with the active endpoint recorded. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence; keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design. Do not count retrieval_eval_20260826_170130 row 15, the combined rows 15-16 result, retrieval_eval_20260826_182611 rows 15-16, retrieval_eval_20260826_155408 row 15, retrieval_eval_20260826_165522 row 15 or the combined rows 15-16 result, retrieval_eval_20260826_165928, retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result, retrieval_eval_20260826_105344 row 3, ambiguous pre-repair retrieval_eval_20260826_125356 row 7, pre-scorer-fix retrieval_eval_20260826_132353/132740 row 10, pre-repair row-12 retrieval_eval_20260826_135345/135657, rejected answer-summary experiment retrieval_eval_20260826_142651, or any no-scorable-term-relaxation result as clean answer evidence.",
+    "next_target": "Continue from source-first citation-fidelity containment after completing the user-reported false-negative repair: validated sibling rows 15-17 and 19 remain diagnostic/failing answer evidence-selection/context-use cases. Fix source-first answer evidence selection so troubleshooting questions cite/use the actual corrective-action row when retrieved, or continue other validated answer rotations with endpoint and citation-fidelity status recorded. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence. Keep aa4d2bdc question 4 diagnostic-only and use retrieval_eval_20260826_222558 as the corrected CV-X482/grayscale user-style coverage; do not globally relax document, citation, or term requirements.",
     "current_failure_categories": {
       "candidate_miss": 1,
       "ranking_or_context_loss": 2
     },
-    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 15-16 remain diagnostic under source-only citation-fidelity scoring: replay retrieval_eval_20260826_170130 and corrected live rerun retrieval_eval_20260826_182611 both report 0/2 answer citation-fidelity pass, because row 15 cites page 985 where the returned quote/remedy is unsupported and row 16 has an unsupported second quote_span. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements.",
+    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 15-16 remain diagnostic under source-only citation-fidelity scoring: replay retrieval_eval_20260826_170130 and corrected live rerun retrieval_eval_20260826_182611 both report 0/2 answer citation-fidelity pass, because row 15 cites page 985 where the returned quote/remedy is unsupported and row 16 has an unsupported second quote_span. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only because its visible query omitted CV-X482/grayscale constraints while the cited XG-X evidence directly supports the literal [Luminance Output Type] answer; repaired case retrieval_eval_20260826_222558 adds those constraints and passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
     "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10. Follow-up probes preserve unresolved cross-document cases 6, 7, and 9 as candidate_miss: 1 and ranking_or_context_loss: 2, while contextual row 14 remains separate retrieval-gap evidence. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 4,
@@ -7017,7 +7056,7 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Continue from source-first citation-fidelity containment: validated sibling rows 15-17 and 19 remain diagnostic/failing answer evidence-selection/context-use cases, while rows 18 and 20 are clean after source-backed expected-evidence repairs. Fix source-first answer evidence selection so troubleshooting questions cite/use the actual corrective-action row when retrieved, or continue other validated answer rotations with endpoint and citation-fidelity status recorded. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence; keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design. Do not count retrieval_eval_20260826_170130, retrieval_eval_20260826_182611, retrieval_eval_20260826_191119, retrieval_eval_20260826_205630, retrieval_eval_20260826_212535, retrieval_eval_20260826_215400 row 20/the combined rows 19-20 claim, or earlier excluded false-green/diagnostic runs as clean answer evidence.",
+  "next_target": "Continue from source-first citation-fidelity containment after completing the user-reported false-negative repair: validated sibling rows 15-17 and 19 remain diagnostic/failing answer evidence-selection/context-use cases. Fix source-first answer evidence selection so troubleshooting questions cite/use the actual corrective-action row when retrieved, or continue other validated answer rotations with endpoint and citation-fidelity status recorded. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence. Keep aa4d2bdc question 4 diagnostic-only and use retrieval_eval_20260826_222558 as the corrected CV-X482/grayscale user-style coverage; do not globally relax document, citation, or term requirements.",
   "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10. Follow-up probes preserve unresolved cross-document cases 6, 7, and 9 as candidate_miss: 1 and ranking_or_context_loss: 2, while contextual row 14 remains separate retrieval-gap evidence. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
   "current_failure_categories": {
     "candidate_miss": 1,
@@ -7313,7 +7352,7 @@
     "expected_terms_missing": 5,
     "unsupported_citation_quote": 1
   },
-  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; sibling troubleshooting multi-step rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing; rows 15-16 remain diagnostic/failing after source-only citation-fidelity follow-up; rows 17-18 are 1/2 after retrieval_eval_20260826_213131 with row 17 failing and row 18 clean; and rows 19-20 are 1/2 after retrieval_eval_20260826_215400 plus source-backed row-20 expected-evidence repair/rerun retrieval_eval_20260826_215624, with row 19 failing expected_terms_missing and row 20 clean. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements.",
+  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; sibling troubleshooting multi-step rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing; rows 15-16 remain diagnostic/failing after source-only citation-fidelity follow-up; rows 17-18 are 1/2 after retrieval_eval_20260826_213131 with row 17 failing and row 18 clean; and rows 19-20 are 1/2 after retrieval_eval_20260826_215400 plus source-backed row-20 expected-evidence repair/rerun retrieval_eval_20260826_215624, with row 19 failing expected_terms_missing and row 20 clean. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only because its visible query omitted CV-X482/grayscale constraints while the cited XG-X evidence directly supports the literal [Luminance Output Type] answer; repaired case retrieval_eval_20260826_222558 adds those constraints and passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
   "answer_grounding_rotation": {
     "scope": "validated_sibling_troubleshooting_rows_19_20_actual_http_api_answers_with_source_backed_row_20_expected_evidence_repair",
     "status": "row_20_clean_after_source_backed_expected_evidence_repair_row_19_remains_answer_evidence_selection_failure",
@@ -7819,6 +7858,18 @@
         "retrieval_eval_20260826_215624 -> row 20 at 1/1 retrieval and 1/1 actual API answer after source-backed expected-evidence repair"
       ],
       "required_next_action": "Do not count rows 15-17 or 19 as clean evidence. Fix source-first answer evidence selection/citation generation for these row-level troubleshooting misses, or continue other validated answer rotations with endpoint and citation-fidelity status recorded."
+    },
+    {
+      "timestamp": "2026-08-26T22:23:00Z",
+      "severity": "needs_fix",
+      "status": "addressed_this_run",
+      "finding": "Repeated-deferral priority for live app run aa4d2bdc question 4 required durable false-negative classification plus source review and a repaired user-style rerun.",
+      "evidence": [
+        "Postgres app_run_events event 8235 preserves question 4 answer/telemetry: XG-X page 953 answer selected [Luminance Output Type], retrieval rank 5, expected CV-X document reached summaries and was lost after summarization.",
+        "test_reports/retrieval_eval_dataset_20260826_2229_luminance_cvx482_false_negative_repair.jsonl repaired query includes CV-X482 and grayscale-image purpose without filename/chunk/internal metadata.",
+        "retrieval_eval_20260826_222558 -> 1/1 retrieval rank 1 and 1/1 actual HTTP API answer; JSONL inspection confirms citation to CV-X482 chunk ab54caf6-e6c3-5ab4-ac57-536f3b7624be."
+      ],
+      "required_next_action": "No further action for this false-negative before optional rotations; preserve the original diagnostic and do not globally relax scoring. Existing rows 15-17/19 answer evidence-selection failures remain open."
     }
   ],
   "answer_grounding_sibling_rows_15_16": {
