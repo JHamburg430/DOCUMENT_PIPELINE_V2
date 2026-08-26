@@ -1068,6 +1068,12 @@
         "severity": "needs_fix",
         "finding": "Production answer-validation change in a700248 is not yet proven by runtime-load evidence or the runbook-required full tests/unit gate; retrieval_eval_20260826_191119 remains diagnostic/failing evidence, not post-change production proof.",
         "required_next_action": "Prove the serving API loaded a700248 or later changed code, exercise a live API path that distinguishes unsupported-citation rejection/fallback from old behavior, and run docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q before accepting production answer-validation changes as proven."
+      },
+      {
+        "timestamp": "2026-08-26T20:32:00Z",
+        "severity": "needs_fix",
+        "finding": "The dirty worktree contains an uncommitted production answering citation-repair change that can replace unsupported generated quote_span citations with null-quote retrieved-evidence citations selected from the generated answer text; local answer-mode artifacts remain diagnostic and no runtime-load proof or full tests/unit gate is recorded.",
+        "required_next_action": "Do not count dirty citation-repair results as clean evidence. Rework or justify the source-first citation behavior, prove the serving API loaded the changed path with a distinguishing live API control, run docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q, and record endpoint/runtime evidence before committing."
       }
     ],
     "answer_grounding_sibling_rows_15_16": {
@@ -7774,6 +7780,12 @@
       "severity": "needs_fix",
       "finding": "Production answer-validation change in a700248 is not yet proven by runtime-load evidence or the runbook-required full tests/unit gate; retrieval_eval_20260826_191119 remains diagnostic/failing evidence, not post-change production proof.",
       "required_next_action": "Prove the serving API loaded a700248 or later changed code, exercise a live API path that distinguishes unsupported-citation rejection/fallback from old behavior, and run docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q before accepting production answer-validation changes as proven."
+    },
+    {
+      "timestamp": "2026-08-26T20:32:00Z",
+      "severity": "needs_fix",
+      "finding": "The dirty worktree contains an uncommitted production answering citation-repair change that can replace unsupported generated quote_span citations with null-quote retrieved-evidence citations selected from the generated answer text; local answer-mode artifacts remain diagnostic and no runtime-load proof or full tests/unit gate is recorded.",
+      "required_next_action": "Do not count dirty citation-repair results as clean evidence. Rework or justify the source-first citation behavior, prove the serving API loaded the changed path with a distinguishing live API control, run docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q, and record endpoint/runtime evidence before committing."
     }
   ],
   "answer_grounding_sibling_rows_15_16": {
