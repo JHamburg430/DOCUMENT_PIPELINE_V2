@@ -2299,3 +2299,20 @@ Next target:
 Next target:
 
 - Either get explicit approval for a small indexed/bounded row-key/product-signal discovery design for cross-document cases 6-7 and investigate XG-X unsupported-SD recall for case 9, or keep production retrieval unchanged and broaden actual HTTP API answer-grounding on other validated slices. Preserve contextual row 14 as separate candidate-miss evidence.
+
+## 2026-08-26 Cron 39262386 Sibling Troubleshooting Answer Rotation Rows 1-2
+
+- Target: follow up guardrail `2026-08-26T10:14:00Z` by taking the allowed path while retrieval work remains blocked without explicit approval for an indexed/bounded row-key/product-signal design: broaden actual HTTP API answer-grounding on another validated slice.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. The latest finding was `ok` and required not repeating rejected broad scoring, promotion, or metadata/content prefilter experiments. No unresolved `needs_fix` or `critical` item was ignored.
+- Local stack: compose services were running and usable: API, Postgres, Qdrant, Redis, workers, and UI were up; Postgres was healthy. The active corpus remained `manuals_vendor_keyence`.
+- Live answer-grounding command: `docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_062714.jsonl --query-offset 0 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0`.
+- Result: `retrieval_eval_20260826_102401` scored validated sibling troubleshooting multi-step rows 1-2 through the user-visible `/query` answer path at 2/2 retrieval and 2/2 answers passed. Both cases passed at rank 1, both answers came from the API path with no fallback, and answer latency averaged 25.702s.
+- No production retrieval, answering, eval-generation/scoring, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, docs, or test code changed. No unit tests were run because this was a no-code evaluation/tracking run; JSON validation was run instead.
+- Question-bank counts remain monotonic and unchanged at 203 exploratory questions total: 100 single-step and 103 multi-step. No questions were retired or added; replacement debt remains 0. The unresolved direct cross-document baseline remains `retrieval_eval_20260826_005723` with cases 6, 7, and 9 still failing, and contextual row 14 remains separate candidate-miss evidence.
+- New artifacts: `test_reports/retrieval_eval_summary_20260826_102401.json` and `test_reports/retrieval_eval_manifest_20260826_102401.json`. The generated dataset/results JSONL files are present locally under the same timestamp but remain ignored by the repository's `test_reports/*.jsonl` rule.
+- Guardrail handling: followed the latest guardrail by avoiding rejected retrieval experiments and broadening answer-grounding coverage on a validated sibling troubleshooting slice. This green two-case answer slice is not recorded as a direct cross-document retrieval improvement.
+- Generalization check before commit: rotating actual API answer scoring over validated sibling troubleshooting questions is valid for unseen manuals and vendors because it measures user-visible answer grounding without adding document-specific routing, query hardcoding, inferred hard filters, eval-only behavior, or production retrieval shortcuts.
+
+Next target:
+
+- Continue broadening actual HTTP API answer-grounding on validated sibling troubleshooting rows 3-20, warning/procedure, or curated single-step slices while preserving the unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cross-document cases 6, 7, and 9. Keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design; preserve contextual row 14 as separate candidate-miss evidence.
