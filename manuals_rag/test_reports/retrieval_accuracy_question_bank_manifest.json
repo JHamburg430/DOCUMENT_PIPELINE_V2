@@ -1062,7 +1062,14 @@
         "reason": "answer validation/scoring follow-up remains diagnostic/failing evidence: row 15 expected_terms_missing after fallback; row 16 unsupported_citation_quote; not clean answer evidence"
       }
     ],
-    "unresolved_guardrail_findings": [],
+    "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-26T19:50:18Z",
+        "severity": "needs_fix",
+        "finding": "Production answer-validation change in a700248 is not yet proven by runtime-load evidence or the runbook-required full tests/unit gate; retrieval_eval_20260826_191119 remains diagnostic/failing evidence, not post-change production proof.",
+        "required_next_action": "Prove the serving API loaded a700248 or later changed code, exercise a live API path that distinguishes unsupported-citation rejection/fallback from old behavior, and run docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q before accepting production answer-validation changes as proven."
+      }
+    ],
     "answer_grounding_sibling_rows_15_16": {
       "target": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers",
       "status": "answer_validator_and_scorer_rerun_failed_expected_action_and_citation_fidelity",
@@ -7761,7 +7768,14 @@
       "reason": "answer validation/scoring follow-up remains diagnostic/failing evidence: row 15 expected_terms_missing after fallback; row 16 unsupported_citation_quote; not clean answer evidence"
     }
   ],
-  "unresolved_guardrail_findings": [],
+  "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-26T19:50:18Z",
+      "severity": "needs_fix",
+      "finding": "Production answer-validation change in a700248 is not yet proven by runtime-load evidence or the runbook-required full tests/unit gate; retrieval_eval_20260826_191119 remains diagnostic/failing evidence, not post-change production proof.",
+      "required_next_action": "Prove the serving API loaded a700248 or later changed code, exercise a live API path that distinguishes unsupported-citation rejection/fallback from old behavior, and run docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q before accepting production answer-validation changes as proven."
+    }
+  ],
   "answer_grounding_sibling_rows_15_16": {
     "target": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers",
     "status": "answer_validator_and_scorer_rerun_failed_expected_action_and_citation_fidelity",
