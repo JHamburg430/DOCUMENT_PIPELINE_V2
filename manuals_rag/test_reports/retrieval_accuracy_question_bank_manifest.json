@@ -377,6 +377,17 @@
           "retrieval_eval_20260826_012603"
         ],
         "remaining": "Direct curated cross-document v2 retrieval remains unresolved at retrieval_eval_20260826_005723 with eval_timeout: 2 and ranking_or_context_loss: 1. Cases 6/7 still need an approved precomputed/indexed row-key design or should be deferred; continue rotating answer batches for remaining cases when retrieval work is blocked by scope."
+      },
+      "2026-08-26T01:44:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Rotated actual HTTP API answer-grounding for the remaining curated cross-document v2 cases 9-10 while leaving production retrieval and answering unchanged.",
+        "evidence": [
+          "retrieval_eval_20260826_015351",
+          "test_reports/retrieval_eval_summary_20260826_015351.json",
+          "test_reports/retrieval_eval_manifest_20260826_015351.json"
+        ],
+        "remaining": "The six-case API answer rotation across curated cross-document v2 cases 5-10 is now complete at 3/6 answers. Direct retrieval/context failures remain unresolved for cases 6, 7, and 9; schema/ingestion/index work still needs explicit approval before a precomputed row-key/product-signal design."
       }
     },
     "diagnostics": [
@@ -717,6 +728,45 @@
   "latest_results": {
     "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_retrieval_eval.py -q -> 80 passed, 9 warnings after reverting b51a22c.",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260826_015351",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260826_015351.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_015351.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_015351.json",
+        "status": "completed_answer_grounding_rotation",
+        "mode": "actual_http_api_answer_rotation_offset_8",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "query_offset": 8,
+        "per_query_timeout_seconds": 120,
+        "total_queries": 2,
+        "passed_queries": 1,
+        "failed_queries": 1,
+        "pass_rate": 0.5,
+        "pass_at_1": 0.5,
+        "pass_at_3": 0.5,
+        "pass_at_5": 0.5,
+        "candidate_recall_rate": 0.5,
+        "metadata_document_selection_recall_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 1,
+        "answer_failed_queries": 1,
+        "answer_pass_rate": 0.5,
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_fallback_count": 0,
+        "failure_categories": {
+          "candidate_miss": 1
+        },
+        "answer_failure_reasons": {
+          "expected_document_not_cited_or_used": 1,
+          "retrieval_not_passed": 1
+        },
+        "notes": "Actual user-visible /query answers were scored, not regenerated direct answers. Case 9 failed because expected XG-X evidence was not retrieved/cited; case 10 passed at rank 1 with an API answer and no fallback."
+      },
       {
         "run_id": "retrieval_eval_20260826_012428",
         "corpus_id": "manuals_vendor_keyence",
@@ -6049,7 +6099,7 @@
       "notes": "Rotated actual API answer-grounding coverage beyond the first four cross-document v2 cases. Cases 5 and 8 passed; cases 6 and 7 failed because expected evidence was not retrieved/cited. This is answer coverage evidence, not a retrieval improvement."
     }
   },
-  "next_target": "With schema/ingestion/index changes still out of scope, avoid further case 6/7 row-key production experiments and rotate actual HTTP API answer-grounding for the remaining curated cross-document v2 cases 9-10, or get explicit approval for a small indexed row-key/product-signal design. Preserve the unresolved direct retrieval baseline retrieval_eval_20260826_005723 and keep case 9 separate from rejected comparison top-k/promotion variants.",
+  "next_target": "With the curated cross-document v2 answer rotation through cases 5-10 complete and schema/ingestion/index changes still out of scope, preserve the unresolved direct retrieval baseline retrieval_eval_20260826_005723 and either get explicit approval for a small indexed row-key/product-signal design or continue broadening actual HTTP API answer-grounding on other validated single-step, warning/procedure, and multi-step slices. Avoid further case 6/7 row-key production experiments and case 9 comparison top-k/promotion variants unless the design is genuinely general, improves the full 10-case v2 gate, and preserves saved single-step plus warning/procedure gates.",
   "current_retrieval_failure_source": "retrieval_eval_20260826_005723",
   "current_failure_categories": {
     "eval_timeout": 2,
@@ -6311,7 +6361,8 @@
     ]
   },
   "answer_current_failure_categories": {
-    "expected_document_not_cited_or_used": 2,
-    "retrieval_not_passed": 2
-  }
+    "expected_document_not_cited_or_used": 3,
+    "retrieval_not_passed": 3
+  },
+  "answer_grounding_status": "Curated cross-document v2 actual HTTP API answer rotation now covers cases 5-10: retrieval_eval_20260826_012428 cases 5-6 at 1/2 answers, retrieval_eval_20260826_012603 cases 7-8 at 1/2 answers, and retrieval_eval_20260826_015351 cases 9-10 at 1/2 answers. All scored user-visible /query API answers with answer source api and fallback count 0. Failures are expected-document grounding failures tied to unresolved retrieval/context cases 6, 7, and 9, not answer fallback behavior."
 }
