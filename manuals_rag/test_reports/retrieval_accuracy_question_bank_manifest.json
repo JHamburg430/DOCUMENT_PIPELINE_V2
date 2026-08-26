@@ -6578,7 +6578,7 @@
       "result": "2/2 retrieval and 2/2 actual API answers passed at rank 1; answer_sources api:2; fallback 0; mean answer latency 41.752s."
     }
   },
-  "next_target": "Continue broadening actual HTTP API answer-grounding on validated sibling troubleshooting rows 11-20, warning/procedure, or curated single-step slices. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9, keep contextual row 14 as separate candidate-miss evidence, and keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design. Do not count retrieval_eval_20260826_105344 row 3, ambiguous pre-repair retrieval_eval_20260826_125356 row 7, pre-scorer-fix retrieval_eval_20260826_132353/132740 row 10, or any no-scorable-term-relaxation result as clean answer evidence.",
+  "next_target": "Diagnose sibling troubleshooting row 12 as an answer evidence-selection/context-use failure or continue broadening actual HTTP API answer-grounding on validated sibling rows 13-20, warning/procedure, or curated single-step slices. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9, keep contextual row 14 as separate candidate-miss evidence, and keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design. Do not count retrieval_eval_20260826_105344 row 3, ambiguous pre-repair retrieval_eval_20260826_125356 row 7, pre-scorer-fix retrieval_eval_20260826_132353/132740 row 10, pre-repair row-12 retrieval_eval_20260826_135345/135657, or any no-scorable-term-relaxation result as clean answer evidence.",
   "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10. Focused 20s probes on 2026-08-26T09:57Z reclassified cases 6 and 7 as ranking_or_context_loss with candidate recall and case 9 as candidate_miss; no production change was made.",
   "current_failure_categories": {
     "candidate_miss": 1,
@@ -6844,9 +6844,10 @@
   },
   "answer_current_failure_categories": {
     "expected_document_not_cited_or_used": 4,
-    "retrieval_not_passed": 4
+    "retrieval_not_passed": 4,
+    "expected_terms_missing": 1
   },
-  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-10 at 10/10 user-visible API answers. Sibling row evidence uses retrieval_eval_20260826_102401 for rows 1-2, retrieval_eval_20260826_113115 for corrected rows 3-4, retrieval_eval_20260826_122401 for rows 5-6, retrieval_eval_20260826_125752 for manually disambiguated rows 7-8, and retrieval_eval_20260826_132855 for rows 9-10 after the row-header action-term scorer fix. The pre-repair retrieval_eval_20260826_125356 row 7 answer failure and pre-scorer-fix retrieval_eval_20260826_132353/132740 row 10 failures are diagnostic-only. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; this answer rotation and scorer repair are not direct-retrieval improvements.",
+  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-12 at 11/12 user-visible API answers. Sibling row evidence uses retrieval_eval_20260826_102401 for rows 1-2, retrieval_eval_20260826_113115 for corrected rows 3-4, retrieval_eval_20260826_122401 for rows 5-6, retrieval_eval_20260826_125752 for manually disambiguated rows 7-8, retrieval_eval_20260826_132855 for rows 9-10 after the row-header action-term scorer fix, and retrieval_eval_20260826_135854 for rows 11-12 after row-12 disambiguation. Row 12 remains an answer evidence-use failure despite rank-1 retrieval of the expected evidence. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements.",
   "answer_grounding_rotation": {
     "status": "broadened_with_eval_scorer_fix",
     "latest_runs": [
@@ -7162,5 +7163,42 @@
     "failure_categories": {},
     "answer_failure_reasons": {},
     "notes": "Rows 9-10 passed after scoring ignored table row-header metadata when deriving mandatory troubleshooting action terms and accepted narrow support/supporting verb-form variants. Production retrieval and answering were unchanged."
+  },
+  "answer_grounding_sibling_rows_11_12": {
+    "status": "partial_answer_failure_after_question_repair",
+    "target": "validated_sibling_troubleshooting_rows_11_12_actual_http_api_answers",
+    "diagnostic_runs": [
+      {
+        "run": "retrieval_eval_20260826_135345",
+        "summary": "test_reports/retrieval_eval_summary_20260826_135345.json",
+        "result": "2/2 retrieval, 1/2 actual API answers; row 12 failed expected_terms_missing while the answer cited neighboring plausible capture-unit rows."
+      },
+      {
+        "run": "retrieval_eval_20260826_135657",
+        "summary": "test_reports/retrieval_eval_summary_20260826_135657.json",
+        "result": "2/2 retrieval, 1/2 actual API answers after a temporary scorer-equivalence probe; the probe was reverted because the failure was real answer evidence selection, not vocabulary."
+      }
+    ],
+    "question_repair": {
+      "dataset": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
+      "case_id": "29dad6bd-e5e3-5334-be80-72bc93dd1a63::multi_step::12",
+      "reason": "Original question was ambiguous among multiple XG-X rows with the same error text; the repaired query adds source-backed calibration-editing context without changing expected evidence."
+    },
+    "latest_run": "retrieval_eval_20260826_135854",
+    "summary": "test_reports/retrieval_eval_summary_20260826_135854.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260826_135854.json",
+    "total_queries": 2,
+    "retrieval_passed_queries": 2,
+    "answer_passed_queries": 1,
+    "answer_pass_rate": 0.5,
+    "answer_sources": {
+      "api": 2
+    },
+    "answer_fallback_count": 0,
+    "failure_categories": {},
+    "answer_failure_reasons": {
+      "expected_terms_missing": 1
+    },
+    "notes": "Row 11 passed actual API answer scoring. Row 12 remains a clean answer evidence-use failure: retrieval returned the intended expected evidence at rank 1, but the user-visible API answer used a different XG-X capture-unit cause/correction row and omitted the calibration-edit flow correction."
   }
 }
