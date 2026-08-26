@@ -465,6 +465,15 @@
           "retrieval_eval_20260826_055358"
         ],
         "remaining": "Continue actual HTTP API answer rotations for repaired contextual rows 9-20 before treating them as answer-grounding evidence; preserve unresolved direct cross-document baseline retrieval_eval_20260826_005723."
+      },
+      "2026-08-26T06:44:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Continued actual HTTP API answer rotations for repaired contextual rows 11-12 without production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, benchmark, or eval-generation changes.",
+        "evidence": [
+          "retrieval_eval_20260826_065345"
+        ],
+        "remaining": "Continue actual HTTP API answer rotations for repaired contextual rows 13-20 before treating them as answer-grounding evidence; preserve unresolved direct cross-document baseline retrieval_eval_20260826_005723."
       }
     },
     "diagnostics": [
@@ -6368,7 +6377,7 @@
       "notes": "Continued actual API answer-grounding rotation on the fully reviewed contextual procedure dataset while leaving production retrieval and answering unchanged. This is answer coverage evidence, not a direct retrieval improvement."
     }
   },
-  "next_target": "Continue actual HTTP API answer-grounding rotations on the newly reviewed contextual procedure rows 11-20, while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9. Keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design; do not promote generated questions without manual/validator review.",
+  "next_target": "Continue actual HTTP API answer-grounding rotations on the newly reviewed contextual procedure rows 13-20, while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9. Keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design; do not promote generated questions without manual/validator review.",
   "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1 after the b51a22c containment revert. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
   "current_failure_categories": {
     "eval_timeout": 2,
@@ -6634,13 +6643,13 @@
     "expected_document_not_cited_or_used": 3,
     "retrieval_not_passed": 3
   },
-  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses, validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers, curated single-step retrieval_eval_20260826_035548 at 2/2, corrected contextual procedure cases 1-2 in retrieval_eval_20260826_042753 at 2/2, newly rephrased contextual cases 3-4 in retrieval_eval_20260826_050007 at 2/2, repaired contextual cases 5-6 in retrieval_eval_20260826_052406 at 2/2, repaired contextual cases 7-8 in retrieval_eval_20260826_055358 at 2/2, and repaired contextual cases 9-10 in retrieval_eval_20260826_062401 at 2/2 user-visible API answers with answer source api and fallback 0. Rows 11-20 of the contextual dataset still require fresh actual API answer rotations before being counted as answer-grounding evidence.",
+  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses, validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers, curated single-step retrieval_eval_20260826_035548 at 2/2, corrected contextual procedure cases 1-2 in retrieval_eval_20260826_042753 at 2/2, newly rephrased contextual cases 3-4 in retrieval_eval_20260826_050007 at 2/2, repaired contextual cases 5-6 in retrieval_eval_20260826_052406 at 2/2, repaired contextual cases 7-8 in retrieval_eval_20260826_055358 at 2/2, repaired contextual cases 9-10 in retrieval_eval_20260826_062401 at 2/2, and repaired contextual cases 11-12 in retrieval_eval_20260826_065345 at 2/2 user-visible API answers with answer source api and fallback 0. Rows 13-20 of the contextual dataset still require fresh actual API answer rotations before being counted as answer-grounding evidence.",
   "answer_grounding_rotation": {
     "status": "broadened_no_production_change",
     "latest_runs": [
-      "retrieval_eval_20260826_062401"
+      "retrieval_eval_20260826_065345"
     ],
-    "scope": "repaired_contextual_procedure_cases_9_10_actual_http_api_answers",
+    "scope": "repaired_contextual_procedure_cases_11_12_actual_http_api_answers",
     "total_queries": 2,
     "retrieval_passed_queries": 2,
     "answer_passed_queries": 2,
@@ -6727,12 +6736,12 @@
       "scope": "newly rephrased contextual rows 3-4",
       "result": "2/2 retrieval and 2/2 actual HTTP API answers passed; answer_sources api:2; fallback 0"
     },
-    "remaining": "Continue rotating actual HTTP API answer scoring for rephrased contextual rows 11-20; do not count those rows as answer-grounding gates until rerun.",
+    "remaining": "Continue rotating actual HTTP API answer scoring for rephrased contextual rows 13-20; do not count those rows as answer-grounding gates until rerun.",
     "actual_api_answer_rotation_continued": {
-      "run_id": "retrieval_eval_20260826_062401",
-      "summary": "test_reports/retrieval_eval_summary_20260826_062401.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260826_062401.json",
-      "scope": "repaired contextual rows 9-10",
+      "run_id": "retrieval_eval_20260826_065345",
+      "summary": "test_reports/retrieval_eval_summary_20260826_065345.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260826_065345.json",
+      "scope": "repaired contextual rows 11-12",
       "result": "2/2 retrieval and 2/2 actual HTTP API answers passed; answer_sources api:2; fallback 0"
     }
   }
