@@ -2,6 +2,7 @@ import pytest
 
 from manuals_rag_evals.retrieval_eval import (
     RetrievalEvalCase,
+    USER_STYLE_QUERY_FEW_SHOT_EXAMPLES,
     build_eval_cases_from_chunks,
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
@@ -9,6 +10,7 @@ from manuals_rag_evals.retrieval_eval import (
     score_document_selection,
     score_search_results,
     validate_eval_case,
+    _parse_generated_queries,
 )
 
 
@@ -1749,6 +1751,180 @@ def test_build_eval_cases_passes_previous_chunk_questions_to_generator(monkeypat
     assert [case.query for case in cases] == ["What current draw is specified for CA-EN100U?"]
     assert "previous_questions_for_this_chunk" in prompts[0]
     assert "What power supply voltage is required for CA-EN100U?" in prompts[0]
+
+
+def test_llm_generation_prompt_uses_generic_few_shot_examples(monkeypatch):
+    prompts = []
+    request_bodies = []
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "response": (
+                    '{"queries":['
+                    '{"query":"What voltage does CA-EN100U need for power?","intent":"spec_lookup","reason":"natural user wording"}'
+                    ']}'
+                )
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            request_bodies.append(kwargs["json"])
+            prompts.append(kwargs["json"]["prompt"])
+            return FakeResponse()
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+
+    chunk = {
+        "id": "chunk-few-shot",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "datasheet_record",
+        "title": "CA-EN100U Datasheet",
+        "source_filename": "CA-EN100U_Datasheet.pdf",
+        "section_path_text": "Specifications",
+        "page_from": 1,
+        "page_to": 1,
+        "content": "Power supply voltage: 24 VDC for standard operation.",
+        "metadata_json": {"product_model": "CA-EN100U"},
+        "product_model": "CA-EN100U",
+    }
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=1)
+
+    assert cases
+    assert USER_STYLE_QUERY_FEW_SHOT_EXAMPLES in prompts[0]
+    assert "fallback_examples" not in prompts[0]
+    assert "Good query: What voltage does MODEL-A need for power?" in prompts[0]
+    assert "Bad query: Which disconnect all other devices detail is needed?" in prompts[0]
+    assert request_bodies[0]["think"] is False
+
+
+def test_parse_generated_queries_accepts_common_model_json_wrappers():
+    payload = """
+    <think>I should produce JSON only.</think>
+    ```json
+    {"queries":[{"query":"What voltage does MODEL-A need for power?","intent":"spec_lookup","reason":"natural"}]}
+    ```
+    """
+
+    parsed = _parse_generated_queries(payload)
+
+    assert parsed == [
+        {
+            "query": "What voltage does MODEL-A need for power?",
+            "intent": "spec_lookup",
+            "reason": "natural",
+        }
+    ]
+
+
+def test_parse_generated_queries_accepts_top_level_query_arrays():
+    parsed = _parse_generated_queries(
+        '[{"query":"Which endian setting matches my PLC byte order?","intent":"setting_lookup","reason":"natural"}]'
+    )
+
+    assert parsed == [
+        {
+            "query": "Which endian setting matches my PLC byte order?",
+            "intent": "setting_lookup",
+            "reason": "natural",
+        }
+    ]
+
+
+def test_parse_generated_queries_rejects_empty_model_response():
+    with pytest.raises(ValueError, match="empty generated-query response"):
+        _parse_generated_queries("")
+
+
+def test_validate_eval_case_rejects_source_address_syntax_queries():
+    chunk = {
+        "id": "chunk-command-flag",
+        "source_document_id": "doc-ljx",
+        "document_version_id": "ver-ljx",
+        "chunk_type": "datasheet_record",
+        "title": "LJ-X8000",
+        "source_filename": "ljx.pdf",
+        "section_path_text": "Command execution",
+        "page_from": 45,
+        "page_to": 45,
+        "content": "Check whether the tag (LJX3D: I.Data[0].1) to which the Command error flag has been assigned is ON or OFF.",
+        "metadata_json": {"product_model": "LJ-X8000"},
+        "product_model": "LJ-X8000",
+    }
+    anchors = ["check", "whether", "ljx3d", "i.data"]
+
+    assert validate_eval_case("Is LJX3D: I.Data0.1 the correct indicator for Command errors?", chunk, anchors) == (
+        False,
+        "source_address_syntax_query",
+    )
+    assert validate_eval_case("How do I determine if a command error occurred using the LJX3D tag?", chunk, anchors) == (
+        False,
+        "source_address_syntax_query",
+    )
+    assert validate_eval_case("Which tag indicates whether a command error occurred?", chunk, anchors) == (
+        True,
+        "validated",
+    )
+
+
+def test_validate_eval_case_rejects_table_artifact_queries():
+    chunk = {
+        "id": "chunk-table-artifact",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "table_record",
+        "title": "Manual",
+        "source_filename": "Manual.pdf",
+        "section_path_text": "Measurements",
+        "page_from": 2,
+        "page_to": 2,
+        "content": "Column headers: Description of measurement; Row headers: XYT; Cell value: Position XY / Detected Angle; Row: 25; Column: 2",
+        "metadata_json": {
+            "product_model": "CV-X482",
+            "table_cell": True,
+            "table_row": 25,
+            "table_column": 2,
+            "table_row_headers": ["XYT"],
+            "table_column_headers": ["Description of measurement"],
+        },
+    }
+    anchors = ["position", "detected", "angle", "description"]
+
+    assert validate_eval_case("What measurement does XYT row 25 report in column 2?", chunk, anchors) == (
+        False,
+        "table_artifact_syntax_query",
+    )
+    assert validate_eval_case("What row number holds the entry for XYT detected angle?", chunk, anchors) == (
+        False,
+        "table_artifact_syntax_query",
+    )
+    assert validate_eval_case("What is the Description of measurement XYT for CV-X482?", chunk, anchors) == (
+        False,
+        "table_artifact_syntax_query",
+    )
+    assert validate_eval_case("What description measurement position applies to CV-X482?", chunk, anchors) == (
+        False,
+        "table_artifact_syntax_query",
+    )
+    assert validate_eval_case("What value is used for Y Description of separation?", chunk, anchors) == (
+        False,
+        "table_artifact_syntax_query",
+    )
+    assert validate_eval_case("What XYT measurement does CV-X482 report?", chunk, anchors) == (True, "validated")
 
 
 def test_build_eval_cases_falls_back_when_llm_generation_fails(monkeypatch):

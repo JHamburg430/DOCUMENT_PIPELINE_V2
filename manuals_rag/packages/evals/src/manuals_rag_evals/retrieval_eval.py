@@ -176,6 +176,7 @@ Rules:
 - Include enough fair discriminators that the intended row, warning, step, or spec can be found without reading adjacent context.
 - Use product names, model numbers, protocol names, units, and standardized technical terms as anchors when needed.
 - Treat source field labels, table headers, row headers, and UI labels as concepts to paraphrase, not text to copy verbatim.
+- If a label or snippet contains a compound phrase, break it apart, reorder it, or replace part of it with a natural synonym.
 - If the source uses bracketed UI labels like [Output Setting], rewrite them into natural user wording. Do not include square brackets in the query.
 - Do not copy any other exact sentence, clause, or two-or-more-word phrase from the snippet into the question.
 - Paraphrase awkward or document-authored wording into natural user language; for example, do not copy phrases like "obtained authentication" or "there manners".
@@ -197,6 +198,52 @@ Rules:
 - Do not invent facts not present in the input.
 - Return 2 or 3 diverse queries when the context is strong, otherwise return 1.
 - Return at most 3 queries.
+""".strip()
+
+USER_STYLE_QUERY_FEW_SHOT_EXAMPLES = """
+Generic examples to imitate. These examples are source-neutral and are not about the current document.
+
+Example 1:
+Input facts: Product: MODEL-A. Source says: Power supply voltage: 24 VDC.
+Bad query: What power supply voltage is listed for MODEL-A?
+Good query: What voltage does MODEL-A need for power?
+
+Example 2:
+Input facts: Source says: Disconnect all other devices before checking EtherNet/IP communication.
+Bad query: Which disconnect all other devices detail is needed?
+Good query: What should stay unplugged while I check EtherNet/IP communication?
+
+Example 3:
+Input facts: Table row is MODEL-B. Column is measurement range. Cell value is 72 mm.
+Bad query: Which measurement range entry applies to MODEL-B?
+Good query: What measurement range does MODEL-B cover?
+
+Example 4:
+Input facts: UI label is [Output Format]. Value is binary.
+Bad query: How is [Output Format] configured?
+Good query: Which output format should I choose for binary transfer?
+
+Example 5:
+Input facts: Source explains that the endian option controls PLC byte order.
+Bad query: What Endian is a method of uses byte data in the PLC data?
+Good query: Which endian setting matches my PLC byte order?
+
+Example 6:
+Input facts: UI label is Reference Detection Position. Source says it displays a detection coordinate used as the reference position.
+Bad query: What purpose does the displayed detection coordinate serve?
+Good query: Which coordinate becomes the position reference?
+
+Example 7:
+Input facts: Source says the tag PLC1: I.Data[0].1 is ON when the Command error flag is assigned.
+Bad query: Is PLC1: I.Data0.1 the correct indicator for Command errors?
+Good query: Which tag indicates whether a command error occurred?
+
+Pattern:
+- The good query sounds like a person asking before they have seen the answer.
+- It keeps necessary anchors such as model names, protocols, units, and settings, but avoids copying exact addresses, tag prefixes, or code-like identifiers unless the user would already know that identifier.
+- It does not copy source sentence structure, labels, bracket syntax, or awkward phrasing.
+- It avoids reusing full source noun phrases such as "displayed detection coordinate" when shorter wording can ask the same thing.
+- It never uses "detail is needed", "is listed", "entry applies", "purpose does", or source-like grammar.
 """.strip()
 
 
@@ -602,6 +649,47 @@ def _query_uses_bracketed_source_label(query: str, chunk: dict[str, Any]) -> boo
     return False
 
 
+def _query_uses_source_address_syntax(query: str, chunk: dict[str, Any]) -> bool:
+    content = str(chunk.get("content", ""))
+    if not re.search(r"\b(?:tag|address|bit|flag|register|command|plc|i/o|input|output)\b", content, flags=re.IGNORECASE):
+        return False
+    metadata = dict(chunk.get("metadata_json", {}))
+    allowed_label_tokens = set(tokenize(_safe_query_label(chunk))).union(tokenize(str(metadata.get("product_model") or "")))
+    query_tokens = set(tokenize(query))
+    copied_prefixes = {
+        prefix.lower()
+        for prefix in re.findall(r"\b([A-Z][A-Z0-9_-]{2,})\s*:\s*[A-Za-z][A-Za-z0-9_]*(?:\.|\[|\d)", content)
+    }
+    if any(prefix in query_tokens and prefix not in allowed_label_tokens for prefix in copied_prefixes):
+        return True
+    address_patterns = (
+        r"\b[A-Z][A-Z0-9_-]*\s*:\s*[A-Za-z][A-Za-z0-9_]*(?:\.|\[|\d)[A-Za-z0-9_.\[\]]*",
+        r"\b[A-Za-z]\.[A-Za-z0-9_]+(?:\d|\[[0-9]+\]|\.)[A-Za-z0-9_.\[\]]*\b",
+    )
+    return any(re.search(pattern, query) for pattern in address_patterns)
+
+
+def _query_uses_table_artifact_syntax(query: str, chunk: dict[str, Any]) -> bool:
+    if str(chunk.get("chunk_type", "")) != "table_record":
+        return False
+    lowered = normalize_text(query)
+    if re.search(r"\b(?:row|column)\s+\d+\b", lowered):
+        return True
+    table_artifact_phrases = {
+        "cell value",
+        "column header",
+        "column headers",
+        "description measurement",
+        "description of",
+        "description of measurement",
+        "row header",
+        "row headers",
+        "row number",
+        "table header",
+    }
+    return any(phrase in lowered for phrase in table_artifact_phrases)
+
+
 def _query_looks_document_bound(query: str) -> bool:
     lowered = normalize_text(query)
     banned_phrases = {
@@ -778,6 +866,10 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "filename_artifact_query"
     if _query_uses_bracketed_source_label(query, chunk):
         return False, "bracketed_source_label_query"
+    if _query_uses_source_address_syntax(query, chunk):
+        return False, "source_address_syntax_query"
+    if _query_uses_table_artifact_syntax(query, chunk):
+        return False, "table_artifact_syntax_query"
     if _query_copies_unfair_source_phrase(query, chunk):
         return False, "copied_source_phrase"
     if chunk_type == "atomic_text":
@@ -983,30 +1075,98 @@ def _build_table_query_candidates(chunk: dict[str, Any], label: str) -> list[tup
     column_label = " ".join(column_headers[:2]) or (query_terms[-1] if query_terms else "value")
     cell_anchor = expected_terms[0] if expected_terms and _is_high_signal_anchor(expected_terms[0]) else ""
     if label:
+        if "description of measurement" in normalize_text(column_label):
+            candidates.extend(
+                [
+                    (f"What measurement does {subject} represent{_for_label(label)}?", "table_measurement_description_lookup"),
+                    (f"For {label}, what does {subject} measure?", "table_measurement_subject_lookup"),
+                ]
+            )
+            return candidates
         candidates.extend(
             [
-                (f"What is the {column_label} {subject} for {label}?", "table_row_column_lookup"),
-                (f"For {label}, which {column_label} entry applies to {subject}?", "table_row_column_engineer_lookup"),
+                (f"What value does {label} use for {subject} {column_label}?", "table_row_column_lookup"),
+                (f"For {label}, which {subject} setting uses {column_label}?", "table_row_column_engineer_lookup"),
             ]
         )
         if cell_anchor:
             candidates.append((f"For {label}, which {subject} entry reports {cell_anchor}?", "table_row_column_reverse_lookup"))
         return candidates
-    candidates.append((f"What is the {column_label} {subject}?", "table_row_column_lookup"))
+    candidates.append((f"What value is used for {subject} {column_label}?", "table_row_column_lookup"))
     return candidates
 
 
 def _parse_generated_queries(payload: str) -> list[dict[str, str]]:
-    data = json.loads(payload)
-    queries = data.get("queries", [])
+    data = _loads_generated_query_payload(payload)
+    if isinstance(data, list):
+        queries = data
+    else:
+        queries = data.get("queries", [])
     parsed: list[dict[str, str]] = []
     for item in queries:
+        if not isinstance(item, dict):
+            continue
         query = str(item.get("query", "")).strip()
         intent = str(item.get("intent", "")).strip() or "llm_user_style"
         reason = str(item.get("reason", "")).strip()
         if query:
             parsed.append({"query": query, "intent": intent, "reason": reason})
     return parsed
+
+
+def _loads_generated_query_payload(payload: str) -> dict[str, Any] | list[Any]:
+    text = _strip_generated_json_wrappers(payload)
+    if not text:
+        raise ValueError("Model returned an empty generated-query response")
+    try:
+        loaded = json.loads(text)
+    except json.JSONDecodeError:
+        loaded = json.loads(_extract_balanced_json(text))
+    if not isinstance(loaded, (dict, list)):
+        raise ValueError("Generated-query response must be a JSON object or array")
+    return loaded
+
+
+def _strip_generated_json_wrappers(payload: str) -> str:
+    text = payload.strip()
+    if not text:
+        return ""
+    text = re.sub(r"(?is)<think>.*?</think>", "", text).strip()
+    if "</think>" in text:
+        text = text.rsplit("</think>", 1)[-1].strip()
+    fence = re.fullmatch(r"(?is)```(?:json)?\s*(.*?)\s*```", text)
+    if fence:
+        return fence.group(1).strip()
+    return text
+
+
+def _extract_balanced_json(text: str) -> str:
+    starts = [index for index, char in enumerate(text) if char in "[{"]
+    for start in starts:
+        opener = text[start]
+        closer = "}" if opener == "{" else "]"
+        depth = 0
+        in_string = False
+        escaped = False
+        for index in range(start, len(text)):
+            char = text[index]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    in_string = False
+                continue
+            if char == '"':
+                in_string = True
+            elif char == opener:
+                depth += 1
+            elif char == closer:
+                depth -= 1
+                if depth == 0:
+                    return text[start : index + 1]
+    raise ValueError("Generated-query response did not contain a valid JSON object")
 
 
 def generate_user_style_queries(
@@ -1022,7 +1182,6 @@ def generate_user_style_queries(
         "document_title": _safe_query_label(chunk),
         "structured_input": _structured_eval_input(chunk, anchors),
         "previous_questions_for_this_chunk": previous_questions[:10],
-        "fallback_examples": [{"query": query, "intent": method} for query, method in fallback_candidates[:3]],
     }
     try:
         with httpx.Client(base_url=settings.ollama_url, timeout=20.0) as client:
@@ -1030,14 +1189,20 @@ def generate_user_style_queries(
                 "/api/generate",
                 json={
                     "model": settings.ollama_eval_model,
-                    "prompt": f"{USER_STYLE_QUERY_SYSTEM_PROMPT}\n\nInput: {json.dumps(prompt, ensure_ascii=True)}",
+                    "prompt": (
+                        f"{USER_STYLE_QUERY_SYSTEM_PROMPT}\n\n"
+                        f"{USER_STYLE_QUERY_FEW_SHOT_EXAMPLES}\n\n"
+                        f"Current input: {json.dumps(prompt, ensure_ascii=True)}"
+                    ),
                     "stream": False,
                     "format": "json",
+                    "think": False,
                 },
             )
             response.raise_for_status()
             payload: dict[str, Any] = response.json()
-            generated = _parse_generated_queries(str(payload.get("response", "{}")))
+            response_text = str(payload.get("response") or payload.get("thinking") or "")
+            generated = _parse_generated_queries(response_text)
     except Exception:
         generated = []
 
@@ -1063,6 +1228,9 @@ def generate_user_style_queries(
         if normalized in seen:
             continue
         if _has_near_duplicate_query(query, accepted_query_texts):
+            continue
+        is_valid, _ = validate_eval_case(query, chunk, anchors)
+        if not is_valid:
             continue
         seen.add(normalized)
         accepted_query_texts.append(query)
