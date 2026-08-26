@@ -2493,3 +2493,20 @@ Next target:
 Next target:
 
 - Continue broadening actual HTTP API answer-grounding on validated sibling troubleshooting rows 15-20, warning/procedure, or curated single-step slices, or revisit sibling rows 12/13 only with a stronger general answer evidence-selection design. Preserve the unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence; do not count `retrieval_eval_20260826_142837` row 13 or the combined rows 13-14 result, `retrieval_eval_20260826_142651`, or any no-scorable-term-relaxation result as clean answer evidence.
+
+## 2026-08-26 Cron 39262386 Manifest Integrity Reconciliation
+
+- Target: address the explicit manifest-integrity correction in the cron payload before starting new answer rotations or retrieval tuning.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. The newest finding was `ok` at `2026-08-26T15:17:00Z`, and it confirmed the corrective-state scorer containment for `retrieval_eval_20260826_142837` row 13. Direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was requested but unavailable because this cron run is restricted to the current job.
+- Local stack: compose services were running and usable: API, Postgres, Qdrant, Redis, workers, and UI were up; Postgres was healthy. The active corpus remained `manuals_vendor_keyence`.
+- Tracking correction: reconciled semantically duplicated manifest state at the top level and under `question_bank`. Both now preserve the current source-backed tracking that sibling troubleshooting rows 1-14 are 12/14 actual HTTP API answer evidence, with rows 12 and 13 failing; `retrieval_eval_20260826_142837` row 13 and the combined rows 13-14 result are excluded as clean evidence; current retrieval failures are `candidate_miss: 1` and `ranking_or_context_loss: 2`; current answer failures are `expected_document_not_cited_or_used: 4`, `retrieval_not_passed: 4`, and `expected_terms_missing: 2`; and the next target is rows 15-20 or a stronger general design for rows 12/13.
+- Preserved unresolved evidence: the manifest continues to carry the unresolved direct cross-document baseline `retrieval_eval_20260826_005723` for cases 6, 7, and 9, plus contextual row 14 as separate retrieval-gap evidence.
+- No production retrieval, answering, eval-generation/scoring, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, docs, or test code changed. No new live eval was run because this was a tracking-only correction to restore durable state integrity.
+- Validation: `jq empty test_reports/retrieval_accuracy_question_bank_manifest.json` passed; the whole-manifest consistency check passed; `git diff --check HEAD` passed.
+- Question-bank counts remain monotonic and unchanged at 203 exploratory questions total: 100 single-step and 103 multi-step. No questions were retired or added; replacement debt remains 0.
+- Guardrail handling: addressed the payload's outstanding manifest correction by preserving the current top-level state as canonical and reconciling the stale `question_bank` duplicate that still described sibling rows 1-8 as 8/8 and targeted rows 9-20.
+- Generalization check before commit: a tracking-only manifest reconciliation is valid for unseen manuals and vendors because it prevents stale false-green evidence from steering future retrieval or answer-generation changes, without adding document-specific routing, query hardcoding, inferred hard filters, eval-only production behavior, or model/provider changes.
+
+Next target:
+
+- Continue broadening actual HTTP API answer-grounding on validated sibling troubleshooting rows 15-20, warning/procedure, or curated single-step slices, or revisit sibling rows 12/13 only with a stronger general answer evidence-selection design. Preserve unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence; and do not count excluded diagnostic or false-green runs as clean answer evidence.
