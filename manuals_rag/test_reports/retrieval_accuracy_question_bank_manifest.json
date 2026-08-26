@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-26T22:58:00Z",
+  "updated_at": "2026-08-26T23:29:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -605,6 +605,20 @@
           "whole-manifest semantic alias consistency check"
         ],
         "remaining": "Rows 12 and 13 remain current sibling troubleshooting answer evidence-use failures; rows 17-20 still need answer rotations."
+      },
+      "2026-08-26T23:23:00Z": {
+        "severity": "needs_fix",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Made the deterministic manifest checker presence-aware for required root/question_bank duplicates, including latest_false_negative_repair, and added controls that equal copies pass while missing root, missing question_bank, and unequal copies fail.",
+        "evidence": [
+          "tests/unit/test_manifest_check.py::test_manifest_checker_accepts_equal_required_pairs",
+          "tests/unit/test_manifest_check.py::test_manifest_checker_rejects_missing_root_false_negative_repair",
+          "tests/unit/test_manifest_check.py::test_manifest_checker_rejects_missing_question_bank_false_negative_repair",
+          "tests/unit/test_manifest_check.py::test_manifest_checker_rejects_unequal_false_negative_repair",
+          "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py",
+          "manual negative-control probe over real manifest copy"
+        ],
+        "remaining": "Continue from source-first citation-fidelity containment: fix source-first answer evidence selection for sibling troubleshooting rows 15-17 and 19, or continue validated answer rotations with endpoint and citation-fidelity status recorded. Preserve aa4d2bdc question 4 as diagnostic-only and retrieval_eval_20260826_222558 as corrected CV-X482/grayscale coverage."
       }
     },
     "diagnostics": [
