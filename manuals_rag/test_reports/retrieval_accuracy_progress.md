@@ -2278,3 +2278,24 @@ Next target:
 Next target:
 
 - Return to the unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cross-document cases 6, 7, and 9, and keep contextual row 14 as separate candidate-miss evidence. Keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design; otherwise continue broadening actual HTTP API answer-grounding on other validated single-step, warning/procedure, sibling troubleshooting, and cross-document slices.
+
+## 2026-08-26 Cron 39262386 Cross-Document Failure Probe
+
+- Target: follow up guardrail `2026-08-26T09:44:00Z` by returning to the unresolved direct cross-document retrieval baseline `retrieval_eval_20260826_005723`, while preserving contextual row 14 as separate candidate-miss evidence.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. The latest finding was `ok` and required returning to the full manually reviewed 10-case cross-document v2 direct-retrieval target. No unresolved `needs_fix` or `critical` item was ignored.
+- Local stack: compose services were running and usable: API, Postgres, Qdrant, Redis, workers, and UI were up; Postgres was healthy. The active corpus remained `manuals_vendor_keyence`.
+- Diagnostic note: a full 10-case stage-20 debug run was attempted and completed but took too long for normal cron use. It produced `test_reports/retrieval_debug_report_20260826_0953_crossdoc_v2_stage20.json`; stage timing totals show `table_lexical` at 37.199s and `special` at 11.636s across the 10 cases.
+- Focused direct retrieval probes with `--per-query-timeout-seconds 20`:
+  - Case 6, `retrieval_eval_20260826_095705`: 0/1, `ranking_or_context_loss`, candidate recall true. The CV-X Condition list evidence was matched at rank 2, but LJ-X8000 Standard Angle evidence was not in final context.
+  - Case 7, `retrieval_eval_20260826_095746`: 0/1, `ranking_or_context_loss`, candidate recall true. The LJ-X8000 PMSR DC2LAR evidence was matched at rank 1, but LJ-S8000 RTO2L evidence was not in final context.
+  - Case 9, `retrieval_eval_20260826_095703`: 0/1, `candidate_miss`. The CV-X edge-detection remedy was matched at rank 1, but the XG-X unsupported-SD-card corrective action was missed.
+- Debug evidence: case 6 exact expected rows were not surfaced by current source stages at depth 20; case 7 surfaced the LJ-X exact row through table lexical search but not the LJ-S RTO2L exact row; case 9 surfaced CV-X evidence but missed the XG-X unsupported-SD row in all source stages at depth 20 despite metadata document selection including XG-X.
+- No production retrieval, answering, eval-generation/scoring, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, docs, or test code changed. No unit tests were run because this was a no-code diagnostic/tracking run; JSON validation was run instead.
+- Question-bank counts remain monotonic and unchanged at 203 exploratory questions total: 100 single-step and 103 multi-step. No questions were retired or added; replacement debt remains 0.
+- New artifacts: `test_reports/retrieval_debug_report_20260826_0953_crossdoc_v2_stage20.json`, `test_reports/retrieval_eval_summary_20260826_095703.json`, `test_reports/retrieval_eval_manifest_20260826_095703.json`, `test_reports/retrieval_eval_summary_20260826_095705.json`, `test_reports/retrieval_eval_manifest_20260826_095705.json`, `test_reports/retrieval_eval_summary_20260826_095746.json`, and `test_reports/retrieval_eval_manifest_20260826_095746.json`. The generated dataset/results JSONL files are present locally under the same timestamps but remain ignored by the repository's `test_reports/*.jsonl` rule.
+- Decision: no production retrieval edit was made because the fresh diagnostics point back to a general indexed/bounded row-key/product-signal discovery design, while prior guardrail notes rejected broad scoring, promotion, and metadata/content prefilter experiments. That indexed design remains outside this cron's current scope without explicit approval.
+- Generalization check before commit: recording this diagnostic evidence and deferring risky retrieval changes is valid for unseen manuals and vendors because it avoids document-specific routing, query hardcoding, inferred hard filters, eval-only behavior, and unapproved schema/ingestion/index work.
+
+Next target:
+
+- Either get explicit approval for a small indexed/bounded row-key/product-signal discovery design for cross-document cases 6-7 and investigate XG-X unsupported-SD recall for case 9, or keep production retrieval unchanged and broaden actual HTTP API answer-grounding on other validated slices. Preserve contextual row 14 as separate candidate-miss evidence.

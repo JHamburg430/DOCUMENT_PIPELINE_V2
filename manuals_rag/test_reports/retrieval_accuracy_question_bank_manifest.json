@@ -6529,16 +6529,15 @@
       "result": "2/2 retrieval and 2/2 actual API answers passed at rank 1; answer_sources api:2; fallback 0; mean answer latency 41.752s."
     }
   },
-  "next_target": "Return to the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9, and keep contextual row 14 as separate candidate-miss evidence. Keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design; otherwise continue broadening actual HTTP API answer-grounding on other validated single-step, warning/procedure, sibling troubleshooting, and cross-document slices.",
-  "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1 after the b51a22c containment revert. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements; retrieval_eval_20260826_072353 additionally exposes a contextual LJ-X8000 row 14 candidate miss under actual API answer scoring.",
+  "next_target": "Do not repeat rejected broad scoring, promotion, or metadata/content prefilter experiments. Either get explicit approval for a small indexed/bounded row-key/product-signal discovery design for cross-document cases 6-7 and investigate XG-X unsupported-SD recall for case 9, or keep production retrieval unchanged and broaden actual HTTP API answer-grounding on other validated slices. Preserve contextual row 14 as separate candidate-miss evidence.",
+  "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10. Focused 20s probes on 2026-08-26T09:57Z reclassified cases 6 and 7 as ranking_or_context_loss with candidate recall and case 9 as candidate_miss; no production change was made.",
   "current_failure_categories": {
-    "eval_timeout": 2,
-    "ranking_or_context_loss": 1
+    "candidate_miss": 1,
+    "ranking_or_context_loss": 2
   },
   "failure_categories": {
     "candidate_miss": 1,
-    "eval_timeout": 1,
-    "ranking_or_context_loss": 1
+    "ranking_or_context_loss": 2
   },
   "diagnostics": [
     {
@@ -6738,15 +6737,18 @@
     }
   ],
   "latest_debug_report": {
-    "report": "test_reports/retrieval_debug_report_20260825_2259_row_key_probe.json",
-    "type": "expected_evidence_row_key_probe",
-    "scope": "curated_cross_document_v2_cases_6_7_9",
+    "report": "test_reports/retrieval_debug_report_20260826_0953_crossdoc_v2_stage20.json",
+    "type": "cross_document_v2_stage20_probe",
+    "scope": "full_curated_cross_document_v2_with_case_6_7_9_focus",
     "status": "diagnostic_only_no_production_change",
     "evidence": {
-      "current_baseline": "retrieval_eval_20260825_072839 remains the current full manually reviewed 10-case cross-document v2 baseline at 7/10; no retrieval pass rate is marked resolved.",
-      "case_6": "Expected Condition list and Standard Angle rows each match a requested product identifier and query-mentioned normalized row keys with small corpus pools (24 and 31), despite ranking hundreds deep in the current broad SQL pool.",
-      "case_7": "Expected LJ-X PMSR DC2LAR and LJ-S RTO2L rows match requested product identifiers and query-mentioned normalized row keys with small corpus pools (23 and 51).",
-      "case_9": "Expected row keys are not directly mentioned in the query; keep this separate from the row-key discovery design as final-context/top-k or timeout work."
+      "stage_candidate_limit": 20,
+      "top_k": 5,
+      "query_count": 10,
+      "latency_hotspots": "table_lexical totaled 37.199s and special totaled 11.636s across the 10-case stage-20 diagnostic; this explains why full debug runs do not fit comfortably in the cron budget.",
+      "case_6": "Exact expected rows were not surfaced by source stages at depth 20; same-document candidates showed partial overlap only. This supports bounded/indexed row-key discovery rather than another broad scorer tweak.",
+      "case_7": "LJ-X PMSR DC2LAR exact evidence surfaced through table_lexical, but LJ-S RTO2L did not surface exactly at depth 20; same-document candidates only partially overlapped, so final selection alone is not enough.",
+      "case_9": "CV-X evidence surfaced in multiple stages, but the expected XG-X unsupported SD-card row was missed by all source stages at depth 20 despite metadata selecting the XG-X document."
     }
   },
   "latest_no_change_validation": {
@@ -6926,5 +6928,47 @@
     "status": "actual_http_api_answer_rotation_passed",
     "scope": "repaired_contextual_procedure_cases_19_20",
     "result": "2/2 retrieval and 2/2 actual API answers passed at rank 1; answer_sources api:2; fallback 0; mean answer latency 51.931s."
+  },
+  "latest_cross_document_probe": {
+    "status": "diagnostic_only_no_production_change",
+    "guardrail_context": "Latest guardrail 2026-08-26T09:44:00Z was ok and required returning to unresolved cross-document direct retrieval baseline retrieval_eval_20260826_005723 while preserving contextual row 14 as separate retrieval-gap evidence.",
+    "baseline": "retrieval_eval_20260826_005723",
+    "dataset": "test_reports/retrieval_eval_dataset_20260826_005723.jsonl",
+    "focused_runs": [
+      {
+        "run_id": "retrieval_eval_20260826_095705",
+        "case_id": "curated_cross_document_v2::6",
+        "summary": "test_reports/retrieval_eval_summary_20260826_095705.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260826_095705.json",
+        "result": "0/1 direct retrieval at 20s; failure ranking_or_context_loss; candidate recall true; matched CV-X Condition list evidence at rank 2 but missed LJ-X8000 Standard Angle final evidence."
+      },
+      {
+        "run_id": "retrieval_eval_20260826_095746",
+        "case_id": "curated_cross_document_v2::7",
+        "summary": "test_reports/retrieval_eval_summary_20260826_095746.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260826_095746.json",
+        "result": "0/1 direct retrieval at 20s; failure ranking_or_context_loss; candidate recall true; matched LJ-X8000 PMSR DC2LAR at rank 1 but missed LJ-S8000 RTO2L final evidence."
+      },
+      {
+        "run_id": "retrieval_eval_20260826_095703",
+        "case_id": "curated_cross_document_v2::9",
+        "summary": "test_reports/retrieval_eval_summary_20260826_095703.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260826_095703.json",
+        "result": "0/1 direct retrieval at 20s; failure candidate_miss; matched CV-X edge-detection remedy at rank 1 but missed XG-X unsupported SD-card corrective action."
+      }
+    ],
+    "debug_report": "test_reports/retrieval_debug_report_20260826_0953_crossdoc_v2_stage20.json",
+    "debug_findings": {
+      "stage_candidate_limit": 20,
+      "top_k": 5,
+      "query_count": 10,
+      "latency_hotspots": "table_lexical totaled 37.199s and special totaled 11.636s across the 10-case stage-20 diagnostic; this explains why full debug runs do not fit comfortably in the cron budget.",
+      "case_6": "Exact expected rows were not surfaced by source stages at depth 20; same-document candidates showed partial overlap only. This supports bounded/indexed row-key discovery rather than another broad scorer tweak.",
+      "case_7": "LJ-X PMSR DC2LAR exact evidence surfaced through table_lexical, but LJ-S RTO2L did not surface exactly at depth 20; same-document candidates only partially overlapped, so final selection alone is not enough.",
+      "case_9": "CV-X evidence surfaced in multiple stages, but the expected XG-X unsupported SD-card row was missed by all source stages at depth 20 despite metadata selecting the XG-X document."
+    },
+    "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step, 103 multi-step; replacement debt remains 0",
+    "decision": "No production retrieval edit was made because prior guardrail notes rejected broad scoring/promotion/prefilter experiments, and the fresh diagnostics again point to a general indexed/bounded row-key/product-signal discovery design that is outside this cron scope without explicit approval.",
+    "next": "Either obtain approval for a tiny indexed row-key/product-signal design, or keep production retrieval unchanged and continue answer-grounding rotations over other validated slices. If approval is granted, validate against the full 10-case cross-document v2 gate plus saved single-step and warning/procedure gates."
   }
 }
