@@ -664,6 +664,7 @@ def _query_uses_source_address_syntax(query: str, chunk: dict[str, Any]) -> bool
         return True
     address_patterns = (
         r"\b[A-Z][A-Z0-9_-]*\s*:\s*[A-Za-z][A-Za-z0-9_]*(?:\.|\[|\d)[A-Za-z0-9_.\[\]]*",
+        r"\b[A-Za-z][A-Za-z0-9_]*\.[A-Za-z][A-Za-z0-9_.]*\b",
         r"\b[A-Za-z]\.[A-Za-z0-9_]+(?:\d|\[[0-9]+\]|\.)[A-Za-z0-9_.\[\]]*\b",
     )
     return any(re.search(pattern, query) for pattern in address_patterns)

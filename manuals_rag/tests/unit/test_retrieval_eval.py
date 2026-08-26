@@ -1875,6 +1875,10 @@ def test_validate_eval_case_rejects_source_address_syntax_queries():
         False,
         "source_address_syntax_query",
     )
+    assert validate_eval_case("What is the Input.ToolID for the first command in Command Settings?", chunk, anchors) == (
+        False,
+        "source_address_syntax_query",
+    )
     assert validate_eval_case("Which tag indicates whether a command error occurred?", chunk, anchors) == (
         True,
         "validated",

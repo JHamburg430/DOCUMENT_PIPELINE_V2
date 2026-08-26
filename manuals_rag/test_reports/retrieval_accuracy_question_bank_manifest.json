@@ -399,6 +399,18 @@
           "retrieval_eval_20260826_022635"
         ],
         "remaining": "Direct cross-document v2 retrieval/context failures remain unresolved for cases 6, 7, and 9. Schema/ingestion/index work still needs explicit approval before a precomputed row-key/product-signal design; otherwise continue rotating actual API answer-grounding across validated slices."
+      },
+      "2026-08-26T02:44:00Z": {
+        "severity": "watch",
+        "status": "addressed_this_run",
+        "addressed_this_run": "Committed the previously dirty eval-generation parser/prompt change only after adding stricter validation for source address syntax, table-coordinate/artifact language, and source-like description labels. No production retrieval, answering, API, UI, parser, ingestion, schema, Docker, model, or provider logic changed.",
+        "evidence": [
+          "tests/unit/test_retrieval_eval.py -q -> 73 passed",
+          "retrieval_eval_20260826_025458 exposed weak accepted table-coordinate prompts before final tightening",
+          "retrieval_eval_20260826_025759 exposed row-number and description-label prompts before final tightening",
+          "retrieval_eval_20260826_030204 after final tightening accepted 3 source-backed single-step table prompts; all remain diagnostic-only because retrieval was 0/3 candidate_miss"
+        ],
+        "remaining": "Do not promote the small generated samples as active bank growth. Continue preserving the unresolved direct cross-document baseline and use the tightened generator only with manual/validator review before adding durable coverage."
       }
     },
     "diagnostics": [
@@ -6230,7 +6242,7 @@
       "notes": "Rotated actual API answer-grounding coverage beyond the first four cross-document v2 cases. Cases 5 and 8 passed; cases 6 and 7 failed because expected evidence was not retrieved/cited. This is answer coverage evidence, not a retrieval improvement."
     }
   },
-  "next_target": "With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Continue broadening actual HTTP API answer-grounding across validated single-step, warning/procedure, sibling troubleshooting, contextual procedure, and cross-document slices, while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cases 6, 7, and 9.",
+  "next_target": "With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Use the tightened eval-generation path only with review before adding durable question-bank coverage. Continue broadening actual HTTP API answer-grounding across validated slices while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cases 6, 7, and 9.",
   "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1 after the b51a22c containment revert. Earlier retrieval_eval_20260825_072839 remains the pre-containment reference baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
   "current_failure_categories": {
     "candidate_miss": 1,
@@ -6517,5 +6529,43 @@
     "failure_categories": {},
     "answer_failure_reasons": {},
     "notes": "Broadened actual API answer-grounding coverage beyond curated cross-document v2 while leaving production retrieval and answering unchanged. This is answer coverage evidence, not a direct retrieval improvement."
+  },
+  "latest_eval_generation_quality": {
+    "status": "validated_code_change_diagnostic_samples_only",
+    "guardrail_finding": "2026-08-26T02:44:00Z watch",
+    "code_scope": "eval_generation_and_validation_only",
+    "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -> 73 passed",
+    "diagnostic_runs": [
+      {
+        "run_id": "retrieval_eval_20260826_025458",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_025458.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_025458.json",
+        "result": "5 accepted, 4/5 retrieval passed, but manual review found table-coordinate/source-label prompts; used to tighten validation."
+      },
+      {
+        "run_id": "retrieval_eval_20260826_025759",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_025759.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_025759.json",
+        "result": "5 accepted, 1/5 retrieval passed, but manual review found row-number/source-description prompts; used to tighten validation."
+      },
+      {
+        "run_id": "retrieval_eval_20260826_030204",
+        "dataset_path": "test_reports/retrieval_eval_dataset_20260826_030204.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_030204.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_030204.json",
+        "result": "3 accepted source-backed prompts, 0/3 retrieval passed with candidate_miss: 3; diagnostic-only, no active count change."
+      }
+    ],
+    "quality_controls_added": [
+      "source-neutral few-shot examples for user-style generated queries",
+      "JSON wrapper and top-level array parser for common local-model responses",
+      "post-generation validate_eval_case filtering for generated LLM queries",
+      "rejection of generated source address syntax such as Input.ToolID and LJX3D tag addresses",
+      "rejection of row/column/table-artifact wording such as row number, row 25, column 2, cell value, and description-of table labels",
+      "more natural deterministic table-row fallback wording for measurement-description and row/column lookups"
+    ],
+    "active_counts_changed": false,
+    "replacement_debt_changed": false,
+    "notes": "This resolves the dirty-diff guardrail watch without claiming retrieval improvement or promoting the tiny generated samples."
   }
 }

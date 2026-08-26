@@ -2011,3 +2011,24 @@ Next target:
 Next target:
 
 - With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Continue broadening actual HTTP API answer-grounding across validated single-step, warning/procedure, sibling troubleshooting, contextual procedure, and cross-document slices, while preserving the unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cases 6, 7, and 9.
+
+## 2026-08-25 Cron 39262386 Eval Generation Watch Containment
+
+- Target: address guardrail `2026-08-26T02:44:00Z` `watch`, which said the latest committed answer-grounding work was clean but the worktree had uncommitted eval-generation prompt/parser changes that needed either validation and tracking or cleanup before any new question generation was promoted.
+- Guardrail review status: latest checked-in guardrail findings were reviewed at run start. Direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was attempted with the cron tool but remained unavailable because this cron run is restricted to the current job.
+- Local stack: compose services were running and usable: API, Postgres, Qdrant, Redis, workers, and UI were up; Postgres was healthy. The active corpus remained `manuals_vendor_keyence`.
+- Eval-generation change: kept scope to evaluation/question-generation logic only. Added source-neutral user-style few-shot examples, parser support for common local-model JSON wrappers and top-level arrays, and post-generation `validate_eval_case` filtering for LLM-generated queries.
+- Guardrail-driven tightening: small live samples showed the initial dirty diff could still accept table-coordinate/source-label prompts such as row/column questions, `Description of measurement`, row-number questions, and source address/tag syntax. Tightened validation to reject generated source address syntax such as `Input.ToolID`/PLC tag-like addresses and table-artifact wording such as `row number`, `row 25`, `column 2`, `cell value`, and `description of` table labels. Also made deterministic table fallback wording less table-dump-like for measurement-description and row/column lookups.
+- Focused tests: `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q` -> 73 passed.
+- Diagnostic live evals:
+  - `retrieval_eval_20260826_025458`: 5 accepted generated single-step cases, 4/5 retrieval passed. Manual review found weak accepted table-coordinate/source-label prompts, so it was used only to tighten validation.
+  - `retrieval_eval_20260826_025759`: 5 accepted generated single-step cases, 1/5 retrieval passed. Manual review found row-number/source-description prompts, so it was used only to tighten validation.
+  - `retrieval_eval_20260826_030204`: after final tightening, 3 accepted source-backed single-step table prompts, 0/3 retrieval passed with `candidate_miss: 3`. This is diagnostic-only and not promoted as active bank growth.
+- Question-bank counts remain monotonic and unchanged at 203 exploratory questions total: 100 single-step and 103 multi-step. No questions were retired or added; replacement debt remains 0. No answer-grounding or direct cross-document retrieval pass rate is marked resolved by this run.
+- Changed files: `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, `tests/unit/test_retrieval_eval.py`, this progress log, `test_reports/retrieval_accuracy_question_bank_manifest.json`, and diagnostic artifacts for `retrieval_eval_20260826_030204`. Earlier same-run diagnostic summary/manifest artifacts for `025458` and `025759` remain local evidence.
+- Guardrail handling: `2026-08-26T02:44:00Z` is addressed by validating and tracking the eval-generation change instead of leaving the dirty diff unrecorded. No unresolved `needs_fix` or `critical` item was ignored.
+- Generalization check before commit: the change is valid for unseen manuals and vendors because it improves source-neutral question-generation hygiene and parsing without adding document/vendor/product/filename routing, inferred hard filters, eval-only production retrieval behavior, or production answering changes.
+
+Next target:
+
+- With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Use the tightened eval-generation path only with review before adding durable question-bank coverage. Continue broadening actual HTTP API answer-grounding across validated slices while preserving the unresolved direct retrieval baseline `retrieval_eval_20260826_005723` for cases 6, 7, and 9.
