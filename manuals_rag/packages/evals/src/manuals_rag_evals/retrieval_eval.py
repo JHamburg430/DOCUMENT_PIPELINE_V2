@@ -206,6 +206,17 @@ ANSWER_SCORING_ACTION_VERBS = {
     "wait",
 }
 
+ANSWER_SCORING_STATE_TERMS = {
+    "off",
+    "offline",
+    "on",
+    "online",
+    "disable",
+    "disabled",
+    "enable",
+    "enabled",
+}
+
 TECHNICAL_VERBS = {
     "connect",
     "disconnect",
@@ -2823,6 +2834,11 @@ def _answer_required_action_terms(case: RetrievalEvalCase, answer: dict[str, Any
             for token in tokenize(action_text)
             if token in ANSWER_SCORING_ACTION_VERBS and token not in query_terms
         ]
+        for term in item.get("expected_terms") or []:
+            normalized = str(term).strip()
+            key = normalize_text(normalized)
+            if key in ANSWER_SCORING_STATE_TERMS and key not in query_terms:
+                candidates.append(normalized)
         for term in source_action_verbs:
             candidates.append(term)
         for term in item.get("expected_terms") or []:

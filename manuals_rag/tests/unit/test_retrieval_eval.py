@@ -703,6 +703,90 @@ def test_answer_response_scoring_ignores_row_header_action_artifacts():
     assert "update" in scored["term_check"]["material_matched_terms"]
 
 
+def test_answer_response_scoring_requires_corrective_action_state_terms():
+    case = RetrievalEvalCase(
+        case_id="case-retest-online-3d-camera",
+        query=(
+            "What causes Retest mode (online) cannot be used when using a 3D camera "
+            "for XG-X Series, and how should it be corrected?"
+        ),
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1,
+        page_to=1,
+        expected_terms=["retest", "online", "3d", "camera"],
+        expected_snippet="Error, cause, and corrective action",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_family": "XG-X Series"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "error-cell",
+                "source_document_id": "doc-xgx",
+                "field": "error message",
+                "expected_terms": ["retest", "online", "camera"],
+            },
+            {
+                "chunk_id": "cause-cell",
+                "source_document_id": "doc-xgx",
+                "field": "cause",
+                "expected_terms": ["attempt", "set", "camera", "model"],
+            },
+            {
+                "chunk_id": "action-cell",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["set", "system", "processing", "offline"],
+                "snippet": (
+                    "Column headers: Corrective Action; Cell value: "
+                    "Set [System Processing] to [Offline] in the image viewer option settings."
+                ),
+            },
+        ],
+    )
+
+    sibling_row_action = score_answer_response(
+        case,
+        {
+            "answer": (
+                "The error occurs because [System Processing] was changed to [Online] "
+                "with an XT or XR camera as the camera model. Correct it by setting a "
+                "camera other than a 21-megapixel or greater camera."
+            ),
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "action-cell", "pages": [1]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+    grounded_state_action = score_answer_response(
+        case,
+        {
+            "answer": (
+                "The controller is trying to use Retest mode online with an unsupported "
+                "camera setting. Set [System Processing] to [Offline] in the image viewer "
+                "option settings."
+            ),
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "action-cell", "pages": [1]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert sibling_row_action["passed"] is False
+    assert "offline" in sibling_row_action["term_check"]["material_expected_terms"]
+    assert "offline" not in sibling_row_action["term_check"]["material_matched_terms"]
+    assert "expected_terms_missing" in sibling_row_action["failure_reasons"]
+    assert grounded_state_action["passed"] is True
+    assert "offline" in grounded_state_action["term_check"]["material_matched_terms"]
+
+
 def test_large_retrieval_eval_summarizes_answer_metrics():
     import importlib.util
     from pathlib import Path
