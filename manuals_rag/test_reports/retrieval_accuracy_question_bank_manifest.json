@@ -6797,7 +6797,7 @@
     "expected_document_not_cited_or_used": 4,
     "retrieval_not_passed": 4
   },
-  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-2 in retrieval_eval_20260826_102401 at 2/2 user-visible API answers with answer source api and fallback 0. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; this answer rotation is not a direct-retrieval improvement.",
+  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-4 across retrieval_eval_20260826_102401 and retrieval_eval_20260826_105344 at 4/4 user-visible API answers with answer source api and fallback 0. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; this answer rotation is not a direct-retrieval improvement.",
   "answer_grounding_rotation": {
     "status": "contextual_rows_19_20_rotation_completed",
     "latest_runs": [
@@ -6995,5 +6995,30 @@
     },
     "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
     "notes": "Answer-grounding coverage only. Production retrieval, answering, eval-generation/scoring, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, docs, and tests were unchanged."
+  },
+  "answer_grounding_sibling_rows_3_4": {
+    "status": "sibling_troubleshooting_rows_3_4_rotation_completed",
+    "guardrail_context": "Latest guardrail 2026-08-26T10:44:00Z was ok and required continuing broad actual HTTP API answer-grounding on validated slices while preserving unresolved cross-document direct-retrieval failures and contextual row 14 as separate candidate-miss evidence. No approval for indexed/bounded row-key/product-signal retrieval work was available in this cron run, so production retrieval stayed unchanged.",
+    "dataset": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
+    "run_id": "retrieval_eval_20260826_105344",
+    "summary": "test_reports/retrieval_eval_summary_20260826_105344.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260826_105344.json",
+    "scope": "validated sibling troubleshooting multi-step rows 3-4 actual HTTP API answers",
+    "total_queries": 2,
+    "retrieval_passed_queries": 2,
+    "answer_passed_queries": 2,
+    "answer_pass_rate": 1.0,
+    "answer_sources": {
+      "api": 2
+    },
+    "answer_fallback_count": 0,
+    "failure_categories": {},
+    "answer_failure_reasons": {},
+    "latency": {
+      "mean_seconds": 29.075,
+      "p95_seconds": 37.572
+    },
+    "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
+    "notes": "Answer-grounding coverage only. Production retrieval, answering, eval-generation/scoring, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, docs, and tests were unchanged. Combined sibling troubleshooting answer coverage is now rows 1-4 at 4/4 actual API answers with fallback 0."
   }
 }
