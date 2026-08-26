@@ -171,6 +171,56 @@ def test_validate_answer_falls_back_when_citation_quote_is_not_in_cited_chunk():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_does_not_repair_unsupported_citation_from_answer_overlap():
+    answer = AnswerResponse(
+        answer="Change to a trigger signal that can be used.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "settings-page",
+                "document_id": "d1",
+                "pages": [10],
+                "quote_span": "Change to a trigger signal that can be used.",
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="settings-page",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[10],
+            section_path=["Trigger settings"],
+            content="If capture on trigger input is disabled, this setting cannot be changed.",
+            metadata={"chunk_type": "atomic_text"},
+        ),
+        SearchResult(
+            chunk_id="action-row",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[11],
+            section_path=["Troubleshooting"],
+            content="Corrective Action: Change to a trigger signal that can be used.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(answer, results)
+
+    assert validated.answer == "If capture on trigger input is disabled, this setting cannot be changed."
+    assert validated.citations[0]["chunk_id"] == "settings-page"
+    assert validated.citations[0]["quote_span"] is None
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_accepts_citation_quote_from_cited_chunk():
     answer = AnswerResponse(
         answer="Change to a trigger signal that can be used.",
