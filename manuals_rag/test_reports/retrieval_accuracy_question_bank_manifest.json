@@ -388,6 +388,17 @@
           "test_reports/retrieval_eval_manifest_20260826_015351.json"
         ],
         "remaining": "The six-case API answer rotation across curated cross-document v2 cases 5-10 is now complete at 3/6 answers. Direct retrieval/context failures remain unresolved for cases 6, 7, and 9; schema/ingestion/index work still needs explicit approval before a precomputed row-key/product-signal design."
+      },
+      "2026-08-26T02:14:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Broadened actual HTTP API answer-grounding on validated non-cross-document slices after completing the cross-document v2 cases 5-10 rotation, while leaving production retrieval and answering unchanged.",
+        "evidence": [
+          "retrieval_eval_20260826_022437",
+          "retrieval_eval_20260826_022513",
+          "retrieval_eval_20260826_022635"
+        ],
+        "remaining": "Direct cross-document v2 retrieval/context failures remain unresolved for cases 6, 7, and 9. Schema/ingestion/index work still needs explicit approval before a precomputed row-key/product-signal design; otherwise continue rotating actual API answer-grounding across validated slices."
       }
     },
     "diagnostics": [
@@ -728,6 +739,126 @@
   "latest_results": {
     "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_retrieval_eval.py -q -> 80 passed, 9 warnings after reverting b51a22c.",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260826_022437",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260826_022437.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_022437.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_022437.json",
+        "status": "completed_answer_grounding_rotation",
+        "mode": "actual_http_api_answer_rotation_single_step_v2_offset_2",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "query_offset": 2,
+        "per_query_timeout_seconds": 120,
+        "total_queries": 2,
+        "passed_queries": 2,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 2,
+        "answer_failed_queries": 0,
+        "answer_pass_rate": 1.0,
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_fallback_count": 0,
+        "failure_categories": {},
+        "answer_failure_reasons": {},
+        "answer_latency": {
+          "min_seconds": 12.792,
+          "max_seconds": 15.092,
+          "mean_seconds": 13.942,
+          "p95_seconds": 15.092
+        },
+        "notes": "Curated single-step replacement v2 cases 3-4 passed 2/2 retrieval and 2/2 actual API answers at rank 1, with no fallback."
+      },
+      {
+        "run_id": "retrieval_eval_20260826_022513",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_105701.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260826_022513.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_022513.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_022513.json",
+        "status": "completed_answer_grounding_rotation",
+        "mode": "actual_http_api_answer_rotation_warning_procedure_offset_2",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "query_offset": 2,
+        "per_query_timeout_seconds": 120,
+        "total_queries": 2,
+        "passed_queries": 2,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 2,
+        "answer_failed_queries": 0,
+        "answer_pass_rate": 1.0,
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_fallback_count": 0,
+        "failure_categories": {},
+        "answer_failure_reasons": {},
+        "answer_latency": {
+          "min_seconds": 31.759,
+          "max_seconds": 38.897,
+          "mean_seconds": 35.328,
+          "p95_seconds": 38.897
+        },
+        "notes": "Warning/procedure multi-step cases 3-4 passed 2/2 retrieval and 2/2 actual API answers at rank 1, with no fallback."
+      },
+      {
+        "run_id": "retrieval_eval_20260826_022635",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260826_022635.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_022635.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_022635.json",
+        "status": "completed_answer_grounding_rotation",
+        "mode": "actual_http_api_answer_rotation_sibling_troubleshooting_offset_0",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "query_offset": 0,
+        "per_query_timeout_seconds": 120,
+        "total_queries": 2,
+        "passed_queries": 2,
+        "failed_queries": 0,
+        "pass_rate": 1.0,
+        "pass_at_1": 1.0,
+        "pass_at_3": 1.0,
+        "pass_at_5": 1.0,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 2,
+        "answer_failed_queries": 0,
+        "answer_pass_rate": 1.0,
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_fallback_count": 0,
+        "failure_categories": {},
+        "answer_failure_reasons": {},
+        "answer_latency": {
+          "min_seconds": 20.023,
+          "max_seconds": 20.32,
+          "mean_seconds": 20.172,
+          "p95_seconds": 20.32
+        },
+        "notes": "Sibling troubleshooting multi-step cases 1-2 passed 2/2 retrieval and 2/2 actual API answers at rank 1, with no fallback."
+      },
       {
         "run_id": "retrieval_eval_20260826_015351",
         "corpus_id": "manuals_vendor_keyence",
@@ -6099,14 +6230,16 @@
       "notes": "Rotated actual API answer-grounding coverage beyond the first four cross-document v2 cases. Cases 5 and 8 passed; cases 6 and 7 failed because expected evidence was not retrieved/cited. This is answer coverage evidence, not a retrieval improvement."
     }
   },
-  "next_target": "With the curated cross-document v2 answer rotation through cases 5-10 complete and schema/ingestion/index changes still out of scope, preserve the unresolved direct retrieval baseline retrieval_eval_20260826_005723 and either get explicit approval for a small indexed row-key/product-signal design or continue broadening actual HTTP API answer-grounding on other validated single-step, warning/procedure, and multi-step slices. Avoid further case 6/7 row-key production experiments and case 9 comparison top-k/promotion variants unless the design is genuinely general, improves the full 10-case v2 gate, and preserves saved single-step plus warning/procedure gates.",
-  "current_retrieval_failure_source": "retrieval_eval_20260826_005723",
+  "next_target": "With schema/ingestion/index changes still out of scope, keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design. Continue broadening actual HTTP API answer-grounding across validated single-step, warning/procedure, sibling troubleshooting, contextual procedure, and cross-document slices, while preserving the unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cases 6, 7, and 9.",
+  "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1 after the b51a22c containment revert. Earlier retrieval_eval_20260825_072839 remains the pre-containment reference baseline at 7/10 with candidate_miss: 1, eval_timeout: 1, and ranking_or_context_loss: 1. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
   "current_failure_categories": {
-    "eval_timeout": 2,
+    "candidate_miss": 1,
+    "eval_timeout": 1,
     "ranking_or_context_loss": 1
   },
   "failure_categories": {
-    "eval_timeout": 2,
+    "candidate_miss": 1,
+    "eval_timeout": 1,
     "ranking_or_context_loss": 1
   },
   "diagnostics": [
@@ -6364,5 +6497,25 @@
     "expected_document_not_cited_or_used": 3,
     "retrieval_not_passed": 3
   },
-  "answer_grounding_status": "Curated cross-document v2 actual HTTP API answer rotation now covers cases 5-10: retrieval_eval_20260826_012428 cases 5-6 at 1/2 answers, retrieval_eval_20260826_012603 cases 7-8 at 1/2 answers, and retrieval_eval_20260826_015351 cases 9-10 at 1/2 answers. All scored user-visible /query API answers with answer source api and fallback count 0. Failures are expected-document grounding failures tied to unresolved retrieval/context cases 6, 7, and 9, not answer fallback behavior."
+  "answer_grounding_status": "Actual HTTP API answer evidence now includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses, plus this run's validated non-cross-document rotation: retrieval_eval_20260826_022437, retrieval_eval_20260826_022513, and retrieval_eval_20260826_022635 passed 6/6 retrieval and 6/6 user-visible API answers with answer source api and fallback 0. Continue rotating broader validated slices while preserving the unresolved direct cross-document baseline.",
+  "answer_grounding_rotation": {
+    "status": "broadened_no_production_change",
+    "latest_runs": [
+      "retrieval_eval_20260826_022437",
+      "retrieval_eval_20260826_022513",
+      "retrieval_eval_20260826_022635"
+    ],
+    "scope": "curated_single_step_v2_cases_3_4_warning_procedure_cases_3_4_sibling_troubleshooting_cases_1_2_actual_http_api_answers",
+    "total_queries": 6,
+    "retrieval_passed_queries": 6,
+    "answer_passed_queries": 6,
+    "answer_pass_rate": 1.0,
+    "answer_sources": {
+      "api": 6
+    },
+    "answer_fallback_count": 0,
+    "failure_categories": {},
+    "answer_failure_reasons": {},
+    "notes": "Broadened actual API answer-grounding coverage beyond curated cross-document v2 while leaving production retrieval and answering unchanged. This is answer coverage evidence, not a direct retrieval improvement."
+  }
 }
