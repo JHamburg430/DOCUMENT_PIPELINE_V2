@@ -787,6 +787,81 @@ def test_answer_response_scoring_requires_corrective_action_state_terms():
     assert "offline" in grounded_state_action["term_check"]["material_matched_terms"]
 
 
+def test_answer_response_scoring_requires_action_verb_even_when_query_mentions_change():
+    case = RetrievalEvalCase(
+        case_id="case-unsupported-trigger-signal",
+        query=(
+            "On an XG-X Series controller, if Allow Trigger Input During Line Capture and "
+            "End Capture By EXT Signal are enabled together and the invalid camera setting "
+            "error says a trigger signal that cannot be used is assigned, what should I change?"
+        ),
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1,
+        page_to=1,
+        expected_terms=["image", "capture", "trigger", "signal"],
+        expected_snippet="Error, cause, and corrective action",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_family": "XG-X Series"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "error-cell",
+                "source_document_id": "doc-xgx",
+                "field": "error message",
+                "expected_terms": ["image", "capture", "invalid", "trigger"],
+            },
+            {
+                "chunk_id": "cause-cell",
+                "source_document_id": "doc-xgx",
+                "field": "cause",
+                "expected_terms": ["trigger", "signals", "even-number", "camera"],
+            },
+            {
+                "chunk_id": "action-cell",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["change", "trigger", "signal"],
+                "snippet": "Cell value: Change to a trigger signal that can be used.; Row: 3; Column: 2",
+            },
+        ],
+    )
+
+    sibling_row_action = score_answer_response(
+        case,
+        {
+            "answer": "To resolve the error, disable capture on trigger input in the trigger settings.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "other-cell", "pages": [1]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+    grounded_action = score_answer_response(
+        case,
+        {
+            "answer": "Change to a trigger signal that can be used.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "action-cell", "pages": [1]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert sibling_row_action["passed"] is False
+    assert "change" in sibling_row_action["term_check"]["material_expected_terms"]
+    assert "3" not in sibling_row_action["term_check"]["material_expected_terms"]
+    assert "change" not in sibling_row_action["term_check"]["material_matched_terms"]
+    assert "expected_terms_missing" in sibling_row_action["failure_reasons"]
+    assert grounded_action["passed"] is True
+    assert "change" in grounded_action["term_check"]["material_matched_terms"]
+
+
 def test_large_retrieval_eval_summarizes_answer_metrics():
     import importlib.util
     from pathlib import Path

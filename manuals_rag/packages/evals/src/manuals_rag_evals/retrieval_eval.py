@@ -2811,7 +2811,8 @@ def _answer_action_source_text(answer: dict[str, Any], item: dict[str, Any]) -> 
 
 
 def _without_table_row_header_metadata(text: str) -> str:
-    return re.sub(r"Row headers:\s*[^;]*(?:;|$)", "", text)
+    without_row_headers = re.sub(r"Row headers:\s*[^;]*(?:;|$)", "", text)
+    return re.sub(r"\b(?:Row|Column):\s*\d+\b", "", without_row_headers)
 
 
 def _answer_required_action_terms(case: RetrievalEvalCase, answer: dict[str, Any]) -> tuple[list[str], str]:
@@ -2832,7 +2833,7 @@ def _answer_required_action_terms(case: RetrievalEvalCase, answer: dict[str, Any
         source_action_verbs = [
             token
             for token in tokenize(action_text)
-            if token in ANSWER_SCORING_ACTION_VERBS and token not in query_terms
+            if token in ANSWER_SCORING_ACTION_VERBS
         ]
         for term in item.get("expected_terms") or []:
             normalized = str(term).strip()
