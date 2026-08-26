@@ -367,6 +367,16 @@
           "retrieval_eval_20260826_005723 -> curated cross-document v2 7/10 direct retrieval, unresolved failure profile retained"
         ],
         "remaining": "No production retrieval or answering improvement was attempted this containment run. Cross-document v2 remains unresolved at 7/10; because schema/ingestion remains out of scope, avoid more case 6/7 row-key production experiments unless John allows a precomputed/indexed row-key design, or rotate broader actual HTTP API answer-grounding batches instead."
+      },
+      "2026-08-26T01:14:00Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "With schema/ingestion/index changes still outside the hard scope, kept production retrieval unchanged and rotated actual HTTP API answer-grounding coverage across curated cross-document v2 cases 5-8.",
+        "evidence": [
+          "retrieval_eval_20260826_012428",
+          "retrieval_eval_20260826_012603"
+        ],
+        "remaining": "Direct curated cross-document v2 retrieval remains unresolved at retrieval_eval_20260826_005723 with eval_timeout: 2 and ranking_or_context_loss: 1. Cases 6/7 still need an approved precomputed/indexed row-key design or should be deferred; continue rotating answer batches for remaining cases when retrieval work is blocked by scope."
       }
     },
     "diagnostics": [
@@ -707,6 +717,84 @@
   "latest_results": {
     "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_api_debug.py tests/unit/test_retrieval_eval.py -q -> 80 passed, 9 warnings after reverting b51a22c.",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260826_012428",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260826_012428.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_012428.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_012428.json",
+        "status": "completed_answer_grounding_rotation",
+        "mode": "actual_http_api_answer_rotation_offset_4",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "query_offset": 4,
+        "per_query_timeout_seconds": 120,
+        "total_queries": 2,
+        "passed_queries": 1,
+        "failed_queries": 1,
+        "pass_rate": 0.5,
+        "pass_at_1": 0.5,
+        "pass_at_3": 0.5,
+        "pass_at_5": 0.5,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 1,
+        "answer_failed_queries": 1,
+        "answer_pass_rate": 0.5,
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_fallback_count": 0,
+        "failure_categories": {
+          "ranking_or_context_loss": 1
+        },
+        "answer_failure_reasons": {
+          "expected_document_not_cited_or_used": 1,
+          "retrieval_not_passed": 1
+        },
+        "notes": "Actual user-visible /query answers were scored, not regenerated direct answers. One case passed and one failed because the unresolved cross-document retrieval/context path did not supply the required expected-document evidence."
+      },
+      {
+        "run_id": "retrieval_eval_20260826_012603",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "results_path": "test_reports/retrieval_eval_results_20260826_012603.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260826_012603.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260826_012603.json",
+        "status": "completed_answer_grounding_rotation",
+        "mode": "actual_http_api_answer_rotation_offset_6",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "query_offset": 6,
+        "per_query_timeout_seconds": 120,
+        "total_queries": 2,
+        "passed_queries": 1,
+        "failed_queries": 1,
+        "pass_rate": 0.5,
+        "pass_at_1": 0.5,
+        "pass_at_3": 0.5,
+        "pass_at_5": 0.5,
+        "candidate_recall_rate": 1.0,
+        "metadata_document_selection_recall_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 1,
+        "answer_failed_queries": 1,
+        "answer_pass_rate": 0.5,
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_fallback_count": 0,
+        "failure_categories": {
+          "ranking_or_context_loss": 1
+        },
+        "answer_failure_reasons": {
+          "expected_document_not_cited_or_used": 1,
+          "retrieval_not_passed": 1
+        },
+        "notes": "Actual user-visible /query answers were scored, not regenerated direct answers. One case passed and one failed because the unresolved cross-document retrieval/context path did not supply the required expected-document evidence."
+      },
       {
         "run_id": "retrieval_eval_20260826_005521",
         "corpus_id": "manuals_vendor_keyence",
@@ -5934,9 +6022,34 @@
       "stage_candidate_limit": 120,
       "top_k": 20,
       "notes": "Eval/debug-only row-key feasibility probe. Cases 6 and 7 exact expected rows have query-mentioned setting-item/table-row keys with small corpus-wide normalized pools: Condition list 24, Standard Angle 31, PMSR DC2LAR 23, and RTO2L 51, while each row also matches the requested product identifier. This supports a future bounded/indexed row-key discovery design rather than another broad SQL pool expansion. Case 9 row keys are not directly mentioned in the query and should remain separate as a final-context/top-k or timeout target. No production retrieval behavior changed and no pass rate is marked resolved."
+    },
+    "answer_grounding_rotation": {
+      "status": "completed_no_production_change",
+      "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "runs": [
+        "retrieval_eval_20260826_012428",
+        "retrieval_eval_20260826_012603"
+      ],
+      "scope": "curated_cross_document_v2_cases_5_through_8_actual_http_api_answers",
+      "total_queries": 4,
+      "retrieval_passed_queries": 2,
+      "answer_passed_queries": 2,
+      "answer_pass_rate": 0.5,
+      "answer_sources": {
+        "api": 4
+      },
+      "answer_fallback_count": 0,
+      "failure_categories": {
+        "ranking_or_context_loss": 2
+      },
+      "answer_failure_reasons": {
+        "expected_document_not_cited_or_used": 2,
+        "retrieval_not_passed": 2
+      },
+      "notes": "Rotated actual API answer-grounding coverage beyond the first four cross-document v2 cases. Cases 5 and 8 passed; cases 6 and 7 failed because expected evidence was not retrieved/cited. This is answer coverage evidence, not a retrieval improvement."
     }
   },
-  "next_target": "After guardrail containment, either get explicit approval for a small schema/ingestion/index change to persist normalized table row keys, setting-item keys, and product identifiers for bounded case 6/7 discovery, or keep production retrieval unchanged and rotate broader actual HTTP API answer-grounding batches. If schema/ingestion remains out of scope, avoid further case 6/7 row-key production experiments; previous in-scope per-query lookup variants have repeatedly timed out or failed the full curated cross-document v2 gate. Keep case 9 separate as final-context/top-k or timeout work.",
+  "next_target": "With schema/ingestion/index changes still out of scope, avoid further case 6/7 row-key production experiments and rotate actual HTTP API answer-grounding for the remaining curated cross-document v2 cases 9-10, or get explicit approval for a small indexed row-key/product-signal design. Preserve the unresolved direct retrieval baseline retrieval_eval_20260826_005723 and keep case 9 separate from rejected comparison top-k/promotion variants.",
   "current_retrieval_failure_source": "retrieval_eval_20260826_005723",
   "current_failure_categories": {
     "eval_timeout": 2,
@@ -6196,5 +6309,9 @@
       "retrieval_eval_20260826_005622 -> 15/15 warning/procedure",
       "retrieval_eval_20260826_005723 -> 7/10 cross-document v2 unresolved baseline retained"
     ]
+  },
+  "answer_current_failure_categories": {
+    "expected_document_not_cited_or_used": 2,
+    "retrieval_not_passed": 2
   }
 }
