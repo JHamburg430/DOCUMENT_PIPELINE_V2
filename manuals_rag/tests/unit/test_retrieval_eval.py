@@ -636,6 +636,73 @@ def test_answer_response_scoring_requires_troubleshooting_corrective_action_term
     )
 
 
+def test_answer_response_scoring_ignores_row_header_action_artifacts():
+    case = RetrievalEvalCase(
+        case_id="case-unsupported-firmware",
+        query=(
+            "What causes the XG-X controller to boot with unsupported firmware, "
+            "and how should it be corrected?"
+        ),
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1,
+        page_to=1,
+        expected_terms=["controller", "booted", "unsupported", "firmware"],
+        expected_snippet="Error, cause, and corrective action",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_family": "XG-X Series"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "error-cell",
+                "source_document_id": "doc-xgx",
+                "field": "error message",
+                "expected_terms": ["controller", "booted", "unsupported", "firmware"],
+            },
+            {
+                "chunk_id": "cause-cell",
+                "source_document_id": "doc-xgx",
+                "field": "cause",
+                "expected_terms": ["controller", "started", "supported", "firmware"],
+            },
+            {
+                "chunk_id": "action-cell",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["update", "firmware", "supporting", "controller"],
+                "snippet": (
+                    "Column headers: Corrective Action; Row headers: and check the file > "
+                    "The controller was booted using an unsupported firmware.; "
+                    "Cell value: Update to the firmware supporting the controller.; Row: 8; Column: 2"
+                ),
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "The controller was started with an unsupported firmware version. "
+                "Update the firmware to a version that supports the controller."
+            ),
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "action-cell", "pages": [1]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert scored["passed"] is True
+    assert "check" not in scored["term_check"]["material_expected_terms"]
+    assert "update" in scored["term_check"]["material_matched_terms"]
+
+
 def test_large_retrieval_eval_summarizes_answer_metrics():
     import importlib.util
     from pathlib import Path

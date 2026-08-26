@@ -2799,6 +2799,10 @@ def _answer_action_source_text(answer: dict[str, Any], item: dict[str, Any]) -> 
     return " ".join(snippets)
 
 
+def _without_table_row_header_metadata(text: str) -> str:
+    return re.sub(r"Row headers:\s*[^;]*(?:;|$)", "", text)
+
+
 def _answer_required_action_terms(case: RetrievalEvalCase, answer: dict[str, Any]) -> tuple[list[str], str]:
     if case.generation_method != "table_sibling_error_cause_action" or not case.expected_evidence:
         return [], "none"
@@ -2812,10 +2816,11 @@ def _answer_required_action_terms(case: RetrievalEvalCase, answer: dict[str, Any
             continue
         candidates: list[str] = []
         source_text = _answer_action_source_text(answer, item)
-        source_tokens = _answer_overlap_tokens(source_text)
+        action_text = _without_table_row_header_metadata(source_text)
+        source_tokens = _answer_overlap_tokens(action_text)
         source_action_verbs = [
             token
-            for token in tokenize(source_text)
+            for token in tokenize(action_text)
             if token in ANSWER_SCORING_ACTION_VERBS and token not in query_terms
         ]
         for term in source_action_verbs:
@@ -2832,7 +2837,7 @@ def _answer_required_action_terms(case: RetrievalEvalCase, answer: dict[str, Any
             if key not in source_tokens and source_action_verbs:
                 continue
             candidates.append(normalized)
-        for token in _material_answer_terms_from_sentence(source_text):
+        for token in _material_answer_terms_from_sentence(action_text):
             candidates.append(token)
         for term in candidates:
             _add_answer_material_term(required_terms, seen, term)
@@ -2891,6 +2896,14 @@ def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str
         return True
     if f"{term_lower}s" in text_tokens:
         return True
+    if term_lower.endswith("ing") and len(term_lower) > 5:
+        stem = term_lower[:-3]
+        if stem in text_tokens or f"{stem}s" in text_tokens:
+            return True
+    if term_lower.endswith("ed") and len(term_lower) > 4:
+        stem = term_lower[:-2]
+        if stem in text_tokens or f"{stem}s" in text_tokens:
+            return True
     if "/" in term_lower:
         parts = [part for part in term_lower.split("/") if part]
         return bool(parts) and all(part in text_tokens for part in parts)
