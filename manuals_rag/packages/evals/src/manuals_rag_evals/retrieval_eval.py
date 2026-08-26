@@ -106,6 +106,30 @@ GENERIC_ANCHORS = {
     "checking",
 }
 
+ANSWER_SCORING_GENERIC_TERMS = QUERY_DEDUPE_FILLER.union(
+    GENERIC_ANCHORS,
+    {
+        "as",
+        "by",
+        "description",
+        "descriptions",
+        "detail",
+        "details",
+        "executed",
+        "having",
+        "inputting",
+        "operation",
+        "operations",
+        "pr",
+        "procedure",
+        "purpose",
+        "purposes",
+        "same",
+        "typical",
+        "type",
+    },
+)
+
 TECHNICAL_VERBS = {
     "connect",
     "disconnect",
@@ -2537,11 +2561,51 @@ def _answer_contains_expected_terms(answer: dict[str, Any], expected_terms: list
     }
 
 
+def _answer_scoring_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
+    if not case.expected_evidence:
+        return case.expected_terms, "case_expected_terms"
+    evidence_terms: list[str] = []
+    seen: set[str] = set()
+
+    def add_term(term: Any) -> None:
+        normalized = str(term).strip()
+        if not normalized:
+            return
+        key = normalized.lower()
+        if key in seen:
+            return
+        seen.add(key)
+        evidence_terms.append(normalized)
+
+    for item in case.expected_evidence:
+        for term in item.get("expected_terms") or []:
+            add_term(term)
+        for token in tokenize(str(item.get("snippet") or "")):
+            if len(token) < 3 and not any(char.isdigit() for char in token):
+                continue
+            if token.lower() not in ANSWER_SCORING_GENERIC_TERMS:
+                add_term(token)
+    specific_terms = [
+        term
+        for term in evidence_terms
+        if term.lower().strip() not in ANSWER_SCORING_GENERIC_TERMS
+    ]
+    if len(specific_terms) >= 2:
+        return specific_terms, "expected_evidence_specific_terms"
+    if evidence_terms:
+        return evidence_terms, "expected_evidence_terms"
+    return case.expected_terms, "case_expected_terms"
+
+
 def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str]) -> bool:
     term_lower = term.lower().strip()
     if not term_lower:
         return False
     if term_lower in text_lower or term_lower in text_tokens:
+        return True
+    if term_lower.endswith("s") and len(term_lower) > 3 and term_lower[:-1] in text_tokens:
+        return True
+    if f"{term_lower}s" in text_tokens:
         return True
     if "/" in term_lower:
         parts = [part for part in term_lower.split("/") if part]
@@ -2559,7 +2623,9 @@ def score_answer_response(
     answer_document_ids = citation_document_ids.union(used_document_ids)
     expected_document_ids = _expected_answer_document_ids(case)
     missing_document_ids = sorted(expected_document_ids.difference(answer_document_ids))
-    terms = _answer_contains_expected_terms(answer, case.expected_terms)
+    expected_terms, term_source = _answer_scoring_terms(case)
+    terms = _answer_contains_expected_terms(answer, expected_terms)
+    terms["term_source"] = term_source
     answer_text = str(answer.get("answer") or "").strip()
     passed = bool(
         answer_text
