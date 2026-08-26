@@ -328,8 +328,32 @@ def _structured_answer_is_too_terse(answer: str, results: list[SearchResult]) ->
     )
 
 
+def _normalized_citation_text(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def _citation_quotes_are_supported(citations: list[dict[str, Any]], results: list[SearchResult]) -> bool:
+    if not citations:
+        return True
+    evidence_by_chunk_id = {result.chunk_id: _evidence_text(result) for result in results}
+    for citation in citations:
+        chunk_id = str(citation.get("chunk_id") or "")
+        if chunk_id not in evidence_by_chunk_id:
+            return False
+        quote = str(citation.get("quote_span") or "").strip()
+        if not quote:
+            continue
+        if _normalized_citation_text(quote) not in _normalized_citation_text(evidence_by_chunk_id[chunk_id]):
+            return False
+    return True
+
+
 def validate_answer(answer: AnswerResponse, results: list[SearchResult]) -> AnswerResponse:
-    if results and (not _answer_supported_by_results(answer.answer, results) or _structured_answer_is_too_terse(answer.answer, results)):
+    if results and (
+        not _answer_supported_by_results(answer.answer, results)
+        or _structured_answer_is_too_terse(answer.answer, results)
+        or not _citation_quotes_are_supported(list(answer.citations), results)
+    ):
         fallback = _fallback_answer("", results)
         answer = fallback.model_copy(
             update={

@@ -915,8 +915,72 @@ def test_answer_response_scoring_uses_source_only_action_terms():
         {"passed": True},
     )
 
-    assert scored["term_check"]["material_expected_terms"] == ["change"]
+    assert scored["term_check"]["material_expected_terms"] == ["change", "change trigger signal", "trigger", "signal"]
     assert "one" not in scored["term_check"]["material_expected_terms"]
+
+
+def test_answer_response_scoring_requires_troubleshooting_action_object_terms():
+    case = RetrievalEvalCase(
+        case_id="case-trigger-signal-action-object",
+        query=(
+            "On an XG-X Series controller, if Allow Trigger Input During Line Capture and "
+            "End Capture By EXT Signal are enabled together and the invalid camera setting "
+            "error says a trigger signal that cannot be used is assigned, what should I change?"
+        ),
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1,
+        page_to=1,
+        expected_terms=["image", "capture", "trigger", "signal"],
+        expected_snippet="Error, cause, and corrective action",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_family": "XG-X Series"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "action-cell",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["change", "trigger", "signal"],
+                "snippet": "Cell value: Change to a trigger signal that can be used.; Row: 3; Column: 2",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "If capture on trigger input is disabled, this setting cannot be changed.",
+            "citations": [
+                {
+                    "document_id": "doc-xgx",
+                    "chunk_id": "settings-page",
+                    "pages": [985],
+                    "quote_span": None,
+                }
+            ],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "settings-page",
+                "content": "If capture on trigger input is disabled, this setting cannot be changed.",
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert scored["term_check"]["material_expected_terms"] == ["change", "change trigger signal", "trigger", "signal"]
+    assert "change trigger signal" not in scored["term_check"]["material_matched_terms"]
+    assert "signal" not in scored["term_check"]["material_matched_terms"]
+    assert "expected_terms_missing" in scored["failure_reasons"]
 
 
 def test_answer_response_scoring_rejects_unsupported_citation_quote_spans():

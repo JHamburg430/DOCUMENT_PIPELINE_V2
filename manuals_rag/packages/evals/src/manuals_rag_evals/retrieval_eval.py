@@ -2795,6 +2795,7 @@ def _answer_required_action_terms(case: RetrievalEvalCase) -> tuple[list[str], s
     required_terms: list[str] = []
     seen: set[str] = set()
     query_terms = _answer_overlap_tokens(case.query)
+    include_action_object_terms = not _is_quantity_answer_query(case.query)
     action_fields = {"action", "corrective action", "countermeasure", "remedy"}
     for item in case.expected_evidence:
         field = normalize_text(str(item.get("field") or ""))
@@ -2816,6 +2817,16 @@ def _answer_required_action_terms(case: RetrievalEvalCase) -> tuple[list[str], s
                 candidates.append(normalized)
         for term in source_action_verbs:
             candidates.append(term)
+        action_object_terms = [
+            str(term).strip()
+            for term in item.get("expected_terms") or []
+            if str(term).strip()
+            and normalize_text(str(term)) not in ANSWER_SCORING_GENERIC_TERMS
+            and normalize_text(str(term)) not in ANSWER_SCORING_ACTION_VERBS
+            and normalize_text(str(term)) in source_tokens
+        ]
+        if source_action_verbs and include_action_object_terms and len(action_object_terms) >= 2:
+            candidates.append(" ".join([source_action_verbs[0], *action_object_terms[:2]]))
         for term in item.get("expected_terms") or []:
             normalized = str(term).strip()
             if not normalized:
@@ -2828,11 +2839,23 @@ def _answer_required_action_terms(case: RetrievalEvalCase) -> tuple[list[str], s
             if key not in source_tokens and source_action_verbs:
                 continue
             candidates.append(normalized)
+        if source_action_verbs and include_action_object_terms:
+            for term in item.get("expected_terms") or []:
+                normalized = str(term).strip()
+                key = normalize_text(normalized)
+                if (
+                    not normalized
+                    or key in ANSWER_SCORING_GENERIC_TERMS
+                    or key in ANSWER_SCORING_ACTION_VERBS
+                    or key not in source_tokens
+                ):
+                    continue
+                candidates.append(normalized)
         for token in _material_answer_terms_from_sentence(action_text):
             candidates.append(token)
         for term in candidates:
             _add_answer_material_term(required_terms, seen, term)
-            if len(required_terms) >= 2:
+            if len(required_terms) >= 4:
                 return required_terms, "troubleshooting_action_terms"
     return required_terms, "troubleshooting_action_terms" if required_terms else "none"
 
@@ -2936,6 +2959,14 @@ def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str
         return False
     if term_lower in text_lower or term_lower in text_tokens:
         return True
+    if " " in term_lower:
+        phrase_skip_terms = STOPWORDS.union({"to"})
+        term_tokens = [token for token in tokenize(term_lower) if token not in phrase_skip_terms]
+        answer_tokens = [token for token in tokenize(text_lower) if token not in phrase_skip_terms]
+        if term_tokens:
+            for index in range(0, len(answer_tokens) - len(term_tokens) + 1):
+                if answer_tokens[index : index + len(term_tokens)] == term_tokens:
+                    return True
     number = ANSWER_SCORING_NUMBER_WORDS.get(term_lower)
     if number and (number in text_tokens or re.search(rf"(?<![\w.-]){re.escape(number)}(?![\w.-])", text_lower)):
         return True
