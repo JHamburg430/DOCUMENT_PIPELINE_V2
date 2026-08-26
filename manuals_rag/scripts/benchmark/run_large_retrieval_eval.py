@@ -365,6 +365,16 @@ def _answer_trace(answer: dict[str, Any] | None) -> dict[str, Any]:
     return trace if isinstance(trace, dict) else {}
 
 
+def score_current_answer_response(
+    eval_case: RetrievalEvalCase,
+    answer: dict[str, Any],
+    evaluation: dict[str, Any],
+    search_payload: dict[str, Any],
+) -> dict[str, Any]:
+    current_results = search_payload.get("top_results", [])
+    return score_answer_response(eval_case, answer, evaluation, current_results)
+
+
 def run_case_search(query: str, *, corpus_id: str, search_mode: str, response_mode: str = "retrieval_only") -> dict[str, Any]:
     if search_mode == "direct":
         results = run_search_direct(query, corpus_id=corpus_id)
@@ -829,7 +839,7 @@ def main() -> int:
             evaluation["elapsed_seconds"] = round(time.time() - start_time, 3)
             if args.response_mode == "answer_with_citations":
                 answer = dict(search_payload.get("answer") or {})
-                answer_evaluation = score_answer_response(eval_case, answer, evaluation, results)
+                answer_evaluation = score_current_answer_response(eval_case, answer, evaluation, search_payload)
                 answer_evaluation["elapsed_seconds"] = evaluation["elapsed_seconds"]
             elapsed_seconds = enforce_completed_query_timeout(
                 start_time=start_time,

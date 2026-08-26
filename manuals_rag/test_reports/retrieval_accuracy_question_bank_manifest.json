@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-26T17:58:00Z",
+  "updated_at": "2026-08-26T18:29:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -947,32 +947,36 @@
       "expected_terms_missing": 2,
       "unsupported_citation_quote": 2
     },
-    "next_target": "Continue from citation-fidelity containment by rerunning validated sibling troubleshooting rows 15-16 only after the active model endpoint is comparable or explicitly recorded, then continue rows 17-20, warning/procedure, or curated single-step answer rotations. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence; keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design. Do not count retrieval_eval_20260826_170130 row 15, the combined rows 15-16 result, retrieval_eval_20260826_155408 row 15, retrieval_eval_20260826_165522 row 15 or the combined rows 15-16 result, retrieval_eval_20260826_165928, retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result, retrieval_eval_20260826_105344 row 3, ambiguous pre-repair retrieval_eval_20260826_125356 row 7, pre-scorer-fix retrieval_eval_20260826_132353/132740 row 10, pre-repair row-12 retrieval_eval_20260826_135345/135657, rejected answer-summary experiment retrieval_eval_20260826_142651, or any no-scorable-term-relaxation result as clean answer evidence.",
-    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 15-16 are reclassified as diagnostic under source-only citation-fidelity replay of retrieval_eval_20260826_170130: row 15 cites page 985 where the returned quote/remedy is unsupported, and row 16 has a second unsupported quote_span, so the combined rows 15-16 clean claim is excluded until a clean rerun validates citations against cited chunks. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements.",
+    "next_target": "Continue from corrected citation-fidelity containment by fixing answer citation generation/use for validated sibling troubleshooting rows 15-16, or continue rows 17-20, warning/procedure, or curated single-step answer rotations with the active endpoint recorded. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence; keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design. Do not count retrieval_eval_20260826_170130 row 15, the combined rows 15-16 result, retrieval_eval_20260826_182611 rows 15-16, retrieval_eval_20260826_155408 row 15, retrieval_eval_20260826_165522 row 15 or the combined rows 15-16 result, retrieval_eval_20260826_165928, retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result, retrieval_eval_20260826_105344 row 3, ambiguous pre-repair retrieval_eval_20260826_125356 row 7, pre-scorer-fix retrieval_eval_20260826_132353/132740 row 10, pre-repair row-12 retrieval_eval_20260826_135345/135657, rejected answer-summary experiment retrieval_eval_20260826_142651, or any no-scorable-term-relaxation result as clean answer evidence.",
+    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 15-16 remain diagnostic under source-only citation-fidelity scoring: replay retrieval_eval_20260826_170130 and corrected live rerun retrieval_eval_20260826_182611 both report 0/2 answer citation-fidelity pass, because row 15 cites page 985 where the returned quote/remedy is unsupported and row 16 has an unsupported second quote_span. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements.",
     "answer_grounding_rotation": {
-      "status": "sibling_rows_15_16_reclassified_diagnostic_citation_fidelity",
-      "latest_runs": [],
+      "scope": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers_with_source_only_citation_fidelity",
+      "status": "corrected_live_rerun_failed_citation_fidelity",
+      "latest_runs": [
+        "retrieval_eval_20260826_182611"
+      ],
       "diagnostic_runs": [
         "retrieval_eval_20260826_155408",
         "retrieval_eval_20260826_165522",
         "retrieval_eval_20260826_165928",
-        "retrieval_eval_20260826_170130"
+        "retrieval_eval_20260826_170130",
+        "retrieval_eval_20260826_182611"
       ],
-      "scope": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers_replayed_with_source_only_citation_fidelity",
-      "total_queries": 2,
+      "replay_evidence": "test_reports/retrieval_eval_replay_20260826_175741_source_only_citation_fidelity.json",
       "retrieval_passed_queries": 2,
+      "total_queries": 2,
       "answer_passed_queries": 0,
       "answer_pass_rate": 0.0,
+      "answer_failure_reasons": {
+        "unsupported_citation_quote": 2
+      },
       "answer_sources": {
         "api": 2
       },
       "answer_fallback_count": 0,
       "failure_categories": {},
-      "answer_failure_reasons": {
-        "unsupported_citation_quote": 2
-      },
-      "replay_evidence": "test_reports/retrieval_eval_replay_20260826_175741_source_only_citation_fidelity.json",
-      "notes": "Replay of retrieval_eval_20260826_170130 under the source-only scorer removes generated citation quote_span text from material term derivation and validates every returned quote_span against cited retrieved chunk content. Row 15 no longer derives material term one and fails unsupported_citation_quote for chunk 3a456e41-7c29-5d9d-b420-267b5810ff7b; row 16 also fails unsupported_citation_quote for chunk e68da6c2-861b-5374-badc-fed5b71d75ff. No fresh clean eval was run because the active API endpoint is the unrelated user-owned OLLAMA_URL=http://host.docker.internal:11437 drift."
+      "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "notes": "retrieval_eval_20260826_182611 reran rows 15-16 after fixing benchmark wiring to score citations against the current query top_results instead of the accumulated output rows. Both retrieval cases passed at rank 1, but both actual API answers failed unsupported_citation_quote. Row 15 material terms are source-only [change], not generated quote text; row 16 also fails because a second returned quote is absent from its cited chunk."
     },
     "current_retrieval_failure_categories": {
       "candidate_miss": 1,
@@ -1044,17 +1048,37 @@
         "run_id": "retrieval_eval_20260826_170130",
         "scope": "sibling troubleshooting row 15 and combined rows 15-16 clean claim",
         "reason": "source-only citation-fidelity replay fails row 15 because its only citation quote_span is absent from the cited page-985 chunk and fails row 16 because a second citation quote_span is absent from its cited chunk; generated citation quotes are no longer allowed to create material expected terms"
+      },
+      {
+        "run_id": "retrieval_eval_20260826_182611",
+        "scope": "sibling troubleshooting rows 15-16",
+        "reason": "corrected live source-only citation-fidelity scoring found unsupported citation quote_spans in both actual API answers; diagnostic/failing evidence only, not clean answer evidence"
       }
     ],
     "unresolved_guardrail_findings": [],
     "answer_grounding_sibling_rows_15_16": {
-      "status": "diagnostic_after_source_only_citation_fidelity_replay",
       "target": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers",
-      "question_repair": {
-        "dataset": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
-        "case_id": "a21da6fb-62df-51da-ab0d-706189859c08::multi_step::15",
-        "reason": "The previous row-15 query used only the generic invalid-camera-setting prefix shared by nearby XG-X sibling rows. The repaired query includes source-backed distinguishing settings and trigger-signal language without weakening expected evidence.",
-        "previous_query": "What causes Image capture stopped, invalid camera setting. for XG-X Series, and how should it be corrected?"
+      "status": "corrected_live_rerun_failed_citation_fidelity",
+      "retrieval_passed_queries": 2,
+      "total_queries": 2,
+      "answer_passed_queries": 0,
+      "answer_pass_rate": 0.0,
+      "answer_failure_reasons": {
+        "unsupported_citation_quote": 2
+      },
+      "answer_sources": {
+        "api": 2
+      },
+      "answer_fallback_count": 0,
+      "failure_categories": {},
+      "latest_run": {
+        "run": "retrieval_eval_20260826_182611",
+        "dataset": "test_reports/retrieval_eval_dataset_20260826_182611.jsonl",
+        "results": "test_reports/retrieval_eval_results_20260826_182611.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260826_182611.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260826_182611.json",
+        "result": "2/2 retrieval, 0/2 actual API answers under source-only citation-fidelity scoring; both answers fail unsupported_citation_quote.",
+        "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2"
       },
       "diagnostic_runs": [
         {
@@ -1076,6 +1100,11 @@
           "run": "retrieval_eval_20260826_170130",
           "summary": "test_reports/retrieval_eval_summary_20260826_170130.json",
           "result": "Old scorer reported 2/2 answers; source-only citation-fidelity replay reports 0/2 because row 15 and row 16 include unsupported returned quote_spans. Do not count row 15 or the combined rows 15-16 result as clean evidence."
+        },
+        {
+          "run": "retrieval_eval_20260826_182611",
+          "summary": "test_reports/retrieval_eval_summary_20260826_182611.json",
+          "result": "Corrected live benchmark rerun after passing current search_results into citation scoring; 2/2 retrieval, 0/2 answers due unsupported quote spans."
         }
       ],
       "replay": {
@@ -1091,20 +1120,14 @@
         "source_only_term_evidence": "Row 15 material_expected_terms changed from [change, one] to [change]; one is no longer derived from generated quote_span text.",
         "citation_fidelity_evidence": "Row 15 quote_span is absent from cited page-985 chunk 3a456e41-7c29-5d9d-b420-267b5810ff7b; row 16 second quote_span is absent from cited chunk e68da6c2-861b-5374-badc-fed5b71d75ff."
       },
-      "total_queries": 2,
-      "retrieval_passed_queries": 2,
-      "answer_passed_queries": 0,
-      "answer_pass_rate": 0.0,
-      "answer_sources": {
-        "api": 2
+      "question_repair": {
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
+        "case_id": "a21da6fb-62df-51da-ab0d-706189859c08::multi_step::15",
+        "reason": "The previous row-15 query used only the generic invalid-camera-setting prefix shared by nearby XG-X sibling rows. The repaired query includes source-backed distinguishing settings and trigger-signal language without weakening expected evidence.",
+        "previous_query": "What causes Image capture stopped, invalid camera setting. for XG-X Series, and how should it be corrected?"
       },
-      "answer_fallback_count": 0,
-      "failure_categories": {},
-      "answer_failure_reasons": {
-        "unsupported_citation_quote": 2
-      },
-      "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
-      "notes": "Eval scoring/tests, benchmark answer scoring, and tracking changed only. No production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched."
+      "notes": "Eval benchmark wiring/tests and tracking changed only. No production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
+      "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
   "latest_results": {
@@ -6557,16 +6580,18 @@
       "eval_timeout": 2,
       "ranking_or_context_loss": 1
     },
-    "next_target": "Continue actual HTTP API answer-grounding rotation for repaired contextual procedure rows 19-20, while preserving contextual row 14 candidate-miss evidence and unresolved direct cross-document baseline retrieval_eval_20260826_005723 for cases 6, 7, and 9. Keep production retrieval unchanged unless John explicitly approves a small indexed row-key/product-signal design; do not promote generated questions without manual/validator review.",
+    "next_target": "Continue from corrected citation-fidelity containment by fixing answer citation generation/use for validated sibling troubleshooting rows 15-16, or continue rows 17-20, warning/procedure, or curated single-step answer rotations with the active endpoint recorded. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence; keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design. Do not count retrieval_eval_20260826_170130 row 15, the combined rows 15-16 result, retrieval_eval_20260826_182611 rows 15-16, retrieval_eval_20260826_155408 row 15, retrieval_eval_20260826_165522 row 15 or the combined rows 15-16 result, retrieval_eval_20260826_165928, retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result, retrieval_eval_20260826_105344 row 3, ambiguous pre-repair retrieval_eval_20260826_125356 row 7, pre-scorer-fix retrieval_eval_20260826_132353/132740 row 10, pre-repair row-12 retrieval_eval_20260826_135345/135657, rejected answer-summary experiment retrieval_eval_20260826_142651, or any no-scorable-term-relaxation result as clean answer evidence.",
     "current_failure_categories": {
-      "eval_timeout": 2,
-      "ranking_or_context_loss": 1
+      "candidate_miss": 1,
+      "ranking_or_context_loss": 2
     },
-    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-16 at 13/16 user-visible API answers after rotating rows 15-16 in retrieval_eval_20260826_155408. Sibling row evidence uses retrieval_eval_20260826_102401 for rows 1-2, retrieval_eval_20260826_113115 for corrected rows 3-4, retrieval_eval_20260826_122401 for rows 5-6, retrieval_eval_20260826_125752 for manually disambiguated rows 7-8, retrieval_eval_20260826_132855 for rows 9-10, retrieval_eval_20260826_135854 for rows 11-12 with row 12 failing, retrieval_eval_20260826_145540 for rows 13-14 with row 13 failing, and retrieval_eval_20260826_155408 for rows 15-16 with row 15 failing. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements.",
-    "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10 with eval_timeout: 2 and ranking_or_context_loss: 1 after the b51a22c containment revert. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
+    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 15-16 remain diagnostic under source-only citation-fidelity scoring: replay retrieval_eval_20260826_170130 and corrected live rerun retrieval_eval_20260826_182611 both report 0/2 answer citation-fidelity pass, because row 15 cites page 985 where the returned quote/remedy is unsupported and row 16 has an unsupported second quote_span. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements.",
+    "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10. Follow-up probes preserve unresolved cross-document cases 6, 7, and 9 as candidate_miss: 1 and ranking_or_context_loss: 2, while contextual row 14 remains separate retrieval-gap evidence. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 4,
-      "retrieval_not_passed": 4
+      "retrieval_not_passed": 4,
+      "expected_terms_missing": 2,
+      "unsupported_citation_quote": 2
     },
     "diagnostics": [
       {
@@ -6771,23 +6796,33 @@
       "notes": "Eval/debug-only row-key feasibility probe. Cases 6 and 7 exact expected rows have query-mentioned setting-item/table-row keys with small corpus-wide normalized pools: Condition list 24, Standard Angle 31, PMSR DC2LAR 23, and RTO2L 51, while each row also matches the requested product identifier. This supports a future bounded/indexed row-key discovery design rather than another broad SQL pool expansion. Case 9 row keys are not directly mentioned in the query and should remain separate as a final-context/top-k or timeout target. No production retrieval behavior changed and no pass rate is marked resolved."
     },
     "answer_grounding_rotation": {
-      "status": "stricter_scorer_and_contextual_rows_17_18_rotation",
+      "scope": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers_with_source_only_citation_fidelity",
+      "status": "corrected_live_rerun_failed_citation_fidelity",
       "latest_runs": [
-        "retrieval_eval_20260826_085653",
-        "retrieval_eval_20260826_085824"
+        "retrieval_eval_20260826_182611"
       ],
-      "scope": "repaired_contextual_procedure_cases_15_18_actual_http_api_answers",
-      "total_queries": 4,
-      "retrieval_passed_queries": 4,
-      "answer_passed_queries": 4,
-      "answer_pass_rate": 1.0,
+      "diagnostic_runs": [
+        "retrieval_eval_20260826_155408",
+        "retrieval_eval_20260826_165522",
+        "retrieval_eval_20260826_165928",
+        "retrieval_eval_20260826_170130",
+        "retrieval_eval_20260826_182611"
+      ],
+      "replay_evidence": "test_reports/retrieval_eval_replay_20260826_175741_source_only_citation_fidelity.json",
+      "retrieval_passed_queries": 2,
+      "total_queries": 2,
+      "answer_passed_queries": 0,
+      "answer_pass_rate": 0.0,
+      "answer_failure_reasons": {
+        "unsupported_citation_quote": 2
+      },
       "answer_sources": {
-        "api": 4
+        "api": 2
       },
       "answer_fallback_count": 0,
       "failure_categories": {},
-      "answer_failure_reasons": {},
-      "notes": "Rows 15-16 were rerun after tightening answer scoring to require material quantity terms from expected evidence; rows 17-18 add new actual API answer-grounding coverage. This is eval/answer-grounding evidence only; production retrieval and answering behavior were unchanged."
+      "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "notes": "retrieval_eval_20260826_182611 reran rows 15-16 after fixing benchmark wiring to score citations against the current query top_results instead of the accumulated output rows. Both retrieval cases passed at rank 1, but both actual API answers failed unsupported_citation_quote. Row 15 material terms are source-only [change], not generated quote text; row 16 also fails because a second returned quote is absent from its cited chunk."
     },
     "answer_grounding_contextual_rows_15_16": {
       "summary": "test_reports/retrieval_eval_summary_20260826_085653.json",
@@ -6807,9 +6842,92 @@
       "status": "actual_http_api_answer_rotation_passed",
       "scope": "repaired_contextual_procedure_cases_17_18",
       "result": "2/2 retrieval and 2/2 actual API answers passed at rank 1; answer_sources api:2; fallback 0; mean answer latency 41.752s."
+    },
+    "current_answer_failure_categories": {
+      "expected_document_not_cited_or_used": 4,
+      "retrieval_not_passed": 4,
+      "expected_terms_missing": 2,
+      "unsupported_citation_quote": 2
+    },
+    "current_retrieval_failure_categories": {
+      "candidate_miss": 1,
+      "ranking_or_context_loss": 2
+    },
+    "answer_grounding_sibling_rows_15_16": {
+      "target": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers",
+      "status": "corrected_live_rerun_failed_citation_fidelity",
+      "retrieval_passed_queries": 2,
+      "total_queries": 2,
+      "answer_passed_queries": 0,
+      "answer_pass_rate": 0.0,
+      "answer_failure_reasons": {
+        "unsupported_citation_quote": 2
+      },
+      "answer_sources": {
+        "api": 2
+      },
+      "answer_fallback_count": 0,
+      "failure_categories": {},
+      "latest_run": {
+        "run": "retrieval_eval_20260826_182611",
+        "dataset": "test_reports/retrieval_eval_dataset_20260826_182611.jsonl",
+        "results": "test_reports/retrieval_eval_results_20260826_182611.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260826_182611.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260826_182611.json",
+        "result": "2/2 retrieval, 0/2 actual API answers under source-only citation-fidelity scoring; both answers fail unsupported_citation_quote.",
+        "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2"
+      },
+      "diagnostic_runs": [
+        {
+          "run": "retrieval_eval_20260826_155408",
+          "summary": "test_reports/retrieval_eval_summary_20260826_155408.json",
+          "result": "2/2 retrieval, 1/2 answers; row 15 is dataset-quality ambiguity evidence and not a production answer evidence-use failure."
+        },
+        {
+          "run": "retrieval_eval_20260826_165522",
+          "summary": "test_reports/retrieval_eval_summary_20260826_165522.json",
+          "result": "2/2 retrieval, 2/2 automated answers before final scorer; row 15 false-green because the API answer used an alternate disable-capture-on-trigger remedy."
+        },
+        {
+          "run": "retrieval_eval_20260826_165928",
+          "summary": "test_reports/retrieval_eval_summary_20260826_165928.json",
+          "result": "2/2 retrieval, 1/2 answers after action-verb scorer; row 15 answer was substantively correct but failed because table Row/Column metadata leaked into required material terms."
+        },
+        {
+          "run": "retrieval_eval_20260826_170130",
+          "summary": "test_reports/retrieval_eval_summary_20260826_170130.json",
+          "result": "Old scorer reported 2/2 answers; source-only citation-fidelity replay reports 0/2 because row 15 and row 16 include unsupported returned quote_spans. Do not count row 15 or the combined rows 15-16 result as clean evidence."
+        },
+        {
+          "run": "retrieval_eval_20260826_182611",
+          "summary": "test_reports/retrieval_eval_summary_20260826_182611.json",
+          "result": "Corrected live benchmark rerun after passing current search_results into citation scoring; 2/2 retrieval, 0/2 answers due unsupported quote spans."
+        }
+      ],
+      "replay": {
+        "path": "test_reports/retrieval_eval_replay_20260826_175741_source_only_citation_fidelity.json",
+        "source_results": "test_reports/retrieval_eval_results_20260826_170130.jsonl",
+        "total_queries": 2,
+        "retrieval_passed_queries": 2,
+        "old_answer_passed_queries": 2,
+        "replayed_answer_passed_queries": 0,
+        "answer_failure_reasons": {
+          "unsupported_citation_quote": 2
+        },
+        "source_only_term_evidence": "Row 15 material_expected_terms changed from [change, one] to [change]; one is no longer derived from generated quote_span text.",
+        "citation_fidelity_evidence": "Row 15 quote_span is absent from cited page-985 chunk 3a456e41-7c29-5d9d-b420-267b5810ff7b; row 16 second quote_span is absent from cited chunk e68da6c2-861b-5374-badc-fed5b71d75ff."
+      },
+      "question_repair": {
+        "dataset": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
+        "case_id": "a21da6fb-62df-51da-ab0d-706189859c08::multi_step::15",
+        "reason": "The previous row-15 query used only the generic invalid-camera-setting prefix shared by nearby XG-X sibling rows. The repaired query includes source-backed distinguishing settings and trigger-signal language without weakening expected evidence.",
+        "previous_query": "What causes Image capture stopped, invalid camera setting. for XG-X Series, and how should it be corrected?"
+      },
+      "notes": "Eval benchmark wiring/tests and tracking changed only. No production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
+      "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Continue from citation-fidelity containment by rerunning validated sibling troubleshooting rows 15-16 only after the active model endpoint is comparable or explicitly recorded, then continue rows 17-20, warning/procedure, or curated single-step answer rotations. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence; keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design. Do not count retrieval_eval_20260826_170130 row 15, the combined rows 15-16 result, retrieval_eval_20260826_155408 row 15, retrieval_eval_20260826_165522 row 15 or the combined rows 15-16 result, retrieval_eval_20260826_165928, retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result, retrieval_eval_20260826_105344 row 3, ambiguous pre-repair retrieval_eval_20260826_125356 row 7, pre-scorer-fix retrieval_eval_20260826_132353/132740 row 10, pre-repair row-12 retrieval_eval_20260826_135345/135657, rejected answer-summary experiment retrieval_eval_20260826_142651, or any no-scorable-term-relaxation result as clean answer evidence.",
+  "next_target": "Continue from corrected citation-fidelity containment by fixing answer citation generation/use for validated sibling troubleshooting rows 15-16, or continue rows 17-20, warning/procedure, or curated single-step answer rotations with the active endpoint recorded. Preserve unresolved direct retrieval baseline retrieval_eval_20260826_005723 for cross-document cases 6, 7, and 9; keep contextual row 14 as separate candidate-miss evidence; keep production retrieval unchanged unless John explicitly approves a small indexed/bounded row-key/product-signal design. Do not count retrieval_eval_20260826_170130 row 15, the combined rows 15-16 result, retrieval_eval_20260826_182611 rows 15-16, retrieval_eval_20260826_155408 row 15, retrieval_eval_20260826_165522 row 15 or the combined rows 15-16 result, retrieval_eval_20260826_165928, retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result, retrieval_eval_20260826_105344 row 3, ambiguous pre-repair retrieval_eval_20260826_125356 row 7, pre-scorer-fix retrieval_eval_20260826_132353/132740 row 10, pre-repair row-12 retrieval_eval_20260826_135345/135657, rejected answer-summary experiment retrieval_eval_20260826_142651, or any no-scorable-term-relaxation result as clean answer evidence.",
   "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10. Follow-up probes preserve unresolved cross-document cases 6, 7, and 9 as candidate_miss: 1 and ranking_or_context_loss: 2, while contextual row 14 remains separate retrieval-gap evidence. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
   "current_failure_categories": {
     "candidate_miss": 1,
@@ -7084,6 +7202,13 @@
       "guardrail_finding": "2026-08-26T17:44:00Z",
       "evidence": "Focused tests passed (83). Replay of retrieval_eval_20260826_170130 with retrieved results reports row 15 and row 16 failed unsupported_citation_quote; material terms are derived only from expected evidence snippets, not answer/citation quote spans.",
       "endpoint_note": "Active API environment reports OLLAMA_URL=http://host.docker.internal:11437 with the configured local model names; no fresh clean eval was counted under that endpoint drift."
+    },
+    "benchmark_citation_wiring_followup": {
+      "timestamp": "2026-08-26T18:29:00Z",
+      "guardrail_finding": "2026-08-26T18:14:00Z",
+      "status": "addressed_with_current_search_results_wiring_and_live_rerun",
+      "evidence": "scripts/benchmark/run_large_retrieval_eval.py now passes current search_payload top_results into score_answer_response; tests/unit/test_retrieval_eval.py focused test passed; retrieval_eval_20260826_182611 reran rows 15-16 and scored both actual API answers as unsupported_citation_quote.",
+      "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2"
     }
   },
   "answer_current_failure_categories": {
@@ -7092,31 +7217,35 @@
     "expected_terms_missing": 2,
     "unsupported_citation_quote": 2
   },
-  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 15-16 are reclassified as diagnostic under source-only citation-fidelity replay of retrieval_eval_20260826_170130: row 15 cites page 985 where the returned quote/remedy is unsupported, and row 16 has a second unsupported quote_span, so the combined rows 15-16 clean claim is excluded until a clean rerun validates citations against cited chunks. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements.",
+  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; and sibling troubleshooting multi-step rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 15-16 remain diagnostic under source-only citation-fidelity scoring: replay retrieval_eval_20260826_170130 and corrected live rerun retrieval_eval_20260826_182611 both report 0/2 answer citation-fidelity pass, because row 15 cites page 985 where the returned quote/remedy is unsupported and row 16 has an unsupported second quote_span. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements.",
   "answer_grounding_rotation": {
-    "status": "sibling_rows_15_16_reclassified_diagnostic_citation_fidelity",
-    "latest_runs": [],
+    "scope": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers_with_source_only_citation_fidelity",
+    "status": "corrected_live_rerun_failed_citation_fidelity",
+    "latest_runs": [
+      "retrieval_eval_20260826_182611"
+    ],
     "diagnostic_runs": [
       "retrieval_eval_20260826_155408",
       "retrieval_eval_20260826_165522",
       "retrieval_eval_20260826_165928",
-      "retrieval_eval_20260826_170130"
+      "retrieval_eval_20260826_170130",
+      "retrieval_eval_20260826_182611"
     ],
-    "scope": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers_replayed_with_source_only_citation_fidelity",
-    "total_queries": 2,
+    "replay_evidence": "test_reports/retrieval_eval_replay_20260826_175741_source_only_citation_fidelity.json",
     "retrieval_passed_queries": 2,
+    "total_queries": 2,
     "answer_passed_queries": 0,
     "answer_pass_rate": 0.0,
+    "answer_failure_reasons": {
+      "unsupported_citation_quote": 2
+    },
     "answer_sources": {
       "api": 2
     },
     "answer_fallback_count": 0,
     "failure_categories": {},
-    "answer_failure_reasons": {
-      "unsupported_citation_quote": 2
-    },
-    "replay_evidence": "test_reports/retrieval_eval_replay_20260826_175741_source_only_citation_fidelity.json",
-    "notes": "Replay of retrieval_eval_20260826_170130 under the source-only scorer removes generated citation quote_span text from material term derivation and validates every returned quote_span against cited retrieved chunk content. Row 15 no longer derives material term one and fails unsupported_citation_quote for chunk 3a456e41-7c29-5d9d-b420-267b5810ff7b; row 16 also fails unsupported_citation_quote for chunk e68da6c2-861b-5374-badc-fed5b71d75ff. No fresh clean eval was run because the active API endpoint is the unrelated user-owned OLLAMA_URL=http://host.docker.internal:11437 drift."
+    "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2",
+    "notes": "retrieval_eval_20260826_182611 reran rows 15-16 after fixing benchmark wiring to score citations against the current query top_results instead of the accumulated output rows. Both retrieval cases passed at rank 1, but both actual API answers failed unsupported_citation_quote. Row 15 material terms are source-only [change], not generated quote text; row 16 also fails because a second returned quote is absent from its cited chunk."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -7552,17 +7681,37 @@
       "run_id": "retrieval_eval_20260826_170130",
       "scope": "sibling troubleshooting row 15 and combined rows 15-16 clean claim",
       "reason": "source-only citation-fidelity replay fails row 15 because its only citation quote_span is absent from the cited page-985 chunk and fails row 16 because a second citation quote_span is absent from its cited chunk; generated citation quotes are no longer allowed to create material expected terms"
+    },
+    {
+      "run_id": "retrieval_eval_20260826_182611",
+      "scope": "sibling troubleshooting rows 15-16",
+      "reason": "corrected live source-only citation-fidelity scoring found unsupported citation quote_spans in both actual API answers; diagnostic/failing evidence only, not clean answer evidence"
     }
   ],
   "unresolved_guardrail_findings": [],
   "answer_grounding_sibling_rows_15_16": {
-    "status": "diagnostic_after_source_only_citation_fidelity_replay",
     "target": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers",
-    "question_repair": {
-      "dataset": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
-      "case_id": "a21da6fb-62df-51da-ab0d-706189859c08::multi_step::15",
-      "reason": "The previous row-15 query used only the generic invalid-camera-setting prefix shared by nearby XG-X sibling rows. The repaired query includes source-backed distinguishing settings and trigger-signal language without weakening expected evidence.",
-      "previous_query": "What causes Image capture stopped, invalid camera setting. for XG-X Series, and how should it be corrected?"
+    "status": "corrected_live_rerun_failed_citation_fidelity",
+    "retrieval_passed_queries": 2,
+    "total_queries": 2,
+    "answer_passed_queries": 0,
+    "answer_pass_rate": 0.0,
+    "answer_failure_reasons": {
+      "unsupported_citation_quote": 2
+    },
+    "answer_sources": {
+      "api": 2
+    },
+    "answer_fallback_count": 0,
+    "failure_categories": {},
+    "latest_run": {
+      "run": "retrieval_eval_20260826_182611",
+      "dataset": "test_reports/retrieval_eval_dataset_20260826_182611.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260826_182611.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260826_182611.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260826_182611.json",
+      "result": "2/2 retrieval, 0/2 actual API answers under source-only citation-fidelity scoring; both answers fail unsupported_citation_quote.",
+      "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2"
     },
     "diagnostic_runs": [
       {
@@ -7584,6 +7733,11 @@
         "run": "retrieval_eval_20260826_170130",
         "summary": "test_reports/retrieval_eval_summary_20260826_170130.json",
         "result": "Old scorer reported 2/2 answers; source-only citation-fidelity replay reports 0/2 because row 15 and row 16 include unsupported returned quote_spans. Do not count row 15 or the combined rows 15-16 result as clean evidence."
+      },
+      {
+        "run": "retrieval_eval_20260826_182611",
+        "summary": "test_reports/retrieval_eval_summary_20260826_182611.json",
+        "result": "Corrected live benchmark rerun after passing current search_results into citation scoring; 2/2 retrieval, 0/2 answers due unsupported quote spans."
       }
     ],
     "replay": {
@@ -7599,19 +7753,13 @@
       "source_only_term_evidence": "Row 15 material_expected_terms changed from [change, one] to [change]; one is no longer derived from generated quote_span text.",
       "citation_fidelity_evidence": "Row 15 quote_span is absent from cited page-985 chunk 3a456e41-7c29-5d9d-b420-267b5810ff7b; row 16 second quote_span is absent from cited chunk e68da6c2-861b-5374-badc-fed5b71d75ff."
     },
-    "total_queries": 2,
-    "retrieval_passed_queries": 2,
-    "answer_passed_queries": 0,
-    "answer_pass_rate": 0.0,
-    "answer_sources": {
-      "api": 2
+    "question_repair": {
+      "dataset": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
+      "case_id": "a21da6fb-62df-51da-ab0d-706189859c08::multi_step::15",
+      "reason": "The previous row-15 query used only the generic invalid-camera-setting prefix shared by nearby XG-X sibling rows. The repaired query includes source-backed distinguishing settings and trigger-signal language without weakening expected evidence.",
+      "previous_query": "What causes Image capture stopped, invalid camera setting. for XG-X Series, and how should it be corrected?"
     },
-    "answer_fallback_count": 0,
-    "failure_categories": {},
-    "answer_failure_reasons": {
-      "unsupported_citation_quote": 2
-    },
-    "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
-    "notes": "Eval scoring/tests, benchmark answer scoring, and tracking changed only. No production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched."
+    "notes": "Eval benchmark wiring/tests and tracking changed only. No production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
+    "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
   }
 }

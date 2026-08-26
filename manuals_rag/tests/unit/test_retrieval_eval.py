@@ -1112,6 +1112,78 @@ def test_large_retrieval_eval_uses_embedded_http_answer_when_present(monkeypatch
     }
 
 
+def test_large_retrieval_eval_scores_answer_against_current_search_results(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    case = RetrievalEvalCase(
+        case_id="case-1",
+        query="What should I change?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1,
+        page_to=1,
+        expected_terms=["change", "trigger"],
+        expected_snippet="Cell value: Change the trigger signal.",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_family": "MODEL-1"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "chunk-1",
+                "source_document_id": "doc-1",
+                "field": "corrective action",
+                "expected_terms": ["change", "trigger"],
+                "snippet": "Cell value: Change the trigger signal.",
+            }
+        ],
+    )
+    search_payload = {
+        "top_results": [
+            {
+                "chunk_id": "chunk-1",
+                "source_document_id": "doc-1",
+                "content": "Cell value: Change the trigger signal.",
+            }
+        ]
+    }
+    answer = {
+        "answer": "Change the trigger signal.",
+        "citations": [
+            {
+                "document_id": "doc-1",
+                "chunk_id": "chunk-1",
+                "quote_span": "Change the trigger signal.",
+            }
+        ],
+        "used_documents": [],
+        "insufficient_evidence": False,
+    }
+    calls = []
+
+    def _score_answer_response(eval_case, answer_payload, evaluation, retrieved_results):
+        calls.append(retrieved_results)
+        return {"passed": True}
+
+    monkeypatch.setattr(module, "score_answer_response", _score_answer_response)
+
+    scored = module.score_current_answer_response(case, answer, {"passed": True}, search_payload)
+
+    assert scored == {"passed": True}
+    assert calls == [search_payload["top_results"]]
+
+
 def test_build_eval_cases_from_chunks_creates_queries():
     chunks = [
         {
