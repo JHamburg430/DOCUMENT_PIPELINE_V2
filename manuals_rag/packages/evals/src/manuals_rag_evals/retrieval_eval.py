@@ -130,6 +130,52 @@ ANSWER_SCORING_GENERIC_TERMS = QUERY_DEDUPE_FILLER.union(
     },
 )
 
+ANSWER_SCORING_NUMBER_WORDS = {
+    "zero": "0",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+    "eleven": "11",
+    "twelve": "12",
+    "thirteen": "13",
+    "fourteen": "14",
+    "fifteen": "15",
+    "sixteen": "16",
+    "seventeen": "17",
+    "eighteen": "18",
+    "nineteen": "19",
+    "twenty": "20",
+}
+
+ANSWER_SCORING_QUANTITY_QUERY_TERMS = {
+    "count",
+    "counts",
+    "how many",
+    "line count",
+    "number",
+    "numbers",
+    "quantity",
+    "quantities",
+    "value",
+    "values",
+}
+
+ANSWER_SCORING_SENTENCE_SKIP_TERMS = {
+    "minimum",
+    "maximum",
+    "min",
+    "max",
+    "range",
+    "ranges",
+}
+
 TECHNICAL_VERBS = {
     "connect",
     "disconnect",
@@ -2542,7 +2588,12 @@ def _expected_answer_document_ids(case: RetrievalEvalCase) -> set[str]:
     return document_ids
 
 
-def _answer_contains_expected_terms(answer: dict[str, Any], expected_terms: list[str]) -> dict[str, Any]:
+def _answer_contains_expected_terms(
+    answer: dict[str, Any],
+    expected_terms: list[str],
+    *,
+    required_terms: list[str] | None = None,
+) -> dict[str, Any]:
     answer_text = str(answer.get("answer") or "")
     answer_text_lower = answer_text.lower()
     answer_tokens = set(tokenize(answer_text))
@@ -2552,12 +2603,23 @@ def _answer_contains_expected_terms(answer: dict[str, Any], expected_terms: list
         for term in expected
         if _expected_term_matches_text(term, answer_text_lower, answer_tokens)
     ]
+    material_expected = [term for term in required_terms or [] if term]
+    material_matched = [
+        term
+        for term in material_expected
+        if _expected_term_matches_text(term, answer_text_lower, answer_tokens)
+    ]
     required = min(2, len(expected))
+    material_required = len(material_expected)
+    material_passed = len(material_matched) >= material_required if material_required else True
     return {
-        "passed": len(matched) >= required if required else False,
+        "passed": (len(matched) >= required if required else False) and material_passed,
         "matched_terms": matched,
         "expected_terms": expected,
         "required_terms": required,
+        "material_expected_terms": material_expected,
+        "material_matched_terms": material_matched,
+        "material_required_terms": material_required,
     }
 
 
@@ -2597,12 +2659,93 @@ def _answer_scoring_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
     return case.expected_terms, "case_expected_terms"
 
 
+def _is_quantity_answer_query(query: str) -> bool:
+    normalized = normalize_text(query)
+    return any(term in normalized for term in ANSWER_SCORING_QUANTITY_QUERY_TERMS)
+
+
+def _answer_material_term_key(term: str) -> str:
+    return ANSWER_SCORING_NUMBER_WORDS.get(term.lower(), term.lower())
+
+
+def _answer_overlap_tokens(text: str) -> set[str]:
+    tokens = {
+        token
+        for token in tokenize(text)
+        if token not in STOPWORDS and token not in GENERIC_ANCHORS and token not in ANSWER_SCORING_GENERIC_TERMS
+    }
+    expanded = set(tokens)
+    for token in tokens:
+        if token.endswith("s") and len(token) > 3:
+            expanded.add(token[:-1])
+        elif len(token) > 2:
+            expanded.add(f"{token}s")
+    return expanded
+
+
+def _add_answer_material_term(terms: list[str], seen: set[str], term: str) -> None:
+    normalized = term.strip()
+    if not normalized:
+        return
+    key = _answer_material_term_key(normalized)
+    if key in seen:
+        return
+    seen.add(key)
+    terms.append(normalized)
+
+
+def _material_answer_terms_from_sentence(sentence: str) -> list[str]:
+    material: list[str] = []
+    seen: set[str] = set()
+    for token in re.findall(r"\b[A-Za-z]*\d+(?:\.\d+)?[A-Za-z/%.-]*\b|\b[A-Z]{2,}\d+[A-Z0-9-]*\b", sentence):
+        _add_answer_material_term(material, seen, token)
+    for token in tokenize(sentence):
+        if token in ANSWER_SCORING_NUMBER_WORDS:
+            _add_answer_material_term(material, seen, token)
+    return material
+
+
+def _answer_required_material_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
+    if not case.expected_evidence:
+        return [], "none"
+    query_tokens = _answer_overlap_tokens(case.query)
+    if not _is_quantity_answer_query(case.query):
+        return [], "none"
+    required_terms: list[str] = []
+    seen: set[str] = set()
+    for item in case.expected_evidence:
+        snippet = str(item.get("snippet") or "")
+        for sentence in re.split(r"[.!?;|]\s*", snippet):
+            sentence_tokens = _answer_overlap_tokens(sentence)
+            if not sentence_tokens:
+                continue
+            if sentence_tokens.intersection(ANSWER_SCORING_SENTENCE_SKIP_TERMS) and not (
+                sentence_tokens.intersection(ANSWER_SCORING_SENTENCE_SKIP_TERMS).intersection(query_tokens)
+            ):
+                continue
+            if len(sentence_tokens.intersection(query_tokens)) < 2:
+                continue
+            for term in _material_answer_terms_from_sentence(sentence):
+                _add_answer_material_term(required_terms, seen, term)
+            if len(required_terms) >= 4:
+                break
+        if len(required_terms) >= 4:
+            break
+    return required_terms, "quantity_evidence_terms" if required_terms else "none"
+
+
 def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str]) -> bool:
     term_lower = term.lower().strip()
     if not term_lower:
         return False
     if term_lower in text_lower or term_lower in text_tokens:
         return True
+    number = ANSWER_SCORING_NUMBER_WORDS.get(term_lower)
+    if number and (number in text_tokens or re.search(rf"(?<![\w.-]){re.escape(number)}(?![\w.-])", text_lower)):
+        return True
+    for word, value in ANSWER_SCORING_NUMBER_WORDS.items():
+        if term_lower == value and word in text_tokens:
+            return True
     if term_lower.endswith("s") and len(term_lower) > 3 and term_lower[:-1] in text_tokens:
         return True
     if f"{term_lower}s" in text_tokens:
@@ -2624,8 +2767,10 @@ def score_answer_response(
     expected_document_ids = _expected_answer_document_ids(case)
     missing_document_ids = sorted(expected_document_ids.difference(answer_document_ids))
     expected_terms, term_source = _answer_scoring_terms(case)
-    terms = _answer_contains_expected_terms(answer, expected_terms)
+    material_terms, material_source = _answer_required_material_terms(case)
+    terms = _answer_contains_expected_terms(answer, expected_terms, required_terms=material_terms)
     terms["term_source"] = term_source
+    terms["material_term_source"] = material_source
     answer_text = str(answer.get("answer") or "").strip()
     passed = bool(
         answer_text

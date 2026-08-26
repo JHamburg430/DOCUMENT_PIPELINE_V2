@@ -428,8 +428,18 @@ def test_answer_response_scoring_prefers_multi_step_evidence_terms():
         source_metadata={},
         retrieval_task="multi_step_retrieval",
         expected_evidence=[
-            {"chunk_id": "chunk-1", "source_document_id": "doc-1", "expected_terms": ["procedure", "typical"]},
-            {"chunk_id": "chunk-2", "source_document_id": "doc-1", "expected_terms": ["lines", "overlap"]},
+            {
+                "chunk_id": "chunk-1",
+                "source_document_id": "doc-1",
+                "expected_terms": ["procedure", "typical"],
+                "snippet": "Procedure step 2: Typical operations at trigger input.",
+            },
+            {
+                "chunk_id": "chunk-2",
+                "source_document_id": "doc-1",
+                "expected_terms": ["lines", "overlap"],
+                "snippet": "For the purposes of this description, the number of lines is 10 and number of overlap lines is two.",
+            },
         ],
     )
 
@@ -447,6 +457,53 @@ def test_answer_response_scoring_prefers_multi_step_evidence_terms():
     assert scored["passed"] is True
     assert scored["term_check"]["term_source"] == "expected_evidence_specific_terms"
     assert {"lines", "overlap"}.issubset(set(scored["term_check"]["matched_terms"]))
+    assert {"10", "two"}.issubset(set(scored["term_check"]["material_expected_terms"]))
+    assert {"10", "two"}.issubset(set(scored["term_check"]["material_matched_terms"]))
+
+
+def test_answer_response_scoring_rejects_quantity_answers_without_values():
+    case = RetrievalEvalCase(
+        case_id="case-1",
+        query="For the LJ-V head, what line count and overlap count are used?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="procedure_record",
+        section_path="Timing",
+        page_from=1,
+        page_to=1,
+        expected_terms=["procedure", "typical", "operations", "description"],
+        expected_snippet="The number of lines is 10 and number of overlap lines is two.",
+        generation_method="contextual_procedure_plus_section_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "chunk-2",
+                "source_document_id": "doc-1",
+                "expected_terms": ["lines", "overlap"],
+                "snippet": "For the purposes of this description, the number of lines is 10 and number of overlap lines is two.",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The timing example describes lines and overlap lines.",
+            "citations": [{"document_id": "doc-1", "chunk_id": "chunk-2", "pages": [1]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert scored["passed"] is False
+    assert {"10", "two"}.issubset(set(scored["term_check"]["material_expected_terms"]))
+    assert scored["term_check"]["material_matched_terms"] == []
+    assert "expected_terms_missing" in scored["failure_reasons"]
 
 
 def test_large_retrieval_eval_summarizes_answer_metrics():
