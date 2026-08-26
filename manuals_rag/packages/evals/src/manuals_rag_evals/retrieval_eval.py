@@ -176,6 +176,32 @@ ANSWER_SCORING_SENTENCE_SKIP_TERMS = {
     "ranges",
 }
 
+ANSWER_SCORING_ACTION_VERBS = {
+    "adjust",
+    "change",
+    "check",
+    "close",
+    "connect",
+    "delete",
+    "disable",
+    "enable",
+    "execute",
+    "extend",
+    "format",
+    "initialize",
+    "increase",
+    "reduce",
+    "register",
+    "remove",
+    "replace",
+    "restart",
+    "review",
+    "select",
+    "set",
+    "verify",
+    "wait",
+}
+
 TECHNICAL_VERBS = {
     "connect",
     "disconnect",
@@ -2705,14 +2731,89 @@ def _material_answer_terms_from_sentence(sentence: str) -> list[str]:
     return material
 
 
-def _answer_required_material_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
-    if not case.expected_evidence:
-        return [], "none"
-    query_tokens = _answer_overlap_tokens(case.query)
-    if not _is_quantity_answer_query(case.query):
+def _answer_action_source_text(answer: dict[str, Any], item: dict[str, Any]) -> str:
+    snippets = [str(item.get("snippet") or "")]
+    expected_chunk_id = str(item.get("chunk_id") or "")
+    expected_terms = {
+        normalize_text(str(term))
+        for term in item.get("expected_terms") or []
+        if str(term).strip()
+    }
+    for citation in answer.get("citations") or []:
+        if not isinstance(citation, dict):
+            continue
+        quote = str(citation.get("quote_span") or "")
+        if not quote:
+            continue
+        citation_chunk_id = str(citation.get("chunk_id") or "")
+        quote_tokens = _answer_overlap_tokens(quote)
+        expected_overlap = {
+            term
+            for term in expected_terms
+            if term and _expected_term_matches_text(term, normalize_text(quote), quote_tokens)
+        }
+        if (
+            citation_chunk_id == expected_chunk_id
+            or "corrective action" in normalize_text(quote)
+            or len(expected_overlap) >= 2
+        ):
+            snippets.append(quote)
+    return " ".join(snippets)
+
+
+def _answer_required_action_terms(case: RetrievalEvalCase, answer: dict[str, Any]) -> tuple[list[str], str]:
+    if case.generation_method != "table_sibling_error_cause_action" or not case.expected_evidence:
         return [], "none"
     required_terms: list[str] = []
     seen: set[str] = set()
+    query_terms = _answer_overlap_tokens(case.query)
+    action_fields = {"action", "corrective action", "countermeasure", "remedy"}
+    for item in case.expected_evidence:
+        field = normalize_text(str(item.get("field") or ""))
+        if field not in action_fields:
+            continue
+        candidates: list[str] = []
+        source_text = _answer_action_source_text(answer, item)
+        source_tokens = _answer_overlap_tokens(source_text)
+        source_action_verbs = [
+            token
+            for token in tokenize(source_text)
+            if token in ANSWER_SCORING_ACTION_VERBS and token not in query_terms
+        ]
+        for term in source_action_verbs:
+            candidates.append(term)
+        for term in item.get("expected_terms") or []:
+            normalized = str(term).strip()
+            if not normalized:
+                continue
+            key = normalize_text(normalized)
+            if key in ANSWER_SCORING_GENERIC_TERMS or key in query_terms:
+                continue
+            if key in ANSWER_SCORING_SENTENCE_SKIP_TERMS and key not in query_terms:
+                continue
+            if key not in source_tokens and source_action_verbs:
+                continue
+            candidates.append(normalized)
+        for token in _material_answer_terms_from_sentence(source_text):
+            candidates.append(token)
+        for term in candidates:
+            _add_answer_material_term(required_terms, seen, term)
+            if len(required_terms) >= 2:
+                return required_terms, "troubleshooting_action_terms"
+    return required_terms, "troubleshooting_action_terms" if required_terms else "none"
+
+
+def _answer_required_material_terms(case: RetrievalEvalCase, answer: dict[str, Any]) -> tuple[list[str], str]:
+    if not case.expected_evidence:
+        return [], "none"
+    action_terms, action_source = _answer_required_action_terms(case, answer)
+    query_tokens = _answer_overlap_tokens(case.query)
+    if not _is_quantity_answer_query(case.query):
+        return action_terms, action_source
+    required_terms: list[str] = []
+    seen: set[str] = set()
+    for term in action_terms:
+        _add_answer_material_term(required_terms, seen, term)
     for item in case.expected_evidence:
         snippet = str(item.get("snippet") or "")
         for sentence in re.split(r"[.!?;|]\s*", snippet):
@@ -2731,6 +2832,8 @@ def _answer_required_material_terms(case: RetrievalEvalCase) -> tuple[list[str],
                 break
         if len(required_terms) >= 4:
             break
+    if required_terms and action_terms:
+        return required_terms, "troubleshooting_action_and_quantity_terms"
     return required_terms, "quantity_evidence_terms" if required_terms else "none"
 
 
@@ -2767,7 +2870,7 @@ def score_answer_response(
     expected_document_ids = _expected_answer_document_ids(case)
     missing_document_ids = sorted(expected_document_ids.difference(answer_document_ids))
     expected_terms, term_source = _answer_scoring_terms(case)
-    material_terms, material_source = _answer_required_material_terms(case)
+    material_terms, material_source = _answer_required_material_terms(case, answer)
     terms = _answer_contains_expected_terms(answer, expected_terms, required_terms=material_terms)
     terms["term_source"] = term_source
     terms["material_term_source"] = material_source

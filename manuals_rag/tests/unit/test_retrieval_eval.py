@@ -506,6 +506,97 @@ def test_answer_response_scoring_rejects_quantity_answers_without_values():
     assert "expected_terms_missing" in scored["failure_reasons"]
 
 
+def test_answer_response_scoring_requires_troubleshooting_corrective_action_terms():
+    case = RetrievalEvalCase(
+        case_id="case-ocr2-patterns",
+        query=(
+            "What causes The number of characters that can be registered for 1 character "
+            "was exceeded for XG-X Series, and how should it be corrected?"
+        ),
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1,
+        page_to=1,
+        expected_terms=["characters", "registered", "200", "patterns"],
+        expected_snippet="Error, cause, and corrective action",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_family": "XG-X Series"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "error-cell",
+                "source_document_id": "doc-xgx",
+                "field": "error message",
+                "expected_terms": ["characters", "registered", "exceeded"],
+            },
+            {
+                "chunk_id": "cause-cell",
+                "source_document_id": "doc-xgx",
+                "field": "cause",
+                "expected_terms": ["trying", "register", "200", "character"],
+            },
+            {
+                "chunk_id": "action-cell",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["ocr2", "maximum", "character", "patterns"],
+                "snippet": (
+                    "In the OCR2 unit, the maximum number of character patterns that can be "
+                    "registered for one type of character is up to 200 character patterns. "
+                    "Delete any unnecessary character patterns."
+                ),
+            },
+        ],
+    )
+
+    unrelated_action = score_answer_response(
+        case,
+        {
+            "answer": (
+                "Use an asterisk in the extracted string and check the calculation script "
+                "line and character limits."
+            ),
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "action-cell", "pages": [1]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+    grounded_action = score_answer_response(
+        case,
+        {
+            "answer": (
+                "The OCR2 unit is trying to register more than 200 character patterns for "
+                "one type of character. Keep the OCR2 character patterns within the 200 "
+                "pattern limit and delete unnecessary character patterns."
+            ),
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "action-cell", "pages": [1]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert unrelated_action["passed"] is False
+    assert (
+        unrelated_action["term_check"]["material_term_source"]
+        == "troubleshooting_action_and_quantity_terms"
+    )
+    assert {"delete", "ocr2"}.issubset(
+        set(unrelated_action["term_check"]["material_expected_terms"])
+    )
+    assert "expected_terms_missing" in unrelated_action["failure_reasons"]
+    assert grounded_action["passed"] is True
+    assert {"delete", "ocr2"}.issubset(
+        set(grounded_action["term_check"]["material_matched_terms"])
+    )
+
+
 def test_large_retrieval_eval_summarizes_answer_metrics():
     import importlib.util
     from pathlib import Path
