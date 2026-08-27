@@ -20,6 +20,7 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "current_retrieval_failure_source",
     "latest_cross_document_validation",
     "latest_contextual_row14_repair",
+    "latest_contextual_quantity_answer_repair",
     "partial_claim_citation_pruning_containment",
     "llm_answer_judge_policy",
 )

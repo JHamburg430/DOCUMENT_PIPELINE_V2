@@ -1268,6 +1268,107 @@ def test_validate_answer_fallback_selects_returned_quantity_evidence():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_falls_back_for_wrong_quantity_role_values():
+    answer = AnswerResponse(
+        answer="The example uses 23 total lines and one overlap line.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "continuous-mode-example",
+                "document_id": "d1",
+                "pages": [863],
+                "quote_span": None,
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="continuous-mode-example",
+            score=0.8,
+            title="CV-X manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[863],
+            section_path=["Timing chart"],
+            content=(
+                "Typical operations at trigger input when the LJ-V series head is used, "
+                "[Continuous] is set, and [Total Number of Lines] is enabled. "
+                "For this description, the number of lines is 10 and the number of overlap lines is two."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "For CV-X with an LJ-V head in continuous mode, what example line count and overlap count "
+            "does the timing description use?"
+        ),
+    )
+
+    assert "number of lines is 10" in validated.answer
+    assert "overlap lines is two" in validated.answer
+    assert "23 total lines" not in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["continuous-mode-example"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_falls_back_when_quantity_answer_omits_requested_role():
+    answer = AnswerResponse(
+        answer="The example uses 10 lines.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "continuous-mode-example",
+                "document_id": "d1",
+                "pages": [863],
+                "quote_span": None,
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="continuous-mode-example",
+            score=0.8,
+            title="CV-X manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[863],
+            section_path=["Timing chart"],
+            content=(
+                "Typical operations at trigger input when the LJ-V series head is used, "
+                "[Continuous] is set, and [Total Number of Lines] is enabled. "
+                "For this description, the number of lines is 10 and the number of overlap lines is two."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "For CV-X with an LJ-V head in continuous mode, what example line count and overlap count "
+            "does the timing description use?"
+        ),
+    )
+
+    assert "number of lines is 10" in validated.answer
+    assert "overlap lines is two" in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["continuous-mode-example"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_fallback_prefers_full_troubleshooting_row_for_cause_remedy_query():
     answer = AnswerResponse(
         answer="Connect only one LJ-S head to each CA-E300LJ unit.",

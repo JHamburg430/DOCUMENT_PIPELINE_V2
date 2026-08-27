@@ -271,20 +271,62 @@ def _contextual_quantity_terms(text: str) -> set[str]:
     return terms
 
 
+QUANTITY_ROLE_PATTERNS = {
+    "line": re.compile(r"\b(?:line(?:s)?|number\s+of\s+lines?|line\s+count)\b", flags=re.IGNORECASE),
+    "overlap": re.compile(
+        r"\b(?:overlap(?:ping)?(?:\s+lines?)?|number\s+of\s+overlap(?:ping)?\s+lines?|overlap\s+count)\b",
+        flags=re.IGNORECASE,
+    ),
+}
+
+
+def _requested_quantity_roles(text: str) -> set[str]:
+    return {role for role, pattern in QUANTITY_ROLE_PATTERNS.items() if pattern.search(text)}
+
+
+def _quantity_role_values(text: str) -> dict[str, set[str]]:
+    role_values: dict[str, set[str]] = {}
+    quantity_value_pattern = r"(?:\d+(?:\.\d+)?|" + "|".join(sorted(NUMBER_WORDS)) + r")"
+    for match in re.finditer(rf"\b{quantity_value_pattern}\b", text, flags=re.IGNORECASE):
+        window = text[max(0, match.start() - 80) : min(len(text), match.end() + 80)]
+        value = match.group(0).lower()
+        for role, pattern in QUANTITY_ROLE_PATTERNS.items():
+            if pattern.search(window):
+                role_values.setdefault(role, set()).add(value)
+    return role_values
+
+
 def _answer_addresses_quantity_request(answer: str, query: str, results: list[SearchResult]) -> bool:
     if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
         return True
     query_terms = _answer_terms(query)
+    requested_roles = _requested_quantity_roles(query)
+    answer_role_values = _quantity_role_values(answer)
+    candidate_role_values: list[dict[str, set[str]]] = []
     answer_quantities = _contextual_quantity_terms(answer)
     candidate_quantities: set[str] = set()
     for result in results[:8]:
         evidence = _fallback_answer_text(result)
         quantities = _contextual_quantity_terms(evidence)
-        if not quantities:
+        evidence_role_values = _quantity_role_values(evidence)
+        if not quantities and not evidence_role_values:
             continue
         overlap = len(query_terms.intersection(_answer_terms(evidence)))
         if overlap >= 3:
             candidate_quantities.update(quantities)
+            if requested_roles:
+                role_values = {
+                    role: values
+                    for role, values in evidence_role_values.items()
+                    if role in requested_roles and values
+                }
+                if requested_roles.issubset(role_values):
+                    candidate_role_values.append(role_values)
+    if candidate_role_values:
+        return any(
+            all(answer_role_values.get(role, set()).intersection(values) for role, values in role_values.items())
+            for role_values in candidate_role_values
+        )
     if not candidate_quantities:
         return True
     return bool(answer_quantities.intersection(candidate_quantities))
