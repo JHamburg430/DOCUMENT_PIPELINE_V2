@@ -512,12 +512,19 @@ def _result_stage_cell(
     step_name = next((step for step, mapped_key in DEBUG_STEP_TO_MATRIX_KEY.items() if mapped_key == key), "")
     samples = samples_by_step.get(step_name) or []
     expected_doc_count = max(1, len(targets["document_ids"]))
+    expected_chunk_count = len(targets["chunk_ids"])
     matched_doc_count, matched_chunk_count = _stage_target_counts(samples, targets)
     found = bool(matched_doc_count or matched_chunk_count)
     detail = (
         f"{matched_doc_count}/{expected_doc_count} expected document(s), "
-        f"{matched_chunk_count}/{len(targets['chunk_ids']) or 1} expected chunk(s) in stage sample window"
+        f"{matched_chunk_count}/{expected_chunk_count or 1} expected chunk(s) in stage sample window"
     )
+    if expected_chunk_count and matched_chunk_count >= expected_chunk_count:
+        return _matrix_cell("pass", detail, "YES"), True
+    if expected_chunk_count and matched_doc_count:
+        return _matrix_cell("fail", f"Expected document found, but expected chunk evidence is absent; {detail}", "DOC_ONLY"), True
+    if expected_chunk_count and matched_chunk_count:
+        return _matrix_cell("fail", detail, "PARTIAL"), True
     if matched_doc_count >= expected_doc_count:
         return _matrix_cell("pass", detail, "YES"), True
     if found:
@@ -531,15 +538,15 @@ def _retrieval_retention_cell(cells: dict[str, dict[str, str]], retrieval: dict)
     context_cell = cells.get("assemble") or {}
     context_label = context_cell.get("label") or ""
     context_detail = context_cell.get("detail") or "final context was not recorded"
-    if context_label == "YES":
-        return _matrix_cell("pass", f"Expected document retained in final context; {context_detail}", "PASS")
-    if context_label in {"NO", "PARTIAL", "DROPPED"}:
-        return _matrix_cell("fail", f"Expected document missing from final context; {context_detail}", "FAIL")
+    if context_cell.get("status") == "pass":
+        return _matrix_cell("pass", f"Expected evidence retained in final context; {context_detail}", "PASS")
+    if context_label in {"DOC_ONLY"}:
+        return _matrix_cell("fail", f"Expected document retained, but expected chunk evidence is missing; {context_detail}", "FAIL")
+    if context_label in {"NO", "PARTIAL", "DROPPED"} or context_cell.get("status") == "fail":
+        return _matrix_cell("fail", f"Expected evidence missing from final context; {context_detail}", "FAIL")
     if retrieval:
         if retrieval.get("passed") and "candidate_recall" not in retrieval:
             return _matrix_cell("pass", f"rank {retrieval.get('rank')}" if retrieval.get("rank") else "retrieval passed", "PASS")
-        if retrieval.get("candidate_recall"):
-            return _matrix_cell("pass", "Expected document was present in the final scored retrieval window.", "PASS")
         return _matrix_cell("fail", retrieval.get("failure_category") or "expected document missing from retrieval", "FAIL")
     return _matrix_cell("blank", "not scored yet")
 
@@ -552,14 +559,17 @@ def _matrix_retrieval_evaluation(evaluation: dict, retrieval_cell: dict[str, str
     normalized["retention_passed"] = retention_passed
     normalized["retrieval_retention_label"] = retrieval_cell.get("label")
     normalized["retrieval_retention_detail"] = retrieval_cell.get("detail")
-    if retention_passed:
+    if retention_passed and evidence_passed:
+        normalized["passed"] = True
+        normalized.pop("failure_category", None)
+        normalized.pop("failure_reasons", None)
+    elif retention_passed:
         if not evidence_passed and evaluation.get("failure_category"):
             normalized["evidence_failure_category"] = evaluation.get("failure_category")
         if not evidence_passed and evaluation.get("failure_reasons"):
             normalized["evidence_failure_reasons"] = evaluation.get("failure_reasons")
-        normalized["passed"] = True
-        normalized.pop("failure_category", None)
-        normalized.pop("failure_reasons", None)
+        normalized["passed"] = False
+        normalized["failure_category"] = normalized.get("failure_category") or "expected_evidence_missing"
     else:
         normalized["passed"] = False
         normalized["failure_category"] = normalized.get("failure_category") or "retrieval_context_missing"

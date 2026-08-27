@@ -8,6 +8,9 @@ from langgraph.graph import END, START, StateGraph
 from manuals_rag_answering.generator import generate_answer
 from manuals_rag_retrieval.qdrant_store import QdrantStore
 from manuals_rag_retrieval.retriever import (
+    _promote_comparison_table_candidates,
+    _promote_structured_table_candidates,
+    _should_run_table_lexical_search,
     assemble_context,
     build_filters,
     fuse_results,
@@ -16,8 +19,9 @@ from manuals_rag_retrieval.retriever import (
     run_dense_search,
     run_sparse_search,
     run_special_search,
+    run_table_lexical_search,
 )
-from manuals_rag_retrieval.query_analysis import analyze_query
+from manuals_rag_retrieval.query_analysis import QueryAnalysis, analyze_query
 
 
 class QueryState(TypedDict, total=False):
@@ -28,6 +32,7 @@ class QueryState(TypedDict, total=False):
     dense_results: list[dict]
     sparse_results: list[dict]
     special_results: list[dict]
+    table_lexical_results: list[dict]
     fused_results: list[dict]
     retrieval_results: list[dict]
     answer: dict
@@ -69,20 +74,35 @@ def fuse(state: QueryState) -> QueryState:
     from manuals_rag_schemas.documents import SearchResult
 
     store = QdrantStore()
+    analysis = QueryAnalysis(**state["analysis"])
+    table_lexical_results = (
+        run_table_lexical_search(state["query"], state["corpus_ids"], state.get("request_filters", state["filters"]), analysis)
+        if _should_run_table_lexical_search(analysis)
+        else []
+    )
     result_sets = [
         [SearchResult.model_validate(item) for item in state.get("dense_results", [])],
         [SearchResult.model_validate(item) for item in state.get("sparse_results", [])],
+        table_lexical_results,
         [SearchResult.model_validate(item) for item in state.get("special_results", [])],
     ]
     fused = fuse_results(store, result_sets, limit=30)
-    return {**state, "fused_results": [result.model_dump() for result in fused]}
+    return {
+        **state,
+        "table_lexical_results": [result.model_dump() for result in table_lexical_results],
+        "fused_results": [result.model_dump() for result in fused],
+    }
 
 
 def rerank(state: QueryState) -> QueryState:
     from manuals_rag_schemas.documents import SearchResult
 
+    analysis = QueryAnalysis(**state["analysis"])
     fused = [SearchResult.model_validate(item) for item in state.get("fused_results", [])]
+    table_lexical_results = [SearchResult.model_validate(item) for item in state.get("table_lexical_results", [])]
     reranked = rerank_results(fused, state["query"], limit=12)
+    reranked = _promote_structured_table_candidates(reranked, table_lexical_results, analysis, limit=12)
+    reranked = _promote_comparison_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     return {**state, "retrieval_results": [result.model_dump() for result in reranked]}
 
 

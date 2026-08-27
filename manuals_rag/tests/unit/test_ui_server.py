@@ -656,13 +656,14 @@ def test_question_matrix_labels_stage_target_retention():
 
     assert cells["query_classify"]["label"] == "DONE"
     assert cells["filters"]["label"] == "SET"
-    assert cells["dense"]["label"] == "YES"
+    assert cells["dense"]["label"] == "DOC_ONLY"
+    assert cells["dense"]["status"] == "fail"
     assert cells["sparse"]["label"] == "DROPPED"
     assert cells["fuse"]["label"] == "NO"
     assert cells["retrieval"]["label"] == "FAIL"
 
 
-def test_question_matrix_retrieval_tracks_final_document_retention_not_evidence_score():
+def test_question_matrix_retrieval_requires_expected_chunk_when_chunk_target_exists():
     cells = ui_server._build_row_cells(
         {
             "case": {
@@ -694,9 +695,10 @@ def test_question_matrix_retrieval_tracks_final_document_retention_not_evidence_
         }
     )
 
-    assert cells["assemble"]["label"] == "YES"
-    assert cells["retrieval"]["status"] == "pass"
-    assert cells["retrieval"]["label"] == "PASS"
+    assert cells["assemble"]["label"] == "DOC_ONLY"
+    assert cells["retrieval"]["status"] == "fail"
+    assert cells["retrieval"]["label"] == "FAIL"
+    assert cells["relevance"]["status"] == "blank"
 
 
 def test_question_matrix_blocks_answer_steps_when_context_retention_fails():
@@ -766,10 +768,10 @@ def test_question_matrix_populates_answer_cells_after_answer_doc_failure():
                     "generate_answer",
                 ],
                 "stages": [
-                    {"name": "run_sparse_search", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
-                    {"name": "fuse_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
-                    {"name": "rerank_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
-                    {"name": "assemble_context", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
+                    {"name": "run_sparse_search", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-expected"}]},
+                    {"name": "fuse_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-expected"}]},
+                    {"name": "rerank_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-expected"}]},
+                    {"name": "assemble_context", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-expected"}]},
                 ],
             },
             "evaluation": {
@@ -836,7 +838,7 @@ def test_question_matrix_live_result_preserves_answer_detail(tmp_path, monkeypat
     ui_server.MATRIX_JOBS.clear()
 
 
-def test_matrix_retrieval_evaluation_allows_answers_when_context_retained():
+def test_matrix_retrieval_evaluation_requires_evidence_when_context_retained():
     normalized = ui_server._matrix_retrieval_evaluation(
         {
             "passed": False,
@@ -851,11 +853,11 @@ def test_matrix_retrieval_evaluation_allows_answers_when_context_retained():
         },
     )
 
-    assert normalized["passed"] is True
+    assert normalized["passed"] is False
     assert normalized["retention_passed"] is True
     assert normalized["evidence_passed"] is False
     assert normalized["evidence_failure_category"] == "ranking_or_context_loss"
-    assert "failure_category" not in normalized
+    assert normalized["failure_category"] == "ranking_or_context_loss"
 
 
 def test_matrix_retrieval_evaluation_blocks_answers_when_context_missing():

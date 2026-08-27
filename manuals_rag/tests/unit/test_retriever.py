@@ -245,6 +245,17 @@ def test_query_analysis_marks_summary_applies_questions_as_structured_lookup():
     assert "table_record" in analysis.preferred_chunk_types
 
 
+def test_query_analysis_marks_listed_value_table_path_questions_as_structured_lookup():
+    analysis = analyze_query(
+        "What value is listed for LumiTrax Capture Settings Track Moving Object: "
+        "Pattern Region: Height Number Format?"
+    )
+
+    assert "structured_lookup" in analysis.query_types
+    assert "configuration" in analysis.query_types
+    assert "table_record" in analysis.preferred_chunk_types
+
+
 def test_query_analysis_marks_reverse_table_lookup_questions_as_structured_lookup():
     analysis = analyze_query("For X8000 Series, what Setting item for Settings selects width measure?")
 
@@ -2190,7 +2201,8 @@ def test_table_lexical_search_scores_structured_troubleshooting_row_groups(monke
     assert results[0].metadata["table_row_group"] is True
     assert results[0].section_path == ["A-1"]
     assert "source_document_id = any" in str(captured["query"])
-    assert "order by priority_score desc, id" in str(captured["query"])
+    assert "metadata_json->>'table_row_headers' ilike" in str(captured["query"])
+    assert "priority_score desc, id" in str(captured["query"])
     assert captured["params"][0] == ["corpus-1"]
     assert captured["params"][1] == ["doc-1"]
 
@@ -2361,6 +2373,98 @@ def test_comparison_table_score_prefers_issue_specific_row_header():
     }
 
     assert retriever._table_lexical_score(precise_cell, terms) > retriever._table_lexical_score(broad_sibling_group, terms)
+
+
+def test_table_score_prefers_listed_value_exact_table_path():
+    analysis = analyze_query(
+        "What value is listed for LumiTrax Capture Settings Track Moving Object: "
+        "Pattern Region: Height Number Format?"
+    )
+    terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
+    prompt_phrase = retriever._structured_prompt_phrase(analysis.raw_query)
+    precise_cell = {
+        "content": (
+            "LumiTrax Capture Settings > Track Moving Object > Pattern Region: Height; "
+            "Column headers: Number Format > Decimal Digits; Cell value: 0."
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_column_headers": ["Number Format", "Decimal Digits"],
+            "table_row_headers": ["LumiTrax Capture Settings", "Track Moving Object", "Pattern Region: Height"],
+            "table_cell": True,
+        },
+        "priority_score": 13.0,
+    }
+    sibling_cell = {
+        "content": (
+            "LumiTrax Capture Settings > Track Moving Object > Search Region: Height; "
+            "Column headers: Number Format > Decimal Digits; Cell value: 0."
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_column_headers": ["Number Format", "Decimal Digits"],
+            "table_row_headers": ["LumiTrax Capture Settings", "Track Moving Object", "Search Region: Height"],
+            "table_cell": True,
+        },
+        "priority_score": 13.0,
+    }
+
+    assert terms
+    assert prompt_phrase
+    assert retriever._table_lexical_score(precise_cell, terms, prompt_phrase) > retriever._table_lexical_score(
+        sibling_cell,
+        terms,
+        prompt_phrase,
+    )
+
+
+def test_structured_table_promotion_preserves_top_lexical_cell_after_rerank():
+    analysis = analyze_query(
+        "What value is listed for LumiTrax Capture Settings Track Moving Object: "
+        "Pattern Region: Height Number Format?"
+    )
+    reranked = [
+        SearchResult(
+            chunk_id="wrong-cell",
+            score=0.9,
+            title="Manual",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1535],
+            section_path=["15-46"],
+            content="Search Region: Height referenceable value.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_cell": True,
+                "table_column_headers": ["Number Format", "Referenceable"],
+                "table_row_headers": ["Search Region: Height"],
+            },
+        )
+    ]
+    lexical = [
+        SearchResult(
+            chunk_id="expected-cell",
+            score=3.34,
+            title="Manual",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1535],
+            section_path=["15-46"],
+            content="Pattern Region: Height decimal digits value.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_cell": True,
+                "table_column_headers": ["Number Format", "Decimal Digits"],
+                "table_row_headers": ["Pattern Region: Height"],
+            },
+        )
+    ]
+
+    promoted = retriever._promote_structured_table_candidates(reranked, lexical, analysis, limit=12)
+
+    assert promoted[0].chunk_id == "expected-cell"
+    assert promoted[0].metadata["retrieval_stage"] == "structured_table_promoted"
+    assert promoted[1].chunk_id == "wrong-cell"
 
 
 def test_comparison_table_lexical_adds_bounded_row_key_supplement(monkeypatch):

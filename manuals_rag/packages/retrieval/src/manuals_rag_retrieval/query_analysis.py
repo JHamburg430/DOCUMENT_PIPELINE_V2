@@ -60,7 +60,22 @@ def analyze_query(query: str) -> QueryAnalysis:
         r"\b.+\b(?:selects?|sets?|specif(?:y|ies)|measures?|displays?|indicates?|corresponds?)\b",
         lowered,
     )
+    structured_value_lookup_shape = re.search(
+        r"\bwhat\s+(?:value|setting|number\s+format|initial\s+value|upper\s+limit(?:\s+value)?|"
+        r"lower\s+limit(?:\s+value)?|decimal\s+digits|integer\s+digits|referenceable)\b"
+        r".+\b(?:listed|specified|shown|given|configured|set)\s+for\b",
+        lowered,
+    )
+    structured_table_field = re.search(
+        r"\b(?:number\s+format|decimal\s+digits|integer\s+digits|referenceable|initial\s+value|"
+        r"upper\s+limit(?:\s+value)?|lower\s+limit(?:\s+value)?|setting\s+(?:item|range)|"
+        r"row|column|cell\s+value)\b",
+        lowered,
+    )
     if structured_lookup_field and (structured_lookup_shape or structured_reverse_lookup_shape):
+        types.append("structured_lookup")
+        preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
+    if structured_value_lookup_shape and (structured_lookup_field or structured_table_field):
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
     requested_doc_kind = None

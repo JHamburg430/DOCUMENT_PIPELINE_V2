@@ -404,6 +404,14 @@ def _structured_prompt_phrase(query: str) -> str:
         flags=re.IGNORECASE,
     )
     if not match:
+        match = re.search(
+            r"\bwhat\s+(?:value|setting|number\s+format|initial\s+value|upper\s+limit(?:\s+value)?|"
+            r"lower\s+limit(?:\s+value)?|decimal\s+digits|integer\s+digits|referenceable)\b"
+            r".+\b(?:listed|specified|shown|given|configured|set)\s+for\s+(?P<phrase>.+?)\??$",
+            query,
+            flags=re.IGNORECASE,
+        )
+    if not match:
         return ""
     phrase = re.sub(r"\s+", " ", match.group("phrase")).strip(" .,:;")
     return re.sub(r"[^a-z0-9]+", "", phrase.lower())
@@ -525,6 +533,14 @@ def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase
     score += min(0.72, primary_product_overlap * 0.18)
     if prompt_phrase and prompt_phrase in compact_haystack:
         score += 1.0
+    elif prompt_phrase:
+        phrase_terms = [
+            term
+            for term in re.findall(r"[a-z0-9]+", prompt_phrase)
+            if len(term) >= 4 and term not in LEXICAL_TABLE_STOPWORDS
+        ]
+        phrase_overlap = sum(1 for term in phrase_terms if term in compact_haystack)
+        score += min(0.75, phrase_overlap * 0.09)
     if metadata.get("table_row_group"):
         score += 0.28
     if metadata.get("table_summary"):
@@ -635,6 +651,30 @@ def run_table_lexical_search(
             for pattern in product_patterns:
                 order_params.extend([pattern, pattern, pattern, pattern])
             order_params.extend([f"%{term}%" for term in order_terms])
+    else:
+        order_terms = []
+        for term in terms:
+            if term in {"listed"} or term in order_terms:
+                continue
+            order_terms.append(term)
+            if len(order_terms) >= 12:
+                break
+        if order_terms:
+            order_by = (
+                "order by "
+                + " + ".join(
+                    [
+                        "case when content ilike %s "
+                        "or metadata_json->>'table_row_headers' ilike %s "
+                        "or metadata_json->>'table_column_headers' ilike %s then 1 else 0 end"
+                    ]
+                    * len(order_terms)
+                )
+                + " desc, priority_score desc, id"
+            )
+            for term in order_terms:
+                pattern = f"%{term}%"
+                order_params.extend([pattern, pattern, pattern])
     rows = fetch_all(
         f"""
         select id, document_version_id, source_document_id, title, section_path_text,
@@ -1625,6 +1665,47 @@ def _promote_comparison_table_candidates(
     return deduped
 
 
+def _promote_structured_table_candidates(
+    primary_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    analysis: QueryAnalysis,
+    *,
+    limit: int = 12,
+) -> list[SearchResult]:
+    if "structured_lookup" not in analysis.query_types or "comparison" in analysis.query_types or not supplemental_results:
+        return primary_results
+    candidates = [
+        result
+        for result in supplemental_results
+        if str(result.metadata.get("chunk_type") or "") == "table_record"
+        and _is_structured_comparison_table_result(result)
+    ]
+    if not candidates:
+        return primary_results
+    promoted = [
+        candidate.model_copy(
+            update={
+                "metadata": {
+                    **candidate.metadata,
+                    "retrieval_stage": "structured_table_promoted",
+                }
+            }
+        )
+        for candidate in candidates[: min(3, limit)]
+    ]
+    combined = [*promoted, *primary_results]
+    deduped: list[SearchResult] = []
+    seen_ids: set[str] = set()
+    for result in combined:
+        if result.chunk_id in seen_ids:
+            continue
+        seen_ids.add(result.chunk_id)
+        deduped.append(result)
+        if len(deduped) >= limit:
+            break
+    return deduped
+
+
 def _select_family_candidates(
     results: list[SearchResult],
     analysis: QueryAnalysis,
@@ -2036,6 +2117,7 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=chunk_search_filters, limit=12), "family_selected")
     enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=12)
     reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked")
+    reranked = _promote_structured_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     reranked = _promote_comparison_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     deduped = _dedupe_results(reranked, analysis)
     assembled = assemble_context(deduped, limit=limit)
