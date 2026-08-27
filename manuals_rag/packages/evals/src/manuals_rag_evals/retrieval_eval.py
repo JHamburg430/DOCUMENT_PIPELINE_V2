@@ -2957,6 +2957,79 @@ def _answer_citation_fidelity(
     }
 
 
+def _citation_document_id(citation: dict[str, Any]) -> str:
+    return str(citation.get("document_id") or citation.get("source_document_id") or "")
+
+
+def _expected_evidence_citation_support(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+    retrieved_results: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    if retrieved_results is None or not case.expected_evidence:
+        return {"passed": True, "checked": False, "missing_evidence": []}
+    chunk_texts = _retrieved_chunk_texts(retrieved_results)
+    citations = [citation for citation in answer.get("citations") or [] if isinstance(citation, dict)]
+    if not citations:
+        return {
+            "passed": False,
+            "checked": True,
+            "missing_evidence": [
+                {
+                    "chunk_id": str(item.get("chunk_id") or ""),
+                    "source_document_id": str(item.get("source_document_id") or ""),
+                    "reason": "no_citations",
+                }
+                for item in case.expected_evidence
+                if isinstance(item, dict)
+            ],
+        }
+
+    missing_evidence: list[dict[str, Any]] = []
+    for item in case.expected_evidence:
+        if not isinstance(item, dict):
+            continue
+        expected_chunk_id = str(item.get("chunk_id") or "")
+        expected_document_id = str(item.get("source_document_id") or item.get("document_id") or "")
+        expected_terms = [str(term) for term in item.get("expected_terms") or [] if str(term).strip()]
+        term_required = len(expected_terms) if len(expected_terms) <= 2 else 2
+        supported = False
+        for citation in citations:
+            cited_chunk_id = str(citation.get("chunk_id") or "")
+            if expected_chunk_id and cited_chunk_id == expected_chunk_id:
+                supported = True
+                break
+            if expected_document_id and _citation_document_id(citation) != expected_document_id:
+                continue
+            cited_text = chunk_texts.get(cited_chunk_id, "")
+            if not cited_text or not expected_terms:
+                continue
+            cited_lower = cited_text.lower()
+            cited_tokens = set(tokenize(cited_lower))
+            matched_terms = [
+                term
+                for term in expected_terms
+                if _expected_term_matches_text(term, cited_lower, cited_tokens)
+            ]
+            if len(matched_terms) >= term_required:
+                supported = True
+                break
+        if not supported:
+            missing_evidence.append(
+                {
+                    "chunk_id": expected_chunk_id,
+                    "source_document_id": expected_document_id,
+                    "expected_terms": expected_terms,
+                    "reason": "expected_evidence_not_supported_by_citations",
+                }
+            )
+    return {
+        "passed": not missing_evidence,
+        "checked": True,
+        "missing_evidence": missing_evidence,
+    }
+
+
 def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str]) -> bool:
     term_lower = term.lower().strip()
     if not term_lower:
@@ -3112,6 +3185,7 @@ def score_answer_response(
         except Exception as exc:
             llm_required_info = {"checked": False, "error": f"{exc.__class__.__name__}: {exc}"}
     citation_fidelity = _answer_citation_fidelity(answer, retrieved_results)
+    evidence_citation_support = _expected_evidence_citation_support(case, answer, retrieved_results)
     answer_text = str(answer.get("answer") or "").strip()
     passed = bool(
         answer_text
@@ -3119,6 +3193,7 @@ def score_answer_response(
         and not missing_document_ids
         and terms["passed"]
         and citation_fidelity["passed"]
+        and evidence_citation_support["passed"]
     )
     failure_reasons: list[str] = []
     if not answer_text:
@@ -3131,6 +3206,8 @@ def score_answer_response(
         failure_reasons.append("expected_terms_missing")
     if not citation_fidelity["passed"]:
         failure_reasons.append("unsupported_citation_quote")
+    if not evidence_citation_support["passed"]:
+        failure_reasons.append("expected_evidence_not_cited")
     if retrieval_evaluation and not retrieval_evaluation.get("passed"):
         failure_reasons.append("retrieval_not_passed")
     return {
@@ -3143,5 +3220,6 @@ def score_answer_response(
         "expected_document_used": not missing_document_ids,
         "term_check": terms,
         "citation_fidelity": citation_fidelity,
+        "evidence_citation_support": evidence_citation_support,
         "llm_required_information": llm_required_info,
     }

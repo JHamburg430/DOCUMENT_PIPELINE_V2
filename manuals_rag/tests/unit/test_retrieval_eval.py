@@ -1225,6 +1225,121 @@ def test_answer_response_scoring_rejects_unsupported_citation_quote_spans():
     assert scored["citation_fidelity"]["unsupported_quotes"][0]["chunk_id"] == "settings-page"
 
 
+def test_answer_response_scoring_requires_cited_chunk_to_support_expected_evidence_role():
+    case = RetrievalEvalCase(
+        case_id="case-cross-document-spec-role",
+        query=(
+            "For controller A, what enclosure rating is listed, and for controller B, "
+            "what shock-resistance value is listed?"
+        ),
+        source_document_id="doc-a",
+        document_version_id="ver-a",
+        source_chunk_id="enclosure-a",
+        source_title="manual-a",
+        source_filename="manual-a.pdf",
+        chunk_type="table_record",
+        section_path="Specifications",
+        page_from=1,
+        page_to=1,
+        expected_terms=["ip67", "500", "m/s", "directions"],
+        expected_snippet="Cross-document spec comparison",
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "enclosure-a",
+                "source_document_id": "doc-a",
+                "field": "enclosure rating",
+                "expected_terms": ["ip67"],
+                "snippet": "Cell value: IP67",
+            },
+            {
+                "chunk_id": "shock-b",
+                "source_document_id": "doc-b",
+                "field": "shock resistance",
+                "expected_terms": ["500", "m/s", "directions"],
+                "snippet": "Cell value: 500 m/s 2 , 6 different directions",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Controller A is IP67, and controller B is rated for 500 m/s in 6 directions.",
+            "citations": [
+                {"document_id": "doc-a", "chunk_id": "enclosure-a", "pages": [1]},
+                {"document_id": "doc-b", "chunk_id": "enclosure-b", "pages": [2]},
+            ],
+            "used_documents": [
+                {"document_id": "doc-a"},
+                {"document_id": "doc-b"},
+            ],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "enclosure-a",
+                "content": "Column headers: Controller A; Row headers: Enclosure rating; Cell value: IP67",
+            },
+            {
+                "chunk_id": "enclosure-b",
+                "content": "Column headers: Controller B; Row headers: Enclosure rating; Cell value: IP67",
+            },
+            {
+                "chunk_id": "shock-b",
+                "content": (
+                    "Column headers: Controller B; Row headers: Shock resistance; "
+                    "Cell value: 500 m/s 2 , 6 different directions"
+                ),
+            },
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+    assert scored["evidence_citation_support"]["missing_evidence"] == [
+        {
+            "chunk_id": "shock-b",
+            "source_document_id": "doc-b",
+            "expected_terms": ["500", "m/s", "directions"],
+            "reason": "expected_evidence_not_supported_by_citations",
+        }
+    ]
+
+    cited_role = score_answer_response(
+        case,
+        {
+            "answer": "Controller A is IP67, and controller B is rated for 500 m/s in 6 directions.",
+            "citations": [
+                {"document_id": "doc-a", "chunk_id": "enclosure-a", "pages": [1]},
+                {"document_id": "doc-b", "chunk_id": "shock-b", "pages": [2]},
+            ],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "enclosure-a",
+                "content": "Column headers: Controller A; Row headers: Enclosure rating; Cell value: IP67",
+            },
+            {
+                "chunk_id": "shock-b",
+                "content": (
+                    "Column headers: Controller B; Row headers: Shock resistance; "
+                    "Cell value: 500 m/s 2 , 6 different directions"
+                ),
+            },
+        ],
+    )
+
+    assert cited_role["passed"] is True
+    assert cited_role["evidence_citation_support"]["passed"] is True
+
+
 def test_large_retrieval_eval_summarizes_answer_metrics():
     import importlib.util
     from pathlib import Path
