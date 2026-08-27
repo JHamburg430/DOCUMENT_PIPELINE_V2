@@ -667,6 +667,13 @@ def _build_question_matrix() -> dict:
                     "cells": _build_row_cells(item, case),
                 }
             )
+    active_job = None
+    active_job_id = _active_question_matrix_job_id()
+    if active_job_id:
+        try:
+            active_job = _question_matrix_job_snapshot(active_job_id)
+        except KeyError:
+            active_job = None
     return {
         "manifest_path": str(manifest_path.relative_to(MANUALS_ROOT)),
         "official_total_questions": question_bank.get("total_questions"),
@@ -674,6 +681,7 @@ def _build_question_matrix() -> dict:
         "official_multi_step_questions": question_bank.get("multi_step_questions"),
         "loaded_questions": len(rows),
         "datasets": active_datasets,
+        "active_job": active_job,
         "rows": rows,
     }
 

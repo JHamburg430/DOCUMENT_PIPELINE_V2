@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-eval-matrix-stage-results-1";
+const ASSET_VERSION = "20260827-eval-matrix-resume-job-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
@@ -674,6 +674,18 @@ async function loadQuestionMatrix() {
   try {
     const payload = await localJson("/local/question-matrix");
     state.questionMatrix = payload;
+    if (payload.active_job) {
+      const wasDifferentJob = state.matrixJob?.id !== payload.active_job.id;
+      state.matrixJob = payload.active_job;
+      renderMatrixJobStatus(payload.active_job);
+      if (["queued", "running", "stopping"].includes(payload.active_job.status) && (wasDifferentJob || !state.matrixJobTimer)) {
+        if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
+        pollMatrixJob(payload.active_job.id);
+      }
+    } else if (!state.matrixJob || !["queued", "running", "stopping"].includes(state.matrixJob.status)) {
+      state.matrixJob = null;
+      renderMatrixJobStatus(null);
+    }
     renderQuestionMatrix(payload);
   } catch (error) {
     $("matrix-summary").className = "matrix-summary empty-state";

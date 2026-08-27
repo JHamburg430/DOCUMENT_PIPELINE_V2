@@ -197,6 +197,44 @@ def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_p
     assert payload["rows"][0]["cells"]["answer"]["status"] == "blank"
 
 
+def test_question_matrix_includes_active_job_for_page_refresh(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    dataset_path.write_text('{"case_id":"case-1","query":"q"}\n', encoding="utf-8")
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "datasets": [{"path": "test_reports/dataset.jsonl", "status": "promoted", "total_questions": 1}],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-running"] = {
+        "id": "matrix-running",
+        "status": "running",
+        "mode": "all_bank",
+        "dataset_count": 1,
+        "completed_datasets": 0,
+        "live_cells": {},
+    }
+
+    try:
+        payload = ui_server._build_question_matrix()
+    finally:
+        ui_server.MATRIX_JOBS.clear()
+
+    assert payload["active_job"]["id"] == "matrix-running"
+    assert payload["active_job"]["status"] == "running"
+
+
 def test_question_matrix_job_runs_active_bank_with_llm_answer_judge(monkeypatch, tmp_path):
     reports = tmp_path / "test_reports"
     reports.mkdir()
