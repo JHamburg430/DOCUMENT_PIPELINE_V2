@@ -403,6 +403,76 @@ def test_validate_answer_falls_back_when_pruned_citations_do_not_support_all_cla
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_fallback_uses_matching_troubleshooting_row_from_parent_context():
+    answer = AnswerResponse(
+        answer=(
+            "If capture on trigger input is disabled in the trigger settings, this setting cannot be changed."
+        ),
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "trigger-settings-section",
+                "document_id": "d1",
+                "pages": [985],
+                "quote_span": None,
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="trigger-settings-section",
+            score=0.9,
+            title="XG-X manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[1259],
+            section_path=["Troubleshooting"],
+            content=(
+                "Trigger Parameters Capture on trigger input. Choose whether or not the capture unit "
+                "will wait for a trigger signal to capture an image."
+            ),
+            metadata={
+                "chunk_type": "section_window",
+                "parent_context": (
+                    "Image capture stopped, invalid camera setting. A trigger signal that cannot be used is assigned. | "
+                    "Trigger signals on the even-number side of the camera input unit to which the LJ-X/LJ-V Series head "
+                    "is connected cannot be used. | Change to a trigger signal that can be used. |"
+                ),
+            },
+        ),
+        SearchResult(
+            chunk_id="generic-trigger-settings",
+            score=0.8,
+            title="XG-X manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[985],
+            section_path=["Trigger settings"],
+            content="If capture on trigger input is disabled in the trigger settings, this setting cannot be changed.",
+            metadata={"chunk_type": "section_window"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "On an XG-X Series controller, if Allow Trigger Input During Line Capture and End Capture By EXT Signal "
+            "are enabled together and the invalid camera setting error says a trigger signal that cannot be used is "
+            "assigned, what should I change?"
+        ),
+    )
+
+    assert "Change to a trigger signal that can be used" in validated.answer
+    assert "even-number side" in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["trigger-settings-section"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_fallback_prefers_full_troubleshooting_row_for_cause_remedy_query():
     answer = AnswerResponse(
         answer="Connect only one LJ-S head to each CA-E300LJ unit.",

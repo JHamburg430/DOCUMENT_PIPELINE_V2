@@ -221,6 +221,24 @@ ANSWER_CLAIM_SUPPORT_STOPWORDS = {
     "will",
     "would",
 }
+TROUBLESHOOTING_ACTION_VERBS = {
+    "adjust",
+    "change",
+    "check",
+    "connect",
+    "contact",
+    "disable",
+    "enable",
+    "increase",
+    "make",
+    "perform",
+    "reduce",
+    "replace",
+    "set",
+    "turn",
+    "use",
+    "wait",
+}
 
 
 def _answer_claim_sentences(answer: str) -> list[str]:
@@ -288,6 +306,18 @@ def _fallback_answer_text(result: SearchResult) -> str:
     return f"{content}\n\nContext: {context}"
 
 
+def _troubleshooting_context_text(result: SearchResult) -> str:
+    parts: list[str] = []
+    for text in [
+        _fallback_answer_text(result),
+        str(result.metadata.get("table_row_group_context") or "").strip(),
+        str(result.metadata.get("parent_context") or "").strip(),
+    ]:
+        if text and text not in parts:
+            parts.append(text)
+    return "\n".join(parts)
+
+
 def _is_troubleshooting_query(query: str) -> bool:
     return bool(re.search(r"\b(cause|causes|correct|corrected|corrective|remedy|error|alarm|fault)\b", query, flags=re.IGNORECASE))
 
@@ -314,7 +344,7 @@ def _troubleshooting_evidence_score(query: str, result: SearchResult) -> float:
     if not _is_troubleshooting_query(query):
         return 0.0
     content = str(result.content or "")
-    evidence = _fallback_answer_text(result)
+    evidence = _troubleshooting_context_text(result)
     content_normalized = _normalized_phrase(content)
     evidence_lower = evidence.lower()
     score = 0.0
@@ -360,18 +390,93 @@ def _focused_troubleshooting_results(query: str, results: list[SearchResult]) ->
     anchored = [
         result
         for result in results
-        if anchor in _normalized_phrase(str(result.content or ""))
+        if anchor in _normalized_phrase(_troubleshooting_context_text(result))
     ]
     if not anchored:
         return results
     has_structured_answer = any(
-        "cause" in str(result.content or "").lower()
-        and re.search(r"\b(corrective action|remedy)\b", str(result.content or ""), flags=re.IGNORECASE)
+        "cause" in _troubleshooting_context_text(result).lower()
+        and re.search(r"\b(corrective action|remedy)\b", _troubleshooting_context_text(result), flags=re.IGNORECASE)
         for result in anchored
     )
     if has_structured_answer:
         return anchored
     return results
+
+
+def _matching_troubleshooting_row_text(query: str, result: SearchResult) -> str:
+    anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
+    if len(anchor) < 10:
+        return ""
+    candidate_blocks = [
+        str(result.metadata.get("table_row_group_context") or "").strip(),
+        str(result.metadata.get("parent_context") or "").strip(),
+        str(result.metadata.get("context_window") or "").strip(),
+        str(result.content or "").strip(),
+    ]
+    query_terms = _answer_terms(query)
+    matches: list[tuple[float, str]] = []
+    for block in candidate_blocks:
+        if not block:
+            continue
+        for line in block.splitlines():
+            row = line.strip()
+            if "|" not in row or anchor not in _normalized_phrase(row):
+                continue
+            row_lower = row.lower()
+            score = 0.0
+            if re.search(r"\b(corrective action|remedy)\b", row_lower):
+                score += 3.0
+            if "cause" in row_lower:
+                score += 2.0
+            if re.search(r"\b(change|set|check|connect|adjust|disable|enable|contact)\b", row_lower):
+                score += 2.0
+            score += min(4.0, len(query_terms.intersection(_answer_terms(row))) / 2)
+            matches.append((score, row))
+    if not matches:
+        return ""
+    return max(matches, key=lambda item: item[0])[1]
+
+
+def _matching_troubleshooting_rows(query: str, results: list[SearchResult]) -> list[str]:
+    rows: list[str] = []
+    for result in _order_troubleshooting_results(query, results):
+        row = _matching_troubleshooting_row_text(query, result)
+        if row and row not in rows:
+            rows.append(row)
+    return rows
+
+
+def _row_action_text(row: str) -> str:
+    cells = [cell.strip() for cell in row.split("|") if cell.strip()]
+    if len(cells) < 2:
+        return ""
+    for cell in reversed(cells[1:]):
+        if re.search(r"\b(adjust|change|check|connect|contact|disable|enable|increase|make|perform|reduce|replace|set|turn|use|wait)\b", cell, flags=re.IGNORECASE):
+            return cell
+    return cells[-1]
+
+
+def _answer_uses_matching_troubleshooting_row(answer: str, query: str, results: list[SearchResult]) -> bool:
+    if not _is_troubleshooting_query(query):
+        return True
+    rows = _matching_troubleshooting_rows(query, results)
+    if not rows:
+        return True
+    answer_terms = _material_claim_terms(answer)
+    for row in rows:
+        action = _row_action_text(row)
+        action_terms = _material_claim_terms(action)
+        if not action_terms:
+            continue
+        action_verbs = action_terms.intersection(TROUBLESHOOTING_ACTION_VERBS)
+        if action_verbs and not action_verbs.intersection(answer_terms):
+            continue
+        matched = action_terms.intersection(answer_terms)
+        required = max(2, min(len(action_terms), len(action_terms) // 2 + 1))
+        if len(matched) >= required:
+            return True
+    return False
 
 
 def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
@@ -386,7 +491,7 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             insufficient_evidence=True,
         )
     top = _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results))[0]
-    top_content = _fallback_answer_text(top)
+    top_content = _matching_troubleshooting_row_text(query, top) or _fallback_answer_text(top)
     return AnswerResponse(
         answer=top_content,
         confidence="medium",
@@ -593,6 +698,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         or _structured_answer_is_too_terse(answer.answer, results)
         or not _citation_quotes_are_supported(list(answer.citations), results)
         or not _answer_addresses_troubleshooting_anchor(answer.answer, query, list(answer.citations), results)
+        or not _answer_uses_matching_troubleshooting_row(answer.answer, query, results)
     ):
         fallback = _fallback_answer(query, results)
         answer = fallback.model_copy(
