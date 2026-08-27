@@ -395,6 +395,34 @@ def _matrix_cell(status: str, detail: str = "") -> dict[str, str]:
     return {"status": status, "detail": detail}
 
 
+def _question_type(case: dict) -> dict[str, object]:
+    expected_evidence = case.get("expected_evidence") if isinstance(case.get("expected_evidence"), list) else []
+    expected_document_ids = {
+        str(item.get("source_document_id") or case.get("source_document_id") or "")
+        for item in expected_evidence
+        if isinstance(item, dict)
+    }
+    expected_document_ids.discard("")
+    multi_document = (
+        len(expected_document_ids) > 1
+        or str(case.get("generation_method") or "") == "cross_document_same_field_evidence"
+    )
+    multi_step = (
+        str(case.get("retrieval_task") or "") == "multi_step_retrieval"
+        or len(expected_evidence) > 1
+        or multi_document
+    )
+    return {
+        "label": "Multi-doc" if multi_document else ("Multi-step" if multi_step else "Single"),
+        "multi_step": multi_step,
+        "multi_document": multi_document,
+        "retrieval_task": case.get("retrieval_task") or "single_step_retrieval",
+        "generation_method": case.get("generation_method"),
+        "expected_evidence_count": len(expected_evidence) or 1,
+        "expected_document_count": len(expected_document_ids) or (1 if case.get("source_document_id") else 0),
+    }
+
+
 def _build_row_cells(item: dict | None) -> dict[str, dict[str, str]]:
     cells = {
         key: _matrix_cell("blank", "not scored yet")
@@ -521,6 +549,7 @@ def _build_question_matrix() -> dict:
                     "dataset_status": dataset.get("status"),
                     "question_number": row_index,
                     "case": case,
+                    "question_type": _question_type(case),
                     "latest_result": {
                         "run_id": result.get("run_id"),
                         "path": result.get("path"),

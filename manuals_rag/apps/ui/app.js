@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-eval-matrix-actions-1";
+const ASSET_VERSION = "20260827-eval-matrix-hints-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
@@ -26,89 +26,95 @@ const MATRIX_STAGES = [
   {
     key: "query_classify",
     label: "Classify",
-    description: "Query classification completed in a stored debug run.",
+    description: "Pass when query classification completed in the debug trace; blank when no scored debug run has reached it.",
   },
   {
     key: "filters",
     label: "Filters",
-    description: "Search filters were built.",
+    description: "Pass when metadata/search filters were built; blank when the run has not reached filter construction.",
   },
   {
     key: "dense",
     label: "Dense",
-    description: "Dense vector search completed.",
+    description: "Pass when dense vector search completed; blank when it has not run or was not recorded.",
   },
   {
     key: "sparse",
     label: "Sparse",
-    description: "Sparse/keyword search completed.",
+    description: "Pass when sparse/keyword search completed; blank when it has not run or was not recorded.",
   },
   {
     key: "special",
     label: "Special",
-    description: "Specialized/table search completed.",
+    description: "Pass when specialized/table search completed; blank when it has not run or was not recorded.",
   },
   {
     key: "fuse",
     label: "Fuse",
-    description: "Candidate fusion completed.",
+    description: "Pass when candidate fusion completed; blank when it has not run or was not recorded.",
   },
   {
     key: "rerank",
     label: "Rerank",
-    description: "Reranking completed.",
+    description: "Pass when reranking completed; blank when it has not run or was not recorded.",
   },
   {
     key: "assemble",
     label: "Context",
-    description: "Final retrieval context was assembled.",
+    description: "Pass when final retrieval context was assembled; blank when context assembly has not completed.",
   },
   {
     key: "metadata",
     label: "Doc Select",
-    description: "Expected source document was selected when metadata selection ran.",
+    description: "Pass when metadata document selection ranked the expected source document in the scored top window; fail when a different document was selected; blank when metadata selection was not attempted.",
   },
   {
     key: "retrieval",
     label: "Evidence",
-    description: "Expected evidence reached the scored retrieval window.",
+    description: "Pass when the final scored retrieval window contains the exact expected chunk, acceptable same-document evidence, or required multi-step evidence; fail when expected evidence is missing from that window.",
   },
   {
     key: "relevance",
     label: "Relevance",
-    description: "Answer-input relevance judging completed.",
+    description: "Pass when answer-input relevance judging completed after retrieval passed; blank when blocked or not scored.",
   },
   {
     key: "summaries",
     label: "Summaries",
-    description: "Answer evidence summaries completed.",
+    description: "Pass when evidence summaries completed after retrieval passed; blank when blocked or not scored.",
   },
   {
     key: "generation",
     label: "Generate",
-    description: "Answer generation completed.",
+    description: "Pass when answer generation completed after retrieval passed; blank when blocked or not scored.",
   },
   {
     key: "answer_docs",
     label: "Answer Docs",
-    description: "The final answer used or cited the expected document.",
+    description: "Pass when the final answer used or cited every expected document; fail when an expected document is missing from the answer evidence/citations.",
   },
   {
     key: "citations",
     label: "Citations",
-    description: "Returned citation quote spans were supported by cited chunks.",
+    description: "Pass when returned citation quote spans are supported by cited chunks; fail when a quote is unsupported or missing evidence.",
   },
   {
     key: "terms",
     label: "Terms",
-    description: "The answer included the required source-backed terms/actions.",
+    description: "Pass when the answer includes required source-backed terms/actions or model-judged required information; fail when required information is missing.",
   },
   {
     key: "answer",
     label: "Answer",
-    description: "Overall scored final answer result.",
+    description: "Pass when all answer scoring checks pass; fail when any answer-level failure reason remains.",
   },
 ];
+
+const MATRIX_COLUMN_HINTS = {
+  number: "Question number within the loaded matrix.",
+  question: "Generated eval question and source dataset/run. The text is formed from source-backed chunks, not written by the answer agent.",
+  type: "Single means one evidence target; multi-step means several evidence targets; multi-doc means expected evidence spans more than one source document.",
+};
 
 function $(id) {
   return document.getElementById(id);
@@ -262,6 +268,34 @@ function itemRetrievalEvaluation(item = {}) {
 
 function matrixCell(status, detail = "") {
   return { status, detail };
+}
+
+function questionTypeInfo(item = {}) {
+  const caseData = item.case || {};
+  const provided = item.question_type || {};
+  const expectedEvidence = Array.isArray(caseData.expected_evidence) ? caseData.expected_evidence : [];
+  const expectedDocIds = new Set(
+    expectedEvidence
+      .map((evidence) => evidence?.source_document_id || caseData.source_document_id)
+      .filter(Boolean)
+      .map(String),
+  );
+  const isMultiDoc = Boolean(provided.multi_document) || expectedDocIds.size > 1 || caseData.generation_method === "cross_document_same_field_evidence";
+  const isMultiStep = Boolean(provided.multi_step) || caseData.retrieval_task === "multi_step_retrieval" || expectedEvidence.length > 1;
+  const evidenceCount = Number(provided.expected_evidence_count || expectedEvidence.length || 1);
+  let label = "Single";
+  if (isMultiDoc) label = "Multi-doc";
+  else if (isMultiStep) label = "Multi-step";
+  const detailParts = [
+    caseData.retrieval_task || "single_step_retrieval",
+    caseData.generation_method,
+    `${evidenceCount} expected evidence item${evidenceCount === 1 ? "" : "s"}`,
+  ].filter(Boolean);
+  return {
+    label,
+    className: isMultiDoc ? "multi-doc" : isMultiStep ? "multi-step" : "single",
+    detail: detailParts.join(" | "),
+  };
 }
 
 function buildMatrixCells(item = {}) {
@@ -419,8 +453,9 @@ function renderQuestionMatrix(payload) {
     <table class="matrix-grid">
       <thead>
         <tr>
-          <th>#</th>
-          <th>Question</th>
+          <th title="${escapeHtml(MATRIX_COLUMN_HINTS.number)}">#</th>
+          <th title="${escapeHtml(MATRIX_COLUMN_HINTS.question)}">Question</th>
+          <th title="${escapeHtml(MATRIX_COLUMN_HINTS.type)}">Type</th>
           ${MATRIX_STAGES.map((stage) => `<th title="${escapeHtml(stage.description)}">${escapeHtml(stage.label)}</th>`).join("")}
         </tr>
       </thead>
@@ -428,6 +463,7 @@ function renderQuestionMatrix(payload) {
         ${rows.map(({ item, index, cells }) => {
           const selected = index === state.selectedMatrixIndex ? " selected" : "";
           const caseData = item.case || {};
+          const typeInfo = questionTypeInfo(item);
           const activeStage = currentMatrixStageKey();
           const activeRow = isCurrentMatrixJobRow(item);
           return `
@@ -437,6 +473,7 @@ function renderQuestionMatrix(payload) {
                 <strong>${escapeHtml(shortText(caseData.query || item.query, 160))}</strong>
                 <small>${escapeHtml(item.dataset || "")}${item.latest_result?.run_id ? ` | ${escapeHtml(item.latest_result.run_id)}` : ""}</small>
               </td>
+              <td data-label="Type" title="${escapeHtml(typeInfo.detail || MATRIX_COLUMN_HINTS.type)}"><span class="question-type ${escapeHtml(typeInfo.className)}">${escapeHtml(typeInfo.label)}</span></td>
               ${MATRIX_STAGES.map((stage) => {
                 const cell = cells[stage.key] || matrixCell("blank");
                 const current = activeRow && stage.key === activeStage ? " current-run-cell" : "";
@@ -592,6 +629,10 @@ function renderMatrixDetail(row) {
         <dt>Source</dt><dd>${escapeHtml(caseData.source_filename || "")}</dd>
       </dl>
       <div class="matrix-cell-details">
+        ${(() => {
+          const typeInfo = questionTypeInfo(item);
+          return `<div class="matrix-cell-detail"><span>Type</span><strong>${escapeHtml(typeInfo.label)}</strong><small>${escapeHtml(typeInfo.detail)}</small></div>`;
+        })()}
         ${MATRIX_STAGES.map((stage) => {
           const cell = row.cells[stage.key] || matrixCell("blank");
           return `<div class="matrix-cell-detail ${escapeHtml(cell.status)}"><span>${escapeHtml(stage.label)}</span><strong>${escapeHtml(cell.status === "blank" ? "blank" : cell.status)}</strong><small>${escapeHtml(cell.detail || stage.description)}</small></div>`;

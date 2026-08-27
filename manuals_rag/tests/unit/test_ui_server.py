@@ -189,6 +189,7 @@ def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_p
     assert payload["official_total_questions"] == 1
     assert payload["loaded_questions"] == 1
     assert payload["rows"][0]["dataset"] == "test_reports/dataset.jsonl"
+    assert payload["rows"][0]["question_type"]["label"] == "Single"
     assert payload["rows"][0]["cells"]["metadata"]["status"] == "pass"
     assert payload["rows"][0]["cells"]["retrieval"]["status"] == "pass"
     assert payload["rows"][0]["cells"]["citations"]["status"] == "pass"
@@ -394,6 +395,38 @@ def test_question_matrix_blanks_answer_steps_after_retrieval_failure():
     assert cells["summaries"]["status"] == "blank"
     assert cells["generation"]["status"] == "blank"
     assert cells["answer"]["status"] == "blank"
+
+
+def test_question_type_identifies_multi_step_and_multi_document_cases():
+    multi_step = ui_server._question_type(
+        {
+            "retrieval_task": "multi_step_retrieval",
+            "source_document_id": "doc-1",
+            "expected_evidence": [
+                {"chunk_id": "error", "expected_terms": ["error"]},
+                {"chunk_id": "action", "expected_terms": ["action"]},
+            ],
+        }
+    )
+    multi_doc = ui_server._question_type(
+        {
+            "retrieval_task": "multi_step_retrieval",
+            "generation_method": "cross_document_same_field_evidence",
+            "source_document_id": "doc-1",
+            "expected_evidence": [
+                {"chunk_id": "left", "source_document_id": "doc-1", "expected_terms": ["24"]},
+                {"chunk_id": "right", "source_document_id": "doc-2", "expected_terms": ["24"]},
+            ],
+        }
+    )
+
+    assert multi_step["label"] == "Multi-step"
+    assert multi_step["multi_step"] is True
+    assert multi_step["multi_document"] is False
+    assert multi_step["expected_evidence_count"] == 2
+    assert multi_doc["label"] == "Multi-doc"
+    assert multi_doc["multi_document"] is True
+    assert multi_doc["expected_document_count"] == 2
 
 
 def test_query_debug_stream_stops_after_failed_retrieval(monkeypatch):

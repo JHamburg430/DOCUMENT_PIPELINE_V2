@@ -408,6 +408,31 @@ summary {
   background: #fff8e1;
 }
 
+.question-type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 74px;
+  min-height: 26px;
+  border: 1px solid var(--line);
+  background: #f8fafc;
+  color: #44515f;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.question-type.multi-step {
+  border-color: #d3c3eb;
+  background: #f5f0fb;
+  color: #65418c;
+}
+
+.question-type.multi-doc {
+  border-color: #b9d5e9;
+  background: #eef7fb;
+  color: #28627f;
+}
+
 .matrix-cell {
   display: inline-flex;
   align-items: center;
