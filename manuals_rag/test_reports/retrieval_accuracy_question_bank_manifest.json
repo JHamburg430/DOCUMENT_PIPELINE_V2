@@ -1021,13 +1021,14 @@
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
     "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 1
+      "expected_evidence_not_cited": 1,
+      "source_equivalence_or_dataset_policy_pending": 2
     },
-    "next_target": "Fix curated cross-document v2 row 3 citation-grade evidence selection so the IV4-G600CA shock-resistance role is returned and cited by an actual supporting chunk, not only visible in adjacent parent context or replaced by an enclosure row. Preserve rows 4-5 as clean answer evidence from retrieval_eval_20260827_094510, row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, and all citation-fidelity containments.",
-    "answer_grounding_status": "Latest actual HTTP API answer rotation retrieval_eval_20260827_094510 reran curated cross-document v2 rows 3-5 after the returned-chunk citation scorer containment and a conservative production answer fallback change. Retrieval is clean for all three rows and answer grounding is now 2/3: rows 4 and 5 pass after mandatory JSONL inspection of the actual user-visible API answer payload and returned citations. Row 4 uses retrieval-grounded fallback citations including IV-HG source chunk 13e91d84-c9ee-5fab-852a-bb6430ee5ceb and IV4 source chunk 8fa8c695-0cf3-5290-a51b-e5c033bb2ebd; cited returned chunk text supports the expected memory-error evidence roles. Row 5 uses retrieval-grounded fallback citations including IV4 advanced-program cause chunk 98198bb3-5852-5a0e-adfc-726130b73550 and VS pattern-data returned chunks whose text supports invalid-pattern-data cause terms. Row 3 still fails expected_evidence_not_cited because the API cites returned IV4-G600CA enclosure chunk c34b1afd-cd3a-5d60-b231-a4f7cb6220d7 and IV4-G120-side rows, but no returned cited chunk from source document 857c0518-4b3a-42e2-97c9-211ab24163b6 supports the expected shock-resistance role 46c6c0e8-795a-51db-a846-97560427b34e. Preserve retrieval_eval_20260827_083013 as diagnostic false-clean old-scorer evidence, retrieval_eval_20260827_083520 and retrieval_eval_20260827_090314 as diagnostic/failing pre-answer-fallback evidence, row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, the LLM answer judge diagnostic-only/opt-in, and conservative citation-fidelity containments.",
+    "next_target": "Source-review curated cross-document v2 rows 4-5 from retrieval_eval_20260827_094510 before treating them as clean answer evidence: either repair the realistic questions/expected evidence to uniquely identify the intended source chunks, or add a principled equivalent-evidence rule with deterministic controls and rerun actual HTTP answer scoring. Then fix row 3 citation-grade IV4-G600CA shock-resistance evidence selection. Preserve row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, and all citation-fidelity containments.",
+    "answer_grounding_status": "Latest guardrail review 2026-08-27T09:58:42Z reclassified retrieval_eval_20260827_094510 rows 4-5 from clean answer evidence to diagnostic source-equivalence/dataset-policy evidence. The actual HTTP API run still has 3/3 retrieval and the automated scorer marked rows 4-5 green, but mandatory JSONL/source inspection shows row 4 cites a different IV-H startup-memory-read remedy row than the stored expected IV-HG500CA cause chunk 1ddc77c5-a675-5ef9-8612-712bc44ce89c, and row 5 cites sibling VS invalid-pattern-data chunks rather than the stored VS Pattern Data cause chunk 6744c005-9875-5b89-b4a2-761ffb1bcbc6. Those rows are useful diagnostic/source-equivalence evidence only until source review either repairs the expected evidence/questions or adds a principled equivalent-evidence rule with deterministic controls and a clean rerun. Row 3 remains a current expected_evidence_not_cited failure because the API cites returned IV4-G600CA enclosure chunk c34b1afd-cd3a-5d60-b231-a4f7cb6220d7 and IV4-G120-side rows, but no returned cited chunk from source document 857c0518-4b3a-42e2-97c9-211ab24163b6 supports the expected shock-resistance role 46c6c0e8-795a-51db-a846-97560427b34e. Preserve retrieval_eval_20260827_083013 as diagnostic false-clean old-scorer evidence, retrieval_eval_20260827_083520 and retrieval_eval_20260827_090314 as diagnostic/failing pre-answer-fallback evidence, row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, the LLM answer judge diagnostic-only/opt-in, and conservative citation-fidelity containments.",
     "answer_grounding_rotation": {
       "scope": "curated_cross_document_v2_rows_3_5_actual_http_answer_rotation",
-      "status": "partial_clean_rows_4_5_row_3_expected_evidence_not_cited",
+      "status": "diagnostic_rows_4_5_source_equivalence_pending_row_3_expected_evidence_not_cited",
       "latest_answer_run": "retrieval_eval_20260827_094510",
       "previous_answer_run": "retrieval_eval_20260827_090314",
       "diagnostic_old_scorer_run": "retrieval_eval_20260827_083013",
@@ -1040,10 +1041,7 @@
         4,
         5
       ],
-      "clean_answer_rows": [
-        4,
-        5
-      ],
+      "clean_answer_rows": [],
       "current_failed_answer_rows": [
         3
       ],
@@ -1054,10 +1052,11 @@
       "retrieval_passed_queries_after_source_strict_recheck": 10,
       "retrieval_pass_rate_after_source_strict_recheck": 1.0,
       "answer_eval_count_current_retrieval_clean": 3,
-      "answer_passed_queries_current_retrieval_clean": 2,
-      "answer_pass_rate_current_retrieval_clean": 0.6667,
+      "answer_passed_queries_current_retrieval_clean": 0,
+      "answer_pass_rate_current_retrieval_clean": 0.0,
       "answer_failure_reasons_current_retrieval_clean": {
-        "expected_evidence_not_cited": 1
+        "expected_evidence_not_cited": 1,
+        "source_equivalence_or_dataset_policy_pending": 2
       },
       "answer_sources": {
         "api": 3
@@ -1067,7 +1066,7 @@
       "summary": "test_reports/retrieval_eval_summary_20260827_094510.json",
       "manifest": "test_reports/retrieval_eval_manifest_20260827_094510.json",
       "results": "test_reports/retrieval_eval_results_20260827_094510.jsonl",
-      "manual_jsonl_inspection": "Mandatory inspection of retrieval_eval_results_20260827_094510 found row 3 still failing expected_evidence_not_cited because cited returned chunks do not include/support the IV4-G600CA shock-resistance role. Row 4 passes with cited returned chunks from both IV-H and IV4 documents supporting startup-memory-read evidence. Row 5 passes with cited returned chunks from both IV4 and VS documents supporting the advanced-program switching and invalid-pattern-data evidence roles. Non-null citation quotes were absent on fallback rows; null citations were checked against actual returned chunk text by the scorer.",
+      "manual_jsonl_inspection": "Mandatory inspection of retrieval_eval_results_20260827_094510 found row 3 still failing expected_evidence_not_cited because cited returned chunks do not include/support the IV4-G600CA shock-resistance role. Rows 4 and 5 are reclassified as diagnostic/source-equivalence evidence after guardrail review: row 4's stored expected IV-HG500CA cause chunk is 1ddc77c5-a675-5ef9-8612-712bc44ce89c, while the answer cites IV-H chunk 13e91d84-c9ee-5fab-852a-bb6430ee5ceb; row 5's stored expected VS Pattern Data cause chunk is 6744c005-9875-5b89-b4a2-761ffb1bcbc6, while the answer cites sibling VS invalid-pattern-data chunks plus IV4 advanced-program evidence. These are not clean expected-evidence proof until source review repairs the case/evidence or a general equivalent-evidence rule is approved and tested.",
       "production_change": "Comparison-style answer validation now falls back to multiple directly retrieved structured evidence rows, preserving source-document diversity before score filling, and small all-structured evidence sets are kept as separate final-answer summaries instead of being recursively merged.",
       "runtime_load_evidence": {
         "validate_answer_sha256": "864712e9fe6a7fb3059c674e29c3db635b80117d1386eaa68706e2474a950eb7",
@@ -1085,11 +1084,25 @@
         "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -> 42 passed, 23 warnings",
         "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 339 passed, 59 warnings",
         "retrieval_eval_20260827_094510 actual HTTP API answer_with_citations rows 3-5 -> 3/3 retrieval, 2/3 answers, answer failures expected_evidence_not_cited: 1"
+      ],
+      "automated_scorer_pass_rows": [
+        4,
+        5
+      ],
+      "diagnostic_answer_rows": [
+        4,
+        5
+      ],
+      "diagnostic_answer_rows_reason": "Rows 4-5 passed automated scoring in retrieval_eval_20260827_094510, but guardrail/source review found the cited chunks are sibling/source-equivalent rows rather than the stored source-reviewed expected chunks; do not count as clean until expected evidence or equivalent-evidence policy is repaired and rerun.",
+      "current_pending_dataset_policy_rows": [
+        4,
+        5
       ]
     },
     "current_retrieval_failure_categories": {},
     "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 1
+      "expected_evidence_not_cited": 1,
+      "source_equivalence_or_dataset_policy_pending": 2
     },
     "run_exclusions": [
       {
@@ -1199,9 +1212,26 @@
         "run_id": "retrieval_eval_20260827_052906",
         "scope": "contextual procedure row 14 original broad wording",
         "reason": "diagnostic-only source-scope ambiguity evidence; alternate LJ-X8000 manuals answer the literal query, while repaired row retrieval_eval_20260827_053144 supplies source-scoped Easy Configuration example coverage"
+      },
+      {
+        "run_id": "retrieval_eval_20260827_094510",
+        "scope": "curated cross-document v2 rows 4-5 clean claim",
+        "reason": "guardrail/source review reclassified rows 4-5 as diagnostic source-equivalence/dataset-policy evidence because citations support sibling or source-equivalent rows rather than the stored source-reviewed expected chunks"
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-27T09:58:42Z",
+        "severity": "needs_fix",
+        "finding": "retrieval_eval_20260827_094510 rows 4-5 were tracked as clean answer evidence even though guardrail/source review found their returned citations support sibling or source-equivalent rows rather than the stored source-reviewed expected chunks, and the visible queries may be broad enough to admit alternate rows.",
+        "status": "addressed_this_run_reclassified_rows_4_5_diagnostic",
+        "evidence": [
+          "Updated root and question_bank answer_grounding_status and answer_grounding_rotation copies so clean_answer_rows is [] and diagnostic_answer_rows/current_pending_dataset_policy_rows are [4, 5].",
+          "Updated all four answer failure aliases to expected_evidence_not_cited: 1 and source_equivalence_or_dataset_policy_pending: 2.",
+          "Preserved retrieval_eval_20260827_094510 rows 4-5 as diagnostic/source-equivalence evidence only; row 3 remains the sole current expected_evidence_not_cited production-answer failure from that run."
+        ],
+        "required_next_action": "Source-review/rephrase or define a general equivalent-evidence policy for rows 4-5 with deterministic controls and an actual HTTP answer rerun before counting them as clean; then continue row-3 citation-grade shock-resistance evidence selection."
+      },
       {
         "timestamp": "2026-08-27T08:59:24Z",
         "severity": "needs_fix",
@@ -7418,7 +7448,7 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Fix curated cross-document v2 row 3 citation-grade evidence selection so the IV4-G600CA shock-resistance role is returned and cited by an actual supporting chunk, not only visible in adjacent parent context or replaced by an enclosure row. Preserve rows 4-5 as clean answer evidence from retrieval_eval_20260827_094510, row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, and all citation-fidelity containments.",
+  "next_target": "Source-review curated cross-document v2 rows 4-5 from retrieval_eval_20260827_094510 before treating them as clean answer evidence: either repair the realistic questions/expected evidence to uniquely identify the intended source chunks, or add a principled equivalent-evidence rule with deterministic controls and rerun actual HTTP answer scoring. Then fix row 3 citation-grade IV4-G600CA shock-resistance evidence selection. Preserve row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, and all citation-fidelity containments.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -7703,12 +7733,13 @@
     }
   },
   "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 1
+    "expected_evidence_not_cited": 1,
+    "source_equivalence_or_dataset_policy_pending": 2
   },
-  "answer_grounding_status": "Latest actual HTTP API answer rotation retrieval_eval_20260827_094510 reran curated cross-document v2 rows 3-5 after the returned-chunk citation scorer containment and a conservative production answer fallback change. Retrieval is clean for all three rows and answer grounding is now 2/3: rows 4 and 5 pass after mandatory JSONL inspection of the actual user-visible API answer payload and returned citations. Row 4 uses retrieval-grounded fallback citations including IV-HG source chunk 13e91d84-c9ee-5fab-852a-bb6430ee5ceb and IV4 source chunk 8fa8c695-0cf3-5290-a51b-e5c033bb2ebd; cited returned chunk text supports the expected memory-error evidence roles. Row 5 uses retrieval-grounded fallback citations including IV4 advanced-program cause chunk 98198bb3-5852-5a0e-adfc-726130b73550 and VS pattern-data returned chunks whose text supports invalid-pattern-data cause terms. Row 3 still fails expected_evidence_not_cited because the API cites returned IV4-G600CA enclosure chunk c34b1afd-cd3a-5d60-b231-a4f7cb6220d7 and IV4-G120-side rows, but no returned cited chunk from source document 857c0518-4b3a-42e2-97c9-211ab24163b6 supports the expected shock-resistance role 46c6c0e8-795a-51db-a846-97560427b34e. Preserve retrieval_eval_20260827_083013 as diagnostic false-clean old-scorer evidence, retrieval_eval_20260827_083520 and retrieval_eval_20260827_090314 as diagnostic/failing pre-answer-fallback evidence, row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, the LLM answer judge diagnostic-only/opt-in, and conservative citation-fidelity containments.",
+  "answer_grounding_status": "Latest guardrail review 2026-08-27T09:58:42Z reclassified retrieval_eval_20260827_094510 rows 4-5 from clean answer evidence to diagnostic source-equivalence/dataset-policy evidence. The actual HTTP API run still has 3/3 retrieval and the automated scorer marked rows 4-5 green, but mandatory JSONL/source inspection shows row 4 cites a different IV-H startup-memory-read remedy row than the stored expected IV-HG500CA cause chunk 1ddc77c5-a675-5ef9-8612-712bc44ce89c, and row 5 cites sibling VS invalid-pattern-data chunks rather than the stored VS Pattern Data cause chunk 6744c005-9875-5b89-b4a2-761ffb1bcbc6. Those rows are useful diagnostic/source-equivalence evidence only until source review either repairs the expected evidence/questions or adds a principled equivalent-evidence rule with deterministic controls and a clean rerun. Row 3 remains a current expected_evidence_not_cited failure because the API cites returned IV4-G600CA enclosure chunk c34b1afd-cd3a-5d60-b231-a4f7cb6220d7 and IV4-G120-side rows, but no returned cited chunk from source document 857c0518-4b3a-42e2-97c9-211ab24163b6 supports the expected shock-resistance role 46c6c0e8-795a-51db-a846-97560427b34e. Preserve retrieval_eval_20260827_083013 as diagnostic false-clean old-scorer evidence, retrieval_eval_20260827_083520 and retrieval_eval_20260827_090314 as diagnostic/failing pre-answer-fallback evidence, row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, the LLM answer judge diagnostic-only/opt-in, and conservative citation-fidelity containments.",
   "answer_grounding_rotation": {
     "scope": "curated_cross_document_v2_rows_3_5_actual_http_answer_rotation",
-    "status": "partial_clean_rows_4_5_row_3_expected_evidence_not_cited",
+    "status": "diagnostic_rows_4_5_source_equivalence_pending_row_3_expected_evidence_not_cited",
     "latest_answer_run": "retrieval_eval_20260827_094510",
     "previous_answer_run": "retrieval_eval_20260827_090314",
     "diagnostic_old_scorer_run": "retrieval_eval_20260827_083013",
@@ -7721,10 +7752,7 @@
       4,
       5
     ],
-    "clean_answer_rows": [
-      4,
-      5
-    ],
+    "clean_answer_rows": [],
     "current_failed_answer_rows": [
       3
     ],
@@ -7735,10 +7763,11 @@
     "retrieval_passed_queries_after_source_strict_recheck": 10,
     "retrieval_pass_rate_after_source_strict_recheck": 1.0,
     "answer_eval_count_current_retrieval_clean": 3,
-    "answer_passed_queries_current_retrieval_clean": 2,
-    "answer_pass_rate_current_retrieval_clean": 0.6667,
+    "answer_passed_queries_current_retrieval_clean": 0,
+    "answer_pass_rate_current_retrieval_clean": 0.0,
     "answer_failure_reasons_current_retrieval_clean": {
-      "expected_evidence_not_cited": 1
+      "expected_evidence_not_cited": 1,
+      "source_equivalence_or_dataset_policy_pending": 2
     },
     "answer_sources": {
       "api": 3
@@ -7748,7 +7777,7 @@
     "summary": "test_reports/retrieval_eval_summary_20260827_094510.json",
     "manifest": "test_reports/retrieval_eval_manifest_20260827_094510.json",
     "results": "test_reports/retrieval_eval_results_20260827_094510.jsonl",
-    "manual_jsonl_inspection": "Mandatory inspection of retrieval_eval_results_20260827_094510 found row 3 still failing expected_evidence_not_cited because cited returned chunks do not include/support the IV4-G600CA shock-resistance role. Row 4 passes with cited returned chunks from both IV-H and IV4 documents supporting startup-memory-read evidence. Row 5 passes with cited returned chunks from both IV4 and VS documents supporting the advanced-program switching and invalid-pattern-data evidence roles. Non-null citation quotes were absent on fallback rows; null citations were checked against actual returned chunk text by the scorer.",
+    "manual_jsonl_inspection": "Mandatory inspection of retrieval_eval_results_20260827_094510 found row 3 still failing expected_evidence_not_cited because cited returned chunks do not include/support the IV4-G600CA shock-resistance role. Rows 4 and 5 are reclassified as diagnostic/source-equivalence evidence after guardrail review: row 4's stored expected IV-HG500CA cause chunk is 1ddc77c5-a675-5ef9-8612-712bc44ce89c, while the answer cites IV-H chunk 13e91d84-c9ee-5fab-852a-bb6430ee5ceb; row 5's stored expected VS Pattern Data cause chunk is 6744c005-9875-5b89-b4a2-761ffb1bcbc6, while the answer cites sibling VS invalid-pattern-data chunks plus IV4 advanced-program evidence. These are not clean expected-evidence proof until source review repairs the case/evidence or a general equivalent-evidence rule is approved and tested.",
     "production_change": "Comparison-style answer validation now falls back to multiple directly retrieved structured evidence rows, preserving source-document diversity before score filling, and small all-structured evidence sets are kept as separate final-answer summaries instead of being recursively merged.",
     "runtime_load_evidence": {
       "validate_answer_sha256": "864712e9fe6a7fb3059c674e29c3db635b80117d1386eaa68706e2474a950eb7",
@@ -7766,6 +7795,19 @@
       "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -> 42 passed, 23 warnings",
       "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 339 passed, 59 warnings",
       "retrieval_eval_20260827_094510 actual HTTP API answer_with_citations rows 3-5 -> 3/3 retrieval, 2/3 answers, answer failures expected_evidence_not_cited: 1"
+    ],
+    "automated_scorer_pass_rows": [
+      4,
+      5
+    ],
+    "diagnostic_answer_rows": [
+      4,
+      5
+    ],
+    "diagnostic_answer_rows_reason": "Rows 4-5 passed automated scoring in retrieval_eval_20260827_094510, but guardrail/source review found the cited chunks are sibling/source-equivalent rows rather than the stored source-reviewed expected chunks; do not count as clean until expected evidence or equivalent-evidence policy is repaired and rerun.",
+    "current_pending_dataset_policy_rows": [
+      4,
+      5
     ]
   },
   "latest_eval_generation_quality": {
@@ -8172,7 +8214,8 @@
   },
   "current_retrieval_failure_categories": {},
   "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 1
+    "expected_evidence_not_cited": 1,
+    "source_equivalence_or_dataset_policy_pending": 2
   },
   "run_exclusions": [
     {
@@ -8282,9 +8325,26 @@
       "run_id": "retrieval_eval_20260827_052906",
       "scope": "contextual procedure row 14 original broad wording",
       "reason": "diagnostic-only source-scope ambiguity evidence; alternate LJ-X8000 manuals answer the literal query, while repaired row retrieval_eval_20260827_053144 supplies source-scoped Easy Configuration example coverage"
+    },
+    {
+      "run_id": "retrieval_eval_20260827_094510",
+      "scope": "curated cross-document v2 rows 4-5 clean claim",
+      "reason": "guardrail/source review reclassified rows 4-5 as diagnostic source-equivalence/dataset-policy evidence because citations support sibling or source-equivalent rows rather than the stored source-reviewed expected chunks"
     }
   ],
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-27T09:58:42Z",
+      "severity": "needs_fix",
+      "finding": "retrieval_eval_20260827_094510 rows 4-5 were tracked as clean answer evidence even though guardrail/source review found their returned citations support sibling or source-equivalent rows rather than the stored source-reviewed expected chunks, and the visible queries may be broad enough to admit alternate rows.",
+      "status": "addressed_this_run_reclassified_rows_4_5_diagnostic",
+      "evidence": [
+        "Updated root and question_bank answer_grounding_status and answer_grounding_rotation copies so clean_answer_rows is [] and diagnostic_answer_rows/current_pending_dataset_policy_rows are [4, 5].",
+        "Updated all four answer failure aliases to expected_evidence_not_cited: 1 and source_equivalence_or_dataset_policy_pending: 2.",
+        "Preserved retrieval_eval_20260827_094510 rows 4-5 as diagnostic/source-equivalence evidence only; row 3 remains the sole current expected_evidence_not_cited production-answer failure from that run."
+      ],
+      "required_next_action": "Source-review/rephrase or define a general equivalent-evidence policy for rows 4-5 with deterministic controls and an actual HTTP answer rerun before counting them as clean; then continue row-3 citation-grade shock-resistance evidence selection."
+    },
     {
       "timestamp": "2026-08-27T08:59:24Z",
       "severity": "needs_fix",
