@@ -983,6 +983,66 @@ def test_answer_response_scoring_requires_troubleshooting_action_object_terms():
     assert "expected_terms_missing" in scored["failure_reasons"]
 
 
+def test_answer_response_scoring_allows_source_action_phrase_with_intervening_words():
+    case = RetrievalEvalCase(
+        case_id="case-flash-output",
+        query="What causes light controller communication errors for CV-X482, and how should they be corrected?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="error-cell",
+        source_title="CV-X",
+        source_filename="cvx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1274,
+        page_to=1274,
+        expected_terms=["error", "communication", "light", "flash"],
+        expected_snippet="Error, cause, and remedy",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_model": "CV-X482"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "remedy-cell",
+                "source_document_id": "doc-cvx",
+                "field": "remedy",
+                "expected_terms": ["set", "flash", "0.1", "lighting"],
+                "snippet": "Cell value: Set the FLASH output time to 0.1 msec.",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "The light-controller communication error is caused by the next FLASH being input "
+                "while the light is emitted. Set the FLASH output time to 0.1 msec."
+            ),
+            "citations": [
+                {
+                    "document_id": "doc-cvx",
+                    "chunk_id": "remedy-cell",
+                    "pages": [1274],
+                    "quote_span": "Set the FLASH output time to 0.1 msec.",
+                }
+            ],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "remedy-cell",
+                "content": "Remedy: Set the FLASH output time to 0.1 msec.",
+            }
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert "set flash 0.1" in scored["term_check"]["material_matched_terms"]
+
+
 def test_answer_response_scoring_rejects_unsupported_citation_quote_spans():
     case = RetrievalEvalCase(
         case_id="case-unsupported-trigger-signal",

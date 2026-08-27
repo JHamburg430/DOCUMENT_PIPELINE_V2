@@ -393,6 +393,172 @@ def test_validate_answer_rejects_quote_from_context_window_under_cited_chunk():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_fallback_when_troubleshooting_answer_uses_wrong_error_anchor():
+    answer = AnswerResponse(
+        answer=(
+            "Failed Ethernet communication is corrected by checking whether the PC/PLC is ready "
+            "and whether the Ethernet software is running."
+        ),
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "ethernet-row",
+                "document_id": "d1",
+                "pages": [12],
+                "quote_span": None,
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="light-row",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Messages: An error occurred in the communication with the light controller. "
+                "Cause: The next FLASH was input while the light was being emitted. "
+                "Remedy: Set the FLASH output time to 0.1 msec."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="ethernet-row",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Messages: Failed in the Ethernet communication. "
+                "Cause: An error occurred with Ethernet communication. "
+                "Remedy: Check whether the PC/PLC is ready."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "What causes An error occurred in the communication with the light controller, "
+            "and how should it be corrected?"
+        ),
+    )
+
+    assert validated.answer.startswith("Error Messages: An error occurred in the communication with the light controller.")
+    assert validated.citations[0]["chunk_id"] == "light-row"
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_prioritize_results_keeps_exact_troubleshooting_anchor_before_model_judgments(monkeypatch):
+    light_row = SearchResult(
+        chunk_id="light-row",
+        score=0.9,
+        title="Doc",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content=(
+            "Error Messages: An error occurred in the communication with the light controller. "
+            "Cause: The next FLASH was input while the light was being emitted. "
+            "Remedy: Set the FLASH output time to 0.1 msec."
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+    ethernet_row = SearchResult(
+        chunk_id="ethernet-row",
+        score=0.8,
+        title="Doc",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[12],
+        section_path=["Troubleshooting"],
+        content=(
+            "Error Messages: Failed in the Ethernet communication. "
+            "Cause: An error occurred with Ethernet communication. "
+            "Remedy: Check whether the PC/PLC is ready."
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.judge_retrieval_relevance",
+        lambda _query, _results: [
+            {"chunk_id": "light-row", "verdict": "not_relevant", "reason": "model miss"},
+            {"chunk_id": "ethernet-row", "verdict": "relevant", "reason": "model selected a sibling row"},
+        ],
+    )
+
+    prioritized = prioritize_results_for_answer(
+        "What causes An error occurred in the communication with the light controller, and how should it be corrected?",
+        [light_row, ethernet_row],
+    )
+
+    assert [result.chunk_id for result in prioritized["prioritized_results"]] == ["light-row"]
+
+
+def test_validate_answer_keeps_troubleshooting_answer_with_matching_error_anchor():
+    answer = AnswerResponse(
+        answer=(
+            "Error Messages: An error occurred in the communication with the light controller. "
+            "Cause: The next FLASH was input while the light was being emitted. "
+            "Remedy: Set the FLASH output time to 0.1 msec."
+        ),
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "light-row",
+                "document_id": "d1",
+                "pages": [10],
+                "quote_span": "Set the FLASH output time to 0.1 msec.",
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="light-row",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Messages: An error occurred in the communication with the light controller. "
+                "Cause: The next FLASH was input while the light was being emitted. "
+                "Remedy: Set the FLASH output time to 0.1 msec."
+            ),
+            metadata={"chunk_type": "table_record"},
+        )
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "What causes An error occurred in the communication with the light controller, "
+            "and how should it be corrected?"
+        ),
+    )
+
+    assert validated.answer == answer.answer
+    assert validated.citations[0]["chunk_id"] == "light-row"
+
+
 def test_validate_answer_accepts_citation_quote_from_cited_chunk():
     answer = AnswerResponse(
         answer="Change to a trigger signal that can be used.",

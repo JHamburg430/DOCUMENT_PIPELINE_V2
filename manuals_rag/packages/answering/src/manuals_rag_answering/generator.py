@@ -426,6 +426,51 @@ def _citation_evidence_text(result: SearchResult) -> str:
     return content
 
 
+def _troubleshooting_anchor_terms(query: str) -> set[str]:
+    anchor = _query_troubleshooting_anchor(query)
+    if not anchor:
+        return set()
+    return {
+        term
+        for term in _answer_terms(anchor)
+        if term
+        not in {
+            "error",
+            "occurred",
+            "message",
+            "messages",
+            "communication",
+            "stopped",
+            "invalid",
+            "setting",
+            "settings",
+            "corrected",
+        }
+    }
+
+
+def _answer_addresses_troubleshooting_anchor(
+    answer: str,
+    query: str,
+    citations: list[dict[str, Any]],
+    results: list[SearchResult],
+) -> bool:
+    if not _is_troubleshooting_query(query):
+        return True
+    anchor_terms = _troubleshooting_anchor_terms(query)
+    if not anchor_terms:
+        return True
+    text = answer
+    result_by_chunk_id = {result.chunk_id: result for result in results}
+    for citation in citations:
+        result = result_by_chunk_id.get(str(citation.get("chunk_id") or ""))
+        if result:
+            text = f"{text}\n{_citation_evidence_text(result)}"
+    text_terms = _answer_terms(text)
+    required = min(2, len(anchor_terms))
+    return len(anchor_terms.intersection(text_terms)) >= required
+
+
 def _citation_quotes_are_supported(citations: list[dict[str, Any]], results: list[SearchResult]) -> bool:
     if not citations:
         return True
@@ -478,6 +523,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         not _answer_supported_by_results(answer.answer, results)
         or _structured_answer_is_too_terse(answer.answer, results)
         or not _citation_quotes_are_supported(list(answer.citations), results)
+        or not _answer_addresses_troubleshooting_anchor(answer.answer, query, list(answer.citations), results)
     ):
         fallback = _fallback_answer(query, results)
         answer = fallback.model_copy(
@@ -663,11 +709,18 @@ def prepare_answer_evidence(query: str, results: list[SearchResult]) -> dict[str
 def prioritize_results_for_answer(query: str, candidate_results: list[SearchResult]) -> dict[str, Any]:
     judgments = judge_retrieval_relevance(query, candidate_results)
     judgment_by_chunk_id = {item["chunk_id"]: item for item in judgments}
+    focused_results = _focused_troubleshooting_results(query, candidate_results)
+    anchored_results = focused_results if [result.chunk_id for result in focused_results] != [result.chunk_id for result in candidate_results] else []
     prioritized_results = [
+        result
+        for result in anchored_results
+    ]
+    prioritized_results.extend(
         result
         for result in candidate_results
         if judgment_by_chunk_id.get(result.chunk_id, {}).get("verdict") == "relevant"
-    ]
+        and result.chunk_id not in {item.chunk_id for item in prioritized_results}
+    )
     prioritized_results.extend(
         result
         for result in candidate_results

@@ -2967,6 +2967,19 @@ def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str
             for index in range(0, len(answer_tokens) - len(term_tokens) + 1):
                 if answer_tokens[index : index + len(term_tokens)] == term_tokens:
                     return True
+            position = 0
+            last_match_index = -1
+            for term_token in term_tokens:
+                try:
+                    match_index = answer_tokens.index(term_token, position)
+                except ValueError:
+                    break
+                last_match_index = match_index
+                position = match_index + 1
+            else:
+                first_match_index = answer_tokens.index(term_tokens[0])
+                if last_match_index - first_match_index <= len(term_tokens) + 4:
+                    return True
     number = ANSWER_SCORING_NUMBER_WORDS.get(term_lower)
     if number and (number in text_tokens or re.search(rf"(?<![\w.-]){re.escape(number)}(?![\w.-])", text_lower)):
         return True
