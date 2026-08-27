@@ -75,7 +75,7 @@ def analyze_query(query: str) -> QueryAnalysis:
     if structured_lookup_field and (structured_lookup_shape or structured_reverse_lookup_shape):
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
-    if structured_value_lookup_shape and (structured_lookup_field or structured_table_field):
+    if structured_value_lookup_shape and structured_table_field:
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
     requested_doc_kind = None

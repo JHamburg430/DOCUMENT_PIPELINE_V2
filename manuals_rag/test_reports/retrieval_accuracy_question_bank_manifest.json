@@ -1021,8 +1021,8 @@
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
     "answer_current_failure_categories": {},
-    "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947.",
-    "answer_grounding_status": "Quantity validator guardrail containment completed in retrieval_eval_20260827_212947. The answer validator now requires requested quantity roles such as line count and overlap count to be supported by matching role-bound values from retrieved evidence; loaded controls rejected wrong total-only, wrong line/overlap, and omitted-overlap answers while retaining the correct 10-lines/two-overlap-lines answer. After restarting the API and recording loaded fingerprints, contextual rows 15-16 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl reran through actual HTTP answer scoring at 2/2 retrieval and 2/2 answers. Inspected test_reports/retrieval_eval_results_20260827_212947.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count; the answer cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 from pages 863-864 with quote_span null, and the cited chunk itself states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and the explanatory sentence that the number of lines is 10 and overlap lines is two, so the requested line-count and overlap-count roles are supported. Contextual row 16 remains clean as a control; it cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9 with quote_span null, and that chunk directly states TRG1 for CAM 1 executes capture plus measurement processing of one camera as one measurement. Current retrieval failures are {}; current answer failures are {}. Diagnostic run retrieval_eval_20260827_203931 remains excluded, and retrieval_eval_20260827_210240 remains preserved prior clean case-level evidence.",
+    "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947, and the matrix/chunk-evidence containment from this run.",
+    "answer_grounding_status": "Matrix/chunk-evidence retrieval guardrail containment completed after guardrail 2026-08-27T21:51:07Z. The previously committed ad7c5ba production retrieval/answer workflow change was validated with focused matrix/table controls, a full unit gate, API restart/runtime fingerprints, and actual /search positive/negative controls. During full-gate validation, a general query-analysis regression was found and fixed: broad value questions such as 'In LJ-S8000, what value is given for 1-line cross-section area?' no longer get structured table routing, while explicit table-field value questions such as the LumiTrax Pattern Region Height Number Format query still promote chunk-supported table cells. API positive control returned structured_table_promoted Pattern Region: Height Number Format table cells, including chunk 50c3d66f-7782-54c9-825b-3264e44fedef; API negative control returned normal reranked LJ-S8000 1-line cross-section evidence with no structured_table_promoted rows. Current retrieval failures are {}; current answer failures are {}. Quantity rows 15-16 clean evidence from retrieval_eval_20260827_212947 remains preserved, as do all prior diagnostic exclusions and citation-fidelity containments.",
     "answer_grounding_rotation": {
       "scope": "contextual_multi_step_rows_15_16_quantity_answer_repair",
       "status": "rows_15_16_clean_after_role_aware_quantity_validation",
@@ -1227,6 +1227,23 @@
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-27T21:51:07Z",
+        "severity": "needs_fix",
+        "finding": "ad7c5ba changed shared production retrieval/answer workflow behavior for matrix/chunk-evidence retrieval without accuracy progress tracking, runtime-load proof, full unit gate evidence, or actual API changed-path controls.",
+        "status": "addressed_this_run_full_gate_runtime_and_api_controls",
+        "evidence": [
+          "Focused matrix/table regression controls passed after fixing the broad value-query routing regression: 4 passed.",
+          "Full unit gate passed after the fix: 376 passed, 59 warnings.",
+          "API service was restarted and loaded fingerprints for query_analysis, retriever structured/table functions, retrieve, and answer workflow fuse/rerank were recorded.",
+          "Loaded controls showed broad value queries remain general with no preferred table chunks, while explicit table-field value queries still use structured lookup/table chunks.",
+          "Actual /search positive control returned structured_table_promoted Pattern Region: Height Number Format cells, including chunk 50c3d66f-7782-54c9-825b-3264e44fedef.",
+          "Actual /search negative control for LJ-S8000 1-line cross-section area returned normal reranked evidence and no structured_table_promoted chunks.",
+          "The small code correction is general query-analysis behavior and does not hardcode documents, vendors, filenames, run ids, or eval cases.",
+          "Manifest checker now requires latest_matrix_retrieval_guardrail_containment at both root and question_bank; focused checker tests passed and negative controls failed for missing/mismatched copies."
+        ],
+        "required_next_action": "No further containment is required for ad7c5ba before optional rotations; continue broadening actual HTTP API answer-grounding coverage while preserving prior diagnostics and exclusions."
+      },
       {
         "timestamp": "2026-08-27T21:21:47Z",
         "severity": "needs_fix",
@@ -1803,6 +1820,50 @@
       "answer_result": "2/2 actual HTTP API answers passed after API restart; answer_source api for both; fallback 0; failures {}.",
       "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_212947.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count; the answer cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 from pages 863-864 with quote_span null, and the cited chunk itself states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and the explanatory sentence that the number of lines is 10 and overlap lines is two, so the requested line-count and overlap-count roles are supported. Contextual row 16 remains clean as a control; it cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9 with quote_span null, and that chunk directly states TRG1 for CAM 1 executes capture plus measurement processing of one camera as one measurement.",
       "remaining": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases. Actual API adversarial injection of a deliberately wrong generated answer was not available without adding debug/API/harness code, so the negative changed-path proof is the loaded-container validator control plus the positive/control HTTP rerun. Preserve older sibling row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, row-6 clean rerun retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947."
+    },
+    "latest_matrix_retrieval_guardrail_containment": {
+      "timestamp": "2026-08-27T18:03:52-04:00",
+      "guardrail_finding": "2026-08-27T21:51:07Z needs_fix on ad7c5ba matrix/chunk-evidence production retrieval workflow validation",
+      "status": "addressed_this_run_full_gate_runtime_and_api_controls",
+      "production_change_reviewed": "ad7c5ba added structured table lexical retrieval and promotion to production retrieval/answer workflow paths for matrix/retrieval evidence; this run validated it and fixed a broad value-query routing regression in query_analysis.py.",
+      "scoped_fix": "structured_value_lookup_shape now requires an explicit structured_table_field before adding structured_lookup/table preferred chunks, preserving broad value-query embedding alignment while keeping explicit table-field value lookups on the structured table path.",
+      "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_filters.py::test_query_analysis_keeps_value_query_terms_for_embedding_alignment tests/unit/test_retriever.py::test_query_analysis_marks_listed_value_table_path_questions_as_structured_lookup tests/unit/test_retriever.py::test_structured_table_promotion_preserves_top_lexical_cell_after_rerank tests/unit/test_ui_server.py::test_question_matrix_loads_active_bank_and_latest_results -q -> 4 passed",
+      "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 376 passed, 59 warnings",
+      "runtime_load_evidence": {
+        "query_analysis.analyze_query_sha256": "1c809ee8bed5b436919fbbfeb1e4637d985f5cab0848f2b098cd17dc4b3037ae",
+        "retriever._structured_prompt_phrase_sha256": "7f82e16b8e5d3bb7d9407f213a4ae2bae1592f809d0dd212d128bbc0ad1e6601",
+        "retriever._promote_structured_table_candidates_sha256": "863717d524623924da22b1043fe0aa49602f6bf812efb7cb84bd7d271f11ac96",
+        "retriever.run_table_lexical_search_sha256": "92407682eefd4728c52ff6e48afce06d11ee21a805b310db0e3da47ed956f3ec",
+        "retriever.retrieve_sha256": "b025cc2aa9df0e47e5772ea29f11b22c34c8a2ba7d5604b576302c886e35caa5",
+        "workflow.fuse_sha256": "e932d4e459604553ba683061f3cfea4f30bcd1c509ed210818d230284851d784",
+        "workflow.rerank_sha256": "6cf7545116975d17e5e158759b167ecaf4cb4bc3cf5e12c40bdfedd4bd7cb7aa",
+        "OLLAMA_URL": "http://host.docker.internal:11437",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
+      },
+      "loaded_controls": [
+        "Ordinary broad value query analysis returned query_types ['general'] and preferred_chunk_types [].",
+        "Explicit LumiTrax table-field value query analysis returned configuration plus structured_lookup and table-capable preferred chunks."
+      ],
+      "actual_api_controls": [
+        "Positive /search: explicit LumiTrax Pattern Region Height Number Format query returned structured_table_promoted table_record cells at ranks 1-3, with chunk 50c3d66f-7782-54c9-825b-3264e44fedef directly containing Decimal Digits cell value 0 for Pattern Region: Height.",
+        "Negative /search: broad LJ-S8000 1-line cross-section area value query returned normal reranked evidence and no structured_table_promoted chunks, preserving embedding-aligned retrieval rather than the new table-field promotion path."
+      ],
+      "scope": "Changed only retrieval query analysis plus tracking. No ingestion, parser, auth, infrastructure, Docker, schema, deployment, model/provider, UI, or API behavior was changed in this run.",
+      "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
+      "remaining": "Continue optional answer-grounding coverage expansion; preserve all diagnostic exclusions and citation-fidelity containments.",
+      "manifest_integrity": {
+        "checker": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+        "checker_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 7 passed",
+        "negative_controls": [
+          "real_equal PASS",
+          "missing_root_matrix FAIL",
+          "missing_question_bank_matrix FAIL",
+          "unequal_matrix FAIL"
+        ]
+      }
     }
   },
   "latest_false_negative_repair": {
@@ -7753,7 +7814,7 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947.",
+  "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947, and the matrix/chunk-evidence containment from this run.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -8038,7 +8099,7 @@
     }
   },
   "answer_current_failure_categories": {},
-  "answer_grounding_status": "Quantity validator guardrail containment completed in retrieval_eval_20260827_212947. The answer validator now requires requested quantity roles such as line count and overlap count to be supported by matching role-bound values from retrieved evidence; loaded controls rejected wrong total-only, wrong line/overlap, and omitted-overlap answers while retaining the correct 10-lines/two-overlap-lines answer. After restarting the API and recording loaded fingerprints, contextual rows 15-16 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl reran through actual HTTP answer scoring at 2/2 retrieval and 2/2 answers. Inspected test_reports/retrieval_eval_results_20260827_212947.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count; the answer cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 from pages 863-864 with quote_span null, and the cited chunk itself states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and the explanatory sentence that the number of lines is 10 and overlap lines is two, so the requested line-count and overlap-count roles are supported. Contextual row 16 remains clean as a control; it cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9 with quote_span null, and that chunk directly states TRG1 for CAM 1 executes capture plus measurement processing of one camera as one measurement. Current retrieval failures are {}; current answer failures are {}. Diagnostic run retrieval_eval_20260827_203931 remains excluded, and retrieval_eval_20260827_210240 remains preserved prior clean case-level evidence.",
+  "answer_grounding_status": "Matrix/chunk-evidence retrieval guardrail containment completed after guardrail 2026-08-27T21:51:07Z. The previously committed ad7c5ba production retrieval/answer workflow change was validated with focused matrix/table controls, a full unit gate, API restart/runtime fingerprints, and actual /search positive/negative controls. During full-gate validation, a general query-analysis regression was found and fixed: broad value questions such as 'In LJ-S8000, what value is given for 1-line cross-section area?' no longer get structured table routing, while explicit table-field value questions such as the LumiTrax Pattern Region Height Number Format query still promote chunk-supported table cells. API positive control returned structured_table_promoted Pattern Region: Height Number Format table cells, including chunk 50c3d66f-7782-54c9-825b-3264e44fedef; API negative control returned normal reranked LJ-S8000 1-line cross-section evidence with no structured_table_promoted rows. Current retrieval failures are {}; current answer failures are {}. Quantity rows 15-16 clean evidence from retrieval_eval_20260827_212947 remains preserved, as do all prior diagnostic exclusions and citation-fidelity containments.",
   "answer_grounding_rotation": {
     "scope": "contextual_multi_step_rows_15_16_quantity_answer_repair",
     "status": "rows_15_16_clean_after_role_aware_quantity_validation",
@@ -8656,6 +8717,23 @@
   ],
   "unresolved_guardrail_findings": [
     {
+      "timestamp": "2026-08-27T21:51:07Z",
+      "severity": "needs_fix",
+      "finding": "ad7c5ba changed shared production retrieval/answer workflow behavior for matrix/chunk-evidence retrieval without accuracy progress tracking, runtime-load proof, full unit gate evidence, or actual API changed-path controls.",
+      "status": "addressed_this_run_full_gate_runtime_and_api_controls",
+      "evidence": [
+        "Focused matrix/table regression controls passed after fixing the broad value-query routing regression: 4 passed.",
+        "Full unit gate passed after the fix: 376 passed, 59 warnings.",
+        "API service was restarted and loaded fingerprints for query_analysis, retriever structured/table functions, retrieve, and answer workflow fuse/rerank were recorded.",
+        "Loaded controls showed broad value queries remain general with no preferred table chunks, while explicit table-field value queries still use structured lookup/table chunks.",
+        "Actual /search positive control returned structured_table_promoted Pattern Region: Height Number Format cells, including chunk 50c3d66f-7782-54c9-825b-3264e44fedef.",
+        "Actual /search negative control for LJ-S8000 1-line cross-section area returned normal reranked evidence and no structured_table_promoted chunks.",
+        "The small code correction is general query-analysis behavior and does not hardcode documents, vendors, filenames, run ids, or eval cases.",
+        "Manifest checker now requires latest_matrix_retrieval_guardrail_containment at both root and question_bank; focused checker tests passed and negative controls failed for missing/mismatched copies."
+      ],
+      "required_next_action": "No further containment is required for ad7c5ba before optional rotations; continue broadening actual HTTP API answer-grounding coverage while preserving prior diagnostics and exclusions."
+    },
+    {
       "timestamp": "2026-08-27T21:21:47Z",
       "severity": "needs_fix",
       "finding": "Quantity validator accepted wrong or partial quantity answers because it treated any overlapping contextual quantity from matching evidence as sufficient.",
@@ -9154,5 +9232,49 @@
       ]
     },
     "remaining": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases. Actual API adversarial injection of a deliberately wrong generated answer was not available without adding debug/API/harness code, so the negative changed-path proof is the loaded-container validator control plus the positive/control HTTP rerun. Preserve older sibling row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, row-6 clean rerun retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947."
+  },
+  "latest_matrix_retrieval_guardrail_containment": {
+    "timestamp": "2026-08-27T18:03:52-04:00",
+    "guardrail_finding": "2026-08-27T21:51:07Z needs_fix on ad7c5ba matrix/chunk-evidence production retrieval workflow validation",
+    "status": "addressed_this_run_full_gate_runtime_and_api_controls",
+    "production_change_reviewed": "ad7c5ba added structured table lexical retrieval and promotion to production retrieval/answer workflow paths for matrix/retrieval evidence; this run validated it and fixed a broad value-query routing regression in query_analysis.py.",
+    "scoped_fix": "structured_value_lookup_shape now requires an explicit structured_table_field before adding structured_lookup/table preferred chunks, preserving broad value-query embedding alignment while keeping explicit table-field value lookups on the structured table path.",
+    "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_filters.py::test_query_analysis_keeps_value_query_terms_for_embedding_alignment tests/unit/test_retriever.py::test_query_analysis_marks_listed_value_table_path_questions_as_structured_lookup tests/unit/test_retriever.py::test_structured_table_promotion_preserves_top_lexical_cell_after_rerank tests/unit/test_ui_server.py::test_question_matrix_loads_active_bank_and_latest_results -q -> 4 passed",
+    "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 376 passed, 59 warnings",
+    "runtime_load_evidence": {
+      "query_analysis.analyze_query_sha256": "1c809ee8bed5b436919fbbfeb1e4637d985f5cab0848f2b098cd17dc4b3037ae",
+      "retriever._structured_prompt_phrase_sha256": "7f82e16b8e5d3bb7d9407f213a4ae2bae1592f809d0dd212d128bbc0ad1e6601",
+      "retriever._promote_structured_table_candidates_sha256": "863717d524623924da22b1043fe0aa49602f6bf812efb7cb84bd7d271f11ac96",
+      "retriever.run_table_lexical_search_sha256": "92407682eefd4728c52ff6e48afce06d11ee21a805b310db0e3da47ed956f3ec",
+      "retriever.retrieve_sha256": "b025cc2aa9df0e47e5772ea29f11b22c34c8a2ba7d5604b576302c886e35caa5",
+      "workflow.fuse_sha256": "e932d4e459604553ba683061f3cfea4f30bcd1c509ed210818d230284851d784",
+      "workflow.rerank_sha256": "6cf7545116975d17e5e158759b167ecaf4cb4bc3cf5e12c40bdfedd4bd7cb7aa",
+      "OLLAMA_URL": "http://host.docker.internal:11437",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
+    },
+    "loaded_controls": [
+      "Ordinary broad value query analysis returned query_types ['general'] and preferred_chunk_types [].",
+      "Explicit LumiTrax table-field value query analysis returned configuration plus structured_lookup and table-capable preferred chunks."
+    ],
+    "actual_api_controls": [
+      "Positive /search: explicit LumiTrax Pattern Region Height Number Format query returned structured_table_promoted table_record cells at ranks 1-3, with chunk 50c3d66f-7782-54c9-825b-3264e44fedef directly containing Decimal Digits cell value 0 for Pattern Region: Height.",
+      "Negative /search: broad LJ-S8000 1-line cross-section area value query returned normal reranked evidence and no structured_table_promoted chunks, preserving embedding-aligned retrieval rather than the new table-field promotion path."
+    ],
+    "scope": "Changed only retrieval query analysis plus tracking. No ingestion, parser, auth, infrastructure, Docker, schema, deployment, model/provider, UI, or API behavior was changed in this run.",
+    "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
+    "remaining": "Continue optional answer-grounding coverage expansion; preserve all diagnostic exclusions and citation-fidelity containments.",
+    "manifest_integrity": {
+      "checker": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+      "checker_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 7 passed",
+      "negative_controls": [
+        "real_equal PASS",
+        "missing_root_matrix FAIL",
+        "missing_question_bank_matrix FAIL",
+        "unequal_matrix FAIL"
+      ]
+    }
   }
 }

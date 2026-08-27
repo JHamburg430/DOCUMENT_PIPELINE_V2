@@ -32,6 +32,7 @@ def _minimal_manifest():
         "latest_cross_document_validation": {"run": "retrieval_eval_20260827_042612"},
         "latest_contextual_row14_repair": {"run": "retrieval_eval_20260827_053144"},
         "latest_contextual_quantity_answer_repair": {"run": "retrieval_eval_20260827_212947"},
+        "latest_matrix_retrieval_guardrail_containment": {"status": "addressed"},
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
         "failure_categories": retrieval_failures,
@@ -85,3 +86,37 @@ def test_manifest_checker_rejects_unequal_false_negative_repair():
     errors = module.check_manifest(manifest)
 
     assert any("latest_false_negative_repair mismatch" in error for error in errors)
+
+
+def test_manifest_checker_rejects_missing_root_matrix_retrieval_containment():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    del manifest["latest_matrix_retrieval_guardrail_containment"]
+
+    errors = module.check_manifest(manifest)
+
+    assert any("latest_matrix_retrieval_guardrail_containment missing required duplicate" in error for error in errors)
+
+
+def test_manifest_checker_rejects_missing_question_bank_matrix_retrieval_containment():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    del manifest["question_bank"]["latest_matrix_retrieval_guardrail_containment"]
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "question_bank.latest_matrix_retrieval_guardrail_containment" in error
+        and "missing required duplicate" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_unequal_matrix_retrieval_containment():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["question_bank"]["latest_matrix_retrieval_guardrail_containment"] = {"status": "stale"}
+
+    errors = module.check_manifest(manifest)
+
+    assert any("latest_matrix_retrieval_guardrail_containment mismatch" in error for error in errors)
