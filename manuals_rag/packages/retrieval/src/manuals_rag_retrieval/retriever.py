@@ -715,21 +715,30 @@ def run_table_lexical_search(
     ranked.sort(key=lambda item: item[0], reverse=True)
     results = [result for _, result in ranked]
     if is_comparison_lookup and len(analysis.product_identifiers) >= 2:
+        row_code_terms = _comparison_row_code_terms(
+            analysis.raw_query,
+            [str(identifier) for identifier in analysis.product_identifiers],
+        )
+        if len(row_code_terms) < 2:
+            row_code_terms = []
+        covered_row_codes: set[str] = set()
         promoted: list[SearchResult] = []
         seen_ids: set[str] = set()
         for identifier in analysis.product_identifiers:
-            candidate = next(
-                (
-                    result
-                    for result in results
-                    if result.chunk_id not in seen_ids and _result_matches_identifier(result, identifier)
-                ),
-                None,
-            )
-            if candidate is None:
-                continue
-            seen_ids.add(candidate.chunk_id)
-            promoted.append(candidate)
+            uncovered_row_codes = [term for term in row_code_terms if term not in covered_row_codes]
+            if row_code_terms and not uncovered_row_codes:
+                break
+            candidates = [
+                result
+                for result in results
+                if result.chunk_id not in seen_ids and _result_matches_identifier(result, identifier)
+                and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
+            ]
+            promotion_limit = 2 if row_code_terms else 1
+            for candidate in candidates[:promotion_limit]:
+                seen_ids.add(candidate.chunk_id)
+                covered_row_codes.update(_matching_comparison_row_codes(candidate, row_code_terms))
+                promoted.append(candidate)
         if promoted:
             deduped: list[SearchResult] = []
             for result in [*promoted, *results]:
@@ -1349,6 +1358,47 @@ def _result_matches_identifier(result: SearchResult, identifier: str) -> bool:
     return expected in haystack
 
 
+def _comparison_row_code_terms(query: str, identifiers: list[str]) -> list[str]:
+    identifier_parts = {
+        _compact_identifier(piece)
+        for identifier in identifiers
+        for piece in [identifier, *re.split(r"[-/_.\s]+", identifier)]
+        if _compact_identifier(piece)
+    }
+    row_terms: list[str] = []
+    for match in re.finditer(r"\b[A-Z0-9][A-Z0-9/_.-]*\b", query):
+        raw = match.group(0)
+        if not any(char.isupper() for char in raw):
+            continue
+        compact = _compact_identifier(raw)
+        if (
+            not compact
+            or compact in identifier_parts
+            or len(compact) < 2
+            or compact in {"angle", "code", "data", "error", "format", "measured", "value"}
+            or (not any(char.isdigit() for char in compact) and raw != raw.upper())
+            or (not any(char.isdigit() for char in compact) and not (3 <= len(compact) <= 8))
+        ):
+            continue
+        if compact not in row_terms:
+            row_terms.append(compact)
+    return row_terms
+
+
+def _result_matches_comparison_row_code(result: SearchResult, row_code_terms: list[str]) -> bool:
+    if not row_code_terms:
+        return True
+    row_header_text = " ".join(str(item) for item in result.metadata.get("table_row_headers") or [])
+    haystack = _compact_identifier(" ".join([row_header_text, result.content]))
+    return any(term in haystack for term in row_code_terms)
+
+
+def _matching_comparison_row_codes(result: SearchResult, row_code_terms: list[str]) -> set[str]:
+    row_header_text = " ".join(str(item) for item in result.metadata.get("table_row_headers") or [])
+    haystack = _compact_identifier(" ".join([row_header_text, result.content]))
+    return {term for term in row_code_terms if term in haystack}
+
+
 def _promote_comparison_table_candidates(
     primary_results: list[SearchResult],
     supplemental_results: list[SearchResult],
@@ -1359,35 +1409,50 @@ def _promote_comparison_table_candidates(
     identifiers = [str(identifier) for identifier in (analysis.product_identifiers or []) if str(identifier)]
     if "comparison" not in analysis.query_types or len(identifiers) < 2 or not supplemental_results:
         return primary_results
+    row_code_terms = _comparison_row_code_terms(analysis.raw_query, identifiers)
+    if len(row_code_terms) < 2:
+        row_code_terms = []
+    covered_row_codes: set[str] = set()
+    for result in primary_results[:5]:
+        covered_row_codes.update(_matching_comparison_row_codes(result, row_code_terms))
+    uncovered_row_codes = [term for term in row_code_terms if term not in covered_row_codes]
+    if row_code_terms and not uncovered_row_codes:
+        return primary_results
     promoted: list[SearchResult] = []
     seen: set[str] = set()
     for identifier in identifiers:
-        if any(_result_matches_identifier(result, identifier) and result.metadata.get("table_column_headers") for result in primary_results[:5]):
-            continue
-        candidate = next(
-            (
-                result
-                for result in supplemental_results
-                if result.chunk_id not in seen
-                and str(result.metadata.get("chunk_type") or "") == "table_record"
-                and bool(result.metadata.get("table_column_headers"))
-                and _result_matches_identifier(result, identifier)
-            ),
-            None,
-        )
-        if candidate is None:
-            continue
-        seen.add(candidate.chunk_id)
-        promoted.append(
-            candidate.model_copy(
-                update={
-                    "metadata": {
-                        **candidate.metadata,
-                        "retrieval_stage": "comparison_table_promoted",
-                    }
-                }
+        if any(
+            _result_matches_identifier(result, identifier)
+            and result.metadata.get("table_column_headers")
+            and (
+                not row_code_terms
+                or _matching_comparison_row_codes(result, uncovered_row_codes)
             )
-        )
+            for result in primary_results[:5]
+        ):
+            continue
+        candidates = [
+            result
+            for result in supplemental_results
+            if result.chunk_id not in seen
+            and str(result.metadata.get("chunk_type") or "") == "table_record"
+            and bool(result.metadata.get("table_column_headers"))
+            and _result_matches_identifier(result, identifier)
+            and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
+        ]
+        promotion_limit = 2 if row_code_terms else 1
+        for candidate in candidates[:promotion_limit]:
+            seen.add(candidate.chunk_id)
+            promoted.append(
+                candidate.model_copy(
+                    update={
+                        "metadata": {
+                            **candidate.metadata,
+                            "retrieval_stage": "comparison_table_promoted",
+                        }
+                    }
+                )
+            )
     if not promoted:
         return primary_results
     combined = [*promoted, *primary_results]

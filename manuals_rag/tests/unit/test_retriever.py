@@ -2443,6 +2443,77 @@ def test_comparison_table_promotion_adds_named_product_table_cell():
     assert promoted[1].chunk_id == "s8000-result"
 
 
+def test_comparison_table_promotion_requires_requested_row_code_for_product():
+    analysis = analyze_query(
+        "For LJ-X8000 and LJ-S8000 measurement outputs, compare what PMSR DC2LAR and RTO2L represent."
+    )
+    reranked = [
+        SearchResult(
+            chunk_id="x8000-pmsr",
+            score=4.0,
+            title="LJ-X8000 Manual",
+            document_version_id="ver-x",
+            source_document_id="doc-x",
+            pages=[725],
+            section_path=["A"],
+            content=(
+                "Column headers: Description of measurement item selection; Row headers: PMSR[].DC2LAR[]; "
+                "Cell value: (Condition 2) Cross-sectionArea Surrounded by a Straight Line."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Description of measurement item selection"],
+                "table_row_headers": ["PMSR[].DC2LAR[]"],
+                "product_family": "LJ: X8000 Series",
+                "product_models": ["LJ-X8000"],
+            },
+        ),
+        SearchResult(
+            chunk_id="s8000-generic",
+            score=3.5,
+            title="LJ-S8000 Manual",
+            document_version_id="ver-s",
+            source_document_id="doc-s",
+            pages=[10],
+            section_path=["A"],
+            content="Column headers: Position; Cell value: Select a method for specifying the measurement range.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Position"],
+                "product_family": "LJ-S8000 Series",
+            },
+        ),
+    ]
+    supplemental = [
+        SearchResult(
+            chunk_id="s8000-rto2l",
+            score=2.0,
+            title="LJ-S8000 Manual",
+            document_version_id="ver-s",
+            source_document_id="doc-s",
+            pages=[45],
+            section_path=["A"],
+            content=(
+                "Column headers: Description of measurement item selection; Row headers: RTO2L; "
+                "Cell value: Equivalent Oval Aspect Ratio Min."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Description of measurement item selection"],
+                "table_row_headers": ["RTO2L"],
+                "product_family": "LJ-S8000 Series",
+            },
+        )
+    ]
+
+    promoted = retriever._promote_comparison_table_candidates(reranked, supplemental, analysis, limit=5)
+
+    assert promoted[0].chunk_id == "s8000-rto2l"
+    assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
+    assert promoted[1].chunk_id == "x8000-pmsr"
+    assert promoted[2].chunk_id == "s8000-generic"
+
+
 def test_table_lexical_search_skips_unstructured_general_queries(monkeypatch):
     monkeypatch.setattr(retriever, "fetch_all", lambda *_args, **_kwargs: pytest.fail("fetch_all should not run"))
 
