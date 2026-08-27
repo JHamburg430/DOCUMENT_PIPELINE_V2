@@ -126,7 +126,7 @@ def _answer_terms(text: str) -> set[str]:
     }
 
 
-MODEL_TOKEN_RE = re.compile(r"\b[A-Z]{1,5}-[A-Z0-9]{2,12}[A-Z]?\b")
+MODEL_TOKEN_RE = re.compile(r"\b[A-Z0-9]{1,5}-[A-Z0-9]{2,12}[A-Z]?\b")
 
 
 def _model_tokens(text: str) -> set[str]:
@@ -156,6 +156,36 @@ def _model_matches_scope(candidate_model: str, explicit_models: set[str], series
     if candidate in explicit_models:
         return True
     return any(candidate.startswith(prefix) for prefix in series_prefixes)
+
+
+def _result_model_text(result: SearchResult) -> str:
+    metadata = result.metadata or {}
+    metadata_values: list[str] = []
+    for key in (
+        "product_model",
+        "product_family",
+        "product_models",
+        "product_families",
+        "devices",
+        "identifier_tokens",
+        "keywords",
+        "table_column_headers",
+        "table_row_headers",
+    ):
+        value = metadata.get(key)
+        if isinstance(value, list):
+            metadata_values.extend(str(item) for item in value)
+        elif value:
+            metadata_values.append(str(value))
+    return " ".join([result.title, result.content, *metadata_values])
+
+
+def _result_mentions_model(result: SearchResult, model: str) -> bool:
+    model_upper = model.upper()
+    result_models = _model_tokens(_result_model_text(result))
+    if model_upper in result_models:
+        return True
+    return any(candidate.startswith(model_upper) or model_upper.startswith(candidate) for candidate in result_models)
 
 
 def _table_model_scope_conflict(query: str, result: SearchResult) -> bool:
@@ -293,7 +323,7 @@ def _is_troubleshooting_query(query: str) -> bool:
 
 
 def _is_comparison_query(query: str) -> bool:
-    return bool(re.search(r"\b(compare|comparison|versus|vs\.?|while|whereas)\b", query, flags=re.IGNORECASE)) or bool(
+    return bool(re.search(r"\b(compare|comparison|differ|differs|difference|different|versus|vs\.?|while|whereas)\b", query, flags=re.IGNORECASE)) or bool(
         re.search(r"\bwhat\b.+\band what\b", query, flags=re.IGNORECASE)
     )
 
@@ -691,6 +721,52 @@ def _answer_addresses_troubleshooting_anchor(
     return len(anchor_terms.intersection(text_terms)) >= required
 
 
+def _comparison_answer_covers_retrieved_model_sides(
+    query: str,
+    citations: list[dict[str, Any]],
+    results: list[SearchResult],
+) -> bool:
+    if not _is_comparison_query(query):
+        return True
+    explicit_models = _model_tokens(query)
+    if len(explicit_models) < 2:
+        return True
+    result_by_chunk_id = {result.chunk_id: result for result in results}
+    cited_results = [
+        result
+        for citation in citations
+        if (result := result_by_chunk_id.get(str(citation.get("chunk_id") or "")))
+    ]
+    if not cited_results:
+        return True
+
+    uncovered_models: set[str] = set()
+    covered_models: set[str] = set()
+    for model in explicit_models:
+        matching_results = [result for result in results if _result_mentions_model(result, model)]
+        if not matching_results:
+            continue
+        if any(_result_mentions_model(result, model) for result in cited_results):
+            covered_models.add(model)
+        else:
+            uncovered_models.add(model)
+    return not covered_models or not uncovered_models
+
+
+def _comparison_answer_is_overcautious(answer: AnswerResponse, query: str, results: list[SearchResult]) -> bool:
+    if not _is_comparison_query(query):
+        return False
+    answer_text = answer.answer.lower()
+    if not re.search(
+        r"\b(evidence|documents?|text)\b.{0,80}\b(do(?:es)? not|don't|missing|lack|lacks|without|cannot|can't|insufficient|incomplete)\b"
+        r"|\bcomparison cannot be made\b",
+        answer_text,
+        flags=re.IGNORECASE,
+    ):
+        return False
+    return len(_fallback_evidence_results(query, results)) > 1
+
+
 def _citation_quotes_are_supported(citations: list[dict[str, Any]], results: list[SearchResult]) -> bool:
     if not citations:
         return True
@@ -712,9 +788,11 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         not _answer_supported_by_results(answer.answer, results)
         or _structured_answer_is_too_terse(answer.answer, results)
         or (answer.insufficient_evidence and len(_fallback_evidence_results(query, results)) > 1)
+        or _comparison_answer_is_overcautious(answer, query, results)
         or not _citation_quotes_are_supported(list(answer.citations), results)
         or not _answer_addresses_troubleshooting_anchor(answer.answer, query, list(answer.citations), results)
         or not _answer_uses_matching_troubleshooting_row(answer.answer, query, results)
+        or not _comparison_answer_covers_retrieved_model_sides(query, list(answer.citations), results)
     ):
         fallback = _fallback_answer(query, results)
         answer = fallback.model_copy(
@@ -902,10 +980,8 @@ def prioritize_results_for_answer(query: str, candidate_results: list[SearchResu
     judgment_by_chunk_id = {item["chunk_id"]: item for item in judgments}
     focused_results = _focused_troubleshooting_results(query, candidate_results)
     anchored_results = focused_results if [result.chunk_id for result in focused_results] != [result.chunk_id for result in candidate_results] else []
-    prioritized_results = [
-        result
-        for result in anchored_results
-    ]
+    comparison_evidence = _fallback_evidence_results(query, candidate_results) if _is_comparison_query(query) else []
+    prioritized_results = [result for result in [*anchored_results, *comparison_evidence]]
     prioritized_results.extend(
         result
         for result in candidate_results

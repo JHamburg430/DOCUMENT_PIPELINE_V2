@@ -714,6 +714,128 @@ def test_validate_answer_comparison_fallback_replaces_overcautious_insufficient_
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_comparison_fallback_replaces_overcautious_text_without_flag():
+    answer = AnswerResponse(
+        answer=(
+            "The evidence defines the first controller cause. The evidence does not contain "
+            "information for the second controller, so a comparison cannot be made."
+        ),
+        confidence="medium",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "controller-a-cause",
+                "document_id": "d1",
+                "pages": [20],
+                "quote_span": None,
+            }
+        ],
+        warnings=["Evidence does not contain information for the second controller."],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="controller-a-cause",
+            score=0.9,
+            title="Controller A Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[20],
+            section_path=["Troubleshooting"],
+            content="Column headers: Cause; Row headers: Startup error; Cell value: Program data is invalid.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="controller-b-cause",
+            score=0.8,
+            title="Controller B Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[30],
+            section_path=["Troubleshooting"],
+            content="Column headers: Cause; Row headers: Startup error; Cell value: Power was interrupted during writing.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="Compare the startup error causes for Controller A and Controller B.",
+    )
+
+    assert validated.insufficient_evidence is False
+    assert "Program data is invalid" in validated.answer
+    assert "Power was interrupted" in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["controller-a-cause", "controller-b-cause"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_comparison_fallback_when_generated_answer_cites_only_one_model_side():
+    answer = AnswerResponse(
+        answer="The IV4-G600CA cause is a memory read error when the sensor starts.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "iv4-cause",
+                "document_id": "d-iv4",
+                "pages": [532],
+                "quote_span": None,
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="iv4-cause",
+            score=0.9,
+            title="IV4-G600CA Manual",
+            document_version_id="v1",
+            source_document_id="d-iv4",
+            pages=[532],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Failed to read nonvolatile memory at sensor startup; "
+                "Cell value: A memory read error occurred when the sensor started."
+            ),
+            metadata={"chunk_type": "table_record", "product_model": "IV4-G600CA"},
+        ),
+        SearchResult(
+            chunk_id="ivh-cause",
+            score=0.8,
+            title="IV-HG500CA Manual",
+            document_version_id="v1",
+            source_document_id="d-ivh",
+            pages=[406],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Sensor program damaged. Initialization necessary.; "
+                "Cell value: A memory read error occurred when the sensor started."
+            ),
+            metadata={"chunk_type": "table_record", "product_model": "IV-HG500CA"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "For IV-HG500CA, what cause is listed when the sensor program is damaged and initialization "
+            "is necessary, and how does that differ from the IV4-G600CA startup memory read error cause?"
+        ),
+    )
+
+    assert "Retrieved evidence:" in validated.answer
+    assert "IV4-G600CA" in validated.answer
+    assert "IV-HG500CA" in validated.answer
+    assert {citation["chunk_id"] for citation in validated.citations} == {"iv4-cause", "ivh-cause"}
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_summarize_results_keeps_small_structured_evidence_set_separate(monkeypatch):
     results = [
         SearchResult(
@@ -741,6 +863,51 @@ def test_summarize_results_keeps_small_structured_evidence_set_separate(monkeypa
 
     assert [summary["chunk_id"] for summary in summaries] == [f"row-{index}" for index in range(5)]
     assert all(summary["summary_source"] == "direct_evidence" for summary in summaries)
+
+
+def test_prioritize_results_preserves_comparison_evidence_before_model_pruning(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="controller-a-cause",
+            score=0.9,
+            title="Controller A Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[20],
+            section_path=["Troubleshooting"],
+            content="Column headers: Cause; Row headers: Startup error; Cell value: Program data is invalid.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="controller-b-cause",
+            score=0.8,
+            title="Controller B Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[30],
+            section_path=["Troubleshooting"],
+            content="Column headers: Cause; Row headers: Startup error; Cell value: Power was interrupted during writing.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.judge_retrieval_relevance",
+        lambda _query, _results: [
+            {"chunk_id": "controller-a-cause", "verdict": "relevant", "reason": "Relevant."},
+            {"chunk_id": "controller-b-cause", "verdict": "not_relevant", "reason": "Incorrectly pruned."},
+        ],
+    )
+
+    prioritized = prioritize_results_for_answer(
+        "Compare the startup error causes for Controller A and Controller B.",
+        results,
+    )
+
+    assert [result.chunk_id for result in prioritized["prioritized_results"][:2]] == [
+        "controller-a-cause",
+        "controller-b-cause",
+    ]
 
 
 def test_validate_answer_fallback_uses_matching_troubleshooting_row_from_parent_context():
