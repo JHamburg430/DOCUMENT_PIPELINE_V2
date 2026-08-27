@@ -2068,6 +2068,74 @@ def test_validation_fallback_preserves_focused_table_cell_before_context(monkeyp
     assert trace["final_answer"]["answer_source"] == "fallback_validation"
 
 
+def test_validation_fallback_omits_unrequested_neighbor_setting_context(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="settings-row",
+            score=0.9,
+            title="LJ-S8000 Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[172],
+            section_path=["5-81"],
+            content=(
+                'Setting item: Call Text at Read Error; Settings: If enabled, the character data specified in "Text Called" '
+                "will be output when reading fails.\n"
+                "Setting item: Output Symbol Identifier; Settings: When enabled, a symbol identifier (3 bytes) defined by "
+                "the ISO / IEC 15424 / JIS X 0530 data carrier identifier (including the symbology identifier) is added "
+                "to the beginning of the read data.\n"
+                "Setting item: Expansion Channel Interpretation (ECI); Settings: When enabled, ECI is output as the result "
+                "of reading code that contains ECI."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "context_window": (
+                    'Setting item: Conditions; Settings: To set multiple criteria for matching, select "Multiple".\n'
+                    "Setting item: Condition List; Settings: Up to 16 collation conditions can be set.\n"
+                    "Setting item: Data Range; Settings: Choose the range to match against the matching pattern.\n"
+                    "Setting item: Reference Pattern; Settings: Enter a pattern to match the code reading results."
+                ),
+            },
+        )
+    ]
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "final_answer":
+            return (
+                {
+                    "answer": "Unsupported generated answer",
+                    "confidence": "medium",
+                    "used_documents": [],
+                    "citations": [],
+                    "warnings": [],
+                    "followup_questions": [],
+                    "insufficient_evidence": False,
+                },
+                '{"answer":"Unsupported generated answer","confidence":"medium",'
+                '"used_documents":[],"citations":[],"warnings":[],'
+                '"followup_questions":[],"insufficient_evidence":false}',
+            )
+        return (
+            {"items": [{"chunk_id": "settings-row", "verdict": "relevant", "reason": "Direct setting row."}]},
+            '{"items":[{"chunk_id":"settings-row","verdict":"relevant","reason":"Direct setting row."}]}',
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fake_chat_json)
+
+    answer, trace = generate_answer_with_trace(
+        "What does the LJ-S8000 Output Symbol Identifier setting add when it is enabled?",
+        results,
+    )
+
+    assert "Output Symbol Identifier" in answer.answer
+    assert "symbol identifier (3 bytes)" in answer.answer
+    assert "Call Text at Read Error" not in answer.answer
+    assert "Expansion Channel Interpretation" not in answer.answer
+    assert "Conditions" not in answer.answer
+    assert "Data Range" not in answer.answer
+    assert trace["final_answer"]["answer_source"] == "fallback_validation"
+
+
 def test_validation_support_checks_table_cell_before_context(monkeypatch):
     results = [
         SearchResult(

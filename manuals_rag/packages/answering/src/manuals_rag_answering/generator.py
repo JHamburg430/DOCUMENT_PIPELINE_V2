@@ -310,6 +310,33 @@ def _fallback_answer_text(result: SearchResult) -> str:
     return f"{content}\n\nContext: {context}"
 
 
+def _focused_table_record_answer_text(query: str, result: SearchResult) -> str:
+    if str(result.metadata.get("chunk_type") or "") != "table_record":
+        return ""
+    content = str(result.content or "").strip()
+    if not content or "Setting item:" not in content:
+        return ""
+    rows = [
+        row.strip(" \n;")
+        for row in re.split(r"(?=Setting item:)", content)
+        if row.strip(" \n;")
+    ]
+    if len(rows) < 2:
+        return ""
+    query_terms = _material_claim_terms(query).difference({"setting", "enabled", "enable", "adds", "add", "does", "when"})
+    if not query_terms:
+        return ""
+    scored: list[tuple[int, int, str]] = []
+    for index, row in enumerate(rows):
+        row_terms = _material_claim_terms(row)
+        matched = len(query_terms.intersection(row_terms))
+        scored.append((matched, -index, row))
+    matched, _negative_index, best_row = max(scored, key=lambda item: (item[0], item[1]))
+    if matched < 2:
+        return ""
+    return best_row
+
+
 def _troubleshooting_context_text(result: SearchResult) -> str:
     parts: list[str] = []
     for text in [
@@ -503,11 +530,15 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     fallback_results = _fallback_evidence_results(query, results)
     top = fallback_results[0]
     if len(fallback_results) == 1:
-        answer_text = _matching_troubleshooting_row_text(query, top) or _fallback_answer_text(top)
+        answer_text = (
+            _matching_troubleshooting_row_text(query, top)
+            or _focused_table_record_answer_text(query, top)
+            or _fallback_answer_text(top)
+        )
     else:
         answer_text = "Retrieved evidence:\n" + "\n".join(
             f"- {result.title}, page(s) {', '.join(str(page) for page in result.pages) or 'unknown'}: "
-            f"{_fallback_answer_text(result)}"
+            f"{_focused_table_record_answer_text(query, result) or _fallback_answer_text(result)}"
             for result in fallback_results
         )
     return AnswerResponse(
@@ -1205,18 +1236,18 @@ def _fallback_summary(query: str, result: SearchResult) -> str:
     return f"[{result.chunk_id}] {evidence}"
 
 
-def _direct_evidence_summary(result: SearchResult) -> str | None:
+def _direct_evidence_summary(query: str, result: SearchResult) -> str | None:
     chunk_type = str(result.metadata.get("chunk_type") or "")
     if chunk_type not in {"table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
         return None
-    evidence = _fallback_answer_text(result).strip()
+    evidence = (_focused_table_record_answer_text(query, result) or _fallback_answer_text(result)).strip()
     if not evidence:
         return None
     return evidence[:1200]
 
 
 def _summarize_chunk(query: str, result: SearchResult) -> dict[str, Any]:
-    direct_summary = _direct_evidence_summary(result)
+    direct_summary = _direct_evidence_summary(query, result)
     if direct_summary:
         return {
             "chunk_id": result.chunk_id,

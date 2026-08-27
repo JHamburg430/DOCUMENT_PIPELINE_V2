@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-27T14:39:30Z",
+  "updated_at": "2026-08-27T19:11:30Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1020,98 +1020,21 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {
-      "unsupported_retained_context_claims": 1
-    },
-    "next_target": "Fix the single-step row 6 answer fallback/context-use defect from retrieval_eval_20260827_131439: the answer should remove unsupported neighboring setting claims or cite chunks that directly support every retained claim, then rerun actual HTTP API answer scoring. Preserve row 5 as clean, row 6 as diagnostic/not-clean until rerun, row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, and all prior row-5 diagnostic exclusions.",
-    "answer_grounding_status": "Field-intent false-positive containment completed on 2026-08-27 after guardrail 2026-08-27T14:28:51Z. Bare ordinary uses of correct in specification/model/option/operating-condition questions no longer map to remedy/correctiveaction, while true cause, remedy, corrective action, corrected-error, message, and error-code intent remain recognized. Durable tracking now reclassifies retrieval_eval_20260827_131439 row 6 and the combined rows 5-6 clean claim as diagnostic/not-clean because the actual API answer retained unsupported neighboring setting claims (Conditions, Condition List, Data Range, Reference Pattern) that were not supported by its only cited chunk 65513d89-4fc8-567b-aebc-00eb60993779. Row 5 from retrieval_eval_20260827_131439 remains clean: answer and cited returned chunk 231d4fc0-2e59-596a-a7e5-7eeb4ec020a9 directly support the XG-X Limit Output OFF / intensity 512 excessive-heat light-damage warning. Current retrieval failures remain {}; current answer failures are {\"unsupported_retained_context_claims\": 1} until row 6 is repaired and rerun.",
+    "answer_current_failure_categories": {},
+    "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715.",
+    "answer_grounding_status": "Single-step row 6 answer fallback/context-use defect resolved on loaded API in retrieval_eval_20260827_190715. The rerun scored rows 5-6 at 2/2 retrieval and 2/2 actual HTTP API answers with answer_source api and fallback 0. Manual JSONL inspection confirmed row 5 still cites chunk 231d4fc0-2e59-596a-a7e5-7eeb4ec020a9 for the XG-X Limit Output OFF / intensity 512 heat warning, and row 6 now answers only the LJ-S8000 Output Symbol Identifier setting: it adds a 3-byte ISO/IEC 15424 / JIS X 0530 data carrier/symbology identifier to the beginning of read data. Row 6 cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; unsupported neighboring Conditions, Condition List, Data Range, and Reference Pattern claims are absent. Current retrieval failures are {}; current answer failures are {}.",
     "answer_grounding_rotation": {
-      "target": "field_intent_false_positive_containment_and_single_step_row6_reclassification",
-      "status": "row6_reclassified_diagnostic_field_intent_fix_validated",
-      "guardrail_findings": [
-        "2026-08-27T13:38:51Z needs_fix: reclassify retrieval_eval_20260827_131439 row 6 and combined rows 5-6 clean claim as diagnostic/not-clean.",
-        "2026-08-27T14:28:51Z needs_fix: before accepting dirty field-intent production change, record row-6 reclassification, provide runtime-load proof, and run actual API negative/positive path evidence."
-      ],
-      "preserved_clean_rows": {
-        "single_step_v2_row_5": "retrieval_eval_20260827_131439"
-      },
-      "diagnostic_not_clean_rows": {
-        "single_step_v2_row_6": "retrieval_eval_20260827_131439"
-      },
-      "manual_jsonl_inspection": "Reinspected test_reports/retrieval_eval_results_20260827_131439.jsonl. Row 5 is clean: cited chunk 231d4fc0-2e59-596a-a7e5-7eeb4ec020a9 supports the Limit Output OFF / intensity 512 heat-damage warning. Row 6 is diagnostic/not-clean: the answer correctly states Output Symbol Identifier adds a 3-byte ISO/IEC 15424 / JIS X 0530 identifier and cites chunk 65513d89-4fc8-567b-aebc-00eb60993779, but it also retains unsupported Conditions, Condition List, Data Range, and Reference Pattern claims not present in that cited chunk.",
-      "production_change": "Field-intent correction in manuals_rag_retrieval.retriever: remove bare correct from remedy/correctiveaction detection; ignore generic correct/specification/operation side-clause terms; skip comparison table promotion when no row-code, context, or field terms exist.",
-      "runtime_load_evidence": {
-        "module_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-        "_comparison_requested_field_terms_sha256": "df3facd1b3d5c4daba2f12c6a3c4778f9e45590168cf5ba470f589a8dd85b75b",
-        "_identifier_context_terms_sha256": "09a61a3b8fe8bf4b50ce9baf7a6ae65f207c5f6991e790002154591111cdaf1b",
-        "_promote_comparison_table_candidates_sha256": "e975738063ad3a78fcab1663d6e1e1dcebf081d04d8269d4f78d26d0057b3d31",
-        "field_terms": {
-          "correct_specifications": [],
-          "correct_model": [],
-          "correct_option": [],
-          "operating_condition": [],
-          "true_corrective_action": [
-            "correctiveaction",
-            "remedy"
-          ],
-          "remedy": [
-            "correctiveaction",
-            "remedy"
-          ],
-          "corrected": [
-            "correctiveaction",
-            "remedy"
-          ],
-          "cause": [
-            "cause"
-          ],
-          "message": [
-            "message"
-          ],
-          "error_code": [
-            "errorcode"
-          ]
-        },
-        "OLLAMA_URL": "http://host.docker.internal:11437",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
-      },
-      "actual_api_controls": {
-        "bare_correct_negative": {
-          "query": "Compare the correct specifications for IV4-G120 and IV4-G600CA operation.",
-          "result": "/search returned ordinary IV4 field-of-view/specification table rows in top positions; no remedy/corrective-action field filtering was triggered by bare correct.",
-          "top_chunk": "3bd26237-f12b-5847-9f2b-16ba960f2f6e",
-          "top_columns": [
-            "Field of View H"
-          ]
-        },
-        "corrective_action_positive": {
-          "query": "Compare the corrective action for IV4-G120 advanced program switching error and VS error 20503 invalid pattern data.",
-          "result": "/search returned structured troubleshooting/remedy evidence for explicit corrective-action intent, preserving the positive path.",
-          "top_chunks": [
-            "c41c52c3-fba4-5b17-bcfd-52325c880f7f",
-            "9389f42a-1153-580a-8730-96e5cc6a7b38",
-            "22efd64c-56cc-5598-8b04-7b70141dd834"
-          ]
-        }
-      },
-      "validation": [
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_requested_field_terms or table_requested_field_metadata or bare_correct' -> 4 passed, 99 deselected",
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 103 passed, 1 warning",
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 359 passed, 59 warnings",
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before update",
-        "API restarted with docker compose -f infra/compose/docker-compose.yml restart api; loaded fingerprints and local model environment recorded above",
-        "Actual HTTP /search negative and positive controls ran after API restart using Authorization: Bearer user-token"
-      ],
-      "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
-      "scope": "production retrieval field-intent correction, focused retriever tests, and tracking-only manifest/progress correction; no answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed"
+      "scope": "single_step_row6_answer_context_repair",
+      "status": "rows_5_6_clean_after_loaded_actual_http_rerun",
+      "latest_clean_run": "retrieval_eval_20260827_190715",
+      "summary": "test_reports/retrieval_eval_summary_20260827_190715.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_190715.json",
+      "results": "test_reports/retrieval_eval_results_20260827_190715.jsonl",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_190715.jsonl. Row 5 answer/citation remains clean for the XG-X Limit Output OFF / intensity 512 warning. Row 6 answer is limited to the requested Output Symbol Identifier setting and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; the answer no longer includes unsupported Conditions, Condition List, Data Range, or Reference Pattern claims.",
+      "remaining": "Continue broader validated answer rotations; preserve row 15 diagnostic/source-context evidence and all prior diagnostic exclusions."
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {
-      "unsupported_retained_context_claims": 1
-    },
+    "current_answer_failure_categories": {},
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1262,24 +1185,28 @@
         "timestamp": "2026-08-27T14:28:51Z",
         "severity": "needs_fix",
         "finding": "Dirty field-intent patch needed durable tracking, runtime-load proof, and actual API negative/positive evidence before acceptance.",
-        "status": "addressed_this_run_field_intent_runtime_and_api_controls",
+        "status": "addressed_by_20260827_190715_loaded_row6_rerun",
         "evidence": [
           "Focused retriever tests and full unit gate passed.",
           "API runtime fingerprints and model environment recorded.",
-          "Actual HTTP /search bare-correct negative and corrective-action positive controls ran after API restart."
+          "Actual HTTP /search bare-correct negative and corrective-action positive controls ran after API restart.",
+          "retrieval_eval_20260827_190715 row 6 actual HTTP API answer omits unsupported neighboring setting claims and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779.",
+          "Focused answering regression and full unit gate passed after production answer fallback change."
         ],
-        "required_next_action": "Fix the single-step row 6 answer fallback/context-use defect from retrieval_eval_20260827_131439: the answer should remove unsupported neighboring setting claims or cite chunks that directly support every retained claim, then rerun actual HTTP API answer scoring. Preserve row 5 as clean, row 6 as diagnostic/not-clean until rerun, row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, and all prior row-5 diagnostic exclusions."
+        "required_next_action": "No further action for row 6 before optional rotations; preserve diagnostic classification for retrieval_eval_20260827_131439 row 6 and use retrieval_eval_20260827_190715 as the clean rerun evidence."
       },
       {
         "timestamp": "2026-08-27T13:38:51Z",
         "severity": "needs_fix",
         "finding": "retrieval_eval_20260827_131439 row 6 and the combined rows 5-6 clean claim were over-green because row 6 retained unsupported neighboring setting claims beyond its cited chunk.",
-        "status": "addressed_this_run_row6_reclassified_diagnostic",
+        "status": "addressed_by_20260827_190715_loaded_row6_rerun",
         "evidence": [
           "Row 6 is now diagnostic/not-clean in answer_grounding_status, answer_grounding_rotation, answer_grounding_single_step_v2_rows_5_6, and answer failure aliases.",
-          "Row 5 remains clean from retrieval_eval_20260827_131439 after JSONL citation inspection."
+          "Row 5 remains clean from retrieval_eval_20260827_131439 after JSONL citation inspection.",
+          "retrieval_eval_20260827_190715 row 6 actual HTTP API answer omits unsupported neighboring setting claims and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779.",
+          "Focused answering regression and full unit gate passed after production answer fallback change."
         ],
-        "required_next_action": "Fix the single-step row 6 answer fallback/context-use defect from retrieval_eval_20260827_131439: the answer should remove unsupported neighboring setting claims or cite chunks that directly support every retained claim, then rerun actual HTTP API answer scoring. Preserve row 5 as clean, row 6 as diagnostic/not-clean until rerun, row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, and all prior row-5 diagnostic exclusions."
+        "required_next_action": "No further action for row 6 before optional rotations; preserve diagnostic classification for retrieval_eval_20260827_131439 row 6 and use retrieval_eval_20260827_190715 as the clean rerun evidence."
       },
       {
         "timestamp": "2026-08-27T12:02:33Z",
@@ -1491,7 +1418,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-27T14:39:30Z",
+    "updated_at": "2026-08-27T19:11:30Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -1655,87 +1582,61 @@
       "updated_at": "2026-08-27T05:35:00Z"
     },
     "answer_grounding_single_step_v2_rows_5_6": {
-      "target": "field_intent_false_positive_containment_and_single_step_row6_reclassification",
-      "status": "row6_reclassified_diagnostic_field_intent_fix_validated",
+      "target": "single_step_row6_answer_context_repair",
+      "status": "rows_5_6_clean_after_focused_table_record_fallback",
       "guardrail_findings": [
-        "2026-08-27T13:38:51Z needs_fix: reclassify retrieval_eval_20260827_131439 row 6 and combined rows 5-6 clean claim as diagnostic/not-clean.",
-        "2026-08-27T14:28:51Z needs_fix: before accepting dirty field-intent production change, record row-6 reclassification, provide runtime-load proof, and run actual API negative/positive path evidence."
+        "2026-08-27T13:38:51Z needs_fix: row 6 from retrieval_eval_20260827_131439 retained unsupported neighboring setting claims.",
+        "2026-08-27T14:28:51Z needs_fix: row 6 remained diagnostic/not-clean until rerun after the field-intent containment."
       ],
-      "preserved_clean_rows": {
-        "single_step_v2_row_5": "retrieval_eval_20260827_131439"
-      },
-      "diagnostic_not_clean_rows": {
-        "single_step_v2_row_6": "retrieval_eval_20260827_131439"
-      },
-      "manual_jsonl_inspection": "Reinspected test_reports/retrieval_eval_results_20260827_131439.jsonl. Row 5 is clean: cited chunk 231d4fc0-2e59-596a-a7e5-7eeb4ec020a9 supports the Limit Output OFF / intensity 512 heat-damage warning. Row 6 is diagnostic/not-clean: the answer correctly states Output Symbol Identifier adds a 3-byte ISO/IEC 15424 / JIS X 0530 identifier and cites chunk 65513d89-4fc8-567b-aebc-00eb60993779, but it also retains unsupported Conditions, Condition List, Data Range, and Reference Pattern claims not present in that cited chunk.",
-      "production_change": "Field-intent correction in manuals_rag_retrieval.retriever: remove bare correct from remedy/correctiveaction detection; ignore generic correct/specification/operation side-clause terms; skip comparison table promotion when no row-code, context, or field terms exist.",
-      "runtime_load_evidence": {
-        "module_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-        "_comparison_requested_field_terms_sha256": "df3facd1b3d5c4daba2f12c6a3c4778f9e45590168cf5ba470f589a8dd85b75b",
-        "_identifier_context_terms_sha256": "09a61a3b8fe8bf4b50ce9baf7a6ae65f207c5f6991e790002154591111cdaf1b",
-        "_promote_comparison_table_candidates_sha256": "e975738063ad3a78fcab1663d6e1e1dcebf081d04d8269d4f78d26d0057b3d31",
-        "field_terms": {
-          "correct_specifications": [],
-          "correct_model": [],
-          "correct_option": [],
-          "operating_condition": [],
-          "true_corrective_action": [
-            "correctiveaction",
-            "remedy"
-          ],
-          "remedy": [
-            "correctiveaction",
-            "remedy"
-          ],
-          "corrected": [
-            "correctiveaction",
-            "remedy"
-          ],
-          "cause": [
-            "cause"
-          ],
-          "message": [
-            "message"
-          ],
-          "error_code": [
-            "errorcode"
-          ]
+      "prior_diagnostic_run": "retrieval_eval_20260827_131439 row 6 and combined rows 5-6 claim remain diagnostic/not-clean for unsupported retained context claims; row 5 from that run remains clean.",
+      "latest_run": {
+        "run_id": "retrieval_eval_20260827_190715",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260827_190715.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260827_190715.json",
+        "results": "test_reports/retrieval_eval_results_20260827_190715.jsonl",
+        "query_offset": 4,
+        "max_queries": 2,
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "total_queries": 2,
+        "passed_queries": 2,
+        "pass_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 2,
+        "answer_pass_rate": 1.0,
+        "answer_failure_reasons": {},
+        "answer_sources": {
+          "api": 2
         },
+        "answer_fallback_count": 0,
+        "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2"
+      },
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_190715.jsonl. Row 5 answer/citation remains clean for the XG-X Limit Output OFF / intensity 512 warning. Row 6 answer is limited to the requested Output Symbol Identifier setting and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; the answer no longer includes unsupported Conditions, Condition List, Data Range, or Reference Pattern claims.",
+      "production_change": "Answer fallback and direct evidence summaries now focus multi-row Setting item table_record chunks on the row best matched by user-query terms before appending sibling context. No document/vendor/query hardcoding, inferred filters, model/provider changes, parser/ingestion/API/UI/schema/infra changes, or eval-only behavior.",
+      "runtime_load_evidence": {
+        "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "_focused_table_record_answer_text_sha256": "2bbddbd4f8bd6b67cf735e089de0d031c2c254bd4a994728a891e57c1e362660",
+        "_fallback_answer_sha256": "a738d4b845c220023f028af05bb2a12f3c197790668bc819e8cb66a04d03dda1",
+        "_direct_evidence_summary_sha256": "fc64c32d70b231f7bc962201d34012b2fd3bfabd0da6fba8567b6cef448e3b15",
+        "_summarize_chunk_sha256": "229c3addeddd79ec38df3ebbd8a4bdfb7cf119d7a9561bbb757f3ed04cb35660",
+        "validate_answer_sha256": "c3acea7d2338b30518d0d226781837ac11d017ce36f55b8b387a182fd47d7e7f",
         "OLLAMA_URL": "http://host.docker.internal:11437",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
         "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
       },
-      "actual_api_controls": {
-        "bare_correct_negative": {
-          "query": "Compare the correct specifications for IV4-G120 and IV4-G600CA operation.",
-          "result": "/search returned ordinary IV4 field-of-view/specification table rows in top positions; no remedy/corrective-action field filtering was triggered by bare correct.",
-          "top_chunk": "3bd26237-f12b-5847-9f2b-16ba960f2f6e",
-          "top_columns": [
-            "Field of View H"
-          ]
-        },
-        "corrective_action_positive": {
-          "query": "Compare the corrective action for IV4-G120 advanced program switching error and VS error 20503 invalid pattern data.",
-          "result": "/search returned structured troubleshooting/remedy evidence for explicit corrective-action intent, preserving the positive path.",
-          "top_chunks": [
-            "c41c52c3-fba4-5b17-bcfd-52325c880f7f",
-            "9389f42a-1153-580a-8730-96e5cc6a7b38",
-            "22efd64c-56cc-5598-8b04-7b70141dd834"
-          ]
-        }
-      },
       "validation": [
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_requested_field_terms or table_requested_field_metadata or bare_correct' -> 4 passed, 99 deselected",
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 103 passed, 1 warning",
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 359 passed, 59 warnings",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'omits_unrequested_neighbor_setting_context or focused_table_cell_before_context or support_checks_table_cell_before_context' -> 3 passed, 49 deselected, 5 warnings",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -> 52 passed, 23 warnings",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 365 passed, 59 warnings",
         "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before update",
-        "API restarted with docker compose -f infra/compose/docker-compose.yml restart api; loaded fingerprints and local model environment recorded above",
-        "Actual HTTP /search negative and positive controls ran after API restart using Authorization: Bearer user-token"
+        "API restarted with docker compose -f infra/compose/docker-compose.yml restart api; loaded answer fingerprints and local model environment recorded above",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
       ],
       "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
-      "scope": "production retrieval field-intent correction, focused retriever tests, and tracking-only manifest/progress correction; no answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed"
+      "scope": "production answering fallback/context-use logic, focused answering tests, and tracking/eval artifacts only; no retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed"
     }
   },
   "latest_false_negative_repair": {
@@ -1752,6 +1653,30 @@
   "latest_results": {
     "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 344 passed, 59 warnings",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260827_190715",
+        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260827_190715.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260827_190715.json",
+        "results": "test_reports/retrieval_eval_results_20260827_190715.jsonl",
+        "query_offset": 4,
+        "max_queries": 2,
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "total_queries": 2,
+        "passed_queries": 2,
+        "pass_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 2,
+        "answer_pass_rate": 1.0,
+        "answer_failure_reasons": {},
+        "answer_sources": {
+          "api": 2
+        },
+        "answer_fallback_count": 0,
+        "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "status": "completed_actual_http_single_step_rows_5_6_clean_after_row6_context_repair"
+      },
       {
         "run_id": "retrieval_eval_20260827_114809",
         "corpus_id": "manuals_vendor_keyence",
@@ -7662,7 +7587,7 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Fix the single-step row 6 answer fallback/context-use defect from retrieval_eval_20260827_131439: the answer should remove unsupported neighboring setting claims or cite chunks that directly support every retained claim, then rerun actual HTTP API answer scoring. Preserve row 5 as clean, row 6 as diagnostic/not-clean until rerun, row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, and all prior row-5 diagnostic exclusions.",
+  "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -7946,92 +7871,17 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {
-    "unsupported_retained_context_claims": 1
-  },
-  "answer_grounding_status": "Field-intent false-positive containment completed on 2026-08-27 after guardrail 2026-08-27T14:28:51Z. Bare ordinary uses of correct in specification/model/option/operating-condition questions no longer map to remedy/correctiveaction, while true cause, remedy, corrective action, corrected-error, message, and error-code intent remain recognized. Durable tracking now reclassifies retrieval_eval_20260827_131439 row 6 and the combined rows 5-6 clean claim as diagnostic/not-clean because the actual API answer retained unsupported neighboring setting claims (Conditions, Condition List, Data Range, Reference Pattern) that were not supported by its only cited chunk 65513d89-4fc8-567b-aebc-00eb60993779. Row 5 from retrieval_eval_20260827_131439 remains clean: answer and cited returned chunk 231d4fc0-2e59-596a-a7e5-7eeb4ec020a9 directly support the XG-X Limit Output OFF / intensity 512 excessive-heat light-damage warning. Current retrieval failures remain {}; current answer failures are {\"unsupported_retained_context_claims\": 1} until row 6 is repaired and rerun.",
+  "answer_current_failure_categories": {},
+  "answer_grounding_status": "Single-step row 6 answer fallback/context-use defect resolved on loaded API in retrieval_eval_20260827_190715. The rerun scored rows 5-6 at 2/2 retrieval and 2/2 actual HTTP API answers with answer_source api and fallback 0. Manual JSONL inspection confirmed row 5 still cites chunk 231d4fc0-2e59-596a-a7e5-7eeb4ec020a9 for the XG-X Limit Output OFF / intensity 512 heat warning, and row 6 now answers only the LJ-S8000 Output Symbol Identifier setting: it adds a 3-byte ISO/IEC 15424 / JIS X 0530 data carrier/symbology identifier to the beginning of read data. Row 6 cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; unsupported neighboring Conditions, Condition List, Data Range, and Reference Pattern claims are absent. Current retrieval failures are {}; current answer failures are {}.",
   "answer_grounding_rotation": {
-    "target": "field_intent_false_positive_containment_and_single_step_row6_reclassification",
-    "status": "row6_reclassified_diagnostic_field_intent_fix_validated",
-    "guardrail_findings": [
-      "2026-08-27T13:38:51Z needs_fix: reclassify retrieval_eval_20260827_131439 row 6 and combined rows 5-6 clean claim as diagnostic/not-clean.",
-      "2026-08-27T14:28:51Z needs_fix: before accepting dirty field-intent production change, record row-6 reclassification, provide runtime-load proof, and run actual API negative/positive path evidence."
-    ],
-    "preserved_clean_rows": {
-      "single_step_v2_row_5": "retrieval_eval_20260827_131439"
-    },
-    "diagnostic_not_clean_rows": {
-      "single_step_v2_row_6": "retrieval_eval_20260827_131439"
-    },
-    "manual_jsonl_inspection": "Reinspected test_reports/retrieval_eval_results_20260827_131439.jsonl. Row 5 is clean: cited chunk 231d4fc0-2e59-596a-a7e5-7eeb4ec020a9 supports the Limit Output OFF / intensity 512 heat-damage warning. Row 6 is diagnostic/not-clean: the answer correctly states Output Symbol Identifier adds a 3-byte ISO/IEC 15424 / JIS X 0530 identifier and cites chunk 65513d89-4fc8-567b-aebc-00eb60993779, but it also retains unsupported Conditions, Condition List, Data Range, and Reference Pattern claims not present in that cited chunk.",
-    "production_change": "Field-intent correction in manuals_rag_retrieval.retriever: remove bare correct from remedy/correctiveaction detection; ignore generic correct/specification/operation side-clause terms; skip comparison table promotion when no row-code, context, or field terms exist.",
-    "runtime_load_evidence": {
-      "module_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-      "_comparison_requested_field_terms_sha256": "df3facd1b3d5c4daba2f12c6a3c4778f9e45590168cf5ba470f589a8dd85b75b",
-      "_identifier_context_terms_sha256": "09a61a3b8fe8bf4b50ce9baf7a6ae65f207c5f6991e790002154591111cdaf1b",
-      "_promote_comparison_table_candidates_sha256": "e975738063ad3a78fcab1663d6e1e1dcebf081d04d8269d4f78d26d0057b3d31",
-      "field_terms": {
-        "correct_specifications": [],
-        "correct_model": [],
-        "correct_option": [],
-        "operating_condition": [],
-        "true_corrective_action": [
-          "correctiveaction",
-          "remedy"
-        ],
-        "remedy": [
-          "correctiveaction",
-          "remedy"
-        ],
-        "corrected": [
-          "correctiveaction",
-          "remedy"
-        ],
-        "cause": [
-          "cause"
-        ],
-        "message": [
-          "message"
-        ],
-        "error_code": [
-          "errorcode"
-        ]
-      },
-      "OLLAMA_URL": "http://host.docker.internal:11437",
-      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
-    },
-    "actual_api_controls": {
-      "bare_correct_negative": {
-        "query": "Compare the correct specifications for IV4-G120 and IV4-G600CA operation.",
-        "result": "/search returned ordinary IV4 field-of-view/specification table rows in top positions; no remedy/corrective-action field filtering was triggered by bare correct.",
-        "top_chunk": "3bd26237-f12b-5847-9f2b-16ba960f2f6e",
-        "top_columns": [
-          "Field of View H"
-        ]
-      },
-      "corrective_action_positive": {
-        "query": "Compare the corrective action for IV4-G120 advanced program switching error and VS error 20503 invalid pattern data.",
-        "result": "/search returned structured troubleshooting/remedy evidence for explicit corrective-action intent, preserving the positive path.",
-        "top_chunks": [
-          "c41c52c3-fba4-5b17-bcfd-52325c880f7f",
-          "9389f42a-1153-580a-8730-96e5cc6a7b38",
-          "22efd64c-56cc-5598-8b04-7b70141dd834"
-        ]
-      }
-    },
-    "validation": [
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_requested_field_terms or table_requested_field_metadata or bare_correct' -> 4 passed, 99 deselected",
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 103 passed, 1 warning",
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 359 passed, 59 warnings",
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before update",
-      "API restarted with docker compose -f infra/compose/docker-compose.yml restart api; loaded fingerprints and local model environment recorded above",
-      "Actual HTTP /search negative and positive controls ran after API restart using Authorization: Bearer user-token"
-    ],
-    "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
-    "scope": "production retrieval field-intent correction, focused retriever tests, and tracking-only manifest/progress correction; no answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed"
+    "scope": "single_step_row6_answer_context_repair",
+    "status": "rows_5_6_clean_after_loaded_actual_http_rerun",
+    "latest_clean_run": "retrieval_eval_20260827_190715",
+    "summary": "test_reports/retrieval_eval_summary_20260827_190715.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_190715.json",
+    "results": "test_reports/retrieval_eval_results_20260827_190715.jsonl",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_190715.jsonl. Row 5 answer/citation remains clean for the XG-X Limit Output OFF / intensity 512 warning. Row 6 answer is limited to the requested Output Symbol Identifier setting and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; the answer no longer includes unsupported Conditions, Condition List, Data Range, or Reference Pattern claims.",
+    "remaining": "Continue broader validated answer rotations; preserve row 15 diagnostic/source-context evidence and all prior diagnostic exclusions."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -8436,9 +8286,7 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {
-    "unsupported_retained_context_claims": 1
-  },
+  "current_answer_failure_categories": {},
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
@@ -8589,24 +8437,28 @@
       "timestamp": "2026-08-27T14:28:51Z",
       "severity": "needs_fix",
       "finding": "Dirty field-intent patch needed durable tracking, runtime-load proof, and actual API negative/positive evidence before acceptance.",
-      "status": "addressed_this_run_field_intent_runtime_and_api_controls",
+      "status": "addressed_by_20260827_190715_loaded_row6_rerun",
       "evidence": [
         "Focused retriever tests and full unit gate passed.",
         "API runtime fingerprints and model environment recorded.",
-        "Actual HTTP /search bare-correct negative and corrective-action positive controls ran after API restart."
+        "Actual HTTP /search bare-correct negative and corrective-action positive controls ran after API restart.",
+        "retrieval_eval_20260827_190715 row 6 actual HTTP API answer omits unsupported neighboring setting claims and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779.",
+        "Focused answering regression and full unit gate passed after production answer fallback change."
       ],
-      "required_next_action": "Fix the single-step row 6 answer fallback/context-use defect from retrieval_eval_20260827_131439: the answer should remove unsupported neighboring setting claims or cite chunks that directly support every retained claim, then rerun actual HTTP API answer scoring. Preserve row 5 as clean, row 6 as diagnostic/not-clean until rerun, row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, and all prior row-5 diagnostic exclusions."
+      "required_next_action": "No further action for row 6 before optional rotations; preserve diagnostic classification for retrieval_eval_20260827_131439 row 6 and use retrieval_eval_20260827_190715 as the clean rerun evidence."
     },
     {
       "timestamp": "2026-08-27T13:38:51Z",
       "severity": "needs_fix",
       "finding": "retrieval_eval_20260827_131439 row 6 and the combined rows 5-6 clean claim were over-green because row 6 retained unsupported neighboring setting claims beyond its cited chunk.",
-      "status": "addressed_this_run_row6_reclassified_diagnostic",
+      "status": "addressed_by_20260827_190715_loaded_row6_rerun",
       "evidence": [
         "Row 6 is now diagnostic/not-clean in answer_grounding_status, answer_grounding_rotation, answer_grounding_single_step_v2_rows_5_6, and answer failure aliases.",
-        "Row 5 remains clean from retrieval_eval_20260827_131439 after JSONL citation inspection."
+        "Row 5 remains clean from retrieval_eval_20260827_131439 after JSONL citation inspection.",
+        "retrieval_eval_20260827_190715 row 6 actual HTTP API answer omits unsupported neighboring setting claims and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779.",
+        "Focused answering regression and full unit gate passed after production answer fallback change."
       ],
-      "required_next_action": "Fix the single-step row 6 answer fallback/context-use defect from retrieval_eval_20260827_131439: the answer should remove unsupported neighboring setting claims or cite chunks that directly support every retained claim, then rerun actual HTTP API answer scoring. Preserve row 5 as clean, row 6 as diagnostic/not-clean until rerun, row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, and all prior row-5 diagnostic exclusions."
+      "required_next_action": "No further action for row 6 before optional rotations; preserve diagnostic classification for retrieval_eval_20260827_131439 row 6 and use retrieval_eval_20260827_190715 as the clean rerun evidence."
     },
     {
       "timestamp": "2026-08-27T12:02:33Z",
@@ -8925,86 +8777,60 @@
     "updated_at": "2026-08-27T05:35:00Z"
   },
   "answer_grounding_single_step_v2_rows_5_6": {
-    "target": "field_intent_false_positive_containment_and_single_step_row6_reclassification",
-    "status": "row6_reclassified_diagnostic_field_intent_fix_validated",
+    "target": "single_step_row6_answer_context_repair",
+    "status": "rows_5_6_clean_after_focused_table_record_fallback",
     "guardrail_findings": [
-      "2026-08-27T13:38:51Z needs_fix: reclassify retrieval_eval_20260827_131439 row 6 and combined rows 5-6 clean claim as diagnostic/not-clean.",
-      "2026-08-27T14:28:51Z needs_fix: before accepting dirty field-intent production change, record row-6 reclassification, provide runtime-load proof, and run actual API negative/positive path evidence."
+      "2026-08-27T13:38:51Z needs_fix: row 6 from retrieval_eval_20260827_131439 retained unsupported neighboring setting claims.",
+      "2026-08-27T14:28:51Z needs_fix: row 6 remained diagnostic/not-clean until rerun after the field-intent containment."
     ],
-    "preserved_clean_rows": {
-      "single_step_v2_row_5": "retrieval_eval_20260827_131439"
-    },
-    "diagnostic_not_clean_rows": {
-      "single_step_v2_row_6": "retrieval_eval_20260827_131439"
-    },
-    "manual_jsonl_inspection": "Reinspected test_reports/retrieval_eval_results_20260827_131439.jsonl. Row 5 is clean: cited chunk 231d4fc0-2e59-596a-a7e5-7eeb4ec020a9 supports the Limit Output OFF / intensity 512 heat-damage warning. Row 6 is diagnostic/not-clean: the answer correctly states Output Symbol Identifier adds a 3-byte ISO/IEC 15424 / JIS X 0530 identifier and cites chunk 65513d89-4fc8-567b-aebc-00eb60993779, but it also retains unsupported Conditions, Condition List, Data Range, and Reference Pattern claims not present in that cited chunk.",
-    "production_change": "Field-intent correction in manuals_rag_retrieval.retriever: remove bare correct from remedy/correctiveaction detection; ignore generic correct/specification/operation side-clause terms; skip comparison table promotion when no row-code, context, or field terms exist.",
-    "runtime_load_evidence": {
-      "module_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-      "_comparison_requested_field_terms_sha256": "df3facd1b3d5c4daba2f12c6a3c4778f9e45590168cf5ba470f589a8dd85b75b",
-      "_identifier_context_terms_sha256": "09a61a3b8fe8bf4b50ce9baf7a6ae65f207c5f6991e790002154591111cdaf1b",
-      "_promote_comparison_table_candidates_sha256": "e975738063ad3a78fcab1663d6e1e1dcebf081d04d8269d4f78d26d0057b3d31",
-      "field_terms": {
-        "correct_specifications": [],
-        "correct_model": [],
-        "correct_option": [],
-        "operating_condition": [],
-        "true_corrective_action": [
-          "correctiveaction",
-          "remedy"
-        ],
-        "remedy": [
-          "correctiveaction",
-          "remedy"
-        ],
-        "corrected": [
-          "correctiveaction",
-          "remedy"
-        ],
-        "cause": [
-          "cause"
-        ],
-        "message": [
-          "message"
-        ],
-        "error_code": [
-          "errorcode"
-        ]
+    "prior_diagnostic_run": "retrieval_eval_20260827_131439 row 6 and combined rows 5-6 claim remain diagnostic/not-clean for unsupported retained context claims; row 5 from that run remains clean.",
+    "latest_run": {
+      "run_id": "retrieval_eval_20260827_190715",
+      "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260827_190715.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_190715.json",
+      "results": "test_reports/retrieval_eval_results_20260827_190715.jsonl",
+      "query_offset": 4,
+      "max_queries": 2,
+      "search_mode": "http",
+      "response_mode": "answer_with_citations",
+      "total_queries": 2,
+      "passed_queries": 2,
+      "pass_rate": 1.0,
+      "answer_eval_count": 2,
+      "answer_passed_queries": 2,
+      "answer_pass_rate": 1.0,
+      "answer_failure_reasons": {},
+      "answer_sources": {
+        "api": 2
       },
+      "answer_fallback_count": 0,
+      "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2"
+    },
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_190715.jsonl. Row 5 answer/citation remains clean for the XG-X Limit Output OFF / intensity 512 warning. Row 6 answer is limited to the requested Output Symbol Identifier setting and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; the answer no longer includes unsupported Conditions, Condition List, Data Range, or Reference Pattern claims.",
+    "production_change": "Answer fallback and direct evidence summaries now focus multi-row Setting item table_record chunks on the row best matched by user-query terms before appending sibling context. No document/vendor/query hardcoding, inferred filters, model/provider changes, parser/ingestion/API/UI/schema/infra changes, or eval-only behavior.",
+    "runtime_load_evidence": {
+      "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "_focused_table_record_answer_text_sha256": "2bbddbd4f8bd6b67cf735e089de0d031c2c254bd4a994728a891e57c1e362660",
+      "_fallback_answer_sha256": "a738d4b845c220023f028af05bb2a12f3c197790668bc819e8cb66a04d03dda1",
+      "_direct_evidence_summary_sha256": "fc64c32d70b231f7bc962201d34012b2fd3bfabd0da6fba8567b6cef448e3b15",
+      "_summarize_chunk_sha256": "229c3addeddd79ec38df3ebbd8a4bdfb7cf119d7a9561bbb757f3ed04cb35660",
+      "validate_answer_sha256": "c3acea7d2338b30518d0d226781837ac11d017ce36f55b8b387a182fd47d7e7f",
       "OLLAMA_URL": "http://host.docker.internal:11437",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
       "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
     },
-    "actual_api_controls": {
-      "bare_correct_negative": {
-        "query": "Compare the correct specifications for IV4-G120 and IV4-G600CA operation.",
-        "result": "/search returned ordinary IV4 field-of-view/specification table rows in top positions; no remedy/corrective-action field filtering was triggered by bare correct.",
-        "top_chunk": "3bd26237-f12b-5847-9f2b-16ba960f2f6e",
-        "top_columns": [
-          "Field of View H"
-        ]
-      },
-      "corrective_action_positive": {
-        "query": "Compare the corrective action for IV4-G120 advanced program switching error and VS error 20503 invalid pattern data.",
-        "result": "/search returned structured troubleshooting/remedy evidence for explicit corrective-action intent, preserving the positive path.",
-        "top_chunks": [
-          "c41c52c3-fba4-5b17-bcfd-52325c880f7f",
-          "9389f42a-1153-580a-8730-96e5cc6a7b38",
-          "22efd64c-56cc-5598-8b04-7b70141dd834"
-        ]
-      }
-    },
     "validation": [
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_requested_field_terms or table_requested_field_metadata or bare_correct' -> 4 passed, 99 deselected",
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 103 passed, 1 warning",
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 359 passed, 59 warnings",
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'omits_unrequested_neighbor_setting_context or focused_table_cell_before_context or support_checks_table_cell_before_context' -> 3 passed, 49 deselected, 5 warnings",
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -> 52 passed, 23 warnings",
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 365 passed, 59 warnings",
       "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before update",
-      "API restarted with docker compose -f infra/compose/docker-compose.yml restart api; loaded fingerprints and local model environment recorded above",
-      "Actual HTTP /search negative and positive controls ran after API restart using Authorization: Bearer user-token"
+      "API restarted with docker compose -f infra/compose/docker-compose.yml restart api; loaded answer fingerprints and local model environment recorded above",
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
     ],
     "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
-    "scope": "production retrieval field-intent correction, focused retriever tests, and tracking-only manifest/progress correction; no answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed"
+    "scope": "production answering fallback/context-use logic, focused answering tests, and tracking/eval artifacts only; no retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed"
   }
 }
