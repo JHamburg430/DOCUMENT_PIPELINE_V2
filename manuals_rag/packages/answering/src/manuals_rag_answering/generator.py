@@ -126,7 +126,7 @@ def _answer_terms(text: str) -> set[str]:
     }
 
 
-MODEL_TOKEN_RE = re.compile(r"\b[A-Z0-9]{1,5}-[A-Z0-9]{2,12}[A-Z]?\b")
+MODEL_TOKEN_RE = re.compile(r"\b[A-Z0-9]{1,5}-[A-Z0-9]{2,12}[A-Z]?\b(?!-)")
 
 
 def _model_tokens(text: str) -> set[str]:
@@ -186,6 +186,10 @@ def _result_mentions_model(result: SearchResult, model: str) -> bool:
     if model_upper in result_models:
         return True
     return any(candidate.startswith(model_upper) or model_upper.startswith(candidate) for candidate in result_models)
+
+
+def _result_mentions_requested_model_side(result: SearchResult, model: str) -> bool:
+    return model.upper() in _model_tokens(_result_model_text(result))
 
 
 def _table_model_scope_conflict(query: str, result: SearchResult) -> bool:
@@ -740,17 +744,30 @@ def _comparison_answer_covers_retrieved_model_sides(
     if not cited_results:
         return True
 
-    uncovered_models: set[str] = set()
-    covered_models: set[str] = set()
-    for model in explicit_models:
-        matching_results = [result for result in results if _result_mentions_model(result, model)]
-        if not matching_results:
-            continue
-        if any(_result_mentions_model(result, model) for result in cited_results):
-            covered_models.add(model)
-        else:
-            uncovered_models.add(model)
-    return not covered_models or not uncovered_models
+    available_models = {
+        model
+        for model in explicit_models
+        if any(_result_mentions_requested_model_side(result, model) for result in results)
+    }
+    if len(available_models) < 2:
+        return False
+
+    cited_model_sides: list[set[str]] = [
+        {
+            model
+            for model in available_models
+            if _result_mentions_requested_model_side(result, model)
+        }
+        for result in cited_results
+    ]
+    if any(not model_sides for model_sides in cited_model_sides):
+        return False
+
+    covered_models: set[str] = set().union(*cited_model_sides)
+    uncovered_models = available_models.difference(covered_models)
+    if uncovered_models:
+        return False
+    return True
 
 
 def _comparison_answer_is_overcautious(answer: AnswerResponse, query: str, results: list[SearchResult]) -> bool:

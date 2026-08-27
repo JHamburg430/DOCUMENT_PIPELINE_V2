@@ -3,6 +3,7 @@ from pathlib import Path
 import fitz
 
 from manuals_rag_answering.generator import (
+    _comparison_answer_covers_retrieved_model_sides,
     _parse_relevance_response,
     generate_answer,
     generate_answer_with_trace,
@@ -834,6 +835,229 @@ def test_validate_answer_comparison_fallback_when_generated_answer_cites_only_on
     assert "IV-HG500CA" in validated.answer
     assert {citation["chunk_id"] for citation in validated.citations} == {"iv4-cause", "ivh-cause"}
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_comparison_side_coverage_rejects_unrelated_only_citations():
+    results = [
+        SearchResult(
+            chunk_id="ivh-cause",
+            score=0.9,
+            title="IV-HG500CA Manual",
+            document_version_id="v1",
+            source_document_id="d-ivh",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content="Model IV-HG500CA cause: Sensor program data is damaged.",
+            metadata={"chunk_type": "table_record", "product_model": "IV-HG500CA"},
+        ),
+        SearchResult(
+            chunk_id="iv4-cause",
+            score=0.8,
+            title="IV4-G600CA Manual",
+            document_version_id="v1",
+            source_document_id="d-iv4",
+            pages=[11],
+            section_path=["Troubleshooting"],
+            content="Model IV4-G600CA cause: A startup memory read error occurred.",
+            metadata={"chunk_type": "table_record", "product_model": "IV4-G600CA"},
+        ),
+        SearchResult(
+            chunk_id="xg-row",
+            score=0.7,
+            title="XG-X1000 Manual",
+            document_version_id="v1",
+            source_document_id="d-xg",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content="Model XG-X1000 cause: The image capture setting is invalid.",
+            metadata={"chunk_type": "table_record", "product_model": "XG-X1000"},
+        ),
+    ]
+
+    assert (
+        _comparison_answer_covers_retrieved_model_sides(
+            "Compare IV-HG500CA and IV4-G600CA startup error causes.",
+            [{"chunk_id": "xg-row", "document_id": "d-xg", "pages": [12], "quote_span": None}],
+            results,
+        )
+        is False
+    )
+
+
+def test_comparison_side_coverage_rejects_one_available_side_only():
+    results = [
+        SearchResult(
+            chunk_id="ivh-cause",
+            score=0.9,
+            title="IV-HG500CA Manual",
+            document_version_id="v1",
+            source_document_id="d-ivh",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content="Model IV-HG500CA cause: Sensor program data is damaged.",
+            metadata={"chunk_type": "table_record", "product_model": "IV-HG500CA"},
+        ),
+        SearchResult(
+            chunk_id="iv4-cause",
+            score=0.8,
+            title="IV4-G600CA Manual",
+            document_version_id="v1",
+            source_document_id="d-iv4",
+            pages=[11],
+            section_path=["Troubleshooting"],
+            content="Model IV4-G600CA cause: A startup memory read error occurred.",
+            metadata={"chunk_type": "table_record", "product_model": "IV4-G600CA"},
+        ),
+    ]
+
+    assert (
+        _comparison_answer_covers_retrieved_model_sides(
+            "Compare IV-HG500CA and IV4-G600CA startup error causes.",
+            [{"chunk_id": "ivh-cause", "document_id": "d-ivh", "pages": [10], "quote_span": None}],
+            results,
+        )
+        is False
+    )
+
+
+def test_comparison_side_coverage_accepts_both_available_sides():
+    results = [
+        SearchResult(
+            chunk_id="ivh-cause",
+            score=0.9,
+            title="IV-HG500CA Manual",
+            document_version_id="v1",
+            source_document_id="d-ivh",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content="Model IV-HG500CA cause: Sensor program data is damaged.",
+            metadata={"chunk_type": "table_record", "product_model": "IV-HG500CA"},
+        ),
+        SearchResult(
+            chunk_id="iv4-cause",
+            score=0.8,
+            title="IV4-G600CA Manual",
+            document_version_id="v1",
+            source_document_id="d-iv4",
+            pages=[11],
+            section_path=["Troubleshooting"],
+            content="Model IV4-G600CA cause: A startup memory read error occurred.",
+            metadata={"chunk_type": "table_record", "product_model": "IV4-G600CA"},
+        ),
+    ]
+
+    assert (
+        _comparison_answer_covers_retrieved_model_sides(
+            "Compare IV-HG500CA and IV4-G600CA startup error causes.",
+            [
+                {"chunk_id": "ivh-cause", "document_id": "d-ivh", "pages": [10], "quote_span": None},
+                {"chunk_id": "iv4-cause", "document_id": "d-iv4", "pages": [11], "quote_span": None},
+            ],
+            results,
+        )
+        is True
+    )
+
+
+def test_comparison_side_coverage_rejects_unavailable_or_unrecognized_side():
+    results = [
+        SearchResult(
+            chunk_id="ivh-cause",
+            score=0.9,
+            title="IV-HG500CA Manual",
+            document_version_id="v1",
+            source_document_id="d-ivh",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content="Model IV-HG500CA cause: Sensor program data is damaged.",
+            metadata={"chunk_type": "table_record", "product_model": "IV-HG500CA"},
+        )
+    ]
+
+    assert (
+        _comparison_answer_covers_retrieved_model_sides(
+            "Compare IV-HG500CA and IV4-G600CA startup error causes.",
+            [{"chunk_id": "ivh-cause", "document_id": "d-ivh", "pages": [10], "quote_span": None}],
+            results,
+        )
+        is False
+    )
+
+
+def test_comparison_side_coverage_rejects_prefix_and_code_false_matches():
+    prefix_results = [
+        SearchResult(
+            chunk_id="iv4-prefix",
+            score=0.9,
+            title="IV4 Series Manual",
+            document_version_id="v1",
+            source_document_id="d-iv4",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content="Model IV4-G120 cause: A startup memory read error occurred.",
+            metadata={"chunk_type": "table_record", "product_model": "IV4-G120"},
+        ),
+        SearchResult(
+            chunk_id="ivh-cause",
+            score=0.8,
+            title="IV-HG500CA Manual",
+            document_version_id="v1",
+            source_document_id="d-ivh",
+            pages=[11],
+            section_path=["Troubleshooting"],
+            content="Model IV-HG500CA cause: Sensor program data is damaged.",
+            metadata={"chunk_type": "table_record", "product_model": "IV-HG500CA"},
+        ),
+    ]
+
+    assert (
+        _comparison_answer_covers_retrieved_model_sides(
+            "Compare IV4-G600CA and IV-HG500CA startup error causes.",
+            [
+                {"chunk_id": "iv4-prefix", "document_id": "d-iv4", "pages": [10], "quote_span": None},
+                {"chunk_id": "ivh-cause", "document_id": "d-ivh", "pages": [11], "quote_span": None},
+            ],
+            prefix_results,
+        )
+        is False
+    )
+
+    code_results = [
+        SearchResult(
+            chunk_id="error-code",
+            score=0.9,
+            title="Troubleshooting Codes",
+            document_version_id="v1",
+            source_document_id="d-code",
+            pages=[20],
+            section_path=["Troubleshooting"],
+            content="Error IV4-G600CA-20503: invalid pattern data.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="ivh-cause",
+            score=0.8,
+            title="IV-HG500CA Manual",
+            document_version_id="v1",
+            source_document_id="d-ivh",
+            pages=[21],
+            section_path=["Troubleshooting"],
+            content="Model IV-HG500CA cause: Sensor program data is damaged.",
+            metadata={"chunk_type": "table_record", "product_model": "IV-HG500CA"},
+        ),
+    ]
+
+    assert (
+        _comparison_answer_covers_retrieved_model_sides(
+            "Compare IV4-G600CA and IV-HG500CA startup error causes.",
+            [
+                {"chunk_id": "error-code", "document_id": "d-code", "pages": [20], "quote_span": None},
+                {"chunk_id": "ivh-cause", "document_id": "d-ivh", "pages": [21], "quote_span": None},
+            ],
+            code_results,
+        )
+        is False
+    )
 
 
 def test_summarize_results_keeps_small_structured_evidence_set_separate(monkeypatch):
