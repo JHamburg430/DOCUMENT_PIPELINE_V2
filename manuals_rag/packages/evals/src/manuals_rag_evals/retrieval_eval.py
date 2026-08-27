@@ -2998,6 +2998,8 @@ def _expected_evidence_citation_support(
             cited_chunk_id = str(citation.get("chunk_id") or "")
             if expected_document_id and _citation_document_id(citation) != expected_document_id:
                 continue
+            if expected_chunk_id and cited_chunk_id != expected_chunk_id:
+                continue
             cited_text = chunk_texts.get(cited_chunk_id, "")
             if not cited_text:
                 continue

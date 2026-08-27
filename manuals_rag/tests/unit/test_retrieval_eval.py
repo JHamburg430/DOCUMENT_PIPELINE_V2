@@ -1466,6 +1466,79 @@ def test_answer_response_scoring_rejects_null_quote_nearby_sibling_chunk():
     assert scored["evidence_citation_support"]["missing_evidence"][0]["chunk_id"] == "shock-b"
 
 
+def test_answer_response_scoring_requires_expected_chunk_not_same_document_overlap():
+    case = RetrievalEvalCase(
+        case_id="answer-same-document-overlap",
+        query="Compare what the Condition list and Standard Angle settings control.",
+        source_document_id="doc-cv",
+        document_version_id="ver-cv",
+        source_chunk_id="condition-list",
+        source_title="Settings",
+        source_filename="Manual.pdf",
+        chunk_type="table_record",
+        section_path="Settings",
+        page_from=1,
+        page_to=1,
+        expected_terms=["condition", "reference", "standard", "angle"],
+        expected_snippet="Condition list controls reference conditions; Standard Angle controls blob numbering.",
+        generation_method="manual_curated_cross_document_v2_from_diagnostic_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "condition-list",
+                "source_document_id": "doc-cv",
+                "expected_terms": ["condition", "reference"],
+                "snippet": "A maximum of 16 reference conditions can be set.",
+            },
+            {
+                "chunk_id": "standard-angle",
+                "source_document_id": "doc-lj",
+                "expected_terms": ["standard", "angle", "numbering"],
+                "snippet": "Specifies the start angle for blob numbering.",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Condition and angle settings are listed in the manuals.",
+            "citations": [
+                {"document_id": "doc-cv", "chunk_id": "angle-range", "quote_span": None},
+                {"document_id": "doc-lj", "chunk_id": "communication-toc", "quote_span": None},
+            ],
+            "used_documents": [{"document_id": "doc-cv"}, {"document_id": "doc-lj"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "angle-range",
+                "content": "Setting item: Angle range; Settings: Specifies an angle range for tilted targets.",
+            },
+            {
+                "chunk_id": "communication-toc",
+                "content": "Changing message Condition Overview. Communication command table.",
+            },
+            {
+                "chunk_id": "condition-list",
+                "content": "Setting item: Condition list; Settings: A maximum of 16 reference conditions can be set.",
+            },
+            {
+                "chunk_id": "standard-angle",
+                "content": "Setting item: Standard Angle; Settings: Specifies the start angle for blob numbering.",
+            },
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+    assert {
+        item["chunk_id"] for item in scored["evidence_citation_support"]["missing_evidence"]
+    } == {"condition-list", "standard-angle"}
+
+
 def test_large_retrieval_eval_summarizes_answer_metrics():
     import importlib.util
     from pathlib import Path

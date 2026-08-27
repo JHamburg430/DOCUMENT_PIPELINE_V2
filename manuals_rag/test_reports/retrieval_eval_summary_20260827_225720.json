@@ -1,0 +1,59 @@
+{
+  "total_queries": 2,
+  "passed_queries": 2,
+  "failed_queries": 0,
+  "pass_rate": 1.0,
+  "pass_at_1": 1.0,
+  "pass_at_3": 1.0,
+  "pass_at_5": 1.0,
+  "mean_passing_rank": 1.0,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 2,
+      "passed": 2
+    }
+  },
+  "by_retrieval_task": {
+    "multi_step_retrieval": {
+      "total": 2,
+      "passed": 2
+    }
+  },
+  "by_document": {
+    "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "failure_categories": {},
+  "benchmark_quality": {
+    "validated": 2
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 1.0,
+  "metadata_document_selection_attempts": 2,
+  "metadata_document_selection_recall_rate": 1.0,
+  "metadata_document_selection_rank_1_rate": 0.5,
+  "answer_eval_count": 2,
+  "answer_passed_queries": 2,
+  "answer_failed_queries": 0,
+  "answer_pass_rate": 1.0,
+  "answer_failure_reasons": {},
+  "answer_latency": {
+    "min_seconds": 48.076,
+    "max_seconds": 56.794,
+    "mean_seconds": 52.435,
+    "p95_seconds": 56.794
+  },
+  "answer_fallback_count": 0,
+  "answer_fallback_rate": 0.0,
+  "answer_sources": {
+    "api": 2
+  },
+  "answer_fallback_reasons": {},
+  "answer_mean_summary_count": null
+}

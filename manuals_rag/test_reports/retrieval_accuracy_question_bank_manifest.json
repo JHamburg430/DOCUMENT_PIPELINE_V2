@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-27T22:36:00Z",
+  "updated_at": "2026-08-27T23:06:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1020,66 +1020,38 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {},
-    "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, contextual rows 15-16 clean evidence from retrieval_eval_20260827_223414, the matrix/chunk-evidence containment from 87c19c4, and the relation-preserving quantity validation containment from this run.",
-    "answer_grounding_status": "Relation-preserving quantity validation containment completed after guardrail 2026-08-27T22:20:20Z. Quantity role/value extraction now binds values to requested roles within punctuation-separated source relations and no longer validates swapped line/overlap values, omitted roles, cross-clause or cross-chunk role mixing, sibling quantities, irrelevant numbers, or total-only answers as sufficient. Loaded controls after restarting the API retained the correct 10-lines/two-overlap answer and fell back for swapped, missing-overlap, and 23-total-lines answers. Actual HTTP API answer rerun retrieval_eval_20260827_223414 kept contextual rows 15-16 clean; row 15 cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 containing Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and the explanatory 10/two relation. Current retrieval failures are {}; current answer failures are {}. Preserve the matrix containment from 87c19c4 and all prior diagnostic exclusions/citation-fidelity containments.",
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 1
+    },
+    "next_target": "Fix curated cross-document v2 row 6 answer evidence selection so the API answer cites and uses the returned Condition list and Standard Angle chunks, while preserving row 7 clean evidence from retrieval_eval_20260827_230123, diagnostic false-green retrieval_eval_20260827_225720, the relation-preserving quantity validation containment, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
+    "answer_grounding_status": "Cross-document rows 6-7 answer-grounding rotation reran after tightening answer-evidence citation scoring. The first run retrieval_eval_20260827_225720 is diagnostic/false-green because row 6 was marked clean by same-document/token overlap even though the user-visible answer did not cite either source-reviewed expected chunk. The corrected scorer requires concrete expected evidence chunk ids to be cited as returned chunks unless a principled equivalent-evidence policy exists. Corrected HTTP rerun retrieval_eval_20260827_230123 passed retrieval 2/2 but answer grounding 1/2: row 7 clean, row 6 failed expected_evidence_not_cited. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}.",
     "answer_grounding_rotation": {
-      "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
-      "status": "rows_15_16_clean_after_relation_preserving_quantity_validation",
-      "latest_run": "retrieval_eval_20260827_223414",
-      "previous_clean_run": "retrieval_eval_20260827_212947",
-      "supersedes_failed_run": "retrieval_eval_20260827_195423",
-      "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-      "summary": "test_reports/retrieval_eval_summary_20260827_223414.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_223414.json",
-      "results": "test_reports/retrieval_eval_results_20260827_223414.jsonl",
-      "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "query_offset": 14,
+      "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
+      "query_offset": 5,
       "max_queries": 2,
-      "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
-      "answer_result": "2/2 actual HTTP API answers passed after API restart; answer_source api for both; fallback 0; failures {}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_223414.jsonl. Row 15 cites returned CV-X page 6-125 chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 with quote_span null; the cited chunk states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and explains that the number of lines is 10 and overlap lines is two. Row 16 remains clean as a control, citing returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, which directly supports the TRG1 for CAM 1 capture plus measurement-processing claim.",
-      "runtime_load_evidence": {
-        "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-        "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
-        "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
-        "_quantity_role_values_sha256": "2cbcb13e5175dedfa15104e96dd8f8f7d95813ad278f51a5fdbe1bd09aa1efe6",
-        "_quantity_role_value_groups_sha256": "7b69f86cf32d3213521fdaf9219f04c843d83db99864db0a0700705e3060c24a",
-        "_answer_addresses_quantity_request_sha256": "c416da03a9cb46b99e9199a3fde5735297ea73cf9a0d04b06db81030abed9213",
-        "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b",
-        "OLLAMA_URL": "http://host.docker.internal:11437",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
-      },
-      "loaded_validator_controls": {
-        "correct_binding": "retained The example uses 10 lines and two overlap lines.",
-        "swapped_binding": "fallback used for The example uses two lines and 10 overlap lines.",
-        "missing_overlap": "fallback used for The example uses 10 lines.",
-        "total_only_or_wrong_line": "fallback used for The example uses 23 total lines and two overlap lines."
-      },
-      "guardrail_addressed": {
-        "timestamp": "2026-08-27T22:20:20Z",
-        "finding": "Loaded quantity validator retained swapped line/overlap values because role extraction still used relation-insensitive nearby-token matching.",
-        "evidence": [
-          "Added punctuation-clause quantity role/value extraction with canonical numeric/number-word comparison.",
-          "Validation now checks the first complete role-bound relation from returned evidence instead of aggregating unrelated chunks or sibling quantities.",
-          "Focused quantity controls passed: 10 passed, 53 deselected, 5 warnings.",
-          "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 387 passed, 59 warnings.",
-          "API was restarted and loaded fingerprints were recorded.",
-          "Loaded controls rejected swapped, omitted-role, and total-only/wrong-line answers and retained the correct relation-bound answer.",
-          "retrieval_eval_20260827_223414 reran contextual rows 15-16 through actual HTTP API at 2/2 retrieval and 2/2 answers.",
-          "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
-        ],
-        "remaining": "No further quantity-validator containment is required before optional rotations; preserve the 223414 actual-results JSONL and all prior diagnostics/exclusions."
-      },
-      "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
-      "remaining": "Continue optional answer-grounding coverage expansion while preserving matrix, citation-fidelity, false-negative, row-5, row-6, and row-15 diagnostic containments."
+      "diagnostic_false_green_run": "retrieval_eval_20260827_225720",
+      "latest_run": "retrieval_eval_20260827_230123",
+      "dataset": "test_reports/retrieval_eval_dataset_20260827_230123.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260827_230123.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
+      "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
+      "answer_result": "1/2 actual HTTP API answers passed under corrected scorer; answer_sources api:2; fallback 0; answer_failure_reasons {expected_evidence_not_cited: 1}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
+      "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
+      "tests": [
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'expected_chunk_not_same_document_overlap or exact_cited_chunk_to_be_returned or null_quote_nearby_sibling_chunk or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 88 deselected",
+        "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
+      ],
+      "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Continue broader answer-grounding rotations only after preserving this scorer containment.",
+      "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean"
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {},
+    "current_answer_failure_categories": {
+      "expected_evidence_not_cited": 1
+    },
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1223,6 +1195,11 @@
         "run_id": "retrieval_eval_20260827_121346",
         "scope": "source-scoped repaired row 5 and combined rows 4-5 answer claim",
         "reason": "post-containment diagnostic rerun still had automated green summary, but JSONL inspection found IV4 expected cause chunk 98198bb3 absent from top results/citations and cited IV4 chunk 22efd64c is a Remedy cell"
+      },
+      {
+        "run_id": "retrieval_eval_20260827_225720",
+        "scope": "curated cross-document v2 rows 6-7 answer clean claim",
+        "reason": "false-green before exact expected-chunk citation scoring; row 6 retrieved expected evidence but API answer cited unrelated/sibling chunks and omitted both source-reviewed expected chunks"
       }
     ],
     "unresolved_guardrail_findings": [
@@ -1879,6 +1856,29 @@
           "unequal_matrix FAIL"
         ]
       }
+    },
+    "answer_grounding_cross_document_rows_6_7": {
+      "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
+      "query_offset": 5,
+      "max_queries": 2,
+      "diagnostic_false_green_run": "retrieval_eval_20260827_225720",
+      "latest_run": "retrieval_eval_20260827_230123",
+      "dataset": "test_reports/retrieval_eval_dataset_20260827_230123.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260827_230123.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
+      "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
+      "answer_result": "1/2 actual HTTP API answers passed under corrected scorer; answer_sources api:2; fallback 0; answer_failure_reasons {expected_evidence_not_cited: 1}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
+      "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
+      "tests": [
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'expected_chunk_not_same_document_overlap or exact_cited_chunk_to_be_returned or null_quote_nearby_sibling_chunk or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 88 deselected",
+        "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
+      ],
+      "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Continue broader answer-grounding rotations only after preserving this scorer containment.",
+      "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean"
     }
   },
   "latest_false_negative_repair": {
@@ -7829,7 +7829,7 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, contextual rows 15-16 clean evidence from retrieval_eval_20260827_223414, the matrix/chunk-evidence containment from 87c19c4, and the relation-preserving quantity validation containment from this run.",
+  "next_target": "Fix curated cross-document v2 row 6 answer evidence selection so the API answer cites and uses the returned Condition list and Standard Angle chunks, while preserving row 7 clean evidence from retrieval_eval_20260827_230123, diagnostic false-green retrieval_eval_20260827_225720, the relation-preserving quantity validation containment, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -8113,62 +8113,32 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {},
-  "answer_grounding_status": "Relation-preserving quantity validation containment completed after guardrail 2026-08-27T22:20:20Z. Quantity role/value extraction now binds values to requested roles within punctuation-separated source relations and no longer validates swapped line/overlap values, omitted roles, cross-clause or cross-chunk role mixing, sibling quantities, irrelevant numbers, or total-only answers as sufficient. Loaded controls after restarting the API retained the correct 10-lines/two-overlap answer and fell back for swapped, missing-overlap, and 23-total-lines answers. Actual HTTP API answer rerun retrieval_eval_20260827_223414 kept contextual rows 15-16 clean; row 15 cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 containing Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and the explanatory 10/two relation. Current retrieval failures are {}; current answer failures are {}. Preserve the matrix containment from 87c19c4 and all prior diagnostic exclusions/citation-fidelity containments.",
+  "answer_current_failure_categories": {
+    "expected_evidence_not_cited": 1
+  },
+  "answer_grounding_status": "Cross-document rows 6-7 answer-grounding rotation reran after tightening answer-evidence citation scoring. The first run retrieval_eval_20260827_225720 is diagnostic/false-green because row 6 was marked clean by same-document/token overlap even though the user-visible answer did not cite either source-reviewed expected chunk. The corrected scorer requires concrete expected evidence chunk ids to be cited as returned chunks unless a principled equivalent-evidence policy exists. Corrected HTTP rerun retrieval_eval_20260827_230123 passed retrieval 2/2 but answer grounding 1/2: row 7 clean, row 6 failed expected_evidence_not_cited. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}.",
   "answer_grounding_rotation": {
-    "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
-    "status": "rows_15_16_clean_after_relation_preserving_quantity_validation",
-    "latest_run": "retrieval_eval_20260827_223414",
-    "previous_clean_run": "retrieval_eval_20260827_212947",
-    "supersedes_failed_run": "retrieval_eval_20260827_195423",
-    "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-    "summary": "test_reports/retrieval_eval_summary_20260827_223414.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260827_223414.json",
-    "results": "test_reports/retrieval_eval_results_20260827_223414.jsonl",
-    "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-    "query_offset": 14,
+    "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
+    "query_offset": 5,
     "max_queries": 2,
-    "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
-    "answer_result": "2/2 actual HTTP API answers passed after API restart; answer_source api for both; fallback 0; failures {}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_223414.jsonl. Row 15 cites returned CV-X page 6-125 chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 with quote_span null; the cited chunk states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and explains that the number of lines is 10 and overlap lines is two. Row 16 remains clean as a control, citing returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, which directly supports the TRG1 for CAM 1 capture plus measurement-processing claim.",
-    "runtime_load_evidence": {
-      "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-      "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
-      "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
-      "_quantity_role_values_sha256": "2cbcb13e5175dedfa15104e96dd8f8f7d95813ad278f51a5fdbe1bd09aa1efe6",
-      "_quantity_role_value_groups_sha256": "7b69f86cf32d3213521fdaf9219f04c843d83db99864db0a0700705e3060c24a",
-      "_answer_addresses_quantity_request_sha256": "c416da03a9cb46b99e9199a3fde5735297ea73cf9a0d04b06db81030abed9213",
-      "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b",
-      "OLLAMA_URL": "http://host.docker.internal:11437",
-      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
-    },
-    "loaded_validator_controls": {
-      "correct_binding": "retained The example uses 10 lines and two overlap lines.",
-      "swapped_binding": "fallback used for The example uses two lines and 10 overlap lines.",
-      "missing_overlap": "fallback used for The example uses 10 lines.",
-      "total_only_or_wrong_line": "fallback used for The example uses 23 total lines and two overlap lines."
-    },
-    "guardrail_addressed": {
-      "timestamp": "2026-08-27T22:20:20Z",
-      "finding": "Loaded quantity validator retained swapped line/overlap values because role extraction still used relation-insensitive nearby-token matching.",
-      "evidence": [
-        "Added punctuation-clause quantity role/value extraction with canonical numeric/number-word comparison.",
-        "Validation now checks the first complete role-bound relation from returned evidence instead of aggregating unrelated chunks or sibling quantities.",
-        "Focused quantity controls passed: 10 passed, 53 deselected, 5 warnings.",
-        "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 387 passed, 59 warnings.",
-        "API was restarted and loaded fingerprints were recorded.",
-        "Loaded controls rejected swapped, omitted-role, and total-only/wrong-line answers and retained the correct relation-bound answer.",
-        "retrieval_eval_20260827_223414 reran contextual rows 15-16 through actual HTTP API at 2/2 retrieval and 2/2 answers.",
-        "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
-      ],
-      "remaining": "No further quantity-validator containment is required before optional rotations; preserve the 223414 actual-results JSONL and all prior diagnostics/exclusions."
-    },
-    "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
-    "remaining": "Continue optional answer-grounding coverage expansion while preserving matrix, citation-fidelity, false-negative, row-5, row-6, and row-15 diagnostic containments."
+    "diagnostic_false_green_run": "retrieval_eval_20260827_225720",
+    "latest_run": "retrieval_eval_20260827_230123",
+    "dataset": "test_reports/retrieval_eval_dataset_20260827_230123.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260827_230123.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
+    "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
+    "answer_result": "1/2 actual HTTP API answers passed under corrected scorer; answer_sources api:2; fallback 0; answer_failure_reasons {expected_evidence_not_cited: 1}.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
+    "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
+    "tests": [
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'expected_chunk_not_same_document_overlap or exact_cited_chunk_to_be_returned or null_quote_nearby_sibling_chunk or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 88 deselected",
+      "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
+    ],
+    "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Continue broader answer-grounding rotations only after preserving this scorer containment.",
+    "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean"
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -8583,7 +8553,9 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "expected_evidence_not_cited": 1
+  },
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
@@ -8727,6 +8699,11 @@
       "run_id": "retrieval_eval_20260827_121346",
       "scope": "source-scoped repaired row 5 and combined rows 4-5 answer claim",
       "reason": "post-containment diagnostic rerun still had automated green summary, but JSONL inspection found IV4 expected cause chunk 98198bb3 absent from top results/citations and cited IV4 chunk 22efd64c is a Remedy cell"
+    },
+    {
+      "run_id": "retrieval_eval_20260827_225720",
+      "scope": "curated cross-document v2 rows 6-7 answer clean claim",
+      "reason": "false-green before exact expected-chunk citation scoring; row 6 retrieved expected evidence but API answer cited unrelated/sibling chunks and omitted both source-reviewed expected chunks"
     }
   ],
   "unresolved_guardrail_findings": [
@@ -9306,5 +9283,28 @@
         "unequal_matrix FAIL"
       ]
     }
+  },
+  "answer_grounding_cross_document_rows_6_7": {
+    "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
+    "query_offset": 5,
+    "max_queries": 2,
+    "diagnostic_false_green_run": "retrieval_eval_20260827_225720",
+    "latest_run": "retrieval_eval_20260827_230123",
+    "dataset": "test_reports/retrieval_eval_dataset_20260827_230123.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260827_230123.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
+    "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
+    "answer_result": "1/2 actual HTTP API answers passed under corrected scorer; answer_sources api:2; fallback 0; answer_failure_reasons {expected_evidence_not_cited: 1}.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
+    "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
+    "tests": [
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'expected_chunk_not_same_document_overlap or exact_cited_chunk_to_be_returned or null_quote_nearby_sibling_chunk or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 88 deselected",
+      "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
+    ],
+    "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Continue broader answer-grounding rotations only after preserving this scorer containment.",
+    "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean"
   }
 }
