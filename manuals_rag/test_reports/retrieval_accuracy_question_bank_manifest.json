@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-27T04:18:00Z",
+  "updated_at": "2026-08-27T04:29:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1002,14 +1002,14 @@
     ],
     "failure_categories": {},
     "current_failure_categories": {},
-    "current_retrieval_failure_source": "Focused rows 6-10 are now green in retrieval_eval_20260827_041517 direct and retrieval_eval_20260827_041659 HTTP after the row-code coverage fix; full curated cross-document v2 and contextual row 14 remain pending broader validation targets.",
+    "current_retrieval_failure_source": "Full curated cross-document v2 is now green in retrieval_eval_20260827_042612 direct retrieval after the row-code coverage fix; contextual row 14 remains the next separate retrieval-gap target.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 4,
       "retrieval_not_passed": 4,
       "expected_terms_missing": 3
     },
-    "next_target": "Broaden validation after the focused cross-document rows 6-10 retrieval fix: rerun the full curated cross-document v2 bank when cron budget allows, keep contextual row 14 as the next separate retrieval target, and continue answer rotations only on validated user-style cases with actual API payload scoring and JSONL citation inspection. Preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, keep the LLM answer judge diagnostic-only/opt-in, and do not reintroduce citation-pruning retention.",
-    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; sibling troubleshooting rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 16 and 17 remain clean from inspected chunk-supported evidence in retrieval_eval_20260827_020233; row 15 from retrieval_eval_20260827_020233 is reclassified as diagnostic/source-context evidence because its cited chunk content does not directly contain the expected usable-trigger-signal corrective action. Rows 18-20 remain clean only under inspected source-supported evidence from retrieval_eval_20260827_001132/row-20 repaired evidence. The partial-claim citation-pruning bug class remains contained by conservative fallback: unsupported generated quote spans no longer prune citations while retaining the generated answer. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only; repaired case retrieval_eval_20260826_222558 adds CV-X482/grayscale constraints and passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
+    "next_target": "Address contextual row 14 as the next separate retrieval target, then continue validated answer rotations only with actual API payload scoring and JSONL citation inspection. Preserve full curated cross-document v2 as green retrieval evidence from retrieval_eval_20260827_042612, preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, keep the LLM answer judge diagnostic-only/opt-in, and do not reintroduce citation-pruning retention.",
+    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers from earlier rotations due prior retrieval/context misses; the full curated cross-document v2 retrieval bank is now green at 10/10 direct retrieval in retrieval_eval_20260827_042612, but this run is retrieval-only and does not update answer-grounding pass rates. Validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 remain 6/6 answers; curated single-step retrieval_eval_20260826_035548 remains 2/2; the fully reviewed contextual procedure slice rows 1-20 remains 19/20 actual API answers, with contextual row 14 still separate retrieval-gap evidence. Sibling troubleshooting rows 1-14 remain 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 16 and 17 remain clean from inspected chunk-supported evidence in retrieval_eval_20260827_020233; row 15 from retrieval_eval_20260827_020233 remains diagnostic/source-context evidence because its cited chunk content does not directly contain the expected usable-trigger-signal corrective action. Rows 18-20 remain clean only under inspected source-supported evidence from retrieval_eval_20260827_001132/row-20 repaired evidence. The partial-claim citation-pruning bug class remains contained by conservative fallback. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only; repaired case retrieval_eval_20260826_222558 adds CV-X482/grayscale constraints and passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
     "answer_grounding_rotation": {
       "scope": "citation_fidelity_reclassification_for_retrieval_eval_20260827_020233_rows_15_17",
       "status": "row_15_reclassified_diagnostic_source_context_rows_16_17_clean_chunk_supported",
@@ -1313,7 +1313,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-27T04:18:00Z",
+    "updated_at": "2026-08-27T04:29:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -1411,6 +1411,32 @@
       "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
       "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction",
       "production_evidence_rule": "Use deterministic retrieval/answer scoring, actual user-visible/API answer payloads, and source/chunk citation inspection for production evidence; ignore LLM judge green results for durable pass/fail tracking unless separately approved."
+    },
+    "latest_cross_document_validation": {
+      "status": "full_curated_cross_document_v2_green_after_row_code_coverage_fix",
+      "guardrail_context": "Started from guardrail 2026-08-27T04:23:57Z ok finding and manifest target to broaden validation after the focused rows 6-10 retrieval fix; preserved row-15 diagnostic citation status, diagnostic-only LLM judge policy, and conservative citation-pruning fallback.",
+      "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "baseline": "retrieval_eval_20260826_005723 was the full 10-case direct baseline with unresolved cross-document cases 6, 7, and 9; focused rows 6-10 were later green in retrieval_eval_20260827_041517 and retrieval_eval_20260827_041659.",
+      "run_id": "retrieval_eval_20260827_042612",
+      "summary": "test_reports/retrieval_eval_summary_20260827_042612.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_042612.json",
+      "results": "test_reports/retrieval_eval_results_20260827_042612.jsonl",
+      "search_mode": "direct",
+      "response_mode": "retrieval_only",
+      "max_queries": 10,
+      "per_query_timeout_seconds": 20,
+      "warmup": "1 unscored warmup completed in 15.967s for curated_cross_document_v2::1",
+      "result": "10/10 direct retrieval passed on the full manually reviewed curated cross-document v2 bank; pass@1 80%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 100%.",
+      "failure_categories": {},
+      "candidate_recall_rate": 1.0,
+      "metadata_document_selection_recall_rate": 1.0,
+      "answer_mode_claim": "none; this is retrieval-only validation, not answer-grounding evidence",
+      "artifacts_committed": [
+        "test_reports/retrieval_eval_summary_20260827_042612.json",
+        "test_reports/retrieval_eval_manifest_20260827_042612.json"
+      ],
+      "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
+      "remaining": "Contextual row 14 remains separate candidate-miss evidence; answer rotations still require actual API payload scoring and JSONL citation inspection."
     }
   },
   "latest_false_negative_repair": {
@@ -7268,8 +7294,8 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Broaden validation after the focused cross-document rows 6-10 retrieval fix: rerun the full curated cross-document v2 bank when cron budget allows, keep contextual row 14 as the next separate retrieval target, and continue answer rotations only on validated user-style cases with actual API payload scoring and JSONL citation inspection. Preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, keep the LLM answer judge diagnostic-only/opt-in, and do not reintroduce citation-pruning retention.",
-  "current_retrieval_failure_source": "Focused rows 6-10 are now green in retrieval_eval_20260827_041517 direct and retrieval_eval_20260827_041659 HTTP after the row-code coverage fix; full curated cross-document v2 and contextual row 14 remain pending broader validation targets.",
+  "next_target": "Address contextual row 14 as the next separate retrieval target, then continue validated answer rotations only with actual API payload scoring and JSONL citation inspection. Preserve full curated cross-document v2 as green retrieval evidence from retrieval_eval_20260827_042612, preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, keep the LLM answer judge diagnostic-only/opt-in, and do not reintroduce citation-pruning retention.",
+  "current_retrieval_failure_source": "Full curated cross-document v2 is now green in retrieval_eval_20260827_042612 direct retrieval after the row-code coverage fix; contextual row 14 remains the next separate retrieval-gap target.",
   "current_failure_categories": {},
   "failure_categories": {},
   "diagnostics": [
@@ -7557,7 +7583,7 @@
     "retrieval_not_passed": 4,
     "expected_terms_missing": 3
   },
-  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; sibling troubleshooting rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 16 and 17 remain clean from inspected chunk-supported evidence in retrieval_eval_20260827_020233; row 15 from retrieval_eval_20260827_020233 is reclassified as diagnostic/source-context evidence because its cited chunk content does not directly contain the expected usable-trigger-signal corrective action. Rows 18-20 remain clean only under inspected source-supported evidence from retrieval_eval_20260827_001132/row-20 repaired evidence. The partial-claim citation-pruning bug class remains contained by conservative fallback: unsupported generated quote spans no longer prune citations while retaining the generated answer. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only; repaired case retrieval_eval_20260826_222558 adds CV-X482/grayscale constraints and passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
+  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers from earlier rotations due prior retrieval/context misses; the full curated cross-document v2 retrieval bank is now green at 10/10 direct retrieval in retrieval_eval_20260827_042612, but this run is retrieval-only and does not update answer-grounding pass rates. Validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 remain 6/6 answers; curated single-step retrieval_eval_20260826_035548 remains 2/2; the fully reviewed contextual procedure slice rows 1-20 remains 19/20 actual API answers, with contextual row 14 still separate retrieval-gap evidence. Sibling troubleshooting rows 1-14 remain 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 16 and 17 remain clean from inspected chunk-supported evidence in retrieval_eval_20260827_020233; row 15 from retrieval_eval_20260827_020233 remains diagnostic/source-context evidence because its cited chunk content does not directly contain the expected usable-trigger-signal corrective action. Rows 18-20 remain clean only under inspected source-supported evidence from retrieval_eval_20260827_001132/row-20 repaired evidence. The partial-claim citation-pruning bug class remains contained by conservative fallback. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only; repaired case retrieval_eval_20260826_222558 adds CV-X482/grayscale constraints and passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
   "answer_grounding_rotation": {
     "scope": "citation_fidelity_reclassification_for_retrieval_eval_20260827_020233_rows_15_17",
     "status": "row_15_reclassified_diagnostic_source_context_rows_16_17_clean_chunk_supported",
@@ -8269,5 +8295,31 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction",
     "production_evidence_rule": "Use deterministic retrieval/answer scoring, actual user-visible/API answer payloads, and source/chunk citation inspection for production evidence; ignore LLM judge green results for durable pass/fail tracking unless separately approved."
+  },
+  "latest_cross_document_validation": {
+    "status": "full_curated_cross_document_v2_green_after_row_code_coverage_fix",
+    "guardrail_context": "Started from guardrail 2026-08-27T04:23:57Z ok finding and manifest target to broaden validation after the focused rows 6-10 retrieval fix; preserved row-15 diagnostic citation status, diagnostic-only LLM judge policy, and conservative citation-pruning fallback.",
+    "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+    "baseline": "retrieval_eval_20260826_005723 was the full 10-case direct baseline with unresolved cross-document cases 6, 7, and 9; focused rows 6-10 were later green in retrieval_eval_20260827_041517 and retrieval_eval_20260827_041659.",
+    "run_id": "retrieval_eval_20260827_042612",
+    "summary": "test_reports/retrieval_eval_summary_20260827_042612.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_042612.json",
+    "results": "test_reports/retrieval_eval_results_20260827_042612.jsonl",
+    "search_mode": "direct",
+    "response_mode": "retrieval_only",
+    "max_queries": 10,
+    "per_query_timeout_seconds": 20,
+    "warmup": "1 unscored warmup completed in 15.967s for curated_cross_document_v2::1",
+    "result": "10/10 direct retrieval passed on the full manually reviewed curated cross-document v2 bank; pass@1 80%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 100%.",
+    "failure_categories": {},
+    "candidate_recall_rate": 1.0,
+    "metadata_document_selection_recall_rate": 1.0,
+    "answer_mode_claim": "none; this is retrieval-only validation, not answer-grounding evidence",
+    "artifacts_committed": [
+      "test_reports/retrieval_eval_summary_20260827_042612.json",
+      "test_reports/retrieval_eval_manifest_20260827_042612.json"
+    ],
+    "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
+    "remaining": "Contextual row 14 remains separate candidate-miss evidence; answer rotations still require actual API payload scoring and JSONL citation inspection."
   }
 }
