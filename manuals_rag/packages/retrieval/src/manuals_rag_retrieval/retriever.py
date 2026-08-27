@@ -26,7 +26,7 @@ else:
 logger = logging.getLogger(__name__)
 FUSED_CANDIDATE_POOL_LIMIT = 30
 DOCUMENT_METADATA_SELECTION_LIMIT = 5
-LEXICAL_TABLE_ROW_LIMIT = 24
+LEXICAL_TABLE_ROW_LIMIT = 48
 LEXICAL_TABLE_SCAN_LIMIT = 1500
 LEXICAL_CONTEXT_LIMIT = 24
 LEXICAL_CONTEXT_SCAN_LIMIT = 1500
@@ -502,6 +502,21 @@ def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase
     product_terms = _text_terms(product_haystack)
     product_overlap = len(set(terms).intersection(product_terms))
     score += min(0.36, product_overlap * 0.09)
+    primary_product_terms = _text_terms(
+        " ".join(
+            str(part)
+            for part in [
+                metadata.get("product_model"),
+                metadata.get("product_family"),
+                " ".join(str(item) for item in metadata.get("product_models") or []),
+                " ".join(str(item) for item in metadata.get("product_families") or []),
+                " ".join(str(item) for item in metadata.get("part_numbers") or []),
+            ]
+            if part
+        )
+    )
+    primary_product_overlap = len(set(terms).intersection(primary_product_terms))
+    score += min(0.72, primary_product_overlap * 0.18)
     if prompt_phrase and prompt_phrase in compact_haystack:
         score += 1.0
     if metadata.get("table_row_group"):
@@ -731,9 +746,12 @@ def run_table_lexical_search(
             candidates = [
                 result
                 for result in results
-                if result.chunk_id not in seen_ids and _result_matches_identifier(result, identifier)
+                if result.chunk_id not in seen_ids and _result_matches_primary_identifier(result, identifier)
                 and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
             ]
+            context_terms = _identifier_context_terms(analysis.raw_query, identifier)
+            if context_terms:
+                candidates.sort(key=lambda result: (_identifier_context_score(result, context_terms), result.score), reverse=True)
             promotion_limit = 2 if row_code_terms else 1
             for candidate in candidates[:promotion_limit]:
                 seen_ids.add(candidate.chunk_id)
@@ -1358,6 +1376,27 @@ def _result_matches_identifier(result: SearchResult, identifier: str) -> bool:
     return expected in haystack
 
 
+def _result_matches_primary_identifier(result: SearchResult, identifier: str) -> bool:
+    expected = _compact_identifier(identifier)
+    if not expected:
+        return False
+    primary_haystack = _compact_identifier(
+        " ".join(
+            str(part)
+            for part in [
+                result.metadata.get("product_model"),
+                result.metadata.get("product_family"),
+                " ".join(str(item) for item in result.metadata.get("product_models") or []),
+                " ".join(str(item) for item in result.metadata.get("product_families") or []),
+                " ".join(str(item) for item in result.metadata.get("part_numbers") or []),
+                result.title,
+            ]
+            if part
+        )
+    )
+    return expected in primary_haystack
+
+
 def _comparison_row_code_terms(query: str, identifiers: list[str]) -> list[str]:
     identifier_parts = {
         _compact_identifier(piece)
@@ -1399,6 +1438,55 @@ def _matching_comparison_row_codes(result: SearchResult, row_code_terms: list[st
     return {term for term in row_code_terms if term in haystack}
 
 
+def _identifier_context_terms(query: str, identifier: str) -> set[str]:
+    def terms_from_text(text: str) -> set[str]:
+        extracted: set[str] = set()
+        for term in tokenize(text):
+            normalized = re.sub(r"[^a-z0-9]+", "", term.lower())
+            if len(normalized) < 4 or normalized in LEXICAL_TABLE_STOPWORDS:
+                continue
+            extracted.add(normalized)
+            for piece in re.split(r"[-/_.]+", term.lower()):
+                piece = re.sub(r"[^a-z0-9]+", "", piece)
+                if len(piece) >= 4 and piece not in LEXICAL_TABLE_STOPWORDS:
+                    extracted.add(piece)
+        return extracted
+
+    match = re.search(re.escape(identifier), query, flags=re.IGNORECASE)
+    if not match:
+        return set()
+    left_boundary = max(query.rfind(",", 0, match.start()), query.rfind(" and ", 0, match.start()), query.rfind(" with ", 0, match.start()))
+    right_candidates = [
+        index
+        for index in [
+            query.find(",", match.end()),
+            query.lower().find(" and ", match.end()),
+            query.lower().find(" with ", match.end()),
+        ]
+        if index != -1
+    ]
+    right_boundary = min(right_candidates) if right_candidates else len(query)
+    clause = query[left_boundary + 1 : right_boundary]
+    identifier_terms = _text_terms(identifier)
+    terms = {term for term in terms_from_text(clause) if term not in identifier_terms and not any(char.isdigit() for char in term)}
+    if terms:
+        return terms
+    return {term for term in terms_from_text(query) if term not in identifier_terms and not any(char.isdigit() for char in term)}
+
+
+def _identifier_context_score(result: SearchResult, context_terms: set[str]) -> float:
+    if not context_terms:
+        return 0.0
+    row_header_text = " ".join(str(item) for item in result.metadata.get("table_row_headers") or [])
+    column_header_text = " ".join(str(item) for item in result.metadata.get("table_column_headers") or [])
+    haystack = re.sub(
+        r"[^a-z0-9]+",
+        "",
+        " ".join([str(result.content or ""), row_header_text, column_header_text]).lower(),
+    )
+    return sum(1.0 for term in context_terms if term in haystack)
+
+
 def _promote_comparison_table_candidates(
     primary_results: list[SearchResult],
     supplemental_results: list[SearchResult],
@@ -1422,7 +1510,7 @@ def _promote_comparison_table_candidates(
     seen: set[str] = set()
     for identifier in identifiers:
         if any(
-            _result_matches_identifier(result, identifier)
+            _result_matches_primary_identifier(result, identifier)
             and result.metadata.get("table_column_headers")
             and (
                 not row_code_terms
@@ -1437,9 +1525,12 @@ def _promote_comparison_table_candidates(
             if result.chunk_id not in seen
             and str(result.metadata.get("chunk_type") or "") == "table_record"
             and bool(result.metadata.get("table_column_headers"))
-            and _result_matches_identifier(result, identifier)
+            and _result_matches_primary_identifier(result, identifier)
             and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
         ]
+        context_terms = _identifier_context_terms(analysis.raw_query, identifier)
+        if context_terms:
+            candidates.sort(key=lambda result: (_identifier_context_score(result, context_terms), result.score), reverse=True)
         promotion_limit = 2 if row_code_terms else 1
         for candidate in candidates[:promotion_limit]:
             seen.add(candidate.chunk_id)

@@ -187,6 +187,18 @@ def test_query_analysis_marks_plural_values_apply_questions_as_structured_lookup
     assert analysis.product_identifiers == ["IV4-G120", "IV4-G600CA"]
 
 
+def test_query_analysis_marks_compound_multi_product_specs_as_comparison_lookup():
+    analysis = analyze_query(
+        "For the controller, what enclosure rating is listed for MOD1-A manual, "
+        "and what shock-resistance value is listed for MOD2-B documentation?"
+    )
+
+    assert "spec_lookup" in analysis.query_types
+    assert "comparison" in analysis.query_types
+    assert "table_record" in analysis.preferred_chunk_types
+    assert analysis.requested_doc_kind == "manual"
+
+
 def test_query_analysis_extracts_bare_product_names_in_comparisons():
     analysis = analyze_query(
         "Compare the XG-X corrective action for an unsupported SD card access failure "
@@ -2512,6 +2524,56 @@ def test_comparison_table_promotion_requires_requested_row_code_for_product():
     assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
     assert promoted[1].chunk_id == "x8000-pmsr"
     assert promoted[2].chunk_id == "s8000-generic"
+
+
+def test_comparison_table_promotion_does_not_treat_compatible_device_as_document_side():
+    analysis = analyze_query(
+        "For the controller, what enclosure rating is listed for MOD1-A manual, "
+        "and what shock-resistance value is listed for MOD2-B documentation?"
+    )
+    reranked = [
+        SearchResult(
+            chunk_id="mod-a-enclosure",
+            score=4.0,
+            title="MOD1-A Manual",
+            document_version_id="ver-a",
+            source_document_id="doc-a",
+            pages=[10],
+            section_path=["Specs"],
+            content="Column headers: Controller; Row headers: Enclosure rating; Cell value: IP67.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Controller"],
+                "product_model": "MOD1-A",
+                "devices": ["MOD1-A", "MOD2-B"],
+            },
+        )
+    ]
+    supplemental = [
+        SearchResult(
+            chunk_id="mod-b-shock",
+            score=1.5,
+            title="MOD2-B Manual",
+            document_version_id="ver-b",
+            source_document_id="doc-b",
+            pages=[20],
+            section_path=["Specs"],
+            content=(
+                "Column headers: Controller; Row headers: Shock resistance; "
+                "Cell value: 500 m/s2, 6 directions, 3 times each."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Controller"],
+                "product_model": "MOD2-B",
+            },
+        )
+    ]
+
+    promoted = retriever._promote_comparison_table_candidates(reranked, supplemental, analysis, limit=5)
+
+    assert [result.chunk_id for result in promoted[:2]] == ["mod-b-shock", "mod-a-enclosure"]
+    assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
 
 
 def test_table_lexical_search_skips_unstructured_general_queries(monkeypatch):

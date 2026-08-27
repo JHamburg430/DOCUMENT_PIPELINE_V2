@@ -78,9 +78,25 @@ def analyze_query(query: str) -> QueryAnalysis:
         requested_doc_kind = "setup_guide"
     if "manual" in lowered and requested_doc_kind is None:
         requested_doc_kind = "manual"
-    spec_terms = {"voltage", "current", "dimension", "laser", "radiation", "wavelength", "output", "class"}
+    spec_terms = {
+        "voltage",
+        "current",
+        "dimension",
+        "laser",
+        "radiation",
+        "wavelength",
+        "output",
+        "class",
+        "enclosure",
+        "rating",
+        "resistance",
+        "shock",
+        "vibration",
+        "humidity",
+        "temperature",
+    }
     explicit_spec_lookup = "specification" in lowered or re.search(r"\bspecs?\b", lowered) is not None
-    if requested_doc_kind is None and (
+    if requested_doc_kind in {None, "manual"} and (
         explicit_spec_lookup
         or any(word in lowered for word in spec_terms)
         or (re.search(r"\bspecified\s+for\b", lowered) and re.search(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query))
@@ -125,6 +141,16 @@ def analyze_query(query: str) -> QueryAnalysis:
             continue
         model_matches.append(match.group(0))
         model_match_spans.append(match.span())
+    if (
+        len(model_matches) >= 2
+        and re.search(r"\b(?:and|with)\b", lowered)
+        and re.search(
+            r"\b(?:listed|value|rating|resistance|format|cause|remedy|corrective|setting|specifications?|specs?)\b",
+            lowered,
+        )
+    ):
+        types.append("comparison")
+        preferred_chunk_types.extend(["spec_record", "datasheet_record", "table_record"])
     comparison_identifier_matches: list[str] = []
     if "comparison" in types or "compatibility" in types:
         comparison_identifier_matches = [
