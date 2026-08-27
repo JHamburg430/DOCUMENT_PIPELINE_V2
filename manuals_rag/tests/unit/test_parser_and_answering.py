@@ -291,6 +291,118 @@ def test_validate_answer_keeps_supported_citation_and_drops_unsupported_sibling_
     assert not any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_prunes_citation_when_remaining_chunk_supports_full_answer():
+    answer = AnswerResponse(
+        answer="Set voltage to 5 volts.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "voltage-row",
+                "document_id": "d1",
+                "pages": [7],
+                "quote_span": "Set voltage to 5 volts.",
+            },
+            {
+                "chunk_id": "nearby-row",
+                "document_id": "d1",
+                "pages": [7],
+                "quote_span": "Disable encryption.",
+            },
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="voltage-row",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[7],
+            section_path=["Settings"],
+            content="Corrective Action: Set voltage to 5 volts.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="nearby-row",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[7],
+            section_path=["Settings"],
+            content="Corrective Action: Check the network cable.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(answer, results)
+
+    assert validated.answer == "Set voltage to 5 volts."
+    assert [citation["chunk_id"] for citation in validated.citations] == ["voltage-row"]
+    assert any("Unsupported citation quote spans were removed" in warning for warning in validated.warnings)
+    assert not any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_falls_back_when_pruned_citations_do_not_support_all_claims():
+    answer = AnswerResponse(
+        answer="Set voltage to 5 volts. Disable encryption.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "voltage-row",
+                "document_id": "d1",
+                "pages": [7],
+                "quote_span": "Set voltage to 5 volts.",
+            },
+            {
+                "chunk_id": "nearby-row",
+                "document_id": "d1",
+                "pages": [7],
+                "quote_span": "Disable encryption.",
+            },
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="voltage-row",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[7],
+            section_path=["Settings"],
+            content="Corrective Action: Set voltage to 5 volts.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="nearby-row",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[7],
+            section_path=["Settings"],
+            content="Corrective Action: Check the network cable.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(answer, results)
+
+    assert validated.answer == "Corrective Action: Set voltage to 5 volts."
+    assert "Disable encryption" not in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["voltage-row"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_fallback_prefers_full_troubleshooting_row_for_cause_remedy_query():
     answer = AnswerResponse(
         answer="Connect only one LJ-S head to each CA-E300LJ unit.",

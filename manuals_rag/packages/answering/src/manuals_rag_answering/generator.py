@@ -192,6 +192,75 @@ def _answer_supported_by_results(answer: str, results: list[SearchResult]) -> bo
     return len(overlap) >= max(2, min(5, len(answer_terms) // 4 or 1))
 
 
+ANSWER_CLAIM_SUPPORT_STOPWORDS = {
+    "about",
+    "after",
+    "also",
+    "because",
+    "before",
+    "being",
+    "could",
+    "each",
+    "either",
+    "into",
+    "must",
+    "only",
+    "other",
+    "row",
+    "set",
+    "should",
+    "than",
+    "then",
+    "there",
+    "these",
+    "they",
+    "when",
+    "where",
+    "which",
+    "while",
+    "will",
+    "would",
+}
+
+
+def _answer_claim_sentences(answer: str) -> list[str]:
+    return [
+        sentence.strip(" \t\r\n-")
+        for sentence in re.split(r"(?<=[.!?])\s+|\n+", answer)
+        if sentence.strip(" \t\r\n-")
+    ]
+
+
+def _material_claim_terms(text: str) -> set[str]:
+    return {
+        term.strip(".,;:")
+        for term in _answer_terms(text)
+        if term.strip(".,;:") and term.strip(".,;:") not in ANSWER_CLAIM_SUPPORT_STOPWORDS
+    }
+
+
+def _answer_claims_supported_by_results(answer: str, results: list[SearchResult]) -> bool:
+    evidence_terms: set[str] = set()
+    for result in results:
+        evidence_terms.update(_material_claim_terms(_citation_evidence_text(result)))
+        evidence_terms.update(_material_claim_terms(" ".join(result.section_path)))
+        evidence_terms.update(_material_claim_terms(result.title))
+    if not evidence_terms:
+        return False
+    claims = _answer_claim_sentences(answer)
+    if not claims:
+        return False
+    for claim in claims:
+        claim_terms = _material_claim_terms(claim)
+        if not claim_terms:
+            continue
+        missing_terms = claim_terms.difference(evidence_terms)
+        allowed_missing = 0 if len(claim_terms) <= 3 else max(1, len(claim_terms) // 6)
+        if len(missing_terms) > allowed_missing:
+            return False
+    return True
+
+
 def _evidence_text(result: SearchResult) -> str:
     chunk_type = str(result.metadata.get("chunk_type") or "")
     context_window = str(result.metadata.get("context_window") or "").strip()
@@ -508,7 +577,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         if supported:
             cited_chunk_ids = {str(citation.get("chunk_id") or "") for citation in supported}
             cited_results = [result for result in results if result.chunk_id in cited_chunk_ids]
-            if _answer_supported_by_results(answer.answer, cited_results):
+            if _answer_claims_supported_by_results(answer.answer, cited_results):
                 answer = answer.model_copy(
                     update={
                         "citations": supported,
