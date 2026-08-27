@@ -241,42 +241,12 @@ TROUBLESHOOTING_ACTION_VERBS = {
 }
 
 
-def _answer_claim_sentences(answer: str) -> list[str]:
-    return [
-        sentence.strip(" \t\r\n-")
-        for sentence in re.split(r"(?<=[.!?])\s+|\n+", answer)
-        if sentence.strip(" \t\r\n-")
-    ]
-
-
 def _material_claim_terms(text: str) -> set[str]:
     return {
         term.strip(".,;:")
         for term in _answer_terms(text)
         if term.strip(".,;:") and term.strip(".,;:") not in ANSWER_CLAIM_SUPPORT_STOPWORDS
     }
-
-
-def _answer_claims_supported_by_results(answer: str, results: list[SearchResult]) -> bool:
-    evidence_terms: set[str] = set()
-    for result in results:
-        evidence_terms.update(_material_claim_terms(_citation_evidence_text(result)))
-        evidence_terms.update(_material_claim_terms(" ".join(result.section_path)))
-        evidence_terms.update(_material_claim_terms(result.title))
-    if not evidence_terms:
-        return False
-    claims = _answer_claim_sentences(answer)
-    if not claims:
-        return False
-    for claim in claims:
-        claim_terms = _material_claim_terms(claim)
-        if not claim_terms:
-            continue
-        missing_terms = claim_terms.difference(evidence_terms)
-        allowed_missing = 0 if len(claim_terms) <= 3 else max(1, len(claim_terms) // 6)
-        if len(missing_terms) > allowed_missing:
-            return False
-    return True
 
 
 def _evidence_text(result: SearchResult) -> str:
@@ -659,20 +629,6 @@ def _citation_quotes_are_supported(citations: list[dict[str, Any]], results: lis
         if _normalized_citation_text(quote) not in _normalized_citation_text(evidence_by_chunk_id[chunk_id]):
             return False
     return True
-
-
-def _supported_citations(citations: list[dict[str, Any]], results: list[SearchResult]) -> list[dict[str, Any]]:
-    evidence_by_chunk_id = {result.chunk_id: _citation_evidence_text(result) for result in results}
-    supported: list[dict[str, Any]] = []
-    for citation in citations:
-        chunk_id = str(citation.get("chunk_id") or "")
-        if chunk_id not in evidence_by_chunk_id:
-            continue
-        quote = str(citation.get("quote_span") or "").strip()
-        if quote and _normalized_citation_text(quote) not in _normalized_citation_text(evidence_by_chunk_id[chunk_id]):
-            continue
-        supported.append(citation)
-    return supported
 
 
 def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: str = "") -> AnswerResponse:
