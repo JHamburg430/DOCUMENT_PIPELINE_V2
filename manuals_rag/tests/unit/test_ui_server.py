@@ -219,23 +219,22 @@ def test_question_matrix_job_runs_active_bank_with_llm_answer_judge(monkeypatch,
         def start(self):
             self.target(*self.args)
 
-    class FakeProcess:
-        def __init__(self, cmd, **kwargs):
-            self.cmd = cmd
-            self.kwargs = kwargs
-            self.stdout = ['  "case_id": "case-1",\n']
-
-        def wait(self, timeout):
-            return 0
-
-    def fake_popen(cmd, **kwargs):
-        calls.append((cmd, kwargs))
-        return FakeProcess(cmd, **kwargs)
+    def fake_run_answer_dataset(job_id, dataset_rel, dataset_path_arg, case_numbers, dataset_index):
+        calls.append((job_id, dataset_rel, dataset_path_arg, case_numbers, dataset_index))
+        ui_server._update_question_matrix_job(
+            job_id,
+            current_dataset=dataset_rel,
+            current_case_id="case-1",
+            current_question_number=1,
+            current_stage_key="answer",
+            completed_datasets=dataset_index,
+            returncode=0,
+        )
 
     monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
     monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
     monkeypatch.setattr(ui_server, "Thread", ImmediateThread)
-    monkeypatch.setattr(ui_server.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(ui_server, "_run_answer_matrix_dataset", fake_run_answer_dataset)
     ui_server.MATRIX_JOBS.clear()
 
     job = ui_server._start_question_matrix_job({"mode": "column", "column": "answer", "use_model_judge": True})
@@ -245,10 +244,8 @@ def test_question_matrix_job_runs_active_bank_with_llm_answer_judge(monkeypatch,
     assert job["use_model_judge"] is True
     assert job["current_stage_key"] == "answer"
     assert len(calls) == 1
-    cmd = calls[0][0]
-    assert "--response-mode" in cmd
-    assert cmd[cmd.index("--response-mode") + 1] == "answer_with_citations"
-    assert "--use-llm-answer-judge" in cmd
+    assert calls[0][1] == "test_reports/dataset.jsonl"
+    assert calls[0][3] == {"case-1": 1}
 
 
 def test_question_matrix_retrieval_column_uses_retrieval_only(monkeypatch, tmp_path):

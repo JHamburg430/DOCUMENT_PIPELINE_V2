@@ -33,6 +33,19 @@ MATRIX_JOB_TIMEOUT_SECONDS = int(os.getenv("MATRIX_JOB_TIMEOUT_SECONDS", "7200")
 MATRIX_JOBS: dict[str, dict] = {}
 MATRIX_JOBS_LOCK = Lock()
 ANSWER_STAGE_KEYS = {"relevance", "summaries", "generation", "answer_docs", "citations", "terms", "answer"}
+DEBUG_STEP_TO_MATRIX_KEY = {
+    "classify_query": "query_classify",
+    "build_filters": "filters",
+    "run_dense_search": "dense",
+    "run_sparse_search": "sparse",
+    "run_special_search": "special",
+    "fuse_results": "fuse",
+    "rerank_results": "rerank",
+    "assemble_context": "assemble",
+    "judge_answer_inputs": "relevance",
+    "summarize_answer_inputs": "summaries",
+    "generate_answer": "generation",
+}
 
 
 class ManualsRagUiHandler(SimpleHTTPRequestHandler):
@@ -583,6 +596,9 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
                 _case_key(case): case_index
                 for case_index, case in enumerate(_read_jsonl(dataset_path), start=1)
             }
+            if job["response_mode"] == "answer_with_citations":
+                _run_answer_matrix_dataset(job_id, dataset_rel, dataset_path, case_numbers, index)
+                continue
             cmd = [
                 sys.executable,
                 str(MANUALS_ROOT / "scripts" / "benchmark" / "run_large_retrieval_eval.py"),
@@ -671,6 +687,130 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             error=f"{error.__class__.__name__}: {error}",
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
+
+
+def _run_answer_matrix_dataset(
+    job_id: str,
+    dataset_rel: str,
+    dataset_path: Path,
+    case_numbers: dict[str, int],
+    dataset_index: int,
+) -> None:
+    from manuals_rag_evals.retrieval_eval import RetrievalEvalCase
+    from manuals_rag_evals.retrieval_eval import score_answer_response
+    from manuals_rag_evals.retrieval_eval import score_search_results
+
+    job = _question_matrix_job_snapshot(job_id)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    results_path = TEST_REPORTS_DIR / f"retrieval_eval_results_{timestamp}_{uuid.uuid4().hex[:6]}.jsonl"
+    manifest_path = TEST_REPORTS_DIR / f"retrieval_eval_manifest_{timestamp}_{uuid.uuid4().hex[:6]}.json"
+    cases = _read_jsonl(dataset_path)
+    results: list[dict] = []
+    _update_question_matrix_job(
+        job_id,
+        current_dataset=dataset_rel,
+        current_case_id=None,
+        current_question_number=1 if cases else None,
+        current_stage_key="query_classify",
+    )
+    with results_path.open("w", encoding="utf-8") as handle:
+        for case in cases:
+            case_id = _case_key(case)
+            _update_question_matrix_job(
+                job_id,
+                current_case_id=case_id,
+                current_question_number=case_numbers.get(case_id),
+                current_stage_key="query_classify",
+            )
+            debug_result = _run_query_debug_stream(job_id, case_id, case_numbers.get(case_id), case["query"])
+            top_results = _debug_top_results(debug_result)
+            eval_case = RetrievalEvalCase(**case)
+            evaluation = score_search_results(eval_case, top_results)
+            answer = dict(debug_result.get("answer") or {})
+            for stage_key in ("answer_docs", "citations", "terms", "answer"):
+                _update_question_matrix_job(job_id, current_stage_key=stage_key)
+            answer_evaluation = score_answer_response(
+                eval_case,
+                answer,
+                evaluation,
+                top_results,
+                use_llm_required_info_judge=bool(job.get("use_model_judge")),
+            )
+            record = {
+                "case": case,
+                "evaluation": evaluation,
+                "top_results": top_results[:5],
+                "answer": answer,
+                "answer_evaluation": answer_evaluation,
+                "query_debug_result": debug_result,
+            }
+            results.append(record)
+            handle.write(json.dumps(record, default=str) + "\n")
+            handle.flush()
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "corpus_id": DEFAULT_CORPUS_ID,
+                "input_dataset_path": str(dataset_path),
+                "search_mode": "http_debug_stream",
+                "response_mode": "answer_with_citations",
+                "use_llm_answer_judge": bool(job.get("use_model_judge")),
+                "results_path": str(results_path),
+            },
+            indent=2,
+            default=str,
+        ),
+        encoding="utf-8",
+    )
+    _update_question_matrix_job(
+        job_id,
+        outputs=[
+            *(_question_matrix_job_snapshot(job_id).get("outputs") or []),
+            {"dataset": dataset_rel, "returncode": 0, "stdout_tail": json.dumps({"results": len(results), "results_path": str(results_path)}), "stderr_tail": ""},
+        ],
+        completed_datasets=dataset_index,
+        returncode=0,
+    )
+
+
+def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | None, query: str) -> dict:
+    request_payload = {
+        "query": query,
+        "corpus_ids": [DEFAULT_CORPUS_ID],
+        "filters": {},
+        "response_mode": "answer_with_citations",
+    }
+    request = Request(
+        f"{API_BASE}/debug/query-stream?sample_limit=100",
+        data=json.dumps(request_payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {os.getenv('LOCAL_ADMIN_TOKEN', 'admin-token')}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlopen(request, timeout=900) as response:
+        for raw_line in response:
+            if not raw_line.strip():
+                continue
+            event = json.loads(raw_line.decode("utf-8"))
+            step = event.get("step")
+            if event.get("event") == "step_started" and step in DEBUG_STEP_TO_MATRIX_KEY:
+                _update_question_matrix_job(
+                    job_id,
+                    current_case_id=case_id,
+                    current_question_number=question_number,
+                    current_stage_key=DEBUG_STEP_TO_MATRIX_KEY[step],
+                )
+            if event.get("event") == "run_completed":
+                return dict(event.get("result") or {})
+            if event.get("event") == "run_failed":
+                raise RuntimeError(str(event.get("error") or "debug query run failed"))
+    raise RuntimeError("debug query stream ended without run_completed")
+
+
+def _debug_top_results(debug_result: dict) -> list[dict]:
+    for stage in debug_result.get("stages") or []:
+        if stage.get("name") == "retrieval_results":
+            return list(stage.get("samples") or [])
+    return []
 
 
 def main() -> None:

@@ -461,7 +461,10 @@ function isCurrentMatrixJobRow(item = {}) {
   const job = state.matrixJob || {};
   if (!["queued", "running"].includes(job.status)) return false;
   if (!job.current_dataset || item.dataset !== job.current_dataset) return false;
-  if (!job.current_case_id) return true;
+  if (!job.current_case_id && job.current_question_number) {
+    return Number(item.question_number) === Number(job.current_question_number);
+  }
+  if (!job.current_case_id) return false;
   return item.key === job.current_case_id;
 }
 
