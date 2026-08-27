@@ -93,6 +93,22 @@ def test_progress_steps_have_clickable_detail_disclosures():
     assert ".progress-payload" in styles_css
 
 
+def test_eval_matrix_view_is_available():
+    app_js = (UI_DIR / "app.js").read_text()
+    index_html = (UI_DIR / "index.html").read_text()
+    styles_css = (UI_DIR / "styles.css").read_text()
+
+    assert 'data-tab="matrix"' in index_html
+    assert 'id="matrix-summary"' in index_html
+    assert 'id="matrix-table"' in index_html
+    assert "MATRIX_STAGES" in app_js
+    assert "buildMatrixCells" in app_js
+    assert "renderMatrixSummary" in app_js
+    assert "renderMatrix(payload, meta)" in app_js
+    assert ".matrix-summary" in styles_css
+    assert ".matrix-cell.blank" in styles_css
+
+
 def test_api_proxy_keeps_manuals_rag_same_origin(monkeypatch):
     upstream = _serve(UpstreamHandler)
     monkeypatch.setattr(ui_server, "API_BASE", f"http://127.0.0.1:{upstream.server_port}")

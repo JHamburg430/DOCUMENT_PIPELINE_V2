@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260822-fetch-recovery-1" />
+    <link rel="stylesheet" href="/styles.css?v=20260827-eval-matrix-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -15,6 +15,7 @@
         </div>
         <nav class="tabs" aria-label="Views">
           <button class="tab active" data-tab="eval">End-to-End Eval</button>
+          <button class="tab" data-tab="matrix">Eval Matrix</button>
           <button class="tab" data-tab="search">Search</button>
           <button class="tab" data-tab="ingestion">Ingestion</button>
           <button class="tab" data-tab="history">Run History</button>
@@ -99,6 +100,18 @@
         </section>
       </section>
 
+      <section id="matrix" class="tab-panel">
+        <section class="panel">
+          <div class="section-heading">
+            <h2>Eval Matrix</h2>
+            <span id="matrix-run-id" class="muted">Load an eval run to inspect stage attribution.</span>
+          </div>
+          <div id="matrix-summary" class="matrix-summary empty-state">No evaluation loaded.</div>
+          <div id="matrix-table"></div>
+          <div id="matrix-detail"></div>
+        </section>
+      </section>
+
       <section id="search" class="tab-panel">
         <section class="split">
           <div class="panel">
@@ -151,6 +164,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260822-fetch-recovery-1"></script>
+    <script src="/app.js?v=20260827-eval-matrix-1"></script>
   </body>
 </html>

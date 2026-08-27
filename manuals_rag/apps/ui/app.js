@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260822-fetch-recovery-1";
+const ASSET_VERSION = "20260827-eval-matrix-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
@@ -11,12 +11,51 @@ const state = {
   activeRun: null,
   currentEval: null,
   selectedEvalIndex: 0,
+  selectedMatrixIndex: 0,
   running: false,
   runDebug: null,
   runDebugTimer: null,
   ingestionTimer: null,
   evalRuntime: null,
 };
+
+const MATRIX_STAGES = [
+  {
+    key: "question",
+    label: "Question",
+    description: "Question loaded from the eval case bank.",
+  },
+  {
+    key: "metadata",
+    label: "Doc Select",
+    description: "Expected source document was selected when metadata selection ran.",
+  },
+  {
+    key: "retrieval",
+    label: "Retrieval",
+    description: "Expected evidence reached the scored retrieval window.",
+  },
+  {
+    key: "answer_docs",
+    label: "Answer Docs",
+    description: "The final answer used or cited the expected document.",
+  },
+  {
+    key: "citations",
+    label: "Citations",
+    description: "Returned citation quote spans were supported by cited chunks.",
+  },
+  {
+    key: "terms",
+    label: "Terms",
+    description: "The answer included the required source-backed terms/actions.",
+  },
+  {
+    key: "answer",
+    label: "Answer",
+    description: "Overall scored final answer result.",
+  },
+];
 
 function $(id) {
   return document.getElementById(id);
@@ -140,7 +179,7 @@ function renderMetrics(summary = {}) {
 
 function summarizeVisibleItems(items = []) {
   const total = items.length;
-  const retrievalCorrect = items.filter((item) => item.retrieval_evaluation?.passed).length;
+  const retrievalCorrect = items.filter((item) => itemRetrievalEvaluation(item).passed).length;
   const answersCorrect = items.filter((item) => item.answer_evaluation?.passed).length;
   return {
     total_questions: total,
@@ -149,6 +188,238 @@ function summarizeVisibleItems(items = []) {
     answers_correct: answersCorrect,
     answers_correct_percent: total ? (answersCorrect / total) * 100 : 0,
   };
+}
+
+function itemRetrievalEvaluation(item = {}) {
+  return item.retrieval_evaluation || item.evaluation || {};
+}
+
+function matrixCell(status, detail = "") {
+  return { status, detail };
+}
+
+function buildMatrixCells(item = {}) {
+  const caseData = item.case || {};
+  const retrieval = itemRetrievalEvaluation(item);
+  const metadata = retrieval.metadata_document_selection || {};
+  const answerEval = item.answer_evaluation || {};
+  const citation = answerEval.citation_fidelity || {};
+  const termCheck = answerEval.term_check || {};
+  const cells = {};
+  let blocked = false;
+
+  cells.question = caseData.query
+    ? matrixCell("pass", caseData.benchmark_quality || caseData.generation_method || "loaded")
+    : matrixCell("fail", "missing eval question");
+  blocked = cells.question.status === "fail";
+
+  if (blocked) {
+    cells.metadata = matrixCell("blank");
+    cells.retrieval = matrixCell("blank");
+  } else if (metadata.attempted) {
+    cells.metadata = matrixCell(metadata.passed ? "pass" : "fail", metadata.passed ? `rank ${metadata.rank ?? "?"}` : metadata.failure_category || "expected document not selected");
+    blocked = !metadata.passed;
+    cells.retrieval = blocked
+      ? matrixCell("blank", "blocked by document selection")
+      : matrixCell(retrieval.passed ? "pass" : "fail", retrieval.passed ? `rank ${retrieval.rank ?? "?"}` : retrieval.failure_category || "expected evidence missing");
+    blocked = blocked || !retrieval.passed;
+  } else {
+    cells.metadata = matrixCell("blank", "not attempted");
+    cells.retrieval = matrixCell(retrieval.passed ? "pass" : "fail", retrieval.passed ? `rank ${retrieval.rank ?? "?"}` : retrieval.failure_category || "expected evidence missing");
+    blocked = !retrieval.passed;
+  }
+
+  if (blocked) {
+    cells.answer_docs = matrixCell("blank", "blocked by retrieval");
+    cells.citations = matrixCell("blank", "blocked by retrieval");
+    cells.terms = matrixCell("blank", "blocked by retrieval");
+    cells.answer = matrixCell("blank", "blocked by retrieval");
+    return cells;
+  }
+
+  const hasAnswerEval = Object.keys(answerEval).length > 0;
+  if (!hasAnswerEval) {
+    cells.answer_docs = matrixCell("blank", "answer was not scored");
+    cells.citations = matrixCell("blank", "answer was not scored");
+    cells.terms = matrixCell("blank", "answer was not scored");
+    cells.answer = matrixCell("blank", "answer was not scored");
+    return cells;
+  }
+
+  cells.answer_docs = matrixCell(
+    answerEval.expected_document_used !== false && !(answerEval.missing_document_ids || []).length ? "pass" : "fail",
+    (answerEval.missing_document_ids || []).length
+      ? `missing ${answerEval.missing_document_ids.length} expected document(s)`
+      : "expected document used",
+  );
+  if (cells.answer_docs.status === "fail") {
+    cells.citations = matrixCell("blank", "blocked by wrong answer document");
+    cells.terms = matrixCell("blank", "blocked by wrong answer document");
+    cells.answer = matrixCell("blank", "blocked by wrong answer document");
+    return cells;
+  }
+
+  cells.citations = citation.checked
+    ? matrixCell(citation.passed ? "pass" : "fail", citation.passed ? `${citation.checked_quote_count || 0} quote(s) checked` : "unsupported or missing citation evidence")
+    : matrixCell("blank", "not checked");
+  if (cells.citations.status === "fail") {
+    cells.terms = matrixCell("blank", "blocked by citation failure");
+    cells.answer = matrixCell("blank", "blocked by citation failure");
+    return cells;
+  }
+
+  cells.terms = termCheck && Object.keys(termCheck).length
+    ? matrixCell(termCheck.passed ? "pass" : "fail", termCheck.passed ? "required terms present" : "expected terms/actions missing")
+    : matrixCell("blank", "not checked");
+  if (cells.terms.status === "fail") {
+    cells.answer = matrixCell("blank", "blocked by term/action failure");
+    return cells;
+  }
+
+  cells.answer = matrixCell(answerEval.passed ? "pass" : "fail", (answerEval.failure_reasons || []).join(", ") || "overall answer score");
+  return cells;
+}
+
+function summarizeMatrixRows(items = []) {
+  const totals = Object.fromEntries(MATRIX_STAGES.map((stage) => [stage.key, { pass: 0, fail: 0, blank: 0 }]));
+  const rows = items.map((item, index) => {
+    const cells = buildMatrixCells(item);
+    for (const stage of MATRIX_STAGES) {
+      const status = cells[stage.key]?.status || "blank";
+      totals[stage.key][status] += 1;
+    }
+    return { item, index, cells };
+  });
+  return { rows, totals };
+}
+
+function matrixStatusLabel(cell = {}) {
+  if (cell.status === "pass") return "pass";
+  if (cell.status === "fail") return "fail";
+  return "";
+}
+
+function renderMatrixSummary(totals = {}, totalRows = 0) {
+  const node = $("matrix-summary");
+  if (!totalRows) {
+    node.className = "matrix-summary empty-state";
+    node.textContent = "No evaluation loaded.";
+    return;
+  }
+  node.className = "matrix-summary";
+  node.innerHTML = MATRIX_STAGES.map((stage) => {
+    const counts = totals[stage.key] || { pass: 0, fail: 0, blank: 0 };
+    const denominator = counts.pass + counts.fail;
+    const passRate = denominator ? (counts.pass / denominator) * 100 : 0;
+    const failRate = denominator ? (counts.fail / denominator) * 100 : 0;
+    return `
+      <article class="matrix-stat" title="${escapeHtml(stage.description)}">
+        <span>${escapeHtml(stage.label)}</span>
+        <strong>${denominator ? `${passRate.toFixed(0)}% pass` : "not scored"}</strong>
+        <small>${escapeHtml(`${counts.pass} pass / ${counts.fail} fail${counts.blank ? ` / ${counts.blank} blank` : ""}`)}</small>
+        <div class="matrix-bar" aria-label="${escapeHtml(`${stage.label}: ${passRate.toFixed(1)} percent pass, ${failRate.toFixed(1)} percent fail`)}">
+          <i style="width: ${passRate}%"></i>
+          <b style="width: ${failRate}%"></b>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderMatrix(payload, meta = {}) {
+  const items = payload?.items || [];
+  $("matrix-run-id").textContent = meta.id ? `Run ${meta.id}` : payload?.run_id ? `Run ${payload.run_id}` : "Loaded evaluation";
+  if (!items.length) {
+    renderMatrixSummary({}, 0);
+    $("matrix-table").innerHTML = "";
+    $("matrix-detail").innerHTML = "";
+    return;
+  }
+  if (state.selectedMatrixIndex >= items.length) state.selectedMatrixIndex = 0;
+  const { rows, totals } = summarizeMatrixRows(items);
+  renderMatrixSummary(totals, rows.length);
+  $("matrix-table").innerHTML = `
+    <table class="matrix-grid">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Question</th>
+          ${MATRIX_STAGES.map((stage) => `<th title="${escapeHtml(stage.description)}">${escapeHtml(stage.label)}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(({ item, index, cells }) => {
+          const selected = index === state.selectedMatrixIndex ? " selected" : "";
+          return `
+            <tr class="clickable${selected}" data-matrix-index="${index}">
+              <td data-label="#">${index + 1}</td>
+              <td data-label="Question">${escapeHtml(shortText(item.case?.query || item.query, 180))}</td>
+              ${MATRIX_STAGES.map((stage) => {
+                const cell = cells[stage.key] || matrixCell("blank");
+                return `<td data-label="${escapeHtml(stage.label)}" title="${escapeHtml(cell.detail || stage.description)}"><span class="matrix-cell ${escapeHtml(cell.status)}">${escapeHtml(matrixStatusLabel(cell))}</span></td>`;
+              }).join("")}
+            </tr>
+          `;
+        }).join("")}
+      </tbody>
+    </table>
+  `;
+  document.querySelectorAll("[data-matrix-index]").forEach((row) => {
+    row.addEventListener("click", () => {
+      state.selectedMatrixIndex = Number(row.dataset.matrixIndex);
+      renderMatrix(state.currentEval, meta);
+    });
+  });
+  renderMatrixDetail(rows[state.selectedMatrixIndex]);
+}
+
+function renderMatrixDetail(row) {
+  if (!row) {
+    $("matrix-detail").innerHTML = "";
+    return;
+  }
+  const item = row.item || {};
+  const retrieval = itemRetrievalEvaluation(item);
+  const answerEval = item.answer_evaluation || {};
+  const debugResult = item.query_debug_result || {};
+  const pipelineStages = Array.isArray(debugResult.stages) ? debugResult.stages : [];
+  $("matrix-detail").innerHTML = `
+    <section class="detail">
+      <h3>Question ${row.index + 1}</h3>
+      <p class="question">${escapeHtml(item.case?.query || item.query || "")}</p>
+      <div class="matrix-cell-details">
+        ${MATRIX_STAGES.map((stage) => {
+          const cell = row.cells[stage.key] || matrixCell("blank");
+          return `<div class="matrix-cell-detail ${escapeHtml(cell.status)}"><span>${escapeHtml(stage.label)}</span><strong>${escapeHtml(cell.status === "blank" ? "blank" : cell.status)}</strong><small>${escapeHtml(cell.detail || stage.description)}</small></div>`;
+        }).join("")}
+      </div>
+      <div class="split">
+        <div>
+          <h4>Retrieval Evaluation</h4>
+          <pre>${escapeHtml(JSON.stringify(retrieval, null, 2))}</pre>
+        </div>
+        <div>
+          <h4>Answer Evaluation</h4>
+          <pre>${escapeHtml(JSON.stringify(answerEval, null, 2))}</pre>
+        </div>
+      </div>
+      ${pipelineStages.length ? `
+        <h4>Pipeline Stages</h4>
+        <table>
+          <thead><tr><th>Stage</th><th>Samples</th><th>Duration</th></tr></thead>
+          <tbody>
+            ${pipelineStages.map((stage) => `
+              <tr>
+                <td data-label="Stage">${escapeHtml(stage.label || stage.name)}</td>
+                <td data-label="Samples">${escapeHtml((stage.samples || []).length)}</td>
+                <td data-label="Duration">${escapeHtml(debugResult.step_timings_ms?.[stage.name] != null ? `${debugResult.step_timings_ms[stage.name]} ms` : "")}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      ` : '<div class="empty-state">No debug pipeline stages were stored for this result.</div>'}
+    </section>
+  `;
 }
 
 function renderEvalTable(payload) {
@@ -174,7 +445,7 @@ function renderEvalTable(payload) {
       <tbody>
         ${items
           .map((item, index) => {
-            const retrieval = item.retrieval_evaluation || {};
+            const retrieval = itemRetrievalEvaluation(item);
             const answerEval = item.answer_evaluation || {};
             const selected = index === state.selectedEvalIndex ? " selected" : "";
             return `
@@ -368,7 +639,7 @@ function renderEvalDetail(payload) {
   }
   const caseData = item.case || {};
   const answer = item.answer || {};
-  const retrieval = item.retrieval_evaluation || {};
+  const retrieval = itemRetrievalEvaluation(item);
   const answerEval = item.answer_evaluation || {};
   const termCheck = answerEval.term_check || {};
   $("eval-detail").innerHTML = `
@@ -423,6 +694,7 @@ function renderEval(payload, meta = {}) {
   renderMetrics(payload.summary || {});
   renderEvalTable(payload);
   renderEvalDetail(payload);
+  renderMatrix(payload, meta);
 }
 
 function runtimeFromEvalResult(payload, runId = null) {

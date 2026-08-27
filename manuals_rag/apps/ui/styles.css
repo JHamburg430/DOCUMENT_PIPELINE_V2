@@ -166,6 +166,7 @@ summary {
   gap: 16px;
 }
 
+#matrix.tab-panel.active,
 #search.tab-panel.active,
 #history.tab-panel.active {
   display: block;
@@ -304,6 +305,128 @@ summary {
   color: var(--fail);
   border-color: #efc2bd;
   background: #fff0ef;
+}
+
+.matrix-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.matrix-stat {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: #fbfcfd;
+  padding: 10px;
+}
+
+.matrix-stat span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.matrix-stat strong {
+  font-size: 1rem;
+}
+
+.matrix-stat small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.matrix-bar {
+  display: flex;
+  height: 6px;
+  overflow: hidden;
+  background: #e9eef3;
+}
+
+.matrix-bar i,
+.matrix-bar b {
+  display: block;
+  height: 100%;
+}
+
+.matrix-bar i {
+  background: var(--pass);
+}
+
+.matrix-bar b {
+  background: var(--fail);
+}
+
+.matrix-grid th:not(:nth-child(2)),
+.matrix-grid td:not(:nth-child(2)) {
+  text-align: center;
+}
+
+.matrix-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  min-height: 26px;
+  border: 1px solid var(--line);
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.matrix-cell.pass {
+  color: var(--pass);
+  border-color: #b8dfc2;
+  background: #eef8f1;
+}
+
+.matrix-cell.fail {
+  color: var(--fail);
+  border-color: #efc2bd;
+  background: #fff0ef;
+}
+
+.matrix-cell.blank {
+  color: transparent;
+  background: #f1f4f7;
+}
+
+.matrix-cell-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.matrix-cell-detail {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--line);
+  background: #fbfcfd;
+  padding: 8px;
+}
+
+.matrix-cell-detail span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.matrix-cell-detail strong {
+  color: var(--muted);
+}
+
+.matrix-cell-detail.pass strong {
+  color: var(--pass);
+}
+
+.matrix-cell-detail.fail strong {
+  color: var(--fail);
+}
+
+.matrix-cell-detail small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .progress-list {
