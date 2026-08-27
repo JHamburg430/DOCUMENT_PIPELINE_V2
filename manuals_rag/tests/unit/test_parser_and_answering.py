@@ -2,7 +2,15 @@ from pathlib import Path
 
 import fitz
 
-from manuals_rag_answering.generator import _parse_relevance_response, generate_answer, generate_answer_with_trace, judge_retrieval_relevance, prioritize_results_for_answer, validate_answer
+from manuals_rag_answering.generator import (
+    _parse_relevance_response,
+    generate_answer,
+    generate_answer_with_trace,
+    judge_retrieval_relevance,
+    prioritize_results_for_answer,
+    summarize_results_for_answer,
+    validate_answer,
+)
 from manuals_rag_parsers.docling_parser import (
     _classify_block,
     _docling_page_batches,
@@ -586,6 +594,153 @@ def test_validate_answer_falls_back_for_cross_chunk_role_mixing_after_bad_citati
     assert "current to 10 amps" not in validated.answer
     assert [citation["chunk_id"] for citation in validated.citations] == ["voltage-row"]
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_comparison_fallback_uses_multiple_structured_rows():
+    answer = AnswerResponse(
+        answer="The first controller is IP67 and the second controller is rated for shock.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "wrong-neighbor",
+                "document_id": "d2",
+                "pages": [12],
+                "quote_span": "500 m/s2, 6 directions",
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="wrong-neighbor",
+            score=0.95,
+            title="Controller B Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[12],
+            section_path=["Specifications"],
+            content="Column headers: Controller; Row headers: Enclosure rating; Cell value: IP67",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="enclosure-row",
+            score=0.9,
+            title="Controller A Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[10],
+            section_path=["Specifications"],
+            content="Column headers: Controller; Row headers: Enclosure rating; Cell value: IP67",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="shock-row",
+            score=0.8,
+            title="Controller B Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[12],
+            section_path=["Specifications"],
+            content="Column headers: Controller; Row headers: Shock resistance; Cell value: 500 m/s2, 6 directions",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="Compare Controller A enclosure rating and Controller B shock resistance.",
+    )
+
+    assert "Retrieved evidence:" in validated.answer
+    assert "Enclosure rating" in validated.answer
+    assert "Shock resistance" in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == [
+        "wrong-neighbor",
+        "enclosure-row",
+        "shock-row",
+    ]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_comparison_fallback_replaces_overcautious_insufficient_answer():
+    answer = AnswerResponse(
+        answer="The documents do not distinguish the causes for the two controllers.",
+        confidence="low",
+        used_documents=[],
+        citations=[],
+        warnings=["Evidence appears incomplete."],
+        followup_questions=[],
+        insufficient_evidence=True,
+    )
+    results = [
+        SearchResult(
+            chunk_id="controller-a-cause",
+            score=0.9,
+            title="Controller A Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[20],
+            section_path=["Troubleshooting"],
+            content="Column headers: Cause; Row headers: Startup memory read error; Cell value: Noise or power switched OFF during writing.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="controller-b-cause",
+            score=0.8,
+            title="Controller B Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[30],
+            section_path=["Troubleshooting"],
+            content="Column headers: Cause; Row headers: Startup memory read error; Cell value: A data error occurred.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="Compare the listed causes for startup memory read errors on Controller A and Controller B.",
+    )
+
+    assert validated.insufficient_evidence is False
+    assert "Noise or power switched OFF" in validated.answer
+    assert "A data error occurred" in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["controller-a-cause", "controller-b-cause"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_summarize_results_keeps_small_structured_evidence_set_separate(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id=f"row-{index}",
+            score=1.0 - index / 10,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[index],
+            section_path=["Specs"],
+            content=f"Column headers: Value; Row headers: Setting {index}; Cell value: {index}",
+            metadata={"chunk_type": "table_record"},
+        )
+        for index in range(5)
+    ]
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "recursive_summary":
+            raise AssertionError("small direct structured evidence should not be recursively merged")
+        raise AssertionError("direct structured evidence should not call the model")
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fake_chat_json)
+
+    summaries = summarize_results_for_answer("Compare Setting 1 and Setting 4.", results)
+
+    assert [summary["chunk_id"] for summary in summaries] == [f"row-{index}" for index in range(5)]
+    assert all(summary["summary_source"] == "direct_evidence" for summary in summaries)
 
 
 def test_validate_answer_fallback_uses_matching_troubleshooting_row_from_parent_context():

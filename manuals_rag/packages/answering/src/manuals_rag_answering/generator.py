@@ -292,6 +292,12 @@ def _is_troubleshooting_query(query: str) -> bool:
     return bool(re.search(r"\b(cause|causes|correct|corrected|corrective|remedy|error|alarm|fault)\b", query, flags=re.IGNORECASE))
 
 
+def _is_comparison_query(query: str) -> bool:
+    return bool(re.search(r"\b(compare|comparison|versus|vs\.?|while|whereas)\b", query, flags=re.IGNORECASE)) or bool(
+        re.search(r"\bwhat\b.+\band what\b", query, flags=re.IGNORECASE)
+    )
+
+
 def _query_troubleshooting_anchor(query: str) -> str:
     patterns = (
         r"\bwhat causes\s+(.+?)\s+for\s+.+?\b(?:and|,)\s+how should",
@@ -460,32 +466,102 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             followup_questions=[],
             insufficient_evidence=True,
         )
-    top = _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results))[0]
-    top_content = _matching_troubleshooting_row_text(query, top) or _fallback_answer_text(top)
+    fallback_results = _fallback_evidence_results(query, results)
+    top = fallback_results[0]
+    if len(fallback_results) == 1:
+        answer_text = _matching_troubleshooting_row_text(query, top) or _fallback_answer_text(top)
+    else:
+        answer_text = "Retrieved evidence:\n" + "\n".join(
+            f"- {result.title}, page(s) {', '.join(str(page) for page in result.pages) or 'unknown'}: "
+            f"{_fallback_answer_text(result)}"
+            for result in fallback_results
+        )
     return AnswerResponse(
-        answer=top_content,
+        answer=answer_text,
         confidence="medium",
         used_documents=[
             {
-                "document_id": top.source_document_id,
-                "title": top.title,
-                "version": top.document_version_id,
-                "pages": top.pages,
-                "section_path": top.section_path,
+                "document_id": result.source_document_id,
+                "title": result.title,
+                "version": result.document_version_id,
+                "pages": result.pages,
+                "section_path": result.section_path,
             }
+            for result in fallback_results
         ],
         citations=[
             {
-                "chunk_id": top.chunk_id,
-                "document_id": top.source_document_id,
-                "pages": top.pages,
+                "chunk_id": result.chunk_id,
+                "document_id": result.source_document_id,
+                "pages": result.pages,
                 "quote_span": None,
             }
+            for result in fallback_results
         ],
         warnings=[],
         followup_questions=[],
         insufficient_evidence=False,
     )
+
+
+def _fallback_evidence_score(query: str, result: SearchResult) -> float:
+    query_terms = _answer_terms(query)
+    evidence = _fallback_answer_text(result)
+    evidence_terms = _answer_terms(evidence)
+    if not evidence_terms:
+        return 0.0
+    score = min(6.0, len(query_terms.intersection(evidence_terms)))
+    chunk_type = str(result.metadata.get("chunk_type") or "")
+    if chunk_type in {"table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
+        score += 2.0
+    if _is_troubleshooting_query(query) and re.search(r"\b(cause|corrective action|remedy|message)\b", evidence, flags=re.IGNORECASE):
+        score += 2.0
+    if _is_comparison_query(query) and (
+        str(result.source_document_id or "") in evidence
+        or _model_tokens(query).intersection(_model_tokens(evidence))
+        or query_terms.intersection(_answer_terms(result.title))
+    ):
+        score += 1.0
+    return score
+
+
+def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
+    ordered_results = _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results))
+    if not _is_comparison_query(query):
+        return ordered_results[:1]
+    scored = [
+        (_fallback_evidence_score(query, result), index, result)
+        for index, result in enumerate(ordered_results[:8])
+    ]
+    selected: list[SearchResult] = []
+    seen_chunks: set[str] = set()
+    seen_evidence: set[str] = set()
+    seen_documents: set[str] = set()
+
+    for score, _index, result in scored:
+        if score < 2.0 or result.source_document_id in seen_documents:
+            continue
+        evidence_key = f"{result.source_document_id}:{_normalized_citation_text(_fallback_answer_text(result))[:500]}"
+        selected.append(result)
+        seen_chunks.add(result.chunk_id)
+        seen_evidence.add(evidence_key)
+        seen_documents.add(result.source_document_id)
+        if len(selected) >= 5:
+            break
+
+    for score, _index, result in sorted(scored, key=lambda item: (-item[0], item[1])):
+        if score < 2.0 or result.chunk_id in seen_chunks:
+            continue
+        evidence_key = f"{result.source_document_id}:{_normalized_citation_text(_fallback_answer_text(result))[:500]}"
+        if evidence_key in seen_evidence:
+            continue
+        selected.append(result)
+        seen_chunks.add(result.chunk_id)
+        seen_evidence.add(evidence_key)
+        seen_documents.add(result.source_document_id)
+        if len(selected) >= 5:
+            break
+    return selected or ordered_results[:1]
 
 
 def _normalize_generated_answer_payload(payload: dict[str, Any], results: list[SearchResult]) -> dict[str, Any]:
@@ -635,6 +711,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
     if results and (
         not _answer_supported_by_results(answer.answer, results)
         or _structured_answer_is_too_terse(answer.answer, results)
+        or (answer.insufficient_evidence and len(_fallback_evidence_results(query, results)) > 1)
         or not _citation_quotes_are_supported(list(answer.citations), results)
         or not _answer_addresses_troubleshooting_anchor(answer.answer, query, list(answer.citations), results)
         or not _answer_uses_matching_troubleshooting_row(answer.answer, query, results)
@@ -1179,6 +1256,8 @@ def _merge_summary_batch(query: str, batch: list[dict[str, Any]]) -> dict[str, A
 
 def summarize_results_for_answer(query: str, results: list[SearchResult]) -> list[dict[str, Any]]:
     summaries = [_summarize_chunk(query, result) for result in results]
+    if len(summaries) <= 6 and all(item.get("summary_source") == "direct_evidence" for item in summaries):
+        return summaries
     while len(summaries) > 4:
         merged: list[dict[str, Any]] = []
         for index in range(0, len(summaries), 3):
