@@ -3058,3 +3058,18 @@ Next target:
 Next target:
 
 - Rerun actual HTTP API answer grounding for curated cross-document v2 rows 3-5 after the retrieval/context fix, then tune answer context/use only for retrieval-clean failures. Preserve row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, and all citation-fidelity containments.
+
+## 2026-08-27 Cron 39262386 Answer Grounding Status Reconciliation
+
+- Target: address the latest guardrail `needs_fix` at `2026-08-27T07:58:06Z` before rerunning answer-mode rows 3-5. The finding said `answer_grounding_status` still described the superseded `retrieval_eval_20260827_063151` row-3 retrieval/context gap even though `retrieval_eval_20260827_074631` repaired full curated cross-document v2 retrieval and `answer_grounding_rotation` already said row 3 needed a fresh answer rerun.
+- Guardrail status: read the runbook, manifest, progress log, guardrail runbook, and latest guardrail findings at run start. Direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was requested and remained unavailable because this cron context is restricted to the current job.
+- Local stack: compose services were usable. The pre-existing uncommitted `infra/compose/docker-compose.yml` `OLLAMA_URL` port drift remains unrelated user-owned work and was not edited or committed.
+- Tracking correction: updated root and `question_bank` `answer_grounding_status` copies atomically. The status now preserves the history that `retrieval_eval_20260827_063151` exposed row 3 as a retrieval/context gap, but current state says `retrieval_eval_20260827_074631` repaired that gap, row 3 is pending a fresh actual HTTP API answer rerun, and rows 4-5 remain the current retrieval-clean answer failures from `retrieval_eval_20260827_055829`.
+- Manifest guardrail record: added the `2026-08-27T07:58:06Z` finding to duplicated `unresolved_guardrail_findings` with status `addressed_this_run_tracking_reconciled`, including evidence that current retrieval failures remain `{}` and current retrieval-clean answer failures remain rows 4-5 with `expected_document_not_cited_or_used: 1` and `insufficient_evidence: 1`.
+- Scope: no production retrieval, answering, eval generation/scoring, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, docs, or test code changed. No question-bank counts changed: active coverage remains 204 exploratory questions total, 101 single-step and 103 multi-step, with replacement debt 0.
+- Validation: `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` passed; `jq empty test_reports/retrieval_accuracy_question_bank_manifest.json` passed; negative controls confirmed missing root, missing `question_bank`, and mismatched `answer_grounding_status` copies fail the checker. `git diff --check HEAD` passed. No unit gate was required because this is tracking-only.
+- Generalization check before commit: reconciling stale tracking before the answer rerun is valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it prevents optimizing answer generation against a superseded retrieval-blocked interpretation, without filenames, document ids, vendor shortcuts, query hardcoding, inferred filters, eval-only behavior, parser/ingestion changes, API/UI changes, schema/infrastructure changes, or model/provider changes.
+
+Next target:
+
+- Rerun actual HTTP API answer grounding for curated cross-document v2 rows 3-5 after the retrieval/context fix, then tune answer context/use only for retrieval-clean failures. Preserve row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, and all citation-fidelity containments.

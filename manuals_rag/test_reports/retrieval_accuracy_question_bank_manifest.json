@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-27T07:46:31Z",
+  "updated_at": "2026-08-27T08:04:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1025,7 +1025,7 @@
       "expected_document_not_cited_or_used": 1
     },
     "next_target": "Rerun actual HTTP API answer grounding for curated cross-document v2 rows 3-5 after the retrieval/context fix, then tune answer context/use only for retrieval-clean failures. Preserve row 15 diagnostic/source-context evidence, the diagnostic-only LLM judge policy, and all citation-fidelity containments.",
-    "answer_grounding_status": "Latest actual HTTP API answer rotation retrieval_eval_20260827_055829 remains diagnostic, but corrected source-document-strict retrieval scoring changes its interpretation. Row 3 is no longer answer-only evidence: the stricter rerun retrieval_eval_20260827_063151 shows the IV4-G600CA source-document role missing from final retrieval context, so do not use row 3 to tune answer generation until retrieval is repaired. Rows 4 and 5 still have clean retrieval but failed user-visible answers: row 4 declared IV-HG500CA startup-memory-read cause evidence missing despite same-document retrieved evidence, and row 5 cited only IV4 advanced-program remedy/context while omitting the VS invalid-pattern-data cause. Preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, preserve repaired contextual row 14 as clean from retrieval_eval_20260827_053144, keep the LLM answer judge diagnostic-only/opt-in, and keep conservative citation-pruning fallback in force.",
+    "answer_grounding_status": "Latest actual HTTP API answer rotation retrieval_eval_20260827_055829 remains diagnostic, and retrieval_eval_20260827_074631 supersedes the earlier retrieval_eval_20260827_063151 row-3 retrieval/context gap. Current retrieval state for the full curated cross-document v2 bank is green under source-document-strict scoring, but row 3 must be rerun through actual HTTP API answer mode after the retrieval/context fix before it is counted as clean answer evidence or as a current answer-generation failure. Rows 4 and 5 remain the current retrieval-clean answer failures from retrieval_eval_20260827_055829: row 4 declared IV-HG500CA startup-memory-read cause evidence missing despite same-document retrieved evidence, and row 5 cited only IV4 advanced-program remedy/context while omitting the VS invalid-pattern-data cause. Preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, preserve repaired contextual row 14 as clean from retrieval_eval_20260827_053144, keep the LLM answer judge diagnostic-only/opt-in, and keep conservative citation-pruning fallback in force.",
     "answer_grounding_rotation": {
       "scope": "curated_cross_document_v2_rows_3_5_actual_http_answer_rotation",
       "status": "diagnostic_answer_failures_rows_4_5_retrieval_clean_row_3_retrieval_gap_repaired_answer_rerun_pending",
@@ -1187,6 +1187,18 @@
     ],
     "unresolved_guardrail_findings": [
       {
+        "timestamp": "2026-08-27T07:58:06Z",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_tracking_reconciled",
+        "finding": "answer_grounding_status still described the superseded retrieval_eval_20260827_063151 row-3 retrieval/context gap even though retrieval_eval_20260827_074631 repaired the curated cross-document v2 row-3 retrieval state and answer_grounding_rotation already required a fresh answer rerun.",
+        "evidence": [
+          "Updated root and question_bank answer_grounding_status copies to preserve the 063151 history while stating current retrieval is repaired by retrieval_eval_20260827_074631.",
+          "Current retrieval failures remain {}; current retrieval-clean answer failures remain rows 4-5 from retrieval_eval_20260827_055829 with expected_document_not_cited_or_used: 1 and insufficient_evidence: 1.",
+          "Row 3 is now explicitly pending a fresh actual HTTP API answer rerun after the retrieval/context fix rather than being tracked as retrieval-blocked or clean answer evidence."
+        ],
+        "required_next_action": "Rerun actual HTTP API answer grounding for curated cross-document v2 rows 3-5 after the retrieval/context fix, then tune answer context/use only for retrieval-clean failures."
+      },
+      {
         "timestamp": "2026-08-27T06:52:56Z",
         "severity": "needs_fix",
         "status": "addressed_this_run_tracking_reconciled",
@@ -1344,7 +1356,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-27T07:46:31Z",
+    "updated_at": "2026-08-27T08:04:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -7665,7 +7677,7 @@
     "insufficient_evidence": 1,
     "expected_document_not_cited_or_used": 1
   },
-  "answer_grounding_status": "Latest actual HTTP API answer rotation retrieval_eval_20260827_055829 remains diagnostic, but corrected source-document-strict retrieval scoring changes its interpretation. Row 3 is no longer answer-only evidence: the stricter rerun retrieval_eval_20260827_063151 shows the IV4-G600CA source-document role missing from final retrieval context, so do not use row 3 to tune answer generation until retrieval is repaired. Rows 4 and 5 still have clean retrieval but failed user-visible answers: row 4 declared IV-HG500CA startup-memory-read cause evidence missing despite same-document retrieved evidence, and row 5 cited only IV4 advanced-program remedy/context while omitting the VS invalid-pattern-data cause. Preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, preserve repaired contextual row 14 as clean from retrieval_eval_20260827_053144, keep the LLM answer judge diagnostic-only/opt-in, and keep conservative citation-pruning fallback in force.",
+  "answer_grounding_status": "Latest actual HTTP API answer rotation retrieval_eval_20260827_055829 remains diagnostic, and retrieval_eval_20260827_074631 supersedes the earlier retrieval_eval_20260827_063151 row-3 retrieval/context gap. Current retrieval state for the full curated cross-document v2 bank is green under source-document-strict scoring, but row 3 must be rerun through actual HTTP API answer mode after the retrieval/context fix before it is counted as clean answer evidence or as a current answer-generation failure. Rows 4 and 5 remain the current retrieval-clean answer failures from retrieval_eval_20260827_055829: row 4 declared IV-HG500CA startup-memory-read cause evidence missing despite same-document retrieved evidence, and row 5 cited only IV4 advanced-program remedy/context while omitting the VS invalid-pattern-data cause. Preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, preserve repaired contextual row 14 as clean from retrieval_eval_20260827_053144, keep the LLM answer judge diagnostic-only/opt-in, and keep conservative citation-pruning fallback in force.",
   "answer_grounding_rotation": {
     "scope": "curated_cross_document_v2_rows_3_5_actual_http_answer_rotation",
     "status": "diagnostic_answer_failures_rows_4_5_retrieval_clean_row_3_retrieval_gap_repaired_answer_rerun_pending",
@@ -8228,6 +8240,18 @@
     }
   ],
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-27T07:58:06Z",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_tracking_reconciled",
+      "finding": "answer_grounding_status still described the superseded retrieval_eval_20260827_063151 row-3 retrieval/context gap even though retrieval_eval_20260827_074631 repaired the curated cross-document v2 row-3 retrieval state and answer_grounding_rotation already required a fresh answer rerun.",
+      "evidence": [
+        "Updated root and question_bank answer_grounding_status copies to preserve the 063151 history while stating current retrieval is repaired by retrieval_eval_20260827_074631.",
+        "Current retrieval failures remain {}; current retrieval-clean answer failures remain rows 4-5 from retrieval_eval_20260827_055829 with expected_document_not_cited_or_used: 1 and insufficient_evidence: 1.",
+        "Row 3 is now explicitly pending a fresh actual HTTP API answer rerun after the retrieval/context fix rather than being tracked as retrieval-blocked or clean answer evidence."
+      ],
+      "required_next_action": "Rerun actual HTTP API answer grounding for curated cross-document v2 rows 3-5 after the retrieval/context fix, then tune answer context/use only for retrieval-clean failures."
+    },
     {
       "timestamp": "2026-08-27T06:52:56Z",
       "severity": "needs_fix",
