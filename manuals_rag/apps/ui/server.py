@@ -1440,11 +1440,11 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                         return partial_debug_result, evaluation
             if event.get("event") == "run_completed":
                 result = dict(event.get("result") or {})
-                if completed_steps and "completed_steps" not in result:
+                if completed_steps:
                     result["completed_steps"] = completed_steps
-                if step_timings_ms and "step_timings_ms" not in result:
+                if step_timings_ms:
                     result["step_timings_ms"] = step_timings_ms
-                if stages and "stages" not in result:
+                if stages:
                     result["stages"] = stages
                 _record_question_matrix_job_event(
                     job_id,

@@ -883,7 +883,14 @@ def test_query_debug_stream_preserves_accumulated_stage_samples(monkeypatch, tmp
                 ]
             },
         },
-        {"event": "run_completed", "result": {"answer": {"text": "24 VDC"}}},
+        {
+            "event": "run_completed",
+            "result": {
+                "answer": {"text": "24 VDC"},
+                "completed_steps": ["generate_answer"],
+                "stages": [{"name": "generate_answer", "samples": []}],
+            },
+        },
     ]
 
     class FakeResponse:
@@ -916,6 +923,7 @@ def test_query_debug_stream_preserves_accumulated_stage_samples(monkeypatch, tmp
     assert debug_result["completed_steps"] == ["assemble_context"]
     assert debug_result["step_timings_ms"] == {"assemble_context": 2}
     assert debug_result["stages"][0]["name"] == "assemble_context"
+    assert len(debug_result["stages"]) == 1
     assert debug_result["stages"][0]["samples"][0]["source_document_id"] == "doc-1"
     assert ui_server.MATRIX_JOBS["matrix-stream"]["live_cells"]["case-1"]["retrieval"]["status"] == "pass"
     assert any(event["event"] == "retrieval_scored" for event in ui_server.MATRIX_JOBS["matrix-stream"]["events"])
