@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-live-answer-detail-1";
+const ASSET_VERSION = "20260827-incremental-matrix-poll-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 const MATRIX_JOB_POLL_MS = 1000;
 
@@ -463,7 +463,7 @@ function renderQuestionMatrix(payload) {
           const activeStage = currentMatrixStageKey();
           const activeRow = isCurrentMatrixJobRow(item);
           return `
-            <tr class="clickable${selected}${activeRow ? " current-run-row" : ""}" data-matrix-index="${index}">
+            <tr class="clickable${selected}${activeRow ? " current-run-row" : ""}" data-matrix-index="${index}" data-matrix-key="${escapeHtml(item.key || "")}">
               <td data-label="#">${index + 1}</td>
               <td data-label="Question">
                 <strong>${escapeHtml(shortText(caseData.query || item.query, 160))}</strong>
@@ -473,7 +473,7 @@ function renderQuestionMatrix(payload) {
               ${MATRIX_STAGES.map((stage) => {
                 const cell = cells[stage.key] || matrixCell("blank");
                 const current = activeRow && stage.key === activeStage ? " current-run-cell" : "";
-                return `<td data-label="${escapeHtml(stage.label)}" title="${escapeHtml(cell.detail || stage.description)}"><span class="matrix-cell ${escapeHtml(cell.status)}${current}">${escapeHtml(matrixStatusLabel(cell))}</span></td>`;
+                return `<td data-label="${escapeHtml(stage.label)}" title="${escapeHtml(cell.detail || stage.description)}"><span class="matrix-cell ${escapeHtml(cell.status)}${current}" data-matrix-stage="${escapeHtml(stage.key)}">${escapeHtml(matrixStatusLabel(cell))}</span></td>`;
               }).join("")}
             </tr>
           `;
@@ -488,6 +488,37 @@ function renderQuestionMatrix(payload) {
     });
   });
   renderMatrixDetail(rows[state.selectedMatrixIndex]);
+}
+
+function matrixRowElementForKey(key) {
+  return Array.from(document.querySelectorAll("[data-matrix-key]")).find((row) => row.dataset.matrixKey === String(key || ""));
+}
+
+function updateQuestionMatrixLiveState() {
+  const items = state.questionMatrix?.rows || [];
+  if (!items.length || !$("matrix-table")?.querySelector(".matrix-grid")) return;
+  if (state.selectedMatrixIndex >= items.length) state.selectedMatrixIndex = 0;
+  const { rows, totals } = summarizeMatrixRows(items);
+  renderMatrixSummary(totals, rows.length);
+  for (const { item, index, cells } of rows) {
+    const rowElement = matrixRowElementForKey(item.key);
+    if (!rowElement) {
+      renderQuestionMatrix(state.questionMatrix);
+      return;
+    }
+    rowElement.classList.toggle("selected", index === state.selectedMatrixIndex);
+    rowElement.classList.toggle("current-run-row", isCurrentMatrixJobRow(item));
+    const activeStage = currentMatrixStageKey();
+    const activeRow = isCurrentMatrixJobRow(item);
+    for (const stage of MATRIX_STAGES) {
+      const cell = cells[stage.key] || matrixCell("blank");
+      const cellElement = rowElement.querySelector(`[data-matrix-stage="${stage.key}"]`);
+      if (!cellElement) continue;
+      cellElement.className = `matrix-cell ${cell.status || "blank"}${activeRow && stage.key === activeStage ? " current-run-cell" : ""}`;
+      cellElement.textContent = matrixStatusLabel(cell);
+      cellElement.closest("td")?.setAttribute("title", cell.detail || stage.description);
+    }
+  }
 }
 
 function currentMatrixStageKey() {
@@ -575,7 +606,7 @@ async function pollMatrixJob(jobId) {
     const job = await localJson(`/local/question-matrix/jobs/${encodeURIComponent(jobId)}`);
     state.matrixJob = job;
     renderMatrixJobStatus(job);
-    if (state.questionMatrix) renderQuestionMatrix(state.questionMatrix);
+    if (state.questionMatrix) updateQuestionMatrixLiveState();
     if (["queued", "running", "stopping"].includes(job.status)) {
       state.matrixJobTimer = setTimeout(() => pollMatrixJob(jobId), MATRIX_JOB_POLL_MS);
       return;

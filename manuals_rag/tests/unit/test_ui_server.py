@@ -122,6 +122,12 @@ def test_eval_matrix_view_is_available():
     assert "loadQuestionMatrix" in app_js
     assert "renderMatrixSummary" in app_js
     assert "renderQuestionMatrix(payload)" in app_js
+    assert "updateQuestionMatrixLiveState" in app_js
+    assert "data-matrix-key" in app_js
+    assert "data-matrix-stage" in app_js
+    poll_body = re.search(r"async function pollMatrixJob\(jobId\) \{(?P<body>.*?)\n\}", app_js, re.S).group("body")
+    assert "updateQuestionMatrixLiveState()" in poll_body
+    assert "renderQuestionMatrix(state.questionMatrix)" not in poll_body
     assert ".matrix-actions" in styles_css
     assert ".current-run-cell" in styles_css
     assert ".matrix-summary" in styles_css
