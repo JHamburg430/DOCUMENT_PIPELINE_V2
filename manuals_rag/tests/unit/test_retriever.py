@@ -2576,6 +2576,75 @@ def test_comparison_table_promotion_does_not_treat_compatible_device_as_document
     assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
 
 
+def test_comparison_table_promotion_replaces_same_product_wrong_field():
+    analysis = analyze_query(
+        "For the controller, what enclosure rating is listed for MOD1-A manual, "
+        "and what shock-resistance value is listed for MOD2-B documentation?"
+    )
+    reranked = [
+        SearchResult(
+            chunk_id="mod-a-enclosure",
+            score=4.0,
+            title="MOD1-A Manual",
+            document_version_id="ver-a",
+            source_document_id="doc-a",
+            pages=[10],
+            section_path=["Specs"],
+            content="Column headers: Controller; Row headers: Enclosure rating; Cell value: IP67.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Controller"],
+                "table_row_headers": ["Enclosure rating"],
+                "product_model": "MOD1-A",
+            },
+        ),
+        SearchResult(
+            chunk_id="mod-b-enclosure",
+            score=3.8,
+            title="MOD2-B Manual",
+            document_version_id="ver-b",
+            source_document_id="doc-b",
+            pages=[20],
+            section_path=["Specs"],
+            content="Column headers: Controller; Row headers: Enclosure rating; Cell value: IP40.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Controller"],
+                "table_row_headers": ["Enclosure rating"],
+                "product_model": "MOD2-B",
+            },
+        ),
+    ]
+    supplemental = [
+        SearchResult(
+            chunk_id="mod-b-shock",
+            score=1.5,
+            title="MOD2-B Manual",
+            document_version_id="ver-b",
+            source_document_id="doc-b",
+            pages=[20],
+            section_path=["Specs"],
+            content=(
+                "Column headers: Controller; Row headers: Shock resistance; "
+                "Cell value: 500 m/s2, 6 directions, 3 times each."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Controller"],
+                "table_row_headers": ["Shock resistance"],
+                "product_model": "MOD2-B",
+            },
+        )
+    ]
+
+    promoted = retriever._promote_comparison_table_candidates(reranked, supplemental, analysis, limit=5)
+
+    assert promoted[0].chunk_id == "mod-b-shock"
+    assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
+    assert promoted[1].chunk_id == "mod-a-enclosure"
+    assert promoted[2].chunk_id == "mod-b-enclosure"
+
+
 def test_table_lexical_search_skips_unstructured_general_queries(monkeypatch):
     monkeypatch.setattr(retriever, "fetch_all", lambda *_args, **_kwargs: pytest.fail("fetch_all should not run"))
 

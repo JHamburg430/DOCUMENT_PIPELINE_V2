@@ -1468,10 +1468,19 @@ def _identifier_context_terms(query: str, identifier: str) -> set[str]:
     right_boundary = min(right_candidates) if right_candidates else len(query)
     clause = query[left_boundary + 1 : right_boundary]
     identifier_terms = _text_terms(identifier)
-    terms = {term for term in terms_from_text(clause) if term not in identifier_terms and not any(char.isdigit() for char in term)}
+    ignored_context_terms = {"documentation", "listed", "manual"}
+    terms = {
+        term
+        for term in terms_from_text(clause)
+        if term not in identifier_terms and term not in ignored_context_terms and not any(char.isdigit() for char in term)
+    }
     if terms:
         return terms
-    return {term for term in terms_from_text(query) if term not in identifier_terms and not any(char.isdigit() for char in term)}
+    return {
+        term
+        for term in terms_from_text(query)
+        if term not in identifier_terms and term not in ignored_context_terms and not any(char.isdigit() for char in term)
+    }
 
 
 def _identifier_context_score(result: SearchResult, context_terms: set[str]) -> float:
@@ -1485,6 +1494,22 @@ def _identifier_context_score(result: SearchResult, context_terms: set[str]) -> 
         " ".join([str(result.content or ""), row_header_text, column_header_text]).lower(),
     )
     return sum(1.0 for term in context_terms if term in haystack)
+
+
+def _comparison_result_satisfies_identifier_context(result: SearchResult, context_terms: set[str]) -> bool:
+    if not context_terms:
+        return True
+    required_overlap = min(2, len(context_terms))
+    return _identifier_context_score(result, context_terms) >= required_overlap
+
+
+def _is_structured_comparison_table_result(result: SearchResult) -> bool:
+    return bool(
+        result.metadata.get("table_column_headers")
+        or result.metadata.get("table_row_group")
+        or result.metadata.get("table_key_value")
+        or result.metadata.get("table_summary")
+    )
 
 
 def _promote_comparison_table_candidates(
@@ -1509,9 +1534,11 @@ def _promote_comparison_table_candidates(
     promoted: list[SearchResult] = []
     seen: set[str] = set()
     for identifier in identifiers:
+        context_terms = set() if row_code_terms else _identifier_context_terms(analysis.raw_query, identifier)
         if any(
             _result_matches_primary_identifier(result, identifier)
-            and result.metadata.get("table_column_headers")
+            and _is_structured_comparison_table_result(result)
+            and _comparison_result_satisfies_identifier_context(result, context_terms)
             and (
                 not row_code_terms
                 or _matching_comparison_row_codes(result, uncovered_row_codes)
@@ -1524,11 +1551,11 @@ def _promote_comparison_table_candidates(
             for result in supplemental_results
             if result.chunk_id not in seen
             and str(result.metadata.get("chunk_type") or "") == "table_record"
-            and bool(result.metadata.get("table_column_headers"))
+            and _is_structured_comparison_table_result(result)
             and _result_matches_primary_identifier(result, identifier)
             and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
+            and _comparison_result_satisfies_identifier_context(result, context_terms)
         ]
-        context_terms = _identifier_context_terms(analysis.raw_query, identifier)
         if context_terms:
             candidates.sort(key=lambda result: (_identifier_context_score(result, context_terms), result.score), reverse=True)
         promotion_limit = 2 if row_code_terms else 1
