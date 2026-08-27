@@ -406,10 +406,12 @@ def _load_result_index(excluded_run_ids: set[str]) -> dict[str, dict]:
                 "run_id": run_id,
                 "path": str(path.relative_to(MANUALS_ROOT)),
                 "evaluation": row.get("retrieval_evaluation") or row.get("evaluation") or {},
+                "answer": row.get("answer") or {},
                 "answer_evaluation": row.get("answer_evaluation") or {},
                 "query_debug_result": {
                     "completed_steps": query_debug_result.get("completed_steps") or [],
                     "step_timings_ms": query_debug_result.get("step_timings_ms") or {},
+                    "answer": query_debug_result.get("answer") or row.get("answer") or {},
                     "stages": [
                         {
                             "name": stage.get("name"),
@@ -720,6 +722,7 @@ def _build_question_matrix() -> dict:
                         "run_id": result.get("run_id"),
                         "path": result.get("path"),
                         "evaluation": result.get("evaluation"),
+                        "answer": result.get("answer"),
                         "answer_evaluation": result.get("answer_evaluation"),
                         "query_debug_result": result.get("query_debug_result"),
                     } if result else None,

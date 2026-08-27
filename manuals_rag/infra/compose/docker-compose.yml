@@ -140,10 +140,15 @@ services:
       MANUALS_RAG_API_BASE: http://api:8600
       MANUALS_RAG_AUTH_TOKEN: admin-token
       MANUALS_RAG_DEFAULT_CORPUS: manuals_vendor_keyence
+      OLLAMA_URL: http://host.docker.internal:11437
+      OLLAMA_ANSWER_MODEL: qwen3.5:9b
+      OLLAMA_EVAL_MODEL: qwen3.5:9b
     volumes:
       - ../..:/workspace/manuals_rag
     ports:
       - "8601:8601"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       api:
         condition: service_started

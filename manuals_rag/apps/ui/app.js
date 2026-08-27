@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-live-matrix-detail-1";
+const ASSET_VERSION = "20260827-matrix-answer-detail-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 const MATRIX_JOB_POLL_MS = 1000;
 
@@ -650,11 +650,15 @@ function renderMatrixDetail(row) {
   const latestItem = item.latest_result
     ? {
         evaluation: item.latest_result.evaluation,
+        answer: item.latest_result.answer,
         answer_evaluation: item.latest_result.answer_evaluation,
         query_debug_result: item.latest_result.query_debug_result,
       }
     : item;
-  const retrieval = isLiveRow
+  const hasSavedRetrieval = latestItem.evaluation && Object.keys(latestItem.evaluation).length > 0;
+  const hasSavedAnswerEval = latestItem.answer_evaluation && Object.keys(latestItem.answer_evaluation).length > 0;
+  const generatedAnswer = latestItem.answer || latestItem.query_debug_result?.answer || {};
+  const retrieval = isLiveRow && !hasSavedRetrieval
     ? {
         source: "live matrix cells",
         retrieval: row.cells.retrieval || matrixCell("blank"),
@@ -667,7 +671,7 @@ function renderMatrixDetail(row) {
         doc_select: row.cells.metadata || matrixCell("blank"),
       }
     : itemRetrievalEvaluation(latestItem);
-  const answerEval = isLiveRow
+  const answerEval = isLiveRow && !hasSavedAnswerEval
     ? {
         source: "live matrix cells",
         relevance: row.cells.relevance || matrixCell("blank"),
@@ -679,6 +683,7 @@ function renderMatrixDetail(row) {
         answer: row.cells.answer || matrixCell("blank"),
       }
     : latestItem.answer_evaluation || {};
+  const diagnosticJudge = answerEval.llm_required_information || answerEval.term_check?.llm_required_information || null;
   const debugResult = latestItem.query_debug_result || {};
   const pipelineStages = Array.isArray(debugResult.stages) ? debugResult.stages : [];
   const caseData = item.case || latestItem.case || {};
@@ -713,6 +718,20 @@ function renderMatrixDetail(row) {
           <pre>${escapeHtml(JSON.stringify(answerEval, null, 2))}</pre>
         </div>
       </div>
+      ${generatedAnswer.answer ? `
+        <h4>Generated Answer</h4>
+        <p class="answer-text">${escapeHtml(generatedAnswer.answer)}</p>
+        ${Array.isArray(generatedAnswer.warnings) && generatedAnswer.warnings.length ? `<div class="empty-state">${escapeHtml(generatedAnswer.warnings.join(" "))}</div>` : ""}
+        ${Array.isArray(generatedAnswer.citations) && generatedAnswer.citations.length ? `<h4>Citations</h4>${renderCitations(generatedAnswer.citations)}` : ""}
+        <details>
+          <summary>Raw answer JSON</summary>
+          <pre>${escapeHtml(JSON.stringify(generatedAnswer, null, 2))}</pre>
+        </details>
+      ` : isLiveRow ? '<div class="empty-state">No generated answer recorded for this row yet.</div>' : ""}
+      ${diagnosticJudge ? `
+        <h4>Diagnostic Model Judge</h4>
+        <pre>${escapeHtml(JSON.stringify(diagnosticJudge, null, 2))}</pre>
+      ` : ""}
       ${pipelineStages.length ? `
         <h4>Pipeline Stages</h4>
         <table>

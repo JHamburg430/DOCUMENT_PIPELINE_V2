@@ -158,6 +158,14 @@ def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_p
                     "citation_fidelity": {"checked": True, "passed": True, "checked_quote_count": 0},
                     "term_check": {"passed": False},
                 },
+                "answer": {
+                    "answer": "Reset the trigger signal error.",
+                    "warnings": [],
+                },
+                "query_debug_result": {
+                    "answer": {"answer": "Reset the trigger signal error."},
+                    "completed_steps": ["generate_answer"],
+                },
             }
         )
         + "\n",
@@ -200,6 +208,8 @@ def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_p
     assert payload["rows"][0]["cells"]["citations"]["status"] == "pass"
     assert payload["rows"][0]["cells"]["terms"]["status"] == "fail"
     assert payload["rows"][0]["cells"]["answer"]["status"] == "fail"
+    assert payload["rows"][0]["latest_result"]["answer"]["answer"] == "Reset the trigger signal error."
+    assert payload["rows"][0]["latest_result"]["query_debug_result"]["answer"]["answer"] == "Reset the trigger signal error."
 
 
 def test_question_matrix_includes_active_job_for_page_refresh(monkeypatch, tmp_path):
