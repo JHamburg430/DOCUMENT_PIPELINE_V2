@@ -66,6 +66,14 @@ DEBUG_STEP_TO_MATRIX_KEY = {
     "summarize_answer_inputs": "summaries",
     "generate_answer": "generation",
 }
+RESULT_STAGE_STEPS = {
+    "run_dense_search",
+    "run_sparse_search",
+    "run_special_search",
+    "fuse_results",
+    "rerank_results",
+    "assemble_context",
+}
 
 
 class MatrixJobCancelled(RuntimeError):
@@ -383,6 +391,11 @@ def _load_result_index(excluded_run_ids: set[str]) -> dict[str, dict]:
                             "name": stage.get("name"),
                             "label": stage.get("label"),
                             "sample_count": len(stage.get("samples") or []),
+                            "samples": [
+                                _compact_stage_sample(sample)
+                                for sample in (stage.get("samples") or [])[:100]
+                                if isinstance(sample, dict)
+                            ],
                         }
                         for stage in query_debug_result.get("stages") or []
                     ],
@@ -391,8 +404,89 @@ def _load_result_index(excluded_run_ids: set[str]) -> dict[str, dict]:
     return indexed
 
 
-def _matrix_cell(status: str, detail: str = "") -> dict[str, str]:
-    return {"status": status, "detail": detail}
+def _matrix_cell(status: str, detail: str = "", label: str | None = None) -> dict[str, str]:
+    cell = {"status": status, "detail": detail}
+    if label is not None:
+        cell["label"] = label
+    return cell
+
+
+def _compact_stage_sample(sample: dict) -> dict:
+    metadata = sample.get("metadata") if isinstance(sample.get("metadata"), dict) else {}
+    return {
+        "chunk_id": sample.get("chunk_id") or sample.get("id"),
+        "source_document_id": sample.get("source_document_id") or metadata.get("source_document_id"),
+        "document_version_id": sample.get("document_version_id") or metadata.get("document_version_id"),
+        "title": sample.get("title"),
+        "chunk_type": sample.get("chunk_type") or metadata.get("chunk_type"),
+        "retrieval_stage": sample.get("retrieval_stage") or metadata.get("retrieval_stage"),
+        "score": sample.get("score"),
+    }
+
+
+def _expected_targets(case: dict) -> dict[str, set[str]]:
+    expected_evidence = case.get("expected_evidence") if isinstance(case.get("expected_evidence"), list) else []
+    document_ids = {str(case.get("source_document_id") or "")}
+    chunk_ids = {str(case.get("source_chunk_id") or "")}
+    for item in expected_evidence:
+        if not isinstance(item, dict):
+            continue
+        document_ids.add(str(item.get("source_document_id") or case.get("source_document_id") or ""))
+        chunk_ids.add(str(item.get("chunk_id") or ""))
+    document_ids.discard("")
+    chunk_ids.discard("")
+    return {"document_ids": document_ids, "chunk_ids": chunk_ids}
+
+
+def _stage_samples_by_step(debug_result: dict) -> dict[str, list[dict]]:
+    return {
+        str(stage.get("name") or ""): list(stage.get("samples") or [])
+        for stage in debug_result.get("stages") or []
+        if isinstance(stage, dict)
+    }
+
+
+def _stage_target_counts(samples: list[dict], targets: dict[str, set[str]]) -> tuple[int, int]:
+    matched_docs: set[str] = set()
+    matched_chunks: set[str] = set()
+    document_ids = targets["document_ids"]
+    chunk_ids = targets["chunk_ids"]
+    for sample in samples:
+        if not isinstance(sample, dict):
+            continue
+        metadata = sample.get("metadata") if isinstance(sample.get("metadata"), dict) else {}
+        document_id = str(sample.get("source_document_id") or metadata.get("source_document_id") or "")
+        chunk_id = str(sample.get("chunk_id") or sample.get("id") or "")
+        if document_id in document_ids:
+            matched_docs.add(document_id)
+        if chunk_id in chunk_ids:
+            matched_chunks.add(chunk_id)
+    return len(matched_docs), len(matched_chunks)
+
+
+def _result_stage_cell(
+    key: str,
+    samples_by_step: dict[str, list[dict]],
+    targets: dict[str, set[str]],
+    *,
+    previously_found: bool,
+) -> tuple[dict[str, str], bool]:
+    step_name = next((step for step, mapped_key in DEBUG_STEP_TO_MATRIX_KEY.items() if mapped_key == key), "")
+    samples = samples_by_step.get(step_name) or []
+    expected_doc_count = max(1, len(targets["document_ids"]))
+    matched_doc_count, matched_chunk_count = _stage_target_counts(samples, targets)
+    found = bool(matched_doc_count or matched_chunk_count)
+    detail = (
+        f"{matched_doc_count}/{expected_doc_count} expected document(s), "
+        f"{matched_chunk_count}/{len(targets['chunk_ids']) or 1} expected chunk(s) in stage sample window"
+    )
+    if matched_doc_count >= expected_doc_count:
+        return _matrix_cell("pass", detail, "YES"), True
+    if found:
+        return _matrix_cell("fail", detail, "PARTIAL"), True
+    if previously_found:
+        return _matrix_cell("fail", f"Expected target was present earlier, then absent here; {detail}", "DROPPED"), False
+    return _matrix_cell("fail", detail, "NO"), False
 
 
 def _question_type(case: dict) -> dict[str, object]:
@@ -423,7 +517,7 @@ def _question_type(case: dict) -> dict[str, object]:
     }
 
 
-def _build_row_cells(item: dict | None) -> dict[str, dict[str, str]]:
+def _build_row_cells(item: dict | None, case: dict | None = None) -> dict[str, dict[str, str]]:
     cells = {
         key: _matrix_cell("blank", "not scored yet")
         for key in MATRIX_STAGE_KEYS
@@ -431,6 +525,7 @@ def _build_row_cells(item: dict | None) -> dict[str, dict[str, str]]:
     if not item:
         return cells
 
+    case = case or item.get("case") or {}
     debug_result = item.get("query_debug_result") or {}
     completed_steps = set(debug_result.get("completed_steps") or [])
     retrieval_step_to_key = {
@@ -448,9 +543,20 @@ def _build_row_cells(item: dict | None) -> dict[str, dict[str, str]]:
         "summarize_answer_inputs": "summaries",
         "generate_answer": "generation",
     }
+    samples_by_step = _stage_samples_by_step(debug_result)
+    targets = _expected_targets(case)
+    previously_found = False
     for step, key in retrieval_step_to_key.items():
         if step in completed_steps:
-            cells[key] = _matrix_cell("pass", "debug step completed")
+            if step == "classify_query":
+                cells[key] = _matrix_cell("pass", "Query classification completed; this stage does not return documents.", "DONE")
+            elif step == "build_filters":
+                cells[key] = _matrix_cell("pass", "Filters were built; document loss is measured by the following search stages.", "SET")
+            elif step in RESULT_STAGE_STEPS:
+                cells[key], found = _result_stage_cell(key, samples_by_step, targets, previously_found=previously_found)
+                previously_found = found or previously_found and cells[key].get("label") != "DROPPED"
+            else:
+                cells[key] = _matrix_cell("pass", "debug step completed", "DONE")
 
     retrieval = item.get("retrieval_evaluation") or item.get("evaluation") or {}
     metadata = retrieval.get("metadata_document_selection") or {}
@@ -471,6 +577,7 @@ def _build_row_cells(item: dict | None) -> dict[str, dict[str, str]]:
     cells["retrieval"] = _matrix_cell(
         "pass" if retrieval.get("passed") else "fail",
         f"rank {retrieval.get('rank')}" if retrieval.get("passed") else retrieval.get("failure_category") or "expected evidence missing",
+        "PASS" if retrieval.get("passed") else "FAIL",
     )
     if not retrieval.get("passed"):
         return cells
@@ -557,7 +664,7 @@ def _build_question_matrix() -> dict:
                         "answer_evaluation": result.get("answer_evaluation"),
                         "query_debug_result": result.get("query_debug_result"),
                     } if result else None,
-                    "cells": _build_row_cells(item),
+                    "cells": _build_row_cells(item, case),
                 }
             )
     return {
@@ -583,14 +690,14 @@ def _update_question_matrix_job(job_id: str, **updates: object) -> None:
         job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-def _update_question_matrix_live_cell(job_id: str, case_id: str, key: str, status: str, detail: str = "") -> None:
+def _update_question_matrix_live_cell(job_id: str, case_id: str, key: str, status: str, detail: str = "", label: str | None = None) -> None:
     if key not in MATRIX_STAGE_KEYS:
         return
     with MATRIX_JOBS_LOCK:
         job = MATRIX_JOBS[job_id]
         live_cells = dict(job.get("live_cells") or {})
         row_cells = dict(live_cells.get(case_id) or {})
-        row_cells[key] = _matrix_cell(status, detail)
+        row_cells[key] = _matrix_cell(status, detail, label)
         live_cells[case_id] = row_cells
         job["live_cells"] = live_cells
         job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -930,6 +1037,7 @@ def _run_answer_matrix_dataset(
 def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | None, query: str, *, eval_case: object) -> tuple[dict, dict | None]:
     from manuals_rag_evals.retrieval_eval import score_search_results
 
+    eval_case_dict = eval_case.to_dict() if hasattr(eval_case, "to_dict") else dict(getattr(eval_case, "__dict__", {}))
     request_payload = {
         "query": query,
         "corpus_ids": [DEFAULT_CORPUS_ID],
@@ -971,12 +1079,24 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                         "samples": payload.get("samples") or payload.get("summaries") or [],
                     }
                 )
+                live_cells = _build_row_cells(
+                    {
+                        "case": eval_case_dict,
+                        "query_debug_result": {
+                            "completed_steps": completed_steps,
+                            "step_timings_ms": step_timings_ms,
+                            "stages": stages,
+                        },
+                    }
+                )
+                live_cell = live_cells.get(DEBUG_STEP_TO_MATRIX_KEY[step], _matrix_cell("pass", "debug step completed", "DONE"))
                 _update_question_matrix_live_cell(
                     job_id,
                     case_id,
                     DEBUG_STEP_TO_MATRIX_KEY[step],
-                    "pass",
-                    "debug step completed",
+                    live_cell.get("status", "pass"),
+                    live_cell.get("detail", "debug step completed"),
+                    live_cell.get("label"),
                 )
                 if step == "assemble_context":
                     top_results = _top_results_from_assemble_payload(payload)

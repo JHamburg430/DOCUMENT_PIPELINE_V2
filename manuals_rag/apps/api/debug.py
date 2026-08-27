@@ -117,6 +117,8 @@ def _serialize_step_result_sample(result: dict[str, Any]) -> dict[str, Any]:
     serialized = _serialize_search_result(result)
     return {
         "chunk_id": serialized.get("chunk_id"),
+        "source_document_id": serialized.get("source_document_id"),
+        "document_version_id": serialized.get("document_version_id"),
         "score": serialized.get("score"),
         "title": serialized.get("title"),
         "pages": serialized.get("pages"),

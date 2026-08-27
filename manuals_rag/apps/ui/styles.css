@@ -437,13 +437,14 @@ summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 42px;
+  min-width: 64px;
   min-height: 26px;
   border: 1px solid var(--line);
   background: #f8fafc;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .matrix-cell.pass {

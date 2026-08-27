@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-eval-matrix-hints-1";
+const ASSET_VERSION = "20260827-eval-matrix-stage-results-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
@@ -70,7 +70,7 @@ const MATRIX_STAGES = [
   },
   {
     key: "retrieval",
-    label: "Evidence",
+    label: "Retrieval",
     description: "Pass when the final scored retrieval window contains the exact expected chunk, acceptable same-document evidence, or required multi-step evidence; fail when expected evidence is missing from that window.",
   },
   {
@@ -400,6 +400,7 @@ function matrixCellsForItem(item = {}) {
 }
 
 function matrixStatusLabel(cell = {}) {
+  if (cell.label) return cell.label;
   if (cell.status === "pass") return "pass";
   if (cell.status === "fail") return "fail";
   return "";

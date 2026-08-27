@@ -369,6 +369,10 @@ def test_question_matrix_stop_marks_job_and_terminates_process():
 def test_question_matrix_blanks_answer_steps_after_retrieval_failure():
     cells = ui_server._build_row_cells(
         {
+            "case": {
+                "source_document_id": "doc-1",
+                "source_chunk_id": "chunk-1",
+            },
             "query_debug_result": {
                 "completed_steps": [
                     "classify_query",
@@ -395,6 +399,45 @@ def test_question_matrix_blanks_answer_steps_after_retrieval_failure():
     assert cells["summaries"]["status"] == "blank"
     assert cells["generation"]["status"] == "blank"
     assert cells["answer"]["status"] == "blank"
+
+
+def test_question_matrix_labels_stage_target_retention():
+    cells = ui_server._build_row_cells(
+        {
+            "case": {
+                "source_document_id": "doc-expected",
+                "source_chunk_id": "chunk-expected",
+            },
+            "query_debug_result": {
+                "completed_steps": [
+                    "classify_query",
+                    "build_filters",
+                    "run_dense_search",
+                    "run_sparse_search",
+                    "fuse_results",
+                    "assemble_context",
+                ],
+                "stages": [
+                    {"name": "run_dense_search", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
+                    {"name": "run_sparse_search", "samples": [{"source_document_id": "doc-other", "chunk_id": "chunk-other"}]},
+                    {"name": "fuse_results", "samples": [{"source_document_id": "doc-other", "chunk_id": "chunk-other"}]},
+                    {"name": "assemble_context", "samples": [{"source_document_id": "doc-other", "chunk_id": "chunk-other"}]},
+                ],
+            },
+            "evaluation": {
+                "passed": False,
+                "failure_category": "ranking_or_context_loss",
+                "metadata_document_selection": {"attempted": False},
+            },
+        }
+    )
+
+    assert cells["query_classify"]["label"] == "DONE"
+    assert cells["filters"]["label"] == "SET"
+    assert cells["dense"]["label"] == "YES"
+    assert cells["sparse"]["label"] == "DROPPED"
+    assert cells["fuse"]["label"] == "NO"
+    assert cells["retrieval"]["label"] == "FAIL"
 
 
 def test_question_type_identifies_multi_step_and_multi_document_cases():
@@ -495,7 +538,8 @@ def test_query_debug_stream_stops_after_failed_retrieval(monkeypatch):
     assert debug_result["early_stopped"] is True
     assert debug_result["answer"] == {}
     assert "generate_answer" not in debug_result["completed_steps"]
-    assert ui_server.MATRIX_JOBS["matrix-early"]["live_cells"]["case-1"]["assemble"]["status"] == "pass"
+    assert ui_server.MATRIX_JOBS["matrix-early"]["live_cells"]["case-1"]["assemble"]["status"] == "fail"
+    assert ui_server.MATRIX_JOBS["matrix-early"]["live_cells"]["case-1"]["assemble"]["label"] == "NO"
     ui_server.MATRIX_JOBS.clear()
 
 
