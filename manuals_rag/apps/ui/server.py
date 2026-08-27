@@ -34,6 +34,25 @@ MATRIX_JOBS: dict[str, dict] = {}
 MATRIX_PROCESSES: dict[str, subprocess.Popen] = {}
 MATRIX_JOBS_LOCK = Lock()
 ANSWER_STAGE_KEYS = {"relevance", "summaries", "generation", "answer_docs", "citations", "terms", "answer"}
+MATRIX_STAGE_KEYS = [
+    "query_classify",
+    "filters",
+    "dense",
+    "sparse",
+    "special",
+    "fuse",
+    "rerank",
+    "assemble",
+    "metadata",
+    "retrieval",
+    "relevance",
+    "summaries",
+    "generation",
+    "answer_docs",
+    "citations",
+    "terms",
+    "answer",
+]
 DEBUG_STEP_TO_MATRIX_KEY = {
     "classify_query": "query_classify",
     "build_filters": "filters",
@@ -379,32 +398,14 @@ def _matrix_cell(status: str, detail: str = "") -> dict[str, str]:
 def _build_row_cells(item: dict | None) -> dict[str, dict[str, str]]:
     cells = {
         key: _matrix_cell("blank", "not scored yet")
-        for key in [
-            "query_classify",
-            "filters",
-            "dense",
-            "sparse",
-            "special",
-            "fuse",
-            "rerank",
-            "assemble",
-            "metadata",
-            "retrieval",
-            "relevance",
-            "summaries",
-            "generation",
-            "answer_docs",
-            "citations",
-            "terms",
-            "answer",
-        ]
+        for key in MATRIX_STAGE_KEYS
     }
     if not item:
         return cells
 
     debug_result = item.get("query_debug_result") or {}
     completed_steps = set(debug_result.get("completed_steps") or [])
-    step_to_key = {
+    retrieval_step_to_key = {
         "classify_query": "query_classify",
         "build_filters": "filters",
         "run_dense_search": "dense",
@@ -413,11 +414,13 @@ def _build_row_cells(item: dict | None) -> dict[str, dict[str, str]]:
         "fuse_results": "fuse",
         "rerank_results": "rerank",
         "assemble_context": "assemble",
+    }
+    answer_step_to_key = {
         "judge_answer_inputs": "relevance",
         "summarize_answer_inputs": "summaries",
         "generate_answer": "generation",
     }
-    for step, key in step_to_key.items():
+    for step, key in retrieval_step_to_key.items():
         if step in completed_steps:
             cells[key] = _matrix_cell("pass", "debug step completed")
 
@@ -443,6 +446,10 @@ def _build_row_cells(item: dict | None) -> dict[str, dict[str, str]]:
     )
     if not retrieval.get("passed"):
         return cells
+
+    for step, key in answer_step_to_key.items():
+        if step in completed_steps:
+            cells[key] = _matrix_cell("pass", "debug step completed")
 
     answer_eval = item.get("answer_evaluation") or {}
     if not answer_eval:
@@ -547,6 +554,28 @@ def _update_question_matrix_job(job_id: str, **updates: object) -> None:
         job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
+def _update_question_matrix_live_cell(job_id: str, case_id: str, key: str, status: str, detail: str = "") -> None:
+    if key not in MATRIX_STAGE_KEYS:
+        return
+    with MATRIX_JOBS_LOCK:
+        job = MATRIX_JOBS[job_id]
+        live_cells = dict(job.get("live_cells") or {})
+        row_cells = dict(live_cells.get(case_id) or {})
+        row_cells[key] = _matrix_cell(status, detail)
+        live_cells[case_id] = row_cells
+        job["live_cells"] = live_cells
+        job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _replace_question_matrix_live_cells(job_id: str, case_id: str, cells: dict[str, dict[str, str]]) -> None:
+    with MATRIX_JOBS_LOCK:
+        job = MATRIX_JOBS[job_id]
+        live_cells = dict(job.get("live_cells") or {})
+        live_cells[case_id] = {key: dict(value) for key, value in cells.items()}
+        job["live_cells"] = live_cells
+        job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
 def _active_question_matrix_job_id() -> str | None:
     for job_id, job in MATRIX_JOBS.items():
         if job.get("status") in {"queued", "running", "stopping"}:
@@ -634,6 +663,7 @@ def _start_question_matrix_job(payload: dict) -> dict:
         "returncode": None,
         "error": None,
         "cancel_requested": False,
+        "live_cells": {},
         "commands": [],
         "outputs": [],
     }
@@ -800,27 +830,36 @@ def _run_answer_matrix_dataset(
         for case in cases:
             _raise_if_question_matrix_job_cancelled(job_id)
             case_id = _case_key(case)
+            eval_case = RetrievalEvalCase(**case)
             _update_question_matrix_job(
                 job_id,
                 current_case_id=case_id,
                 current_question_number=case_numbers.get(case_id),
                 current_stage_key="query_classify",
             )
-            debug_result = _run_query_debug_stream(job_id, case_id, case_numbers.get(case_id), case["query"])
+            debug_result, early_evaluation = _run_query_debug_stream(
+                job_id,
+                case_id,
+                case_numbers.get(case_id),
+                case["query"],
+                eval_case=eval_case,
+            )
             _raise_if_question_matrix_job_cancelled(job_id)
             top_results = _debug_top_results(debug_result)
-            eval_case = RetrievalEvalCase(**case)
-            evaluation = score_search_results(eval_case, top_results)
-            answer = dict(debug_result.get("answer") or {})
-            for stage_key in ("answer_docs", "citations", "terms", "answer"):
-                _update_question_matrix_job(job_id, current_stage_key=stage_key)
-            answer_evaluation = score_answer_response(
-                eval_case,
-                answer,
-                evaluation,
-                top_results,
-                use_llm_required_info_judge=bool(job.get("use_model_judge")),
-            )
+            evaluation = early_evaluation or score_search_results(eval_case, top_results)
+            answer: dict = {}
+            answer_evaluation: dict = {}
+            if evaluation.get("passed"):
+                answer = dict(debug_result.get("answer") or {})
+                for stage_key in ("answer_docs", "citations", "terms", "answer"):
+                    _update_question_matrix_job(job_id, current_stage_key=stage_key)
+                answer_evaluation = score_answer_response(
+                    eval_case,
+                    answer,
+                    evaluation,
+                    top_results,
+                    use_llm_required_info_judge=bool(job.get("use_model_judge")),
+                )
             record = {
                 "case": case,
                 "evaluation": evaluation,
@@ -829,6 +868,7 @@ def _run_answer_matrix_dataset(
                 "answer_evaluation": answer_evaluation,
                 "query_debug_result": debug_result,
             }
+            _replace_question_matrix_live_cells(job_id, case_id, _build_row_cells(record))
             results.append(record)
             handle.write(json.dumps(record, default=str) + "\n")
             handle.flush()
@@ -858,7 +898,9 @@ def _run_answer_matrix_dataset(
     )
 
 
-def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | None, query: str) -> dict:
+def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | None, query: str, *, eval_case: object) -> tuple[dict, dict | None]:
+    from manuals_rag_evals.retrieval_eval import score_search_results
+
     request_payload = {
         "query": query,
         "corpus_ids": [DEFAULT_CORPUS_ID],
@@ -871,6 +913,9 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
         headers={"Authorization": f"Bearer {os.getenv('LOCAL_ADMIN_TOKEN', 'admin-token')}", "Content-Type": "application/json"},
         method="POST",
     )
+    completed_steps: list[str] = []
+    step_timings_ms: dict = {}
+    stages: list[dict] = []
     with urlopen(request, timeout=900) as response:
         for raw_line in response:
             _raise_if_question_matrix_job_cancelled(job_id)
@@ -885,8 +930,46 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                     current_question_number=question_number,
                     current_stage_key=DEBUG_STEP_TO_MATRIX_KEY[step],
                 )
+            if event.get("event") == "step_completed" and step in DEBUG_STEP_TO_MATRIX_KEY:
+                completed_steps = list(event.get("completed_steps") or completed_steps)
+                step_timings_ms = dict(event.get("step_timings_ms") or step_timings_ms)
+                payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+                stages.append(
+                    {
+                        "name": step,
+                        "label": event.get("label"),
+                        "duration_ms": event.get("duration_ms"),
+                        "samples": payload.get("samples") or payload.get("summaries") or [],
+                    }
+                )
+                _update_question_matrix_live_cell(
+                    job_id,
+                    case_id,
+                    DEBUG_STEP_TO_MATRIX_KEY[step],
+                    "pass",
+                    "debug step completed",
+                )
+                if step == "assemble_context":
+                    top_results = _top_results_from_assemble_payload(payload)
+                    evaluation = score_search_results(eval_case, top_results)
+                    _update_question_matrix_job(job_id, current_stage_key="retrieval")
+                    partial_debug_result = {
+                        "query": query,
+                        "corpus_ids": [DEFAULT_CORPUS_ID],
+                        "completed_steps": completed_steps,
+                        "step_timings_ms": step_timings_ms,
+                        "stages": stages,
+                        "answer": {},
+                        "early_stopped": not evaluation.get("passed"),
+                        "early_stop_reason": None if evaluation.get("passed") else evaluation.get("failure_category") or "retrieval_failed",
+                    }
+                    if not evaluation.get("passed"):
+                        return partial_debug_result, evaluation
             if event.get("event") == "run_completed":
-                return dict(event.get("result") or {})
+                result = dict(event.get("result") or {})
+                if completed_steps and "completed_steps" not in result:
+                    result["completed_steps"] = completed_steps
+                return result, None
             if event.get("event") == "run_failed":
                 raise RuntimeError(str(event.get("error") or "debug query run failed"))
     raise RuntimeError("debug query stream ended without run_completed")
@@ -896,7 +979,13 @@ def _debug_top_results(debug_result: dict) -> list[dict]:
     for stage in debug_result.get("stages") or []:
         if stage.get("name") == "retrieval_results":
             return list(stage.get("samples") or [])
+        if stage.get("name") == "assemble_context":
+            return list(stage.get("samples") or [])
     return []
+
+
+def _top_results_from_assemble_payload(payload: dict) -> list[dict]:
+    return list(payload.get("samples") or [])
 
 
 def main() -> None:

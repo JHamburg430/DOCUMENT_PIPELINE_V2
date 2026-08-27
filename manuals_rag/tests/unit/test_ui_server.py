@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 import pytest
 
 from apps.ui import server as ui_server
+from manuals_rag_evals.retrieval_eval import RetrievalEvalCase
 
 
 UI_DIR = Path(__file__).resolve().parents[2] / "apps" / "ui"
@@ -355,6 +356,107 @@ def test_question_matrix_stop_marks_job_and_terminates_process():
     assert process.terminated is True
     ui_server.MATRIX_JOBS.clear()
     ui_server.MATRIX_PROCESSES.clear()
+
+
+def test_question_matrix_blanks_answer_steps_after_retrieval_failure():
+    cells = ui_server._build_row_cells(
+        {
+            "query_debug_result": {
+                "completed_steps": [
+                    "classify_query",
+                    "build_filters",
+                    "run_dense_search",
+                    "assemble_context",
+                    "judge_answer_inputs",
+                    "summarize_answer_inputs",
+                    "generate_answer",
+                ]
+            },
+            "evaluation": {
+                "passed": False,
+                "failure_category": "expected_evidence_missing",
+                "metadata_document_selection": {"attempted": True, "passed": True, "rank": 1},
+            },
+            "answer_evaluation": {"passed": True, "expected_document_used": True},
+        }
+    )
+
+    assert cells["query_classify"]["status"] == "pass"
+    assert cells["retrieval"]["status"] == "fail"
+    assert cells["relevance"]["status"] == "blank"
+    assert cells["summaries"]["status"] == "blank"
+    assert cells["generation"]["status"] == "blank"
+    assert cells["answer"]["status"] == "blank"
+
+
+def test_query_debug_stream_stops_after_failed_retrieval(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-1",
+        query="What voltage does MODEL-1 use?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="spec_record",
+        section_path="Specifications",
+        page_from=1,
+        page_to=1,
+        expected_terms=["24", "vdc"],
+        expected_snippet="Power supply voltage: 24 VDC",
+        generation_method="unit_test",
+        source_metadata={"product_model": "MODEL-1"},
+    )
+    events = [
+        {"event": "step_started", "step": "classify_query"},
+        {"event": "step_completed", "step": "classify_query", "completed_steps": ["classify_query"], "step_timings_ms": {"classify_query": 1}, "payload": {}},
+        {
+            "event": "step_completed",
+            "step": "assemble_context",
+            "completed_steps": ["classify_query", "assemble_context"],
+            "step_timings_ms": {"classify_query": 1, "assemble_context": 2},
+            "payload": {
+                "samples": [
+                    {
+                        "chunk_id": "wrong-chunk",
+                        "source_document_id": "wrong-doc",
+                        "content": "Power supply voltage: 12 VDC",
+                    }
+                ]
+            },
+        },
+        {"event": "step_started", "step": "generate_answer"},
+    ]
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def __iter__(self):
+            for event in events:
+                yield (ui_server.json.dumps(event) + "\n").encode("utf-8")
+
+    monkeypatch.setattr(ui_server, "urlopen", lambda request, timeout: FakeResponse())
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-early"] = {"id": "matrix-early", "status": "running", "live_cells": {}}
+
+    debug_result, evaluation = ui_server._run_query_debug_stream(
+        "matrix-early",
+        "case-1",
+        1,
+        case.query,
+        eval_case=case,
+    )
+
+    assert evaluation["passed"] is False
+    assert debug_result["early_stopped"] is True
+    assert debug_result["answer"] == {}
+    assert "generate_answer" not in debug_result["completed_steps"]
+    assert ui_server.MATRIX_JOBS["matrix-early"]["live_cells"]["case-1"]["assemble"]["status"] == "pass"
+    ui_server.MATRIX_JOBS.clear()
 
 
 def test_api_proxy_keeps_manuals_rag_same_origin(monkeypatch):

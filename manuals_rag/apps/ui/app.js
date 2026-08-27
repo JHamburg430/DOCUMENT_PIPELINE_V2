@@ -349,7 +349,7 @@ function buildMatrixCells(item = {}) {
 function summarizeMatrixRows(items = []) {
   const totals = Object.fromEntries(MATRIX_STAGES.map((stage) => [stage.key, { pass: 0, fail: 0, blank: 0 }]));
   const rows = items.map((item, index) => {
-    const cells = item.cells || buildMatrixCells(item);
+    const cells = matrixCellsForItem(item);
     for (const stage of MATRIX_STAGES) {
       const status = cells[stage.key]?.status || "blank";
       totals[stage.key][status] += 1;
@@ -357,6 +357,12 @@ function summarizeMatrixRows(items = []) {
     return { item, index, cells };
   });
   return { rows, totals };
+}
+
+function matrixCellsForItem(item = {}) {
+  const baseCells = item.cells || buildMatrixCells(item);
+  const liveCells = state.matrixJob?.live_cells?.[item.key];
+  return liveCells ? { ...baseCells, ...liveCells } : baseCells;
 }
 
 function matrixStatusLabel(cell = {}) {
