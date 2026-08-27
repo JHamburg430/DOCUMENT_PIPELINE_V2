@@ -180,11 +180,13 @@ summary {
 
 #matrix.tab-panel.active,
 #search.tab-panel.active,
-#history.tab-panel.active {
+#history.tab-panel.active,
+#ingestion.tab-panel.active {
   display: block;
 }
 
-#matrix.tab-panel.active {
+#matrix.tab-panel.active,
+#ingestion.tab-panel.active {
   width: 100%;
 }
 
@@ -204,7 +206,8 @@ summary {
   overflow-x: auto;
 }
 
-#matrix > .panel {
+#matrix > .panel,
+#ingestion > .panel {
   width: 100%;
 }
 

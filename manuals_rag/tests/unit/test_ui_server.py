@@ -148,6 +148,8 @@ def test_eval_matrix_view_is_available():
     assert ".current-run-cell" in styles_css
     assert ".matrix-summary" in styles_css
     assert ".matrix-cell.blank" in styles_css
+    assert "#ingestion.tab-panel.active" in styles_css
+    assert "#ingestion > .panel" in styles_css
 
 
 def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_path):
