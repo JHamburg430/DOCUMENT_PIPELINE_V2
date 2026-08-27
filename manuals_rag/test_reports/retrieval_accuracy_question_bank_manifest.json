@@ -1020,45 +1020,54 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {
-      "expected_terms_missing": 1,
-      "expected_evidence_not_cited": 1
-    },
-    "next_target": "Fix contextual multi-step row 15 answer evidence selection from retrieval_eval_20260827_195423 so the CV-X LJ-V continuous-mode answer cites/uses the returned page 6-125 line-count and overlap-count evidence, then rerun actual HTTP API answer scoring. Preserve row 16 as clean with the preserved 195423 actual-results JSONL, row 15 as failed, older sibling row 15 diagnostic/source-context evidence as separate, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715.",
-    "answer_grounding_status": "Contextual multi-step answer rotation retrieval_eval_20260827_195423 regenerated the missing actual results JSONL for rows 15-16 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl and scored 2/2 retrieval with 1/2 actual HTTP API answers. Manual JSONL inspection of test_reports/retrieval_eval_results_20260827_195423.jsonl found row 15 still failed because the API answer cited CV-X page 7-91 chunk ab86f855-8067-519c-95e8-23a1da027818 and omitted the material page 6-125 values of 10 lines and two overlap lines, even though supporting page 6-125 chunks were returned at rank 3/5. Row 16 is clean from the preserved actual result: the answer cites returned chunk 86e3ce5c-95ea-5a0a-aab1-49bbfe7f88ed with quote_span null, and that chunk directly states that TRG1 for CAM 1 executes capture plus measurement processing of only that camera as one measurement. Current retrieval failures are {}; current answer failures are expected_terms_missing:1 and expected_evidence_not_cited:1.",
+    "answer_current_failure_categories": {},
+    "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_210240.",
+    "answer_grounding_status": "Contextual multi-step quantity answer repair retrieval_eval_20260827_210240 reran rows 15-16 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl through the restarted, fingerprinted HTTP API and scored 2/2 retrieval with 2/2 actual HTTP API answers. Manual JSONL inspection of test_reports/retrieval_eval_results_20260827_210240.jsonl found row 15 now clean: the answer cites returned CV-X page 6-125 chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 with quote_span null, and that chunk directly states the requested LJ-V continuous-mode example values of 10 lines and two overlap lines. Row 16 remains clean as a control: the answer cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content supports TRG1 for CAM 1 capture plus measurement processing as one measurement. Current retrieval failures are {}; current answer failures are {}. Diagnostic run retrieval_eval_20260827_203931 remains excluded because it was produced before the dirty quantity code was proven loaded and row 15 still failed there.",
     "answer_grounding_rotation": {
-      "scope": "contextual_multi_step_rows_15_16_answer_rotation",
-      "status": "missing_results_jsonl_regenerated_row16_clean_row15_failed",
-      "latest_run": "retrieval_eval_20260827_195423",
-      "supersedes_tracking_run": "retrieval_eval_20260827_192414",
-      "summary": "test_reports/retrieval_eval_summary_20260827_195423.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_195423.json",
-      "results": "test_reports/retrieval_eval_results_20260827_195423.jsonl",
-      "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_195423.jsonl",
+      "scope": "contextual_multi_step_rows_15_16_quantity_answer_repair",
+      "status": "rows_15_16_clean_after_loaded_quantity_evidence_selection",
+      "latest_run": "retrieval_eval_20260827_210240",
+      "supersedes_failed_run": "retrieval_eval_20260827_195423",
+      "diagnostic_preload_run": "retrieval_eval_20260827_203931",
+      "summary": "test_reports/retrieval_eval_summary_20260827_210240.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_210240.json",
+      "results": "test_reports/retrieval_eval_results_20260827_210240.jsonl",
+      "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_210240.jsonl",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
       "query_offset": 14,
       "max_queries": 2,
       "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
-      "answer_result": "1/2 actual HTTP API answers passed; answer_source api for both; fallback 0; failures expected_terms_missing:1 and expected_evidence_not_cited:1.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_195423.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count. Retrieval included supporting CV-X page 6-125 chunks including a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 and e554ceb7-16e9-5675-a71b-6cacb658682e, but the API answer cited ab86f855-8067-519c-95e8-23a1da027818 from CV-X page 7-91 and omitted 10 lines and two overlap lines; row 15 is not clean. Contextual row 16 asks what happens when TRG1 is input for camera 1; the answer cites returned chunk 86e3ce5c-95ea-5a0a-aab1-49bbfe7f88ed with quote_span null, and the cited chunk directly states that TRG1 for CAM 1 executes capture plus measurement processing of only that camera as one measurement; row 16 is clean.",
+      "answer_result": "2/2 actual HTTP API answers passed; answer_source api for both; fallback 0; failures {}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_210240.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count; the answer cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 from pages 863-864 with quote_span null, and the chunk itself states Number of Lines 10, Number of Overlapping Lines Two lines, and that the number of lines is 10 and overlap lines is two. Contextual row 16 remains clean as a control; it cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9 with quote_span null, and that chunk directly states TRG1 for CAM 1 executes capture plus measurement processing of one camera as one measurement.",
+      "runtime_load_evidence": {
+        "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
+        "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
+        "_answer_addresses_quantity_request_sha256": "7a9b3413ccaae0ab2500a4e53a9938073b5ce88f6f2772e45dd898a4ba4714d2",
+        "_fallback_evidence_score_sha256": "3458a1ffaca82c7584c08fbddbd0fec9b7c000dc7f09fc9a3ae8e48a4260a871",
+        "_fallback_evidence_results_sha256": "84422e0a5a55e15f4f5d580efef35209dad5d6a0b8d505bda237fe5e17c6b971",
+        "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b",
+        "OLLAMA_URL": "http://host.docker.internal:11437",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
+      },
       "guardrail_addressed": {
-        "timestamp": "2026-08-27T19:41:10Z",
-        "finding": "retrieval_eval_20260827_192414 row 16 clean claim lacked the actual results JSONL required for citation inspection.",
+        "timestamp": "2026-08-27T20:51:12Z",
+        "finding": "Uncommitted quantity fallback answer change lacked durable tracking, runtime-load proof, full unit gate, and a post-load HTTP rerun; diagnostic retrieval_eval_20260827_203931 still left row 15 failed.",
         "evidence": [
-          "test_reports/retrieval_eval_results_20260827_195423.jsonl",
-          "test_reports/retrieval_eval_summary_20260827_195423.json",
-          "test_reports/retrieval_eval_manifest_20260827_195423.json",
-          "Manual inspection verified row 16 answer text, citation chunk id, null quote_span, and returned chunk content support.",
-          "Row 15 remains failed with expected_terms_missing and expected_evidence_not_cited."
+          "Focused quantity/context answering controls passed: 4 passed, 49 deselected.",
+          "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 370 passed, 59 warnings.",
+          "API was restarted and loaded quantity/fallback/validate_answer fingerprints were recorded.",
+          "retrieval_eval_20260827_210240 scored rows 15-16 at 2/2 retrieval and 2/2 actual HTTP API answers, answer_source api, fallback 0.",
+          "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence containing 10 lines and two overlap lines."
         ]
       },
-      "remaining": "Fix contextual row 15 answer evidence selection so the answer cites/uses returned CV-X page 6-125 line-count/overlap evidence. Preserve row 16 as clean only with preserved actual results JSONL evidence, row 15 as failed, row 15 sibling troubleshooting diagnostic/source-context evidence as a separate older issue, diagnostic-only LLM judge policy, citation-fidelity containments, prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715."
+      "remaining": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases. Preserve older sibling row 15 diagnostic/source-context evidence as separate, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, row-6 clean rerun retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_210240."
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {
-      "expected_terms_missing": 1,
-      "expected_evidence_not_cited": 1
-    },
+    "current_answer_failure_categories": {},
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1205,6 +1214,20 @@
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-27T20:51:12Z",
+        "severity": "needs_fix",
+        "finding": "Uncommitted contextual quantity fallback answer change and retrieval_eval_20260827_203931 could not be accepted without tracking, runtime-load proof, full unit gate, and a post-load HTTP rerun that changed row 15 from wrong page-7-91 answer to cited page-6-125 quantity evidence.",
+        "status": "addressed_by_20260827_210240_loaded_quantity_rerun",
+        "evidence": [
+          "Focused quantity/context answering controls passed: 4 passed, 49 deselected.",
+          "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 370 passed, 59 warnings.",
+          "API was restarted and loaded quantity/fallback/validate_answer fingerprints were recorded.",
+          "retrieval_eval_20260827_210240 scored rows 15-16 at 2/2 retrieval and 2/2 actual HTTP API answers, answer_source api, fallback 0.",
+          "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence containing 10 lines and two overlap lines."
+        ],
+        "required_next_action": "No further action for contextual row 15 before optional rotations; preserve retrieval_eval_20260827_203931 as diagnostic/preload failed evidence and use retrieval_eval_20260827_210240 as the clean loaded-API rerun evidence."
+      },
       {
         "timestamp": "2026-08-27T19:41:10Z",
         "severity": "needs_fix",
@@ -1674,6 +1697,49 @@
       ],
       "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
       "scope": "production answering fallback/context-use logic, focused answering tests, and tracking/eval artifacts only; no retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed"
+    },
+    "latest_contextual_quantity_answer_repair": {
+      "scope": "contextual_multi_step_rows_15_16_quantity_answer_repair",
+      "status": "rows_15_16_clean_after_loaded_quantity_evidence_selection",
+      "latest_run": "retrieval_eval_20260827_210240",
+      "supersedes_failed_run": "retrieval_eval_20260827_195423",
+      "diagnostic_preload_run": "retrieval_eval_20260827_203931",
+      "summary": "test_reports/retrieval_eval_summary_20260827_210240.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_210240.json",
+      "results": "test_reports/retrieval_eval_results_20260827_210240.jsonl",
+      "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_210240.jsonl",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "query_offset": 14,
+      "max_queries": 2,
+      "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
+      "answer_result": "2/2 actual HTTP API answers passed; answer_source api for both; fallback 0; failures {}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_210240.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count; the answer cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 from pages 863-864 with quote_span null, and the chunk itself states Number of Lines 10, Number of Overlapping Lines Two lines, and that the number of lines is 10 and overlap lines is two. Contextual row 16 remains clean as a control; it cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9 with quote_span null, and that chunk directly states TRG1 for CAM 1 executes capture plus measurement processing of one camera as one measurement.",
+      "runtime_load_evidence": {
+        "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
+        "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
+        "_answer_addresses_quantity_request_sha256": "7a9b3413ccaae0ab2500a4e53a9938073b5ce88f6f2772e45dd898a4ba4714d2",
+        "_fallback_evidence_score_sha256": "3458a1ffaca82c7584c08fbddbd0fec9b7c000dc7f09fc9a3ae8e48a4260a871",
+        "_fallback_evidence_results_sha256": "84422e0a5a55e15f4f5d580efef35209dad5d6a0b8d505bda237fe5e17c6b971",
+        "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b",
+        "OLLAMA_URL": "http://host.docker.internal:11437",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
+      },
+      "guardrail_addressed": {
+        "timestamp": "2026-08-27T20:51:12Z",
+        "finding": "Uncommitted quantity fallback answer change lacked durable tracking, runtime-load proof, full unit gate, and a post-load HTTP rerun; diagnostic retrieval_eval_20260827_203931 still left row 15 failed.",
+        "evidence": [
+          "Focused quantity/context answering controls passed: 4 passed, 49 deselected.",
+          "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 370 passed, 59 warnings.",
+          "API was restarted and loaded quantity/fallback/validate_answer fingerprints were recorded.",
+          "retrieval_eval_20260827_210240 scored rows 15-16 at 2/2 retrieval and 2/2 actual HTTP API answers, answer_source api, fallback 0.",
+          "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence containing 10 lines and two overlap lines."
+        ]
+      },
+      "remaining": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases. Preserve older sibling row 15 diagnostic/source-context evidence as separate, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, row-6 clean rerun retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_210240."
     }
   },
   "latest_false_negative_repair": {
@@ -7624,7 +7690,7 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Fix contextual multi-step row 15 answer evidence selection from retrieval_eval_20260827_195423 so the CV-X LJ-V continuous-mode answer cites/uses the returned page 6-125 line-count and overlap-count evidence, then rerun actual HTTP API answer scoring. Preserve row 16 as clean with the preserved 195423 actual-results JSONL, row 15 as failed, older sibling row 15 diagnostic/source-context evidence as separate, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715.",
+  "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_210240.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -7908,38 +7974,50 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {
-    "expected_terms_missing": 1,
-    "expected_evidence_not_cited": 1
-  },
-  "answer_grounding_status": "Contextual multi-step answer rotation retrieval_eval_20260827_195423 regenerated the missing actual results JSONL for rows 15-16 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl and scored 2/2 retrieval with 1/2 actual HTTP API answers. Manual JSONL inspection of test_reports/retrieval_eval_results_20260827_195423.jsonl found row 15 still failed because the API answer cited CV-X page 7-91 chunk ab86f855-8067-519c-95e8-23a1da027818 and omitted the material page 6-125 values of 10 lines and two overlap lines, even though supporting page 6-125 chunks were returned at rank 3/5. Row 16 is clean from the preserved actual result: the answer cites returned chunk 86e3ce5c-95ea-5a0a-aab1-49bbfe7f88ed with quote_span null, and that chunk directly states that TRG1 for CAM 1 executes capture plus measurement processing of only that camera as one measurement. Current retrieval failures are {}; current answer failures are expected_terms_missing:1 and expected_evidence_not_cited:1.",
+  "answer_current_failure_categories": {},
+  "answer_grounding_status": "Contextual multi-step quantity answer repair retrieval_eval_20260827_210240 reran rows 15-16 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl through the restarted, fingerprinted HTTP API and scored 2/2 retrieval with 2/2 actual HTTP API answers. Manual JSONL inspection of test_reports/retrieval_eval_results_20260827_210240.jsonl found row 15 now clean: the answer cites returned CV-X page 6-125 chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 with quote_span null, and that chunk directly states the requested LJ-V continuous-mode example values of 10 lines and two overlap lines. Row 16 remains clean as a control: the answer cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content supports TRG1 for CAM 1 capture plus measurement processing as one measurement. Current retrieval failures are {}; current answer failures are {}. Diagnostic run retrieval_eval_20260827_203931 remains excluded because it was produced before the dirty quantity code was proven loaded and row 15 still failed there.",
   "answer_grounding_rotation": {
-    "scope": "contextual_multi_step_rows_15_16_answer_rotation",
-    "status": "missing_results_jsonl_regenerated_row16_clean_row15_failed",
-    "latest_run": "retrieval_eval_20260827_195423",
-    "supersedes_tracking_run": "retrieval_eval_20260827_192414",
-    "summary": "test_reports/retrieval_eval_summary_20260827_195423.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260827_195423.json",
-    "results": "test_reports/retrieval_eval_results_20260827_195423.jsonl",
-    "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_195423.jsonl",
+    "scope": "contextual_multi_step_rows_15_16_quantity_answer_repair",
+    "status": "rows_15_16_clean_after_loaded_quantity_evidence_selection",
+    "latest_run": "retrieval_eval_20260827_210240",
+    "supersedes_failed_run": "retrieval_eval_20260827_195423",
+    "diagnostic_preload_run": "retrieval_eval_20260827_203931",
+    "summary": "test_reports/retrieval_eval_summary_20260827_210240.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_210240.json",
+    "results": "test_reports/retrieval_eval_results_20260827_210240.jsonl",
+    "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_210240.jsonl",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
     "query_offset": 14,
     "max_queries": 2,
     "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
-    "answer_result": "1/2 actual HTTP API answers passed; answer_source api for both; fallback 0; failures expected_terms_missing:1 and expected_evidence_not_cited:1.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_195423.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count. Retrieval included supporting CV-X page 6-125 chunks including a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 and e554ceb7-16e9-5675-a71b-6cacb658682e, but the API answer cited ab86f855-8067-519c-95e8-23a1da027818 from CV-X page 7-91 and omitted 10 lines and two overlap lines; row 15 is not clean. Contextual row 16 asks what happens when TRG1 is input for camera 1; the answer cites returned chunk 86e3ce5c-95ea-5a0a-aab1-49bbfe7f88ed with quote_span null, and the cited chunk directly states that TRG1 for CAM 1 executes capture plus measurement processing of only that camera as one measurement; row 16 is clean.",
+    "answer_result": "2/2 actual HTTP API answers passed; answer_source api for both; fallback 0; failures {}.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_210240.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count; the answer cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 from pages 863-864 with quote_span null, and the chunk itself states Number of Lines 10, Number of Overlapping Lines Two lines, and that the number of lines is 10 and overlap lines is two. Contextual row 16 remains clean as a control; it cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9 with quote_span null, and that chunk directly states TRG1 for CAM 1 executes capture plus measurement processing of one camera as one measurement.",
+    "runtime_load_evidence": {
+      "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
+      "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
+      "_answer_addresses_quantity_request_sha256": "7a9b3413ccaae0ab2500a4e53a9938073b5ce88f6f2772e45dd898a4ba4714d2",
+      "_fallback_evidence_score_sha256": "3458a1ffaca82c7584c08fbddbd0fec9b7c000dc7f09fc9a3ae8e48a4260a871",
+      "_fallback_evidence_results_sha256": "84422e0a5a55e15f4f5d580efef35209dad5d6a0b8d505bda237fe5e17c6b971",
+      "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b",
+      "OLLAMA_URL": "http://host.docker.internal:11437",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
+    },
     "guardrail_addressed": {
-      "timestamp": "2026-08-27T19:41:10Z",
-      "finding": "retrieval_eval_20260827_192414 row 16 clean claim lacked the actual results JSONL required for citation inspection.",
+      "timestamp": "2026-08-27T20:51:12Z",
+      "finding": "Uncommitted quantity fallback answer change lacked durable tracking, runtime-load proof, full unit gate, and a post-load HTTP rerun; diagnostic retrieval_eval_20260827_203931 still left row 15 failed.",
       "evidence": [
-        "test_reports/retrieval_eval_results_20260827_195423.jsonl",
-        "test_reports/retrieval_eval_summary_20260827_195423.json",
-        "test_reports/retrieval_eval_manifest_20260827_195423.json",
-        "Manual inspection verified row 16 answer text, citation chunk id, null quote_span, and returned chunk content support.",
-        "Row 15 remains failed with expected_terms_missing and expected_evidence_not_cited."
+        "Focused quantity/context answering controls passed: 4 passed, 49 deselected.",
+        "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 370 passed, 59 warnings.",
+        "API was restarted and loaded quantity/fallback/validate_answer fingerprints were recorded.",
+        "retrieval_eval_20260827_210240 scored rows 15-16 at 2/2 retrieval and 2/2 actual HTTP API answers, answer_source api, fallback 0.",
+        "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence containing 10 lines and two overlap lines."
       ]
     },
-    "remaining": "Fix contextual row 15 answer evidence selection so the answer cites/uses returned CV-X page 6-125 line-count/overlap evidence. Preserve row 16 as clean only with preserved actual results JSONL evidence, row 15 as failed, row 15 sibling troubleshooting diagnostic/source-context evidence as a separate older issue, diagnostic-only LLM judge policy, citation-fidelity containments, prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715."
+    "remaining": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases. Preserve older sibling row 15 diagnostic/source-context evidence as separate, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, row-6 clean rerun retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_210240."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -8349,10 +8427,7 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {
-    "expected_terms_missing": 1,
-    "expected_evidence_not_cited": 1
-  },
+  "current_answer_failure_categories": {},
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
@@ -8499,6 +8574,20 @@
     }
   ],
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-27T20:51:12Z",
+      "severity": "needs_fix",
+      "finding": "Uncommitted contextual quantity fallback answer change and retrieval_eval_20260827_203931 could not be accepted without tracking, runtime-load proof, full unit gate, and a post-load HTTP rerun that changed row 15 from wrong page-7-91 answer to cited page-6-125 quantity evidence.",
+      "status": "addressed_by_20260827_210240_loaded_quantity_rerun",
+      "evidence": [
+        "Focused quantity/context answering controls passed: 4 passed, 49 deselected.",
+        "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 370 passed, 59 warnings.",
+        "API was restarted and loaded quantity/fallback/validate_answer fingerprints were recorded.",
+        "retrieval_eval_20260827_210240 scored rows 15-16 at 2/2 retrieval and 2/2 actual HTTP API answers, answer_source api, fallback 0.",
+        "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence containing 10 lines and two overlap lines."
+      ],
+      "required_next_action": "No further action for contextual row 15 before optional rotations; preserve retrieval_eval_20260827_203931 as diagnostic/preload failed evidence and use retrieval_eval_20260827_210240 as the clean loaded-API rerun evidence."
+    },
     {
       "timestamp": "2026-08-27T19:41:10Z",
       "severity": "needs_fix",
@@ -8911,5 +9000,48 @@
     ],
     "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
     "scope": "production answering fallback/context-use logic, focused answering tests, and tracking/eval artifacts only; no retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed"
+  },
+  "latest_contextual_quantity_answer_repair": {
+    "scope": "contextual_multi_step_rows_15_16_quantity_answer_repair",
+    "status": "rows_15_16_clean_after_loaded_quantity_evidence_selection",
+    "latest_run": "retrieval_eval_20260827_210240",
+    "supersedes_failed_run": "retrieval_eval_20260827_195423",
+    "diagnostic_preload_run": "retrieval_eval_20260827_203931",
+    "summary": "test_reports/retrieval_eval_summary_20260827_210240.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_210240.json",
+    "results": "test_reports/retrieval_eval_results_20260827_210240.jsonl",
+    "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_210240.jsonl",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+    "query_offset": 14,
+    "max_queries": 2,
+    "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
+    "answer_result": "2/2 actual HTTP API answers passed; answer_source api for both; fallback 0; failures {}.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_210240.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count; the answer cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 from pages 863-864 with quote_span null, and the chunk itself states Number of Lines 10, Number of Overlapping Lines Two lines, and that the number of lines is 10 and overlap lines is two. Contextual row 16 remains clean as a control; it cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9 with quote_span null, and that chunk directly states TRG1 for CAM 1 executes capture plus measurement processing of one camera as one measurement.",
+    "runtime_load_evidence": {
+      "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
+      "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
+      "_answer_addresses_quantity_request_sha256": "7a9b3413ccaae0ab2500a4e53a9938073b5ce88f6f2772e45dd898a4ba4714d2",
+      "_fallback_evidence_score_sha256": "3458a1ffaca82c7584c08fbddbd0fec9b7c000dc7f09fc9a3ae8e48a4260a871",
+      "_fallback_evidence_results_sha256": "84422e0a5a55e15f4f5d580efef35209dad5d6a0b8d505bda237fe5e17c6b971",
+      "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b",
+      "OLLAMA_URL": "http://host.docker.internal:11437",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
+    },
+    "guardrail_addressed": {
+      "timestamp": "2026-08-27T20:51:12Z",
+      "finding": "Uncommitted quantity fallback answer change lacked durable tracking, runtime-load proof, full unit gate, and a post-load HTTP rerun; diagnostic retrieval_eval_20260827_203931 still left row 15 failed.",
+      "evidence": [
+        "Focused quantity/context answering controls passed: 4 passed, 49 deselected.",
+        "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 370 passed, 59 warnings.",
+        "API was restarted and loaded quantity/fallback/validate_answer fingerprints were recorded.",
+        "retrieval_eval_20260827_210240 scored rows 15-16 at 2/2 retrieval and 2/2 actual HTTP API answers, answer_source api, fallback 0.",
+        "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence containing 10 lines and two overlap lines."
+      ]
+    },
+    "remaining": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases. Preserve older sibling row 15 diagnostic/source-context evidence as separate, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, row-6 clean rerun retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_210240."
   }
 }

@@ -226,6 +226,70 @@ def _answer_supported_by_results(answer: str, results: list[SearchResult]) -> bo
     return len(overlap) >= max(2, min(5, len(answer_terms) // 4 or 1))
 
 
+NUMBER_WORDS = {
+    "zero",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+    "twenty",
+}
+
+
+def _quantity_terms(text: str) -> set[str]:
+    terms = {token.lower() for token in re.findall(r"\b\d+(?:\.\d+)?\b", text)}
+    terms.update(token.lower() for token in re.findall(r"\b[a-z]+\b", text, flags=re.IGNORECASE) if token.lower() in NUMBER_WORDS)
+    return terms
+
+
+def _contextual_quantity_terms(text: str) -> set[str]:
+    terms: set[str] = set()
+    quantity_pattern = r"(?:count|counts|number(?:\s+of)?|quantity|total|overlap(?:ping)?|lines?)"
+    quantity_value_pattern = r"(?:\d+(?:\.\d+)?|" + "|".join(sorted(NUMBER_WORDS)) + r")"
+    for match in re.finditer(
+        rf"(?:\b{quantity_pattern}\b[\w\s,;:/().\[\]-]{{0,100}}\b{quantity_value_pattern}\b)"
+        rf"|(?:\b{quantity_value_pattern}\b[\w\s,;:/().\[\]-]{{0,100}}\b{quantity_pattern}\b)",
+        text,
+        flags=re.IGNORECASE,
+    ):
+        terms.update(_quantity_terms(match.group(0)))
+    return terms
+
+
+def _answer_addresses_quantity_request(answer: str, query: str, results: list[SearchResult]) -> bool:
+    if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
+        return True
+    query_terms = _answer_terms(query)
+    answer_quantities = _contextual_quantity_terms(answer)
+    candidate_quantities: set[str] = set()
+    for result in results[:8]:
+        evidence = _fallback_answer_text(result)
+        quantities = _contextual_quantity_terms(evidence)
+        if not quantities:
+            continue
+        overlap = len(query_terms.intersection(_answer_terms(evidence)))
+        if overlap >= 3:
+            candidate_quantities.update(quantities)
+    if not candidate_quantities:
+        return True
+    return bool(answer_quantities.intersection(candidate_quantities))
+
+
 ANSWER_CLAIM_SUPPORT_STOPWORDS = {
     "about",
     "after",
@@ -587,12 +651,25 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
         or query_terms.intersection(_answer_terms(result.title))
     ):
         score += 1.0
+    if re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
+        score += min(4.0, float(len(_contextual_quantity_terms(evidence))))
     return score
 
 
 def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
     ordered_results = _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results))
     if not _is_comparison_query(query):
+        if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
+            return ordered_results[:1]
+        scored = [
+            (_fallback_evidence_score(query, result), index, result)
+            for index, result in enumerate(ordered_results[:8])
+        ]
+        if not scored:
+            return []
+        best_score, _best_index, best_result = max(scored, key=lambda item: (item[0], -item[1]))
+        if best_score >= 2.0:
+            return [best_result]
         return ordered_results[:1]
     scored = [
         (_fallback_evidence_score(query, result), index, result)
@@ -841,6 +918,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         or not _answer_addresses_troubleshooting_anchor(answer.answer, query, list(answer.citations), results)
         or not _answer_uses_matching_troubleshooting_row(answer.answer, query, results)
         or not _comparison_answer_covers_retrieved_model_sides(query, list(answer.citations), results)
+        or not _answer_addresses_quantity_request(answer.answer, query, results)
     ):
         fallback = _fallback_answer(query, results)
         answer = fallback.model_copy(
