@@ -659,6 +659,36 @@ def test_question_matrix_blocks_answer_steps_when_context_retention_fails():
         assert "blocked" in cells[key]["detail"]
 
 
+def test_question_matrix_does_not_fail_stages_when_samples_were_not_recorded():
+    cells = ui_server._build_row_cells(
+        {
+            "case": {
+                "source_document_id": "doc-expected",
+                "source_chunk_id": "chunk-expected",
+            },
+            "query_debug_result": {
+                "completed_steps": [
+                    "classify_query",
+                    "build_filters",
+                    "run_dense_search",
+                    "run_sparse_search",
+                    "fuse_results",
+                    "rerank_results",
+                    "assemble_context",
+                ],
+            },
+            "evaluation": {
+                "passed": True,
+                "metadata_document_selection": {"attempted": False},
+            },
+        }
+    )
+
+    assert cells["dense"]["status"] == "blank"
+    assert cells["assemble"]["status"] == "blank"
+    assert cells["retrieval"]["status"] == "pass"
+
+
 def test_question_type_identifies_multi_step_and_multi_document_cases():
     multi_step = ui_server._question_type(
         {
@@ -762,6 +792,77 @@ def test_query_debug_stream_stops_after_failed_retrieval(monkeypatch, tmp_path):
     assert "generate_answer" not in debug_result["completed_steps"]
     assert ui_server.MATRIX_JOBS["matrix-early"]["live_cells"]["case-1"]["assemble"]["status"] == "fail"
     assert ui_server.MATRIX_JOBS["matrix-early"]["live_cells"]["case-1"]["assemble"]["label"] == "NO"
+    ui_server.MATRIX_JOBS.clear()
+
+
+def test_query_debug_stream_preserves_accumulated_stage_samples(monkeypatch, tmp_path):
+    case = RetrievalEvalCase(
+        case_id="case-1",
+        query="What voltage does MODEL-1 use?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="spec_record",
+        section_path="Specifications",
+        page_from=1,
+        page_to=1,
+        expected_terms=["24", "vdc"],
+        expected_snippet="Power supply voltage: 24 VDC",
+        generation_method="unit_test",
+        source_metadata={"product_model": "MODEL-1"},
+    )
+    events = [
+        {
+            "event": "step_completed",
+            "step": "assemble_context",
+            "completed_steps": ["assemble_context"],
+            "step_timings_ms": {"assemble_context": 2},
+            "payload": {
+                "samples": [
+                    {
+                        "chunk_id": "chunk-1",
+                        "source_document_id": "doc-1",
+                        "content": "Power supply voltage: 24 VDC",
+                    }
+                ]
+            },
+        },
+        {"event": "run_completed", "result": {"answer": {"text": "24 VDC"}}},
+    ]
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def __iter__(self):
+            for event in events:
+                yield (ui_server.json.dumps(event) + "\n").encode("utf-8")
+
+    monkeypatch.setattr(ui_server, "urlopen", lambda request, timeout: FakeResponse())
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-stream"] = {"id": "matrix-stream", "status": "running", "live_cells": {}}
+
+    debug_result, evaluation = ui_server._run_query_debug_stream(
+        "matrix-stream",
+        "case-1",
+        1,
+        case.query,
+        eval_case=case,
+    )
+
+    assert evaluation is None
+    assert debug_result["completed_steps"] == ["assemble_context"]
+    assert debug_result["step_timings_ms"] == {"assemble_context": 2}
+    assert debug_result["stages"][0]["name"] == "assemble_context"
+    assert debug_result["stages"][0]["samples"][0]["source_document_id"] == "doc-1"
     ui_server.MATRIX_JOBS.clear()
 
 

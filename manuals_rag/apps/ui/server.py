@@ -579,8 +579,11 @@ def _build_row_cells(item: dict | None, case: dict | None = None) -> dict[str, d
             elif step == "build_filters":
                 cells[key] = _matrix_cell("pass", "Filters were built; document loss is measured by the following search stages.", "SET")
             elif step in RESULT_STAGE_STEPS:
-                cells[key], found = _result_stage_cell(key, samples_by_step, targets, previously_found=previously_found)
-                previously_found = found or previously_found and cells[key].get("label") != "DROPPED"
+                if step not in samples_by_step:
+                    cells[key] = _matrix_cell("blank", "debug step completed, but stage samples were not recorded")
+                else:
+                    cells[key], found = _result_stage_cell(key, samples_by_step, targets, previously_found=previously_found)
+                    previously_found = found or previously_found and cells[key].get("label") != "DROPPED"
             else:
                 cells[key] = _matrix_cell("pass", "debug step completed", "DONE")
 
@@ -1254,6 +1257,10 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                 result = dict(event.get("result") or {})
                 if completed_steps and "completed_steps" not in result:
                     result["completed_steps"] = completed_steps
+                if step_timings_ms and "step_timings_ms" not in result:
+                    result["step_timings_ms"] = step_timings_ms
+                if stages and "stages" not in result:
+                    result["stages"] = stages
                 return result, None
             if event.get("event") == "run_failed":
                 raise RuntimeError(str(event.get("error") or "debug query run failed"))
