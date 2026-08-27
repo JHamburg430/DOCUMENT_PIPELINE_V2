@@ -110,7 +110,13 @@ def test_eval_matrix_view_is_available():
     assert 'id="matrix-stop"' in index_html
     assert 'id="matrix-summary"' in index_html
     assert 'id="matrix-table"' in index_html
+    assert 'id="matrix-filter-text"' in index_html
+    assert 'id="matrix-filter-run"' in index_html
+    assert 'id="matrix-filter-type"' in index_html
+    assert 'id="matrix-filter-status"' in index_html
+    assert 'id="matrix-column-picker"' in index_html
     assert "MATRIX_STAGES" in app_js
+    assert "MATRIX_BASE_COLUMNS" in app_js
     assert "setupMatrixControls()" in app_js
     assert "startMatrixJob" in app_js
     assert "stopMatrixJob" in app_js
@@ -123,12 +129,22 @@ def test_eval_matrix_view_is_available():
     assert "renderMatrixSummary" in app_js
     assert "renderQuestionMatrix(payload)" in app_js
     assert "updateQuestionMatrixLiveState" in app_js
+    assert "getMatrixViewRows" in app_js
+    assert "matrixSortButton" in app_js
+    assert "matrixRowMatchesFilters" in app_js
+    assert "renderMatrixColumnControls" in app_js
     assert "data-matrix-key" in app_js
     assert "data-matrix-stage" in app_js
+    assert "data-matrix-sort" in app_js
+    assert "data-matrix-visible" in app_js
+    assert "data-matrix-stage-filter" in app_js
     poll_body = re.search(r"async function pollMatrixJob\(jobId\) \{(?P<body>.*?)\n\}", app_js, re.S).group("body")
     assert "updateQuestionMatrixLiveState()" in poll_body
     assert "renderQuestionMatrix(state.questionMatrix)" not in poll_body
     assert ".matrix-actions" in styles_css
+    assert ".matrix-view-controls" in styles_css
+    assert ".matrix-column-options" in styles_css
+    assert ".matrix-sort" in styles_css
     assert ".current-run-cell" in styles_css
     assert ".matrix-summary" in styles_css
     assert ".matrix-cell.blank" in styles_css

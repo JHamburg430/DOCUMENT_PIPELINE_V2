@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-incremental-matrix-poll-1";
+const ASSET_VERSION = "20260827-matrix-table-controls-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 const MATRIX_JOB_POLL_MS = 1000;
 
@@ -13,9 +13,13 @@ const state = {
   currentEval: null,
   selectedEvalIndex: 0,
   selectedMatrixIndex: 0,
+  selectedMatrixKey: null,
   questionMatrix: null,
   matrixJob: null,
   matrixJobTimer: null,
+  matrixSort: { key: "number", direction: "asc" },
+  matrixFilters: { text: "", run: "", type: "", anyStatus: "", stages: {} },
+  matrixVisibleColumns: null,
   running: false,
   runDebug: null,
   runDebugTimer: null,
@@ -116,6 +120,18 @@ const MATRIX_COLUMN_HINTS = {
   question: "Generated eval question and source dataset/run. The text is formed from source-backed chunks, not written by the answer agent.",
   type: "Single means one evidence target; multi-step means several evidence targets; multi-doc means expected evidence spans more than one source document.",
 };
+
+const MATRIX_BASE_COLUMNS = [
+  { key: "number", label: "#", description: MATRIX_COLUMN_HINTS.number },
+  { key: "question", label: "Question", description: MATRIX_COLUMN_HINTS.question },
+  { key: "type", label: "Type", description: MATRIX_COLUMN_HINTS.type },
+  { key: "dataset", label: "Dataset", description: "Question-bank dataset or analysis file that supplied this row." },
+  { key: "run", label: "Run", description: "Latest saved run id, or the active live matrix job id while this row is being evaluated." },
+];
+
+const MATRIX_DEFAULT_VISIBLE_COLUMNS = Object.fromEntries(
+  [...MATRIX_BASE_COLUMNS.map((column) => column.key), ...MATRIX_STAGES.map((stage) => stage.key)].map((key) => [key, true]),
+);
 
 function $(id) {
   return document.getElementById(id);
@@ -401,6 +417,152 @@ function matrixStatusLabel(cell = {}) {
   return "";
 }
 
+function matrixVisibleColumns() {
+  return { ...MATRIX_DEFAULT_VISIBLE_COLUMNS, ...(state.matrixVisibleColumns || {}) };
+}
+
+function isMatrixColumnVisible(key) {
+  return matrixVisibleColumns()[key] !== false;
+}
+
+function matrixColumnDefinitions() {
+  return [
+    ...MATRIX_BASE_COLUMNS,
+    ...MATRIX_STAGES.map((stage) => ({ ...stage, stage: true })),
+  ].filter((column) => isMatrixColumnVisible(column.key));
+}
+
+function normalizedMatrixText(row) {
+  const item = row.item || {};
+  const caseData = item.case || {};
+  const latest = item.latest_result || {};
+  const answer = latest.answer?.answer || latest.query_debug_result?.answer?.answer || "";
+  return [
+    row.index + 1,
+    caseData.query,
+    item.query,
+    item.dataset,
+    latest.run_id,
+    caseData.source_filename,
+    answer,
+  ].join(" ").toLowerCase();
+}
+
+function matrixRunText(row) {
+  const item = row.item || {};
+  return [
+    item.dataset,
+    item.latest_result?.run_id,
+    state.matrixJob?.live_cells?.[item.key] ? state.matrixJob?.id : "",
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function matrixRowMatchesFilters(row) {
+  const filters = state.matrixFilters || {};
+  const text = String(filters.text || "").trim().toLowerCase();
+  if (text && !normalizedMatrixText(row).includes(text)) return false;
+  const run = String(filters.run || "").trim().toLowerCase();
+  if (run && !matrixRunText(row).includes(run)) return false;
+  const type = String(filters.type || "");
+  if (type && questionTypeInfo(row.item).className !== type) return false;
+  const anyStatus = String(filters.anyStatus || "");
+  if (anyStatus && !MATRIX_STAGES.some((stage) => (row.cells[stage.key]?.status || "blank") === anyStatus)) return false;
+  for (const [stageKey, status] of Object.entries(filters.stages || {})) {
+    if (!status) continue;
+    if ((row.cells[stageKey]?.status || "blank") !== status) return false;
+  }
+  return true;
+}
+
+function matrixSortValue(row, key) {
+  const item = row.item || {};
+  const caseData = item.case || {};
+  const typeInfo = questionTypeInfo(item);
+  if (key === "number") return row.index + 1;
+  if (key === "question") return String(caseData.query || item.query || "").toLowerCase();
+  if (key === "type") return typeInfo.label.toLowerCase();
+  if (key === "dataset") return String(item.dataset || "").toLowerCase();
+  if (key === "run") return String(item.latest_result?.run_id || (state.matrixJob?.live_cells?.[item.key] ? state.matrixJob?.id : "") || "").toLowerCase();
+  const cell = row.cells[key] || matrixCell("blank");
+  const rank = { fail: 0, blank: 1, pass: 2 }[cell.status] ?? 1;
+  return `${rank}:${matrixStatusLabel(cell)}:${cell.detail || ""}`.toLowerCase();
+}
+
+function getMatrixViewRows(items = []) {
+  const { rows } = summarizeMatrixRows(items);
+  const filteredRows = rows.filter(matrixRowMatchesFilters);
+  const sort = state.matrixSort || { key: "number", direction: "asc" };
+  const direction = sort.direction === "desc" ? -1 : 1;
+  filteredRows.sort((a, b) => {
+    const aValue = matrixSortValue(a, sort.key);
+    const bValue = matrixSortValue(b, sort.key);
+    const comparison = typeof aValue === "number" && typeof bValue === "number"
+      ? aValue - bValue
+      : String(aValue).localeCompare(String(bValue), undefined, { numeric: true, sensitivity: "base" });
+    return comparison === 0 ? a.index - b.index : comparison * direction;
+  });
+  const totals = Object.fromEntries(MATRIX_STAGES.map((stage) => [stage.key, { pass: 0, fail: 0, blank: 0 }]));
+  for (const row of filteredRows) {
+    for (const stage of MATRIX_STAGES) {
+      const status = row.cells[stage.key]?.status || "blank";
+      totals[stage.key][status] += 1;
+    }
+  }
+  return { rows: filteredRows, totals };
+}
+
+function syncSelectedMatrixRow(rows = []) {
+  if (!rows.length) return null;
+  const selectedKey = state.selectedMatrixKey || state.questionMatrix?.rows?.[state.selectedMatrixIndex]?.key;
+  const selected = rows.find((row) => row.item.key === selectedKey) || rows[0];
+  state.selectedMatrixIndex = selected.index;
+  state.selectedMatrixKey = selected.item.key;
+  return selected;
+}
+
+function matrixSortButton(column) {
+  const active = state.matrixSort?.key === column.key;
+  const direction = active ? state.matrixSort.direction : "";
+  const suffix = active ? (direction === "asc" ? " ↑" : " ↓") : "";
+  return `<button class="matrix-sort" type="button" data-matrix-sort="${escapeHtml(column.key)}" title="${escapeHtml(column.description || "")}">${escapeHtml(column.label)}${suffix}</button>`;
+}
+
+function renderMatrixColumnControls() {
+  const node = $("matrix-column-picker");
+  if (!node) return;
+  const visible = matrixVisibleColumns();
+  const stageFilters = state.matrixFilters?.stages || {};
+  const statusOptions = (value = "") => ["", "pass", "fail", "blank"]
+    .map((status) => `<option value="${status}"${value === status ? " selected" : ""}>${status || "Any"}</option>`)
+    .join("");
+  node.innerHTML = `
+    <div class="matrix-column-options">
+      ${MATRIX_BASE_COLUMNS.map((column) => `
+        <label class="inline-check">
+          <input type="checkbox" data-matrix-visible="${escapeHtml(column.key)}"${visible[column.key] !== false ? " checked" : ""} />
+          <span>${escapeHtml(column.label)}</span>
+        </label>
+      `).join("")}
+      ${MATRIX_STAGES.map((stage) => `
+        <label>
+          <span class="matrix-column-filter-label">
+            <input type="checkbox" data-matrix-visible="${escapeHtml(stage.key)}"${visible[stage.key] !== false ? " checked" : ""} />
+            ${escapeHtml(stage.label)}
+          </span>
+          <select data-matrix-stage-filter="${escapeHtml(stage.key)}">${statusOptions(stageFilters[stage.key] || "")}</select>
+        </label>
+      `).join("")}
+    </div>
+  `;
+}
+
+function applyMatrixFiltersFromControls() {
+  state.matrixFilters.text = $("matrix-filter-text")?.value || "";
+  state.matrixFilters.run = $("matrix-filter-run")?.value || "";
+  state.matrixFilters.type = $("matrix-filter-type")?.value || "";
+  state.matrixFilters.anyStatus = $("matrix-filter-status")?.value || "";
+}
+
 function renderMatrixSummary(totals = {}, totalRows = 0) {
   const node = $("matrix-summary");
   if (!totalRows) {
@@ -442,35 +604,53 @@ function renderQuestionMatrix(payload) {
     $("matrix-detail").innerHTML = "";
     return;
   }
-  if (state.selectedMatrixIndex >= items.length) state.selectedMatrixIndex = 0;
-  const { rows, totals } = summarizeMatrixRows(items);
+  const { rows, totals } = getMatrixViewRows(items);
+  const selectedRow = syncSelectedMatrixRow(rows);
   renderMatrixSummary(totals, rows.length);
+  const columns = matrixColumnDefinitions();
+  const hiddenCount = MATRIX_BASE_COLUMNS.length + MATRIX_STAGES.length - columns.length;
+  const filterBits = [
+    state.matrixFilters.text ? `text: ${state.matrixFilters.text}` : "",
+    state.matrixFilters.run ? `run/analysis: ${state.matrixFilters.run}` : "",
+    state.matrixFilters.type ? `type: ${state.matrixFilters.type.replace("_", "-")}` : "",
+    state.matrixFilters.anyStatus ? `any stage: ${state.matrixFilters.anyStatus}` : "",
+    ...Object.entries(state.matrixFilters.stages || {}).filter(([, value]) => value).map(([key, value]) => `${MATRIX_STAGES.find((stage) => stage.key === key)?.label || key}: ${value}`),
+    hiddenCount ? `${hiddenCount} hidden column(s)` : "",
+  ].filter(Boolean);
+  $("matrix-run-id").textContent = `${countText} from ${payload.manifest_path || "question-bank manifest"}${filterBits.length ? ` | showing ${rows.length} filtered | ${filterBits.join(" | ")}` : ""}`;
   $("matrix-table").innerHTML = `
     <table class="matrix-grid">
       <thead>
         <tr>
-          <th title="${escapeHtml(MATRIX_COLUMN_HINTS.number)}">#</th>
-          <th title="${escapeHtml(MATRIX_COLUMN_HINTS.question)}">Question</th>
-          <th title="${escapeHtml(MATRIX_COLUMN_HINTS.type)}">Type</th>
-          ${MATRIX_STAGES.map((stage) => `<th title="${escapeHtml(stage.description)}">${escapeHtml(stage.label)}</th>`).join("")}
+          ${columns.map((column) => `<th>${matrixSortButton(column)}</th>`).join("")}
         </tr>
       </thead>
       <tbody>
         ${rows.map(({ item, index, cells }) => {
-          const selected = index === state.selectedMatrixIndex ? " selected" : "";
+          const selected = item.key === selectedRow?.item.key ? " selected" : "";
           const caseData = item.case || {};
           const typeInfo = questionTypeInfo(item);
           const activeStage = currentMatrixStageKey();
           const activeRow = isCurrentMatrixJobRow(item);
           return `
             <tr class="clickable${selected}${activeRow ? " current-run-row" : ""}" data-matrix-index="${index}" data-matrix-key="${escapeHtml(item.key || "")}">
-              <td data-label="#">${index + 1}</td>
-              <td data-label="Question">
-                <strong>${escapeHtml(shortText(caseData.query || item.query, 160))}</strong>
-                <small>${escapeHtml(item.dataset || "")}${item.latest_result?.run_id ? ` | ${escapeHtml(item.latest_result.run_id)}` : ""}</small>
-              </td>
-              <td data-label="Type" title="${escapeHtml(typeInfo.detail || MATRIX_COLUMN_HINTS.type)}"><span class="question-type ${escapeHtml(typeInfo.className)}">${escapeHtml(typeInfo.label)}</span></td>
-              ${MATRIX_STAGES.map((stage) => {
+              ${columns.map((column) => {
+                if (column.key === "number") return `<td data-label="#">${index + 1}</td>`;
+                if (column.key === "question") {
+                  return `<td class="matrix-text-cell" data-label="Question">
+                    <strong>${escapeHtml(shortText(caseData.query || item.query, 160))}</strong>
+                    <small>${escapeHtml(caseData.source_filename || "")}</small>
+                  </td>`;
+                }
+                if (column.key === "type") {
+                  return `<td data-label="Type" title="${escapeHtml(typeInfo.detail || MATRIX_COLUMN_HINTS.type)}"><span class="question-type ${escapeHtml(typeInfo.className)}">${escapeHtml(typeInfo.label)}</span></td>`;
+                }
+                if (column.key === "dataset") return `<td class="matrix-text-cell" data-label="Dataset">${escapeHtml(shortText(item.dataset || "", 80))}</td>`;
+                if (column.key === "run") {
+                  const runText = item.latest_result?.run_id || (activeRow && state.matrixJob?.id ? `live ${state.matrixJob.id}` : "");
+                  return `<td class="matrix-text-cell" data-label="Run">${escapeHtml(runText)}</td>`;
+                }
+                const stage = column;
                 const cell = cells[stage.key] || matrixCell("blank");
                 const current = activeRow && stage.key === activeStage ? " current-run-cell" : "";
                 return `<td data-label="${escapeHtml(stage.label)}" title="${escapeHtml(cell.detail || stage.description)}"><span class="matrix-cell ${escapeHtml(cell.status)}${current}" data-matrix-stage="${escapeHtml(stage.key)}">${escapeHtml(matrixStatusLabel(cell))}</span></td>`;
@@ -484,10 +664,25 @@ function renderQuestionMatrix(payload) {
   document.querySelectorAll("[data-matrix-index]").forEach((row) => {
     row.addEventListener("click", () => {
       state.selectedMatrixIndex = Number(row.dataset.matrixIndex);
+      state.selectedMatrixKey = row.dataset.matrixKey;
       renderQuestionMatrix(state.questionMatrix);
     });
   });
-  renderMatrixDetail(rows[state.selectedMatrixIndex]);
+  document.querySelectorAll("[data-matrix-sort]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const key = button.dataset.matrixSort;
+      state.matrixSort = state.matrixSort?.key === key
+        ? { key, direction: state.matrixSort.direction === "asc" ? "desc" : "asc" }
+        : { key, direction: key === "number" ? "asc" : "desc" };
+      renderQuestionMatrix(state.questionMatrix);
+    });
+  });
+  if (selectedRow) {
+    renderMatrixDetail(selectedRow);
+  } else {
+    $("matrix-detail").innerHTML = '<div class="empty-state">No rows match the current matrix filters.</div>';
+  }
 }
 
 function matrixRowElementForKey(key) {
@@ -497,8 +692,14 @@ function matrixRowElementForKey(key) {
 function updateQuestionMatrixLiveState() {
   const items = state.questionMatrix?.rows || [];
   if (!items.length || !$("matrix-table")?.querySelector(".matrix-grid")) return;
-  if (state.selectedMatrixIndex >= items.length) state.selectedMatrixIndex = 0;
-  const { rows, totals } = summarizeMatrixRows(items);
+  const { rows, totals } = getMatrixViewRows(items);
+  const renderedKeys = Array.from(document.querySelectorAll("[data-matrix-key]")).map((row) => row.dataset.matrixKey);
+  const nextKeys = rows.map((row) => String(row.item.key || ""));
+  if (renderedKeys.length !== nextKeys.length || renderedKeys.some((key, index) => key !== nextKeys[index])) {
+    renderQuestionMatrix(state.questionMatrix);
+    return;
+  }
+  syncSelectedMatrixRow(rows);
   renderMatrixSummary(totals, rows.length);
   for (const { item, index, cells } of rows) {
     const rowElement = matrixRowElementForKey(item.key);
@@ -544,11 +745,42 @@ function setupMatrixControls() {
     select.innerHTML = MATRIX_STAGES.map((stage) => `<option value="${escapeHtml(stage.key)}">${escapeHtml(stage.label)}</option>`).join("");
     select.value = "retrieval";
   }
+  state.matrixVisibleColumns = { ...MATRIX_DEFAULT_VISIBLE_COLUMNS };
+  renderMatrixColumnControls();
   $("matrix-run-all-bank")?.addEventListener("click", () => startMatrixJob({ mode: "all_bank" }));
   $("matrix-run-column")?.addEventListener("click", () => startMatrixJob({ mode: "column", column: $("matrix-column")?.value || "retrieval" }));
   $("matrix-refresh")?.addEventListener("click", loadQuestionMatrix);
   $("matrix-clear-results")?.addEventListener("click", clearMatrixResults);
   $("matrix-stop")?.addEventListener("click", stopMatrixJob);
+  ["matrix-filter-text", "matrix-filter-run", "matrix-filter-type", "matrix-filter-status"].forEach((id) => {
+    $(id)?.addEventListener("input", () => {
+      applyMatrixFiltersFromControls();
+      if (state.questionMatrix) renderQuestionMatrix(state.questionMatrix);
+    });
+    $(id)?.addEventListener("change", () => {
+      applyMatrixFiltersFromControls();
+      if (state.questionMatrix) renderQuestionMatrix(state.questionMatrix);
+    });
+  });
+  $("matrix-clear-filters")?.addEventListener("click", () => {
+    ["matrix-filter-text", "matrix-filter-run", "matrix-filter-type", "matrix-filter-status"].forEach((id) => {
+      if ($(id)) $(id).value = "";
+    });
+    state.matrixFilters = { text: "", run: "", type: "", anyStatus: "", stages: {} };
+    renderMatrixColumnControls();
+    if (state.questionMatrix) renderQuestionMatrix(state.questionMatrix);
+  });
+  $("matrix-column-picker")?.addEventListener("change", (event) => {
+    const visibleKey = event.target.dataset.matrixVisible;
+    const stageFilterKey = event.target.dataset.matrixStageFilter;
+    if (visibleKey) {
+      state.matrixVisibleColumns[visibleKey] = event.target.checked;
+    }
+    if (stageFilterKey) {
+      state.matrixFilters.stages[stageFilterKey] = event.target.value;
+    }
+    if (state.questionMatrix) renderQuestionMatrix(state.questionMatrix);
+  });
   renderMatrixJobStatus(null);
 }
 

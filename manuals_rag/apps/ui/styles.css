@@ -346,6 +346,55 @@ summary {
   margin: 0;
 }
 
+.matrix-view-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) minmax(220px, 1.1fr) minmax(130px, 0.6fr) minmax(130px, 0.6fr) auto;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.matrix-view-controls label {
+  margin: 0;
+}
+
+.matrix-column-picker {
+  margin: 0 0 12px;
+}
+
+.matrix-column-picker summary {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+}
+
+.matrix-column-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: #fbfcfd;
+}
+
+.matrix-column-options label {
+  margin: 0;
+}
+
+.matrix-column-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.matrix-column-filter-label input {
+  width: auto;
+  min-height: auto;
+}
+
 #matrix-action-status {
   display: grid;
   gap: 3px;
@@ -358,7 +407,8 @@ summary {
 }
 
 @media (max-width: 900px) {
-  .matrix-actions {
+  .matrix-actions,
+  .matrix-view-controls {
     grid-template-columns: 1fr;
   }
 }
@@ -409,6 +459,27 @@ summary {
 .matrix-grid th:not(:nth-child(2)),
 .matrix-grid td:not(:nth-child(2)) {
   text-align: center;
+}
+
+.matrix-grid .matrix-text-cell {
+  text-align: left;
+  min-width: 160px;
+}
+
+.matrix-sort {
+  width: 100%;
+  min-height: 30px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #334155;
+  font-weight: 800;
+  text-align: inherit;
+}
+
+.matrix-sort:hover {
+  background: transparent;
+  color: var(--accent-dark);
 }
 
 .matrix-grid tr.current-run-row td {

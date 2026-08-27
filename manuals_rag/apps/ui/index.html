@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260827-incremental-matrix-poll-1" />
+    <link rel="stylesheet" href="/styles.css?v=20260827-matrix-table-controls-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -122,6 +122,39 @@
             <button id="matrix-stop" type="button" disabled>Stop</button>
           </div>
           <div id="matrix-action-status" class="empty-state">No matrix job running.</div>
+          <div class="matrix-view-controls">
+            <label>
+              Find
+              <input id="matrix-filter-text" placeholder="Question, dataset, source, answer..." />
+            </label>
+            <label>
+              Run or Analysis
+              <input id="matrix-filter-run" placeholder="Run id, live job id, dataset..." />
+            </label>
+            <label>
+              Type
+              <select id="matrix-filter-type">
+                <option value="">All types</option>
+                <option value="single">Single</option>
+                <option value="multi_step">Multi-step</option>
+                <option value="multi_doc">Multi-doc</option>
+              </select>
+            </label>
+            <label>
+              Any Stage
+              <select id="matrix-filter-status">
+                <option value="">Any status</option>
+                <option value="pass">Pass</option>
+                <option value="fail">Fail</option>
+                <option value="blank">Blank</option>
+              </select>
+            </label>
+            <button id="matrix-clear-filters" type="button">Clear Filters</button>
+          </div>
+          <details class="matrix-column-picker">
+            <summary>Columns and stage filters</summary>
+            <div id="matrix-column-picker"></div>
+          </details>
           <div id="matrix-summary" class="matrix-summary empty-state">No evaluation loaded.</div>
           <div id="matrix-table"></div>
           <div id="matrix-detail"></div>
@@ -180,6 +213,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260827-incremental-matrix-poll-1"></script>
+    <script src="/app.js?v=20260827-matrix-table-controls-1"></script>
   </body>
 </html>
