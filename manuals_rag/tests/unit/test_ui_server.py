@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.client import RemoteDisconnected
 from json import loads
 from pathlib import Path
 import re
@@ -1112,6 +1113,46 @@ def test_api_proxy_reports_upstream_failures_as_json_502(monkeypatch):
             assert payload["detail"].startswith("Manuals RAG API proxy failed:")
         else:
             raise AssertionError("Expected proxy failure")
+    finally:
+        httpd.shutdown()
+
+
+def test_api_proxy_retries_safe_requests_after_upstream_disconnect(monkeypatch):
+    attempts = []
+
+    class FakeResponse:
+        status = 200
+        headers = {"Content-Type": "application/json"}
+
+        def __init__(self):
+            self._read = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def read(self, size=-1):
+            if self._read:
+                return b""
+            self._read = True
+            return b'{"ok":true}'
+
+    def flaky_urlopen(request, timeout):
+        attempts.append(request.full_url)
+        if len(attempts) == 1:
+            raise RemoteDisconnected("Remote end closed connection without response")
+        return FakeResponse()
+
+    monkeypatch.setattr(ui_server, "urlopen", flaky_urlopen)
+    monkeypatch.setattr(ui_server.time, "sleep", lambda _: None)
+    httpd = _serve(UiHandler)
+    try:
+        with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/debug/ingestion-status?limit=80", timeout=5) as response:
+            assert response.status == 200
+            assert response.read() == b'{"ok":true}'
+        assert len(attempts) == 2
     finally:
         httpd.shutdown()
 

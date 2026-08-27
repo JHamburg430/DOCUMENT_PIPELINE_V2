@@ -9,6 +9,7 @@ import sys
 import time
 import uuid
 from json import dumps
+from http.client import RemoteDisconnected
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from socket import timeout as SocketTimeout
@@ -36,6 +37,8 @@ MATRIX_PROCESSES: dict[str, subprocess.Popen] = {}
 MATRIX_JOBS_LOCK = Lock()
 MATRIX_JOBS_LOADED = False
 MATRIX_JOB_EVENT_TAIL_LIMIT = 200
+PROXY_RETRYABLE_METHODS = {"GET", "HEAD"}
+PROXY_RETRYABLE_ERRORS = (ConnectionError, RemoteDisconnected, SocketTimeout, URLError, TimeoutError)
 ANSWER_STAGE_KEYS = {"relevance", "summaries", "generation", "answer_docs", "citations", "terms", "answer"}
 MATRIX_STAGE_KEYS = [
     "query_classify",
@@ -145,8 +148,17 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             if key.lower() not in {"host", "content-length", "connection", "accept-encoding"}
         }
         request = Request(target, data=body, headers=headers, method=self.command)
+        attempts = 2 if self.command in PROXY_RETRYABLE_METHODS else 1
         try:
-            with urlopen(request, timeout=900) as response:
+            for attempt in range(attempts):
+                try:
+                    response = urlopen(request, timeout=900)
+                    break
+                except PROXY_RETRYABLE_ERRORS:
+                    if attempt + 1 >= attempts:
+                        raise
+                    time.sleep(0.25)
+            with response:
                 self.send_response(response.status)
                 for key, value in response.headers.items():
                     if key.lower() not in {"transfer-encoding", "connection", "content-encoding"}:
