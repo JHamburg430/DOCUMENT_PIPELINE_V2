@@ -478,6 +478,43 @@ def test_question_matrix_labels_stage_target_retention():
     assert cells["retrieval"]["label"] == "FAIL"
 
 
+def test_question_matrix_retrieval_tracks_final_document_retention_not_evidence_score():
+    cells = ui_server._build_row_cells(
+        {
+            "case": {
+                "source_document_id": "doc-expected",
+                "source_chunk_id": "chunk-expected",
+            },
+            "query_debug_result": {
+                "completed_steps": [
+                    "classify_query",
+                    "build_filters",
+                    "run_sparse_search",
+                    "fuse_results",
+                    "rerank_results",
+                    "assemble_context",
+                ],
+                "stages": [
+                    {"name": "run_sparse_search", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
+                    {"name": "fuse_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
+                    {"name": "rerank_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
+                    {"name": "assemble_context", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
+                ],
+            },
+            "evaluation": {
+                "passed": False,
+                "failure_category": "ranking_or_context_loss",
+                "candidate_recall": True,
+                "metadata_document_selection": {"attempted": False},
+            },
+        }
+    )
+
+    assert cells["assemble"]["label"] == "YES"
+    assert cells["retrieval"]["status"] == "pass"
+    assert cells["retrieval"]["label"] == "PASS"
+
+
 def test_question_type_identifies_multi_step_and_multi_document_cases():
     multi_step = ui_server._question_type(
         {

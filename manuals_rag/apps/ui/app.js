@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-eval-matrix-resume-job-1";
+const ASSET_VERSION = "20260827-eval-matrix-retrieval-retention-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
@@ -36,32 +36,32 @@ const MATRIX_STAGES = [
   {
     key: "dense",
     label: "Dense",
-    description: "Pass when dense vector search completed; blank when it has not run or was not recorded.",
+    description: "YES when the expected document is present in the dense sample window; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
   },
   {
     key: "sparse",
     label: "Sparse",
-    description: "Pass when sparse/keyword search completed; blank when it has not run or was not recorded.",
+    description: "YES when the expected document is present in the sparse sample window; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
   },
   {
     key: "special",
     label: "Special",
-    description: "Pass when specialized/table search completed; blank when it has not run or was not recorded.",
+    description: "YES when the expected document is present in specialized/table search; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
   },
   {
     key: "fuse",
     label: "Fuse",
-    description: "Pass when candidate fusion completed; blank when it has not run or was not recorded.",
+    description: "YES when fusion still contains the expected document; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
   },
   {
     key: "rerank",
     label: "Rerank",
-    description: "Pass when reranking completed; blank when it has not run or was not recorded.",
+    description: "YES when reranking still contains the expected document; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
   },
   {
     key: "assemble",
     label: "Context",
-    description: "Pass when final retrieval context was assembled; blank when context assembly has not completed.",
+    description: "YES when final context contains the expected document; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
   },
   {
     key: "metadata",
@@ -71,7 +71,7 @@ const MATRIX_STAGES = [
   {
     key: "retrieval",
     label: "Retrieval",
-    description: "Pass when the final scored retrieval window contains the exact expected chunk, acceptable same-document evidence, or required multi-step evidence; fail when expected evidence is missing from that window.",
+    description: "PASS when the expected document survives to final context; FAIL when retrieval loses it. Evidence/answer checks decide whether the right content was actually sufficient.",
   },
   {
     key: "relevance",
@@ -318,14 +318,11 @@ function buildMatrixCells(item = {}) {
     cells.retrieval = matrixCell("blank");
   } else if (metadata.attempted) {
     cells.metadata = matrixCell(metadata.passed ? "pass" : "fail", metadata.passed ? `rank ${metadata.rank ?? "?"}` : metadata.failure_category || "expected document not selected");
-    blocked = !metadata.passed;
-    cells.retrieval = blocked
-      ? matrixCell("blank", "blocked by document selection")
-      : matrixCell(retrieval.passed ? "pass" : "fail", retrieval.passed ? `rank ${retrieval.rank ?? "?"}` : retrieval.failure_category || "expected evidence missing");
-    blocked = blocked || !retrieval.passed;
+    cells.retrieval = matrixCell(retrieval.candidate_recall ? "pass" : "fail", retrieval.candidate_recall ? "expected document present in final retrieval" : retrieval.failure_category || "expected document missing from retrieval");
+    blocked = !retrieval.passed;
   } else {
     cells.metadata = matrixCell("blank", "not attempted");
-    cells.retrieval = matrixCell(retrieval.passed ? "pass" : "fail", retrieval.passed ? `rank ${retrieval.rank ?? "?"}` : retrieval.failure_category || "expected evidence missing");
+    cells.retrieval = matrixCell(retrieval.candidate_recall ? "pass" : "fail", retrieval.candidate_recall ? "expected document present in final retrieval" : retrieval.failure_category || "expected document missing from retrieval");
     blocked = !retrieval.passed;
   }
 

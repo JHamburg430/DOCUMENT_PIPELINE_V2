@@ -489,6 +489,23 @@ def _result_stage_cell(
     return _matrix_cell("fail", detail, "NO"), False
 
 
+def _retrieval_retention_cell(cells: dict[str, dict[str, str]], retrieval: dict) -> dict[str, str]:
+    context_cell = cells.get("assemble") or {}
+    context_label = context_cell.get("label") or ""
+    context_detail = context_cell.get("detail") or "final context was not recorded"
+    if context_label == "YES":
+        return _matrix_cell("pass", f"Expected document retained in final context; {context_detail}", "PASS")
+    if context_label in {"NO", "PARTIAL", "DROPPED"}:
+        return _matrix_cell("fail", f"Expected document missing from final context; {context_detail}", "FAIL")
+    if retrieval:
+        if retrieval.get("passed") and "candidate_recall" not in retrieval:
+            return _matrix_cell("pass", f"rank {retrieval.get('rank')}" if retrieval.get("rank") else "retrieval passed", "PASS")
+        if retrieval.get("candidate_recall"):
+            return _matrix_cell("pass", "Expected document was present in the final scored retrieval window.", "PASS")
+        return _matrix_cell("fail", retrieval.get("failure_category") or "expected document missing from retrieval", "FAIL")
+    return _matrix_cell("blank", "not scored yet")
+
+
 def _question_type(case: dict) -> dict[str, object]:
     expected_evidence = case.get("expected_evidence") if isinstance(case.get("expected_evidence"), list) else []
     expected_document_ids = {
@@ -560,25 +577,15 @@ def _build_row_cells(item: dict | None, case: dict | None = None) -> dict[str, d
 
     retrieval = item.get("retrieval_evaluation") or item.get("evaluation") or {}
     metadata = retrieval.get("metadata_document_selection") or {}
-    blocked = False
     if metadata.get("attempted"):
         cells["metadata"] = _matrix_cell(
             "pass" if metadata.get("passed") else "fail",
             f"rank {metadata.get('rank')}" if metadata.get("passed") else metadata.get("failure_category") or "expected document not selected",
         )
-        blocked = not metadata.get("passed")
     else:
         cells["metadata"] = _matrix_cell("blank", "not attempted")
 
-    if blocked:
-        cells["retrieval"] = _matrix_cell("blank", "blocked by document selection")
-        return cells
-
-    cells["retrieval"] = _matrix_cell(
-        "pass" if retrieval.get("passed") else "fail",
-        f"rank {retrieval.get('rank')}" if retrieval.get("passed") else retrieval.get("failure_category") or "expected evidence missing",
-        "PASS" if retrieval.get("passed") else "FAIL",
-    )
+    cells["retrieval"] = _retrieval_retention_cell(cells, retrieval)
     if not retrieval.get("passed"):
         return cells
 
