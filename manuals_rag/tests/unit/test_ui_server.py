@@ -253,6 +253,13 @@ def test_question_matrix_job_runs_active_bank_with_llm_answer_judge(monkeypatch,
     assert calls[0][3] == {"case-1": 1}
 
 
+def test_question_matrix_model_judge_is_not_default_on():
+    index_html = (ui_server.MANUALS_ROOT / "apps" / "ui" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="matrix-use-model-judge" type="checkbox"' in index_html
+    assert 'id="matrix-use-model-judge" type="checkbox" checked' not in index_html
+
+
 def test_question_matrix_retrieval_column_uses_retrieval_only(monkeypatch, tmp_path):
     reports = tmp_path / "test_reports"
     reports.mkdir()

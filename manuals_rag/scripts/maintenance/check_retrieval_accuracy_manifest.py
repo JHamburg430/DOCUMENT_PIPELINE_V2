@@ -19,6 +19,7 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "unresolved_guardrail_findings",
     "current_retrieval_failure_source",
     "partial_claim_citation_pruning_containment",
+    "llm_answer_judge_policy",
 )
 
 RETRIEVAL_FAILURE_ALIASES = (
