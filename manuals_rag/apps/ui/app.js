@@ -12,6 +12,7 @@ const state = {
   currentEval: null,
   selectedEvalIndex: 0,
   selectedMatrixIndex: 0,
+  questionMatrix: null,
   running: false,
   runDebug: null,
   runDebugTimer: null,
@@ -21,9 +22,44 @@ const state = {
 
 const MATRIX_STAGES = [
   {
-    key: "question",
-    label: "Question",
-    description: "Question loaded from the eval case bank.",
+    key: "query_classify",
+    label: "Classify",
+    description: "Query classification completed in a stored debug run.",
+  },
+  {
+    key: "filters",
+    label: "Filters",
+    description: "Search filters were built.",
+  },
+  {
+    key: "dense",
+    label: "Dense",
+    description: "Dense vector search completed.",
+  },
+  {
+    key: "sparse",
+    label: "Sparse",
+    description: "Sparse/keyword search completed.",
+  },
+  {
+    key: "special",
+    label: "Special",
+    description: "Specialized/table search completed.",
+  },
+  {
+    key: "fuse",
+    label: "Fuse",
+    description: "Candidate fusion completed.",
+  },
+  {
+    key: "rerank",
+    label: "Rerank",
+    description: "Reranking completed.",
+  },
+  {
+    key: "assemble",
+    label: "Context",
+    description: "Final retrieval context was assembled.",
   },
   {
     key: "metadata",
@@ -32,8 +68,23 @@ const MATRIX_STAGES = [
   },
   {
     key: "retrieval",
-    label: "Retrieval",
+    label: "Evidence",
     description: "Expected evidence reached the scored retrieval window.",
+  },
+  {
+    key: "relevance",
+    label: "Relevance",
+    description: "Answer-input relevance judging completed.",
+  },
+  {
+    key: "summaries",
+    label: "Summaries",
+    description: "Answer evidence summaries completed.",
+  },
+  {
+    key: "generation",
+    label: "Generate",
+    description: "Answer generation completed.",
   },
   {
     key: "answer_docs",
@@ -283,7 +334,7 @@ function buildMatrixCells(item = {}) {
 function summarizeMatrixRows(items = []) {
   const totals = Object.fromEntries(MATRIX_STAGES.map((stage) => [stage.key, { pass: 0, fail: 0, blank: 0 }]));
   const rows = items.map((item, index) => {
-    const cells = buildMatrixCells(item);
+    const cells = item.cells || buildMatrixCells(item);
     for (const stage of MATRIX_STAGES) {
       const status = cells[stage.key]?.status || "blank";
       totals[stage.key][status] += 1;
@@ -326,9 +377,14 @@ function renderMatrixSummary(totals = {}, totalRows = 0) {
   }).join("");
 }
 
-function renderMatrix(payload, meta = {}) {
-  const items = payload?.items || [];
-  $("matrix-run-id").textContent = meta.id ? `Run ${meta.id}` : payload?.run_id ? `Run ${payload.run_id}` : "Loaded evaluation";
+function renderQuestionMatrix(payload) {
+  const items = payload?.rows || [];
+  const loaded = Number(payload?.loaded_questions || items.length || 0);
+  const official = Number(payload?.official_total_questions || 0);
+  const countText = official && official !== loaded
+    ? `${loaded} loaded / ${official} official`
+    : `${loaded || official || 0} questions`;
+  $("matrix-run-id").textContent = payload ? `${countText} from ${payload.manifest_path || "question-bank manifest"}` : "Loading question-bank matrix...";
   if (!items.length) {
     renderMatrixSummary({}, 0);
     $("matrix-table").innerHTML = "";
@@ -350,10 +406,14 @@ function renderMatrix(payload, meta = {}) {
       <tbody>
         ${rows.map(({ item, index, cells }) => {
           const selected = index === state.selectedMatrixIndex ? " selected" : "";
+          const caseData = item.case || {};
           return `
             <tr class="clickable${selected}" data-matrix-index="${index}">
               <td data-label="#">${index + 1}</td>
-              <td data-label="Question">${escapeHtml(shortText(item.case?.query || item.query, 180))}</td>
+              <td data-label="Question">
+                <strong>${escapeHtml(shortText(caseData.query || item.query, 160))}</strong>
+                <small>${escapeHtml(item.dataset || "")}${item.latest_result?.run_id ? ` | ${escapeHtml(item.latest_result.run_id)}` : ""}</small>
+              </td>
               ${MATRIX_STAGES.map((stage) => {
                 const cell = cells[stage.key] || matrixCell("blank");
                 return `<td data-label="${escapeHtml(stage.label)}" title="${escapeHtml(cell.detail || stage.description)}"><span class="matrix-cell ${escapeHtml(cell.status)}">${escapeHtml(matrixStatusLabel(cell))}</span></td>`;
@@ -367,7 +427,7 @@ function renderMatrix(payload, meta = {}) {
   document.querySelectorAll("[data-matrix-index]").forEach((row) => {
     row.addEventListener("click", () => {
       state.selectedMatrixIndex = Number(row.dataset.matrixIndex);
-      renderMatrix(state.currentEval, meta);
+      renderQuestionMatrix(state.questionMatrix);
     });
   });
   renderMatrixDetail(rows[state.selectedMatrixIndex]);
@@ -379,14 +439,28 @@ function renderMatrixDetail(row) {
     return;
   }
   const item = row.item || {};
-  const retrieval = itemRetrievalEvaluation(item);
-  const answerEval = item.answer_evaluation || {};
-  const debugResult = item.query_debug_result || {};
+  const latestItem = item.latest_result
+    ? {
+        evaluation: item.latest_result.evaluation,
+        answer_evaluation: item.latest_result.answer_evaluation,
+        query_debug_result: item.latest_result.query_debug_result,
+      }
+    : item;
+  const retrieval = itemRetrievalEvaluation(latestItem);
+  const answerEval = latestItem.answer_evaluation || {};
+  const debugResult = latestItem.query_debug_result || {};
   const pipelineStages = Array.isArray(debugResult.stages) ? debugResult.stages : [];
+  const caseData = item.case || latestItem.case || {};
   $("matrix-detail").innerHTML = `
     <section class="detail">
       <h3>Question ${row.index + 1}</h3>
-      <p class="question">${escapeHtml(item.case?.query || item.query || "")}</p>
+      <p class="question">${escapeHtml(caseData.query || item.query || "")}</p>
+      <dl>
+        <dt>Dataset</dt><dd>${escapeHtml(item.dataset || "")}</dd>
+        <dt>Dataset #</dt><dd>${escapeHtml(item.question_number || "")}</dd>
+        <dt>Latest Run</dt><dd>${escapeHtml(item.latest_result?.run_id || "not scored yet")}</dd>
+        <dt>Source</dt><dd>${escapeHtml(caseData.source_filename || "")}</dd>
+      </dl>
       <div class="matrix-cell-details">
         ${MATRIX_STAGES.map((stage) => {
           const cell = row.cells[stage.key] || matrixCell("blank");
@@ -420,6 +494,21 @@ function renderMatrixDetail(row) {
       ` : '<div class="empty-state">No debug pipeline stages were stored for this result.</div>'}
     </section>
   `;
+}
+
+async function loadQuestionMatrix() {
+  $("matrix-summary").className = "matrix-summary empty-state";
+  $("matrix-summary").textContent = "Loading question bank matrix...";
+  try {
+    const payload = await localJson("/local/question-matrix");
+    state.questionMatrix = payload;
+    renderQuestionMatrix(payload);
+  } catch (error) {
+    $("matrix-summary").className = "matrix-summary empty-state";
+    $("matrix-summary").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
+    $("matrix-table").innerHTML = "";
+    $("matrix-detail").innerHTML = "";
+  }
 }
 
 function renderEvalTable(payload) {
@@ -694,7 +783,6 @@ function renderEval(payload, meta = {}) {
   renderMetrics(payload.summary || {});
   renderEvalTable(payload);
   renderEvalDetail(payload);
-  renderMatrix(payload, meta);
 }
 
 function runtimeFromEvalResult(payload, runId = null) {
@@ -1518,6 +1606,7 @@ function setupTabs() {
       document.querySelectorAll(".tab-panel").forEach((item) => item.classList.remove("active"));
       tab.classList.add("active");
       $(tab.dataset.tab).classList.add("active");
+      if (tab.dataset.tab === "matrix") loadQuestionMatrix();
       if (tab.dataset.tab === "ingestion") maybePollIngestion();
     });
   });
@@ -1558,6 +1647,7 @@ async function init() {
     await loadLatestRun();
     await loadHistory();
     await loadIngestionStatus();
+    await loadQuestionMatrix();
     state.ingestionTimer = setInterval(maybePollIngestion, 5000);
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {

@@ -102,11 +102,85 @@ def test_eval_matrix_view_is_available():
     assert 'id="matrix-summary"' in index_html
     assert 'id="matrix-table"' in index_html
     assert "MATRIX_STAGES" in app_js
-    assert "buildMatrixCells" in app_js
+    assert "loadQuestionMatrix" in app_js
     assert "renderMatrixSummary" in app_js
-    assert "renderMatrix(payload, meta)" in app_js
+    assert "renderQuestionMatrix(payload)" in app_js
     assert ".matrix-summary" in styles_css
     assert ".matrix-cell.blank" in styles_css
+
+
+def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    old_dataset_path = reports / "old_dataset.jsonl"
+    result_path = reports / "retrieval_eval_results_20260827_120000.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    case = {
+        "case_id": "case-1",
+        "query": "How should the trigger signal error be corrected?",
+        "source_filename": "manual.pdf",
+    }
+    old_dataset_path.write_text('{"case_id":"old","query":"old"}\n', encoding="utf-8")
+    dataset_path.write_text(f"{ui_server.json.dumps(case)}\n", encoding="utf-8")
+    result_path.write_text(
+        ui_server.json.dumps(
+            {
+                "case": case,
+                "evaluation": {
+                    "passed": True,
+                    "rank": 1,
+                    "metadata_document_selection": {"attempted": True, "passed": True, "rank": 1},
+                },
+                "answer_evaluation": {
+                    "passed": False,
+                    "failure_reasons": ["expected_terms_missing"],
+                    "expected_document_used": True,
+                    "missing_document_ids": [],
+                    "citation_fidelity": {"checked": True, "passed": True, "checked_quote_count": 0},
+                    "term_check": {"passed": False},
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "total_questions": 1,
+                    "single_step_questions": 1,
+                    "multi_step_questions": 0,
+                    "datasets": [
+                        {"path": "test_reports/old_dataset.jsonl", "status": "exploratory", "total_questions": 1},
+                        {
+                            "path": "test_reports/dataset.jsonl",
+                            "status": "exploratory",
+                            "total_questions": 1,
+                            "supersedes": "test_reports/old_dataset.jsonl",
+                        },
+                        {"path": "test_reports/diagnostic.jsonl", "status": "diagnostic_only_not_promoted", "total_questions": 1},
+                    ],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+
+    payload = ui_server._build_question_matrix()
+
+    assert payload["official_total_questions"] == 1
+    assert payload["loaded_questions"] == 1
+    assert payload["rows"][0]["dataset"] == "test_reports/dataset.jsonl"
+    assert payload["rows"][0]["cells"]["metadata"]["status"] == "pass"
+    assert payload["rows"][0]["cells"]["retrieval"]["status"] == "pass"
+    assert payload["rows"][0]["cells"]["citations"]["status"] == "pass"
+    assert payload["rows"][0]["cells"]["terms"]["status"] == "fail"
+    assert payload["rows"][0]["cells"]["answer"]["status"] == "blank"
 
 
 def test_api_proxy_keeps_manuals_rag_same_origin(monkeypatch):
