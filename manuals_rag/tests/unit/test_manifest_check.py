@@ -33,6 +33,7 @@ def _minimal_manifest():
         "latest_contextual_row14_repair": {"run": "retrieval_eval_20260827_053144"},
         "latest_contextual_quantity_answer_repair": {"run": "retrieval_eval_20260827_212947"},
         "latest_matrix_retrieval_guardrail_containment": {"status": "addressed"},
+        "latest_http_fallback_telemetry_containment": {"status": "addressed"},
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
         "failure_categories": retrieval_failures,

@@ -1634,6 +1634,77 @@ def test_large_retrieval_eval_scores_api_answer_payload_for_http_answer_mode(mon
     assert calls == [("What voltage?", "manuals")]
 
 
+def test_large_retrieval_eval_marks_warning_payload_as_validation_fallback():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    payload = module.normalize_api_answer_payload(
+        {
+            "answer": "Grounded fallback text.",
+            "warnings": [
+                "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback."
+            ],
+            "_eval_trace": {"answer_source": "api", "used_fallback": False},
+        }
+    )
+
+    assert payload["_eval_trace"] == {
+        "answer_source": "fallback_validation",
+        "used_fallback": True,
+        "answer_transport": "http_api",
+        "fallback_reason": "Generated answer was replaced by retrieval-grounded fallback during validation.",
+    }
+
+
+def test_large_retrieval_eval_summary_counts_warning_payload_fallback():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    answer = module.normalize_api_answer_payload(
+        {
+            "answer": "Grounded fallback text.",
+            "warnings": [
+                "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback."
+            ],
+            "_eval_trace": {"answer_source": "api", "used_fallback": False},
+        }
+    )
+    summary = module.summarize(
+        [
+            {
+                "case": {
+                    "chunk_type": "spec_record",
+                    "retrieval_task": "single_step_retrieval",
+                    "source_filename": "manual.pdf",
+                    "benchmark_quality": "validated",
+                },
+                "evaluation": {"passed": True, "rank": 1, "candidate_recall": True},
+                "answer": answer,
+                "answer_evaluation": {"passed": True, "failure_reasons": [], "elapsed_seconds": 1.0},
+            }
+        ]
+    )
+
+    assert summary["answer_fallback_count"] == 1
+    assert summary["answer_fallback_rate"] == 1.0
+    assert summary["answer_sources"] == {"fallback_validation": 1}
+    assert summary["answer_fallback_reasons"] == {
+        "Generated answer was replaced by retrieval-grounded fallback during validation.": 1
+    }
+
+
 def test_large_retrieval_eval_uses_embedded_http_answer_when_present(monkeypatch):
     import importlib.util
     from pathlib import Path

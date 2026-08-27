@@ -1021,10 +1021,10 @@
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
     "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 1
+      "expected_evidence_not_cited": 3
     },
-    "next_target": "Fix curated cross-document v2 row 6 answer evidence selection so the API answer cites and uses the returned Condition list and Standard Angle chunks, while preserving row 7 clean evidence from retrieval_eval_20260827_230123, diagnostic false-green retrieval_eval_20260827_225720, the relation-preserving quantity validation containment, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
-    "answer_grounding_status": "Cross-document rows 6-7 answer-grounding rotation reran after tightening answer-evidence citation scoring. The first run retrieval_eval_20260827_225720 is diagnostic/false-green because row 6 was marked clean by same-document/token overlap even though the user-visible answer did not cite either source-reviewed expected chunk. The corrected scorer requires concrete expected evidence chunk ids to be cited as returned chunks unless a principled equivalent-evidence policy exists. Corrected HTTP rerun retrieval_eval_20260827_230123 passed retrieval 2/2 but answer grounding 1/2: row 7 clean, row 6 failed expected_evidence_not_cited. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}.",
+    "next_target": "Fix current answer evidence selection/citation failures before optional answer rotations: curated cross-document v2 row 6 still retrieves but does not cite/use the Condition list and Standard Angle expected chunks, and contextual rows 15-16 now report validation fallback correctly but fail exact expected-evidence citation scoring in retrieval_eval_20260827_232820. Preserve row 7 clean evidence from retrieval_eval_20260827_230123, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
+    "answer_grounding_status": "HTTP fallback telemetry containment corrected the eval/benchmark classification for API payloads whose user-visible warnings say generated output was replaced by retrieval-grounded fallback. Rerun retrieval_eval_20260827_232820 over contextual rows 15-16 reported 2/2 retrieval, 0/2 answer grounding, answer_fallback_count 2/2, answer_sources {fallback_validation: 2}, and answer failures {expected_evidence_not_cited: 2}. This supersedes the telemetry/source classification from retrieval_eval_20260827_223414; the row answers remain retrieval-grounded fallback text but are not clean citation-grade expected-evidence proof under the current scorer. Combined with curated cross-document v2 row 6 from retrieval_eval_20260827_230123, current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 3}.",
     "answer_grounding_rotation": {
       "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
@@ -1050,7 +1050,7 @@
     },
     "current_retrieval_failure_categories": {},
     "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 1
+      "expected_evidence_not_cited": 3
     },
     "run_exclusions": [
       {
@@ -1200,9 +1200,28 @@
         "run_id": "retrieval_eval_20260827_225720",
         "scope": "curated cross-document v2 rows 6-7 answer clean claim",
         "reason": "false-green before exact expected-chunk citation scoring; row 6 retrieved expected evidence but API answer cited unrelated/sibling chunks and omitted both source-reviewed expected chunks"
+      },
+      {
+        "run_id": "retrieval_eval_20260827_223414",
+        "scope": "contextual rows 15-16 clean answer/source metrics claim",
+        "reason": "telemetry/source classification defect: payload warnings showed validation fallback but trace/summary said api fallback 0; rerun retrieval_eval_20260827_232820 correctly reports fallback_validation 2/2 and current exact expected-evidence scoring fails both rows"
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-27T23:25:00Z",
+        "severity": "needs_fix",
+        "finding": "HTTP fallback telemetry in retrieval_eval_20260827_223414 contradicted the user-visible payload warning: _eval_trace/summary said api/no fallback while the answers said validation fallback was used.",
+        "status": "addressed_this_run_payload_warning_normalization_and_232820_rerun",
+        "evidence": [
+          "Focused unit telemetry controls passed: tests/unit/test_retrieval_eval.py -q -k warning_payload_fallback/summarize/http-answer controls -> 4 passed, 90 deselected.",
+          "Container replay of retrieval_eval_20260827_223414 with the updated normalizer produced answer_fallback_count 2, answer_fallback_rate 1.0, answer_sources {fallback_validation: 2}, and fallback_reason count 2 instead of fallback 0/api source.",
+          "Actual HTTP rerun retrieval_eval_20260827_232820 reports fallback_validation 2/2 and answer_fallback_count 2/2.",
+          "Rerun honestly records rows 15-16 as expected_evidence_not_cited answer failures under current scorer.",
+          "Full unit gate after fixture correction: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 390 passed, 59 warnings."
+        ],
+        "required_next_action": "Fix answer evidence selection/citations for the three current expected_evidence_not_cited failures before optional answer rotations."
+      },
       {
         "timestamp": "2026-08-27T21:51:07Z",
         "severity": "needs_fix",
@@ -1740,21 +1759,21 @@
     },
     "latest_contextual_quantity_answer_repair": {
       "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
-      "status": "rows_15_16_clean_after_relation_preserving_quantity_validation",
-      "latest_run": "retrieval_eval_20260827_223414",
+      "status": "superseded_by_http_fallback_telemetry_containment_rows_15_16_not_clean_answer_evidence",
+      "latest_run": "retrieval_eval_20260827_232820",
       "previous_clean_run": "retrieval_eval_20260827_212947",
       "supersedes_failed_run": "retrieval_eval_20260827_195423",
       "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-      "summary": "test_reports/retrieval_eval_summary_20260827_223414.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_223414.json",
-      "results": "test_reports/retrieval_eval_results_20260827_223414.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260827_232820.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_232820.json",
+      "results": "test_reports/retrieval_eval_results_20260827_232820.jsonl",
       "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
       "query_offset": 14,
       "max_queries": 2,
       "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
-      "answer_result": "2/2 actual HTTP API answers passed after API restart; answer_source api for both; fallback 0; failures {}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_223414.jsonl. Row 15 cites returned CV-X page 6-125 chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 with quote_span null; the cited chunk states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and explains that the number of lines is 10 and overlap lines is two. Row 16 remains clean as a control, citing returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, which directly supports the TRG1 for CAM 1 capture plus measurement-processing claim.",
+      "answer_result": "0/2 actual HTTP API answers passed under current exact expected-evidence citation scoring; both rows correctly report validation fallback telemetry after normalization.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_232820.jsonl. Row 15 and row 16 both contain the validation-fallback warning and normalized trace used_fallback=true/answer_source=fallback_validation. Row 15 cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78; row 16 cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9. Under the current exact expected-evidence citation scorer, both fail expected_evidence_not_cited and must not be treated as clean answer evidence.",
       "runtime_load_evidence": {
         "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
         "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
@@ -1776,22 +1795,18 @@
         "total_only_or_wrong_line": "fallback used for The example uses 23 total lines and two overlap lines."
       },
       "guardrail_addressed": {
-        "timestamp": "2026-08-27T22:20:20Z",
-        "finding": "Loaded quantity validator retained swapped line/overlap values because role extraction still used relation-insensitive nearby-token matching.",
+        "timestamp": "2026-08-27T23:25:00Z",
+        "finding": "HTTP fallback telemetry for retrieval_eval_20260827_223414 contradicted the user-visible validation-fallback warning.",
         "evidence": [
-          "Added punctuation-clause quantity role/value extraction with canonical numeric/number-word comparison.",
-          "Validation now checks the first complete role-bound relation from returned evidence instead of aggregating unrelated chunks or sibling quantities.",
-          "Focused quantity controls passed: 10 passed, 53 deselected, 5 warnings.",
-          "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 387 passed, 59 warnings.",
-          "API was restarted and loaded fingerprints were recorded.",
-          "Loaded controls rejected swapped, omitted-role, and total-only/wrong-line answers and retained the correct relation-bound answer.",
-          "retrieval_eval_20260827_223414 reran contextual rows 15-16 through actual HTTP API at 2/2 retrieval and 2/2 answers.",
-          "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
+          "Updated eval telemetry normalization from payload warning.",
+          "Reran actual HTTP answer mode as retrieval_eval_20260827_232820.",
+          "Manual JSONL inspection confirmed normalized fallback_validation traces and current expected_evidence_not_cited failures."
         ],
-        "remaining": "No further quantity-validator containment is required before optional rotations; preserve the 223414 actual-results JSONL and all prior diagnostics/exclusions."
+        "remaining": "Fix current answer citation/evidence failures; do not count 223414 or 232820 rows 15-16 as clean answer evidence yet."
       },
       "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
-      "remaining": "Continue optional answer-grounding coverage expansion while preserving matrix, citation-fidelity, false-negative, row-5, row-6, and row-15 diagnostic containments."
+      "remaining": "Quantity role/value validation behavior remains preserved, but contextual rows 15-16 need answer evidence selection/citation repair before being counted as clean answer evidence.",
+      "previous_telemetry_inconsistent_run": "retrieval_eval_20260827_223414"
     },
     "answer_grounding_contextual_rows_15_16": {
       "scope": "contextual_multi_step_rows_15_16_answer_rotation",
@@ -1879,6 +1894,45 @@
       ],
       "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Continue broader answer-grounding rotations only after preserving this scorer containment.",
       "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean"
+    },
+    "latest_http_fallback_telemetry_containment": {
+      "timestamp": "2026-08-27T23:28:20Z",
+      "guardrail_finding": "2026-08-27 cron payload containment: retrieval_eval_20260827_223414 had API payload warnings saying validation fallback occurred while _eval_trace and summary reported used_fallback=false, answer_source=api, and fallback 0.",
+      "status": "addressed_with_payload_warning_source_classification_and_http_rerun",
+      "scope": "eval/benchmark telemetry normalization and tests only; no production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
+      "code_change": "normalize_api_answer_payload now treats user-visible retrieval-grounded fallback warnings as authoritative fallback evidence, sets used_fallback true, answer_source fallback_validation, and records the validation fallback reason even when API trace is missing or false.",
+      "loaded_eval_path_evidence": {
+        "module_file": "/workspace/manuals_rag/scripts/benchmark/run_large_retrieval_eval.py",
+        "normalize_api_answer_payload_sha256": "3d5d12e493f8afd062e3fcaaa3a7d77b4014c9c94a48468301075c4ad44675a3",
+        "summarize_sha256": "5945534c0d176bf3c34a069dc4c14c9b99ccd296e3ec738a8f53fb63c3da428f"
+      },
+      "controls": [
+        "Focused unit telemetry controls passed: tests/unit/test_retrieval_eval.py -q -k warning_payload_fallback/summarize/http-answer controls -> 4 passed, 90 deselected.",
+        "Container replay of retrieval_eval_20260827_223414 with the updated normalizer produced answer_fallback_count 2, answer_fallback_rate 1.0, answer_sources {fallback_validation: 2}, and fallback_reason count 2 instead of fallback 0/api source.",
+        "Full unit gate after fixture correction: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 390 passed, 59 warnings."
+      ],
+      "actual_http_rerun": {
+        "run_id": "retrieval_eval_20260827_232820",
+        "dataset": "test_reports/retrieval_eval_dataset_20260827_232820.jsonl",
+        "results": "test_reports/retrieval_eval_results_20260827_232820.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260827_232820.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260827_232820.json",
+        "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+        "query_offset": 14,
+        "max_queries": 2,
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "retrieval_result": "2/2 retrieval passed; pass@1 1/2 and pass@3/pass@5 2/2.",
+        "answer_result": "0/2 answer grounding under current exact expected-chunk citation scoring; answer_failure_reasons {expected_evidence_not_cited: 2}; answer_fallback_count 2; answer_sources {fallback_validation: 2}.",
+        "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260827_232820.jsonl. Both rows contain the validation-fallback warning and normalized trace used_fallback=true, answer_source=fallback_validation, fallback_reason set. Row 15 cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78; row 16 cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9. Both answers are fallback text but fail current expected_evidence_not_cited scoring, so the prior clean claim from 223414 is not carried forward."
+      },
+      "previous_run_reclassified": {
+        "run_id": "retrieval_eval_20260827_223414",
+        "classification": "telemetry_defect_diagnostic_not_clean_source_metrics",
+        "reason": "User-visible payload warnings indicated validation fallback while _eval_trace and summary reported direct api/no fallback. The replay and rerun show fallback_validation should be counted and current answer evidence scoring fails rows 15-16."
+      },
+      "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
+      "remaining": "Fix answer evidence selection/citations for cross-document row 6 and contextual rows 15-16 before optional rotations."
     }
   },
   "latest_false_negative_repair": {
@@ -7829,7 +7883,7 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Fix curated cross-document v2 row 6 answer evidence selection so the API answer cites and uses the returned Condition list and Standard Angle chunks, while preserving row 7 clean evidence from retrieval_eval_20260827_230123, diagnostic false-green retrieval_eval_20260827_225720, the relation-preserving quantity validation containment, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
+  "next_target": "Fix current answer evidence selection/citation failures before optional answer rotations: curated cross-document v2 row 6 still retrieves but does not cite/use the Condition list and Standard Angle expected chunks, and contextual rows 15-16 now report validation fallback correctly but fail exact expected-evidence citation scoring in retrieval_eval_20260827_232820. Preserve row 7 clean evidence from retrieval_eval_20260827_230123, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -8114,9 +8168,9 @@
     }
   },
   "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 1
+    "expected_evidence_not_cited": 3
   },
-  "answer_grounding_status": "Cross-document rows 6-7 answer-grounding rotation reran after tightening answer-evidence citation scoring. The first run retrieval_eval_20260827_225720 is diagnostic/false-green because row 6 was marked clean by same-document/token overlap even though the user-visible answer did not cite either source-reviewed expected chunk. The corrected scorer requires concrete expected evidence chunk ids to be cited as returned chunks unless a principled equivalent-evidence policy exists. Corrected HTTP rerun retrieval_eval_20260827_230123 passed retrieval 2/2 but answer grounding 1/2: row 7 clean, row 6 failed expected_evidence_not_cited. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}.",
+  "answer_grounding_status": "HTTP fallback telemetry containment corrected the eval/benchmark classification for API payloads whose user-visible warnings say generated output was replaced by retrieval-grounded fallback. Rerun retrieval_eval_20260827_232820 over contextual rows 15-16 reported 2/2 retrieval, 0/2 answer grounding, answer_fallback_count 2/2, answer_sources {fallback_validation: 2}, and answer failures {expected_evidence_not_cited: 2}. This supersedes the telemetry/source classification from retrieval_eval_20260827_223414; the row answers remain retrieval-grounded fallback text but are not clean citation-grade expected-evidence proof under the current scorer. Combined with curated cross-document v2 row 6 from retrieval_eval_20260827_230123, current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 3}.",
   "answer_grounding_rotation": {
     "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
@@ -8554,7 +8608,7 @@
   },
   "current_retrieval_failure_categories": {},
   "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 1
+    "expected_evidence_not_cited": 3
   },
   "run_exclusions": [
     {
@@ -8704,9 +8758,28 @@
       "run_id": "retrieval_eval_20260827_225720",
       "scope": "curated cross-document v2 rows 6-7 answer clean claim",
       "reason": "false-green before exact expected-chunk citation scoring; row 6 retrieved expected evidence but API answer cited unrelated/sibling chunks and omitted both source-reviewed expected chunks"
+    },
+    {
+      "run_id": "retrieval_eval_20260827_223414",
+      "scope": "contextual rows 15-16 clean answer/source metrics claim",
+      "reason": "telemetry/source classification defect: payload warnings showed validation fallback but trace/summary said api fallback 0; rerun retrieval_eval_20260827_232820 correctly reports fallback_validation 2/2 and current exact expected-evidence scoring fails both rows"
     }
   ],
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-27T23:25:00Z",
+      "severity": "needs_fix",
+      "finding": "HTTP fallback telemetry in retrieval_eval_20260827_223414 contradicted the user-visible payload warning: _eval_trace/summary said api/no fallback while the answers said validation fallback was used.",
+      "status": "addressed_this_run_payload_warning_normalization_and_232820_rerun",
+      "evidence": [
+        "Focused unit telemetry controls passed: tests/unit/test_retrieval_eval.py -q -k warning_payload_fallback/summarize/http-answer controls -> 4 passed, 90 deselected.",
+        "Container replay of retrieval_eval_20260827_223414 with the updated normalizer produced answer_fallback_count 2, answer_fallback_rate 1.0, answer_sources {fallback_validation: 2}, and fallback_reason count 2 instead of fallback 0/api source.",
+        "Actual HTTP rerun retrieval_eval_20260827_232820 reports fallback_validation 2/2 and answer_fallback_count 2/2.",
+        "Rerun honestly records rows 15-16 as expected_evidence_not_cited answer failures under current scorer.",
+        "Full unit gate after fixture correction: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 390 passed, 59 warnings."
+      ],
+      "required_next_action": "Fix answer evidence selection/citations for the three current expected_evidence_not_cited failures before optional answer rotations."
+    },
     {
       "timestamp": "2026-08-27T21:51:07Z",
       "severity": "needs_fix",
@@ -9187,21 +9260,21 @@
   },
   "latest_contextual_quantity_answer_repair": {
     "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
-    "status": "rows_15_16_clean_after_relation_preserving_quantity_validation",
-    "latest_run": "retrieval_eval_20260827_223414",
+    "status": "superseded_by_http_fallback_telemetry_containment_rows_15_16_not_clean_answer_evidence",
+    "latest_run": "retrieval_eval_20260827_232820",
     "previous_clean_run": "retrieval_eval_20260827_212947",
     "supersedes_failed_run": "retrieval_eval_20260827_195423",
     "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-    "summary": "test_reports/retrieval_eval_summary_20260827_223414.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260827_223414.json",
-    "results": "test_reports/retrieval_eval_results_20260827_223414.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260827_232820.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_232820.json",
+    "results": "test_reports/retrieval_eval_results_20260827_232820.jsonl",
     "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
     "query_offset": 14,
     "max_queries": 2,
     "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
-    "answer_result": "2/2 actual HTTP API answers passed after API restart; answer_source api for both; fallback 0; failures {}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_223414.jsonl. Row 15 cites returned CV-X page 6-125 chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 with quote_span null; the cited chunk states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and explains that the number of lines is 10 and overlap lines is two. Row 16 remains clean as a control, citing returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, which directly supports the TRG1 for CAM 1 capture plus measurement-processing claim.",
+    "answer_result": "0/2 actual HTTP API answers passed under current exact expected-evidence citation scoring; both rows correctly report validation fallback telemetry after normalization.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_232820.jsonl. Row 15 and row 16 both contain the validation-fallback warning and normalized trace used_fallback=true/answer_source=fallback_validation. Row 15 cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78; row 16 cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9. Under the current exact expected-evidence citation scorer, both fail expected_evidence_not_cited and must not be treated as clean answer evidence.",
     "runtime_load_evidence": {
       "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
       "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
@@ -9223,22 +9296,18 @@
       "total_only_or_wrong_line": "fallback used for The example uses 23 total lines and two overlap lines."
     },
     "guardrail_addressed": {
-      "timestamp": "2026-08-27T22:20:20Z",
-      "finding": "Loaded quantity validator retained swapped line/overlap values because role extraction still used relation-insensitive nearby-token matching.",
+      "timestamp": "2026-08-27T23:25:00Z",
+      "finding": "HTTP fallback telemetry for retrieval_eval_20260827_223414 contradicted the user-visible validation-fallback warning.",
       "evidence": [
-        "Added punctuation-clause quantity role/value extraction with canonical numeric/number-word comparison.",
-        "Validation now checks the first complete role-bound relation from returned evidence instead of aggregating unrelated chunks or sibling quantities.",
-        "Focused quantity controls passed: 10 passed, 53 deselected, 5 warnings.",
-        "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 387 passed, 59 warnings.",
-        "API was restarted and loaded fingerprints were recorded.",
-        "Loaded controls rejected swapped, omitted-role, and total-only/wrong-line answers and retained the correct relation-bound answer.",
-        "retrieval_eval_20260827_223414 reran contextual rows 15-16 through actual HTTP API at 2/2 retrieval and 2/2 answers.",
-        "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
+        "Updated eval telemetry normalization from payload warning.",
+        "Reran actual HTTP answer mode as retrieval_eval_20260827_232820.",
+        "Manual JSONL inspection confirmed normalized fallback_validation traces and current expected_evidence_not_cited failures."
       ],
-      "remaining": "No further quantity-validator containment is required before optional rotations; preserve the 223414 actual-results JSONL and all prior diagnostics/exclusions."
+      "remaining": "Fix current answer citation/evidence failures; do not count 223414 or 232820 rows 15-16 as clean answer evidence yet."
     },
     "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
-    "remaining": "Continue optional answer-grounding coverage expansion while preserving matrix, citation-fidelity, false-negative, row-5, row-6, and row-15 diagnostic containments."
+    "remaining": "Quantity role/value validation behavior remains preserved, but contextual rows 15-16 need answer evidence selection/citation repair before being counted as clean answer evidence.",
+    "previous_telemetry_inconsistent_run": "retrieval_eval_20260827_223414"
   },
   "latest_matrix_retrieval_guardrail_containment": {
     "timestamp": "2026-08-27T18:03:52-04:00",
@@ -9306,5 +9375,44 @@
     ],
     "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Continue broader answer-grounding rotations only after preserving this scorer containment.",
     "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean"
+  },
+  "latest_http_fallback_telemetry_containment": {
+    "timestamp": "2026-08-27T23:28:20Z",
+    "guardrail_finding": "2026-08-27 cron payload containment: retrieval_eval_20260827_223414 had API payload warnings saying validation fallback occurred while _eval_trace and summary reported used_fallback=false, answer_source=api, and fallback 0.",
+    "status": "addressed_with_payload_warning_source_classification_and_http_rerun",
+    "scope": "eval/benchmark telemetry normalization and tests only; no production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
+    "code_change": "normalize_api_answer_payload now treats user-visible retrieval-grounded fallback warnings as authoritative fallback evidence, sets used_fallback true, answer_source fallback_validation, and records the validation fallback reason even when API trace is missing or false.",
+    "loaded_eval_path_evidence": {
+      "module_file": "/workspace/manuals_rag/scripts/benchmark/run_large_retrieval_eval.py",
+      "normalize_api_answer_payload_sha256": "3d5d12e493f8afd062e3fcaaa3a7d77b4014c9c94a48468301075c4ad44675a3",
+      "summarize_sha256": "5945534c0d176bf3c34a069dc4c14c9b99ccd296e3ec738a8f53fb63c3da428f"
+    },
+    "controls": [
+      "Focused unit telemetry controls passed: tests/unit/test_retrieval_eval.py -q -k warning_payload_fallback/summarize/http-answer controls -> 4 passed, 90 deselected.",
+      "Container replay of retrieval_eval_20260827_223414 with the updated normalizer produced answer_fallback_count 2, answer_fallback_rate 1.0, answer_sources {fallback_validation: 2}, and fallback_reason count 2 instead of fallback 0/api source.",
+      "Full unit gate after fixture correction: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 390 passed, 59 warnings."
+    ],
+    "actual_http_rerun": {
+      "run_id": "retrieval_eval_20260827_232820",
+      "dataset": "test_reports/retrieval_eval_dataset_20260827_232820.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260827_232820.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260827_232820.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_232820.json",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "query_offset": 14,
+      "max_queries": 2,
+      "search_mode": "http",
+      "response_mode": "answer_with_citations",
+      "retrieval_result": "2/2 retrieval passed; pass@1 1/2 and pass@3/pass@5 2/2.",
+      "answer_result": "0/2 answer grounding under current exact expected-chunk citation scoring; answer_failure_reasons {expected_evidence_not_cited: 2}; answer_fallback_count 2; answer_sources {fallback_validation: 2}.",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260827_232820.jsonl. Both rows contain the validation-fallback warning and normalized trace used_fallback=true, answer_source=fallback_validation, fallback_reason set. Row 15 cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78; row 16 cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9. Both answers are fallback text but fail current expected_evidence_not_cited scoring, so the prior clean claim from 223414 is not carried forward."
+    },
+    "previous_run_reclassified": {
+      "run_id": "retrieval_eval_20260827_223414",
+      "classification": "telemetry_defect_diagnostic_not_clean_source_metrics",
+      "reason": "User-visible payload warnings indicated validation fallback while _eval_trace and summary reported direct api/no fallback. The replay and rerun show fallback_validation should be counted and current answer evidence scoring fails rows 15-16."
+    },
+    "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
+    "remaining": "Fix answer evidence selection/citations for cross-document row 6 and contextual rows 15-16 before optional rotations."
   }
 }

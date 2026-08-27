@@ -349,12 +349,24 @@ def normalize_api_answer_payload(answer: dict[str, Any]) -> dict[str, Any]:
     trace = normalized.get("_eval_trace")
     if not isinstance(trace, dict):
         trace = {}
+    warnings = normalized.get("warnings")
+    warning_text = " ".join(str(item) for item in warnings) if isinstance(warnings, list) else str(warnings or "")
+    payload_reports_validation_fallback = "retrieval-grounded fallback" in warning_text.lower()
+    used_fallback = bool(trace.get("used_fallback", False)) or payload_reports_validation_fallback
+    fallback_reason = trace.get("fallback_reason")
+    if payload_reports_validation_fallback and not fallback_reason:
+        fallback_reason = "Generated answer was replaced by retrieval-grounded fallback during validation."
+    answer_source = trace.get("answer_source") or "api"
+    if payload_reports_validation_fallback and answer_source == "api":
+        answer_source = "fallback_validation"
     normalized["_eval_trace"] = {
         **trace,
         "answer_transport": "http_api",
-        "answer_source": trace.get("answer_source") or "api",
-        "used_fallback": bool(trace.get("used_fallback", False)),
+        "answer_source": answer_source,
+        "used_fallback": used_fallback,
     }
+    if fallback_reason:
+        normalized["_eval_trace"]["fallback_reason"] = fallback_reason
     return normalized
 
 
