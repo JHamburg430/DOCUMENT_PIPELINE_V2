@@ -1474,7 +1474,7 @@ def _identifier_context_terms(query: str, identifier: str) -> set[str]:
     right_boundary = min(right_candidates) if right_candidates else len(query)
     clause = query[left_boundary + 1 : right_boundary]
     identifier_terms = _text_terms(identifier)
-    ignored_context_terms = {"documentation", "listed", "manual"}
+    ignored_context_terms = {"compare", "correct", "documentation", "listed", "manual", "operation", "specification", "specifications"}
     terms = {
         term
         for term in terms_from_text(clause)
@@ -1507,7 +1507,7 @@ def _comparison_requested_field_terms(query: str) -> set[str]:
     lowered = query.lower()
     if re.search(r"\bcauses?\b", lowered):
         fields.add("cause")
-    if re.search(r"\b(?:remed(?:y|ies)|corrective\s+actions?|correct(?:ed|ion)?|fix(?:ed)?)\b", lowered):
+    if re.search(r"\b(?:remed(?:y|ies)|corrective\s+actions?|corrected|corrections?|fix(?:ed)?)\b", lowered):
         fields.update({"remedy", "correctiveaction"})
     if re.search(r"\b(?:compare|what|which)\s+(?:is\s+the\s+)?error\s+codes?\b", lowered):
         fields.add("errorcode")
@@ -1572,6 +1572,8 @@ def _promote_comparison_table_candidates(
     seen: set[str] = set()
     for identifier in identifiers:
         context_terms = set() if row_code_terms else _identifier_context_terms(analysis.raw_query, identifier)
+        if not row_code_terms and not context_terms and not field_terms:
+            continue
         if any(
             _result_matches_primary_identifier(result, identifier)
             and _is_structured_comparison_table_result(result)

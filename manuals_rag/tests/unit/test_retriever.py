@@ -2717,6 +2717,86 @@ def test_comparison_table_promotion_replaces_same_product_wrong_requested_field(
     assert promoted[2].chunk_id == "mod-b-remedy"
 
 
+def test_comparison_requested_field_terms_ignore_ordinary_correct_usage():
+    assert retriever._comparison_requested_field_terms("Compare the correct specifications for MOD1-A and MOD2-B") == set()
+    assert retriever._comparison_requested_field_terms("Which model is correct for MOD1-A operation?") == set()
+    assert retriever._comparison_requested_field_terms("Compare the correct option for MOD1-A and MOD2-B") == set()
+    assert retriever._comparison_requested_field_terms("Is MOD1-A correct for 24 V operation?") == set()
+
+
+def test_comparison_requested_field_terms_keep_troubleshooting_fields():
+    assert retriever._comparison_requested_field_terms("Compare the cause for MOD1-A and MOD2-B") == {"cause"}
+    assert retriever._comparison_requested_field_terms("Compare the corrective action for MOD1-A and MOD2-B") == {
+        "remedy",
+        "correctiveaction",
+    }
+    assert retriever._comparison_requested_field_terms("How is the MOD1-A error corrected compared with MOD2-B?") == {
+        "remedy",
+        "correctiveaction",
+    }
+    assert retriever._comparison_requested_field_terms("Compare the remedy for MOD1-A and MOD2-B") == {
+        "remedy",
+        "correctiveaction",
+    }
+    assert retriever._comparison_requested_field_terms("Compare error code for MOD1-A and MOD2-B") == {"errorcode"}
+    assert retriever._comparison_requested_field_terms("Compare message for MOD1-A and MOD2-B") == {"message"}
+
+
+def test_table_requested_field_metadata_allows_row_group_context():
+    assert retriever._table_result_matches_requested_field_metadata(
+        {"table_row_group": "Error, cause, and corrective action"},
+        {"cause"},
+    )
+
+
+def test_comparison_table_promotion_ignores_bare_correct_as_context_term():
+    analysis = analyze_query("Compare the correct specifications for MOD1-A and MOD2-B operation.")
+    assert retriever._identifier_context_terms(analysis.raw_query, "MOD2-B") == set()
+    reranked = [
+        SearchResult(
+            chunk_id="mod-a-spec",
+            score=4.0,
+            title="MOD1-A Manual",
+            document_version_id="ver-a",
+            source_document_id="doc-a",
+            pages=[10],
+            section_path=["Specifications"],
+            content="Column headers: Model; Row headers: Supply voltage; Cell value: 24 VDC.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Model"],
+                "table_row_headers": ["Supply voltage"],
+                "product_model": "MOD1-A",
+            },
+        ),
+    ]
+    supplemental = [
+        SearchResult(
+            chunk_id="mod-b-remedy",
+            score=1.5,
+            title="MOD2-B Manual",
+            document_version_id="ver-b",
+            source_document_id="doc-b",
+            pages=[30],
+            section_path=["Errors"],
+            content=(
+                "Column headers: Remedy; Row headers: program switching error; "
+                "Cell value: Select a correct advanced program."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Remedy"],
+                "table_row_headers": ["program switching error"],
+                "product_model": "MOD2-B",
+            },
+        )
+    ]
+
+    promoted = retriever._promote_comparison_table_candidates(reranked, supplemental, analysis, limit=5)
+
+    assert [result.chunk_id for result in promoted] == ["mod-a-spec"]
+
+
 def test_table_lexical_search_skips_unstructured_general_queries(monkeypatch):
     monkeypatch.setattr(retriever, "fetch_all", lambda *_args, **_kwargs: pytest.fail("fetch_all should not run"))
 
