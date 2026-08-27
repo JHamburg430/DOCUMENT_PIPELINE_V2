@@ -3024,3 +3024,19 @@ Next target:
 Next target:
 
 - First fix the source-document retrieval/context gap exposed by source-document-strict scoring for curated cross-document v2 row 3, where IV4-G600CA shock-resistance evidence is not in final top-k. Then improve final answer context/use for retrieval-clean rows 4-5. Preserve row 15 diagnostic/source-context evidence and all citation-fidelity containments.
+
+## 2026-08-27 Cron 39262386 Answer Rotation Tracking Reconciliation
+
+- Target: address the latest guardrail `needs_fix` at `2026-08-27T06:52:56Z` before any optional retrieval or answer-generation work. The finding said `answer_grounding_rotation` still described `retrieval_eval_20260827_055829` rows 3-5 as retrieval-clean answer failures even after source-document-strict scoring reclassified row 3 as a retrieval/context gap.
+- Guardrail status: read the runbook, manifest, progress log, and guardrail findings file at run start. Direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was requested and remained unavailable because this cron context is restricted to the current job.
+- Local stack: compose services were usable. The pre-existing uncommitted `infra/compose/docker-compose.yml` `OLLAMA_URL` port change remains unrelated user-owned work and was not edited or committed.
+- Tracking correction: updated root and `question_bank` `answer_grounding_rotation` copies atomically. Row 3 is now explicitly tracked as `retrieval_context_gap_rows: [3]` from superseding retrieval-only run `retrieval_eval_20260827_063151`; rows 4 and 5 are the only current retrieval-clean answer failures from `retrieval_eval_20260827_055829`.
+- Current failure state: retrieval failures remain `ranking_or_context_loss: 1` for row 3. Answer failures remain limited to retrieval-clean rows 4-5 as `expected_document_not_cited_or_used: 1` and `insufficient_evidence: 1`. The older rows 3-5 answer-run failure counts are preserved inside `original_answer_failure_reasons_before_source_strict_recheck` for history, not current tuning state.
+- Manifest guardrail record: added the `2026-08-27T06:52:56Z` finding to duplicated `unresolved_guardrail_findings` with status `addressed_this_run_tracking_reconciled`, including evidence that both manifest copies now expose row 3 as retrieval/context evidence and rows 4-5 as answer-context/use evidence.
+- Scope: no production retrieval, answering, eval generation/scoring, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, docs, or test code changed. No question-bank counts changed: active coverage remains 204 exploratory questions total, 101 single-step and 103 multi-step, with replacement debt 0.
+- Validation: `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` passed; `jq empty test_reports/retrieval_accuracy_question_bank_manifest.json` passed; `git diff --check HEAD` passed. No unit gate is required because this is tracking-only.
+- Generalization check before commit: reconciling stale tracking before tuning is valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it prevents optimizing answer generation against a case that is actually a retrieval/context gap, without filenames, document ids, vendor shortcuts, query hardcoding, inferred filters, eval-only behavior, parser/ingestion changes, API/UI changes, schema/infrastructure changes, or model/provider changes.
+
+Next target:
+
+- First fix the source-document retrieval/context gap exposed by source-document-strict scoring for curated cross-document v2 row 3, where IV4-G600CA shock-resistance evidence is not in final top-k. Then improve final answer context/use for retrieval-clean rows 4-5. Preserve row 15 diagnostic/source-context evidence and all citation-fidelity containments.
