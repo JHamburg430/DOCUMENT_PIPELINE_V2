@@ -29,6 +29,7 @@ def _minimal_manifest():
         "run_exclusions": {"excluded": ["retrieval_eval_20260826_170130"]},
         "unresolved_guardrail_findings": ["source-first citation fidelity"],
         "current_retrieval_failure_source": "retrieval_eval_20260826_005723",
+        "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "failure_categories": retrieval_failures,
         "current_failure_categories": retrieval_failures,
         "current_retrieval_failure_categories": retrieval_failures,
@@ -80,4 +81,3 @@ def test_manifest_checker_rejects_unequal_false_negative_repair():
     errors = module.check_manifest(manifest)
 
     assert any("latest_false_negative_repair mismatch" in error for error in errors)
-

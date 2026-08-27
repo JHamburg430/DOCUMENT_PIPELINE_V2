@@ -676,23 +676,6 @@ def _supported_citations(citations: list[dict[str, Any]], results: list[SearchRe
 
 
 def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: str = "") -> AnswerResponse:
-    citations = list(answer.citations)
-    if results and citations and not _citation_quotes_are_supported(citations, results):
-        supported = _supported_citations(citations, results)
-        if supported:
-            cited_chunk_ids = {str(citation.get("chunk_id") or "") for citation in supported}
-            cited_results = [result for result in results if result.chunk_id in cited_chunk_ids]
-            if _answer_claims_supported_by_results(answer.answer, cited_results):
-                answer = answer.model_copy(
-                    update={
-                        "citations": supported,
-                        "warnings": [
-                            *answer.warnings,
-                            "Unsupported citation quote spans were removed from the generated answer.",
-                        ],
-                    }
-                )
-
     if results and (
         not _answer_supported_by_results(answer.answer, results)
         or _structured_answer_is_too_terse(answer.answer, results)

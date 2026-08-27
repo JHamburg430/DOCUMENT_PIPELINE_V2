@@ -287,11 +287,11 @@ def test_validate_answer_keeps_supported_citation_and_drops_unsupported_sibling_
     validated = validate_answer(answer, results)
 
     assert [citation["chunk_id"] for citation in validated.citations] == ["line-count-row"]
-    assert any("Unsupported citation quote spans were removed" in warning for warning in validated.warnings)
-    assert not any("not sufficiently supported" in warning for warning in validated.warnings)
+    assert not any("Unsupported citation quote spans were removed" in warning for warning in validated.warnings)
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
-def test_validate_answer_prunes_citation_when_remaining_chunk_supports_full_answer():
+def test_validate_answer_falls_back_instead_of_pruning_unsupported_citation():
     answer = AnswerResponse(
         answer="Set voltage to 5 volts.",
         confidence="high",
@@ -341,10 +341,10 @@ def test_validate_answer_prunes_citation_when_remaining_chunk_supports_full_answ
 
     validated = validate_answer(answer, results)
 
-    assert validated.answer == "Set voltage to 5 volts."
+    assert validated.answer == "Corrective Action: Set voltage to 5 volts."
     assert [citation["chunk_id"] for citation in validated.citations] == ["voltage-row"]
-    assert any("Unsupported citation quote spans were removed" in warning for warning in validated.warnings)
-    assert not any("not sufficiently supported" in warning for warning in validated.warnings)
+    assert not any("Unsupported citation quote spans were removed" in warning for warning in validated.warnings)
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
 def test_validate_answer_falls_back_when_pruned_citations_do_not_support_all_claims():
@@ -399,6 +399,191 @@ def test_validate_answer_falls_back_when_pruned_citations_do_not_support_all_cla
 
     assert validated.answer == "Corrective Action: Set voltage to 5 volts."
     assert "Disable encryption" not in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["voltage-row"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_falls_back_for_swapped_numeric_bindings_after_bad_citation():
+    answer = AnswerResponse(
+        answer="Set voltage to 5 volts and current to 10 amps.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "swapped-row",
+                "document_id": "d1",
+                "pages": [7],
+                "quote_span": "Set voltage to 10 volts and current to 5 amps.",
+            },
+            {
+                "chunk_id": "nearby-row",
+                "document_id": "d1",
+                "pages": [7],
+                "quote_span": "Set voltage to 5 volts and current to 10 amps.",
+            },
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="swapped-row",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[7],
+            section_path=["Settings"],
+            content="Corrective Action: Set voltage to 10 volts and current to 5 amps.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="nearby-row",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[7],
+            section_path=["Settings"],
+            content="Corrective Action: Check the network cable.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(answer, results)
+
+    assert validated.answer == "Corrective Action: Set voltage to 10 volts and current to 5 amps."
+    assert "5 volts and current to 10 amps" not in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["swapped-row"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_falls_back_for_polarity_inversion_after_bad_citation():
+    answer = AnswerResponse(
+        answer="Enable remote start before maintenance.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "safety-row",
+                "document_id": "d1",
+                "pages": [9],
+                "quote_span": "Disable remote start before maintenance.",
+            },
+            {
+                "chunk_id": "nearby-row",
+                "document_id": "d1",
+                "pages": [9],
+                "quote_span": "Enable remote start before maintenance.",
+            },
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="safety-row",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[9],
+            section_path=["Safety"],
+            content="Corrective Action: Disable remote start before maintenance.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="nearby-row",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[9],
+            section_path=["Safety"],
+            content="Corrective Action: Inspect the indicator.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(answer, results)
+
+    assert validated.answer == "Corrective Action: Disable remote start before maintenance."
+    assert "Enable remote start" not in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["safety-row"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_falls_back_for_cross_chunk_role_mixing_after_bad_citation():
+    answer = AnswerResponse(
+        answer="Set voltage to 5 volts and current to 10 amps.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "voltage-row",
+                "document_id": "d1",
+                "pages": [11],
+                "quote_span": "Set voltage to 5 volts.",
+            },
+            {
+                "chunk_id": "current-row",
+                "document_id": "d1",
+                "pages": [12],
+                "quote_span": "Set current to 10 amps.",
+            },
+            {
+                "chunk_id": "nearby-row",
+                "document_id": "d1",
+                "pages": [12],
+                "quote_span": "Set voltage to 5 volts and current to 10 amps.",
+            },
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="voltage-row",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[11],
+            section_path=["Voltage setup"],
+            content="Corrective Action: Set voltage to 5 volts.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="current-row",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Current setup"],
+            content="Corrective Action: Set current to 10 amps.",
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="nearby-row",
+            score=0.7,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Current setup"],
+            content="Corrective Action: Check the output terminal.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(answer, results)
+
+    assert validated.answer == "Corrective Action: Set voltage to 5 volts."
+    assert "current to 10 amps" not in validated.answer
     assert [citation["chunk_id"] for citation in validated.citations] == ["voltage-row"]
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
