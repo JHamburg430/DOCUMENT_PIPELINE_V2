@@ -404,6 +404,10 @@ summary {
   text-align: center;
 }
 
+.matrix-grid tr.current-run-row td {
+  background: #fff8e1;
+}
+
 .matrix-cell {
   display: inline-flex;
   align-items: center;
@@ -432,6 +436,13 @@ summary {
 .matrix-cell.blank {
   color: transparent;
   background: #f1f4f7;
+}
+
+.matrix-cell.current-run-cell {
+  color: var(--warn);
+  border-color: var(--warn);
+  background: #fff4c2;
+  box-shadow: 0 0 0 2px rgba(154, 103, 0, 0.18);
 }
 
 .matrix-cell-details {

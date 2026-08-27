@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import json
+import re
 import subprocess
 import sys
 import time
@@ -553,6 +554,9 @@ def _start_question_matrix_job(payload: dict) -> dict:
         "completed_at": None,
         "dataset_count": len(datasets),
         "current_dataset": None,
+        "current_case_id": None,
+        "current_question_number": None,
+        "current_stage_key": "answer" if response_mode == "answer_with_citations" else "retrieval",
         "completed_datasets": 0,
         "returncode": None,
         "error": None,
@@ -575,6 +579,10 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             dataset_path = MANUALS_ROOT / dataset_rel
             if not dataset_path.exists():
                 raise FileNotFoundError(f"Question-bank dataset not found: {dataset_rel}")
+            case_numbers = {
+                _case_key(case): case_index
+                for case_index, case in enumerate(_read_jsonl(dataset_path), start=1)
+            }
             cmd = [
                 sys.executable,
                 str(MANUALS_ROOT / "scripts" / "benchmark" / "run_large_retrieval_eval.py"),
@@ -599,9 +607,12 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             _update_question_matrix_job(
                 job_id,
                 current_dataset=dataset_rel,
+                current_case_id=None,
+                current_question_number=None,
+                current_stage_key=str(job["column"]) if job["mode"] == "column" else str(job["current_stage_key"]),
                 commands=[*(_question_matrix_job_snapshot(job_id).get("commands") or []), command_record],
             )
-            completed = subprocess.run(
+            process = subprocess.Popen(
                 cmd,
                 cwd=MANUALS_ROOT,
                 env={
@@ -610,28 +621,47 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
                     "LOCAL_ADMIN_TOKEN": os.getenv("LOCAL_ADMIN_TOKEN", "admin-token"),
                     "LOCAL_END_USER_TOKEN": os.getenv("LOCAL_END_USER_TOKEN", "user-token"),
                 },
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True,
-                timeout=MATRIX_JOB_TIMEOUT_SECONDS,
+                bufsize=1,
             )
+            output_lines: list[str] = []
+            assert process.stdout is not None
+            for line in process.stdout:
+                output_lines.append(line)
+                if len(output_lines) > 400:
+                    output_lines = output_lines[-400:]
+                match = re.search(r'"case_id"\s*:\s*"([^"]+)"', line)
+                if match:
+                    current_case_id = match.group(1)
+                    _update_question_matrix_job(
+                        job_id,
+                        current_case_id=current_case_id,
+                        current_question_number=case_numbers.get(current_case_id),
+                    )
+            returncode = process.wait(timeout=MATRIX_JOB_TIMEOUT_SECONDS)
+            stdout_tail = "".join(output_lines)[-8000:]
             output = {
                 "dataset": dataset_rel,
-                "returncode": completed.returncode,
-                "stdout_tail": completed.stdout[-8000:],
-                "stderr_tail": completed.stderr[-8000:],
+                "returncode": returncode,
+                "stdout_tail": stdout_tail,
+                "stderr_tail": "",
             }
             _update_question_matrix_job(
                 job_id,
                 outputs=[*(_question_matrix_job_snapshot(job_id).get("outputs") or []), output],
                 completed_datasets=index,
-                returncode=completed.returncode,
+                returncode=returncode,
             )
-            if completed.returncode != 0:
-                raise RuntimeError(f"Benchmark failed for {dataset_rel} with exit code {completed.returncode}")
+            if returncode != 0:
+                raise RuntimeError(f"Benchmark failed for {dataset_rel} with exit code {returncode}")
         _update_question_matrix_job(
             job_id,
             status="completed",
             current_dataset=None,
+            current_case_id=None,
+            current_question_number=None,
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
     except Exception as error:

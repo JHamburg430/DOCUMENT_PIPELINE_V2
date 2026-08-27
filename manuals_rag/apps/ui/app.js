@@ -422,8 +422,10 @@ function renderQuestionMatrix(payload) {
         ${rows.map(({ item, index, cells }) => {
           const selected = index === state.selectedMatrixIndex ? " selected" : "";
           const caseData = item.case || {};
+          const activeStage = currentMatrixStageKey();
+          const activeRow = isCurrentMatrixJobRow(item);
           return `
-            <tr class="clickable${selected}" data-matrix-index="${index}">
+            <tr class="clickable${selected}${activeRow ? " current-run-row" : ""}" data-matrix-index="${index}">
               <td data-label="#">${index + 1}</td>
               <td data-label="Question">
                 <strong>${escapeHtml(shortText(caseData.query || item.query, 160))}</strong>
@@ -431,7 +433,8 @@ function renderQuestionMatrix(payload) {
               </td>
               ${MATRIX_STAGES.map((stage) => {
                 const cell = cells[stage.key] || matrixCell("blank");
-                return `<td data-label="${escapeHtml(stage.label)}" title="${escapeHtml(cell.detail || stage.description)}"><span class="matrix-cell ${escapeHtml(cell.status)}">${escapeHtml(matrixStatusLabel(cell))}</span></td>`;
+                const current = activeRow && stage.key === activeStage ? " current-run-cell" : "";
+                return `<td data-label="${escapeHtml(stage.label)}" title="${escapeHtml(cell.detail || stage.description)}"><span class="matrix-cell ${escapeHtml(cell.status)}${current}">${escapeHtml(matrixStatusLabel(cell))}</span></td>`;
               }).join("")}
             </tr>
           `;
@@ -446,6 +449,20 @@ function renderQuestionMatrix(payload) {
     });
   });
   renderMatrixDetail(rows[state.selectedMatrixIndex]);
+}
+
+function currentMatrixStageKey() {
+  const job = state.matrixJob || {};
+  if (job.mode === "column" && job.column && job.column !== "all") return job.column;
+  return job.current_stage_key || (job.response_mode === "answer_with_citations" ? "answer" : "retrieval");
+}
+
+function isCurrentMatrixJobRow(item = {}) {
+  const job = state.matrixJob || {};
+  if (!["queued", "running"].includes(job.status)) return false;
+  if (!job.current_dataset || item.dataset !== job.current_dataset) return false;
+  if (!job.current_case_id) return true;
+  return item.key === job.current_case_id;
 }
 
 function setupMatrixControls() {
@@ -472,11 +489,12 @@ function renderMatrixJobStatus(job) {
   const total = Number(job.dataset_count || 0);
   const modeLabel = job.mode === "column" ? `Column: ${MATRIX_STAGES.find((stage) => stage.key === job.column)?.label || job.column}` : "All bank";
   const judgeText = job.use_model_judge ? "model judge on" : "model judge off";
+  const questionText = job.current_question_number ? `question ${job.current_question_number}` : "";
   node.className = job.status === "failed" ? "error-box" : "empty-state";
   node.innerHTML = `
     <strong>${escapeHtml(modeLabel)} ${escapeHtml(job.status || "queued")}</strong>
     <span>${escapeHtml(`${completed}/${total} datasets | ${job.response_mode || ""} | ${judgeText}`)}</span>
-    ${job.current_dataset ? `<small>${escapeHtml(job.current_dataset)}</small>` : ""}
+    ${job.current_dataset ? `<small>${escapeHtml([job.current_dataset, questionText].filter(Boolean).join(" | "))}</small>` : ""}
     ${job.error ? `<small>${escapeHtml(job.error)}</small>` : ""}
   `;
   const busy = ["queued", "running"].includes(job.status);
@@ -491,6 +509,7 @@ async function pollMatrixJob(jobId) {
     const job = await localJson(`/local/question-matrix/jobs/${encodeURIComponent(jobId)}`);
     state.matrixJob = job;
     renderMatrixJobStatus(job);
+    if (state.questionMatrix) renderQuestionMatrix(state.questionMatrix);
     if (["queued", "running"].includes(job.status)) {
       state.matrixJobTimer = setTimeout(() => pollMatrixJob(jobId), 3000);
       return;
