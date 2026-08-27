@@ -272,7 +272,7 @@ def _contextual_quantity_terms(text: str) -> set[str]:
 
 
 QUANTITY_ROLE_PATTERNS = {
-    "line": re.compile(r"\b(?:line(?:s)?|number\s+of\s+lines?|line\s+count)\b", flags=re.IGNORECASE),
+    "line": re.compile(r"\b(?<!overlap\s)(?<!overlapping\s)(?:line(?:s)?|number\s+of\s+lines?|line\s+count)\b", flags=re.IGNORECASE),
     "overlap": re.compile(
         r"\b(?:overlap(?:ping)?(?:\s+lines?)?|number\s+of\s+overlap(?:ping)?\s+lines?|overlap\s+count)\b",
         flags=re.IGNORECASE,
@@ -280,20 +280,84 @@ QUANTITY_ROLE_PATTERNS = {
 }
 
 
+def _quantity_value_pattern() -> str:
+    return r"(?:\d+(?:\.\d+)?|" + "|".join(sorted(NUMBER_WORDS, key=len, reverse=True)) + r")"
+
+
+def _canonical_quantity_value(value: str) -> str:
+    lowered = value.lower()
+    return {
+        "zero": "0",
+        "one": "1",
+        "two": "2",
+        "three": "3",
+        "four": "4",
+        "five": "5",
+        "six": "6",
+        "seven": "7",
+        "eight": "8",
+        "nine": "9",
+        "ten": "10",
+        "eleven": "11",
+        "twelve": "12",
+        "thirteen": "13",
+        "fourteen": "14",
+        "fifteen": "15",
+        "sixteen": "16",
+        "seventeen": "17",
+        "eighteen": "18",
+        "nineteen": "19",
+        "twenty": "20",
+    }.get(lowered, lowered)
+
+
 def _requested_quantity_roles(text: str) -> set[str]:
     return {role for role, pattern in QUANTITY_ROLE_PATTERNS.items() if pattern.search(text)}
 
 
+def _quantity_relation_clauses(text: str) -> list[str]:
+    coarse_clauses = re.split(r"[\n.;:|]+", text)
+    clauses: list[str] = []
+    for clause in coarse_clauses:
+        parts = re.split(r"\b(?:while|but|whereas)\b", clause, flags=re.IGNORECASE)
+        clauses.extend(part.strip() for part in parts if part.strip())
+    return clauses
+
+
+def _add_quantity_role_value(role_values: dict[str, set[str]], role: str, value: str) -> None:
+    role_values.setdefault(role, set()).add(_canonical_quantity_value(value))
+
+
 def _quantity_role_values(text: str) -> dict[str, set[str]]:
     role_values: dict[str, set[str]] = {}
-    quantity_value_pattern = r"(?:\d+(?:\.\d+)?|" + "|".join(sorted(NUMBER_WORDS)) + r")"
-    for match in re.finditer(rf"\b{quantity_value_pattern}\b", text, flags=re.IGNORECASE):
-        window = text[max(0, match.start() - 80) : min(len(text), match.end() + 80)]
-        value = match.group(0).lower()
-        for role, pattern in QUANTITY_ROLE_PATTERNS.items():
-            if pattern.search(window):
-                role_values.setdefault(role, set()).add(value)
+    for clause_values in _quantity_role_value_groups(text):
+        for role, values in clause_values.items():
+            role_values.setdefault(role, set()).update(values)
     return role_values
+
+
+def _quantity_role_value_groups(text: str) -> list[dict[str, set[str]]]:
+    groups: list[dict[str, set[str]]] = []
+    quantity_value_pattern = _quantity_value_pattern()
+    for clause in _quantity_relation_clauses(text):
+        role_values: dict[str, set[str]] = {}
+        relation_gap = r"(?:(?!\band\b)[\w\s,/()\[\]-])"
+        for role, role_pattern in QUANTITY_ROLE_PATTERNS.items():
+            role_before_value = re.compile(
+                rf"{role_pattern.pattern}{relation_gap}{{0,60}}?\b({quantity_value_pattern})\b",
+                flags=re.IGNORECASE,
+            )
+            value_before_role = re.compile(
+                rf"\b({quantity_value_pattern})\b{relation_gap}{{0,24}}?{role_pattern.pattern}",
+                flags=re.IGNORECASE,
+            )
+            for match in role_before_value.finditer(clause):
+                _add_quantity_role_value(role_values, role, match.group(1))
+            for match in value_before_role.finditer(clause):
+                _add_quantity_role_value(role_values, role, match.group(1))
+        if role_values:
+            groups.append(role_values)
+    return groups
 
 
 def _answer_addresses_quantity_request(answer: str, query: str, results: list[SearchResult]) -> bool:
@@ -303,30 +367,31 @@ def _answer_addresses_quantity_request(answer: str, query: str, results: list[Se
     requested_roles = _requested_quantity_roles(query)
     answer_role_values = _quantity_role_values(answer)
     candidate_role_values: list[dict[str, set[str]]] = []
+    saw_partial_requested_role_evidence = False
     answer_quantities = _contextual_quantity_terms(answer)
     candidate_quantities: set[str] = set()
     for result in results[:8]:
         evidence = _fallback_answer_text(result)
         quantities = _contextual_quantity_terms(evidence)
         evidence_role_values = _quantity_role_values(evidence)
+        evidence_role_value_groups = _quantity_role_value_groups(evidence)
         if not quantities and not evidence_role_values:
             continue
         overlap = len(query_terms.intersection(_answer_terms(evidence)))
-        if overlap >= 3:
-            candidate_quantities.update(quantities)
-            if requested_roles:
-                role_values = {
-                    role: values
-                    for role, values in evidence_role_values.items()
-                    if role in requested_roles and values
-                }
+        if requested_roles:
+            for group in evidence_role_value_groups:
+                role_values = {role: values for role, values in group.items() if role in requested_roles and values}
+                if role_values:
+                    saw_partial_requested_role_evidence = True
                 if requested_roles.issubset(role_values):
                     candidate_role_values.append(role_values)
+        if overlap >= 3:
+            candidate_quantities.update(quantities)
     if candidate_role_values:
-        return any(
-            all(answer_role_values.get(role, set()).intersection(values) for role, values in role_values.items())
-            for role_values in candidate_role_values
-        )
+        role_values = candidate_role_values[0]
+        return all(answer_role_values.get(role, set()).intersection(values) for role, values in role_values.items())
+    if requested_roles and saw_partial_requested_role_evidence:
+        return False
     if not candidate_quantities:
         return True
     return bool(answer_quantities.intersection(candidate_quantities))

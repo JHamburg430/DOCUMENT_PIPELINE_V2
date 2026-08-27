@@ -1268,14 +1268,14 @@ def test_validate_answer_fallback_selects_returned_quantity_evidence():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
-def test_validate_answer_falls_back_for_wrong_quantity_role_values():
-    answer = AnswerResponse(
-        answer="The example uses 23 total lines and one overlap line.",
+def _quantity_answer(answer_text: str, cited_chunk_id: str = "continuous-mode-example") -> AnswerResponse:
+    return AnswerResponse(
+        answer=answer_text,
         confidence="high",
         used_documents=[],
         citations=[
             {
-                "chunk_id": "continuous-mode-example",
+                "chunk_id": cited_chunk_id,
                 "document_id": "d1",
                 "pages": [863],
                 "quote_span": None,
@@ -1285,32 +1285,49 @@ def test_validate_answer_falls_back_for_wrong_quantity_role_values():
         followup_questions=[],
         insufficient_evidence=False,
     )
-    results = [
-        SearchResult(
-            chunk_id="continuous-mode-example",
-            score=0.8,
-            title="CV-X manual",
-            document_version_id="v1",
-            source_document_id="d1",
-            pages=[863],
-            section_path=["Timing chart"],
-            content=(
-                "Typical operations at trigger input when the LJ-V series head is used, "
-                "[Continuous] is set, and [Total Number of Lines] is enabled. "
-                "For this description, the number of lines is 10 and the number of overlap lines is two."
-            ),
-            metadata={"chunk_type": "section_window"},
-        ),
-    ]
 
-    validated = validate_answer(
-        answer,
+
+def _quantity_result(
+    content: str,
+    chunk_id: str = "continuous-mode-example",
+    score: float = 0.8,
+) -> SearchResult:
+    return SearchResult(
+        chunk_id=chunk_id,
+        score=score,
+        title="CV-X manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[863],
+        section_path=["Timing chart"],
+        content=content,
+        metadata={"chunk_type": "section_window"},
+    )
+
+
+def _validate_quantity_answer(answer_text: str, results: list[SearchResult]) -> AnswerResponse:
+    return validate_answer(
+        _quantity_answer(answer_text),
         results,
         query=(
             "For CV-X with an LJ-V head in continuous mode, what example line count and overlap count "
             "does the timing description use?"
         ),
     )
+
+
+def test_validate_answer_falls_back_for_wrong_quantity_role_values():
+    results = [
+        _quantity_result(
+            content=(
+                "Typical operations at trigger input when the LJ-V series head is used, "
+                "[Continuous] is set, and [Total Number of Lines] is enabled. "
+                "For this description, the number of lines is 10 and the number of overlap lines is two."
+            ),
+        ),
+    ]
+
+    validated = _validate_quantity_answer("The example uses 23 total lines and one overlap line.", results)
 
     assert "number of lines is 10" in validated.answer
     assert "overlap lines is two" in validated.answer
@@ -1320,52 +1337,162 @@ def test_validate_answer_falls_back_for_wrong_quantity_role_values():
 
 
 def test_validate_answer_falls_back_when_quantity_answer_omits_requested_role():
-    answer = AnswerResponse(
-        answer="The example uses 10 lines.",
-        confidence="high",
-        used_documents=[],
-        citations=[
-            {
-                "chunk_id": "continuous-mode-example",
-                "document_id": "d1",
-                "pages": [863],
-                "quote_span": None,
-            }
-        ],
-        warnings=[],
-        followup_questions=[],
-        insufficient_evidence=False,
-    )
     results = [
-        SearchResult(
-            chunk_id="continuous-mode-example",
-            score=0.8,
-            title="CV-X manual",
-            document_version_id="v1",
-            source_document_id="d1",
-            pages=[863],
-            section_path=["Timing chart"],
+        _quantity_result(
             content=(
                 "Typical operations at trigger input when the LJ-V series head is used, "
                 "[Continuous] is set, and [Total Number of Lines] is enabled. "
                 "For this description, the number of lines is 10 and the number of overlap lines is two."
             ),
-            metadata={"chunk_type": "section_window"},
         ),
     ]
 
-    validated = validate_answer(
-        answer,
-        results,
-        query=(
-            "For CV-X with an LJ-V head in continuous mode, what example line count and overlap count "
-            "does the timing description use?"
-        ),
-    )
+    validated = _validate_quantity_answer("The example uses 10 lines.", results)
 
     assert "number of lines is 10" in validated.answer
     assert "overlap lines is two" in validated.answer
     assert [citation["chunk_id"] for citation in validated.citations] == ["continuous-mode-example"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_accepts_relation_preserving_quantity_binding():
+    results = [
+        _quantity_result(
+            content=(
+                "For this description, the number of lines is 10 and the number of overlap lines is two."
+            ),
+        ),
+    ]
+
+    validated = _validate_quantity_answer("The example uses 10 lines and two overlap lines.", results)
+
+    assert validated.answer == "The example uses 10 lines and two overlap lines."
+    assert not any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_falls_back_for_swapped_quantity_role_values():
+    results = [
+        _quantity_result(
+            content=(
+                "For this description, the number of lines is 10 and the number of overlap lines is two."
+            ),
+        ),
+    ]
+
+    validated = _validate_quantity_answer("The example uses two lines and 10 overlap lines.", results)
+
+    assert "number of lines is 10" in validated.answer
+    assert "overlap lines is two" in validated.answer
+    assert "two lines and 10 overlap" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_falls_back_for_quantity_cross_clause_role_mixing():
+    results = [
+        _quantity_result(
+            content=(
+                "For continuous mode, the number of lines is 10. "
+                "For the separate total-lines setting, the number of overlap lines is two."
+            ),
+        ),
+    ]
+
+    validated = _validate_quantity_answer("The example uses 10 lines and two overlap lines.", results)
+
+    assert "For continuous mode" in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_falls_back_for_quantity_cross_chunk_role_mixing():
+    results = [
+        _quantity_result(
+            "For continuous mode, the number of lines is 10.",
+            chunk_id="line-count-row",
+            score=0.9,
+        ),
+        _quantity_result(
+            "For a different timing mode, the number of overlap lines is two.",
+            chunk_id="overlap-count-row",
+            score=0.8,
+        ),
+    ]
+
+    validated = _validate_quantity_answer("The example uses 10 lines and two overlap lines.", results)
+
+    assert "For continuous mode" in validated.answer or "For a different timing mode" in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_falls_back_for_sibling_quantity_values():
+    results = [
+        _quantity_result(
+            "Requested setup: the number of lines is 10 and the number of overlap lines is two.",
+            chunk_id="requested-row",
+            score=0.9,
+        ),
+        _quantity_result(
+            "Sibling setup: the number of lines is 8 and the number of overlap lines is one.",
+            chunk_id="sibling-row",
+            score=0.8,
+        ),
+    ]
+
+    validated = _validate_quantity_answer("The example uses 8 lines and one overlap line.", results)
+
+    assert "number of lines is 10" in validated.answer
+    assert "overlap lines is two" in validated.answer
+    assert "8 lines" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_handles_quantity_units_and_ranges_without_role_swapping():
+    results = [
+        _quantity_result(
+            content=(
+                "For this description, the number of lines is 10 lines and the number of overlap lines is two lines. "
+                "The unrelated index range is 1 to 23."
+            ),
+        ),
+    ]
+
+    validated = _validate_quantity_answer("The example uses 10 lines and two overlap lines.", results)
+
+    assert validated.answer == "The example uses 10 lines and two overlap lines."
+    assert not any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_ignores_irrelevant_quantity_numbers():
+    results = [
+        _quantity_result(
+            content=(
+                "For this description, the number of lines is 10 and the number of overlap lines is two. "
+                "The figure number is 23 and the page number is 863."
+            ),
+        ),
+    ]
+
+    validated = _validate_quantity_answer("The example uses 23 lines and 863 overlap lines.", results)
+
+    assert "number of lines is 10" in validated.answer
+    assert "overlap lines is two" in validated.answer
+    assert "863 overlap" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_does_not_treat_total_as_requested_line_count():
+    results = [
+        _quantity_result(
+            content=(
+                "For this description, the number of lines is 10 and the number of overlap lines is two. "
+                "Total Number of Lines is enabled and the total becomes 23."
+            ),
+        ),
+    ]
+
+    validated = _validate_quantity_answer("The example uses 23 total lines and two overlap lines.", results)
+
+    assert "number of lines is 10" in validated.answer
+    assert "23 total lines" not in validated.answer
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 

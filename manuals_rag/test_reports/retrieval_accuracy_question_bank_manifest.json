@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-27T19:57:00Z",
+  "updated_at": "2026-08-27T22:36:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1021,63 +1021,62 @@
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
     "answer_current_failure_categories": {},
-    "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947, and the matrix/chunk-evidence containment from this run.",
-    "answer_grounding_status": "Matrix/chunk-evidence retrieval guardrail containment completed after guardrail 2026-08-27T21:51:07Z. The previously committed ad7c5ba production retrieval/answer workflow change was validated with focused matrix/table controls, a full unit gate, API restart/runtime fingerprints, and actual /search positive/negative controls. During full-gate validation, a general query-analysis regression was found and fixed: broad value questions such as 'In LJ-S8000, what value is given for 1-line cross-section area?' no longer get structured table routing, while explicit table-field value questions such as the LumiTrax Pattern Region Height Number Format query still promote chunk-supported table cells. API positive control returned structured_table_promoted Pattern Region: Height Number Format table cells, including chunk 50c3d66f-7782-54c9-825b-3264e44fedef; API negative control returned normal reranked LJ-S8000 1-line cross-section evidence with no structured_table_promoted rows. Current retrieval failures are {}; current answer failures are {}. Quantity rows 15-16 clean evidence from retrieval_eval_20260827_212947 remains preserved, as do all prior diagnostic exclusions and citation-fidelity containments.",
+    "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, contextual rows 15-16 clean evidence from retrieval_eval_20260827_223414, the matrix/chunk-evidence containment from 87c19c4, and the relation-preserving quantity validation containment from this run.",
+    "answer_grounding_status": "Relation-preserving quantity validation containment completed after guardrail 2026-08-27T22:20:20Z. Quantity role/value extraction now binds values to requested roles within punctuation-separated source relations and no longer validates swapped line/overlap values, omitted roles, cross-clause or cross-chunk role mixing, sibling quantities, irrelevant numbers, or total-only answers as sufficient. Loaded controls after restarting the API retained the correct 10-lines/two-overlap answer and fell back for swapped, missing-overlap, and 23-total-lines answers. Actual HTTP API answer rerun retrieval_eval_20260827_223414 kept contextual rows 15-16 clean; row 15 cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 containing Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and the explanatory 10/two relation. Current retrieval failures are {}; current answer failures are {}. Preserve the matrix containment from 87c19c4 and all prior diagnostic exclusions/citation-fidelity containments.",
     "answer_grounding_rotation": {
-      "scope": "contextual_multi_step_rows_15_16_quantity_answer_repair",
-      "status": "rows_15_16_clean_after_role_aware_quantity_validation",
-      "latest_run": "retrieval_eval_20260827_212947",
-      "previous_clean_run": "retrieval_eval_20260827_210240",
+      "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
+      "status": "rows_15_16_clean_after_relation_preserving_quantity_validation",
+      "latest_run": "retrieval_eval_20260827_223414",
+      "previous_clean_run": "retrieval_eval_20260827_212947",
       "supersedes_failed_run": "retrieval_eval_20260827_195423",
       "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-      "summary": "test_reports/retrieval_eval_summary_20260827_212947.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_212947.json",
-      "results": "test_reports/retrieval_eval_results_20260827_212947.jsonl",
-      "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_212947.jsonl",
-      "preserved_prior_results": "test_reports/retrieval_eval_results_20260827_210240.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260827_223414.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_223414.json",
+      "results": "test_reports/retrieval_eval_results_20260827_223414.jsonl",
+      "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
       "query_offset": 14,
       "max_queries": 2,
       "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
       "answer_result": "2/2 actual HTTP API answers passed after API restart; answer_source api for both; fallback 0; failures {}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_212947.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count; the answer cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 from pages 863-864 with quote_span null, and the cited chunk itself states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and the explanatory sentence that the number of lines is 10 and overlap lines is two, so the requested line-count and overlap-count roles are supported. Contextual row 16 remains clean as a control; it cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9 with quote_span null, and that chunk directly states TRG1 for CAM 1 executes capture plus measurement processing of one camera as one measurement.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_223414.jsonl. Row 15 cites returned CV-X page 6-125 chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 with quote_span null; the cited chunk states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and explains that the number of lines is 10 and overlap lines is two. Row 16 remains clean as a control, citing returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, which directly supports the TRG1 for CAM 1 capture plus measurement-processing claim.",
       "runtime_load_evidence": {
         "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
         "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
         "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
-        "_quantity_role_values_sha256": "aecd38bcfc7a0ebfcfc0e72ce58704a17136324740e703c894f0e78bf0f64544",
-        "_requested_quantity_roles_sha256": "353240fedda237666ec5505baab42aff9b008e11825b1164e58d6f214c1b037a",
-        "_answer_addresses_quantity_request_sha256": "16bd91b48987e31335fad8c728f83d25816598631ca52bd676e228be5e1254c8",
-        "_fallback_evidence_score_sha256": "3458a1ffaca82c7584c08fbddbd0fec9b7c000dc7f09fc9a3ae8e48a4260a871",
-        "_fallback_evidence_results_sha256": "84422e0a5a55e15f4f5d580efef35209dad5d6a0b8d505bda237fe5e17c6b971",
+        "_quantity_role_values_sha256": "2cbcb13e5175dedfa15104e96dd8f8f7d95813ad278f51a5fdbe1bd09aa1efe6",
+        "_quantity_role_value_groups_sha256": "7b69f86cf32d3213521fdaf9219f04c843d83db99864db0a0700705e3060c24a",
+        "_answer_addresses_quantity_request_sha256": "c416da03a9cb46b99e9199a3fde5735297ea73cf9a0d04b06db81030abed9213",
         "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b",
         "OLLAMA_URL": "http://host.docker.internal:11437",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "qwen3.5:4b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
         "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
       },
       "loaded_validator_controls": {
-        "wrong_total_only": "fallback used for The example uses 23 total lines.",
-        "wrong_roles": "fallback used for The example uses 23 total lines and one overlap line.",
+        "correct_binding": "retained The example uses 10 lines and two overlap lines.",
+        "swapped_binding": "fallback used for The example uses two lines and 10 overlap lines.",
         "missing_overlap": "fallback used for The example uses 10 lines.",
-        "correct_roles": "correct answer The example uses 10 lines and two overlap lines was retained without fallback."
+        "total_only_or_wrong_line": "fallback used for The example uses 23 total lines and two overlap lines."
       },
       "guardrail_addressed": {
-        "timestamp": "2026-08-27T21:21:47Z",
-        "finding": "Quantity validator accepted wrong or partial quantity answers because any overlapping contextual quantity from matching evidence could pass.",
+        "timestamp": "2026-08-27T22:20:20Z",
+        "finding": "Loaded quantity validator retained swapped line/overlap values because role extraction still used relation-insensitive nearby-token matching.",
         "evidence": [
-          "Added source-role-aware quantity validation for requested quantity roles such as line count and overlap count.",
-          "Added adverse controls for wrong total-only quantity, swapped/wrong line-overlap values, and omitted requested overlap role.",
-          "Focused quantity controls passed: 3 passed, 52 deselected.",
-          "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 373 passed, 59 warnings.",
-          "API was restarted and loaded role-aware quantity fingerprints were recorded.",
-          "Loaded validator controls rejected wrong/partial quantity answers and retained the correct role-bound quantity answer.",
-          "retrieval_eval_20260827_212947 reran contextual rows 15-16 through the restarted HTTP API at 2/2 retrieval and 2/2 actual API answers.",
+          "Added punctuation-clause quantity role/value extraction with canonical numeric/number-word comparison.",
+          "Validation now checks the first complete role-bound relation from returned evidence instead of aggregating unrelated chunks or sibling quantities.",
+          "Focused quantity controls passed: 10 passed, 53 deselected, 5 warnings.",
+          "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 387 passed, 59 warnings.",
+          "API was restarted and loaded fingerprints were recorded.",
+          "Loaded controls rejected swapped, omitted-role, and total-only/wrong-line answers and retained the correct relation-bound answer.",
+          "retrieval_eval_20260827_223414 reran contextual rows 15-16 through actual HTTP API at 2/2 retrieval and 2/2 answers.",
           "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
-        ]
+        ],
+        "remaining": "No further quantity-validator containment is required before optional rotations; preserve the 223414 actual-results JSONL and all prior diagnostics/exclusions."
       },
-      "remaining": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases. Actual API adversarial injection of a deliberately wrong generated answer was not available without adding debug/API/harness code, so the negative changed-path proof is the loaded-container validator control plus the positive/control HTTP rerun. Preserve older sibling row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, row-6 clean rerun retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947."
+      "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
+      "remaining": "Continue optional answer-grounding coverage expansion while preserving matrix, citation-fidelity, false-negative, row-5, row-6, and row-15 diagnostic containments."
     },
     "current_retrieval_failure_categories": {},
     "current_answer_failure_categories": {},
@@ -1444,6 +1443,23 @@
           "retrieval_eval_20260827_011205 -> rows 15-17 at 3/3 retrieval and 2/3 actual HTTP API answers; JSONL inspection preserved row 15 as expected_terms_missing and rows 16-17 as source-supported clean controls."
         ],
         "required_next_action": "Partial-claim pruning remains corrected by unit/full-gate/runtime evidence; do not claim forced public API changed-path proof for fabricated unsupported extra clauses without an approved general harness. Continue production retrieval/answering work on validated cases only."
+      },
+      {
+        "timestamp": "2026-08-27T22:20:20Z",
+        "severity": "needs_fix",
+        "finding": "Quantity validator retained a swapped-binding answer because line and overlap values were assigned by nearby-token windows rather than source relations.",
+        "status": "addressed_this_run_relation_preserving_quantity_validation",
+        "evidence": [
+          "Added punctuation-clause quantity role/value extraction with canonical numeric/number-word comparison.",
+          "Validation now checks the first complete role-bound relation from returned evidence instead of aggregating unrelated chunks or sibling quantities.",
+          "Focused quantity controls passed: 10 passed, 53 deselected, 5 warnings.",
+          "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 387 passed, 59 warnings.",
+          "API was restarted and loaded fingerprints were recorded.",
+          "Loaded controls rejected swapped, omitted-role, and total-only/wrong-line answers and retained the correct relation-bound answer.",
+          "retrieval_eval_20260827_223414 reran contextual rows 15-16 through actual HTTP API at 2/2 retrieval and 2/2 answers.",
+          "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
+        ],
+        "required_next_action": "No further quantity-validator containment is required before optional rotations; preserve retrieval_eval_20260827_223414 and continue broad answer-grounding coverage."
       }
     ],
     "answer_grounding_sibling_rows_15_16": {
@@ -1746,60 +1762,59 @@
       "scope": "production answering fallback/context-use logic, focused answering tests, and tracking/eval artifacts only; no retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed"
     },
     "latest_contextual_quantity_answer_repair": {
-      "scope": "contextual_multi_step_rows_15_16_quantity_answer_repair",
-      "status": "rows_15_16_clean_after_role_aware_quantity_validation",
-      "latest_run": "retrieval_eval_20260827_212947",
-      "previous_clean_run": "retrieval_eval_20260827_210240",
+      "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
+      "status": "rows_15_16_clean_after_relation_preserving_quantity_validation",
+      "latest_run": "retrieval_eval_20260827_223414",
+      "previous_clean_run": "retrieval_eval_20260827_212947",
       "supersedes_failed_run": "retrieval_eval_20260827_195423",
       "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-      "summary": "test_reports/retrieval_eval_summary_20260827_212947.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_212947.json",
-      "results": "test_reports/retrieval_eval_results_20260827_212947.jsonl",
-      "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_212947.jsonl",
-      "preserved_prior_results": "test_reports/retrieval_eval_results_20260827_210240.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260827_223414.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_223414.json",
+      "results": "test_reports/retrieval_eval_results_20260827_223414.jsonl",
+      "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
       "query_offset": 14,
       "max_queries": 2,
       "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
       "answer_result": "2/2 actual HTTP API answers passed after API restart; answer_source api for both; fallback 0; failures {}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_212947.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count; the answer cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 from pages 863-864 with quote_span null, and the cited chunk itself states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and the explanatory sentence that the number of lines is 10 and overlap lines is two, so the requested line-count and overlap-count roles are supported. Contextual row 16 remains clean as a control; it cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9 with quote_span null, and that chunk directly states TRG1 for CAM 1 executes capture plus measurement processing of one camera as one measurement.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_223414.jsonl. Row 15 cites returned CV-X page 6-125 chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 with quote_span null; the cited chunk states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and explains that the number of lines is 10 and overlap lines is two. Row 16 remains clean as a control, citing returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, which directly supports the TRG1 for CAM 1 capture plus measurement-processing claim.",
       "runtime_load_evidence": {
         "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
         "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
         "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
-        "_quantity_role_values_sha256": "aecd38bcfc7a0ebfcfc0e72ce58704a17136324740e703c894f0e78bf0f64544",
-        "_requested_quantity_roles_sha256": "353240fedda237666ec5505baab42aff9b008e11825b1164e58d6f214c1b037a",
-        "_answer_addresses_quantity_request_sha256": "16bd91b48987e31335fad8c728f83d25816598631ca52bd676e228be5e1254c8",
-        "_fallback_evidence_score_sha256": "3458a1ffaca82c7584c08fbddbd0fec9b7c000dc7f09fc9a3ae8e48a4260a871",
-        "_fallback_evidence_results_sha256": "84422e0a5a55e15f4f5d580efef35209dad5d6a0b8d505bda237fe5e17c6b971",
+        "_quantity_role_values_sha256": "2cbcb13e5175dedfa15104e96dd8f8f7d95813ad278f51a5fdbe1bd09aa1efe6",
+        "_quantity_role_value_groups_sha256": "7b69f86cf32d3213521fdaf9219f04c843d83db99864db0a0700705e3060c24a",
+        "_answer_addresses_quantity_request_sha256": "c416da03a9cb46b99e9199a3fde5735297ea73cf9a0d04b06db81030abed9213",
         "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b",
         "OLLAMA_URL": "http://host.docker.internal:11437",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "qwen3.5:4b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
         "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
       },
       "loaded_validator_controls": {
-        "wrong_total_only": "fallback used for The example uses 23 total lines.",
-        "wrong_roles": "fallback used for The example uses 23 total lines and one overlap line.",
+        "correct_binding": "retained The example uses 10 lines and two overlap lines.",
+        "swapped_binding": "fallback used for The example uses two lines and 10 overlap lines.",
         "missing_overlap": "fallback used for The example uses 10 lines.",
-        "correct_roles": "correct answer The example uses 10 lines and two overlap lines was retained without fallback."
+        "total_only_or_wrong_line": "fallback used for The example uses 23 total lines and two overlap lines."
       },
       "guardrail_addressed": {
-        "timestamp": "2026-08-27T21:21:47Z",
-        "finding": "Quantity validator accepted wrong or partial quantity answers because any overlapping contextual quantity from matching evidence could pass.",
+        "timestamp": "2026-08-27T22:20:20Z",
+        "finding": "Loaded quantity validator retained swapped line/overlap values because role extraction still used relation-insensitive nearby-token matching.",
         "evidence": [
-          "Added source-role-aware quantity validation for requested quantity roles such as line count and overlap count.",
-          "Added adverse controls for wrong total-only quantity, swapped/wrong line-overlap values, and omitted requested overlap role.",
-          "Focused quantity controls passed: 3 passed, 52 deselected.",
-          "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 373 passed, 59 warnings.",
-          "API was restarted and loaded role-aware quantity fingerprints were recorded.",
-          "Loaded validator controls rejected wrong/partial quantity answers and retained the correct role-bound quantity answer.",
-          "retrieval_eval_20260827_212947 reran contextual rows 15-16 through the restarted HTTP API at 2/2 retrieval and 2/2 actual API answers.",
+          "Added punctuation-clause quantity role/value extraction with canonical numeric/number-word comparison.",
+          "Validation now checks the first complete role-bound relation from returned evidence instead of aggregating unrelated chunks or sibling quantities.",
+          "Focused quantity controls passed: 10 passed, 53 deselected, 5 warnings.",
+          "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 387 passed, 59 warnings.",
+          "API was restarted and loaded fingerprints were recorded.",
+          "Loaded controls rejected swapped, omitted-role, and total-only/wrong-line answers and retained the correct relation-bound answer.",
+          "retrieval_eval_20260827_223414 reran contextual rows 15-16 through actual HTTP API at 2/2 retrieval and 2/2 answers.",
           "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
-        ]
+        ],
+        "remaining": "No further quantity-validator containment is required before optional rotations; preserve the 223414 actual-results JSONL and all prior diagnostics/exclusions."
       },
-      "remaining": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases. Actual API adversarial injection of a deliberately wrong generated answer was not available without adding debug/API/harness code, so the negative changed-path proof is the loaded-container validator control plus the positive/control HTTP rerun. Preserve older sibling row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, row-6 clean rerun retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947."
+      "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
+      "remaining": "Continue optional answer-grounding coverage expansion while preserving matrix, citation-fidelity, false-negative, row-5, row-6, and row-15 diagnostic containments."
     },
     "answer_grounding_contextual_rows_15_16": {
       "scope": "contextual_multi_step_rows_15_16_answer_rotation",
@@ -7814,7 +7829,7 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947, and the matrix/chunk-evidence containment from this run.",
+  "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 sibling-troubleshooting diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, the row-6 clean rerun from retrieval_eval_20260827_190715, contextual rows 15-16 clean evidence from retrieval_eval_20260827_223414, the matrix/chunk-evidence containment from 87c19c4, and the relation-preserving quantity validation containment from this run.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -8099,62 +8114,61 @@
     }
   },
   "answer_current_failure_categories": {},
-  "answer_grounding_status": "Matrix/chunk-evidence retrieval guardrail containment completed after guardrail 2026-08-27T21:51:07Z. The previously committed ad7c5ba production retrieval/answer workflow change was validated with focused matrix/table controls, a full unit gate, API restart/runtime fingerprints, and actual /search positive/negative controls. During full-gate validation, a general query-analysis regression was found and fixed: broad value questions such as 'In LJ-S8000, what value is given for 1-line cross-section area?' no longer get structured table routing, while explicit table-field value questions such as the LumiTrax Pattern Region Height Number Format query still promote chunk-supported table cells. API positive control returned structured_table_promoted Pattern Region: Height Number Format table cells, including chunk 50c3d66f-7782-54c9-825b-3264e44fedef; API negative control returned normal reranked LJ-S8000 1-line cross-section evidence with no structured_table_promoted rows. Current retrieval failures are {}; current answer failures are {}. Quantity rows 15-16 clean evidence from retrieval_eval_20260827_212947 remains preserved, as do all prior diagnostic exclusions and citation-fidelity containments.",
+  "answer_grounding_status": "Relation-preserving quantity validation containment completed after guardrail 2026-08-27T22:20:20Z. Quantity role/value extraction now binds values to requested roles within punctuation-separated source relations and no longer validates swapped line/overlap values, omitted roles, cross-clause or cross-chunk role mixing, sibling quantities, irrelevant numbers, or total-only answers as sufficient. Loaded controls after restarting the API retained the correct 10-lines/two-overlap answer and fell back for swapped, missing-overlap, and 23-total-lines answers. Actual HTTP API answer rerun retrieval_eval_20260827_223414 kept contextual rows 15-16 clean; row 15 cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 containing Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and the explanatory 10/two relation. Current retrieval failures are {}; current answer failures are {}. Preserve the matrix containment from 87c19c4 and all prior diagnostic exclusions/citation-fidelity containments.",
   "answer_grounding_rotation": {
-    "scope": "contextual_multi_step_rows_15_16_quantity_answer_repair",
-    "status": "rows_15_16_clean_after_role_aware_quantity_validation",
-    "latest_run": "retrieval_eval_20260827_212947",
-    "previous_clean_run": "retrieval_eval_20260827_210240",
+    "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
+    "status": "rows_15_16_clean_after_relation_preserving_quantity_validation",
+    "latest_run": "retrieval_eval_20260827_223414",
+    "previous_clean_run": "retrieval_eval_20260827_212947",
     "supersedes_failed_run": "retrieval_eval_20260827_195423",
     "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-    "summary": "test_reports/retrieval_eval_summary_20260827_212947.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260827_212947.json",
-    "results": "test_reports/retrieval_eval_results_20260827_212947.jsonl",
-    "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_212947.jsonl",
-    "preserved_prior_results": "test_reports/retrieval_eval_results_20260827_210240.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260827_223414.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_223414.json",
+    "results": "test_reports/retrieval_eval_results_20260827_223414.jsonl",
+    "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
     "query_offset": 14,
     "max_queries": 2,
     "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
     "answer_result": "2/2 actual HTTP API answers passed after API restart; answer_source api for both; fallback 0; failures {}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_212947.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count; the answer cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 from pages 863-864 with quote_span null, and the cited chunk itself states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and the explanatory sentence that the number of lines is 10 and overlap lines is two, so the requested line-count and overlap-count roles are supported. Contextual row 16 remains clean as a control; it cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9 with quote_span null, and that chunk directly states TRG1 for CAM 1 executes capture plus measurement processing of one camera as one measurement.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_223414.jsonl. Row 15 cites returned CV-X page 6-125 chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 with quote_span null; the cited chunk states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and explains that the number of lines is 10 and overlap lines is two. Row 16 remains clean as a control, citing returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, which directly supports the TRG1 for CAM 1 capture plus measurement-processing claim.",
     "runtime_load_evidence": {
       "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
       "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
       "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
-      "_quantity_role_values_sha256": "aecd38bcfc7a0ebfcfc0e72ce58704a17136324740e703c894f0e78bf0f64544",
-      "_requested_quantity_roles_sha256": "353240fedda237666ec5505baab42aff9b008e11825b1164e58d6f214c1b037a",
-      "_answer_addresses_quantity_request_sha256": "16bd91b48987e31335fad8c728f83d25816598631ca52bd676e228be5e1254c8",
-      "_fallback_evidence_score_sha256": "3458a1ffaca82c7584c08fbddbd0fec9b7c000dc7f09fc9a3ae8e48a4260a871",
-      "_fallback_evidence_results_sha256": "84422e0a5a55e15f4f5d580efef35209dad5d6a0b8d505bda237fe5e17c6b971",
+      "_quantity_role_values_sha256": "2cbcb13e5175dedfa15104e96dd8f8f7d95813ad278f51a5fdbe1bd09aa1efe6",
+      "_quantity_role_value_groups_sha256": "7b69f86cf32d3213521fdaf9219f04c843d83db99864db0a0700705e3060c24a",
+      "_answer_addresses_quantity_request_sha256": "c416da03a9cb46b99e9199a3fde5735297ea73cf9a0d04b06db81030abed9213",
       "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b",
       "OLLAMA_URL": "http://host.docker.internal:11437",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-      "OLLAMA_METADATA_MODEL": "qwen3.5:4b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
       "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
     },
     "loaded_validator_controls": {
-      "wrong_total_only": "fallback used for The example uses 23 total lines.",
-      "wrong_roles": "fallback used for The example uses 23 total lines and one overlap line.",
+      "correct_binding": "retained The example uses 10 lines and two overlap lines.",
+      "swapped_binding": "fallback used for The example uses two lines and 10 overlap lines.",
       "missing_overlap": "fallback used for The example uses 10 lines.",
-      "correct_roles": "correct answer The example uses 10 lines and two overlap lines was retained without fallback."
+      "total_only_or_wrong_line": "fallback used for The example uses 23 total lines and two overlap lines."
     },
     "guardrail_addressed": {
-      "timestamp": "2026-08-27T21:21:47Z",
-      "finding": "Quantity validator accepted wrong or partial quantity answers because any overlapping contextual quantity from matching evidence could pass.",
+      "timestamp": "2026-08-27T22:20:20Z",
+      "finding": "Loaded quantity validator retained swapped line/overlap values because role extraction still used relation-insensitive nearby-token matching.",
       "evidence": [
-        "Added source-role-aware quantity validation for requested quantity roles such as line count and overlap count.",
-        "Added adverse controls for wrong total-only quantity, swapped/wrong line-overlap values, and omitted requested overlap role.",
-        "Focused quantity controls passed: 3 passed, 52 deselected.",
-        "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 373 passed, 59 warnings.",
-        "API was restarted and loaded role-aware quantity fingerprints were recorded.",
-        "Loaded validator controls rejected wrong/partial quantity answers and retained the correct role-bound quantity answer.",
-        "retrieval_eval_20260827_212947 reran contextual rows 15-16 through the restarted HTTP API at 2/2 retrieval and 2/2 actual API answers.",
+        "Added punctuation-clause quantity role/value extraction with canonical numeric/number-word comparison.",
+        "Validation now checks the first complete role-bound relation from returned evidence instead of aggregating unrelated chunks or sibling quantities.",
+        "Focused quantity controls passed: 10 passed, 53 deselected, 5 warnings.",
+        "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 387 passed, 59 warnings.",
+        "API was restarted and loaded fingerprints were recorded.",
+        "Loaded controls rejected swapped, omitted-role, and total-only/wrong-line answers and retained the correct relation-bound answer.",
+        "retrieval_eval_20260827_223414 reran contextual rows 15-16 through actual HTTP API at 2/2 retrieval and 2/2 answers.",
         "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
-      ]
+      ],
+      "remaining": "No further quantity-validator containment is required before optional rotations; preserve the 223414 actual-results JSONL and all prior diagnostics/exclusions."
     },
-    "remaining": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases. Actual API adversarial injection of a deliberately wrong generated answer was not available without adding debug/API/harness code, so the negative changed-path proof is the loaded-container validator control plus the positive/control HTTP rerun. Preserve older sibling row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, row-6 clean rerun retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947."
+    "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
+    "remaining": "Continue optional answer-grounding coverage expansion while preserving matrix, citation-fidelity, false-negative, row-5, row-6, and row-15 diagnostic containments."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -8933,6 +8947,23 @@
         "retrieval_eval_20260827_011205 -> rows 15-17 at 3/3 retrieval and 2/3 actual HTTP API answers; JSONL inspection preserved row 15 as expected_terms_missing and rows 16-17 as source-supported clean controls."
       ],
       "required_next_action": "Partial-claim pruning remains corrected by unit/full-gate/runtime evidence; do not claim forced public API changed-path proof for fabricated unsupported extra clauses without an approved general harness. Continue production retrieval/answering work on validated cases only."
+    },
+    {
+      "timestamp": "2026-08-27T22:20:20Z",
+      "severity": "needs_fix",
+      "finding": "Quantity validator retained a swapped-binding answer because line and overlap values were assigned by nearby-token windows rather than source relations.",
+      "status": "addressed_this_run_relation_preserving_quantity_validation",
+      "evidence": [
+        "Added punctuation-clause quantity role/value extraction with canonical numeric/number-word comparison.",
+        "Validation now checks the first complete role-bound relation from returned evidence instead of aggregating unrelated chunks or sibling quantities.",
+        "Focused quantity controls passed: 10 passed, 53 deselected, 5 warnings.",
+        "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 387 passed, 59 warnings.",
+        "API was restarted and loaded fingerprints were recorded.",
+        "Loaded controls rejected swapped, omitted-role, and total-only/wrong-line answers and retained the correct relation-bound answer.",
+        "retrieval_eval_20260827_223414 reran contextual rows 15-16 through actual HTTP API at 2/2 retrieval and 2/2 answers.",
+        "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
+      ],
+      "required_next_action": "No further quantity-validator containment is required before optional rotations; preserve retrieval_eval_20260827_223414 and continue broad answer-grounding coverage."
     }
   ],
   "answer_grounding_sibling_rows_15_16": {
@@ -9178,60 +9209,59 @@
     "scope": "production answering fallback/context-use logic, focused answering tests, and tracking/eval artifacts only; no retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed"
   },
   "latest_contextual_quantity_answer_repair": {
-    "scope": "contextual_multi_step_rows_15_16_quantity_answer_repair",
-    "status": "rows_15_16_clean_after_role_aware_quantity_validation",
-    "latest_run": "retrieval_eval_20260827_212947",
-    "previous_clean_run": "retrieval_eval_20260827_210240",
+    "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
+    "status": "rows_15_16_clean_after_relation_preserving_quantity_validation",
+    "latest_run": "retrieval_eval_20260827_223414",
+    "previous_clean_run": "retrieval_eval_20260827_212947",
     "supersedes_failed_run": "retrieval_eval_20260827_195423",
     "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-    "summary": "test_reports/retrieval_eval_summary_20260827_212947.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260827_212947.json",
-    "results": "test_reports/retrieval_eval_results_20260827_212947.jsonl",
-    "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_212947.jsonl",
-    "preserved_prior_results": "test_reports/retrieval_eval_results_20260827_210240.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260827_223414.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_223414.json",
+    "results": "test_reports/retrieval_eval_results_20260827_223414.jsonl",
+    "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
     "query_offset": 14,
     "max_queries": 2,
     "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
     "answer_result": "2/2 actual HTTP API answers passed after API restart; answer_source api for both; fallback 0; failures {}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_212947.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count; the answer cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 from pages 863-864 with quote_span null, and the cited chunk itself states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and the explanatory sentence that the number of lines is 10 and overlap lines is two, so the requested line-count and overlap-count roles are supported. Contextual row 16 remains clean as a control; it cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9 with quote_span null, and that chunk directly states TRG1 for CAM 1 executes capture plus measurement processing of one camera as one measurement.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_223414.jsonl. Row 15 cites returned CV-X page 6-125 chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 with quote_span null; the cited chunk states Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines 23, and explains that the number of lines is 10 and overlap lines is two. Row 16 remains clean as a control, citing returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, which directly supports the TRG1 for CAM 1 capture plus measurement-processing claim.",
     "runtime_load_evidence": {
       "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
       "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
       "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
-      "_quantity_role_values_sha256": "aecd38bcfc7a0ebfcfc0e72ce58704a17136324740e703c894f0e78bf0f64544",
-      "_requested_quantity_roles_sha256": "353240fedda237666ec5505baab42aff9b008e11825b1164e58d6f214c1b037a",
-      "_answer_addresses_quantity_request_sha256": "16bd91b48987e31335fad8c728f83d25816598631ca52bd676e228be5e1254c8",
-      "_fallback_evidence_score_sha256": "3458a1ffaca82c7584c08fbddbd0fec9b7c000dc7f09fc9a3ae8e48a4260a871",
-      "_fallback_evidence_results_sha256": "84422e0a5a55e15f4f5d580efef35209dad5d6a0b8d505bda237fe5e17c6b971",
+      "_quantity_role_values_sha256": "2cbcb13e5175dedfa15104e96dd8f8f7d95813ad278f51a5fdbe1bd09aa1efe6",
+      "_quantity_role_value_groups_sha256": "7b69f86cf32d3213521fdaf9219f04c843d83db99864db0a0700705e3060c24a",
+      "_answer_addresses_quantity_request_sha256": "c416da03a9cb46b99e9199a3fde5735297ea73cf9a0d04b06db81030abed9213",
       "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b",
       "OLLAMA_URL": "http://host.docker.internal:11437",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-      "OLLAMA_METADATA_MODEL": "qwen3.5:4b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
       "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
     },
     "loaded_validator_controls": {
-      "wrong_total_only": "fallback used for The example uses 23 total lines.",
-      "wrong_roles": "fallback used for The example uses 23 total lines and one overlap line.",
+      "correct_binding": "retained The example uses 10 lines and two overlap lines.",
+      "swapped_binding": "fallback used for The example uses two lines and 10 overlap lines.",
       "missing_overlap": "fallback used for The example uses 10 lines.",
-      "correct_roles": "correct answer The example uses 10 lines and two overlap lines was retained without fallback."
+      "total_only_or_wrong_line": "fallback used for The example uses 23 total lines and two overlap lines."
     },
     "guardrail_addressed": {
-      "timestamp": "2026-08-27T21:21:47Z",
-      "finding": "Quantity validator accepted wrong or partial quantity answers because any overlapping contextual quantity from matching evidence could pass.",
+      "timestamp": "2026-08-27T22:20:20Z",
+      "finding": "Loaded quantity validator retained swapped line/overlap values because role extraction still used relation-insensitive nearby-token matching.",
       "evidence": [
-        "Added source-role-aware quantity validation for requested quantity roles such as line count and overlap count.",
-        "Added adverse controls for wrong total-only quantity, swapped/wrong line-overlap values, and omitted requested overlap role.",
-        "Focused quantity controls passed: 3 passed, 52 deselected.",
-        "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 373 passed, 59 warnings.",
-        "API was restarted and loaded role-aware quantity fingerprints were recorded.",
-        "Loaded validator controls rejected wrong/partial quantity answers and retained the correct role-bound quantity answer.",
-        "retrieval_eval_20260827_212947 reran contextual rows 15-16 through the restarted HTTP API at 2/2 retrieval and 2/2 actual API answers.",
+        "Added punctuation-clause quantity role/value extraction with canonical numeric/number-word comparison.",
+        "Validation now checks the first complete role-bound relation from returned evidence instead of aggregating unrelated chunks or sibling quantities.",
+        "Focused quantity controls passed: 10 passed, 53 deselected, 5 warnings.",
+        "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 387 passed, 59 warnings.",
+        "API was restarted and loaded fingerprints were recorded.",
+        "Loaded controls rejected swapped, omitted-role, and total-only/wrong-line answers and retained the correct relation-bound answer.",
+        "retrieval_eval_20260827_223414 reran contextual rows 15-16 through actual HTTP API at 2/2 retrieval and 2/2 answers.",
         "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
-      ]
+      ],
+      "remaining": "No further quantity-validator containment is required before optional rotations; preserve the 223414 actual-results JSONL and all prior diagnostics/exclusions."
     },
-    "remaining": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases. Actual API adversarial injection of a deliberately wrong generated answer was not available without adding debug/API/harness code, so the negative changed-path proof is the loaded-container validator control plus the positive/control HTTP rerun. Preserve older sibling row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, row-6 clean rerun retrieval_eval_20260827_190715, and contextual rows 15-16 clean evidence from retrieval_eval_20260827_212947."
+    "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
+    "remaining": "Continue optional answer-grounding coverage expansion while preserving matrix, citation-fidelity, false-negative, row-5, row-6, and row-15 diagnostic containments."
   },
   "latest_matrix_retrieval_guardrail_containment": {
     "timestamp": "2026-08-27T18:03:52-04:00",
