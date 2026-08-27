@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-27T06:03:00Z",
+  "updated_at": "2026-08-27T06:37:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1017,15 +1017,19 @@
         "notes": "retrieval_eval_20260827_053126 passed 1/1 direct retrieval at rank 1; retrieval_eval_20260827_053144 passed 1/1 actual HTTP API answer with expected setup-guide citation. The original broad row-14 question remains diagnostic, not a production retrieval miss."
       }
     ],
-    "failure_categories": {},
-    "current_failure_categories": {},
-    "current_retrieval_failure_source": "Full curated cross-document v2 is green in retrieval_eval_20260827_042612, and contextual row 14 is repaired by source-scoped dataset retrieval_eval_20260827_053144; no current retrieval failure is promoted from the ambiguous original row.",
-    "answer_current_failure_categories": {
-      "expected_document_not_cited_or_used": 2,
-      "insufficient_evidence": 1
+    "failure_categories": {
+      "ranking_or_context_loss": 1
     },
-    "next_target": "Improve final answer generation/context use for validated cross-document comparison cases where retrieval is clean but the API answer cites only one expected document, declares one side missing, or omits an expected comparison role. Start with retrieval_eval_20260827_055829 rows 3-5; preserve row 15 diagnostic/source-context evidence and all citation-fidelity containments.",
-    "answer_grounding_status": "Latest actual HTTP API answer rotation retrieval_eval_20260827_055829 on curated cross-document v2 rows 3-5 retrieved all expected evidence (3/3 retrieval, candidate recall 100%) but failed all three user-visible answers. Row 3 stated the requested IV4-CU1 values but cited/used only the IV4-G120 document for both enclosure and shock evidence, so the explicit IV4-G600CA document role was not grounded. Row 4 cited IV4 memory-read causes and declared IV-HG500CA evidence missing, so it is an answer context/use failure despite retrieval pass. Row 5 cited only the IV4 advanced-program remedy/context and omitted the VS invalid-pattern-data cause, so it failed expected-document grounding. This is diagnostic answer-generation evidence, not a retrieval regression and not clean answer evidence. Preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, preserve repaired contextual row 14 as clean from retrieval_eval_20260827_053144, keep full curated cross-document v2 retrieval green from retrieval_eval_20260827_042612, keep the LLM answer judge diagnostic-only/opt-in, and keep conservative citation-pruning fallback in force.",
+    "current_failure_categories": {
+      "ranking_or_context_loss": 1
+    },
+    "current_retrieval_failure_source": "Corrected cross-document retrieval scoring now requires each explicit expected evidence role to be matched from its source document. retrieval_eval_20260827_063151 reran curated cross-document v2 rows 3-5 with the stricter scorer: 2/3 direct retrieval passed, with row 3 now correctly classified as ranking_or_context_loss because the IV4-G600CA expected document role was not retrieved in final top-k even though same-field IV4-G120 evidence had overlapping terms. Rows 4 and 5 remain retrieval-clean. The previous full curated cross-document v2 green claim from retrieval_eval_20260827_042612 is superseded for source-document-strict scoring until the full 10-case bank is rerun.",
+    "answer_current_failure_categories": {
+      "insufficient_evidence": 1,
+      "expected_document_not_cited_or_used": 1
+    },
+    "next_target": "First fix the source-document retrieval/context gap exposed by source-document-strict scoring for curated cross-document v2 row 3, where IV4-G600CA shock-resistance evidence is not in final top-k. Then improve final answer context/use for retrieval-clean rows 4-5. Preserve row 15 diagnostic/source-context evidence and all citation-fidelity containments.",
+    "answer_grounding_status": "Latest actual HTTP API answer rotation retrieval_eval_20260827_055829 remains diagnostic, but corrected source-document-strict retrieval scoring changes its interpretation. Row 3 is no longer answer-only evidence: the stricter rerun retrieval_eval_20260827_063151 shows the IV4-G600CA source-document role missing from final retrieval context, so do not use row 3 to tune answer generation until retrieval is repaired. Rows 4 and 5 still have clean retrieval but failed user-visible answers: row 4 declared IV-HG500CA startup-memory-read cause evidence missing despite same-document retrieved evidence, and row 5 cited only IV4 advanced-program remedy/context while omitting the VS invalid-pattern-data cause. Preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, preserve repaired contextual row 14 as clean from retrieval_eval_20260827_053144, keep the LLM answer judge diagnostic-only/opt-in, and keep conservative citation-pruning fallback in force.",
     "answer_grounding_rotation": {
       "scope": "curated_cross_document_v2_rows_3_5_actual_http_answer_rotation",
       "status": "diagnostic_answer_failures_retrieval_clean",
@@ -1053,10 +1057,12 @@
       "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2",
       "updated_at": "2026-08-27T06:03:00Z"
     },
-    "current_retrieval_failure_categories": {},
+    "current_retrieval_failure_categories": {
+      "ranking_or_context_loss": 1
+    },
     "current_answer_failure_categories": {
-      "expected_document_not_cited_or_used": 2,
-      "insufficient_evidence": 1
+      "insufficient_evidence": 1,
+      "expected_document_not_cited_or_used": 1
     },
     "run_exclusions": [
       {
@@ -1416,30 +1422,31 @@
       "production_evidence_rule": "Use deterministic retrieval/answer scoring, actual user-visible/API answer payloads, and source/chunk citation inspection for production evidence; ignore LLM judge green results for durable pass/fail tracking unless separately approved."
     },
     "latest_cross_document_validation": {
-      "status": "full_curated_cross_document_v2_green_after_row_code_coverage_fix",
-      "guardrail_context": "Started from guardrail 2026-08-27T04:23:57Z ok finding and manifest target to broaden validation after the focused rows 6-10 retrieval fix; preserved row-15 diagnostic citation status, diagnostic-only LLM judge policy, and conservative citation-pruning fallback.",
+      "status": "source_document_strict_recheck_found_row3_retrieval_gap",
+      "guardrail_context": "Started from latest answer-rotation target after retrieval_eval_20260827_055829 rows 3-5 failed API answer grounding; corrected weak cross-document retrieval scoring before tuning answer generation.",
       "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-      "baseline": "retrieval_eval_20260826_005723 was the full 10-case direct baseline with unresolved cross-document cases 6, 7, and 9; focused rows 6-10 were later green in retrieval_eval_20260827_041517 and retrieval_eval_20260827_041659.",
-      "run_id": "retrieval_eval_20260827_042612",
-      "summary": "test_reports/retrieval_eval_summary_20260827_042612.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_042612.json",
-      "results": "test_reports/retrieval_eval_results_20260827_042612.jsonl",
+      "run_id": "retrieval_eval_20260827_063151",
+      "summary": "test_reports/retrieval_eval_summary_20260827_063151.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_063151.json",
+      "results": "test_reports/retrieval_eval_results_20260827_063151.jsonl",
       "search_mode": "direct",
       "response_mode": "retrieval_only",
-      "max_queries": 10,
+      "query_offset": 2,
+      "max_queries": 3,
       "per_query_timeout_seconds": 20,
-      "warmup": "1 unscored warmup completed in 15.967s for curated_cross_document_v2::1",
-      "result": "10/10 direct retrieval passed on the full manually reviewed curated cross-document v2 bank; pass@1 80%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 100%.",
-      "failure_categories": {},
+      "warmup": "1 unscored warmup completed in 10.790s for curated_cross_document_v2::3",
+      "result": "Rows 3-5 scored 2/3 under source-document-strict expected evidence matching; row 3 failed ranking_or_context_loss, rows 4 and 5 passed.",
+      "failure_categories": {
+        "ranking_or_context_loss": 1
+      },
       "candidate_recall_rate": 1.0,
       "metadata_document_selection_recall_rate": 1.0,
-      "answer_mode_claim": "none; this is retrieval-only validation, not answer-grounding evidence",
+      "answer_mode_claim": "none; this is retrieval-only validation and reclassification, not clean answer-grounding evidence",
+      "supersedes": "retrieval_eval_20260827_042612 full green retrieval claim for cross-document v2 until rerun with source-document-strict scoring",
       "artifacts_committed": [
-        "test_reports/retrieval_eval_summary_20260827_042612.json",
-        "test_reports/retrieval_eval_manifest_20260827_042612.json"
-      ],
-      "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
-      "remaining": "Contextual row 14 remains separate candidate-miss evidence; answer rotations still require actual API payload scoring and JSONL citation inspection."
+        "test_reports/retrieval_eval_summary_20260827_063151.json",
+        "test_reports/retrieval_eval_manifest_20260827_063151.json"
+      ]
     },
     "latest_contextual_row14_repair": {
       "scope": "contextual_procedure_row14_ljx8000_ethernetip_setup_not_connected",
@@ -7332,10 +7339,14 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Improve final answer generation/context use for validated cross-document comparison cases where retrieval is clean but the API answer cites only one expected document, declares one side missing, or omits an expected comparison role. Start with retrieval_eval_20260827_055829 rows 3-5; preserve row 15 diagnostic/source-context evidence and all citation-fidelity containments.",
-  "current_retrieval_failure_source": "Full curated cross-document v2 is green in retrieval_eval_20260827_042612, and contextual row 14 is repaired by source-scoped dataset retrieval_eval_20260827_053144; no current retrieval failure is promoted from the ambiguous original row.",
-  "current_failure_categories": {},
-  "failure_categories": {},
+  "next_target": "First fix the source-document retrieval/context gap exposed by source-document-strict scoring for curated cross-document v2 row 3, where IV4-G600CA shock-resistance evidence is not in final top-k. Then improve final answer context/use for retrieval-clean rows 4-5. Preserve row 15 diagnostic/source-context evidence and all citation-fidelity containments.",
+  "current_retrieval_failure_source": "Corrected cross-document retrieval scoring now requires each explicit expected evidence role to be matched from its source document. retrieval_eval_20260827_063151 reran curated cross-document v2 rows 3-5 with the stricter scorer: 2/3 direct retrieval passed, with row 3 now correctly classified as ranking_or_context_loss because the IV4-G600CA expected document role was not retrieved in final top-k even though same-field IV4-G120 evidence had overlapping terms. Rows 4 and 5 remain retrieval-clean. The previous full curated cross-document v2 green claim from retrieval_eval_20260827_042612 is superseded for source-document-strict scoring until the full 10-case bank is rerun.",
+  "current_failure_categories": {
+    "ranking_or_context_loss": 1
+  },
+  "failure_categories": {
+    "ranking_or_context_loss": 1
+  },
   "diagnostics": [
     {
       "path": "test_reports/retrieval_eval_summary_20260825_235830.json",
@@ -7617,10 +7628,10 @@
     }
   },
   "answer_current_failure_categories": {
-    "expected_document_not_cited_or_used": 2,
-    "insufficient_evidence": 1
+    "insufficient_evidence": 1,
+    "expected_document_not_cited_or_used": 1
   },
-  "answer_grounding_status": "Latest actual HTTP API answer rotation retrieval_eval_20260827_055829 on curated cross-document v2 rows 3-5 retrieved all expected evidence (3/3 retrieval, candidate recall 100%) but failed all three user-visible answers. Row 3 stated the requested IV4-CU1 values but cited/used only the IV4-G120 document for both enclosure and shock evidence, so the explicit IV4-G600CA document role was not grounded. Row 4 cited IV4 memory-read causes and declared IV-HG500CA evidence missing, so it is an answer context/use failure despite retrieval pass. Row 5 cited only the IV4 advanced-program remedy/context and omitted the VS invalid-pattern-data cause, so it failed expected-document grounding. This is diagnostic answer-generation evidence, not a retrieval regression and not clean answer evidence. Preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, preserve repaired contextual row 14 as clean from retrieval_eval_20260827_053144, keep full curated cross-document v2 retrieval green from retrieval_eval_20260827_042612, keep the LLM answer judge diagnostic-only/opt-in, and keep conservative citation-pruning fallback in force.",
+  "answer_grounding_status": "Latest actual HTTP API answer rotation retrieval_eval_20260827_055829 remains diagnostic, but corrected source-document-strict retrieval scoring changes its interpretation. Row 3 is no longer answer-only evidence: the stricter rerun retrieval_eval_20260827_063151 shows the IV4-G600CA source-document role missing from final retrieval context, so do not use row 3 to tune answer generation until retrieval is repaired. Rows 4 and 5 still have clean retrieval but failed user-visible answers: row 4 declared IV-HG500CA startup-memory-read cause evidence missing despite same-document retrieved evidence, and row 5 cited only IV4 advanced-program remedy/context while omitting the VS invalid-pattern-data cause. Preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, preserve repaired contextual row 14 as clean from retrieval_eval_20260827_053144, keep the LLM answer judge diagnostic-only/opt-in, and keep conservative citation-pruning fallback in force.",
   "answer_grounding_rotation": {
     "scope": "curated_cross_document_v2_rows_3_5_actual_http_answer_rotation",
     "status": "diagnostic_answer_failures_retrieval_clean",
@@ -8050,10 +8061,12 @@
     "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
-  "current_retrieval_failure_categories": {},
+  "current_retrieval_failure_categories": {
+    "ranking_or_context_loss": 1
+  },
   "current_answer_failure_categories": {
-    "expected_document_not_cited_or_used": 2,
-    "insufficient_evidence": 1
+    "insufficient_evidence": 1,
+    "expected_document_not_cited_or_used": 1
   },
   "run_exclusions": [
     {
@@ -8356,30 +8369,31 @@
     "production_evidence_rule": "Use deterministic retrieval/answer scoring, actual user-visible/API answer payloads, and source/chunk citation inspection for production evidence; ignore LLM judge green results for durable pass/fail tracking unless separately approved."
   },
   "latest_cross_document_validation": {
-    "status": "full_curated_cross_document_v2_green_after_row_code_coverage_fix",
-    "guardrail_context": "Started from guardrail 2026-08-27T04:23:57Z ok finding and manifest target to broaden validation after the focused rows 6-10 retrieval fix; preserved row-15 diagnostic citation status, diagnostic-only LLM judge policy, and conservative citation-pruning fallback.",
+    "status": "source_document_strict_recheck_found_row3_retrieval_gap",
+    "guardrail_context": "Started from latest answer-rotation target after retrieval_eval_20260827_055829 rows 3-5 failed API answer grounding; corrected weak cross-document retrieval scoring before tuning answer generation.",
     "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-    "baseline": "retrieval_eval_20260826_005723 was the full 10-case direct baseline with unresolved cross-document cases 6, 7, and 9; focused rows 6-10 were later green in retrieval_eval_20260827_041517 and retrieval_eval_20260827_041659.",
-    "run_id": "retrieval_eval_20260827_042612",
-    "summary": "test_reports/retrieval_eval_summary_20260827_042612.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260827_042612.json",
-    "results": "test_reports/retrieval_eval_results_20260827_042612.jsonl",
+    "run_id": "retrieval_eval_20260827_063151",
+    "summary": "test_reports/retrieval_eval_summary_20260827_063151.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_063151.json",
+    "results": "test_reports/retrieval_eval_results_20260827_063151.jsonl",
     "search_mode": "direct",
     "response_mode": "retrieval_only",
-    "max_queries": 10,
+    "query_offset": 2,
+    "max_queries": 3,
     "per_query_timeout_seconds": 20,
-    "warmup": "1 unscored warmup completed in 15.967s for curated_cross_document_v2::1",
-    "result": "10/10 direct retrieval passed on the full manually reviewed curated cross-document v2 bank; pass@1 80%, pass@3/pass@5 100%, candidate recall 100%, metadata-document recall 100%.",
-    "failure_categories": {},
+    "warmup": "1 unscored warmup completed in 10.790s for curated_cross_document_v2::3",
+    "result": "Rows 3-5 scored 2/3 under source-document-strict expected evidence matching; row 3 failed ranking_or_context_loss, rows 4 and 5 passed.",
+    "failure_categories": {
+      "ranking_or_context_loss": 1
+    },
     "candidate_recall_rate": 1.0,
     "metadata_document_selection_recall_rate": 1.0,
-    "answer_mode_claim": "none; this is retrieval-only validation, not answer-grounding evidence",
+    "answer_mode_claim": "none; this is retrieval-only validation and reclassification, not clean answer-grounding evidence",
+    "supersedes": "retrieval_eval_20260827_042612 full green retrieval claim for cross-document v2 until rerun with source-document-strict scoring",
     "artifacts_committed": [
-      "test_reports/retrieval_eval_summary_20260827_042612.json",
-      "test_reports/retrieval_eval_manifest_20260827_042612.json"
-    ],
-    "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
-    "remaining": "Contextual row 14 remains separate candidate-miss evidence; answer rotations still require actual API payload scoring and JSONL citation inspection."
+      "test_reports/retrieval_eval_summary_20260827_063151.json",
+      "test_reports/retrieval_eval_manifest_20260827_063151.json"
+    ]
   },
   "latest_contextual_row14_repair": {
     "scope": "contextual_procedure_row14_ljx8000_ethernetip_setup_not_connected",

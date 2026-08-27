@@ -499,6 +499,72 @@ def test_answer_response_scoring_requires_all_multi_step_documents():
     assert "expected_document_not_cited_or_used" in scored["failure_reasons"]
 
 
+def test_cross_document_retrieval_scoring_requires_expected_evidence_documents():
+    case = RetrievalEvalCase(
+        case_id="case-1",
+        query="Compare the address values for MODEL-1 and MODEL-2.",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="table_record",
+        section_path="Specifications",
+        page_from=1,
+        page_to=1,
+        expected_terms=["address", "100", "200"],
+        expected_snippet="Address: 100 | Address: 200",
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={"product_model": "MODEL-1"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "chunk-1",
+                "source_document_id": "doc-1",
+                "field": "address",
+                "product_identifiers": ["model1"],
+                "expected_terms": ["address", "100"],
+            },
+            {
+                "chunk_id": "chunk-2",
+                "source_document_id": "doc-2",
+                "field": "address",
+                "product_identifiers": ["model2"],
+                "expected_terms": ["address", "200"],
+            },
+        ],
+    )
+
+    scored = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "chunk-1",
+                "source_document_id": "doc-1",
+                "content": "Column headers: Address; Model MODEL-1: 100",
+                "metadata": {
+                    "chunk_type": "table_record",
+                    "table_column_headers": ["Address"],
+                    "product_model": "MODEL-1",
+                },
+            },
+            {
+                "chunk_id": "equivalent-wrong-doc",
+                "source_document_id": "doc-1",
+                "content": "Column headers: Address; Model MODEL-2: 200",
+                "metadata": {
+                    "chunk_type": "table_record",
+                    "table_column_headers": ["Address"],
+                    "product_model": "MODEL-2",
+                },
+            },
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert scored["missing_evidence"] == [{"chunk_id": "chunk-2", "matched": False, "rank": None, "overlap_terms": 2}]
+
+
 def test_answer_response_scoring_prefers_multi_step_evidence_terms():
     case = RetrievalEvalCase(
         case_id="case-1",
@@ -3614,7 +3680,6 @@ def test_score_search_results_accepts_cross_document_same_field_equivalent_evide
             },
             {
                 "chunk_id": "lj-voltage",
-                "source_document_id": "doc-lj",
                 "field": "power supply voltage",
                 "product_identifiers": ["ljx8000"],
                 "expected_terms": ["24", "vdc"],

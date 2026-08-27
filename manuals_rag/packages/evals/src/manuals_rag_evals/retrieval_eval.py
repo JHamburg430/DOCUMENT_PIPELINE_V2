@@ -2365,6 +2365,9 @@ def _result_matches_cross_document_evidence_item(
 ) -> bool:
     if case.generation_method != "cross_document_same_field_evidence":
         return False
+    expected_document_id = str(item.get("source_document_id") or "")
+    if expected_document_id and str(result.get("source_document_id", "")) != expected_document_id:
+        return False
     result_chunk_type = str(result.get("metadata", {}).get("chunk_type") or result.get("chunk_type", ""))
     if result_chunk_type != case.chunk_type:
         return False
