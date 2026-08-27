@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-durable-matrix-job-state-1";
+const ASSET_VERSION = "20260827-matrix-retrieval-blocking-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
@@ -377,6 +377,18 @@ function buildMatrixCells(item = {}) {
   return cells;
 }
 
+function blockAnswerMatrixCells(cells, detail = "blocked by failed retrieval/context") {
+  ["relevance", "summaries", "generation", "answer_docs", "citations", "terms", "answer"].forEach((key) => {
+    cells[key] = matrixCell("blank", detail);
+  });
+  return cells;
+}
+
+function gateAnswerCellsAfterRetrieval(cells) {
+  if (cells?.retrieval?.status === "fail") return blockAnswerMatrixCells(cells);
+  return cells;
+}
+
 function summarizeMatrixRows(items = []) {
   const totals = Object.fromEntries(MATRIX_STAGES.map((stage) => [stage.key, { pass: 0, fail: 0, blank: 0 }]));
   const rows = items.map((item, index) => {
@@ -393,7 +405,7 @@ function summarizeMatrixRows(items = []) {
 function matrixCellsForItem(item = {}) {
   const baseCells = item.cells || buildMatrixCells(item);
   const liveCells = state.matrixJob?.live_cells?.[item.key];
-  return liveCells ? { ...baseCells, ...liveCells } : baseCells;
+  return gateAnswerCellsAfterRetrieval(liveCells ? { ...baseCells, ...liveCells } : baseCells);
 }
 
 function matrixStatusLabel(cell = {}) {

@@ -124,8 +124,7 @@ summary {
 .app-shell {
   min-height: 100vh;
   padding: 18px;
-  max-width: 1600px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .topbar {

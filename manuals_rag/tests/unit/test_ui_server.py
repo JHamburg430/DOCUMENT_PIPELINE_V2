@@ -612,6 +612,53 @@ def test_question_matrix_retrieval_tracks_final_document_retention_not_evidence_
     assert cells["retrieval"]["label"] == "PASS"
 
 
+def test_question_matrix_blocks_answer_steps_when_context_retention_fails():
+    cells = ui_server._build_row_cells(
+        {
+            "case": {
+                "source_document_id": "doc-expected",
+                "source_chunk_id": "chunk-expected",
+            },
+            "query_debug_result": {
+                "completed_steps": [
+                    "classify_query",
+                    "build_filters",
+                    "run_sparse_search",
+                    "fuse_results",
+                    "rerank_results",
+                    "assemble_context",
+                    "judge_answer_inputs",
+                    "summarize_answer_inputs",
+                    "generate_answer",
+                ],
+                "stages": [
+                    {"name": "run_sparse_search", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-expected"}]},
+                    {"name": "fuse_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-expected"}]},
+                    {"name": "rerank_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-expected"}]},
+                    {"name": "assemble_context", "samples": [{"source_document_id": "wrong-doc", "chunk_id": "wrong-chunk"}]},
+                ],
+            },
+            "evaluation": {
+                "passed": True,
+                "candidate_recall": True,
+                "metadata_document_selection": {"attempted": False},
+            },
+            "answer_evaluation": {
+                "passed": True,
+                "expected_document_used": True,
+                "citation_fidelity": {"checked": True, "passed": True, "checked_quote_count": 1},
+                "term_check": {"passed": True},
+            },
+        }
+    )
+
+    assert cells["retrieval"]["status"] == "fail"
+    assert cells["retrieval"]["label"] == "FAIL"
+    for key in ("relevance", "summaries", "generation", "answer_docs", "citations", "terms", "answer"):
+        assert cells[key]["status"] == "blank"
+        assert "blocked" in cells[key]["detail"]
+
+
 def test_question_type_identifies_multi_step_and_multi_document_cases():
     multi_step = ui_server._question_type(
         {

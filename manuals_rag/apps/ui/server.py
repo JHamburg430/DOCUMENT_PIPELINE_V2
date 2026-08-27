@@ -509,6 +509,12 @@ def _retrieval_retention_cell(cells: dict[str, dict[str, str]], retrieval: dict)
     return _matrix_cell("blank", "not scored yet")
 
 
+def _block_answer_cells(cells: dict[str, dict[str, str]], detail: str = "blocked by failed retrieval/context") -> dict[str, dict[str, str]]:
+    for key in ANSWER_STAGE_KEYS:
+        cells[key] = _matrix_cell("blank", detail)
+    return cells
+
+
 def _question_type(case: dict) -> dict[str, object]:
     expected_evidence = case.get("expected_evidence") if isinstance(case.get("expected_evidence"), list) else []
     expected_document_ids = {
@@ -589,8 +595,8 @@ def _build_row_cells(item: dict | None, case: dict | None = None) -> dict[str, d
         cells["metadata"] = _matrix_cell("blank", "not attempted")
 
     cells["retrieval"] = _retrieval_retention_cell(cells, retrieval)
-    if not retrieval.get("passed"):
-        return cells
+    if cells["retrieval"]["status"] != "pass":
+        return _block_answer_cells(cells)
 
     for step, key in answer_step_to_key.items():
         if step in completed_steps:
@@ -1221,10 +1227,28 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                         "step_timings_ms": step_timings_ms,
                         "stages": stages,
                         "answer": {},
-                        "early_stopped": not evaluation.get("passed"),
-                        "early_stop_reason": None if evaluation.get("passed") else evaluation.get("failure_category") or "retrieval_failed",
                     }
-                    if not evaluation.get("passed"):
+                    retrieval_cell = _build_row_cells(
+                        {
+                            "case": eval_case_dict,
+                            "query_debug_result": partial_debug_result,
+                            "evaluation": evaluation,
+                        }
+                    )["retrieval"]
+                    retrieval_passed = retrieval_cell.get("status") == "pass"
+                    partial_debug_result["early_stopped"] = not retrieval_passed
+                    partial_debug_result["early_stop_reason"] = (
+                        None
+                        if retrieval_passed
+                        else evaluation.get("failure_category") or retrieval_cell.get("detail") or "retrieval_failed"
+                    )
+                    if not retrieval_passed:
+                        evaluation = dict(evaluation)
+                        evaluation["passed"] = False
+                        evaluation["failure_category"] = evaluation.get("failure_category") or "retrieval_context_missing"
+                        evaluation.setdefault("failure_reasons", [])
+                        if isinstance(evaluation["failure_reasons"], list):
+                            evaluation["failure_reasons"].append(retrieval_cell.get("detail") or "Expected document missing from final context.")
                         return partial_debug_result, evaluation
             if event.get("event") == "run_completed":
                 result = dict(event.get("result") or {})
