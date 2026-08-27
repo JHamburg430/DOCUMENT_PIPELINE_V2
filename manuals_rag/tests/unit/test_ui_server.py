@@ -10,6 +10,8 @@ from time import sleep
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+import pytest
+
 from apps.ui import server as ui_server
 
 
@@ -102,11 +104,13 @@ def test_eval_matrix_view_is_available():
     assert 'id="matrix-run-all-bank"' in index_html
     assert 'id="matrix-run-column"' in index_html
     assert 'id="matrix-use-model-judge"' in index_html
+    assert 'id="matrix-stop"' in index_html
     assert 'id="matrix-summary"' in index_html
     assert 'id="matrix-table"' in index_html
     assert "MATRIX_STAGES" in app_js
     assert "setupMatrixControls()" in app_js
     assert "startMatrixJob" in app_js
+    assert "stopMatrixJob" in app_js
     assert "current-run-cell" in app_js
     assert "loadQuestionMatrix" in app_js
     assert "renderMatrixSummary" in app_js
@@ -297,6 +301,60 @@ def test_question_matrix_retrieval_column_uses_retrieval_only(monkeypatch, tmp_p
     cmd = calls[0][0]
     assert cmd[cmd.index("--response-mode") + 1] == "retrieval_only"
     assert "--use-llm-answer-judge" not in cmd
+
+
+def test_question_matrix_rejects_second_active_job(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    dataset_path.write_text('{"case_id":"case-1","query":"q"}\n', encoding="utf-8")
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "datasets": [{"path": "test_reports/dataset.jsonl", "status": "promoted", "total_questions": 1}],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-active"] = {"id": "matrix-active", "status": "running"}
+
+    with pytest.raises(ValueError, match="already running"):
+        ui_server._start_question_matrix_job({"mode": "column", "column": "retrieval"})
+
+    ui_server.MATRIX_JOBS.clear()
+
+
+def test_question_matrix_stop_marks_job_and_terminates_process():
+    class FakeProcess:
+        def __init__(self):
+            self.terminated = False
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            self.terminated = True
+
+    process = FakeProcess()
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_PROCESSES.clear()
+    ui_server.MATRIX_JOBS["matrix-stop-me"] = {"id": "matrix-stop-me", "status": "running"}
+    ui_server.MATRIX_PROCESSES["matrix-stop-me"] = process
+
+    job = ui_server._stop_question_matrix_job("matrix-stop-me")
+
+    assert job["status"] == "stopping"
+    assert job["cancel_requested"] is True
+    assert process.terminated is True
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_PROCESSES.clear()
 
 
 def test_api_proxy_keeps_manuals_rag_same_origin(monkeypatch):

@@ -329,7 +329,7 @@ summary {
 
 .matrix-actions {
   display: grid;
-  grid-template-columns: auto minmax(180px, 240px) auto minmax(220px, 1fr) auto;
+  grid-template-columns: auto minmax(180px, 240px) auto minmax(220px, 1fr) auto auto;
   align-items: end;
   gap: 10px;
   margin-bottom: 12px;

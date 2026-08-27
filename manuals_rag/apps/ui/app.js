@@ -477,6 +477,7 @@ function setupMatrixControls() {
   $("matrix-run-all-bank")?.addEventListener("click", () => startMatrixJob({ mode: "all_bank" }));
   $("matrix-run-column")?.addEventListener("click", () => startMatrixJob({ mode: "column", column: $("matrix-column")?.value || "retrieval" }));
   $("matrix-refresh")?.addEventListener("click", loadQuestionMatrix);
+  $("matrix-stop")?.addEventListener("click", stopMatrixJob);
   renderMatrixJobStatus(null);
 }
 
@@ -500,11 +501,13 @@ function renderMatrixJobStatus(job) {
     ${job.current_dataset ? `<small>${escapeHtml([job.current_dataset, questionText].filter(Boolean).join(" | "))}</small>` : ""}
     ${job.error ? `<small>${escapeHtml(job.error)}</small>` : ""}
   `;
-  const busy = ["queued", "running"].includes(job.status);
+  const busy = ["queued", "running", "stopping"].includes(job.status);
   ["matrix-run-all-bank", "matrix-run-column"].forEach((id) => {
     const button = $(id);
     if (button) button.disabled = busy;
   });
+  const stopButton = $("matrix-stop");
+  if (stopButton) stopButton.disabled = !busy;
 }
 
 async function pollMatrixJob(jobId) {
@@ -513,7 +516,7 @@ async function pollMatrixJob(jobId) {
     state.matrixJob = job;
     renderMatrixJobStatus(job);
     if (state.questionMatrix) renderQuestionMatrix(state.questionMatrix);
-    if (["queued", "running"].includes(job.status)) {
+    if (["queued", "running", "stopping"].includes(job.status)) {
       state.matrixJobTimer = setTimeout(() => pollMatrixJob(jobId), 3000);
       return;
     }
@@ -524,6 +527,10 @@ async function pollMatrixJob(jobId) {
 }
 
 async function startMatrixJob({ mode, column = "retrieval" }) {
+  if (state.matrixJob && ["queued", "running", "stopping"].includes(state.matrixJob.status)) {
+    renderMatrixJobStatus(state.matrixJob);
+    return;
+  }
   if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
   const useModelJudge = Boolean($("matrix-use-model-judge")?.checked);
   renderMatrixJobStatus({ status: "queued", mode, column: mode === "column" ? column : "all", use_model_judge: useModelJudge, dataset_count: 0, completed_datasets: 0 });
@@ -534,6 +541,19 @@ async function startMatrixJob({ mode, column = "retrieval" }) {
     pollMatrixJob(job.id);
   } catch (error) {
     renderMatrixJobStatus({ status: "failed", mode, column, use_model_judge: useModelJudge, error: error.message, dataset_count: 0, completed_datasets: 0 });
+  }
+}
+
+async function stopMatrixJob() {
+  const jobId = state.matrixJob?.id;
+  if (!jobId || !["queued", "running", "stopping"].includes(state.matrixJob?.status)) return;
+  try {
+    const job = await localPostJson(`/local/question-matrix/jobs/${encodeURIComponent(jobId)}/stop`, {});
+    state.matrixJob = job;
+    renderMatrixJobStatus(job);
+    pollMatrixJob(jobId);
+  } catch (error) {
+    renderMatrixJobStatus({ ...state.matrixJob, status: "failed", error: error.message });
   }
 }
 

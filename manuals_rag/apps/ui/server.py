@@ -31,6 +31,7 @@ DEFAULT_CORPUS_ID = os.getenv("MANUALS_RAG_DEFAULT_CORPUS", "manuals_vendor_keye
 MATRIX_JOB_TIMEOUT_SECONDS = int(os.getenv("MATRIX_JOB_TIMEOUT_SECONDS", "7200"))
 
 MATRIX_JOBS: dict[str, dict] = {}
+MATRIX_PROCESSES: dict[str, subprocess.Popen] = {}
 MATRIX_JOBS_LOCK = Lock()
 ANSWER_STAGE_KEYS = {"relevance", "summaries", "generation", "answer_docs", "citations", "terms", "answer"}
 DEBUG_STEP_TO_MATRIX_KEY = {
@@ -46,6 +47,10 @@ DEBUG_STEP_TO_MATRIX_KEY = {
     "summarize_answer_inputs": "summaries",
     "generate_answer": "generation",
 }
+
+
+class MatrixJobCancelled(RuntimeError):
+    pass
 
 
 class ManualsRagUiHandler(SimpleHTTPRequestHandler):
@@ -84,6 +89,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/local/question-matrix/run":
             self._start_local_question_matrix_run()
+            return
+        if parsed.path.startswith("/local/question-matrix/jobs/") and parsed.path.endswith("/stop"):
+            self._stop_local_question_matrix_job(parsed.path.split("/")[-2])
             return
         if self.path.startswith("/api/"):
             self._proxy()
@@ -244,6 +252,25 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         except Exception as error:
             payload = dumps({"detail": f"Question matrix run failed to start: {error.__class__.__name__}: {error}"}).encode("utf-8")
             self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
+    def _stop_local_question_matrix_job(self, job_id: str) -> None:
+        try:
+            job = _stop_question_matrix_job(job_id)
+            payload = json.dumps(job, default=str).encode("utf-8")
+            self.send_response(202)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except KeyError:
+            self.send_error(404, "Job not found")
+        except ValueError as error:
+            payload = dumps({"detail": str(error)}).encode("utf-8")
+            self.send_response(400)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
@@ -520,6 +547,39 @@ def _update_question_matrix_job(job_id: str, **updates: object) -> None:
         job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
+def _active_question_matrix_job_id() -> str | None:
+    for job_id, job in MATRIX_JOBS.items():
+        if job.get("status") in {"queued", "running", "stopping"}:
+            return job_id
+    return None
+
+
+def _question_matrix_job_cancel_requested(job_id: str) -> bool:
+    with MATRIX_JOBS_LOCK:
+        return bool((MATRIX_JOBS.get(job_id) or {}).get("cancel_requested"))
+
+
+def _raise_if_question_matrix_job_cancelled(job_id: str) -> None:
+    if _question_matrix_job_cancel_requested(job_id):
+        raise MatrixJobCancelled("matrix job stopped")
+
+
+def _stop_question_matrix_job(job_id: str) -> dict:
+    with MATRIX_JOBS_LOCK:
+        if job_id not in MATRIX_JOBS:
+            raise KeyError(job_id)
+        job = MATRIX_JOBS[job_id]
+        if job.get("status") not in {"queued", "running", "stopping"}:
+            raise ValueError(f"Job {job_id} is not running.")
+        job["status"] = "stopping"
+        job["cancel_requested"] = True
+        job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        process = MATRIX_PROCESSES.get(job_id)
+    if process and process.poll() is None:
+        process.terminate()
+    return _question_matrix_job_snapshot(job_id)
+
+
 def _start_question_matrix_job(payload: dict) -> dict:
     mode = str(payload.get("mode") or "all_bank")
     column = str(payload.get("column") or "retrieval")
@@ -573,10 +633,14 @@ def _start_question_matrix_job(payload: dict) -> dict:
         "completed_datasets": 0,
         "returncode": None,
         "error": None,
+        "cancel_requested": False,
         "commands": [],
         "outputs": [],
     }
     with MATRIX_JOBS_LOCK:
+        active_job_id = _active_question_matrix_job_id()
+        if active_job_id:
+            raise ValueError(f"Matrix job {active_job_id} is already running.")
         MATRIX_JOBS[job_id] = job
     thread = Thread(target=_run_question_matrix_job, args=(job_id, datasets), daemon=True)
     thread.start()
@@ -588,6 +652,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
     _update_question_matrix_job(job_id, status="running", started_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
     try:
         for index, dataset in enumerate(datasets, start=1):
+            _raise_if_question_matrix_job_cancelled(job_id)
             dataset_rel = str(dataset.get("path") or "")
             dataset_path = MANUALS_ROOT / dataset_rel
             if not dataset_path.exists():
@@ -642,9 +707,12 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
                 text=True,
                 bufsize=1,
             )
+            with MATRIX_JOBS_LOCK:
+                MATRIX_PROCESSES[job_id] = process
             output_lines: list[str] = []
             assert process.stdout is not None
             for line in process.stdout:
+                _raise_if_question_matrix_job_cancelled(job_id)
                 output_lines.append(line)
                 if len(output_lines) > 400:
                     output_lines = output_lines[-400:]
@@ -657,6 +725,9 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
                         current_question_number=case_numbers.get(current_case_id),
                     )
             returncode = process.wait(timeout=MATRIX_JOB_TIMEOUT_SECONDS)
+            with MATRIX_JOBS_LOCK:
+                MATRIX_PROCESSES.pop(job_id, None)
+            _raise_if_question_matrix_job_cancelled(job_id)
             stdout_tail = "".join(output_lines)[-8000:]
             output = {
                 "dataset": dataset_rel,
@@ -680,7 +751,19 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             current_question_number=None,
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
+    except MatrixJobCancelled as error:
+        _update_question_matrix_job(
+            job_id,
+            status="cancelled",
+            error=str(error),
+            current_dataset=None,
+            current_case_id=None,
+            current_question_number=None,
+            completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        )
     except Exception as error:
+        with MATRIX_JOBS_LOCK:
+            MATRIX_PROCESSES.pop(job_id, None)
         _update_question_matrix_job(
             job_id,
             status="failed",
@@ -715,6 +798,7 @@ def _run_answer_matrix_dataset(
     )
     with results_path.open("w", encoding="utf-8") as handle:
         for case in cases:
+            _raise_if_question_matrix_job_cancelled(job_id)
             case_id = _case_key(case)
             _update_question_matrix_job(
                 job_id,
@@ -723,6 +807,7 @@ def _run_answer_matrix_dataset(
                 current_stage_key="query_classify",
             )
             debug_result = _run_query_debug_stream(job_id, case_id, case_numbers.get(case_id), case["query"])
+            _raise_if_question_matrix_job_cancelled(job_id)
             top_results = _debug_top_results(debug_result)
             eval_case = RetrievalEvalCase(**case)
             evaluation = score_search_results(eval_case, top_results)
@@ -788,6 +873,7 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
     )
     with urlopen(request, timeout=900) as response:
         for raw_line in response:
+            _raise_if_question_matrix_job_cancelled(job_id)
             if not raw_line.strip():
                 continue
             event = json.loads(raw_line.decode("utf-8"))
