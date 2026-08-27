@@ -1,0 +1,66 @@
+{
+  "total_queries": 3,
+  "passed_queries": 3,
+  "failed_queries": 0,
+  "pass_rate": 1.0,
+  "pass_at_1": 0.6667,
+  "pass_at_3": 1.0,
+  "pass_at_5": 1.0,
+  "mean_passing_rank": 1.333,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 3,
+      "passed": 3
+    }
+  },
+  "by_retrieval_task": {
+    "multi_step_retrieval": {
+      "total": 3,
+      "passed": 3
+    }
+  },
+  "by_document": {
+    "AS_146087_IV4_UM_K08GB_WW_GB_2084_1.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM_A61GB_WW_GB_2072_2.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_151292_VS_UM_J18GB_WW_GB_2035_7.pdf": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "failure_categories": {},
+  "benchmark_quality": {
+    "validated": 3
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 1.0,
+  "metadata_document_selection_attempts": 3,
+  "metadata_document_selection_recall_rate": 1.0,
+  "metadata_document_selection_rank_1_rate": 0.6667,
+  "answer_eval_count": 3,
+  "answer_passed_queries": 0,
+  "answer_failed_queries": 3,
+  "answer_pass_rate": 0.0,
+  "answer_failure_reasons": {
+    "expected_document_not_cited_or_used": 2,
+    "insufficient_evidence": 1
+  },
+  "answer_latency": {
+    "min_seconds": 24.833,
+    "max_seconds": 59.103,
+    "mean_seconds": 44.998,
+    "p95_seconds": 59.103
+  },
+  "answer_fallback_count": 0,
+  "answer_fallback_rate": 0.0,
+  "answer_sources": {
+    "api": 3
+  },
+  "answer_fallback_reasons": {},
+  "answer_mean_summary_count": null
+}
