@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import json
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -33,6 +34,7 @@ MATRIX_JOB_TIMEOUT_SECONDS = int(os.getenv("MATRIX_JOB_TIMEOUT_SECONDS", "7200")
 MATRIX_JOBS: dict[str, dict] = {}
 MATRIX_PROCESSES: dict[str, subprocess.Popen] = {}
 MATRIX_JOBS_LOCK = Lock()
+MATRIX_JOBS_LOADED = False
 ANSWER_STAGE_KEYS = {"relevance", "summaries", "generation", "answer_docs", "citations", "terms", "answer"}
 MATRIX_STAGE_KEYS = [
     "query_classify",
@@ -245,6 +247,7 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self._write(payload)
 
     def _local_question_matrix_job(self, job_id: str) -> None:
+        _load_question_matrix_jobs_if_needed()
         with MATRIX_JOBS_LOCK:
             job = dict(MATRIX_JOBS.get(job_id) or {})
         if not job:
@@ -694,6 +697,7 @@ def _build_question_matrix() -> dict:
 
 
 def _question_matrix_job_snapshot(job_id: str) -> dict:
+    _load_question_matrix_jobs_if_needed()
     with MATRIX_JOBS_LOCK:
         return dict(MATRIX_JOBS[job_id])
 
@@ -703,6 +707,7 @@ def _update_question_matrix_job(job_id: str, **updates: object) -> None:
         job = MATRIX_JOBS[job_id]
         job.update(updates)
         job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        _persist_question_matrix_jobs_locked()
 
 
 def _update_question_matrix_live_cell(job_id: str, case_id: str, key: str, status: str, detail: str = "", label: str | None = None) -> None:
@@ -716,6 +721,7 @@ def _update_question_matrix_live_cell(job_id: str, case_id: str, key: str, statu
         live_cells[case_id] = row_cells
         job["live_cells"] = live_cells
         job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        _persist_question_matrix_jobs_locked()
 
 
 def _replace_question_matrix_live_cells(job_id: str, case_id: str, cells: dict[str, dict[str, str]]) -> None:
@@ -725,16 +731,89 @@ def _replace_question_matrix_live_cells(job_id: str, case_id: str, cells: dict[s
         live_cells[case_id] = {key: dict(value) for key, value in cells.items()}
         job["live_cells"] = live_cells
         job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        _persist_question_matrix_jobs_locked()
 
 
 def _active_question_matrix_job_id() -> str | None:
+    _load_question_matrix_jobs_if_needed()
     for job_id, job in MATRIX_JOBS.items():
         if job.get("status") in {"queued", "running", "stopping"}:
             return job_id
     return None
 
 
+def _question_matrix_jobs_state_path() -> Path:
+    return TEST_REPORTS_DIR / ".question_matrix_jobs.json"
+
+
+def _persist_question_matrix_jobs_locked() -> None:
+    state_path = _question_matrix_jobs_state_path()
+    try:
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({"jobs": MATRIX_JOBS}, indent=2, default=str), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _load_question_matrix_jobs_if_needed() -> None:
+    global MATRIX_JOBS_LOADED
+    if MATRIX_JOBS_LOADED:
+        return
+    with MATRIX_JOBS_LOCK:
+        if MATRIX_JOBS_LOADED:
+            return
+        state_path = _question_matrix_jobs_state_path()
+        if state_path.exists():
+            try:
+                payload = json.loads(state_path.read_text(encoding="utf-8"))
+                jobs = payload.get("jobs") if isinstance(payload, dict) else {}
+                if isinstance(jobs, dict):
+                    MATRIX_JOBS.update({str(job_id): dict(job) for job_id, job in jobs.items() if isinstance(job, dict)})
+                    _refresh_recovered_question_matrix_jobs_locked()
+            except (OSError, json.JSONDecodeError, TypeError):
+                pass
+        MATRIX_JOBS_LOADED = True
+
+
+def _refresh_recovered_question_matrix_jobs_locked() -> None:
+    changed = False
+    for job in MATRIX_JOBS.values():
+        if job.get("status") not in {"queued", "running", "stopping"}:
+            continue
+        pid = _job_pid(job)
+        if pid and _pid_is_running(pid):
+            job["recovered"] = True
+            changed = True
+            continue
+        job["status"] = "failed"
+        job["error"] = "UI server restarted before this matrix job finished; no active worker process was found."
+        job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        job["updated_at"] = job["completed_at"]
+        changed = True
+    if changed:
+        _persist_question_matrix_jobs_locked()
+
+
+def _job_pid(job: dict) -> int | None:
+    try:
+        pid = int(job.get("pid") or 0)
+    except (TypeError, ValueError):
+        return None
+    return pid if pid > 0 else None
+
+
+def _pid_is_running(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def _question_matrix_job_cancel_requested(job_id: str) -> bool:
+    _load_question_matrix_jobs_if_needed()
     with MATRIX_JOBS_LOCK:
         return bool((MATRIX_JOBS.get(job_id) or {}).get("cancel_requested"))
 
@@ -745,6 +824,7 @@ def _raise_if_question_matrix_job_cancelled(job_id: str) -> None:
 
 
 def _stop_question_matrix_job(job_id: str) -> dict:
+    _load_question_matrix_jobs_if_needed()
     with MATRIX_JOBS_LOCK:
         if job_id not in MATRIX_JOBS:
             raise KeyError(job_id)
@@ -755,12 +835,17 @@ def _stop_question_matrix_job(job_id: str) -> dict:
         job["cancel_requested"] = True
         job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         process = MATRIX_PROCESSES.get(job_id)
+        pid = _job_pid(job)
+        _persist_question_matrix_jobs_locked()
     if process and process.poll() is None:
         process.terminate()
+    elif pid and _pid_is_running(pid):
+        os.kill(pid, signal.SIGTERM)
     return _question_matrix_job_snapshot(job_id)
 
 
 def _start_question_matrix_job(payload: dict) -> dict:
+    _load_question_matrix_jobs_if_needed()
     mode = str(payload.get("mode") or "all_bank")
     column = str(payload.get("column") or "retrieval")
     use_model_judge = bool(payload.get("use_model_judge"))
@@ -819,10 +904,14 @@ def _start_question_matrix_job(payload: dict) -> dict:
         "outputs": [],
     }
     with MATRIX_JOBS_LOCK:
-        active_job_id = _active_question_matrix_job_id()
+        active_job_id = next(
+            (existing_id for existing_id, existing_job in MATRIX_JOBS.items() if existing_job.get("status") in {"queued", "running", "stopping"}),
+            None,
+        )
         if active_job_id:
             raise ValueError(f"Matrix job {active_job_id} is already running.")
         MATRIX_JOBS[job_id] = job
+        _persist_question_matrix_jobs_locked()
     thread = Thread(target=_run_question_matrix_job, args=(job_id, datasets), daemon=True)
     thread.start()
     return _question_matrix_job_snapshot(job_id)
@@ -890,6 +979,9 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             )
             with MATRIX_JOBS_LOCK:
                 MATRIX_PROCESSES[job_id] = process
+                MATRIX_JOBS[job_id]["pid"] = getattr(process, "pid", None)
+                MATRIX_JOBS[job_id]["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                _persist_question_matrix_jobs_locked()
             output_lines: list[str] = []
             assert process.stdout is not None
             for line in process.stdout:
@@ -908,6 +1000,9 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             returncode = process.wait(timeout=MATRIX_JOB_TIMEOUT_SECONDS)
             with MATRIX_JOBS_LOCK:
                 MATRIX_PROCESSES.pop(job_id, None)
+                if job_id in MATRIX_JOBS:
+                    MATRIX_JOBS[job_id]["pid"] = None
+                    _persist_question_matrix_jobs_locked()
             _raise_if_question_matrix_job_cancelled(job_id)
             stdout_tail = "".join(output_lines)[-8000:]
             output = {
@@ -933,6 +1028,8 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
     except MatrixJobCancelled as error:
+        with MATRIX_JOBS_LOCK:
+            MATRIX_PROCESSES.pop(job_id, None)
         _update_question_matrix_job(
             job_id,
             status="cancelled",

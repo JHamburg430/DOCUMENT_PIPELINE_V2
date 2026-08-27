@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-eval-matrix-retrieval-retention-1";
+const ASSET_VERSION = "20260827-durable-matrix-job-state-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
@@ -535,11 +535,13 @@ function renderMatrixJobStatus(job) {
   const modeLabel = job.mode === "column" ? `Column: ${MATRIX_STAGES.find((stage) => stage.key === job.column)?.label || job.column}` : "All bank";
   const judgeText = job.use_model_judge ? "model judge on" : "model judge off";
   const questionText = job.current_question_number ? `question ${job.current_question_number}` : "";
+  const recoveredText = job.recovered ? "recovered after UI restart" : "";
   node.className = job.status === "failed" ? "error-box" : "empty-state";
   node.innerHTML = `
     <strong>${escapeHtml(modeLabel)} ${escapeHtml(job.status || "queued")}</strong>
     <span>${escapeHtml(`${completed}/${total} datasets | ${job.response_mode || ""} | ${judgeText}`)}</span>
     ${job.current_dataset ? `<small>${escapeHtml([job.current_dataset, questionText].filter(Boolean).join(" | "))}</small>` : ""}
+    ${recoveredText ? `<small>${escapeHtml(recoveredText)}</small>` : ""}
     ${job.error ? `<small>${escapeHtml(job.error)}</small>` : ""}
   `;
   const busy = ["queued", "running", "stopping"].includes(job.status);

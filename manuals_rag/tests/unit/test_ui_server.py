@@ -235,6 +235,61 @@ def test_question_matrix_includes_active_job_for_page_refresh(monkeypatch, tmp_p
     assert payload["active_job"]["status"] == "running"
 
 
+def test_question_matrix_recovers_active_job_from_state_file(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    dataset_path.write_text('{"case_id":"case-1","query":"q"}\n', encoding="utf-8")
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "datasets": [{"path": "test_reports/dataset.jsonl", "status": "promoted", "total_questions": 1}],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports / ".question_matrix_jobs.json").write_text(
+        ui_server.json.dumps(
+            {
+                "jobs": {
+                    "matrix-recovered": {
+                        "id": "matrix-recovered",
+                        "status": "running",
+                        "mode": "column",
+                        "column": "retrieval",
+                        "dataset_count": 1,
+                        "completed_datasets": 0,
+                        "pid": 1234,
+                        "live_cells": {},
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "_pid_is_running", lambda pid: pid == 1234)
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_PROCESSES.clear()
+    monkeypatch.setattr(ui_server, "MATRIX_JOBS_LOADED", False)
+
+    try:
+        payload = ui_server._build_question_matrix()
+    finally:
+        ui_server.MATRIX_JOBS.clear()
+        ui_server.MATRIX_PROCESSES.clear()
+        ui_server.MATRIX_JOBS_LOADED = True
+
+    assert payload["active_job"]["id"] == "matrix-recovered"
+    assert payload["active_job"]["status"] == "running"
+    assert payload["active_job"]["recovered"] is True
+
+
 def test_question_matrix_job_runs_active_bank_with_llm_answer_judge(monkeypatch, tmp_path):
     reports = tmp_path / "test_reports"
     reports.mkdir()
@@ -378,7 +433,7 @@ def test_question_matrix_rejects_second_active_job(monkeypatch, tmp_path):
     ui_server.MATRIX_JOBS.clear()
 
 
-def test_question_matrix_stop_marks_job_and_terminates_process():
+def test_question_matrix_stop_marks_job_and_terminates_process(monkeypatch, tmp_path):
     class FakeProcess:
         def __init__(self):
             self.terminated = False
@@ -390,6 +445,9 @@ def test_question_matrix_stop_marks_job_and_terminates_process():
             self.terminated = True
 
     process = FakeProcess()
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
     ui_server.MATRIX_JOBS.clear()
     ui_server.MATRIX_PROCESSES.clear()
     ui_server.MATRIX_JOBS["matrix-stop-me"] = {"id": "matrix-stop-me", "status": "running"}
@@ -402,6 +460,45 @@ def test_question_matrix_stop_marks_job_and_terminates_process():
     assert process.terminated is True
     ui_server.MATRIX_JOBS.clear()
     ui_server.MATRIX_PROCESSES.clear()
+
+
+def test_question_matrix_stop_recovered_job_by_pid(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    (reports / ".question_matrix_jobs.json").write_text(
+        ui_server.json.dumps(
+            {
+                "jobs": {
+                    "matrix-stop-pid": {
+                        "id": "matrix-stop-pid",
+                        "status": "running",
+                        "pid": 4321,
+                        "live_cells": {},
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    killed = []
+
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "_pid_is_running", lambda pid: pid == 4321)
+    monkeypatch.setattr(ui_server.os, "kill", lambda pid, sig: killed.append((pid, sig)))
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_PROCESSES.clear()
+    monkeypatch.setattr(ui_server, "MATRIX_JOBS_LOADED", False)
+
+    try:
+        job = ui_server._stop_question_matrix_job("matrix-stop-pid")
+    finally:
+        ui_server.MATRIX_JOBS.clear()
+        ui_server.MATRIX_PROCESSES.clear()
+        ui_server.MATRIX_JOBS_LOADED = True
+
+    assert job["status"] == "stopping"
+    assert job["cancel_requested"] is True
+    assert killed == [(4321, ui_server.signal.SIGTERM)]
 
 
 def test_question_matrix_blanks_answer_steps_after_retrieval_failure():
@@ -547,7 +644,7 @@ def test_question_type_identifies_multi_step_and_multi_document_cases():
     assert multi_doc["expected_document_count"] == 2
 
 
-def test_query_debug_stream_stops_after_failed_retrieval(monkeypatch):
+def test_query_debug_stream_stops_after_failed_retrieval(monkeypatch, tmp_path):
     case = RetrievalEvalCase(
         case_id="case-1",
         query="What voltage does MODEL-1 use?",
@@ -598,6 +695,9 @@ def test_query_debug_stream_stops_after_failed_retrieval(monkeypatch):
                 yield (ui_server.json.dumps(event) + "\n").encode("utf-8")
 
     monkeypatch.setattr(ui_server, "urlopen", lambda request, timeout: FakeResponse())
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
     ui_server.MATRIX_JOBS.clear()
     ui_server.MATRIX_JOBS["matrix-early"] = {"id": "matrix-early", "status": "running", "live_cells": {}}
 

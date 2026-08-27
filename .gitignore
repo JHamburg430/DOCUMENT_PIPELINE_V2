@@ -15,5 +15,6 @@ Technical_Documents/
 manuals_rag/tmp_eval_docs*/
 manuals_rag/test_reports/archive_*/
 manuals_rag/test_reports/*.jsonl
+manuals_rag/test_reports/.question_matrix_jobs.json
 
 .DS_Store
