@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-27T02:55:00Z",
+  "updated_at": "2026-08-27T03:49:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -645,6 +645,18 @@
           "retrieval_eval_20260827_011205 -> rows 15-17 at 3/3 retrieval and 2/3 actual HTTP API answers; JSONL inspection preserved row 15 as expected_terms_missing and rows 16-17 as source-supported clean controls."
         ],
         "remaining": "Do not treat the partial-claim containment as fully proven by actual API changed-path evidence until a deterministic API/debug eval harness can inject or capture the adverse unsupported extra-clause case, or John approves the smallest general harness adjustment. Continue row-15 answer evidence selection only after preserving this containment status."
+      },
+      "2026-08-27T03:12:13Z": {
+        "severity": "ok",
+        "status": "followed_up_this_run",
+        "addressed_this_run": "Preserved the row-15 citation-fidelity reclassification and diagnostic-only LLM judge policy, then resumed the cross-document retrieval target with a scoped general row-key/table-cell precision retrieval change.",
+        "evidence": [
+          "retrieval_eval_20260827_033028",
+          "retrieval_eval_20260827_033607",
+          "tests/unit/test_retriever.py -q -> 94 passed",
+          "tests/unit -q -> 329 passed"
+        ],
+        "remaining": "Cross-document row 7 remains ranking_or_context_loss; row 15 remains diagnostic/source-context evidence until a chunk-supported rerun or approved parent-context citation policy exists."
       }
     },
     "diagnostics": [
@@ -989,22 +1001,18 @@
       }
     ],
     "failure_categories": {
-      "eval_timeout": 1,
-      "ranking_or_context_loss": 1,
-      "candidate_miss": 1
+      "ranking_or_context_loss": 1
     },
     "current_failure_categories": {
-      "eval_timeout": 1,
-      "ranking_or_context_loss": 1,
-      "candidate_miss": 1
+      "ranking_or_context_loss": 1
     },
-    "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10. Focused rerun retrieval_eval_20260827_022452 over rows 6-10 confirms unresolved cases 6, 7, and 9 as eval_timeout: 1, ranking_or_context_loss: 1, and candidate_miss: 1; rows 8 and 10 pass at rank 1. Contextual row 14 remains separate retrieval-gap evidence. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
+    "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 baseline, now superseded for rows 6-10 by focused direct run retrieval_eval_20260827_033028 and loaded-runtime HTTP run retrieval_eval_20260827_033607. Rows 6, 8, 9, and 10 passed; row 7 remains the only unresolved focused cross-document failure as ranking_or_context_loss because LJ-X8000 PMSR DC2LAR is retrieved but LJ-S8000 RTO2L remains outside final top-5. Contextual row 14 remains separate retrieval-gap evidence. Answer rotations remain answer-grounding evidence only, not direct-retrieval improvements.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 4,
       "retrieval_not_passed": 4,
       "expected_terms_missing": 3
     },
-    "next_target": "First preserve the citation-fidelity reclassification: retrieval_eval_20260827_020233 row 15 and any combined rows 15-17 clean claim remain diagnostic/source-context evidence until a clean rerun cites returned chunk content that directly supports the expected usable-trigger-signal corrective action or an explicit parent-context citation policy is approved. Then investigate a small general row-key/product-signal retrieval design for unresolved cross-document cases 6 and 7, and a separate final-context/top-k or candidate-diversity design for case 9, using retrieval_eval_20260827_022452 as the latest focused diagnostic and retrieval_eval_20260826_005723 as the full baseline. Preserve contextual row 14 as separate candidate-miss evidence, preserve conservative partial-claim citation-pruning containment, and keep the LLM answer judge diagnostic-only/opt-in rather than production pass/fail evidence.",
+    "next_target": "Continue from the remaining cross-document row 7 ranking/context loss: preserve the row-key/product-signal supplement, then investigate final-context/top-k diversity so LJ-S8000 RTO2L can stay with LJ-X8000 PMSR DC2LAR for realistic comparison questions. Preserve rows 6 and 9 as improved retrieval evidence from retrieval_eval_20260827_033028/033607, preserve contextual row 14 separately, keep row 15 from retrieval_eval_20260827_020233 diagnostic until a chunk-supported rerun or approved parent-context citation policy exists, keep the LLM answer judge diagnostic-only/opt-in, and do not reintroduce citation-pruning retention.",
     "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers due unresolved retrieval/context misses; validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 at 6/6 answers; curated single-step retrieval_eval_20260826_035548 at 2/2; the fully reviewed contextual procedure slice rows 1-20 at 19/20 actual API answers, with contextual row 14 remaining separate retrieval-gap evidence; sibling troubleshooting rows 1-14 at 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 16 and 17 remain clean from inspected chunk-supported evidence in retrieval_eval_20260827_020233; row 15 from retrieval_eval_20260827_020233 is reclassified as diagnostic/source-context evidence because its cited chunk content does not directly contain the expected usable-trigger-signal corrective action. Rows 18-20 remain clean only under inspected source-supported evidence from retrieval_eval_20260827_001132/row-20 repaired evidence. The partial-claim citation-pruning bug class remains contained by conservative fallback: unsupported generated quote spans no longer prune citations while retaining the generated answer. The unresolved direct cross-document baseline retrieval_eval_20260826_005723 remains the current retrieval target; answer rotations are not direct-retrieval improvements. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only; repaired case retrieval_eval_20260826_222558 adds CV-X482/grayscale constraints and passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
     "answer_grounding_rotation": {
       "scope": "citation_fidelity_reclassification_for_retrieval_eval_20260827_020233_rows_15_17",
@@ -1051,9 +1059,7 @@
       "manual_jsonl_inspection": "Reinspected test_reports/retrieval_eval_results_20260827_020233.jsonl under the guardrail chunk-support rule. Row 15 states the expected usable-trigger-signal corrective action but cites chunk 9cada2b7-76d1-5d05-9e88-80ea9b12d244, whose returned content does not contain Change to a trigger signal that can be used; that remedy appears only in broad parent_context, so row 15 is diagnostic/source-context evidence. Rows 16 and 17 remain clean because their cited chunk content/quote spans directly support the expected corrective actions."
     },
     "current_retrieval_failure_categories": {
-      "eval_timeout": 1,
-      "ranking_or_context_loss": 1,
-      "candidate_miss": 1
+      "ranking_or_context_loss": 1
     },
     "current_answer_failure_categories": {
       "expected_document_not_cited_or_used": 4,
@@ -1313,7 +1319,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-27T02:28:00Z",
+    "updated_at": "2026-08-27T03:49:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -1361,38 +1367,60 @@
       "remaining": "Partial-claim pruning containment is considered resolved for production code by conservative fallback, focused/full tests, loaded-runtime adverse controls, and real API regression controls. Optional public API fabricated-clause proof remains blocked on an approved general harness, but no unsafe pruning retention path remains to exercise."
     },
     "latest_cross_document_probe": {
-      "status": "diagnostic_only_no_production_change",
-      "guardrail_context": "Latest required containment for relation-safe citation pruning remains preserved by conservative fallback; this run resumed the unresolved direct cross-document retrieval baseline instead of making optional answer changes.",
-      "baseline": "retrieval_eval_20260826_005723",
+      "status": "production_change_validated_with_direct_and_loaded_http_retrieval_evidence",
+      "guardrail_context": "Started after guardrail 2026-08-27T03:12:13Z ok finding; citation-fidelity reclassification and diagnostic-only LLM judge policy remain preserved.",
+      "baseline": "retrieval_eval_20260826_005723 / prior focused retrieval_eval_20260827_022452 at 2/5 rows 6-10",
       "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "production_change": "Comparison table lexical search now adds a bounded row-key supplement for explicit product-comparison queries and scores precise table cells with matching row/header metadata above broad sibling row groups.",
       "focused_run": {
-        "run_id": "retrieval_eval_20260827_022452",
-        "summary": "test_reports/retrieval_eval_summary_20260827_022452.json",
-        "manifest": "test_reports/retrieval_eval_manifest_20260827_022452.json",
-        "results": "test_reports/retrieval_eval_results_20260827_022452.jsonl",
+        "run_id": "retrieval_eval_20260827_033028",
+        "summary": "test_reports/retrieval_eval_summary_20260827_033028.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260827_033028.json",
+        "results": "test_reports/retrieval_eval_results_20260827_033028.jsonl",
         "query_offset": 5,
         "max_queries": 5,
         "search_mode": "direct",
         "response_mode": "retrieval_only",
         "per_query_timeout_seconds": 20,
-        "warmup": "1 unscored warmup completed in 43.115s for curated_cross_document_v2::6",
-        "result": "2/5 direct retrieval passed on curated cross-document v2 rows 6-10; rows 8 and 10 passed at rank 1, while rows 6, 7, and 9 remain unresolved.",
+        "warmup": "1 unscored warmup completed in 21.345s for curated_cross_document_v2::6",
+        "result": "4/5 direct retrieval passed on curated cross-document v2 rows 6-10; rows 6 and 9 improved from prior failures, rows 8 and 10 remained passing controls, row 7 remains ranking_or_context_loss.",
         "failure_categories": {
-          "eval_timeout": 1,
-          "ranking_or_context_loss": 1,
-          "candidate_miss": 1
+          "ranking_or_context_loss": 1
         },
+        "candidate_recall_rate": 1.0,
         "case_findings": {
-          "curated_cross_document_v2::6": "eval_timeout at 20s after warmup; no top results recorded, preserving timeout evidence for CV-X482 Condition list plus LJ-X8000 Standard Angle.",
-          "curated_cross_document_v2::7": "ranking_or_context_loss with candidate recall true; LJ-X8000 PMSR DC2LAR reached rank 1, but LJ-S8000 RTO2L remained outside final top-5.",
-          "curated_cross_document_v2::9": "candidate_miss; top results did not include the XG-X unsupported-SD-card row or CV-X edge-detection remedy expected pair.",
+          "curated_cross_document_v2::6": "passed at rank 1; prior focused rerun had timed out at 20s.",
+          "curated_cross_document_v2::7": "still ranking_or_context_loss; LJ-X8000 PMSR DC2LAR is retrieved but LJ-S8000 RTO2L remains outside final top-5.",
           "curated_cross_document_v2::8": "passed at rank 1; preserved as regression/control evidence only.",
-          "curated_cross_document_v2::10": "passed at rank 1; preserved as regression/control evidence only."
+          "curated_cross_document_v2::9": "passed at rank 1; prior focused rerun had candidate_miss for the XG-X unsupported-SD-card row.",
+          "curated_cross_document_v2::10": "passed at rank 2; preserved as regression/control evidence only."
         }
       },
+      "http_changed_path_control": {
+        "run_id": "retrieval_eval_20260827_033607",
+        "summary": "test_reports/retrieval_eval_summary_20260827_033607.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260827_033607.json",
+        "results": "test_reports/retrieval_eval_results_20260827_033607.jsonl",
+        "search_mode": "http",
+        "response_mode": "retrieval_only",
+        "result": "4/5 through restarted API; row 6 positive and row 9 positive passed, row 7 remained the negative/control ranking_or_context_loss."
+      },
+      "runtime_load_evidence": {
+        "module_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+        "run_table_lexical_search_sha256": "134c5c524b4e8372c2ce827a3d6ddc5abf1834151664bbd04c12a4f5e139e6a4",
+        "_comparison_row_key_terms_sha256": "ef110f7ee3ac774492e03103deaf05d9bffe6c2be33e7313e8dc6ba61ac96a2b",
+        "_table_lexical_score_sha256": "2db33b0662bcccf66d1755a506b6cf475ff4ca8662922f3bcd5e510606e6d5ff",
+        "retrieve_sha256": "ffa001c529d2ade0e7867063e8384eb62cf5031a386fcafe68ca11269fa5e2d5"
+      },
+      "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "regression_gates": [
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 94 passed, 1 warning",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 329 passed, 59 warnings",
+        "retrieval_eval_20260827_033200 curated single-step replacements v2 -> 13/13 direct retrieval",
+        "retrieval_eval_20260827_033156 warning/procedure multi-step -> 15/15 direct retrieval"
+      ],
       "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
-      "decision": "No production retrieval edit was made. Prior broad scoring/promotion/prefilter experiments were rejected, and this focused rerun still points toward a general bounded/indexed row-key or product-signal discovery design rather than a cron-sized scorer tweak.",
-      "next": "Investigate a small general row-key/product-signal retrieval design for cross-document cases 6 and 7, and a separate final-context/top-k or candidate diversity design for case 9. Preserve saved single-step, warning/procedure, and actual API answer-grounding gates before any production retrieval commit."
+      "next": "Investigate final-context/top-k diversity for remaining row 7 ranking/context loss without broad SQL prefilters or query/document-specific routing."
     },
     "llm_answer_judge_policy": {
       "status": "diagnostic_only_opt_in_not_production_evidence",
@@ -7257,17 +7285,13 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "First preserve the citation-fidelity reclassification: retrieval_eval_20260827_020233 row 15 and any combined rows 15-17 clean claim remain diagnostic/source-context evidence until a clean rerun cites returned chunk content that directly supports the expected usable-trigger-signal corrective action or an explicit parent-context citation policy is approved. Then investigate a small general row-key/product-signal retrieval design for unresolved cross-document cases 6 and 7, and a separate final-context/top-k or candidate-diversity design for case 9, using retrieval_eval_20260827_022452 as the latest focused diagnostic and retrieval_eval_20260826_005723 as the full baseline. Preserve contextual row 14 as separate candidate-miss evidence, preserve conservative partial-claim citation-pruning containment, and keep the LLM answer judge diagnostic-only/opt-in rather than production pass/fail evidence.",
-  "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 direct-retrieval baseline at 7/10. Focused rerun retrieval_eval_20260827_022452 over rows 6-10 confirms unresolved cases 6, 7, and 9 as eval_timeout: 1, ranking_or_context_loss: 1, and candidate_miss: 1; rows 8 and 10 pass at rank 1. Contextual row 14 remains separate retrieval-gap evidence. Recent actual API answer rotations are answer-grounding evidence only, not direct-retrieval improvements.",
+  "next_target": "Continue from the remaining cross-document row 7 ranking/context loss: preserve the row-key/product-signal supplement, then investigate final-context/top-k diversity so LJ-S8000 RTO2L can stay with LJ-X8000 PMSR DC2LAR for realistic comparison questions. Preserve rows 6 and 9 as improved retrieval evidence from retrieval_eval_20260827_033028/033607, preserve contextual row 14 separately, keep row 15 from retrieval_eval_20260827_020233 diagnostic until a chunk-supported rerun or approved parent-context citation policy exists, keep the LLM answer judge diagnostic-only/opt-in, and do not reintroduce citation-pruning retention.",
+  "current_retrieval_failure_source": "retrieval_eval_20260826_005723 remains the current full manually reviewed 10-case cross-document v2 baseline, now superseded for rows 6-10 by focused direct run retrieval_eval_20260827_033028 and loaded-runtime HTTP run retrieval_eval_20260827_033607. Rows 6, 8, 9, and 10 passed; row 7 remains the only unresolved focused cross-document failure as ranking_or_context_loss because LJ-X8000 PMSR DC2LAR is retrieved but LJ-S8000 RTO2L remains outside final top-5. Contextual row 14 remains separate retrieval-gap evidence. Answer rotations remain answer-grounding evidence only, not direct-retrieval improvements.",
   "current_failure_categories": {
-    "eval_timeout": 1,
-    "ranking_or_context_loss": 1,
-    "candidate_miss": 1
+    "ranking_or_context_loss": 1
   },
   "failure_categories": {
-    "eval_timeout": 1,
-    "ranking_or_context_loss": 1,
-    "candidate_miss": 1
+    "ranking_or_context_loss": 1
   },
   "diagnostics": [
     {
@@ -7711,38 +7735,60 @@
     "result": "2/2 retrieval and 2/2 actual API answers passed at rank 1; answer_sources api:2; fallback 0; mean answer latency 51.931s."
   },
   "latest_cross_document_probe": {
-    "status": "diagnostic_only_no_production_change",
-    "guardrail_context": "Latest required containment for relation-safe citation pruning remains preserved by conservative fallback; this run resumed the unresolved direct cross-document retrieval baseline instead of making optional answer changes.",
-    "baseline": "retrieval_eval_20260826_005723",
+    "status": "production_change_validated_with_direct_and_loaded_http_retrieval_evidence",
+    "guardrail_context": "Started after guardrail 2026-08-27T03:12:13Z ok finding; citation-fidelity reclassification and diagnostic-only LLM judge policy remain preserved.",
+    "baseline": "retrieval_eval_20260826_005723 / prior focused retrieval_eval_20260827_022452 at 2/5 rows 6-10",
     "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+    "production_change": "Comparison table lexical search now adds a bounded row-key supplement for explicit product-comparison queries and scores precise table cells with matching row/header metadata above broad sibling row groups.",
     "focused_run": {
-      "run_id": "retrieval_eval_20260827_022452",
-      "summary": "test_reports/retrieval_eval_summary_20260827_022452.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_022452.json",
-      "results": "test_reports/retrieval_eval_results_20260827_022452.jsonl",
+      "run_id": "retrieval_eval_20260827_033028",
+      "summary": "test_reports/retrieval_eval_summary_20260827_033028.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_033028.json",
+      "results": "test_reports/retrieval_eval_results_20260827_033028.jsonl",
       "query_offset": 5,
       "max_queries": 5,
       "search_mode": "direct",
       "response_mode": "retrieval_only",
       "per_query_timeout_seconds": 20,
-      "warmup": "1 unscored warmup completed in 43.115s for curated_cross_document_v2::6",
-      "result": "2/5 direct retrieval passed on curated cross-document v2 rows 6-10; rows 8 and 10 passed at rank 1, while rows 6, 7, and 9 remain unresolved.",
+      "warmup": "1 unscored warmup completed in 21.345s for curated_cross_document_v2::6",
+      "result": "4/5 direct retrieval passed on curated cross-document v2 rows 6-10; rows 6 and 9 improved from prior failures, rows 8 and 10 remained passing controls, row 7 remains ranking_or_context_loss.",
       "failure_categories": {
-        "eval_timeout": 1,
-        "ranking_or_context_loss": 1,
-        "candidate_miss": 1
+        "ranking_or_context_loss": 1
       },
+      "candidate_recall_rate": 1.0,
       "case_findings": {
-        "curated_cross_document_v2::6": "eval_timeout at 20s after warmup; no top results recorded, preserving timeout evidence for CV-X482 Condition list plus LJ-X8000 Standard Angle.",
-        "curated_cross_document_v2::7": "ranking_or_context_loss with candidate recall true; LJ-X8000 PMSR DC2LAR reached rank 1, but LJ-S8000 RTO2L remained outside final top-5.",
-        "curated_cross_document_v2::9": "candidate_miss; top results did not include the XG-X unsupported-SD-card row or CV-X edge-detection remedy expected pair.",
+        "curated_cross_document_v2::6": "passed at rank 1; prior focused rerun had timed out at 20s.",
+        "curated_cross_document_v2::7": "still ranking_or_context_loss; LJ-X8000 PMSR DC2LAR is retrieved but LJ-S8000 RTO2L remains outside final top-5.",
         "curated_cross_document_v2::8": "passed at rank 1; preserved as regression/control evidence only.",
-        "curated_cross_document_v2::10": "passed at rank 1; preserved as regression/control evidence only."
+        "curated_cross_document_v2::9": "passed at rank 1; prior focused rerun had candidate_miss for the XG-X unsupported-SD-card row.",
+        "curated_cross_document_v2::10": "passed at rank 2; preserved as regression/control evidence only."
       }
     },
+    "http_changed_path_control": {
+      "run_id": "retrieval_eval_20260827_033607",
+      "summary": "test_reports/retrieval_eval_summary_20260827_033607.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_033607.json",
+      "results": "test_reports/retrieval_eval_results_20260827_033607.jsonl",
+      "search_mode": "http",
+      "response_mode": "retrieval_only",
+      "result": "4/5 through restarted API; row 6 positive and row 9 positive passed, row 7 remained the negative/control ranking_or_context_loss."
+    },
+    "runtime_load_evidence": {
+      "module_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+      "run_table_lexical_search_sha256": "134c5c524b4e8372c2ce827a3d6ddc5abf1834151664bbd04c12a4f5e139e6a4",
+      "_comparison_row_key_terms_sha256": "ef110f7ee3ac774492e03103deaf05d9bffe6c2be33e7313e8dc6ba61ac96a2b",
+      "_table_lexical_score_sha256": "2db33b0662bcccf66d1755a506b6cf475ff4ca8662922f3bcd5e510606e6d5ff",
+      "retrieve_sha256": "ffa001c529d2ade0e7867063e8384eb62cf5031a386fcafe68ca11269fa5e2d5"
+    },
+    "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2",
+    "regression_gates": [
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 94 passed, 1 warning",
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 329 passed, 59 warnings",
+      "retrieval_eval_20260827_033200 curated single-step replacements v2 -> 13/13 direct retrieval",
+      "retrieval_eval_20260827_033156 warning/procedure multi-step -> 15/15 direct retrieval"
+    ],
     "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
-    "decision": "No production retrieval edit was made. Prior broad scoring/promotion/prefilter experiments were rejected, and this focused rerun still points toward a general bounded/indexed row-key or product-signal discovery design rather than a cron-sized scorer tweak.",
-    "next": "Investigate a small general row-key/product-signal retrieval design for cross-document cases 6 and 7, and a separate final-context/top-k or candidate diversity design for case 9. Preserve saved single-step, warning/procedure, and actual API answer-grounding gates before any production retrieval commit."
+    "next": "Investigate final-context/top-k diversity for remaining row 7 ranking/context loss without broad SQL prefilters or query/document-specific routing."
   },
   "answer_grounding_sibling_rows_1_2": {
     "status": "sibling_troubleshooting_rows_1_2_rotation_completed",
@@ -7956,9 +8002,7 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {
-    "eval_timeout": 1,
-    "ranking_or_context_loss": 1,
-    "candidate_miss": 1
+    "ranking_or_context_loss": 1
   },
   "current_answer_failure_categories": {
     "expected_document_not_cited_or_used": 4,

@@ -2288,6 +2288,113 @@ def test_comparison_table_lexical_preserves_candidate_per_explicit_product(monke
     assert {result.chunk_id for result in results} == {"xgx", "cv-0"}
 
 
+def test_comparison_table_score_prefers_exact_symbol_row_header():
+    analysis = analyze_query(
+        "For LJ-X8000 and LJ-S8000 measurement outputs, compare what PMSR DC2LAR and RTO2L represent."
+    )
+    terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
+    precise_cell = {
+        "content": "Column headers: Description of measurement item selection; Row headers: RTO2L; Cell value: Equivalent Oval Aspect Ratio Min.",
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_column_headers": ["Description of measurement item selection"],
+            "table_row_headers": ["RTO2L"],
+            "product_family": "LJ-S8000 Series",
+        },
+        "priority_score": 13.0,
+    }
+    broad_group = {
+        "content": "RTO2H | Equivalent Oval Aspect Ratio. RTO2L | Max. Equivalent Oval Aspect Ratio Min.",
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "product_family": "LJ: X8000 Series",
+            "product_models": ["LJ-X8000"],
+        },
+        "priority_score": 10.0,
+    }
+
+    assert retriever._table_lexical_score(precise_cell, terms) > retriever._table_lexical_score(broad_group, terms)
+
+
+def test_comparison_table_score_prefers_issue_specific_row_header():
+    analysis = analyze_query(
+        "Compare the XG-X corrective action for an unsupported SD card access failure "
+        "with the CV-X482 corrective action when an edge detection point stops halfway through the region."
+    )
+    terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
+    precise_cell = {
+        "content": (
+            "Column headers: Corrective Action; Row headers: Failed to access SD Card 1. > "
+            "An unsupported SD card is being used.; Cell value: KEYENCE does not guarantee operation "
+            "with commercially available SD cards."
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_column_headers": ["Corrective Action"],
+            "table_row_headers": ["Failed to access SD Card 1.", "An unsupported SD card is being used."],
+            "product_family": "XG-X Series",
+        },
+        "priority_score": 13.0,
+    }
+    broad_sibling_group = {
+        "content": (
+            "Error Message: SD Card 1 is write-protected.; Corrective Action: Disable the write-protection switch. "
+            "An unsupported SD card is being used. KEYENCE does not guarantee operation with commercially available SD cards."
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "product_family": "XG-X Series",
+        },
+        "priority_score": 10.0,
+    }
+
+    assert retriever._table_lexical_score(precise_cell, terms) > retriever._table_lexical_score(broad_sibling_group, terms)
+
+
+def test_comparison_table_lexical_adds_bounded_row_key_supplement(monkeypatch):
+    calls: list[tuple[str, tuple[object, ...]]] = []
+
+    def fake_fetch_all(query: str, params: tuple[object, ...]) -> list[dict[str, object]]:
+        calls.append((query, params))
+        if len(calls) == 1:
+            return []
+        return [
+            {
+                "id": "rto2l",
+                "document_version_id": "ver-s",
+                "source_document_id": "doc-s",
+                "title": "LJ-S8000 Manual",
+                "section_path_text": "A",
+                "page_from": 45,
+                "page_to": 45,
+                "content": (
+                    "Column headers: Description of measurement item selection; Row headers: RTO2L; "
+                    "Cell value: Equivalent Oval Aspect Ratio Min."
+                ),
+                "metadata_json": {
+                    "chunk_type": "table_record",
+                    "table_column_headers": ["Description of measurement item selection"],
+                    "table_row_headers": ["RTO2L"],
+                    "product_family": "LJ-S8000 Series",
+                },
+                "priority_score": 13.0,
+            }
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+    analysis = analyze_query(
+        "For LJ-X8000 and LJ-S8000 measurement outputs, compare what PMSR DC2LAR and RTO2L represent."
+    )
+
+    results = retriever.run_table_lexical_search(analysis.raw_query, ["corpus-1"], {}, analysis, limit=5)
+
+    assert [result.chunk_id for result in results] == ["rto2l"]
+    assert len(calls) == 2
+    assert "metadata_json->>'table_row_headers' ilike" in calls[1][0]
+    assert "%rto2l%" in calls[1][1]
+    assert "%LJ-S8000%" in calls[1][1]
+
+
 def test_comparison_table_promotion_adds_named_product_table_cell():
     analysis = analyze_query(
         "For LJ-S8000 and LJ-X8000, compare the measured-data format for the ERRC error code "

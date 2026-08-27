@@ -383,6 +383,20 @@ def _lexical_table_symbol_terms(terms: list[str]) -> list[str]:
     return symbol_terms[:8]
 
 
+def _comparison_row_key_terms(terms: list[str]) -> list[str]:
+    row_key_terms: list[str] = []
+    for term in [*_lexical_table_symbol_terms(terms), *terms]:
+        if term in row_key_terms:
+            continue
+        if term in LEXICAL_TABLE_STOPWORDS or term in {"compare", "corrective", "action", "listed", "documentation"}:
+            continue
+        if any(char.isdigit() for char in term) or len(term) >= 5:
+            row_key_terms.append(term)
+        if len(row_key_terms) >= 12:
+            break
+    return row_key_terms
+
+
 def _structured_prompt_phrase(query: str) -> str:
     match = re.search(
         r"\bwhat\s+causes?\s+(?P<phrase>.+?)\s+for\s+.+?,\s+and\s+(?:what|how)\b",
@@ -429,6 +443,8 @@ def _structured_lookup_field_terms(query: str) -> set[str]:
 def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase: str = "") -> float:
     content = str(row.get("content") or "")
     metadata = dict(row.get("metadata_json") or {})
+    row_header_text = " ".join(str(item) for item in metadata.get("table_row_headers") or [])
+    column_header_text = " ".join(str(item) for item in metadata.get("table_column_headers") or [])
     haystack = " ".join(
         str(part)
         for part in [
@@ -437,12 +453,14 @@ def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase
             metadata.get("product_family"),
             " ".join(str(item) for item in metadata.get("product_models") or []),
             " ".join(str(item) for item in metadata.get("devices") or []),
-            " ".join(str(item) for item in metadata.get("table_column_headers") or []),
-            " ".join(str(item) for item in metadata.get("table_row_headers") or []),
+            column_header_text,
+            row_header_text,
         ]
         if part
     ).lower()
     compact_haystack = re.sub(r"[^a-z0-9]+", "", haystack)
+    compact_row_headers = re.sub(r"[^a-z0-9]+", "", row_header_text.lower())
+    compact_column_headers = re.sub(r"[^a-z0-9]+", "", column_header_text.lower())
     overlap = sum(1 for term in terms if term in compact_haystack)
     if overlap <= 0:
         return 0.0
@@ -450,6 +468,21 @@ def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase
     symbol_terms = _lexical_table_symbol_terms(terms)
     symbol_overlap = sum(1 for term in symbol_terms if term in compact_haystack)
     score += min(0.9, symbol_overlap * 0.22)
+    row_header_symbol_overlap = sum(1 for term in symbol_terms if term and term in compact_row_headers)
+    if row_header_symbol_overlap and metadata.get("table_column_headers"):
+        score += min(0.6, row_header_symbol_overlap * 0.3)
+    header_issue_terms = [
+        term
+        for term in terms
+        if len(term) >= 5
+        and not any(char.isdigit() for char in term)
+        and term not in {"corrective", "action", "compare", "listed"}
+    ]
+    row_header_issue_overlap = sum(1 for term in header_issue_terms if term and term in compact_row_headers)
+    if row_header_issue_overlap and metadata.get("table_column_headers"):
+        score += min(0.45, row_header_issue_overlap * 0.15)
+    if compact_column_headers and any(term in compact_column_headers for term in {"corrective", "action", "description"}):
+        score += 0.08
     short_code_overlap = sum(1 for term in terms if any(char.isdigit() for char in term) and len(term) <= 4 and term in compact_haystack)
     score += min(0.45, short_code_overlap * 0.15)
     if {"measured", "data", "format"}.intersection(terms) and "formofmeasureddata" in compact_haystack:
@@ -592,8 +625,57 @@ def run_table_lexical_search(
         """,
         tuple([*params, *order_params]),
     )
+    if is_comparison_lookup and analysis.product_identifiers:
+        row_key_terms = _comparison_row_key_terms(terms)
+        product_patterns = [f"%{identifier}%" for identifier in analysis.product_identifiers[:4]]
+        if row_key_terms and product_patterns:
+            supplemental_where = [*where]
+            supplemental_params = [*params]
+            supplemental_where.append(
+                "("
+                + " or ".join(
+                    ["metadata_json->>'table_row_headers' ilike %s or content ilike %s"] * len(row_key_terms)
+                )
+                + ")"
+            )
+            for term in row_key_terms:
+                supplemental_params.extend([f"%{term}%", f"%{term}%"])
+            supplemental_where.append(
+                "("
+                + " or ".join(
+                    [
+                        "metadata_json->>'product_model' ilike %s "
+                        "or metadata_json->>'product_family' ilike %s "
+                        "or metadata_json->>'product_models' ilike %s "
+                        "or metadata_json->>'devices' ilike %s "
+                        "or title ilike %s"
+                    ]
+                    * len(product_patterns)
+                )
+                + ")"
+            )
+            for pattern in product_patterns:
+                supplemental_params.extend([pattern, pattern, pattern, pattern, pattern])
+            rows.extend(
+                fetch_all(
+                    f"""
+                    select id, document_version_id, source_document_id, title, section_path_text,
+                           page_from, page_to, content, metadata_json, priority_score
+                    from retrieval_chunks
+                    where {" and ".join(supplemental_where)}
+                    order by priority_score desc, id
+                    limit 120
+                    """,
+                    tuple(supplemental_params),
+                )
+            )
     ranked: list[tuple[float, SearchResult]] = []
+    seen_rows: set[str] = set()
     for row in rows:
+        row_id = str(row["id"])
+        if row_id in seen_rows:
+            continue
+        seen_rows.add(row_id)
         score = _table_lexical_score(dict(row), terms, prompt_phrase)
         if score <= 0:
             continue
