@@ -221,6 +221,136 @@ def test_validate_answer_does_not_repair_unsupported_citation_from_answer_overla
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_keeps_supported_citation_and_drops_unsupported_sibling_quote():
+    answer = AnswerResponse(
+        answer=(
+            "Use the row for multiple trigger lines: set the line scan cameras or LJ-X/LJ-V heads "
+            "assigned to the same trigger to the same [No. Lines], or assign the other camera to a different trigger."
+        ),
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "line-count-row",
+                "document_id": "d1",
+                "pages": [12],
+                "quote_span": (
+                    "be sure that [No. Lines] of the line scan cameras or LJ-X/LJ-V series head "
+                    "assigned to the same trigger are the same."
+                ),
+            },
+            {
+                "chunk_id": "sibling-row",
+                "document_id": "d1",
+                "pages": [12],
+                "quote_span": (
+                    "be sure the line scan camera or LJ-X/LJ-V series head capture methods "
+                    "assigned to the same trigger are the same."
+                ),
+            },
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="line-count-row",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Message: Image capture stopped, invalid camera setting. A trigger has multiple lines.; "
+                "Cause: Multiple line Nos. are included in the same trigger.; "
+                "Corrective Action: In the Capture unit camera settings, be sure that [No. Lines] "
+                "of the line scan cameras or LJ-X/LJ-V series head assigned to the same trigger are the same. "
+                "Or, assign the other camera which is assigned to the same trigger to a different trigger."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="sibling-row",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content="Corrective Action: Change capture methods to sheet-fed.",
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(answer, results)
+
+    assert [citation["chunk_id"] for citation in validated.citations] == ["line-count-row"]
+    assert any("Unsupported citation quote spans were removed" in warning for warning in validated.warnings)
+    assert not any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_fallback_prefers_full_troubleshooting_row_for_cause_remedy_query():
+    answer = AnswerResponse(
+        answer="Connect only one LJ-S head to each CA-E300LJ unit.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "wrong-sibling",
+                "document_id": "d1",
+                "pages": [12],
+                "quote_span": "Connect only one LJ-S head to each CA-E300LJ unit.",
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="wrong-sibling",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective Action; Row headers: The following error - There is no LJ connected. "
+                "> The following error - Three or more are connected.; Cell value: Connect only one LJ-S head to each unit."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="full-row",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Message: The following error occurred. - There is no LJ head connected.; "
+                "Cause: The LJ-S/LJ-X/LJ-V Series head is not connected to the camera input unit.; "
+                "Corrective Action: Connect the LJ-S/LJ-X/LJ-V Series head to the camera input unit."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="What causes The following error occurred. - There is no LJ head connected. and how should it be corrected?",
+    )
+
+    assert validated.answer.startswith("Error Message: The following error occurred. - There is no LJ head connected.")
+    assert validated.citations[0]["chunk_id"] == "full-row"
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_rejects_quote_from_context_window_under_cited_chunk():
     answer = AnswerResponse(
         answer="The light-controller communication error is corrected by setting FLASH output time to 0.1 msec.",

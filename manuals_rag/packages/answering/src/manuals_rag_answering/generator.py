@@ -219,6 +219,92 @@ def _fallback_answer_text(result: SearchResult) -> str:
     return f"{content}\n\nContext: {context}"
 
 
+def _is_troubleshooting_query(query: str) -> bool:
+    return bool(re.search(r"\b(cause|causes|correct|corrected|corrective|remedy|error|alarm|fault)\b", query, flags=re.IGNORECASE))
+
+
+def _query_troubleshooting_anchor(query: str) -> str:
+    patterns = (
+        r"\bwhat causes\s+(.+?)\s+for\s+.+?\b(?:and|,)\s+how should",
+        r"\bwhat causes\s+(.+?)\s*,?\s+and how should",
+        r"\berror says\s+(.+?)\s*,?\s+what should",
+        r"\berror\s+(.+?)\s*,?\s+what should",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, query, flags=re.IGNORECASE)
+        if match:
+            return match.group(1).strip(" .?\"'")
+    return ""
+
+
+def _normalized_phrase(text: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", text.lower()))
+
+
+def _troubleshooting_evidence_score(query: str, result: SearchResult) -> float:
+    if not _is_troubleshooting_query(query):
+        return 0.0
+    content = str(result.content or "")
+    evidence = _fallback_answer_text(result)
+    content_normalized = _normalized_phrase(content)
+    evidence_lower = evidence.lower()
+    score = 0.0
+
+    anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
+    if len(anchor) >= 10:
+        if anchor in content_normalized:
+            score += 8.0
+        elif anchor in _normalized_phrase(evidence):
+            score += 3.0
+
+    has_symptom = bool(re.search(r"\b(error message|error messages|alarm|fault)\b", evidence_lower))
+    has_cause = "cause" in evidence_lower
+    has_action = bool(re.search(r"\b(corrective action|remedy)\b", evidence_lower))
+    if has_symptom and has_cause and has_action:
+        score += 5.0
+    elif has_cause and has_action:
+        score += 3.0
+    elif has_action:
+        score += 1.0
+
+    query_terms = _answer_terms(query)
+    evidence_terms = _answer_terms(content or evidence)
+    score += min(4.0, len(query_terms.intersection(evidence_terms)) / 2)
+    if str(result.metadata.get("chunk_type") or "") == "table_record":
+        score += 1.0
+    return score
+
+
+def _order_troubleshooting_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
+    if not results or not _is_troubleshooting_query(query):
+        return results
+    scored = [(_troubleshooting_evidence_score(query, result), index, result) for index, result in enumerate(results)]
+    if max(score for score, _index, _result in scored) <= 0:
+        return results
+    return [result for _score, _index, result in sorted(scored, key=lambda item: (-item[0], item[1]))]
+
+
+def _focused_troubleshooting_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
+    anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
+    if len(anchor) < 10:
+        return results
+    anchored = [
+        result
+        for result in results
+        if anchor in _normalized_phrase(str(result.content or ""))
+    ]
+    if not anchored:
+        return results
+    has_structured_answer = any(
+        "cause" in str(result.content or "").lower()
+        and re.search(r"\b(corrective action|remedy)\b", str(result.content or ""), flags=re.IGNORECASE)
+        for result in anchored
+    )
+    if has_structured_answer:
+        return anchored
+    return results
+
+
 def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     if not results:
         return AnswerResponse(
@@ -230,7 +316,7 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             followup_questions=[],
             insufficient_evidence=True,
         )
-    top = results[0]
+    top = _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results))[0]
     top_content = _fallback_answer_text(top)
     return AnswerResponse(
         answer=top_content,
@@ -356,13 +442,44 @@ def _citation_quotes_are_supported(citations: list[dict[str, Any]], results: lis
     return True
 
 
-def validate_answer(answer: AnswerResponse, results: list[SearchResult]) -> AnswerResponse:
+def _supported_citations(citations: list[dict[str, Any]], results: list[SearchResult]) -> list[dict[str, Any]]:
+    evidence_by_chunk_id = {result.chunk_id: _citation_evidence_text(result) for result in results}
+    supported: list[dict[str, Any]] = []
+    for citation in citations:
+        chunk_id = str(citation.get("chunk_id") or "")
+        if chunk_id not in evidence_by_chunk_id:
+            continue
+        quote = str(citation.get("quote_span") or "").strip()
+        if quote and _normalized_citation_text(quote) not in _normalized_citation_text(evidence_by_chunk_id[chunk_id]):
+            continue
+        supported.append(citation)
+    return supported
+
+
+def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: str = "") -> AnswerResponse:
+    citations = list(answer.citations)
+    if results and citations and not _citation_quotes_are_supported(citations, results):
+        supported = _supported_citations(citations, results)
+        if supported:
+            cited_chunk_ids = {str(citation.get("chunk_id") or "") for citation in supported}
+            cited_results = [result for result in results if result.chunk_id in cited_chunk_ids]
+            if _answer_supported_by_results(answer.answer, cited_results):
+                answer = answer.model_copy(
+                    update={
+                        "citations": supported,
+                        "warnings": [
+                            *answer.warnings,
+                            "Unsupported citation quote spans were removed from the generated answer.",
+                        ],
+                    }
+                )
+
     if results and (
         not _answer_supported_by_results(answer.answer, results)
         or _structured_answer_is_too_terse(answer.answer, results)
         or not _citation_quotes_are_supported(list(answer.citations), results)
     ):
-        fallback = _fallback_answer("", results)
+        fallback = _fallback_answer(query, results)
         answer = fallback.model_copy(
             update={
                 "warnings": [
@@ -506,7 +623,7 @@ def generate_answer_with_trace(
             purpose="final_answer",
         )
         generated_answer = AnswerResponse.model_validate(_normalize_generated_answer_payload(generated, prioritized_results))
-        validated_answer = validate_answer(generated_answer, prioritized_results)
+        validated_answer = validate_answer(generated_answer, prioritized_results, query=query)
         if validated_answer.answer != generated_answer.answer and any(
             "not sufficiently supported" in warning for warning in validated_answer.warnings
         ):
@@ -520,7 +637,7 @@ def generate_answer_with_trace(
         return validated_answer, trace
     except Exception as exc:
         logger.warning("Final answer generation failed for model=%s; using fallback answer: %s", settings.ollama_answer_model, exc)
-        fallback_answer = validate_answer(_fallback_answer(query, prioritized_results), prioritized_results)
+        fallback_answer = validate_answer(_fallback_answer(query, prioritized_results), prioritized_results, query=query)
         trace["final_answer"].update(
             {
                 "used_fallback": True,
@@ -559,6 +676,7 @@ def prioritize_results_for_answer(query: str, candidate_results: list[SearchResu
     )
     if not prioritized_results:
         prioritized_results = candidate_results
+    prioritized_results = _focused_troubleshooting_results(query, _order_troubleshooting_results(query, prioritized_results))
     return {
         "judgments": judgments,
         "prioritized_results": prioritized_results,
