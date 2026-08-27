@@ -2,8 +2,9 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-matrix-retrieval-blocking-1";
+const ASSET_VERSION = "20260827-matrix-clear-results-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
+const MATRIX_JOB_POLL_MS = 1000;
 
 const state = {
   documents: [],
@@ -530,8 +531,18 @@ function setupMatrixControls() {
   $("matrix-run-all-bank")?.addEventListener("click", () => startMatrixJob({ mode: "all_bank" }));
   $("matrix-run-column")?.addEventListener("click", () => startMatrixJob({ mode: "column", column: $("matrix-column")?.value || "retrieval" }));
   $("matrix-refresh")?.addEventListener("click", loadQuestionMatrix);
+  $("matrix-clear-results")?.addEventListener("click", clearMatrixResults);
   $("matrix-stop")?.addEventListener("click", stopMatrixJob);
   renderMatrixJobStatus(null);
+}
+
+function setMatrixControlsBusy(busy) {
+  ["matrix-run-all-bank", "matrix-run-column", "matrix-clear-results"].forEach((id) => {
+    const button = $(id);
+    if (button) button.disabled = busy;
+  });
+  const stopButton = $("matrix-stop");
+  if (stopButton) stopButton.disabled = !busy;
 }
 
 function renderMatrixJobStatus(job) {
@@ -540,6 +551,7 @@ function renderMatrixJobStatus(job) {
   if (!job) {
     node.className = "empty-state";
     node.textContent = "No matrix job running.";
+    setMatrixControlsBusy(false);
     return;
   }
   const completed = Number(job.completed_datasets || 0);
@@ -557,12 +569,7 @@ function renderMatrixJobStatus(job) {
     ${job.error ? `<small>${escapeHtml(job.error)}</small>` : ""}
   `;
   const busy = ["queued", "running", "stopping"].includes(job.status);
-  ["matrix-run-all-bank", "matrix-run-column"].forEach((id) => {
-    const button = $(id);
-    if (button) button.disabled = busy;
-  });
-  const stopButton = $("matrix-stop");
-  if (stopButton) stopButton.disabled = !busy;
+  setMatrixControlsBusy(busy);
 }
 
 async function pollMatrixJob(jobId) {
@@ -572,7 +579,7 @@ async function pollMatrixJob(jobId) {
     renderMatrixJobStatus(job);
     if (state.questionMatrix) renderQuestionMatrix(state.questionMatrix);
     if (["queued", "running", "stopping"].includes(job.status)) {
-      state.matrixJobTimer = setTimeout(() => pollMatrixJob(jobId), 3000);
+      state.matrixJobTimer = setTimeout(() => pollMatrixJob(jobId), MATRIX_JOB_POLL_MS);
       return;
     }
     await loadQuestionMatrix();
@@ -609,6 +616,25 @@ async function stopMatrixJob() {
     pollMatrixJob(jobId);
   } catch (error) {
     renderMatrixJobStatus({ ...state.matrixJob, status: "failed", error: error.message });
+  }
+}
+
+async function clearMatrixResults() {
+  if (state.matrixJob && ["queued", "running", "stopping"].includes(state.matrixJob.status)) {
+    renderMatrixJobStatus(state.matrixJob);
+    return;
+  }
+  if (!window.confirm("Clear saved matrix results and job history?")) return;
+  try {
+    const result = await localPostJson("/local/question-matrix/clear", {});
+    if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
+    state.matrixJobTimer = null;
+    state.matrixJob = null;
+    renderMatrixJobStatus(null);
+    await loadQuestionMatrix();
+    $("matrix-action-status").textContent = `Cleared ${result.total_deleted || 0} saved result file(s).`;
+  } catch (error) {
+    renderMatrixJobStatus({ status: "failed", error: error.message, dataset_count: 0, completed_datasets: 0 });
   }
 }
 

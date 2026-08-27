@@ -119,6 +119,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/local/question-matrix/run":
             self._start_local_question_matrix_run()
             return
+        if parsed.path == "/local/question-matrix/clear":
+            self._clear_local_question_matrix_results()
+            return
         if parsed.path.startswith("/local/question-matrix/jobs/") and parsed.path.endswith("/stop"):
             self._stop_local_question_matrix_job(parsed.path.split("/")[-2])
             return
@@ -301,6 +304,23 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         except ValueError as error:
             payload = dumps({"detail": str(error)}).encode("utf-8")
             self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
+    def _clear_local_question_matrix_results(self) -> None:
+        try:
+            result = _clear_question_matrix_results()
+            payload = json.dumps(result, default=str).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except ValueError as error:
+            payload = dumps({"detail": str(error)}).encode("utf-8")
+            self.send_response(409)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
@@ -851,6 +871,45 @@ def _stop_question_matrix_job(job_id: str) -> dict:
     elif pid and _pid_is_running(pid):
         os.kill(pid, signal.SIGTERM)
     return _question_matrix_job_snapshot(job_id)
+
+
+def _clear_question_matrix_results() -> dict:
+    _load_question_matrix_jobs_if_needed()
+    active_job_id = _active_question_matrix_job_id()
+    if active_job_id:
+        raise ValueError(f"Stop matrix job {active_job_id} before clearing results.")
+
+    patterns = {
+        "results": "retrieval_eval_results_*.jsonl",
+        "manifests": "retrieval_eval_manifest_*.json",
+        "summaries": "retrieval_eval_summary_*.json",
+    }
+    deleted: dict[str, int] = {key: 0 for key in patterns}
+    for key, pattern in patterns.items():
+        for path in TEST_REPORTS_DIR.glob(pattern):
+            if not path.is_file():
+                continue
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                continue
+            deleted[key] += 1
+
+    state_path = _question_matrix_jobs_state_path()
+    try:
+        state_path.unlink()
+    except FileNotFoundError:
+        pass
+
+    with MATRIX_JOBS_LOCK:
+        MATRIX_JOBS.clear()
+        MATRIX_PROCESSES.clear()
+        _persist_question_matrix_jobs_locked()
+    try:
+        state_path.unlink()
+    except FileNotFoundError:
+        pass
+    return {"deleted": deleted, "total_deleted": sum(deleted.values())}
 
 
 def _start_question_matrix_job(payload: dict) -> dict:

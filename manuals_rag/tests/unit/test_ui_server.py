@@ -105,6 +105,7 @@ def test_eval_matrix_view_is_available():
     assert 'id="matrix-run-all-bank"' in index_html
     assert 'id="matrix-run-column"' in index_html
     assert 'id="matrix-use-model-judge"' in index_html
+    assert 'id="matrix-clear-results"' in index_html
     assert 'id="matrix-stop"' in index_html
     assert 'id="matrix-summary"' in index_html
     assert 'id="matrix-table"' in index_html
@@ -112,6 +113,8 @@ def test_eval_matrix_view_is_available():
     assert "setupMatrixControls()" in app_js
     assert "startMatrixJob" in app_js
     assert "stopMatrixJob" in app_js
+    assert "clearMatrixResults" in app_js
+    assert "/local/question-matrix/clear" in app_js
     assert "current-run-cell" in app_js
     assert "loadQuestionMatrix" in app_js
     assert "renderMatrixSummary" in app_js
@@ -499,6 +502,52 @@ def test_question_matrix_stop_recovered_job_by_pid(monkeypatch, tmp_path):
     assert job["status"] == "stopping"
     assert job["cancel_requested"] is True
     assert killed == [(4321, ui_server.signal.SIGTERM)]
+
+
+def test_question_matrix_clear_results_deletes_saved_outputs(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    keep = reports / "retrieval_accuracy_question_bank_manifest.json"
+    keep.write_text("{}", encoding="utf-8")
+    for filename in (
+        "retrieval_eval_results_20260101_000000.jsonl",
+        "retrieval_eval_manifest_20260101_000000.json",
+        "retrieval_eval_summary_20260101_000000.json",
+    ):
+        (reports / filename).write_text("{}", encoding="utf-8")
+    (reports / ".question_matrix_jobs.json").write_text('{"jobs": {"old": {"status": "completed"}}}', encoding="utf-8")
+
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_PROCESSES.clear()
+    monkeypatch.setattr(ui_server, "MATRIX_JOBS_LOADED", False)
+
+    try:
+        result = ui_server._clear_question_matrix_results()
+    finally:
+        ui_server.MATRIX_JOBS.clear()
+        ui_server.MATRIX_PROCESSES.clear()
+        ui_server.MATRIX_JOBS_LOADED = True
+
+    assert result["deleted"] == {"results": 1, "manifests": 1, "summaries": 1}
+    assert result["total_deleted"] == 3
+    assert keep.exists()
+    assert not (reports / ".question_matrix_jobs.json").exists()
+
+
+def test_question_matrix_clear_results_rejects_active_job(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-active"] = {"id": "matrix-active", "status": "running"}
+    monkeypatch.setattr(ui_server, "MATRIX_JOBS_LOADED", True)
+
+    try:
+        with pytest.raises(ValueError, match="Stop matrix job matrix-active"):
+            ui_server._clear_question_matrix_results()
+    finally:
+        ui_server.MATRIX_JOBS.clear()
 
 
 def test_question_matrix_blanks_answer_steps_after_retrieval_failure():
