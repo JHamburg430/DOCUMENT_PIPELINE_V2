@@ -2996,13 +2996,15 @@ def _expected_evidence_citation_support(
         supported = False
         for citation in citations:
             cited_chunk_id = str(citation.get("chunk_id") or "")
-            if expected_chunk_id and cited_chunk_id == expected_chunk_id:
-                supported = True
-                break
             if expected_document_id and _citation_document_id(citation) != expected_document_id:
                 continue
             cited_text = chunk_texts.get(cited_chunk_id, "")
-            if not cited_text or not expected_terms:
+            if not cited_text:
+                continue
+            if expected_chunk_id and cited_chunk_id == expected_chunk_id and not expected_terms:
+                supported = True
+                break
+            if not expected_terms:
                 continue
             cited_lower = cited_text.lower()
             cited_tokens = set(tokenize(cited_lower))

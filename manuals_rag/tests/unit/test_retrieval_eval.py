@@ -1340,6 +1340,132 @@ def test_answer_response_scoring_requires_cited_chunk_to_support_expected_eviden
     assert cited_role["evidence_citation_support"]["passed"] is True
 
 
+def test_answer_response_scoring_requires_exact_cited_chunk_to_be_returned():
+    case = RetrievalEvalCase(
+        case_id="answer-exact-chunk-returned",
+        query="What should I do when the trigger signal cannot be used?",
+        source_document_id="doc-a",
+        document_version_id="ver-a",
+        source_chunk_id="symptom-a",
+        source_title="Troubleshooting",
+        source_filename="Manual.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1,
+        page_to=1,
+        expected_terms=["change", "trigger", "signal", "used"],
+        expected_snippet="Change to a trigger signal that can be used.",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "remedy-a",
+                "source_document_id": "doc-a",
+                "field": "corrective action",
+                "expected_terms": ["change", "trigger", "signal", "used"],
+                "snippet": "Change to a trigger signal that can be used.",
+            }
+        ],
+    )
+
+    missing_returned_chunk = score_answer_response(
+        case,
+        {
+            "answer": "Change to a trigger signal that can be used.",
+            "citations": [{"document_id": "doc-a", "chunk_id": "remedy-a", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-a"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "nearby-a",
+                "content": "Column headers: Cause; Cell value: A trigger signal that cannot be used is assigned.",
+            }
+        ],
+    )
+
+    assert missing_returned_chunk["passed"] is False
+    assert "expected_evidence_not_cited" in missing_returned_chunk["failure_reasons"]
+
+    returned_expected_chunk = score_answer_response(
+        case,
+        {
+            "answer": "Change to a trigger signal that can be used.",
+            "citations": [{"document_id": "doc-a", "chunk_id": "remedy-a", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-a"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "remedy-a",
+                "content": "Column headers: Corrective action; Cell value: Change to a trigger signal that can be used.",
+            }
+        ],
+    )
+
+    assert returned_expected_chunk["passed"] is True
+
+
+def test_answer_response_scoring_rejects_null_quote_nearby_sibling_chunk():
+    case = RetrievalEvalCase(
+        case_id="answer-null-quote-nearby-sibling",
+        query="What shock resistance value is listed for the camera?",
+        source_document_id="doc-b",
+        document_version_id="ver-b",
+        source_chunk_id="shock-b",
+        source_title="Specifications",
+        source_filename="Manual.pdf",
+        chunk_type="table_record",
+        section_path="Specifications",
+        page_from=2,
+        page_to=2,
+        expected_terms=["500", "m/s", "directions"],
+        expected_snippet="Cell value: 500 m/s 2 , 6 different directions",
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "shock-b",
+                "source_document_id": "doc-b",
+                "field": "shock resistance",
+                "expected_terms": ["500", "m/s", "directions"],
+                "snippet": "Cell value: 500 m/s 2 , 6 different directions",
+            }
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The camera is rated for 500 m/s in 6 directions.",
+            "citations": [{"document_id": "doc-b", "chunk_id": "enclosure-b", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-b"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "enclosure-b",
+                "content": "Column headers: Camera; Row headers: Enclosure rating; Cell value: IP67",
+            },
+            {
+                "chunk_id": "shock-b",
+                "content": (
+                    "Column headers: Camera; Row headers: Shock resistance; "
+                    "Cell value: 500 m/s 2 , 6 different directions"
+                ),
+            },
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert scored["evidence_citation_support"]["missing_evidence"][0]["chunk_id"] == "shock-b"
+
+
 def test_large_retrieval_eval_summarizes_answer_metrics():
     import importlib.util
     from pathlib import Path
