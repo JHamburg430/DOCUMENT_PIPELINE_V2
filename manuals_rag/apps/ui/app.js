@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-matrix-answer-detail-1";
+const ASSET_VERSION = "20260827-live-answer-detail-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 const MATRIX_JOB_POLL_MS = 1000;
 
@@ -643,11 +643,19 @@ function renderMatrixDetail(row) {
   }
   const item = row.item || {};
   const liveCells = state.matrixJob?.live_cells?.[item.key];
+  const liveResult = state.matrixJob?.live_results?.[item.key];
   const liveEvents = Array.isArray(state.matrixJob?.events)
     ? state.matrixJob.events.filter((event) => event.case_id === item.key).slice(-20)
     : [];
   const isLiveRow = Boolean(liveCells);
-  const latestItem = item.latest_result
+  const latestItem = liveResult
+    ? {
+        evaluation: liveResult.evaluation,
+        answer: liveResult.answer,
+        answer_evaluation: liveResult.answer_evaluation,
+        query_debug_result: liveResult.query_debug_result,
+      }
+    : item.latest_result
     ? {
         evaluation: item.latest_result.evaluation,
         answer: item.latest_result.answer,

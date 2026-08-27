@@ -768,6 +768,49 @@ def test_question_matrix_populates_answer_cells_after_answer_doc_failure():
     assert cells["answer"]["status"] == "fail"
 
 
+def test_question_matrix_live_result_preserves_answer_detail(tmp_path, monkeypatch):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-live"] = {
+        "id": "matrix-live",
+        "status": "running",
+        "live_cells": {},
+        "live_results": {},
+    }
+
+    record = {
+        "evaluation": {"passed": True},
+        "answer": {
+            "answer": "Set Height Number Format to Decimal.",
+            "citations": [{"document_id": "doc-1", "chunk_id": "chunk-1"}],
+        },
+        "answer_evaluation": {
+            "passed": False,
+            "failure_reasons": ["expected_terms_missing"],
+            "term_check": {
+                "passed": False,
+                "llm_judged": True,
+                "llm_required_information": {
+                    "checked": True,
+                    "passed": False,
+                    "reason": "The answer omitted the expected numeric format value.",
+                },
+            },
+        },
+        "query_debug_result": {"completed_steps": ["generate_answer"]},
+    }
+
+    ui_server._update_question_matrix_live_result("matrix-live", "case-1", record)
+
+    live_result = ui_server.MATRIX_JOBS["matrix-live"]["live_results"]["case-1"]
+    assert live_result["answer"]["answer"] == "Set Height Number Format to Decimal."
+    assert live_result["answer_evaluation"]["term_check"]["llm_judged"] is True
+    assert live_result["answer_evaluation"]["term_check"]["llm_required_information"]["checked"] is True
+    ui_server.MATRIX_JOBS.clear()
+
+
 def test_matrix_retrieval_evaluation_allows_answers_when_context_retained():
     normalized = ui_server._matrix_retrieval_evaluation(
         {

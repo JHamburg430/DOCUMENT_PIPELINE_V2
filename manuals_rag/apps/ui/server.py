@@ -786,6 +786,21 @@ def _replace_question_matrix_live_cells(job_id: str, case_id: str, cells: dict[s
         _persist_question_matrix_jobs_locked()
 
 
+def _update_question_matrix_live_result(job_id: str, case_id: str, record: dict) -> None:
+    with MATRIX_JOBS_LOCK:
+        job = MATRIX_JOBS[job_id]
+        live_results = dict(job.get("live_results") or {})
+        live_results[case_id] = {
+            "evaluation": record.get("evaluation") or {},
+            "answer": record.get("answer") or {},
+            "answer_evaluation": record.get("answer_evaluation") or {},
+            "query_debug_result": record.get("query_debug_result") or {},
+        }
+        job["live_results"] = live_results
+        job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        _persist_question_matrix_jobs_locked()
+
+
 def _active_question_matrix_job_id() -> str | None:
     _load_question_matrix_jobs_if_needed()
     for job_id, job in MATRIX_JOBS.items():
@@ -1028,6 +1043,7 @@ def _start_question_matrix_job(payload: dict) -> dict:
         "error": None,
         "cancel_requested": False,
         "live_cells": {},
+        "live_results": {},
         "events": [],
         "event_log_path": str(_question_matrix_job_events_path(job_id).relative_to(MANUALS_ROOT)),
         "commands": [],
@@ -1263,6 +1279,8 @@ def _run_answer_matrix_dataset(
                     question_number=case_numbers.get(case_id),
                     answer_passed=bool(answer_evaluation.get("passed")),
                     failure_reasons=answer_evaluation.get("failure_reasons") or [],
+                    answer=answer,
+                    answer_evaluation=answer_evaluation,
                 )
             else:
                 _record_question_matrix_job_event(
@@ -1282,6 +1300,7 @@ def _run_answer_matrix_dataset(
                 "answer_evaluation": answer_evaluation,
                 "query_debug_result": debug_result,
             }
+            _update_question_matrix_live_result(job_id, case_id, record)
             _replace_question_matrix_live_cells(job_id, case_id, _build_row_cells(record))
             results.append(record)
             handle.write(json.dumps(record, default=str) + "\n")
