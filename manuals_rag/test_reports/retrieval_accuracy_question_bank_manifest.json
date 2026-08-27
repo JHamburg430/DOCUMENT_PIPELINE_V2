@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-27T19:11:30Z",
+  "updated_at": "2026-08-27T19:29:30Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1020,21 +1020,32 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {},
-    "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715.",
-    "answer_grounding_status": "Single-step row 6 answer fallback/context-use defect resolved on loaded API in retrieval_eval_20260827_190715. The rerun scored rows 5-6 at 2/2 retrieval and 2/2 actual HTTP API answers with answer_source api and fallback 0. Manual JSONL inspection confirmed row 5 still cites chunk 231d4fc0-2e59-596a-a7e5-7eeb4ec020a9 for the XG-X Limit Output OFF / intensity 512 heat warning, and row 6 now answers only the LJ-S8000 Output Symbol Identifier setting: it adds a 3-byte ISO/IEC 15424 / JIS X 0530 data carrier/symbology identifier to the beginning of read data. Row 6 cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; unsupported neighboring Conditions, Condition List, Data Range, and Reference Pattern claims are absent. Current retrieval failures are {}; current answer failures are {}.",
+    "answer_current_failure_categories": {
+      "expected_terms_missing": 1,
+      "expected_evidence_not_cited": 1
+    },
+    "next_target": "Fix contextual multi-step row 15 answer evidence selection from retrieval_eval_20260827_192414 so the CV-X LJ-V continuous-mode answer cites/uses the returned page 6-125 line-count and overlap-count evidence, then rerun actual HTTP API answer scoring. Preserve row 16 as clean, row 15 as failed, older sibling row 15 diagnostic/source-context evidence as separate, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715.",
+    "answer_grounding_status": "Contextual multi-step answer rotation retrieval_eval_20260827_192414 scored rows 15-16 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl at 2/2 retrieval and 1/2 actual HTTP API answers. Manual JSONL inspection found row 15 failed because the API answer cited CV-X page 7-91 chunk ab86f855-8067-519c-95e8-23a1da027818 and omitted the material page 6-125 line-count/overlap example values of 10 lines and two overlap lines, even though supporting chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 was returned at rank 3. Row 16 passed: the answer cites chunk 86e3ce5c-95ea-5a0a-aab1-49bbfe7f88ed supporting TRG1 for CAM 1 capture plus measurement processing as one measurement. Current retrieval failures are {}; current answer failures are expected_terms_missing:1 and expected_evidence_not_cited:1.",
     "answer_grounding_rotation": {
-      "scope": "single_step_row6_answer_context_repair",
-      "status": "rows_5_6_clean_after_loaded_actual_http_rerun",
-      "latest_clean_run": "retrieval_eval_20260827_190715",
-      "summary": "test_reports/retrieval_eval_summary_20260827_190715.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_190715.json",
-      "results": "test_reports/retrieval_eval_results_20260827_190715.jsonl",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_190715.jsonl. Row 5 answer/citation remains clean for the XG-X Limit Output OFF / intensity 512 warning. Row 6 answer is limited to the requested Output Symbol Identifier setting and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; the answer no longer includes unsupported Conditions, Condition List, Data Range, or Reference Pattern claims.",
-      "remaining": "Continue broader validated answer rotations; preserve row 15 diagnostic/source-context evidence and all prior diagnostic exclusions."
+      "scope": "contextual_multi_step_rows_15_16_answer_rotation",
+      "status": "retrieval_clean_one_of_two_actual_http_answers_clean_row15_failed",
+      "latest_run": "retrieval_eval_20260827_192414",
+      "summary": "test_reports/retrieval_eval_summary_20260827_192414.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_192414.json",
+      "results": "test_reports/retrieval_eval_results_20260827_192414.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "query_offset": 14,
+      "max_queries": 2,
+      "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
+      "answer_result": "1/2 actual HTTP API answers passed; answer_source api for both; fallback 0; failures expected_terms_missing:1 and expected_evidence_not_cited:1.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_192414.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count. Retrieval included the supporting CV-X page 6-125 chunk at rank 3, but the API answer cited chunk ab86f855-8067-519c-95e8-23a1da027818 from CV-X page 7-91 and omitted the material example values 10 lines and two overlap lines; row 15 is not clean. Contextual row 16 asks what happens when TRG1 is input for camera 1; the answer cites returned chunk 86e3ce5c-95ea-5a0a-aab1-49bbfe7f88ed, which directly states that TRG1 for CAM 1 executes capture plus measurement processing of only that camera as one measurement; row 16 is clean.",
+      "remaining": "Fix contextual row 15 answer evidence selection so the answer cites/uses the returned CV-X page 6-125 line-count/overlap evidence, or rerun after a general source-grounded answer-context improvement. Preserve row 16 as clean, row 15 as failed, row 15 sibling troubleshooting diagnostic/source-context evidence as a separate older issue, diagnostic-only LLM judge policy, citation-fidelity containments, prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715."
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {},
+    "current_answer_failure_categories": {
+      "expected_terms_missing": 1,
+      "expected_evidence_not_cited": 1
+    },
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1418,7 +1429,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-27T19:11:30Z",
+    "updated_at": "2026-08-27T19:29:30Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -7587,7 +7598,7 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step warning/procedure and cross-document cases while preserving row 15 diagnostic/source-context evidence, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715.",
+  "next_target": "Fix contextual multi-step row 15 answer evidence selection from retrieval_eval_20260827_192414 so the CV-X LJ-V continuous-mode answer cites/uses the returned page 6-125 line-count and overlap-count evidence, then rerun actual HTTP API answer scoring. Preserve row 16 as clean, row 15 as failed, older sibling row 15 diagnostic/source-context evidence as separate, diagnostic-only LLM judge policy, citation-fidelity containments, all prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -7871,17 +7882,25 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {},
-  "answer_grounding_status": "Single-step row 6 answer fallback/context-use defect resolved on loaded API in retrieval_eval_20260827_190715. The rerun scored rows 5-6 at 2/2 retrieval and 2/2 actual HTTP API answers with answer_source api and fallback 0. Manual JSONL inspection confirmed row 5 still cites chunk 231d4fc0-2e59-596a-a7e5-7eeb4ec020a9 for the XG-X Limit Output OFF / intensity 512 heat warning, and row 6 now answers only the LJ-S8000 Output Symbol Identifier setting: it adds a 3-byte ISO/IEC 15424 / JIS X 0530 data carrier/symbology identifier to the beginning of read data. Row 6 cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; unsupported neighboring Conditions, Condition List, Data Range, and Reference Pattern claims are absent. Current retrieval failures are {}; current answer failures are {}.",
+  "answer_current_failure_categories": {
+    "expected_terms_missing": 1,
+    "expected_evidence_not_cited": 1
+  },
+  "answer_grounding_status": "Contextual multi-step answer rotation retrieval_eval_20260827_192414 scored rows 15-16 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl at 2/2 retrieval and 1/2 actual HTTP API answers. Manual JSONL inspection found row 15 failed because the API answer cited CV-X page 7-91 chunk ab86f855-8067-519c-95e8-23a1da027818 and omitted the material page 6-125 line-count/overlap example values of 10 lines and two overlap lines, even though supporting chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78 was returned at rank 3. Row 16 passed: the answer cites chunk 86e3ce5c-95ea-5a0a-aab1-49bbfe7f88ed supporting TRG1 for CAM 1 capture plus measurement processing as one measurement. Current retrieval failures are {}; current answer failures are expected_terms_missing:1 and expected_evidence_not_cited:1.",
   "answer_grounding_rotation": {
-    "scope": "single_step_row6_answer_context_repair",
-    "status": "rows_5_6_clean_after_loaded_actual_http_rerun",
-    "latest_clean_run": "retrieval_eval_20260827_190715",
-    "summary": "test_reports/retrieval_eval_summary_20260827_190715.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260827_190715.json",
-    "results": "test_reports/retrieval_eval_results_20260827_190715.jsonl",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_190715.jsonl. Row 5 answer/citation remains clean for the XG-X Limit Output OFF / intensity 512 warning. Row 6 answer is limited to the requested Output Symbol Identifier setting and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; the answer no longer includes unsupported Conditions, Condition List, Data Range, or Reference Pattern claims.",
-    "remaining": "Continue broader validated answer rotations; preserve row 15 diagnostic/source-context evidence and all prior diagnostic exclusions."
+    "scope": "contextual_multi_step_rows_15_16_answer_rotation",
+    "status": "retrieval_clean_one_of_two_actual_http_answers_clean_row15_failed",
+    "latest_run": "retrieval_eval_20260827_192414",
+    "summary": "test_reports/retrieval_eval_summary_20260827_192414.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_192414.json",
+    "results": "test_reports/retrieval_eval_results_20260827_192414.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+    "query_offset": 14,
+    "max_queries": 2,
+    "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
+    "answer_result": "1/2 actual HTTP API answers passed; answer_source api for both; fallback 0; failures expected_terms_missing:1 and expected_evidence_not_cited:1.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_192414.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count. Retrieval included the supporting CV-X page 6-125 chunk at rank 3, but the API answer cited chunk ab86f855-8067-519c-95e8-23a1da027818 from CV-X page 7-91 and omitted the material example values 10 lines and two overlap lines; row 15 is not clean. Contextual row 16 asks what happens when TRG1 is input for camera 1; the answer cites returned chunk 86e3ce5c-95ea-5a0a-aab1-49bbfe7f88ed, which directly states that TRG1 for CAM 1 executes capture plus measurement processing of only that camera as one measurement; row 16 is clean.",
+    "remaining": "Fix contextual row 15 answer evidence selection so the answer cites/uses the returned CV-X page 6-125 line-count/overlap evidence, or rerun after a general source-grounded answer-context improvement. Preserve row 16 as clean, row 15 as failed, row 15 sibling troubleshooting diagnostic/source-context evidence as a separate older issue, diagnostic-only LLM judge policy, citation-fidelity containments, prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -8002,14 +8021,19 @@
     }
   },
   "answer_grounding_contextual_rows_15_16": {
-    "summary": "test_reports/retrieval_eval_summary_20260826_085653.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260826_085653.json",
-    "dataset": "test_reports/retrieval_eval_dataset_20260826_085653.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260826_085653.jsonl",
-    "status": "actual_http_api_answer_scoring_revalidated_with_material_terms",
-    "scope": "repaired_contextual_procedure_cases_15_16",
-    "result": "2/2 retrieval and 2/2 actual API answers passed; answer_sources api:2; fallback 0; mean answer latency 41.072s.",
-    "notes": "The stricter scorer requires the quantity-bearing terms from the evidence sentence, so generic lines/overlap wording alone is no longer enough for this count question."
+    "scope": "contextual_multi_step_rows_15_16_answer_rotation",
+    "status": "retrieval_clean_one_of_two_actual_http_answers_clean_row15_failed",
+    "latest_run": "retrieval_eval_20260827_192414",
+    "summary": "test_reports/retrieval_eval_summary_20260827_192414.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260827_192414.json",
+    "results": "test_reports/retrieval_eval_results_20260827_192414.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+    "query_offset": 14,
+    "max_queries": 2,
+    "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
+    "answer_result": "1/2 actual HTTP API answers passed; answer_source api for both; fallback 0; failures expected_terms_missing:1 and expected_evidence_not_cited:1.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_192414.jsonl. Contextual row 15 asks for the CV-X LJ-V continuous-mode example line count and overlap count. Retrieval included the supporting CV-X page 6-125 chunk at rank 3, but the API answer cited chunk ab86f855-8067-519c-95e8-23a1da027818 from CV-X page 7-91 and omitted the material example values 10 lines and two overlap lines; row 15 is not clean. Contextual row 16 asks what happens when TRG1 is input for camera 1; the answer cites returned chunk 86e3ce5c-95ea-5a0a-aab1-49bbfe7f88ed, which directly states that TRG1 for CAM 1 executes capture plus measurement processing of only that camera as one measurement; row 16 is clean.",
+    "remaining": "Fix contextual row 15 answer evidence selection so the answer cites/uses the returned CV-X page 6-125 line-count/overlap evidence, or rerun after a general source-grounded answer-context improvement. Preserve row 16 as clean, row 15 as failed, row 15 sibling troubleshooting diagnostic/source-context evidence as a separate older issue, diagnostic-only LLM judge policy, citation-fidelity containments, prior row-5 diagnostic exclusions, and the row-6 clean rerun from retrieval_eval_20260827_190715."
   },
   "answer_grounding_contextual_rows_17_18": {
     "summary": "test_reports/retrieval_eval_summary_20260826_085824.json",
@@ -8286,7 +8310,10 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "expected_terms_missing": 1,
+    "expected_evidence_not_cited": 1
+  },
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
