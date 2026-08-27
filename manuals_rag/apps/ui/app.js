@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-matrix-run-history-1";
+const ASSET_VERSION = "20260827-answer-cell-scoring-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 const MATRIX_JOB_POLL_MS = 1000;
 
@@ -350,29 +350,14 @@ function buildMatrixCells(item = {}) {
       ? `missing ${answerEval.missing_document_ids.length} expected document(s)`
       : "expected document used",
   );
-  if (cells.answer_docs.status === "fail") {
-    cells.citations = matrixCell("blank", "blocked by wrong answer document");
-    cells.terms = matrixCell("blank", "blocked by wrong answer document");
-    cells.answer = matrixCell("blank", "blocked by wrong answer document");
-    return cells;
-  }
 
   cells.citations = citation.checked
     ? matrixCell(citation.passed ? "pass" : "fail", citation.passed ? `${citation.checked_quote_count || 0} quote(s) checked` : "unsupported or missing citation evidence")
     : matrixCell("blank", "not checked");
-  if (cells.citations.status === "fail") {
-    cells.terms = matrixCell("blank", "blocked by citation failure");
-    cells.answer = matrixCell("blank", "blocked by citation failure");
-    return cells;
-  }
 
   cells.terms = termCheck && Object.keys(termCheck).length
     ? matrixCell(termCheck.passed ? "pass" : "fail", termCheck.passed ? "required terms present" : "expected terms/actions missing")
     : matrixCell("blank", "not checked");
-  if (cells.terms.status === "fail") {
-    cells.answer = matrixCell("blank", "blocked by term/action failure");
-    return cells;
-  }
 
   cells.answer = matrixCell(answerEval.passed ? "pass" : "fail", (answerEval.failure_reasons || []).join(", ") || "overall answer score");
   return cells;

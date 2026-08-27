@@ -530,6 +530,31 @@ def _retrieval_retention_cell(cells: dict[str, dict[str, str]], retrieval: dict)
     return _matrix_cell("blank", "not scored yet")
 
 
+def _matrix_retrieval_evaluation(evaluation: dict, retrieval_cell: dict[str, str]) -> dict:
+    normalized = dict(evaluation)
+    evidence_passed = bool(evaluation.get("passed"))
+    retention_passed = retrieval_cell.get("status") == "pass"
+    normalized["evidence_passed"] = evidence_passed
+    normalized["retention_passed"] = retention_passed
+    normalized["retrieval_retention_label"] = retrieval_cell.get("label")
+    normalized["retrieval_retention_detail"] = retrieval_cell.get("detail")
+    if retention_passed:
+        if not evidence_passed and evaluation.get("failure_category"):
+            normalized["evidence_failure_category"] = evaluation.get("failure_category")
+        if not evidence_passed and evaluation.get("failure_reasons"):
+            normalized["evidence_failure_reasons"] = evaluation.get("failure_reasons")
+        normalized["passed"] = True
+        normalized.pop("failure_category", None)
+        normalized.pop("failure_reasons", None)
+    else:
+        normalized["passed"] = False
+        normalized["failure_category"] = normalized.get("failure_category") or "retrieval_context_missing"
+        normalized.setdefault("failure_reasons", [])
+        if isinstance(normalized["failure_reasons"], list):
+            normalized["failure_reasons"].append(retrieval_cell.get("detail") or "Expected document missing from final context.")
+    return normalized
+
+
 def _block_answer_cells(cells: dict[str, dict[str, str]], detail: str = "blocked by failed retrieval/context") -> dict[str, dict[str, str]]:
     for key in ANSWER_STAGE_KEYS:
         cells[key] = _matrix_cell("blank", detail)
@@ -635,8 +660,6 @@ def _build_row_cells(item: dict | None, case: dict | None = None) -> dict[str, d
         "fail" if answer_eval.get("expected_document_used") is False or missing_docs else "pass",
         f"missing {len(missing_docs)} expected document(s)" if missing_docs else "expected document used",
     )
-    if cells["answer_docs"]["status"] == "fail":
-        return cells
 
     citation = answer_eval.get("citation_fidelity") or {}
     if citation.get("checked"):
@@ -644,8 +667,6 @@ def _build_row_cells(item: dict | None, case: dict | None = None) -> dict[str, d
             "pass" if citation.get("passed") else "fail",
             f"{citation.get('checked_quote_count') or 0} quote(s) checked" if citation.get("passed") else "unsupported or missing citation evidence",
         )
-        if not citation.get("passed"):
-            return cells
 
     term_check = answer_eval.get("term_check") or {}
     if term_check:
@@ -659,8 +680,6 @@ def _build_row_cells(item: dict | None, case: dict | None = None) -> dict[str, d
             "pass" if term_check.get("passed") else "fail",
             term_detail,
         )
-        if not term_check.get("passed"):
-            return cells
 
     cells["answer"] = _matrix_cell(
         "pass" if answer_eval.get("passed") else "fail",
@@ -1219,7 +1238,7 @@ def _run_answer_matrix_dataset(
             )
             _raise_if_question_matrix_job_cancelled(job_id)
             top_results = _debug_top_results(debug_result)
-            evaluation = early_evaluation or score_search_results(eval_case, top_results)
+            evaluation = early_evaluation or debug_result.get("matrix_retrieval_evaluation") or score_search_results(eval_case, top_results)
             answer: dict = {}
             answer_evaluation: dict = {}
             if evaluation.get("passed"):
@@ -1423,21 +1442,17 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                         evaluation_passed=bool(evaluation.get("passed")),
                         failure_category=evaluation.get("failure_category"),
                     )
-                    retrieval_passed = retrieval_cell.get("status") == "pass"
+                    matrix_evaluation = _matrix_retrieval_evaluation(evaluation, retrieval_cell)
+                    retrieval_passed = bool(matrix_evaluation.get("passed"))
+                    partial_debug_result["matrix_retrieval_evaluation"] = matrix_evaluation
                     partial_debug_result["early_stopped"] = not retrieval_passed
                     partial_debug_result["early_stop_reason"] = (
                         None
                         if retrieval_passed
-                        else evaluation.get("failure_category") or retrieval_cell.get("detail") or "retrieval_failed"
+                        else matrix_evaluation.get("failure_category") or retrieval_cell.get("detail") or "retrieval_failed"
                     )
                     if not retrieval_passed:
-                        evaluation = dict(evaluation)
-                        evaluation["passed"] = False
-                        evaluation["failure_category"] = evaluation.get("failure_category") or "retrieval_context_missing"
-                        evaluation.setdefault("failure_reasons", [])
-                        if isinstance(evaluation["failure_reasons"], list):
-                            evaluation["failure_reasons"].append(retrieval_cell.get("detail") or "Expected document missing from final context.")
-                        return partial_debug_result, evaluation
+                        return partial_debug_result, matrix_evaluation
             if event.get("event") == "run_completed":
                 result = dict(event.get("result") or {})
                 if completed_steps:
@@ -1446,6 +1461,8 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                     result["step_timings_ms"] = step_timings_ms
                 if stages:
                     result["stages"] = stages
+                if "matrix_retrieval_evaluation" not in result and "matrix_evaluation" in locals():
+                    result["matrix_retrieval_evaluation"] = matrix_evaluation
                 _record_question_matrix_job_event(
                     job_id,
                     "query_stream_completed",

@@ -199,7 +199,7 @@ def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_p
     assert payload["rows"][0]["cells"]["retrieval"]["status"] == "pass"
     assert payload["rows"][0]["cells"]["citations"]["status"] == "pass"
     assert payload["rows"][0]["cells"]["terms"]["status"] == "fail"
-    assert payload["rows"][0]["cells"]["answer"]["status"] == "blank"
+    assert payload["rows"][0]["cells"]["answer"]["status"] == "fail"
 
 
 def test_question_matrix_includes_active_job_for_page_refresh(monkeypatch, tmp_path):
@@ -711,6 +711,91 @@ def test_question_matrix_blocks_answer_steps_when_context_retention_fails():
         assert "blocked" in cells[key]["detail"]
 
 
+def test_question_matrix_populates_answer_cells_after_answer_doc_failure():
+    cells = ui_server._build_row_cells(
+        {
+            "case": {
+                "source_document_id": "doc-expected",
+                "source_chunk_id": "chunk-expected",
+            },
+            "query_debug_result": {
+                "completed_steps": [
+                    "classify_query",
+                    "build_filters",
+                    "run_sparse_search",
+                    "fuse_results",
+                    "rerank_results",
+                    "assemble_context",
+                    "judge_answer_inputs",
+                    "summarize_answer_inputs",
+                    "generate_answer",
+                ],
+                "stages": [
+                    {"name": "run_sparse_search", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
+                    {"name": "fuse_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
+                    {"name": "rerank_results", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
+                    {"name": "assemble_context", "samples": [{"source_document_id": "doc-expected", "chunk_id": "chunk-other"}]},
+                ],
+            },
+            "evaluation": {
+                "passed": True,
+                "metadata_document_selection": {"attempted": False},
+            },
+            "answer_evaluation": {
+                "passed": False,
+                "expected_document_used": False,
+                "missing_document_ids": ["doc-expected"],
+                "citation_fidelity": {"checked": True, "passed": False, "checked_quote_count": 0},
+                "term_check": {"passed": False},
+                "failure_reasons": ["insufficient_evidence", "expected_document_not_cited_or_used"],
+            },
+        }
+    )
+
+    assert cells["answer_docs"]["status"] == "fail"
+    assert cells["citations"]["status"] == "fail"
+    assert cells["terms"]["status"] == "fail"
+    assert cells["answer"]["status"] == "fail"
+
+
+def test_matrix_retrieval_evaluation_allows_answers_when_context_retained():
+    normalized = ui_server._matrix_retrieval_evaluation(
+        {
+            "passed": False,
+            "failure_category": "ranking_or_context_loss",
+            "failure_reasons": ["expected evidence missing"],
+            "candidate_recall": True,
+        },
+        {
+            "status": "pass",
+            "label": "PASS",
+            "detail": "Expected document retained in final context",
+        },
+    )
+
+    assert normalized["passed"] is True
+    assert normalized["retention_passed"] is True
+    assert normalized["evidence_passed"] is False
+    assert normalized["evidence_failure_category"] == "ranking_or_context_loss"
+    assert "failure_category" not in normalized
+
+
+def test_matrix_retrieval_evaluation_blocks_answers_when_context_missing():
+    normalized = ui_server._matrix_retrieval_evaluation(
+        {"passed": True, "candidate_recall": True},
+        {
+            "status": "fail",
+            "label": "FAIL",
+            "detail": "Expected document missing from final context",
+        },
+    )
+
+    assert normalized["passed"] is False
+    assert normalized["retention_passed"] is False
+    assert normalized["failure_category"] == "retrieval_context_missing"
+    assert normalized["failure_reasons"] == ["Expected document missing from final context"]
+
+
 def test_question_matrix_does_not_fail_stages_when_samples_were_not_recorded():
     cells = ui_server._build_row_cells(
         {
@@ -922,6 +1007,7 @@ def test_query_debug_stream_preserves_accumulated_stage_samples(monkeypatch, tmp
     assert evaluation is None
     assert debug_result["completed_steps"] == ["assemble_context"]
     assert debug_result["step_timings_ms"] == {"assemble_context": 2}
+    assert debug_result["matrix_retrieval_evaluation"]["passed"] is True
     assert debug_result["stages"][0]["name"] == "assemble_context"
     assert len(debug_result["stages"]) == 1
     assert debug_result["stages"][0]["samples"][0]["source_document_id"] == "doc-1"
