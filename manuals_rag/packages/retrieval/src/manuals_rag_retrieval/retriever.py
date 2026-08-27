@@ -481,6 +481,12 @@ def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase
     row_header_issue_overlap = sum(1 for term in header_issue_terms if term and term in compact_row_headers)
     if row_header_issue_overlap and metadata.get("table_column_headers"):
         score += min(0.45, row_header_issue_overlap * 0.15)
+    requested_field_terms = _comparison_requested_field_terms(" ".join(terms))
+    if requested_field_terms:
+        if _table_result_matches_requested_field_metadata(metadata, requested_field_terms):
+            score += 0.7
+        elif metadata.get("table_column_headers"):
+            score -= 0.7
     if compact_column_headers and any(term in compact_column_headers for term in {"corrective", "action", "description"}):
         score += 0.08
     short_code_overlap = sum(1 for term in terms if any(char.isdigit() for char in term) and len(term) <= 4 and term in compact_haystack)
@@ -1496,7 +1502,37 @@ def _identifier_context_score(result: SearchResult, context_terms: set[str]) -> 
     return sum(1.0 for term in context_terms if term in haystack)
 
 
-def _comparison_result_satisfies_identifier_context(result: SearchResult, context_terms: set[str]) -> bool:
+def _comparison_requested_field_terms(query: str) -> set[str]:
+    fields: set[str] = set()
+    lowered = query.lower()
+    if re.search(r"\bcauses?\b", lowered):
+        fields.add("cause")
+    if re.search(r"\b(?:remed(?:y|ies)|corrective\s+actions?|correct(?:ed|ion)?|fix(?:ed)?)\b", lowered):
+        fields.update({"remedy", "correctiveaction"})
+    if re.search(r"\b(?:compare|what|which)\s+(?:is\s+the\s+)?error\s+codes?\b", lowered):
+        fields.add("errorcode")
+    if re.search(r"\bmessages?\b", lowered):
+        fields.add("message")
+    if re.search(r"\b(?:descriptions?|summary|symbol)\b", lowered):
+        fields.update(re.sub(r"[^a-z0-9]+", "", term) for term in re.findall(r"descriptions?|summary|symbol", lowered))
+    return {term for term in fields if term}
+
+
+def _table_result_matches_requested_field_metadata(metadata: dict[str, object], field_terms: set[str]) -> bool:
+    if not field_terms:
+        return True
+    column_header_text = " ".join(str(item) for item in metadata.get("table_column_headers") or [])
+    compact_column_headers = re.sub(r"[^a-z0-9]+", "", column_header_text.lower())
+    if compact_column_headers:
+        return any(term in compact_column_headers for term in field_terms)
+    if metadata.get("table_row_group") or metadata.get("table_summary"):
+        return True
+    return False
+
+
+def _comparison_result_satisfies_identifier_context(result: SearchResult, context_terms: set[str], field_terms: set[str] | None = None) -> bool:
+    if field_terms and not _table_result_matches_requested_field_metadata(result.metadata, field_terms):
+        return False
     if not context_terms:
         return True
     required_overlap = min(2, len(context_terms))
@@ -1523,6 +1559,7 @@ def _promote_comparison_table_candidates(
     if "comparison" not in analysis.query_types or len(identifiers) < 2 or not supplemental_results:
         return primary_results
     row_code_terms = _comparison_row_code_terms(analysis.raw_query, identifiers)
+    field_terms = _comparison_requested_field_terms(analysis.raw_query)
     if len(row_code_terms) < 2:
         row_code_terms = []
     covered_row_codes: set[str] = set()
@@ -1538,7 +1575,7 @@ def _promote_comparison_table_candidates(
         if any(
             _result_matches_primary_identifier(result, identifier)
             and _is_structured_comparison_table_result(result)
-            and _comparison_result_satisfies_identifier_context(result, context_terms)
+            and _comparison_result_satisfies_identifier_context(result, context_terms, field_terms)
             and (
                 not row_code_terms
                 or _matching_comparison_row_codes(result, uncovered_row_codes)
@@ -1554,7 +1591,7 @@ def _promote_comparison_table_candidates(
             and _is_structured_comparison_table_result(result)
             and _result_matches_primary_identifier(result, identifier)
             and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
-            and _comparison_result_satisfies_identifier_context(result, context_terms)
+            and _comparison_result_satisfies_identifier_context(result, context_terms, field_terms)
         ]
         if context_terms:
             candidates.sort(key=lambda result: (_identifier_context_score(result, context_terms), result.score), reverse=True)

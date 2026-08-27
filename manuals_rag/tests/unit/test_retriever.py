@@ -2645,6 +2645,78 @@ def test_comparison_table_promotion_replaces_same_product_wrong_field():
     assert promoted[2].chunk_id == "mod-b-enclosure"
 
 
+def test_comparison_table_promotion_replaces_same_product_wrong_requested_field():
+    analysis = analyze_query(
+        "Compare the cause for MOD1-A error 20503 with the MOD2-B cause for an advanced-program "
+        "switching error at startup."
+    )
+    reranked = [
+        SearchResult(
+            chunk_id="mod-a-cause",
+            score=4.0,
+            title="MOD1-A Manual",
+            document_version_id="ver-a",
+            source_document_id="doc-a",
+            pages=[10],
+            section_path=["Errors"],
+            content="Column headers: Cause; Row headers: 20503; Cell value: The pattern data file format is invalid.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Cause"],
+                "table_row_headers": ["20503"],
+                "product_model": "MOD1-A",
+            },
+        ),
+        SearchResult(
+            chunk_id="mod-b-remedy",
+            score=3.8,
+            title="MOD2-B Manual",
+            document_version_id="ver-b",
+            source_document_id="doc-b",
+            pages=[20],
+            section_path=["Errors"],
+            content=(
+                "Column headers: Remedy; Row headers: advanced program switching error at startup; "
+                "Cell value: Clear the error and select a valid program."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Remedy"],
+                "table_row_headers": ["advanced program switching error at startup"],
+                "product_model": "MOD2-B",
+            },
+        ),
+    ]
+    supplemental = [
+        SearchResult(
+            chunk_id="mod-b-cause",
+            score=1.5,
+            title="MOD2-B Manual",
+            document_version_id="ver-b",
+            source_document_id="doc-b",
+            pages=[20],
+            section_path=["Errors"],
+            content=(
+                "Column headers: Cause; Row headers: advanced program switching error at startup; "
+                "Cell value: An error occurred in switching the advanced program at startup."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Cause"],
+                "table_row_headers": ["advanced program switching error at startup"],
+                "product_model": "MOD2-B",
+            },
+        )
+    ]
+
+    promoted = retriever._promote_comparison_table_candidates(reranked, supplemental, analysis, limit=5)
+
+    assert promoted[0].chunk_id == "mod-b-cause"
+    assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
+    assert promoted[1].chunk_id == "mod-a-cause"
+    assert promoted[2].chunk_id == "mod-b-remedy"
+
+
 def test_table_lexical_search_skips_unstructured_general_queries(monkeypatch):
     monkeypatch.setattr(retriever, "fetch_all", lambda *_args, **_kwargs: pytest.fail("fetch_all should not run"))
 
