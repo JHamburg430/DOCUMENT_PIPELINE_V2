@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-eval-matrix-1";
+const ASSET_VERSION = "20260827-eval-matrix-actions-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 
 const state = {
@@ -13,6 +13,8 @@ const state = {
   selectedEvalIndex: 0,
   selectedMatrixIndex: 0,
   questionMatrix: null,
+  matrixJob: null,
+  matrixJobTimer: null,
   running: false,
   runDebug: null,
   runDebugTimer: null,
@@ -200,6 +202,19 @@ async function apiJson(path, options = {}) {
 
 async function localJson(path) {
   const response = await fetchWithRetry(path, { headers: { "Cache-Control": "no-cache" } }, { retry: true });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`${response.status} ${response.statusText}: ${body}`);
+  }
+  return response.json();
+}
+
+async function localPostJson(path, payload = {}) {
+  const response = await fetchWithRetry(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
+    body: JSON.stringify(payload),
+  }, { retry: false });
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`${response.status} ${response.statusText}: ${body}`);
@@ -431,6 +446,73 @@ function renderQuestionMatrix(payload) {
     });
   });
   renderMatrixDetail(rows[state.selectedMatrixIndex]);
+}
+
+function setupMatrixControls() {
+  const select = $("matrix-column");
+  if (select) {
+    select.innerHTML = MATRIX_STAGES.map((stage) => `<option value="${escapeHtml(stage.key)}">${escapeHtml(stage.label)}</option>`).join("");
+    select.value = "retrieval";
+  }
+  $("matrix-run-all-bank")?.addEventListener("click", () => startMatrixJob({ mode: "all_bank" }));
+  $("matrix-run-column")?.addEventListener("click", () => startMatrixJob({ mode: "column", column: $("matrix-column")?.value || "retrieval" }));
+  $("matrix-refresh")?.addEventListener("click", loadQuestionMatrix);
+  renderMatrixJobStatus(null);
+}
+
+function renderMatrixJobStatus(job) {
+  const node = $("matrix-action-status");
+  if (!node) return;
+  if (!job) {
+    node.className = "empty-state";
+    node.textContent = "No matrix job running.";
+    return;
+  }
+  const completed = Number(job.completed_datasets || 0);
+  const total = Number(job.dataset_count || 0);
+  const modeLabel = job.mode === "column" ? `Column: ${MATRIX_STAGES.find((stage) => stage.key === job.column)?.label || job.column}` : "All bank";
+  const judgeText = job.use_model_judge ? "model judge on" : "model judge off";
+  node.className = job.status === "failed" ? "error-box" : "empty-state";
+  node.innerHTML = `
+    <strong>${escapeHtml(modeLabel)} ${escapeHtml(job.status || "queued")}</strong>
+    <span>${escapeHtml(`${completed}/${total} datasets | ${job.response_mode || ""} | ${judgeText}`)}</span>
+    ${job.current_dataset ? `<small>${escapeHtml(job.current_dataset)}</small>` : ""}
+    ${job.error ? `<small>${escapeHtml(job.error)}</small>` : ""}
+  `;
+  const busy = ["queued", "running"].includes(job.status);
+  ["matrix-run-all-bank", "matrix-run-column"].forEach((id) => {
+    const button = $(id);
+    if (button) button.disabled = busy;
+  });
+}
+
+async function pollMatrixJob(jobId) {
+  try {
+    const job = await localJson(`/local/question-matrix/jobs/${encodeURIComponent(jobId)}`);
+    state.matrixJob = job;
+    renderMatrixJobStatus(job);
+    if (["queued", "running"].includes(job.status)) {
+      state.matrixJobTimer = setTimeout(() => pollMatrixJob(jobId), 3000);
+      return;
+    }
+    await loadQuestionMatrix();
+  } catch (error) {
+    renderMatrixJobStatus({ status: "failed", error: error.message, dataset_count: state.matrixJob?.dataset_count || 0, completed_datasets: state.matrixJob?.completed_datasets || 0 });
+  }
+}
+
+async function startMatrixJob({ mode, column = "retrieval" }) {
+  if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
+  const useModelJudge = Boolean($("matrix-use-model-judge")?.checked);
+  renderMatrixJobStatus({ status: "queued", mode, column: mode === "column" ? column : "all", use_model_judge: useModelJudge, dataset_count: 0, completed_datasets: 0 });
+  try {
+    const job = await localPostJson("/local/question-matrix/run", { mode, column, use_model_judge: useModelJudge });
+    state.matrixJob = job;
+    renderMatrixJobStatus(job);
+    pollMatrixJob(job.id);
+  } catch (error) {
+    renderMatrixJobStatus({ status: "failed", mode, column, use_model_judge: useModelJudge, error: error.message, dataset_count: 0, completed_datasets: 0 });
+  }
 }
 
 function renderMatrixDetail(row) {
@@ -1637,6 +1719,7 @@ async function init() {
   setupTabs();
   setupEvalScopeControls();
   setupProgressInteractions();
+  setupMatrixControls();
   $("run-eval").addEventListener("click", runEval);
   $("load-latest").addEventListener("click", loadLatestResults);
   $("run-query").addEventListener("click", runQuery);

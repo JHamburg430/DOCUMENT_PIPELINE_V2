@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260827-eval-matrix-1" />
+    <link rel="stylesheet" href="/styles.css?v=20260827-eval-matrix-actions-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -106,6 +106,20 @@
             <h2>Eval Matrix</h2>
             <span id="matrix-run-id" class="muted">Loading question-bank matrix...</span>
           </div>
+          <div class="matrix-actions">
+            <button id="matrix-run-all-bank" type="button">Run All Bank</button>
+            <label>
+              Column
+              <select id="matrix-column"></select>
+            </label>
+            <button id="matrix-run-column" type="button">Evaluate Column</button>
+            <label class="inline-check">
+              <input id="matrix-use-model-judge" type="checkbox" checked />
+              <span>Use model judge for answer information</span>
+            </label>
+            <button id="matrix-refresh" type="button">Refresh</button>
+          </div>
+          <div id="matrix-action-status" class="empty-state">No matrix job running.</div>
           <div id="matrix-summary" class="matrix-summary empty-state">No evaluation loaded.</div>
           <div id="matrix-table"></div>
           <div id="matrix-detail"></div>
@@ -164,6 +178,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260827-eval-matrix-1"></script>
+    <script src="/app.js?v=20260827-eval-matrix-actions-1"></script>
   </body>
 </html>

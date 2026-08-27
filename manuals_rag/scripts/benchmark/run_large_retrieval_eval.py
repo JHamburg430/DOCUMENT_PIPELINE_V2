@@ -370,9 +370,17 @@ def score_current_answer_response(
     answer: dict[str, Any],
     evaluation: dict[str, Any],
     search_payload: dict[str, Any],
+    *,
+    use_llm_required_info_judge: bool = False,
 ) -> dict[str, Any]:
     current_results = search_payload.get("top_results", [])
-    return score_answer_response(eval_case, answer, evaluation, current_results)
+    return score_answer_response(
+        eval_case,
+        answer,
+        evaluation,
+        current_results,
+        use_llm_required_info_judge=use_llm_required_info_judge,
+    )
 
 
 def run_case_search(query: str, *, corpus_id: str, search_mode: str, response_mode: str = "retrieval_only") -> dict[str, Any]:
@@ -687,6 +695,11 @@ def main() -> int:
         help="Score retrieval only or also generate and score final answers with citations.",
     )
     parser.add_argument(
+        "--use-llm-answer-judge",
+        action="store_true",
+        help="Use the eval model to judge whether the final answer contains the required information.",
+    )
+    parser.add_argument(
         "--per-query-timeout-seconds",
         type=int,
         default=0,
@@ -839,7 +852,13 @@ def main() -> int:
             evaluation["elapsed_seconds"] = round(time.time() - start_time, 3)
             if args.response_mode == "answer_with_citations":
                 answer = dict(search_payload.get("answer") or {})
-                answer_evaluation = score_current_answer_response(eval_case, answer, evaluation, search_payload)
+                answer_evaluation = score_current_answer_response(
+                    eval_case,
+                    answer,
+                    evaluation,
+                    search_payload,
+                    use_llm_required_info_judge=args.use_llm_answer_judge,
+                )
                 answer_evaluation["elapsed_seconds"] = evaluation["elapsed_seconds"]
             elapsed_seconds = enforce_completed_query_timeout(
                 start_time=start_time,
@@ -899,6 +918,7 @@ def main() -> int:
                 "input_dataset_path": str(args.dataset_path) if args.dataset_path else None,
                 "search_mode": args.search_mode,
                 "response_mode": args.response_mode,
+                "use_llm_answer_judge": args.use_llm_answer_judge,
                 "query_offset": args.query_offset if args.dataset_path else 0,
                 "per_query_timeout_seconds": args.per_query_timeout_seconds,
                 "warmup_queries": args.warmup_queries,

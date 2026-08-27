@@ -2,10 +2,16 @@ from __future__ import annotations
 
 import os
 import json
+import subprocess
+import sys
+import time
+import uuid
 from json import dumps
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from socket import timeout as SocketTimeout
+from threading import Lock
+from threading import Thread
 from urllib.error import HTTPError
 from urllib.error import URLError
 from urllib.request import Request, urlopen
@@ -20,6 +26,12 @@ POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://manuals:manuals@postgres:
 STATIC_DIR = Path(__file__).resolve().parent
 MANUALS_ROOT = STATIC_DIR.parents[1]
 TEST_REPORTS_DIR = MANUALS_ROOT / "test_reports"
+DEFAULT_CORPUS_ID = os.getenv("MANUALS_RAG_DEFAULT_CORPUS", "manuals_vendor_keyence")
+MATRIX_JOB_TIMEOUT_SECONDS = int(os.getenv("MATRIX_JOB_TIMEOUT_SECONDS", "7200"))
+
+MATRIX_JOBS: dict[str, dict] = {}
+MATRIX_JOBS_LOCK = Lock()
+ANSWER_STAGE_KEYS = {"relevance", "summaries", "generation", "answer_docs", "citations", "terms", "answer"}
 
 
 class ManualsRagUiHandler(SimpleHTTPRequestHandler):
@@ -33,10 +45,14 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_GET(self) -> None:
-        if self.path.startswith("/local/question-matrix"):
+        parsed = urlparse(self.path)
+        if parsed.path.startswith("/local/question-matrix/jobs/"):
+            self._local_question_matrix_job(parsed.path.rsplit("/", 1)[-1])
+            return
+        if parsed.path == "/local/question-matrix":
             self._local_question_matrix()
             return
-        if self.path.startswith("/local/run-events"):
+        if parsed.path.startswith("/local/run-events"):
             self._local_run_events()
             return
         if self.path.startswith("/api/"):
@@ -51,6 +67,10 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         super().do_HEAD()
 
     def do_POST(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path == "/local/question-matrix/run":
+            self._start_local_question_matrix_run()
+            return
         if self.path.startswith("/api/"):
             self._proxy()
             return
@@ -175,6 +195,46 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self._write(payload)
 
+    def _local_question_matrix_job(self, job_id: str) -> None:
+        with MATRIX_JOBS_LOCK:
+            job = dict(MATRIX_JOBS.get(job_id) or {})
+        if not job:
+            self.send_error(404, "Job not found")
+            return
+        payload = json.dumps(job, default=str).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self._write(payload)
+
+    def _start_local_question_matrix_run(self) -> None:
+        try:
+            content_length = int(self.headers.get("Content-Length") or "0")
+            body = self.rfile.read(content_length) if content_length else b"{}"
+            request_payload = json.loads(body.decode("utf-8") or "{}")
+            job = _start_question_matrix_job(request_payload)
+            payload = json.dumps(job, default=str).encode("utf-8")
+            self.send_response(202)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except ValueError as error:
+            payload = dumps({"detail": str(error)}).encode("utf-8")
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except Exception as error:
+            payload = dumps({"detail": f"Question matrix run failed to start: {error.__class__.__name__}: {error}"}).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
     def _write(self, data: bytes) -> bool:
         try:
             self.wfile.write(data)
@@ -207,6 +267,21 @@ def _read_jsonl(path: Path) -> list[dict]:
 def _is_active_dataset(dataset: dict) -> bool:
     status = str(dataset.get("status") or "").lower()
     return "diagnostic" not in status and "superseded" not in status
+
+
+def _active_question_datasets(question_bank: dict) -> list[dict]:
+    datasets = [dict(dataset) for dataset in question_bank.get("datasets") or []]
+    active_candidates = [dataset for dataset in datasets if _is_active_dataset(dataset)]
+    superseded_paths = {
+        str(dataset.get("supersedes"))
+        for dataset in active_candidates
+        if dataset.get("supersedes")
+    }
+    return [
+        dataset
+        for dataset in active_candidates
+        if str(dataset.get("path")) not in superseded_paths
+    ]
 
 
 def _case_key(case: dict) -> str:
@@ -351,9 +426,15 @@ def _build_row_cells(item: dict | None) -> dict[str, dict[str, str]]:
 
     term_check = answer_eval.get("term_check") or {}
     if term_check:
+        llm_info = term_check.get("llm_required_information") or answer_eval.get("llm_required_information") or {}
+        term_detail = (
+            f"model judge: {llm_info.get('reason') or 'required information judged'}"
+            if term_check.get("llm_judged")
+            else ("required terms present" if term_check.get("passed") else "expected terms/actions missing")
+        )
         cells["terms"] = _matrix_cell(
             "pass" if term_check.get("passed") else "fail",
-            "required terms present" if term_check.get("passed") else "expected terms/actions missing",
+            term_detail,
         )
         if not term_check.get("passed"):
             return cells
@@ -369,18 +450,7 @@ def _build_question_matrix() -> dict:
     manifest_path = TEST_REPORTS_DIR / "retrieval_accuracy_question_bank_manifest.json"
     manifest = _read_json(manifest_path)
     question_bank = manifest.get("question_bank") or {}
-    datasets = [dict(dataset) for dataset in question_bank.get("datasets") or []]
-    active_candidates = [dataset for dataset in datasets if _is_active_dataset(dataset)]
-    superseded_paths = {
-        str(dataset.get("supersedes"))
-        for dataset in active_candidates
-        if dataset.get("supersedes")
-    }
-    active_datasets = [
-        dataset
-        for dataset in active_candidates
-        if str(dataset.get("path")) not in superseded_paths
-    ]
+    active_datasets = _active_question_datasets(question_bank)
     excluded_run_ids = {
         str(exclusion.get("run_id"))
         for exclusion in (question_bank.get("run_exclusions") or manifest.get("run_exclusions") or [])
@@ -422,6 +492,155 @@ def _build_question_matrix() -> dict:
         "datasets": active_datasets,
         "rows": rows,
     }
+
+
+def _question_matrix_job_snapshot(job_id: str) -> dict:
+    with MATRIX_JOBS_LOCK:
+        return dict(MATRIX_JOBS[job_id])
+
+
+def _update_question_matrix_job(job_id: str, **updates: object) -> None:
+    with MATRIX_JOBS_LOCK:
+        job = MATRIX_JOBS[job_id]
+        job.update(updates)
+        job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _start_question_matrix_job(payload: dict) -> dict:
+    mode = str(payload.get("mode") or "all_bank")
+    column = str(payload.get("column") or "retrieval")
+    use_model_judge = bool(payload.get("use_model_judge"))
+    if mode not in {"all_bank", "column"}:
+        raise ValueError("mode must be all_bank or column")
+    valid_columns = {
+        "query_classify",
+        "filters",
+        "dense",
+        "sparse",
+        "special",
+        "fuse",
+        "rerank",
+        "assemble",
+        "metadata",
+        "retrieval",
+        "relevance",
+        "summaries",
+        "generation",
+        "answer_docs",
+        "citations",
+        "terms",
+        "answer",
+    }
+    if mode == "column" and column not in valid_columns:
+        raise ValueError(f"Unsupported matrix column: {column}")
+
+    manifest = _read_json(TEST_REPORTS_DIR / "retrieval_accuracy_question_bank_manifest.json")
+    datasets = _active_question_datasets(manifest.get("question_bank") or {})
+    if not datasets:
+        raise ValueError("No active question-bank datasets were found.")
+
+    job_id = f"matrix-{uuid.uuid4().hex[:12]}"
+    response_mode = "answer_with_citations" if mode == "all_bank" or column in ANSWER_STAGE_KEYS else "retrieval_only"
+    job = {
+        "id": job_id,
+        "status": "queued",
+        "mode": mode,
+        "column": column if mode == "column" else "all",
+        "response_mode": response_mode,
+        "use_model_judge": use_model_judge and response_mode == "answer_with_citations",
+        "started_at": None,
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "completed_at": None,
+        "dataset_count": len(datasets),
+        "current_dataset": None,
+        "completed_datasets": 0,
+        "returncode": None,
+        "error": None,
+        "commands": [],
+        "outputs": [],
+    }
+    with MATRIX_JOBS_LOCK:
+        MATRIX_JOBS[job_id] = job
+    thread = Thread(target=_run_question_matrix_job, args=(job_id, datasets), daemon=True)
+    thread.start()
+    return _question_matrix_job_snapshot(job_id)
+
+
+def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
+    job = _question_matrix_job_snapshot(job_id)
+    _update_question_matrix_job(job_id, status="running", started_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+    try:
+        for index, dataset in enumerate(datasets, start=1):
+            dataset_rel = str(dataset.get("path") or "")
+            dataset_path = MANUALS_ROOT / dataset_rel
+            if not dataset_path.exists():
+                raise FileNotFoundError(f"Question-bank dataset not found: {dataset_rel}")
+            cmd = [
+                sys.executable,
+                str(MANUALS_ROOT / "scripts" / "benchmark" / "run_large_retrieval_eval.py"),
+                "--existing-corpus-id",
+                DEFAULT_CORPUS_ID,
+                "--dataset-path",
+                str(dataset_path),
+                "--max-queries",
+                str(max(1, int(dataset.get("total_questions") or 100000))),
+                "--search-mode",
+                "http",
+                "--response-mode",
+                str(job["response_mode"]),
+                "--per-query-timeout-seconds",
+                "180",
+                "--warmup-queries",
+                "0",
+            ]
+            if job.get("use_model_judge"):
+                cmd.append("--use-llm-answer-judge")
+            command_record = {"dataset": dataset_rel, "command": cmd}
+            _update_question_matrix_job(
+                job_id,
+                current_dataset=dataset_rel,
+                commands=[*(_question_matrix_job_snapshot(job_id).get("commands") or []), command_record],
+            )
+            completed = subprocess.run(
+                cmd,
+                cwd=MANUALS_ROOT,
+                env={
+                    **os.environ,
+                    "API_BASE": API_BASE,
+                    "LOCAL_ADMIN_TOKEN": os.getenv("LOCAL_ADMIN_TOKEN", "admin-token"),
+                    "LOCAL_END_USER_TOKEN": os.getenv("LOCAL_END_USER_TOKEN", "user-token"),
+                },
+                capture_output=True,
+                text=True,
+                timeout=MATRIX_JOB_TIMEOUT_SECONDS,
+            )
+            output = {
+                "dataset": dataset_rel,
+                "returncode": completed.returncode,
+                "stdout_tail": completed.stdout[-8000:],
+                "stderr_tail": completed.stderr[-8000:],
+            }
+            _update_question_matrix_job(
+                job_id,
+                outputs=[*(_question_matrix_job_snapshot(job_id).get("outputs") or []), output],
+                completed_datasets=index,
+                returncode=completed.returncode,
+            )
+            if completed.returncode != 0:
+                raise RuntimeError(f"Benchmark failed for {dataset_rel} with exit code {completed.returncode}")
+        _update_question_matrix_job(
+            job_id,
+            status="completed",
+            current_dataset=None,
+            completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        )
+    except Exception as error:
+        _update_question_matrix_job(
+            job_id,
+            status="failed",
+            error=f"{error.__class__.__name__}: {error}",
+            completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        )
 
 
 def main() -> None:

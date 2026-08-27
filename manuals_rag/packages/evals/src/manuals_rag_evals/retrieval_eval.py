@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 from manuals_rag_common.config import settings
+from manuals_rag_common.ollama import chat_json
 
 
 STOPWORDS = {
@@ -3004,11 +3005,83 @@ def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str
     return False
 
 
+def _llm_required_information_judgment(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+    *,
+    expected_terms: list[str],
+    material_terms: list[str],
+) -> dict[str, Any]:
+    answer_text = str(answer.get("answer") or "").strip()
+    if not answer_text:
+        return {"checked": False, "passed": False, "reason": "empty_answer"}
+    expected_evidence = case.expected_evidence or []
+    evidence_text = "\n\n".join(
+        str(item.get("content") or item.get("expected_snippet") or "").strip()
+        for item in expected_evidence[:4]
+        if isinstance(item, dict)
+    ).strip()
+    if not evidence_text:
+        evidence_text = str(case.expected_snippet or "").strip()
+    schema = {
+        "type": "object",
+        "properties": {
+            "contains_required_information": {"type": "boolean"},
+            "missing_information": {"type": "array", "items": {"type": "string"}},
+            "reason": {"type": "string"},
+        },
+        "required": ["contains_required_information", "missing_information", "reason"],
+    }
+    payload, _ = chat_json(
+        model=settings.ollama_eval_model,
+        purpose="eval_answer_required_information",
+        think=False,
+        timeout=120.0,
+        num_predict=360,
+        json_schema=schema,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are grading whether an answer contains the information needed to answer a manuals question. "
+                    "Use only the expected evidence and expected terms as the grading reference. "
+                    "Return JSON only. Mark true when the answer gives the required operational facts, even if wording differs."
+                ),
+            },
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "question": case.query,
+                        "expected_source_filename": case.source_filename,
+                        "expected_terms": expected_terms,
+                        "required_material_terms": material_terms,
+                        "expected_evidence": evidence_text[:5000],
+                        "answer": answer_text[:5000],
+                    },
+                    ensure_ascii=True,
+                ),
+            },
+        ],
+    )
+    passed = bool(payload.get("contains_required_information"))
+    return {
+        "checked": True,
+        "provider": "ollama",
+        "model": settings.ollama_eval_model,
+        "passed": passed,
+        "missing_information": list(payload.get("missing_information") or []),
+        "reason": str(payload.get("reason") or ""),
+    }
+
+
 def score_answer_response(
     case: RetrievalEvalCase,
     answer: dict[str, Any],
     retrieval_evaluation: dict[str, Any] | None = None,
     retrieved_results: list[dict[str, Any]] | None = None,
+    *,
+    use_llm_required_info_judge: bool = False,
 ) -> dict[str, Any]:
     citation_document_ids = _answer_document_ids(answer, "citations")
     used_document_ids = _answer_document_ids(answer, "used_documents")
@@ -3020,6 +3093,21 @@ def score_answer_response(
     terms = _answer_contains_expected_terms(answer, expected_terms, required_terms=material_terms)
     terms["term_source"] = term_source
     terms["material_term_source"] = material_source
+    llm_required_info = {"checked": False}
+    if use_llm_required_info_judge:
+        try:
+            llm_required_info = _llm_required_information_judgment(
+                case,
+                answer,
+                expected_terms=expected_terms,
+                material_terms=material_terms,
+            )
+            if llm_required_info.get("checked"):
+                terms["llm_judged"] = True
+                terms["llm_required_information"] = llm_required_info
+                terms["passed"] = bool(llm_required_info.get("passed"))
+        except Exception as exc:
+            llm_required_info = {"checked": False, "error": f"{exc.__class__.__name__}: {exc}"}
     citation_fidelity = _answer_citation_fidelity(answer, retrieved_results)
     answer_text = str(answer.get("answer") or "").strip()
     passed = bool(
@@ -3052,4 +3140,5 @@ def score_answer_response(
         "expected_document_used": not missing_document_ids,
         "term_check": terms,
         "citation_fidelity": citation_fidelity,
+        "llm_required_information": llm_required_info,
     }

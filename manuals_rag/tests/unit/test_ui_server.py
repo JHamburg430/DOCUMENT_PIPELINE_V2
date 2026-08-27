@@ -99,12 +99,18 @@ def test_eval_matrix_view_is_available():
     styles_css = (UI_DIR / "styles.css").read_text()
 
     assert 'data-tab="matrix"' in index_html
+    assert 'id="matrix-run-all-bank"' in index_html
+    assert 'id="matrix-run-column"' in index_html
+    assert 'id="matrix-use-model-judge"' in index_html
     assert 'id="matrix-summary"' in index_html
     assert 'id="matrix-table"' in index_html
     assert "MATRIX_STAGES" in app_js
+    assert "setupMatrixControls()" in app_js
+    assert "startMatrixJob" in app_js
     assert "loadQuestionMatrix" in app_js
     assert "renderMatrixSummary" in app_js
     assert "renderQuestionMatrix(payload)" in app_js
+    assert ".matrix-actions" in styles_css
     assert ".matrix-summary" in styles_css
     assert ".matrix-cell.blank" in styles_css
 
@@ -181,6 +187,110 @@ def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_p
     assert payload["rows"][0]["cells"]["citations"]["status"] == "pass"
     assert payload["rows"][0]["cells"]["terms"]["status"] == "fail"
     assert payload["rows"][0]["cells"]["answer"]["status"] == "blank"
+
+
+def test_question_matrix_job_runs_active_bank_with_llm_answer_judge(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    dataset_path.write_text('{"case_id":"case-1","query":"q"}\n', encoding="utf-8")
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "datasets": [{"path": "test_reports/dataset.jsonl", "status": "promoted", "total_questions": 1}],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    calls = []
+
+    class ImmediateThread:
+        def __init__(self, target, args, daemon):
+            self.target = target
+            self.args = args
+            self.daemon = daemon
+
+        def start(self):
+            self.target(*self.args)
+
+    class Completed:
+        returncode = 0
+        stdout = "{}"
+        stderr = ""
+
+    def fake_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        return Completed()
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "Thread", ImmediateThread)
+    monkeypatch.setattr(ui_server.subprocess, "run", fake_run)
+    ui_server.MATRIX_JOBS.clear()
+
+    job = ui_server._start_question_matrix_job({"mode": "column", "column": "answer", "use_model_judge": True})
+
+    assert job["status"] == "completed"
+    assert job["response_mode"] == "answer_with_citations"
+    assert job["use_model_judge"] is True
+    assert len(calls) == 1
+    cmd = calls[0][0]
+    assert "--response-mode" in cmd
+    assert cmd[cmd.index("--response-mode") + 1] == "answer_with_citations"
+    assert "--use-llm-answer-judge" in cmd
+
+
+def test_question_matrix_retrieval_column_uses_retrieval_only(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    dataset_path.write_text('{"case_id":"case-1","query":"q"}\n', encoding="utf-8")
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "datasets": [{"path": "test_reports/dataset.jsonl", "status": "promoted", "total_questions": 1}],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    calls = []
+
+    class ImmediateThread:
+        def __init__(self, target, args, daemon):
+            self.target = target
+            self.args = args
+            self.daemon = daemon
+
+        def start(self):
+            self.target(*self.args)
+
+    class Completed:
+        returncode = 0
+        stdout = "{}"
+        stderr = ""
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "Thread", ImmediateThread)
+    monkeypatch.setattr(ui_server.subprocess, "run", lambda cmd, **kwargs: calls.append((cmd, kwargs)) or Completed())
+    ui_server.MATRIX_JOBS.clear()
+
+    job = ui_server._start_question_matrix_job({"mode": "column", "column": "retrieval", "use_model_judge": True})
+
+    assert job["status"] == "completed"
+    assert job["response_mode"] == "retrieval_only"
+    assert job["use_model_judge"] is False
+    cmd = calls[0][0]
+    assert cmd[cmd.index("--response-mode") + 1] == "retrieval_only"
+    assert "--use-llm-answer-judge" not in cmd
 
 
 def test_api_proxy_keeps_manuals_rag_same_origin(monkeypatch):

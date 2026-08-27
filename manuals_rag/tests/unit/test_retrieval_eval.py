@@ -408,6 +408,57 @@ def test_answer_response_scoring_rejects_cases_without_scorable_answer_terms():
     assert scored["failure_reasons"] == ["expected_terms_missing"]
 
 
+def test_answer_response_scoring_can_use_llm_required_information_judge(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-command-error-flag",
+        query="Which state should the command error tag display when assigned?",
+        source_document_id="doc-ljx",
+        document_version_id="ver-ljx",
+        source_chunk_id="chunk-command-error",
+        source_title="LJ-X8000",
+        source_filename="ljx.pdf",
+        chunk_type="procedure_record",
+        section_path="Command execution",
+        page_from=43,
+        page_to=43,
+        expected_terms=["check", "whether", "ljx3d", "i.data"],
+        expected_snippet=(
+            "Check whether the tag (LJX3D: I.Data[0].1) to which the Command error "
+            "flag has been assigned is ON or OFF."
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_model": "LJ-X8000"},
+    )
+
+    def fake_chat_json(**kwargs):
+        return (
+            {
+                "contains_required_information": True,
+                "missing_information": [],
+                "reason": "The answer states the required ON/OFF state.",
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.chat_json", fake_chat_json)
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The command error tag should display ON when the command fails or processing fails.",
+            "citations": [{"document_id": "doc-ljx", "chunk_id": "chunk-command-error", "pages": [43]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is True
+    assert scored["term_check"]["llm_judged"] is True
+    assert scored["llm_required_information"]["passed"] is True
+
+
 def test_answer_response_scoring_requires_all_multi_step_documents():
     case = RetrievalEvalCase(
         case_id="case-1",
@@ -1296,7 +1347,7 @@ def test_large_retrieval_eval_scores_answer_against_current_search_results(monke
     }
     calls = []
 
-    def _score_answer_response(eval_case, answer_payload, evaluation, retrieved_results):
+    def _score_answer_response(eval_case, answer_payload, evaluation, retrieved_results, **kwargs):
         calls.append(retrieved_results)
         return {"passed": True}
 
