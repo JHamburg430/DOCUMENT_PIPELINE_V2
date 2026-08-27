@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-27T05:00:54Z",
+  "updated_at": "2026-08-27T05:35:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -998,18 +998,35 @@
         },
         "quality_review": "Manual source review repaired live app run aa4d2bdc question 4 by adding the missing CV-X482 and grayscale-image constraints in realistic user wording while preserving the same source-backed expected evidence.",
         "notes": "retrieval_eval_20260826_222558: 1/1 retrieval and 1/1 actual HTTP API answer. Original live-app question remains diagnostic dataset/scoring false-negative evidence because the visible question was broader than the hidden CV-X482/grayscale expectation."
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260827_0535_contextual_row14_repair.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260827_053144.json",
+        "created_at": "2026-08-27T05:35:00Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "manual_contextual_row14_source_scope_repair",
+        "status": "exploratory_repair_replaces_diagnostic_original_row14",
+        "supersedes": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl row 14 only",
+        "total_questions": 1,
+        "single_step_questions": 0,
+        "multi_step_questions": 1,
+        "by_chunk_type": {
+          "procedure_record": 1
+        },
+        "quality_review": "Manual source review repaired contextual row 14 by adding the setup/example-value scope needed to distinguish the expected Easy Configuration evidence from other valid LJ-X8000 EtherNet/IP troubleshooting evidence.",
+        "notes": "retrieval_eval_20260827_053126 passed 1/1 direct retrieval at rank 1; retrieval_eval_20260827_053144 passed 1/1 actual HTTP API answer with expected setup-guide citation. The original broad row-14 question remains diagnostic, not a production retrieval miss."
       }
     ],
     "failure_categories": {},
     "current_failure_categories": {},
-    "current_retrieval_failure_source": "Full curated cross-document v2 is now green in retrieval_eval_20260827_042612 direct retrieval after the row-code coverage fix; contextual row 14 remains the next separate retrieval-gap target.",
+    "current_retrieval_failure_source": "Full curated cross-document v2 is green in retrieval_eval_20260827_042612, and contextual row 14 is repaired by source-scoped dataset retrieval_eval_20260827_053144; no current retrieval failure is promoted from the ambiguous original row.",
     "answer_current_failure_categories": {
       "expected_document_not_cited_or_used": 4,
       "retrieval_not_passed": 4,
       "expected_terms_missing": 3
     },
-    "next_target": "Address contextual row 14 as the next separate retrieval target, then continue validated answer rotations only with actual API payload scoring and JSONL citation inspection. Preserve full curated cross-document v2 as green retrieval evidence from retrieval_eval_20260827_042612, preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, keep the LLM answer judge diagnostic-only/opt-in, and do not reintroduce citation-pruning retention or relation-unsafe bag-of-words support checks.",
-    "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers from earlier rotations due prior retrieval/context misses; the full curated cross-document v2 retrieval bank is now green at 10/10 direct retrieval in retrieval_eval_20260827_042612, but this run is retrieval-only and does not update answer-grounding pass rates. Validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 remain 6/6 answers; curated single-step retrieval_eval_20260826_035548 remains 2/2; the fully reviewed contextual procedure slice rows 1-20 remains 19/20 actual API answers, with contextual row 14 still separate retrieval-gap evidence. Sibling troubleshooting rows 1-14 remain 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 16 and 17 remain clean from inspected chunk-supported evidence in retrieval_eval_20260827_020233; row 15 from retrieval_eval_20260827_020233 remains diagnostic/source-context evidence because its cited chunk content does not directly contain the expected usable-trigger-signal corrective action. Rows 18-20 remain clean only under inspected source-supported evidence from retrieval_eval_20260827_001132/row-20 repaired evidence. The partial-claim citation-pruning bug class remains contained by conservative fallback. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only; repaired case retrieval_eval_20260826_222558 adds CV-X482/grayscale constraints and passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
+    "next_target": "Continue validated answer rotations only with actual API payload scoring and JSONL citation inspection, while preserving row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, keeping the LLM answer judge diagnostic-only/opt-in, and not reintroducing citation-pruning retention or relation-unsafe bag-of-words support checks.",
+    "answer_grounding_status": "Actual HTTP API answer evidence includes repaired contextual row 14 at 1/1 in retrieval_eval_20260827_053144 after source review showed the original broad row-14 question was diagnostic/ambiguous; contextual procedure rows 1-20 now have clean answer coverage only through the repaired row-14 case and prior inspected rotations. Full curated cross-document v2 retrieval remains green at 10/10 in retrieval_eval_20260827_042612, but that run is retrieval-only. Validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 remain 6/6 answers; curated single-step retrieval_eval_20260826_035548 remains 2/2; sibling troubleshooting rows 1-14 remain 12/14 user-visible API answers with rows 12 and 13 failing; rows 16 and 17 remain clean from inspected chunk-supported evidence, while row 15 from retrieval_eval_20260827_020233 remains diagnostic/source-context evidence. Rows 18-20 remain clean only under inspected source-supported evidence from retrieval_eval_20260827_001132/row-20 repaired evidence. The partial-claim citation-pruning bug class remains contained by conservative fallback. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only; repaired case retrieval_eval_20260826_222558 passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
     "answer_grounding_rotation": {
       "scope": "citation_fidelity_reclassification_for_retrieval_eval_20260827_020233_rows_15_17",
       "status": "row_15_reclassified_diagnostic_source_context_rows_16_17_clean_chunk_supported",
@@ -1162,6 +1179,11 @@
         ],
         "reason": "diagnostic_source_context_only_cited_chunk_content_lacks_expected_usable_trigger_remedy",
         "guardrail": "2026-08-27T02:12:42Z and 2026-08-27T02:41:22Z needs_fix"
+      },
+      {
+        "run_id": "retrieval_eval_20260827_052906",
+        "scope": "contextual procedure row 14 original broad wording",
+        "reason": "diagnostic-only source-scope ambiguity evidence; alternate LJ-X8000 manuals answer the literal query, while repaired row retrieval_eval_20260827_053144 supplies source-scoped Easy Configuration example coverage"
       }
     ],
     "unresolved_guardrail_findings": [
@@ -1311,7 +1333,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-27T04:29:00Z",
+    "updated_at": "2026-08-27T05:35:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -1436,6 +1458,41 @@
       ],
       "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
       "remaining": "Contextual row 14 remains separate candidate-miss evidence; answer rotations still require actual API payload scoring and JSONL citation inspection."
+    },
+    "latest_contextual_row14_repair": {
+      "scope": "contextual_procedure_row14_ljx8000_ethernetip_setup_not_connected",
+      "classification": "dataset_scoring_false_negative_not_production_retrieval_miss_for_original_question",
+      "original_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "original_case_index": 14,
+      "original_case_id": "7aaa0e2c-4919-59cf-877a-8f665bafacaf::contextual_multi_step::14",
+      "original_query": "For LJ-X8000 EtherNet/IP setup, what should I check if cyclic communication status shows Not Connected?",
+      "original_diagnostic_run": "retrieval_eval_20260827_052906",
+      "original_diagnostic_result": "0/1 direct retrieval; top results answered the literal broad LJ-X8000 EtherNet/IP Not Connected question from other LJ-X8000/LJ-S manuals, while the hidden expected source required the Easy Configuration setup example and exact setting-example values.",
+      "reason": "The original visible question did not uniquely ask for the Easy Configuration/setup-example evidence. Source review showed the expected chunk specifically says to check details in 1.1 Connecting Devices again and use exact values from the setting examples in this document, while alternate LJ-X8000 manual chunks directly support broader troubleshooting checks for the literal question.",
+      "repaired_dataset": "test_reports/retrieval_eval_dataset_20260827_0535_contextual_row14_repair.jsonl",
+      "repaired_query": "For LJ-X8000 EtherNet/IP setup using the Easy Configuration example, if Cyclic Communication Status is Not Connected, what connection details should be checked and what values should be used?",
+      "repaired_expected_evidence": [
+        "5e2de0a8-a30b-5e6c-abd2-eca16fdd30b7",
+        "7aaa0e2c-4919-59cf-877a-8f665bafacaf"
+      ],
+      "direct_retrieval_run": {
+        "run_id": "retrieval_eval_20260827_053126",
+        "summary": "test_reports/retrieval_eval_summary_20260827_053126.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260827_053126.json",
+        "results": "test_reports/retrieval_eval_results_20260827_053126.jsonl",
+        "result": "1/1 direct retrieval passed at rank 1; candidate recall 100%; metadata document selection found expected setup-guide document at rank 5."
+      },
+      "actual_http_answer_run": {
+        "run_id": "retrieval_eval_20260827_053144",
+        "summary": "test_reports/retrieval_eval_summary_20260827_053144.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260827_053144.json",
+        "results": "test_reports/retrieval_eval_results_20260827_053144.jsonl",
+        "result": "1/1 retrieval and 1/1 actual HTTP API answer passed; answer_source api; fallback 0; answer latency 61.824s.",
+        "citation_inspection": "The API cited returned section-window chunk eba458c3-f748-5577-8129-166b7943327c from the expected setup-guide document with quote_span null. The cited chunk content contains the Not Connected check, the instruction to recheck 1.1 Connecting Devices, and the exact-values-from-setting-examples requirement, plus the Controlling the Image Capture Timing context."
+      },
+      "active_count_impact": "one-for-one contextual row-14 repair; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
+      "guardrail_handling": "Addresses the latest guardrail target to keep contextual row 14 separate. The original row remains diagnostic under its broad wording; the repaired user-style source-scoped row is the clean evidence.",
+      "updated_at": "2026-08-27T05:35:00Z"
     }
   },
   "latest_false_negative_repair": {
@@ -7293,8 +7350,8 @@
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     }
   },
-  "next_target": "Address contextual row 14 as the next separate retrieval target, then continue validated answer rotations only with actual API payload scoring and JSONL citation inspection. Preserve full curated cross-document v2 as green retrieval evidence from retrieval_eval_20260827_042612, preserve row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, keep the LLM answer judge diagnostic-only/opt-in, and do not reintroduce citation-pruning retention or relation-unsafe bag-of-words support checks.",
-  "current_retrieval_failure_source": "Full curated cross-document v2 is now green in retrieval_eval_20260827_042612 direct retrieval after the row-code coverage fix; contextual row 14 remains the next separate retrieval-gap target.",
+  "next_target": "Continue validated answer rotations only with actual API payload scoring and JSONL citation inspection, while preserving row 15 from retrieval_eval_20260827_020233 as diagnostic/source-context evidence, keeping the LLM answer judge diagnostic-only/opt-in, and not reintroducing citation-pruning retention or relation-unsafe bag-of-words support checks.",
+  "current_retrieval_failure_source": "Full curated cross-document v2 is green in retrieval_eval_20260827_042612, and contextual row 14 is repaired by source-scoped dataset retrieval_eval_20260827_053144; no current retrieval failure is promoted from the ambiguous original row.",
   "current_failure_categories": {},
   "failure_categories": {},
   "diagnostics": [
@@ -7582,7 +7639,7 @@
     "retrieval_not_passed": 4,
     "expected_terms_missing": 3
   },
-  "answer_grounding_status": "Actual HTTP API answer evidence includes curated cross-document v2 cases 5-10 at 3/6 answers from earlier rotations due prior retrieval/context misses; the full curated cross-document v2 retrieval bank is now green at 10/10 direct retrieval in retrieval_eval_20260827_042612, but this run is retrieval-only and does not update answer-grounding pass rates. Validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 remain 6/6 answers; curated single-step retrieval_eval_20260826_035548 remains 2/2; the fully reviewed contextual procedure slice rows 1-20 remains 19/20 actual API answers, with contextual row 14 still separate retrieval-gap evidence. Sibling troubleshooting rows 1-14 remain 12/14 user-visible API answers, with rows 12 and 13 failing. Rows 16 and 17 remain clean from inspected chunk-supported evidence in retrieval_eval_20260827_020233; row 15 from retrieval_eval_20260827_020233 remains diagnostic/source-context evidence because its cited chunk content does not directly contain the expected usable-trigger-signal corrective action. Rows 18-20 remain clean only under inspected source-supported evidence from retrieval_eval_20260827_001132/row-20 repaired evidence. The partial-claim citation-pruning bug class remains contained by conservative fallback. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only; repaired case retrieval_eval_20260826_222558 adds CV-X482/grayscale constraints and passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
+  "answer_grounding_status": "Actual HTTP API answer evidence includes repaired contextual row 14 at 1/1 in retrieval_eval_20260827_053144 after source review showed the original broad row-14 question was diagnostic/ambiguous; contextual procedure rows 1-20 now have clean answer coverage only through the repaired row-14 case and prior inspected rotations. Full curated cross-document v2 retrieval remains green at 10/10 in retrieval_eval_20260827_042612, but that run is retrieval-only. Validated non-cross-document rotations retrieval_eval_20260826_022437/022513/022635 remain 6/6 answers; curated single-step retrieval_eval_20260826_035548 remains 2/2; sibling troubleshooting rows 1-14 remain 12/14 user-visible API answers with rows 12 and 13 failing; rows 16 and 17 remain clean from inspected chunk-supported evidence, while row 15 from retrieval_eval_20260827_020233 remains diagnostic/source-context evidence. Rows 18-20 remain clean only under inspected source-supported evidence from retrieval_eval_20260827_001132/row-20 repaired evidence. The partial-claim citation-pruning bug class remains contained by conservative fallback. Live-app false-negative containment: aa4d2bdc question 4 is diagnostic-only; repaired case retrieval_eval_20260826_222558 passed 1/1 retrieval and 1/1 actual HTTP API answer with CV-X482 page-1056 citation.",
   "answer_grounding_rotation": {
     "scope": "citation_fidelity_reclassification_for_retrieval_eval_20260827_020233_rows_15_17",
     "status": "row_15_reclassified_diagnostic_source_context_rows_16_17_clean_chunk_supported",
@@ -7700,13 +7757,48 @@
       "scope": "newly rephrased contextual rows 3-4",
       "result": "2/2 retrieval and 2/2 actual HTTP API answers passed; answer_sources api:2; fallback 0"
     },
-    "remaining": "Contextual rows 1-20 have now been rotated through actual HTTP API answer scoring after full-slice review. Rows 1-13 and 15-20 passed; row 14 remains separate retrieval candidate-miss evidence and should not be counted as an answer-generation failure.",
+    "remaining": "Contextual rows 1-20 have now been rotated through actual HTTP API answer scoring after full-slice review, with row 14 repaired by a source-scoped user-style question in retrieval_eval_20260827_053144. The original row-14 wording remains diagnostic/ambiguous and should not be used as a production retrieval failure.",
     "actual_api_answer_rotation_continued": {
       "run_id": "retrieval_eval_20260826_065345",
       "summary": "test_reports/retrieval_eval_summary_20260826_065345.json",
       "manifest": "test_reports/retrieval_eval_manifest_20260826_065345.json",
       "scope": "repaired contextual rows 11-12",
       "result": "2/2 retrieval and 2/2 actual HTTP API answers passed; answer_sources api:2; fallback 0"
+    },
+    "row14_repair": {
+      "scope": "contextual_procedure_row14_ljx8000_ethernetip_setup_not_connected",
+      "classification": "dataset_scoring_false_negative_not_production_retrieval_miss_for_original_question",
+      "original_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "original_case_index": 14,
+      "original_case_id": "7aaa0e2c-4919-59cf-877a-8f665bafacaf::contextual_multi_step::14",
+      "original_query": "For LJ-X8000 EtherNet/IP setup, what should I check if cyclic communication status shows Not Connected?",
+      "original_diagnostic_run": "retrieval_eval_20260827_052906",
+      "original_diagnostic_result": "0/1 direct retrieval; top results answered the literal broad LJ-X8000 EtherNet/IP Not Connected question from other LJ-X8000/LJ-S manuals, while the hidden expected source required the Easy Configuration setup example and exact setting-example values.",
+      "reason": "The original visible question did not uniquely ask for the Easy Configuration/setup-example evidence. Source review showed the expected chunk specifically says to check details in 1.1 Connecting Devices again and use exact values from the setting examples in this document, while alternate LJ-X8000 manual chunks directly support broader troubleshooting checks for the literal question.",
+      "repaired_dataset": "test_reports/retrieval_eval_dataset_20260827_0535_contextual_row14_repair.jsonl",
+      "repaired_query": "For LJ-X8000 EtherNet/IP setup using the Easy Configuration example, if Cyclic Communication Status is Not Connected, what connection details should be checked and what values should be used?",
+      "repaired_expected_evidence": [
+        "5e2de0a8-a30b-5e6c-abd2-eca16fdd30b7",
+        "7aaa0e2c-4919-59cf-877a-8f665bafacaf"
+      ],
+      "direct_retrieval_run": {
+        "run_id": "retrieval_eval_20260827_053126",
+        "summary": "test_reports/retrieval_eval_summary_20260827_053126.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260827_053126.json",
+        "results": "test_reports/retrieval_eval_results_20260827_053126.jsonl",
+        "result": "1/1 direct retrieval passed at rank 1; candidate recall 100%; metadata document selection found expected setup-guide document at rank 5."
+      },
+      "actual_http_answer_run": {
+        "run_id": "retrieval_eval_20260827_053144",
+        "summary": "test_reports/retrieval_eval_summary_20260827_053144.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260827_053144.json",
+        "results": "test_reports/retrieval_eval_results_20260827_053144.jsonl",
+        "result": "1/1 retrieval and 1/1 actual HTTP API answer passed; answer_source api; fallback 0; answer latency 61.824s.",
+        "citation_inspection": "The API cited returned section-window chunk eba458c3-f748-5577-8129-166b7943327c from the expected setup-guide document with quote_span null. The cited chunk content contains the Not Connected check, the instruction to recheck 1.1 Connecting Devices, and the exact-values-from-setting-examples requirement, plus the Controlling the Image Capture Timing context."
+      },
+      "active_count_impact": "one-for-one contextual row-14 repair; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
+      "guardrail_handling": "Addresses the latest guardrail target to keep contextual row 14 separate. The original row remains diagnostic under its broad wording; the repaired user-style source-scoped row is the clean evidence.",
+      "updated_at": "2026-08-27T05:35:00Z"
     }
   },
   "answer_grounding_contextual_rows_15_16": {
@@ -8102,6 +8194,11 @@
       ],
       "reason": "diagnostic_source_context_only_cited_chunk_content_lacks_expected_usable_trigger_remedy",
       "guardrail": "2026-08-27T02:12:42Z and 2026-08-27T02:41:22Z needs_fix"
+    },
+    {
+      "run_id": "retrieval_eval_20260827_052906",
+      "scope": "contextual procedure row 14 original broad wording",
+      "reason": "diagnostic-only source-scope ambiguity evidence; alternate LJ-X8000 manuals answer the literal query, while repaired row retrieval_eval_20260827_053144 supplies source-scoped Easy Configuration example coverage"
     }
   ],
   "unresolved_guardrail_findings": [
@@ -8319,5 +8416,40 @@
     ],
     "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
     "remaining": "Contextual row 14 remains separate candidate-miss evidence; answer rotations still require actual API payload scoring and JSONL citation inspection."
+  },
+  "latest_contextual_row14_repair": {
+    "scope": "contextual_procedure_row14_ljx8000_ethernetip_setup_not_connected",
+    "classification": "dataset_scoring_false_negative_not_production_retrieval_miss_for_original_question",
+    "original_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+    "original_case_index": 14,
+    "original_case_id": "7aaa0e2c-4919-59cf-877a-8f665bafacaf::contextual_multi_step::14",
+    "original_query": "For LJ-X8000 EtherNet/IP setup, what should I check if cyclic communication status shows Not Connected?",
+    "original_diagnostic_run": "retrieval_eval_20260827_052906",
+    "original_diagnostic_result": "0/1 direct retrieval; top results answered the literal broad LJ-X8000 EtherNet/IP Not Connected question from other LJ-X8000/LJ-S manuals, while the hidden expected source required the Easy Configuration setup example and exact setting-example values.",
+    "reason": "The original visible question did not uniquely ask for the Easy Configuration/setup-example evidence. Source review showed the expected chunk specifically says to check details in 1.1 Connecting Devices again and use exact values from the setting examples in this document, while alternate LJ-X8000 manual chunks directly support broader troubleshooting checks for the literal question.",
+    "repaired_dataset": "test_reports/retrieval_eval_dataset_20260827_0535_contextual_row14_repair.jsonl",
+    "repaired_query": "For LJ-X8000 EtherNet/IP setup using the Easy Configuration example, if Cyclic Communication Status is Not Connected, what connection details should be checked and what values should be used?",
+    "repaired_expected_evidence": [
+      "5e2de0a8-a30b-5e6c-abd2-eca16fdd30b7",
+      "7aaa0e2c-4919-59cf-877a-8f665bafacaf"
+    ],
+    "direct_retrieval_run": {
+      "run_id": "retrieval_eval_20260827_053126",
+      "summary": "test_reports/retrieval_eval_summary_20260827_053126.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_053126.json",
+      "results": "test_reports/retrieval_eval_results_20260827_053126.jsonl",
+      "result": "1/1 direct retrieval passed at rank 1; candidate recall 100%; metadata document selection found expected setup-guide document at rank 5."
+    },
+    "actual_http_answer_run": {
+      "run_id": "retrieval_eval_20260827_053144",
+      "summary": "test_reports/retrieval_eval_summary_20260827_053144.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260827_053144.json",
+      "results": "test_reports/retrieval_eval_results_20260827_053144.jsonl",
+      "result": "1/1 retrieval and 1/1 actual HTTP API answer passed; answer_source api; fallback 0; answer latency 61.824s.",
+      "citation_inspection": "The API cited returned section-window chunk eba458c3-f748-5577-8129-166b7943327c from the expected setup-guide document with quote_span null. The cited chunk content contains the Not Connected check, the instruction to recheck 1.1 Connecting Devices, and the exact-values-from-setting-examples requirement, plus the Controlling the Image Capture Timing context."
+    },
+    "active_count_impact": "one-for-one contextual row-14 repair; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
+    "guardrail_handling": "Addresses the latest guardrail target to keep contextual row 14 separate. The original row remains diagnostic under its broad wording; the repaired user-style source-scoped row is the clean evidence.",
+    "updated_at": "2026-08-27T05:35:00Z"
   }
 }

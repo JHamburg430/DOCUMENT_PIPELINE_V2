@@ -30,6 +30,7 @@ def _minimal_manifest():
         "unresolved_guardrail_findings": ["source-first citation fidelity"],
         "current_retrieval_failure_source": "retrieval_eval_20260826_005723",
         "latest_cross_document_validation": {"run": "retrieval_eval_20260827_042612"},
+        "latest_contextual_row14_repair": {"run": "retrieval_eval_20260827_053144"},
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
         "failure_categories": retrieval_failures,
