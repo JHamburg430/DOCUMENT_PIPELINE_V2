@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-matrix-clear-results-1";
+const ASSET_VERSION = "20260827-matrix-run-history-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 const MATRIX_JOB_POLL_MS = 1000;
 
@@ -560,13 +560,26 @@ function renderMatrixJobStatus(job) {
   const judgeText = job.use_model_judge ? "model judge on" : "model judge off";
   const questionText = job.current_question_number ? `question ${job.current_question_number}` : "";
   const recoveredText = job.recovered ? "recovered after UI restart" : "";
+  const recentEvents = Array.isArray(job.events) ? job.events.slice(-6) : [];
   node.className = job.status === "failed" ? "error-box" : "empty-state";
   node.innerHTML = `
     <strong>${escapeHtml(modeLabel)} ${escapeHtml(job.status || "queued")}</strong>
     <span>${escapeHtml(`${completed}/${total} datasets | ${job.response_mode || ""} | ${judgeText}`)}</span>
     ${job.current_dataset ? `<small>${escapeHtml([job.current_dataset, questionText].filter(Boolean).join(" | "))}</small>` : ""}
+    ${job.event_log_path ? `<small>${escapeHtml(`history: ${job.event_log_path}`)}</small>` : ""}
     ${recoveredText ? `<small>${escapeHtml(recoveredText)}</small>` : ""}
     ${job.error ? `<small>${escapeHtml(job.error)}</small>` : ""}
+    ${recentEvents.length ? `
+      <ol class="matrix-event-tail">
+        ${recentEvents.map((event) => `
+          <li>
+            <span>${escapeHtml(event.timestamp || "")}</span>
+            <strong>${escapeHtml(event.event || "")}</strong>
+            <small>${escapeHtml([event.matrix_key || event.step, event.label || event.status, event.question_number ? `q${event.question_number}` : ""].filter(Boolean).join(" | "))}</small>
+          </li>
+        `).join("")}
+      </ol>
+    ` : ""}
   `;
   const busy = ["queued", "running", "stopping"].includes(job.status);
   setMatrixControlsBusy(busy);

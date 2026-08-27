@@ -115,6 +115,8 @@ def test_eval_matrix_view_is_available():
     assert "stopMatrixJob" in app_js
     assert "clearMatrixResults" in app_js
     assert "/local/question-matrix/clear" in app_js
+    assert "matrix-event-tail" in app_js
+    assert ".matrix-event-tail" in styles_css
     assert "current-run-cell" in app_js
     assert "loadQuestionMatrix" in app_js
     assert "renderMatrixSummary" in app_js
@@ -513,6 +515,7 @@ def test_question_matrix_clear_results_deletes_saved_outputs(monkeypatch, tmp_pa
         "retrieval_eval_results_20260101_000000.jsonl",
         "retrieval_eval_manifest_20260101_000000.json",
         "retrieval_eval_summary_20260101_000000.json",
+        "question_matrix_job_matrix-old_events.jsonl",
     ):
         (reports / filename).write_text("{}", encoding="utf-8")
     (reports / ".question_matrix_jobs.json").write_text('{"jobs": {"old": {"status": "completed"}}}', encoding="utf-8")
@@ -529,8 +532,8 @@ def test_question_matrix_clear_results_deletes_saved_outputs(monkeypatch, tmp_pa
         ui_server.MATRIX_PROCESSES.clear()
         ui_server.MATRIX_JOBS_LOADED = True
 
-    assert result["deleted"] == {"results": 1, "manifests": 1, "summaries": 1}
-    assert result["total_deleted"] == 3
+    assert result["deleted"] == {"results": 1, "manifests": 1, "summaries": 1, "job_events": 1}
+    assert result["total_deleted"] == 4
     assert keep.exists()
     assert not (reports / ".question_matrix_jobs.json").exists()
 
@@ -841,6 +844,8 @@ def test_query_debug_stream_stops_after_failed_retrieval(monkeypatch, tmp_path):
     assert "generate_answer" not in debug_result["completed_steps"]
     assert ui_server.MATRIX_JOBS["matrix-early"]["live_cells"]["case-1"]["assemble"]["status"] == "fail"
     assert ui_server.MATRIX_JOBS["matrix-early"]["live_cells"]["case-1"]["assemble"]["label"] == "NO"
+    assert ui_server.MATRIX_JOBS["matrix-early"]["live_cells"]["case-1"]["retrieval"]["status"] == "fail"
+    assert ui_server.MATRIX_JOBS["matrix-early"]["events"][-1]["event"] == "retrieval_scored"
     ui_server.MATRIX_JOBS.clear()
 
 
@@ -912,6 +917,9 @@ def test_query_debug_stream_preserves_accumulated_stage_samples(monkeypatch, tmp
     assert debug_result["step_timings_ms"] == {"assemble_context": 2}
     assert debug_result["stages"][0]["name"] == "assemble_context"
     assert debug_result["stages"][0]["samples"][0]["source_document_id"] == "doc-1"
+    assert ui_server.MATRIX_JOBS["matrix-stream"]["live_cells"]["case-1"]["retrieval"]["status"] == "pass"
+    assert any(event["event"] == "retrieval_scored" for event in ui_server.MATRIX_JOBS["matrix-stream"]["events"])
+    assert any(event["event"] == "query_stream_completed" for event in ui_server.MATRIX_JOBS["matrix-stream"]["events"])
     ui_server.MATRIX_JOBS.clear()
 
 

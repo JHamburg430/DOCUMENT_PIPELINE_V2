@@ -507,6 +507,27 @@ summary {
   overflow-wrap: anywhere;
 }
 
+.matrix-event-tail {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 0.78rem;
+}
+
+.matrix-event-tail li {
+  color: var(--muted);
+}
+
+.matrix-event-tail strong {
+  color: var(--ink);
+  margin: 0 5px;
+}
+
+.matrix-event-tail small {
+  color: var(--muted);
+}
+
 .progress-list {
   display: grid;
   gap: 6px;

@@ -35,6 +35,7 @@ MATRIX_JOBS: dict[str, dict] = {}
 MATRIX_PROCESSES: dict[str, subprocess.Popen] = {}
 MATRIX_JOBS_LOCK = Lock()
 MATRIX_JOBS_LOADED = False
+MATRIX_JOB_EVENT_TAIL_LIMIT = 200
 ANSWER_STAGE_KEYS = {"relevance", "summaries", "generation", "answer_docs", "citations", "terms", "answer"}
 MATRIX_STAGE_KEYS = [
     "query_classify",
@@ -775,6 +776,41 @@ def _question_matrix_jobs_state_path() -> Path:
     return TEST_REPORTS_DIR / ".question_matrix_jobs.json"
 
 
+def _question_matrix_job_events_path(job_id: str) -> Path:
+    safe_job_id = re.sub(r"[^a-zA-Z0-9_.-]+", "_", job_id)
+    return TEST_REPORTS_DIR / f"question_matrix_job_{safe_job_id}_events.jsonl"
+
+
+def _record_question_matrix_job_event(job_id: str, event_type: str, **fields: object) -> None:
+    event = {
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "job_id": job_id,
+        "event": event_type,
+        **fields,
+    }
+    try:
+        path = _question_matrix_job_events_path(job_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, default=str) + "\n")
+    except OSError:
+        pass
+    with MATRIX_JOBS_LOCK:
+        job = MATRIX_JOBS.get(job_id)
+        if not job:
+            return
+        events = list(job.get("events") or [])
+        events.append(event)
+        job["events"] = events[-MATRIX_JOB_EVENT_TAIL_LIMIT:]
+        if "path" in locals():
+            try:
+                job["event_log_path"] = str(path.relative_to(MANUALS_ROOT))
+            except ValueError:
+                job["event_log_path"] = str(path)
+        job["updated_at"] = event["timestamp"]
+        _persist_question_matrix_jobs_locked()
+
+
 def _persist_question_matrix_jobs_locked() -> None:
     state_path = _question_matrix_jobs_state_path()
     try:
@@ -870,6 +906,7 @@ def _stop_question_matrix_job(job_id: str) -> dict:
         process.terminate()
     elif pid and _pid_is_running(pid):
         os.kill(pid, signal.SIGTERM)
+    _record_question_matrix_job_event(job_id, "stop_requested", pid=pid)
     return _question_matrix_job_snapshot(job_id)
 
 
@@ -883,6 +920,7 @@ def _clear_question_matrix_results() -> dict:
         "results": "retrieval_eval_results_*.jsonl",
         "manifests": "retrieval_eval_manifest_*.json",
         "summaries": "retrieval_eval_summary_*.json",
+        "job_events": "question_matrix_job_*_events.jsonl",
     }
     deleted: dict[str, int] = {key: 0 for key in patterns}
     for key, pattern in patterns.items():
@@ -968,6 +1006,8 @@ def _start_question_matrix_job(payload: dict) -> dict:
         "error": None,
         "cancel_requested": False,
         "live_cells": {},
+        "events": [],
+        "event_log_path": str(_question_matrix_job_events_path(job_id).relative_to(MANUALS_ROOT)),
         "commands": [],
         "outputs": [],
     }
@@ -982,12 +1022,14 @@ def _start_question_matrix_job(payload: dict) -> dict:
         _persist_question_matrix_jobs_locked()
     thread = Thread(target=_run_question_matrix_job, args=(job_id, datasets), daemon=True)
     thread.start()
+    _record_question_matrix_job_event(job_id, "job_queued", mode=mode, column=job["column"], response_mode=response_mode, dataset_count=len(datasets))
     return _question_matrix_job_snapshot(job_id)
 
 
 def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
     job = _question_matrix_job_snapshot(job_id)
     _update_question_matrix_job(job_id, status="running", started_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+    _record_question_matrix_job_event(job_id, "job_started", response_mode=job.get("response_mode"))
     try:
         for index, dataset in enumerate(datasets, start=1):
             _raise_if_question_matrix_job_cancelled(job_id)
@@ -999,6 +1041,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
                 _case_key(case): case_index
                 for case_index, case in enumerate(_read_jsonl(dataset_path), start=1)
             }
+            _record_question_matrix_job_event(job_id, "dataset_started", dataset=dataset_rel, dataset_index=index, question_count=len(case_numbers))
             if job["response_mode"] == "answer_with_citations":
                 _run_answer_matrix_dataset(job_id, dataset_rel, dataset_path, case_numbers, index)
                 continue
@@ -1050,6 +1093,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
                 MATRIX_JOBS[job_id]["pid"] = getattr(process, "pid", None)
                 MATRIX_JOBS[job_id]["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 _persist_question_matrix_jobs_locked()
+            _record_question_matrix_job_event(job_id, "subprocess_started", dataset=dataset_rel, pid=getattr(process, "pid", None), command=cmd)
             output_lines: list[str] = []
             assert process.stdout is not None
             for line in process.stdout:
@@ -1065,6 +1109,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
                         current_case_id=current_case_id,
                         current_question_number=case_numbers.get(current_case_id),
                     )
+                    _record_question_matrix_job_event(job_id, "case_progress", dataset=dataset_rel, case_id=current_case_id, question_number=case_numbers.get(current_case_id))
             returncode = process.wait(timeout=MATRIX_JOB_TIMEOUT_SECONDS)
             with MATRIX_JOBS_LOCK:
                 MATRIX_PROCESSES.pop(job_id, None)
@@ -1085,6 +1130,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
                 completed_datasets=index,
                 returncode=returncode,
             )
+            _record_question_matrix_job_event(job_id, "dataset_completed", dataset=dataset_rel, dataset_index=index, returncode=returncode)
             if returncode != 0:
                 raise RuntimeError(f"Benchmark failed for {dataset_rel} with exit code {returncode}")
         _update_question_matrix_job(
@@ -1095,6 +1141,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             current_question_number=None,
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
+        _record_question_matrix_job_event(job_id, "job_completed")
     except MatrixJobCancelled as error:
         with MATRIX_JOBS_LOCK:
             MATRIX_PROCESSES.pop(job_id, None)
@@ -1107,6 +1154,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             current_question_number=None,
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
+        _record_question_matrix_job_event(job_id, "job_cancelled", error=str(error))
     except Exception as error:
         with MATRIX_JOBS_LOCK:
             MATRIX_PROCESSES.pop(job_id, None)
@@ -1116,6 +1164,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             error=f"{error.__class__.__name__}: {error}",
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
+        _record_question_matrix_job_event(job_id, "job_failed", error=f"{error.__class__.__name__}: {error}")
 
 
 def _run_answer_matrix_dataset(
@@ -1147,6 +1196,14 @@ def _run_answer_matrix_dataset(
             _raise_if_question_matrix_job_cancelled(job_id)
             case_id = _case_key(case)
             eval_case = RetrievalEvalCase(**case)
+            _record_question_matrix_job_event(
+                job_id,
+                "case_started",
+                dataset=dataset_rel,
+                case_id=case_id,
+                question_number=case_numbers.get(case_id),
+                query=case.get("query"),
+            )
             _update_question_matrix_job(
                 job_id,
                 current_case_id=case_id,
@@ -1176,6 +1233,25 @@ def _run_answer_matrix_dataset(
                     top_results,
                     use_llm_required_info_judge=bool(job.get("use_model_judge")),
                 )
+                _record_question_matrix_job_event(
+                    job_id,
+                    "answer_scored",
+                    dataset=dataset_rel,
+                    case_id=case_id,
+                    question_number=case_numbers.get(case_id),
+                    answer_passed=bool(answer_evaluation.get("passed")),
+                    failure_reasons=answer_evaluation.get("failure_reasons") or [],
+                )
+            else:
+                _record_question_matrix_job_event(
+                    job_id,
+                    "answer_blocked",
+                    dataset=dataset_rel,
+                    case_id=case_id,
+                    question_number=case_numbers.get(case_id),
+                    failure_category=evaluation.get("failure_category"),
+                    failure_reasons=evaluation.get("failure_reasons") or [],
+                )
             record = {
                 "case": case,
                 "evaluation": evaluation,
@@ -1188,6 +1264,15 @@ def _run_answer_matrix_dataset(
             results.append(record)
             handle.write(json.dumps(record, default=str) + "\n")
             handle.flush()
+            _record_question_matrix_job_event(
+                job_id,
+                "case_completed",
+                dataset=dataset_rel,
+                case_id=case_id,
+                question_number=case_numbers.get(case_id),
+                retrieval_passed=bool(evaluation.get("passed")),
+                answer_passed=bool(answer_evaluation.get("passed")) if answer_evaluation else None,
+            )
     manifest_path.write_text(
         json.dumps(
             {
@@ -1212,6 +1297,7 @@ def _run_answer_matrix_dataset(
         completed_datasets=dataset_index,
         returncode=0,
     )
+    _record_question_matrix_job_event(job_id, "dataset_completed", dataset=dataset_rel, dataset_index=dataset_index, returncode=0, results_path=str(results_path))
 
 
 def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | None, query: str, *, eval_case: object) -> tuple[dict, dict | None]:
@@ -1247,6 +1333,14 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                     current_question_number=question_number,
                     current_stage_key=DEBUG_STEP_TO_MATRIX_KEY[step],
                 )
+                _record_question_matrix_job_event(
+                    job_id,
+                    "step_started",
+                    case_id=case_id,
+                    question_number=question_number,
+                    step=step,
+                    matrix_key=DEBUG_STEP_TO_MATRIX_KEY[step],
+                )
             if event.get("event") == "step_completed" and step in DEBUG_STEP_TO_MATRIX_KEY:
                 completed_steps = list(event.get("completed_steps") or completed_steps)
                 step_timings_ms = dict(event.get("step_timings_ms") or step_timings_ms)
@@ -1278,6 +1372,19 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                     live_cell.get("detail", "debug step completed"),
                     live_cell.get("label"),
                 )
+                _record_question_matrix_job_event(
+                    job_id,
+                    "step_completed",
+                    case_id=case_id,
+                    question_number=question_number,
+                    step=step,
+                    matrix_key=DEBUG_STEP_TO_MATRIX_KEY[step],
+                    status=live_cell.get("status", "pass"),
+                    label=live_cell.get("label"),
+                    detail=live_cell.get("detail"),
+                    sample_count=len((payload.get("samples") or payload.get("summaries") or []) if isinstance(payload, dict) else []),
+                    duration_ms=event.get("duration_ms"),
+                )
                 if step == "assemble_context":
                     top_results = _top_results_from_assemble_payload(payload)
                     evaluation = score_search_results(eval_case, top_results)
@@ -1297,6 +1404,25 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                             "evaluation": evaluation,
                         }
                     )["retrieval"]
+                    _update_question_matrix_live_cell(
+                        job_id,
+                        case_id,
+                        "retrieval",
+                        retrieval_cell.get("status", "blank"),
+                        retrieval_cell.get("detail", "retrieval scored"),
+                        retrieval_cell.get("label"),
+                    )
+                    _record_question_matrix_job_event(
+                        job_id,
+                        "retrieval_scored",
+                        case_id=case_id,
+                        question_number=question_number,
+                        status=retrieval_cell.get("status"),
+                        label=retrieval_cell.get("label"),
+                        detail=retrieval_cell.get("detail"),
+                        evaluation_passed=bool(evaluation.get("passed")),
+                        failure_category=evaluation.get("failure_category"),
+                    )
                     retrieval_passed = retrieval_cell.get("status") == "pass"
                     partial_debug_result["early_stopped"] = not retrieval_passed
                     partial_debug_result["early_stop_reason"] = (
@@ -1320,8 +1446,23 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                     result["step_timings_ms"] = step_timings_ms
                 if stages and "stages" not in result:
                     result["stages"] = stages
+                _record_question_matrix_job_event(
+                    job_id,
+                    "query_stream_completed",
+                    case_id=case_id,
+                    question_number=question_number,
+                    completed_steps=completed_steps,
+                    stage_count=len(stages),
+                )
                 return result, None
             if event.get("event") == "run_failed":
+                _record_question_matrix_job_event(
+                    job_id,
+                    "query_stream_failed",
+                    case_id=case_id,
+                    question_number=question_number,
+                    error=str(event.get("error") or "debug query run failed"),
+                )
                 raise RuntimeError(str(event.get("error") or "debug query run failed"))
     raise RuntimeError("debug query stream ended without run_completed")
 
