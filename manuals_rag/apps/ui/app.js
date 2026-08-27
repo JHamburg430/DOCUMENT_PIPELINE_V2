@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-answer-cell-scoring-1";
+const ASSET_VERSION = "20260827-live-matrix-detail-1";
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 const MATRIX_JOB_POLL_MS = 1000;
 
@@ -642,6 +642,11 @@ function renderMatrixDetail(row) {
     return;
   }
   const item = row.item || {};
+  const liveCells = state.matrixJob?.live_cells?.[item.key];
+  const liveEvents = Array.isArray(state.matrixJob?.events)
+    ? state.matrixJob.events.filter((event) => event.case_id === item.key).slice(-20)
+    : [];
+  const isLiveRow = Boolean(liveCells);
   const latestItem = item.latest_result
     ? {
         evaluation: item.latest_result.evaluation,
@@ -649,11 +654,35 @@ function renderMatrixDetail(row) {
         query_debug_result: item.latest_result.query_debug_result,
       }
     : item;
-  const retrieval = itemRetrievalEvaluation(latestItem);
-  const answerEval = latestItem.answer_evaluation || {};
+  const retrieval = isLiveRow
+    ? {
+        source: "live matrix cells",
+        retrieval: row.cells.retrieval || matrixCell("blank"),
+        dense: row.cells.dense || matrixCell("blank"),
+        sparse: row.cells.sparse || matrixCell("blank"),
+        special: row.cells.special || matrixCell("blank"),
+        fuse: row.cells.fuse || matrixCell("blank"),
+        rerank: row.cells.rerank || matrixCell("blank"),
+        context: row.cells.assemble || matrixCell("blank"),
+        doc_select: row.cells.metadata || matrixCell("blank"),
+      }
+    : itemRetrievalEvaluation(latestItem);
+  const answerEval = isLiveRow
+    ? {
+        source: "live matrix cells",
+        relevance: row.cells.relevance || matrixCell("blank"),
+        summaries: row.cells.summaries || matrixCell("blank"),
+        generation: row.cells.generation || matrixCell("blank"),
+        answer_docs: row.cells.answer_docs || matrixCell("blank"),
+        citations: row.cells.citations || matrixCell("blank"),
+        terms: row.cells.terms || matrixCell("blank"),
+        answer: row.cells.answer || matrixCell("blank"),
+      }
+    : latestItem.answer_evaluation || {};
   const debugResult = latestItem.query_debug_result || {};
   const pipelineStages = Array.isArray(debugResult.stages) ? debugResult.stages : [];
   const caseData = item.case || latestItem.case || {};
+  const latestRunText = item.latest_result?.run_id || (isLiveRow && state.matrixJob?.id ? `live ${state.matrixJob.id}` : "not scored yet");
   $("matrix-detail").innerHTML = `
     <section class="detail">
       <h3>Question ${row.index + 1}</h3>
@@ -661,7 +690,7 @@ function renderMatrixDetail(row) {
       <dl>
         <dt>Dataset</dt><dd>${escapeHtml(item.dataset || "")}</dd>
         <dt>Dataset #</dt><dd>${escapeHtml(item.question_number || "")}</dd>
-        <dt>Latest Run</dt><dd>${escapeHtml(item.latest_result?.run_id || "not scored yet")}</dd>
+        <dt>Latest Run</dt><dd>${escapeHtml(latestRunText)}</dd>
         <dt>Source</dt><dd>${escapeHtml(caseData.source_filename || "")}</dd>
       </dl>
       <div class="matrix-cell-details">
@@ -698,7 +727,23 @@ function renderMatrixDetail(row) {
             `).join("")}
           </tbody>
         </table>
-      ` : '<div class="empty-state">No debug pipeline stages were stored for this result.</div>'}
+      ` : isLiveRow ? "" : '<div class="empty-state">No debug pipeline stages were stored for this result.</div>'}
+      ${liveEvents.length ? `
+        <h4>Live Job Events</h4>
+        <table>
+          <thead><tr><th>Time</th><th>Event</th><th>Stage</th><th>Status</th></tr></thead>
+          <tbody>
+            ${liveEvents.map((event) => `
+              <tr>
+                <td data-label="Time">${escapeHtml(event.timestamp || "")}</td>
+                <td data-label="Event">${escapeHtml(event.event || "")}</td>
+                <td data-label="Stage">${escapeHtml(event.matrix_key || event.step || "")}</td>
+                <td data-label="Status">${escapeHtml([event.label || event.status, event.detail].filter(Boolean).join(" | "))}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      ` : isLiveRow ? '<div class="empty-state">No live events recorded for this row yet.</div>' : ""}
     </section>
   `;
 }
