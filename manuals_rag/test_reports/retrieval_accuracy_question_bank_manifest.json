@@ -2184,7 +2184,7 @@
         "timestamp": "2026-08-28T05:06:00Z",
         "guardrail_timestamp": "2026-08-28T04:30:16Z",
         "status": "addressed_with_partial_side_adverse_control_loaded_runtime_and_http_rerun",
-        "commit": null,
+        "commit": "6a0dd91",
         "guardrail_finding": "The staged row-8 validator treated fewer than two side-row matches as sufficient, allowing a comparison answer to retain an unsupported second-side troubleshooting claim when only one valid side citation and one unrelated/sibling citation were present.",
         "scoped_fix": "Comparison troubleshooting validation now fails when fewer side-specific evidence rows match the requested side clauses, and fallback evidence selection returns only the matched side evidence instead of padding with unrelated chunks.",
         "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'comparison_troubleshooting_fallback' -> 3 passed, 63 deselected, 5 warnings",
@@ -2222,14 +2222,15 @@
           "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null."
         },
         "scope": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix.",
-        "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause."
+        "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause.",
+        "commit_note": "Production answering fix, tests, tracking, and retrieval_eval_20260828_050015 artifacts were committed in 6a0dd91; this subsequent tracking-only commit records that hash."
       }
     },
     "latest_cross_document_row8_answer_partial_side_containment": {
       "timestamp": "2026-08-28T05:06:00Z",
       "guardrail_timestamp": "2026-08-28T04:30:16Z",
       "status": "addressed_with_partial_side_adverse_control_loaded_runtime_and_http_rerun",
-      "commit": null,
+      "commit": "6a0dd91",
       "guardrail_finding": "The staged row-8 validator treated fewer than two side-row matches as sufficient, allowing a comparison answer to retain an unsupported second-side troubleshooting claim when only one valid side citation and one unrelated/sibling citation were present.",
       "scoped_fix": "Comparison troubleshooting validation now fails when fewer side-specific evidence rows match the requested side clauses, and fallback evidence selection returns only the matched side evidence instead of padding with unrelated chunks.",
       "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'comparison_troubleshooting_fallback' -> 3 passed, 63 deselected, 5 warnings",
@@ -2267,7 +2268,8 @@
         "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null."
       },
       "scope": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix.",
-      "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause."
+      "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause.",
+      "commit_note": "Production answering fix, tests, tracking, and retrieval_eval_20260828_050015 artifacts were committed in 6a0dd91; this subsequent tracking-only commit records that hash."
     }
   },
   "latest_false_negative_repair": {
@@ -9998,7 +10000,7 @@
       "timestamp": "2026-08-28T05:06:00Z",
       "guardrail_timestamp": "2026-08-28T04:30:16Z",
       "status": "addressed_with_partial_side_adverse_control_loaded_runtime_and_http_rerun",
-      "commit": null,
+      "commit": "6a0dd91",
       "guardrail_finding": "The staged row-8 validator treated fewer than two side-row matches as sufficient, allowing a comparison answer to retain an unsupported second-side troubleshooting claim when only one valid side citation and one unrelated/sibling citation were present.",
       "scoped_fix": "Comparison troubleshooting validation now fails when fewer side-specific evidence rows match the requested side clauses, and fallback evidence selection returns only the matched side evidence instead of padding with unrelated chunks.",
       "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'comparison_troubleshooting_fallback' -> 3 passed, 63 deselected, 5 warnings",
@@ -10036,14 +10038,15 @@
         "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null."
       },
       "scope": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix.",
-      "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause."
+      "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause.",
+      "commit_note": "Production answering fix, tests, tracking, and retrieval_eval_20260828_050015 artifacts were committed in 6a0dd91; this subsequent tracking-only commit records that hash."
     }
   },
   "latest_cross_document_row8_answer_partial_side_containment": {
     "timestamp": "2026-08-28T05:06:00Z",
     "guardrail_timestamp": "2026-08-28T04:30:16Z",
     "status": "addressed_with_partial_side_adverse_control_loaded_runtime_and_http_rerun",
-    "commit": null,
+    "commit": "6a0dd91",
     "guardrail_finding": "The staged row-8 validator treated fewer than two side-row matches as sufficient, allowing a comparison answer to retain an unsupported second-side troubleshooting claim when only one valid side citation and one unrelated/sibling citation were present.",
     "scoped_fix": "Comparison troubleshooting validation now fails when fewer side-specific evidence rows match the requested side clauses, and fallback evidence selection returns only the matched side evidence instead of padding with unrelated chunks.",
     "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'comparison_troubleshooting_fallback' -> 3 passed, 63 deselected, 5 warnings",
@@ -10081,6 +10084,7 @@
       "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null."
     },
     "scope": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix.",
-    "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause."
+    "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause.",
+    "commit_note": "Production answering fix, tests, tracking, and retrieval_eval_20260828_050015 artifacts were committed in 6a0dd91; this subsequent tracking-only commit records that hash."
   }
 }
