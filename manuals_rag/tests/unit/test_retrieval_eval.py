@@ -1658,6 +1658,262 @@ def test_answer_response_scoring_rejects_composite_chunk_without_source_role_ter
     assert "expected_evidence_not_cited" in scored["failure_reasons"]
 
 
+def test_answer_response_scoring_rejects_composite_chunk_with_sibling_identifier_binding():
+    case = RetrievalEvalCase(
+        case_id="answer-composite-sibling-trigger",
+        query="For asynchronous trigger input, what happens when TRG1 is input for camera 1?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="detail-atomic",
+        source_title="Timing chart",
+        source_filename="Manual.pdf",
+        chunk_type="atomic_text",
+        section_path="Timing chart",
+        page_from=113,
+        page_to=113,
+        expected_terms=["trigger", "camera", "trg1", "measurement"],
+        expected_snippet="TRG1 for CAM 1 executes capture and measurement processing.",
+        generation_method="contextual_procedure_plus_section_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "detail-atomic",
+                "source_document_id": "doc-cvx",
+                "expected_terms": ["inputting", "trigger", "signal", "having"],
+                "snippet": (
+                    "By inputting the trigger signal having the same number as the camera number "
+                    "(TRG1 for CAM 1), capture and measurement processing is executed."
+                ),
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "TRG1 for CAM 1 executes capture and measurement processing.",
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "sibling-section", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-cvx"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "sibling-section",
+                "source_document_id": "doc-cvx",
+                "content": (
+                    "By inputting the trigger signal having the same number as the camera number "
+                    "(TRG2 for CAM 2), capture and measurement processing is executed."
+                ),
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+
+
+def test_answer_response_scoring_rejects_composite_chunk_with_swapped_numeric_bindings():
+    case = RetrievalEvalCase(
+        case_id="answer-composite-swapped-quantity",
+        query="What voltage and current should I set?",
+        source_document_id="doc-controller",
+        document_version_id="ver-controller",
+        source_chunk_id="setup-values",
+        source_title="Setup",
+        source_filename="Manual.pdf",
+        chunk_type="table_record",
+        section_path="Setup",
+        page_from=12,
+        page_to=12,
+        expected_terms=["voltage", "5", "current", "10"],
+        expected_snippet="Set voltage to 5 volts and current to 10 amps.",
+        generation_method="manual_curated_cross_document_v2_from_diagnostic_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "setup-values",
+                "source_document_id": "doc-controller",
+                "expected_terms": ["voltage", "5", "current", "10"],
+                "snippet": "Set voltage to 5 volts and current to 10 amps.",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Set voltage to 5 volts and current to 10 amps.",
+            "citations": [{"document_id": "doc-controller", "chunk_id": "nearby-values", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-controller"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "nearby-values",
+                "source_document_id": "doc-controller",
+                "content": "Set voltage to 10 volts and current to 5 amps.",
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+
+
+def test_answer_response_scoring_accepts_composite_chunk_with_correct_numeric_bindings():
+    case = RetrievalEvalCase(
+        case_id="answer-composite-correct-quantity",
+        query="What voltage and current should I set?",
+        source_document_id="doc-controller",
+        document_version_id="ver-controller",
+        source_chunk_id="setup-values",
+        source_title="Setup",
+        source_filename="Manual.pdf",
+        chunk_type="table_record",
+        section_path="Setup",
+        page_from=12,
+        page_to=12,
+        expected_terms=["voltage", "5", "current", "10"],
+        expected_snippet="Set voltage to 5 volts and current to 10 amps.",
+        generation_method="manual_curated_cross_document_v2_from_diagnostic_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "setup-values",
+                "source_document_id": "doc-controller",
+                "expected_terms": ["voltage", "5", "current", "10"],
+                "snippet": "Set voltage to 5 volts and current to 10 amps.",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Set voltage to 5 volts and current to 10 amps.",
+            "citations": [{"document_id": "doc-controller", "chunk_id": "combined-values", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-controller"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "combined-values",
+                "source_document_id": "doc-controller",
+                "content": "Set voltage to 5 volts and current to 10 amps.",
+            }
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert scored["evidence_citation_support"]["passed"] is True
+
+
+def test_answer_response_scoring_rejects_composite_chunk_with_polarity_inversion():
+    case = RetrievalEvalCase(
+        case_id="answer-composite-polarity",
+        query="Should encryption be enabled before exporting logs?",
+        source_document_id="doc-security",
+        document_version_id="ver-security",
+        source_chunk_id="encryption-row",
+        source_title="Security",
+        source_filename="Manual.pdf",
+        chunk_type="table_record",
+        section_path="Security",
+        page_from=4,
+        page_to=4,
+        expected_terms=["enable", "encryption", "exporting", "logs"],
+        expected_snippet="Enable encryption before exporting logs.",
+        generation_method="manual_curated_cross_document_v2_from_diagnostic_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "encryption-row",
+                "source_document_id": "doc-security",
+                "expected_terms": ["enable", "encryption", "exporting", "logs"],
+                "snippet": "Enable encryption before exporting logs.",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Enable encryption before exporting logs.",
+            "citations": [{"document_id": "doc-security", "chunk_id": "neighbor-security", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-security"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "neighbor-security",
+                "source_document_id": "doc-security",
+                "content": "Disable encryption before exporting logs.",
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+
+
+def test_answer_response_scoring_rejects_composite_chunk_with_cross_role_quantity_mixing():
+    case = RetrievalEvalCase(
+        case_id="answer-composite-cross-role-mixing",
+        query="What voltage and current are required?",
+        source_document_id="doc-controller",
+        document_version_id="ver-controller",
+        source_chunk_id="required-values",
+        source_title="Setup",
+        source_filename="Manual.pdf",
+        chunk_type="table_record",
+        section_path="Setup",
+        page_from=12,
+        page_to=12,
+        expected_terms=["voltage", "5", "current", "10"],
+        expected_snippet="Voltage is 5 volts. Current is 10 amps.",
+        generation_method="manual_curated_cross_document_v2_from_diagnostic_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "required-values",
+                "source_document_id": "doc-controller",
+                "expected_terms": ["voltage", "5", "current", "10"],
+                "snippet": "Voltage is 5 volts. Current is 10 amps.",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Voltage is 5 volts and current is 10 amps.",
+            "citations": [{"document_id": "doc-controller", "chunk_id": "mixed-values", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-controller"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "mixed-values",
+                "source_document_id": "doc-controller",
+                "content": "Voltage is 5 volts. Current is 5 amps. Backup current limit is 10 amps.",
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+
+
 def test_large_retrieval_eval_summarizes_answer_metrics():
     import importlib.util
     from pathlib import Path

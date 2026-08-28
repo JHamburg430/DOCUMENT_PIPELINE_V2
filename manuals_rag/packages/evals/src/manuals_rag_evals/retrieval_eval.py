@@ -159,6 +159,28 @@ ANSWER_SCORING_NUMBER_WORDS = {
     "twenty": "20",
 }
 
+ANSWER_SCORING_QUANTITY_RELATION_ROLE_TERMS = {
+    "angle",
+    "count",
+    "counts",
+    "current",
+    "distance",
+    "height",
+    "interval",
+    "limit",
+    "line",
+    "lines",
+    "overlap",
+    "overlapping",
+    "pressure",
+    "range",
+    "speed",
+    "temperature",
+    "total",
+    "voltage",
+    "width",
+}
+
 ANSWER_SCORING_QUANTITY_QUERY_TERMS = {
     "count",
     "counts",
@@ -2964,6 +2986,9 @@ def _citation_document_id(citation: dict[str, Any]) -> str:
 def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text: str) -> bool:
     text_lower = cited_text.lower()
     text_tokens = set(tokenize(text_lower))
+    binding_check = _expected_evidence_binding_check(item, cited_text)
+    if not binding_check["passed"]:
+        return False
     expected_terms = [str(term) for term in item.get("expected_terms") or [] if str(term).strip()]
     role_terms = [
         term
@@ -2987,6 +3012,140 @@ def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text:
         if _expected_term_matches_text(term, text_lower, text_tokens)
     ]
     return len(matched_snippet_terms) >= max(2, min(len(snippet_terms), len(snippet_terms) - 1))
+
+
+def _expected_evidence_binding_check(item: dict[str, Any], cited_text: str) -> dict[str, Any]:
+    source_text = " ".join(
+        str(value)
+        for value in [item.get("snippet"), " ".join(str(term) for term in item.get("expected_terms") or [])]
+        if value
+    )
+    cited_lower = cited_text.lower()
+    cited_tokens = set(tokenize(cited_lower))
+    missing_bindings = [
+        binding
+        for binding in _distinctive_binding_terms(source_text)
+        if not _expected_term_matches_text(binding, cited_lower, cited_tokens)
+    ]
+    contradictions = [
+        {"expected": expected, "opposing": opposing}
+        for expected, opposing in _polarity_binding_pairs(source_text)
+        if _expected_term_matches_text(opposing, cited_lower, cited_tokens)
+        and not _expected_term_matches_text(expected, cited_lower, cited_tokens)
+    ]
+    relation_errors = [
+        relation
+        for relation in _role_value_relations(source_text)
+        if not _role_value_relation_matches(relation, cited_text)
+    ]
+    return {
+        "passed": not missing_bindings and not contradictions and not relation_errors,
+        "missing_bindings": missing_bindings,
+        "contradictions": contradictions,
+        "relation_errors": relation_errors,
+    }
+
+
+def _distinctive_binding_terms(text: str) -> list[str]:
+    bindings: list[str] = []
+    seen: set[str] = set()
+
+    def add(term: str) -> None:
+        normalized = re.sub(r"\s+", " ", term.strip())
+        if not normalized:
+            return
+        key = normalized.lower()
+        if key in seen:
+            return
+        seen.add(key)
+        bindings.append(normalized)
+
+    for match in re.finditer(r"\b[A-Z]{2,}[A-Z0-9-]*\s+\d+(?:\.\d+)?\b", text):
+        add(match.group(0))
+    for match in re.finditer(r"\b[A-Z]{2,}[A-Z0-9-]*\d[A-Z0-9-]*\b", text):
+        add(match.group(0))
+    for match in re.finditer(r"\b\d+(?:\.\d+)?\s*(?:vdc|v|volts?|amps?|ma|a|lines?|mm|ms|%|hz|khz|mhz)\b", text, flags=re.I):
+        add(match.group(0))
+    return bindings
+
+
+def _polarity_binding_pairs(text: str) -> list[tuple[str, str]]:
+    pairs = [
+        ("enable", "disable"),
+        ("enabled", "disabled"),
+        ("required", "prohibited"),
+        ("allowed", "prohibited"),
+        ("permit", "prohibit"),
+        ("permitted", "prohibited"),
+        ("on", "off"),
+    ]
+    text_tokens = set(tokenize(text.lower()))
+    found: list[tuple[str, str]] = []
+    for left, right in pairs:
+        if left in text_tokens:
+            found.append((left, right))
+        if right in text_tokens:
+            found.append((right, left))
+    return found
+
+
+def _role_value_relations(text: str) -> list[tuple[str, str]]:
+    normalized = re.sub(r"\s+", " ", text)
+    relations: list[tuple[str, str]] = []
+    role_pattern = r"[A-Za-z][A-Za-z0-9 /_-]{0,40}?"
+    value_pattern = r"(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|\d+(?:\.\d+)?)\s*(?:vdc|v|volts?|amps?|ma|a|lines?|mm|ms|%|hz|khz|mhz)?"
+    patterns = [
+        rf"\b(?P<role>{role_pattern})\s+(?:is|are|was|were|to|:)\s+(?P<value>{value_pattern})\b",
+        rf"\b(?P<role>{role_pattern})\s+(?P<value>{value_pattern})\b",
+    ]
+    for pattern in patterns:
+        for match in re.finditer(pattern, normalized, flags=re.I):
+            role = normalize_text(match.group("role"))
+            value = normalize_text(match.group("value"))
+            role_tokens = [
+                token
+                for token in tokenize(role)
+                if token not in STOPWORDS and token not in GENERIC_ANCHORS and token not in ANSWER_SCORING_GENERIC_TERMS
+            ]
+            if not role_tokens or not value:
+                continue
+            if any(any(char.isdigit() for char in token) for token in role_tokens):
+                continue
+            if not set(role_tokens).intersection(ANSWER_SCORING_QUANTITY_RELATION_ROLE_TERMS):
+                continue
+            role_phrase = " ".join(role_tokens[-3:])
+            relation = (role_phrase, value)
+            if relation not in relations:
+                relations.append(relation)
+    return relations
+
+
+def _role_value_relation_matches(relation: tuple[str, str], cited_text: str) -> bool:
+    role, value = relation
+    role_tokens = [token for token in tokenize(role) if token]
+    value_tokens = _relation_value_tokens(value)
+    if not role_tokens or not value_tokens:
+        return True
+    role_pattern = r"\s+".join(re.escape(token) for token in role_tokens)
+    value_pattern = r"\s+".join(
+        rf"(?:{re.escape(token)}|{re.escape(word)})"
+        for token in value_tokens
+        for word, numeric in [(next((word for word, numeric in ANSWER_SCORING_NUMBER_WORDS.items() if numeric == token), token), token)]
+    )
+    bound_pattern = re.compile(
+        rf"\b{role_pattern}\b\s*(?:is|are|was|were|to|:)?\s*\b{value_pattern}\b",
+        flags=re.I,
+    )
+    for sentence in re.split(r"(?<=[.!?;])\s+|\n+", cited_text):
+        for clause in re.split(r"\s+\band\b\s+|[;,]", sentence, flags=re.I):
+            if bound_pattern.search(clause):
+                return True
+    return False
+
+
+def _relation_value_tokens(value: str) -> list[str]:
+    tokens = re.findall(r"\b\d+(?:\.\d+)?\b|\b[a-zA-Z][a-zA-Z0-9/%.-]*\b", value.lower())
+    return [token for token in tokens if token]
 
 
 def _expected_evidence_citation_support(

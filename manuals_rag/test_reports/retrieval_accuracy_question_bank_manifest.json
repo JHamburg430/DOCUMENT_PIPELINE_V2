@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-27T23:59:42Z",
+  "updated_at": "2026-08-28T00:39:10Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1023,8 +1023,8 @@
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 1
     },
-    "next_target": "Fix curated cross-document v2 row 6 answer evidence selection so the API answer cites and uses the returned CV-X Condition list and LJ-X8000 Standard Angle expected chunks, while preserving row 7 clean evidence from retrieval_eval_20260827_230123, contextual rows 15-16 clean evidence from retrieval_eval_20260827_235942, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
-    "answer_grounding_status": "Source-supported composite citation scoring repaired contextual rows 15-16: retrieval_eval_20260827_235942 passed 2/2 retrieval and 2/2 actual HTTP API answer grounding with fallback_validation telemetry preserved. The cited composite chunks directly contain the expected source-reviewed evidence roles, so retrieval_eval_20260827_232820 rows 15-16 are superseded as expected_evidence_not_cited failures. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}, limited to curated cross-document v2 row 6 from retrieval_eval_20260827_230123.",
+    "next_target": "Fix curated cross-document v2 row 6 answer evidence selection so the API answer cites and uses the returned CV-X Condition list and LJ-X8000 Standard Angle expected chunks, while preserving row 7 as content/citation-clean but fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, contextual rows 15-16 clean evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
+    "answer_grounding_status": "Composite citation scoring containment corrected the non-exact cited-chunk source-equivalence policy: sibling identifier bindings, swapped numeric role/value bindings, polarity/action inversion, and cross-role quantity mixing are rejected, while source-supported contextual rows 15-16 still pass. retrieval_eval_20260828_003910 passed 2/2 retrieval and 2/2 actual HTTP API answer grounding with fallback_validation telemetry preserved. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}, limited to curated cross-document v2 row 6 from retrieval_eval_20260827_230123.",
     "answer_grounding_rotation": {
       "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
@@ -1208,6 +1208,20 @@
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-28T00:21:02Z",
+        "severity": "needs_fix",
+        "finding": "Composite citation scoring accepted non-exact cited chunks with sibling identifier binding, and answer_grounding_cross_document_rows_6_7 was not protected by the deterministic manifest checker.",
+        "status": "addressed_this_run_relation_preserving_composite_controls_and_manifest_checker_pair",
+        "evidence": [
+          "Added adverse scorer controls for sibling identifier binding, swapped numeric bindings, polarity/action inversion, and cross-role quantity mixing.",
+          "Focused scorer/checker controls passed: 18 passed, 92 deselected.",
+          "Manifest checker now requires answer_grounding_cross_document_rows_6_7 and latest_composite_citation_scoring_containment at root and question_bank; explicit negative controls failed for missing/unequal cross-document rows 6-7 copies.",
+          "Actual HTTP rerun retrieval_eval_20260828_003910 passed contextual rows 15-16 at 2/2 retrieval and 2/2 answer grounding with fallback_validation 2/2.",
+          "Full unit gate passed: 399 passed, 59 warnings."
+        ],
+        "required_next_action": "Fix curated cross-document v2 row 6 expected_evidence_not_cited before optional answer rotations; preserve contextual rows 15-16 clean evidence from retrieval_eval_20260828_003910 and all prior diagnostics/exclusions."
+      },
       {
         "timestamp": "2026-08-27T23:25:00Z",
         "severity": "needs_fix",
@@ -1538,7 +1552,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-27T23:59:42Z",
+    "updated_at": "2026-08-28T00:39:10Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -1760,21 +1774,21 @@
     },
     "latest_contextual_quantity_answer_repair": {
       "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
-      "status": "contextual_rows_15_16_clean_after_source_supported_composite_citation_scoring",
-      "latest_run": "retrieval_eval_20260827_235942",
+      "status": "contextual_rows_15_16_clean_after_relation_preserving_composite_citation_scoring",
+      "latest_run": "retrieval_eval_20260828_003910",
       "previous_clean_run": "retrieval_eval_20260827_212947",
       "supersedes_failed_run": "retrieval_eval_20260827_195423",
       "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-      "summary": "test_reports/retrieval_eval_summary_20260827_235942.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_235942.json",
-      "results": "test_reports/retrieval_eval_results_20260827_235942.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_003910.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_003910.json",
+      "results": "test_reports/retrieval_eval_results_20260828_003910.jsonl",
       "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
       "query_offset": 14,
       "max_queries": 2,
       "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
-      "answer_result": "2/2 actual HTTP API answers passed with source-supported composite citation scoring and fallback_validation telemetry; answer_failure_reasons {}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_232820.jsonl. Row 15 and row 16 both contain the validation-fallback warning and normalized trace used_fallback=true/answer_source=fallback_validation. Row 15 cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78; row 16 cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9. Under the current exact expected-evidence citation scorer, both fail expected_evidence_not_cited and must not be treated as clean answer evidence.",
+      "answer_result": "2/2 actual HTTP API answers passed with relation-preserving composite citation scoring and fallback_validation telemetry; answer_failure_reasons {}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_003910.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains the LJ-V continuous/Total Number of Lines setup, Number of Lines 10, Number of Overlapping Lines Two lines, and explanatory 10/two overlap relation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains asynchronous trigger input and TRG1 for CAM 1 capture plus measurement-processing evidence. Both payloads include the validation-fallback warning and normalized _eval_trace used_fallback=true/answer_source=fallback_validation.",
       "runtime_load_evidence": {
         "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
         "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
@@ -1810,35 +1824,38 @@
       "previous_telemetry_inconsistent_run": "retrieval_eval_20260827_223414"
     },
     "answer_grounding_contextual_rows_15_16": {
-      "timestamp": "2026-08-27T23:59:42Z",
-      "status": "contextual_rows_15_16_clean_with_source_supported_composite_citations",
-      "scope": "eval answer-evidence citation scoring/tests plus actual HTTP answer rerun and tracking; no production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
-      "code_change": "Expected evidence citation support can now accept a different cited returned chunk only when that cited chunk directly contains source-reviewed expected evidence terms/snippet material. Same-document, same-token, or sibling overlap without the source role terms still fails.",
+      "timestamp": "2026-08-28T00:39:10Z",
+      "status": "contextual_rows_15_16_clean_after_relation_preserving_composite_citation_scoring",
+      "scope": "eval answer-evidence citation scoring, manifest consistency checker/tests, tracking, and actual HTTP answer rerun only; no production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
+      "code_change": "Non-exact cited composite chunks must preserve distinctive identifier bindings, polarity/action terms, and source role/value quantity relations before they can satisfy source-reviewed expected evidence. Code-like identifier phrases such as TRG1/CAM 1 are handled as bindings, while prose is not over-read as a quantity relation unless the role is a real measurable/spec role.",
       "latest_run": {
-        "run_id": "retrieval_eval_20260827_235942",
-        "dataset": "test_reports/retrieval_eval_dataset_20260827_235942.jsonl",
-        "results": "test_reports/retrieval_eval_results_20260827_235942.jsonl",
-        "summary": "test_reports/retrieval_eval_summary_20260827_235942.json",
+        "run_id": "retrieval_eval_20260828_003910",
+        "dataset": "test_reports/retrieval_eval_dataset_20260828_003910.jsonl",
+        "results": "test_reports/retrieval_eval_results_20260828_003910.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260828_003910.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260828_003910.json",
         "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
         "query_offset": 14,
         "max_queries": 2,
         "search_mode": "http",
         "response_mode": "answer_with_citations",
         "retrieval_result": "2/2 retrieval passed; pass@1 1/2 and pass@3/pass@5 2/2.",
-        "answer_result": "2/2 actual HTTP API answers passed with answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-        "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_235942.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains both expected source roles: Typical operations at trigger input for the LJ-V continuous/Total Number of Lines scenario and the 10 lines/two overlap lines explanation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains both expected source roles: Typical operations at asynchronous trigger input and the TRG1 for CAM 1 capture plus measurement-processing action. Both rows preserve validation-fallback telemetry as fallback_validation and no longer count as expected_evidence_not_cited failures under source-supported composite citation scoring."
+        "answer_result": "2/2 actual HTTP API answers passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+        "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_003910.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains the LJ-V continuous/Total Number of Lines setup, Number of Lines 10, Number of Overlapping Lines Two lines, and explanatory 10/two overlap relation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains asynchronous trigger input and TRG1 for CAM 1 capture plus measurement-processing evidence. Both payloads include the validation-fallback warning and normalized _eval_trace used_fallback=true/answer_source=fallback_validation."
       },
       "prior_diagnostic_runs": [
         "retrieval_eval_20260827_223414",
-        "retrieval_eval_20260827_232820"
+        "retrieval_eval_20260827_232820",
+        "retrieval_eval_20260828_003633"
       ],
       "controls": [
-        "Focused scorer controls passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'composite_chunk_with_source_evidence or composite_chunk_without_source_role_terms or expected_chunk_not_same_document_overlap or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 92 deselected.",
-        "Fresh actual HTTP answer rerun retrieval_eval_20260827_235942 passed 2/2 retrieval and 2/2 answer grounding with fallback_validation 2/2.",
-        "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 392 passed, 59 warnings."
+        "Focused scorer/checker controls: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_manifest_check.py -q -k 'composite_chunk or expected_chunk_not_same_document_overlap or cited_chunk_to_support_expected_evidence_role or manifest_checker' -> 18 passed, 92 deselected.",
+        "Composite adverse controls now reject sibling TRG2/CAM2 for expected TRG1/CAM1, swapped voltage/current values with identical tokens, enable/disable polarity inversion, and cross-role quantity mixing such as backup current limit borrowing the expected current value.",
+        "Manifest negative controls failed as required for missing root answer_grounding_cross_document_rows_6_7, missing question_bank.answer_grounding_cross_document_rows_6_7, and unequal copies.",
+        "Real manifest check: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+        "Full unit gate after final scorer adjustment: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 399 passed, 59 warnings."
       ],
-      "remaining": "Curated cross-document v2 row 6 remains the only current answer evidence/citation failure; it retrieves expected chunks but the API answer does not cite/use the Condition list and Standard Angle expected chunks.",
-      "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0."
+      "remaining": "Curated cross-document v2 row 6 remains the only current answer evidence/citation failure; fix answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks before optional answer rotations."
     },
     "latest_matrix_retrieval_guardrail_containment": {
       "timestamp": "2026-08-27T18:03:52-04:00",
@@ -1896,7 +1913,7 @@
       "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
       "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
       "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
-      "answer_result": "1/2 actual HTTP API answers passed under corrected scorer; answer_sources api:2; fallback 0; answer_failure_reasons {expected_evidence_not_cited: 1}.",
+      "answer_result": "Row 6 remains failed with expected_evidence_not_cited. Row 7 remains content/citation-clean, but after fallback telemetry normalization the old retrieval_eval_20260827_230123 source metrics must be read as fallback_validation for row 7 rather than direct api/no-fallback evidence.",
       "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
       "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
       "tests": [
@@ -1904,8 +1921,9 @@
         "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
         "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
       ],
-      "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains clean from retrieval_eval_20260827_230123.",
-      "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean"
+      "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but fallback-telemetry-normalized diagnostic/source evidence from retrieval_eval_20260827_230123.",
+      "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean",
+      "manifest_checker": "scripts/maintenance/check_retrieval_accuracy_manifest.py now requires answer_grounding_cross_document_rows_6_7 at both root and question_bank; missing-root, missing-question_bank, and unequal negative controls fail."
     },
     "latest_http_fallback_telemetry_containment": {
       "timestamp": "2026-08-27T23:28:20Z",
@@ -1945,6 +1963,36 @@
       },
       "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
       "remaining": "Fallback telemetry/source classification remains corrected. Contextual rows 15-16 are clean after source-supported composite citation scoring in retrieval_eval_20260827_235942; curated cross-document row 6 remains the only current answer evidence/citation failure."
+    },
+    "latest_composite_citation_scoring_containment": {
+      "timestamp": "2026-08-28T00:39:10Z",
+      "guardrail_finding": "2026-08-28T00:21:02Z guardrail review: source-supported composite citation scoring accepted a sibling identifier binding and answer_grounding_cross_document_rows_6_7 was not required by the manifest checker.",
+      "status": "addressed_with_relation_preserving_composite_controls_and_manifest_pair_check",
+      "scope": "eval answer-evidence citation scoring, manifest consistency checker/tests, tracking, and actual HTTP answer rerun only; no production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
+      "code_change": "Non-exact cited composite chunks must preserve distinctive identifier bindings, polarity/action terms, and source role/value quantity relations before they can satisfy source-reviewed expected evidence. Code-like identifier phrases such as TRG1/CAM 1 are handled as bindings, while prose is not over-read as a quantity relation unless the role is a real measurable/spec role.",
+      "controls": [
+        "Focused scorer/checker controls: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_manifest_check.py -q -k 'composite_chunk or expected_chunk_not_same_document_overlap or cited_chunk_to_support_expected_evidence_role or manifest_checker' -> 18 passed, 92 deselected.",
+        "Composite adverse controls now reject sibling TRG2/CAM2 for expected TRG1/CAM1, swapped voltage/current values with identical tokens, enable/disable polarity inversion, and cross-role quantity mixing such as backup current limit borrowing the expected current value.",
+        "Manifest negative controls failed as required for missing root answer_grounding_cross_document_rows_6_7, missing question_bank.answer_grounding_cross_document_rows_6_7, and unequal copies.",
+        "Real manifest check: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+        "Full unit gate after final scorer adjustment: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 399 passed, 59 warnings."
+      ],
+      "actual_http_rerun": {
+        "run_id": "retrieval_eval_20260828_003910",
+        "dataset": "test_reports/retrieval_eval_dataset_20260828_003910.jsonl",
+        "results": "test_reports/retrieval_eval_results_20260828_003910.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260828_003910.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260828_003910.json",
+        "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+        "query_offset": 14,
+        "max_queries": 2,
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "retrieval_result": "2/2 retrieval passed; pass@1 1/2 and pass@3/pass@5 2/2.",
+        "answer_result": "2/2 actual HTTP API answers passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+        "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_003910.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains the LJ-V continuous/Total Number of Lines setup, Number of Lines 10, Number of Overlapping Lines Two lines, and explanatory 10/two overlap relation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains asynchronous trigger input and TRG1 for CAM 1 capture plus measurement-processing evidence. Both payloads include the validation-fallback warning and normalized _eval_trace used_fallback=true/answer_source=fallback_validation."
+      },
+      "remaining": "Curated cross-document v2 row 6 remains the only current answer evidence/citation failure; fix answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks before optional answer rotations."
     }
   },
   "latest_false_negative_repair": {
@@ -7893,7 +7941,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Fix curated cross-document v2 row 6 answer evidence selection so the API answer cites and uses the returned CV-X Condition list and LJ-X8000 Standard Angle expected chunks, while preserving row 7 clean evidence from retrieval_eval_20260827_230123, contextual rows 15-16 clean evidence from retrieval_eval_20260827_235942, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
+  "next_target": "Fix curated cross-document v2 row 6 answer evidence selection so the API answer cites and uses the returned CV-X Condition list and LJ-X8000 Standard Angle expected chunks, while preserving row 7 as content/citation-clean but fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, contextual rows 15-16 clean evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -8180,7 +8228,7 @@
   "answer_current_failure_categories": {
     "expected_evidence_not_cited": 1
   },
-  "answer_grounding_status": "Source-supported composite citation scoring repaired contextual rows 15-16: retrieval_eval_20260827_235942 passed 2/2 retrieval and 2/2 actual HTTP API answer grounding with fallback_validation telemetry preserved. The cited composite chunks directly contain the expected source-reviewed evidence roles, so retrieval_eval_20260827_232820 rows 15-16 are superseded as expected_evidence_not_cited failures. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}, limited to curated cross-document v2 row 6 from retrieval_eval_20260827_230123.",
+  "answer_grounding_status": "Composite citation scoring containment corrected the non-exact cited-chunk source-equivalence policy: sibling identifier bindings, swapped numeric role/value bindings, polarity/action inversion, and cross-role quantity mixing are rejected, while source-supported contextual rows 15-16 still pass. retrieval_eval_20260828_003910 passed 2/2 retrieval and 2/2 actual HTTP API answer grounding with fallback_validation telemetry preserved. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}, limited to curated cross-document v2 row 6 from retrieval_eval_20260827_230123.",
   "answer_grounding_rotation": {
     "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
@@ -8323,35 +8371,38 @@
     }
   },
   "answer_grounding_contextual_rows_15_16": {
-    "timestamp": "2026-08-27T23:59:42Z",
-    "status": "contextual_rows_15_16_clean_with_source_supported_composite_citations",
-    "scope": "eval answer-evidence citation scoring/tests plus actual HTTP answer rerun and tracking; no production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
-    "code_change": "Expected evidence citation support can now accept a different cited returned chunk only when that cited chunk directly contains source-reviewed expected evidence terms/snippet material. Same-document, same-token, or sibling overlap without the source role terms still fails.",
+    "timestamp": "2026-08-28T00:39:10Z",
+    "status": "contextual_rows_15_16_clean_after_relation_preserving_composite_citation_scoring",
+    "scope": "eval answer-evidence citation scoring, manifest consistency checker/tests, tracking, and actual HTTP answer rerun only; no production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
+    "code_change": "Non-exact cited composite chunks must preserve distinctive identifier bindings, polarity/action terms, and source role/value quantity relations before they can satisfy source-reviewed expected evidence. Code-like identifier phrases such as TRG1/CAM 1 are handled as bindings, while prose is not over-read as a quantity relation unless the role is a real measurable/spec role.",
     "latest_run": {
-      "run_id": "retrieval_eval_20260827_235942",
-      "dataset": "test_reports/retrieval_eval_dataset_20260827_235942.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260827_235942.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260827_235942.json",
+      "run_id": "retrieval_eval_20260828_003910",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_003910.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260828_003910.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_003910.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_003910.json",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
       "query_offset": 14,
       "max_queries": 2,
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "retrieval_result": "2/2 retrieval passed; pass@1 1/2 and pass@3/pass@5 2/2.",
-      "answer_result": "2/2 actual HTTP API answers passed with answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_235942.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains both expected source roles: Typical operations at trigger input for the LJ-V continuous/Total Number of Lines scenario and the 10 lines/two overlap lines explanation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains both expected source roles: Typical operations at asynchronous trigger input and the TRG1 for CAM 1 capture plus measurement-processing action. Both rows preserve validation-fallback telemetry as fallback_validation and no longer count as expected_evidence_not_cited failures under source-supported composite citation scoring."
+      "answer_result": "2/2 actual HTTP API answers passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_003910.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains the LJ-V continuous/Total Number of Lines setup, Number of Lines 10, Number of Overlapping Lines Two lines, and explanatory 10/two overlap relation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains asynchronous trigger input and TRG1 for CAM 1 capture plus measurement-processing evidence. Both payloads include the validation-fallback warning and normalized _eval_trace used_fallback=true/answer_source=fallback_validation."
     },
     "prior_diagnostic_runs": [
       "retrieval_eval_20260827_223414",
-      "retrieval_eval_20260827_232820"
+      "retrieval_eval_20260827_232820",
+      "retrieval_eval_20260828_003633"
     ],
     "controls": [
-      "Focused scorer controls passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'composite_chunk_with_source_evidence or composite_chunk_without_source_role_terms or expected_chunk_not_same_document_overlap or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 92 deselected.",
-      "Fresh actual HTTP answer rerun retrieval_eval_20260827_235942 passed 2/2 retrieval and 2/2 answer grounding with fallback_validation 2/2.",
-      "Full unit gate passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 392 passed, 59 warnings."
+      "Focused scorer/checker controls: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_manifest_check.py -q -k 'composite_chunk or expected_chunk_not_same_document_overlap or cited_chunk_to_support_expected_evidence_role or manifest_checker' -> 18 passed, 92 deselected.",
+      "Composite adverse controls now reject sibling TRG2/CAM2 for expected TRG1/CAM1, swapped voltage/current values with identical tokens, enable/disable polarity inversion, and cross-role quantity mixing such as backup current limit borrowing the expected current value.",
+      "Manifest negative controls failed as required for missing root answer_grounding_cross_document_rows_6_7, missing question_bank.answer_grounding_cross_document_rows_6_7, and unequal copies.",
+      "Real manifest check: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+      "Full unit gate after final scorer adjustment: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 399 passed, 59 warnings."
     ],
-    "remaining": "Curated cross-document v2 row 6 remains the only current answer evidence/citation failure; it retrieves expected chunks but the API answer does not cite/use the Condition list and Standard Angle expected chunks.",
-    "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0."
+    "remaining": "Curated cross-document v2 row 6 remains the only current answer evidence/citation failure; fix answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks before optional answer rotations."
   },
   "answer_grounding_contextual_rows_17_18": {
     "summary": "test_reports/retrieval_eval_summary_20260826_085824.json",
@@ -8787,6 +8838,20 @@
     }
   ],
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-28T00:21:02Z",
+      "severity": "needs_fix",
+      "finding": "Composite citation scoring accepted non-exact cited chunks with sibling identifier binding, and answer_grounding_cross_document_rows_6_7 was not protected by the deterministic manifest checker.",
+      "status": "addressed_this_run_relation_preserving_composite_controls_and_manifest_checker_pair",
+      "evidence": [
+        "Added adverse scorer controls for sibling identifier binding, swapped numeric bindings, polarity/action inversion, and cross-role quantity mixing.",
+        "Focused scorer/checker controls passed: 18 passed, 92 deselected.",
+        "Manifest checker now requires answer_grounding_cross_document_rows_6_7 and latest_composite_citation_scoring_containment at root and question_bank; explicit negative controls failed for missing/unequal cross-document rows 6-7 copies.",
+        "Actual HTTP rerun retrieval_eval_20260828_003910 passed contextual rows 15-16 at 2/2 retrieval and 2/2 answer grounding with fallback_validation 2/2.",
+        "Full unit gate passed: 399 passed, 59 warnings."
+      ],
+      "required_next_action": "Fix curated cross-document v2 row 6 expected_evidence_not_cited before optional answer rotations; preserve contextual rows 15-16 clean evidence from retrieval_eval_20260828_003910 and all prior diagnostics/exclusions."
+    },
     {
       "timestamp": "2026-08-27T23:25:00Z",
       "severity": "needs_fix",
@@ -9282,21 +9347,21 @@
   },
   "latest_contextual_quantity_answer_repair": {
     "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
-    "status": "contextual_rows_15_16_clean_after_source_supported_composite_citation_scoring",
-    "latest_run": "retrieval_eval_20260827_235942",
+    "status": "contextual_rows_15_16_clean_after_relation_preserving_composite_citation_scoring",
+    "latest_run": "retrieval_eval_20260828_003910",
     "previous_clean_run": "retrieval_eval_20260827_212947",
     "supersedes_failed_run": "retrieval_eval_20260827_195423",
     "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-    "summary": "test_reports/retrieval_eval_summary_20260827_235942.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260827_235942.json",
-    "results": "test_reports/retrieval_eval_results_20260827_235942.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260828_003910.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260828_003910.json",
+    "results": "test_reports/retrieval_eval_results_20260828_003910.jsonl",
     "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
     "query_offset": 14,
     "max_queries": 2,
     "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
-    "answer_result": "2/2 actual HTTP API answers passed with source-supported composite citation scoring and fallback_validation telemetry; answer_failure_reasons {}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_232820.jsonl. Row 15 and row 16 both contain the validation-fallback warning and normalized trace used_fallback=true/answer_source=fallback_validation. Row 15 cites returned chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78; row 16 cites returned chunk 450fca55-a67a-5e1d-844c-c82ca54965e9. Under the current exact expected-evidence citation scorer, both fail expected_evidence_not_cited and must not be treated as clean answer evidence.",
+    "answer_result": "2/2 actual HTTP API answers passed with relation-preserving composite citation scoring and fallback_validation telemetry; answer_failure_reasons {}.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_003910.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains the LJ-V continuous/Total Number of Lines setup, Number of Lines 10, Number of Overlapping Lines Two lines, and explanatory 10/two overlap relation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains asynchronous trigger input and TRG1 for CAM 1 capture plus measurement-processing evidence. Both payloads include the validation-fallback warning and normalized _eval_trace used_fallback=true/answer_source=fallback_validation.",
     "runtime_load_evidence": {
       "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
       "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
@@ -9387,7 +9452,7 @@
     "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
     "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
     "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
-    "answer_result": "1/2 actual HTTP API answers passed under corrected scorer; answer_sources api:2; fallback 0; answer_failure_reasons {expected_evidence_not_cited: 1}.",
+    "answer_result": "Row 6 remains failed with expected_evidence_not_cited. Row 7 remains content/citation-clean, but after fallback telemetry normalization the old retrieval_eval_20260827_230123 source metrics must be read as fallback_validation for row 7 rather than direct api/no-fallback evidence.",
     "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
     "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
     "tests": [
@@ -9395,8 +9460,9 @@
       "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
       "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
     ],
-    "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains clean from retrieval_eval_20260827_230123.",
-    "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean"
+    "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but fallback-telemetry-normalized diagnostic/source evidence from retrieval_eval_20260827_230123.",
+    "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean",
+    "manifest_checker": "scripts/maintenance/check_retrieval_accuracy_manifest.py now requires answer_grounding_cross_document_rows_6_7 at both root and question_bank; missing-root, missing-question_bank, and unequal negative controls fail."
   },
   "latest_http_fallback_telemetry_containment": {
     "timestamp": "2026-08-27T23:28:20Z",
@@ -9436,5 +9502,35 @@
     },
     "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
     "remaining": "Fallback telemetry/source classification remains corrected. Contextual rows 15-16 are clean after source-supported composite citation scoring in retrieval_eval_20260827_235942; curated cross-document row 6 remains the only current answer evidence/citation failure."
+  },
+  "latest_composite_citation_scoring_containment": {
+    "timestamp": "2026-08-28T00:39:10Z",
+    "guardrail_finding": "2026-08-28T00:21:02Z guardrail review: source-supported composite citation scoring accepted a sibling identifier binding and answer_grounding_cross_document_rows_6_7 was not required by the manifest checker.",
+    "status": "addressed_with_relation_preserving_composite_controls_and_manifest_pair_check",
+    "scope": "eval answer-evidence citation scoring, manifest consistency checker/tests, tracking, and actual HTTP answer rerun only; no production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
+    "code_change": "Non-exact cited composite chunks must preserve distinctive identifier bindings, polarity/action terms, and source role/value quantity relations before they can satisfy source-reviewed expected evidence. Code-like identifier phrases such as TRG1/CAM 1 are handled as bindings, while prose is not over-read as a quantity relation unless the role is a real measurable/spec role.",
+    "controls": [
+      "Focused scorer/checker controls: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_manifest_check.py -q -k 'composite_chunk or expected_chunk_not_same_document_overlap or cited_chunk_to_support_expected_evidence_role or manifest_checker' -> 18 passed, 92 deselected.",
+      "Composite adverse controls now reject sibling TRG2/CAM2 for expected TRG1/CAM1, swapped voltage/current values with identical tokens, enable/disable polarity inversion, and cross-role quantity mixing such as backup current limit borrowing the expected current value.",
+      "Manifest negative controls failed as required for missing root answer_grounding_cross_document_rows_6_7, missing question_bank.answer_grounding_cross_document_rows_6_7, and unequal copies.",
+      "Real manifest check: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+      "Full unit gate after final scorer adjustment: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 399 passed, 59 warnings."
+    ],
+    "actual_http_rerun": {
+      "run_id": "retrieval_eval_20260828_003910",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_003910.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260828_003910.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_003910.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_003910.json",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "query_offset": 14,
+      "max_queries": 2,
+      "search_mode": "http",
+      "response_mode": "answer_with_citations",
+      "retrieval_result": "2/2 retrieval passed; pass@1 1/2 and pass@3/pass@5 2/2.",
+      "answer_result": "2/2 actual HTTP API answers passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_003910.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains the LJ-V continuous/Total Number of Lines setup, Number of Lines 10, Number of Overlapping Lines Two lines, and explanatory 10/two overlap relation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains asynchronous trigger input and TRG1 for CAM 1 capture plus measurement-processing evidence. Both payloads include the validation-fallback warning and normalized _eval_trace used_fallback=true/answer_source=fallback_validation."
+    },
+    "remaining": "Curated cross-document v2 row 6 remains the only current answer evidence/citation failure; fix answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks before optional answer rotations."
   }
 }

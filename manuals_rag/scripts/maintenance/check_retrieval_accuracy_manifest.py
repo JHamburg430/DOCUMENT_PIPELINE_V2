@@ -23,6 +23,8 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "latest_contextual_quantity_answer_repair",
     "latest_matrix_retrieval_guardrail_containment",
     "latest_http_fallback_telemetry_containment",
+    "latest_composite_citation_scoring_containment",
+    "answer_grounding_cross_document_rows_6_7",
     "partial_claim_citation_pruning_containment",
     "llm_answer_judge_policy",
 )

@@ -34,6 +34,8 @@ def _minimal_manifest():
         "latest_contextual_quantity_answer_repair": {"run": "retrieval_eval_20260827_212947"},
         "latest_matrix_retrieval_guardrail_containment": {"status": "addressed"},
         "latest_http_fallback_telemetry_containment": {"status": "addressed"},
+        "latest_composite_citation_scoring_containment": {"status": "addressed"},
+        "answer_grounding_cross_document_rows_6_7": {"status": "row_6_failed_row_7_clean"},
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
         "failure_categories": retrieval_failures,
@@ -121,3 +123,71 @@ def test_manifest_checker_rejects_unequal_matrix_retrieval_containment():
     errors = module.check_manifest(manifest)
 
     assert any("latest_matrix_retrieval_guardrail_containment mismatch" in error for error in errors)
+
+
+def test_manifest_checker_rejects_missing_root_cross_document_rows_6_7():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    del manifest["answer_grounding_cross_document_rows_6_7"]
+
+    errors = module.check_manifest(manifest)
+
+    assert any("answer_grounding_cross_document_rows_6_7 missing required duplicate" in error for error in errors)
+
+
+def test_manifest_checker_rejects_missing_question_bank_cross_document_rows_6_7():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    del manifest["question_bank"]["answer_grounding_cross_document_rows_6_7"]
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "question_bank.answer_grounding_cross_document_rows_6_7" in error
+        and "missing required duplicate" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_unequal_cross_document_rows_6_7():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["question_bank"]["answer_grounding_cross_document_rows_6_7"] = {"status": "stale"}
+
+    errors = module.check_manifest(manifest)
+
+    assert any("answer_grounding_cross_document_rows_6_7 mismatch" in error for error in errors)
+
+
+def test_manifest_checker_rejects_missing_root_composite_citation_containment():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    del manifest["latest_composite_citation_scoring_containment"]
+
+    errors = module.check_manifest(manifest)
+
+    assert any("latest_composite_citation_scoring_containment missing required duplicate" in error for error in errors)
+
+
+def test_manifest_checker_rejects_missing_question_bank_composite_citation_containment():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    del manifest["question_bank"]["latest_composite_citation_scoring_containment"]
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "question_bank.latest_composite_citation_scoring_containment" in error
+        and "missing required duplicate" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_unequal_composite_citation_containment():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["question_bank"]["latest_composite_citation_scoring_containment"] = {"status": "stale"}
+
+    errors = module.check_manifest(manifest)
+
+    assert any("latest_composite_citation_scoring_containment mismatch" in error for error in errors)
