@@ -775,9 +775,12 @@ def _answer_uses_matching_troubleshooting_row(answer: str, query: str, results: 
 
 
 def _answer_uses_comparison_troubleshooting_side_rows(answer: str, query: str, results: list[SearchResult]) -> bool:
-    side_results = _comparison_troubleshooting_side_matches(query, results)
-    if len(side_results) < 2:
+    clauses = _comparison_side_clauses(query)
+    if len(clauses) < 2:
         return True
+    side_results = _comparison_troubleshooting_side_matches(query, results)
+    if len(side_results) < len(clauses):
+        return False
     answer_terms = _material_claim_terms(answer)
     for result in side_results:
         action = _row_action_text(_fallback_answer_text(result))
@@ -908,6 +911,8 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
         seen_documents.add(result.source_document_id)
         if len(selected) >= 5:
             break
+    if side_matches and len(side_matches) < len(_comparison_side_clauses(query)):
+        return selected
     if len(selected) >= 2 and len(selected) == len(side_matches):
         return selected
 

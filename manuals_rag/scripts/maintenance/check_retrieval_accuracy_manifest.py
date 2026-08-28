@@ -27,6 +27,7 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "latest_comparison_setting_side_binding_containment",
     "latest_eval_question_generation_context_scope_review",
     "latest_cross_document_row8_answer_repair",
+    "latest_cross_document_row8_answer_partial_side_containment",
     "answer_grounding_cross_document_rows_6_7",
     "partial_claim_citation_pruning_containment",
     "llm_answer_judge_policy",

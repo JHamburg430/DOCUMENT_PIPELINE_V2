@@ -824,6 +824,72 @@ def test_comparison_troubleshooting_fallback_rejects_wrong_sibling_answer():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_comparison_troubleshooting_fallback_rejects_partial_side_evidence_answer():
+    query = (
+        "Compare the corrective action for unstable gray-binary inspection on CV-X482 "
+        "with the XG-X guidance for an unsupported SD card access failure."
+    )
+    answer = AnswerResponse(
+        answer=(
+            "For CV-X482, select Color to Binary in Extract Colors. "
+            "For XG-X, KEYENCE does not guarantee operation with commercially available SD cards."
+        ),
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {"chunk_id": "cvx-gray-binary", "document_id": "d1", "pages": [507], "quote_span": None},
+            {"chunk_id": "xgx-unrelated", "document_id": "d2", "pages": [1260], "quote_span": None},
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="cvx-gray-binary",
+            score=0.9,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[507],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective action; Row headers: Inspection is not stable in gray binary.; "
+                "Cell value: Select Color to Binary in Extract Colors and extract the desired colors."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_model": "CV-X482",
+                "product_family": "CV-X Series",
+            },
+        ),
+        SearchResult(
+            chunk_id="xgx-unrelated",
+            score=0.8,
+            title="XG-X Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[1260],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective Action; Row headers: A global variable cannot be read.; "
+                "Cell value: Check the variable name and PLC communication settings."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_family": "XG-X Series",
+            },
+        ),
+    ]
+
+    validated = validate_answer(answer, results, query=query)
+
+    assert "Color to Binary" in validated.answer
+    assert "commercially available SD cards" not in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["cvx-gray-binary"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_comparison_fallback_replaces_overcautious_insufficient_answer():
     answer = AnswerResponse(
         answer="The documents do not distinguish the causes for the two controllers.",

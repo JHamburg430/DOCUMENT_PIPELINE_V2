@@ -38,6 +38,7 @@ def _minimal_manifest():
         "latest_comparison_setting_side_binding_containment": {"status": "addressed"},
         "latest_eval_question_generation_context_scope_review": {"status": "recorded_scope_blocker"},
         "latest_cross_document_row8_answer_repair": {"status": "addressed"},
+        "latest_cross_document_row8_answer_partial_side_containment": {"status": "addressed"},
         "answer_grounding_cross_document_rows_6_7": {"status": "row_6_failed_row_7_clean"},
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
@@ -216,6 +217,32 @@ def test_manifest_checker_rejects_missing_or_unequal_row8_answer_repair():
     )
     assert any(
         "latest_cross_document_row8_answer_repair mismatch" in error
+        for error in module.check_manifest(unequal)
+    )
+
+
+def test_manifest_checker_rejects_missing_or_unequal_row8_partial_side_containment():
+    module = _load_manifest_check_module()
+    missing_root = _minimal_manifest()
+    del missing_root["latest_cross_document_row8_answer_partial_side_containment"]
+    missing_nested = _minimal_manifest()
+    del missing_nested["question_bank"]["latest_cross_document_row8_answer_partial_side_containment"]
+    unequal = _minimal_manifest()
+    unequal["question_bank"]["latest_cross_document_row8_answer_partial_side_containment"] = {
+        "status": "stale"
+    }
+
+    assert any(
+        "latest_cross_document_row8_answer_partial_side_containment missing required duplicate" in error
+        for error in module.check_manifest(missing_root)
+    )
+    assert any(
+        "question_bank.latest_cross_document_row8_answer_partial_side_containment" in error
+        and "missing required duplicate" in error
+        for error in module.check_manifest(missing_nested)
+    )
+    assert any(
+        "latest_cross_document_row8_answer_partial_side_containment mismatch" in error
         for error in module.check_manifest(unequal)
     )
 

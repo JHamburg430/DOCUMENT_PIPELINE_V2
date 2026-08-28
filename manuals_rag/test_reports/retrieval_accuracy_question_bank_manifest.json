@@ -1021,7 +1021,7 @@
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
     "answer_current_failure_categories": {},
-    "next_target": "Continue broad actual HTTP API answer-grounding rotations on curated cross-document v2 rows 10-11 or the next manifest-prioritized realistic multi-step/cross-document cases, while preserving row 8 clean fallback-validation evidence from retrieval_eval_20260828_041628, row 9 clean fallback-validation evidence from retrieval_eval_20260828_041628, row 6 clean direct-API evidence from retrieval_eval_20260828_023537, row 7 clean fallback-validation evidence from retrieval_eval_20260828_023537, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, the comparison side-binding/provenance corrections, and all citation-fidelity containments.",
+    "next_target": "Continue broad actual HTTP API answer-grounding rotations on curated cross-document v2 rows 10-11 or the next manifest-prioritized realistic multi-step/cross-document cases, while preserving row 8 and row 9 clean fallback-validation evidence from retrieval_eval_20260828_050015, row 6 clean direct-API evidence from retrieval_eval_20260828_023537, row 7 clean fallback-validation evidence from retrieval_eval_20260828_023537, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, the comparison side-binding/provenance corrections, and all citation-fidelity containments.",
     "answer_grounding_status": "Curated cross-document v2 rows 8-9 answer repair ran as retrieval_eval_20260828_041628. Retrieval passed 2/2 at rank 1 and actual HTTP answer grounding passed 2/2. Row 8 now cites and uses the CV-X Color to Binary corrective-action chunk plus XG-X unsupported SD-card guidance; row 9 remains clean fallback-validation evidence. Current retrieval failures are {}; current answer failures are {}.",
     "answer_grounding_rotation": {
       "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_repair",
@@ -1197,6 +1197,20 @@
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-28T04:30:16Z",
+        "severity": "needs_fix",
+        "finding": "Partial-side comparison troubleshooting validator could retain an unsupported second-side claim when fewer than two side rows matched.",
+        "status": "addressed_this_run_partial_side_guardrail_followup",
+        "evidence": [
+          "Added a relation-preserving adverse unit control for correct CV-X side evidence plus unrelated XG-X side citation where the XG-X SD-card claim must not be retained.",
+          "Focused comparison troubleshooting fallback controls passed 3 tests; full unit gate passed 420 tests with 59 warnings.",
+          "After API restart, loaded fingerprints show the updated comparison-side validator and fallback evidence selector.",
+          "Loaded adverse control selected only cvx-gray-binary and did not retain the unsupported XG-X SD-card claim; loaded positive control selected cvx-gray-binary plus xgx-unsupported-card.",
+          "Actual HTTP rerun retrieval_eval_20260828_050015 passed rows 8-9 at 2/2 retrieval and 2/2 answer grounding with manual JSONL/citation inspection."
+        ],
+        "required_next_action": "Continue broad answer-grounding rotations; preserve the partial-side containment and row 8/9 clean fallback-validation evidence from retrieval_eval_20260828_050015."
+      },
       {
         "timestamp": "2026-08-28T02:52:45Z",
         "severity": "needs_fix",
@@ -2056,20 +2070,20 @@
     },
     "retrieval_current_failure_categories": {},
     "latest_cross_document_answer_rotation": {
-      "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_repair",
+      "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_partial_side_containment_rerun",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
       "query_offset": 7,
       "max_queries": 2,
-      "latest_run": "retrieval_eval_20260828_041628",
-      "dataset": "test_reports/retrieval_eval_dataset_20260828_041628.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260828_041628.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260828_041628.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260828_041628.json",
+      "latest_run": "retrieval_eval_20260828_050015",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_050015.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260828_050015.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_050015.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_050015.json",
       "retrieval_result": "Rows 8-9 passed 2/2 retrieval at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
       "answer_result": "Rows 8-9 passed 2/2 actual HTTP API answer grounding with answer_sources {fallback_validation: 2}, answer_fallback_count 2, and answer_failure_reasons {}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_041628.jsonl. Row 8 cites expected CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a on page 507, which directly states Inspection is not stable in gray binary and Select Color to Binary in Extract Colors; it also cites XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content and parent context directly support the unsupported SD-card KEYENCE/non-industrial-card guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236, supporting the unsupported SD-card guidance and Increase the Max. Segments corrective action. All quote_spans were null, so there was no generated quote self-validation.",
-      "status": "rows_8_9_clean_fallback_validation_after_side_specific_retrieval_and_answer_fallback_repair",
-      "scope_note": "Changed only generic retrieval comparison context matching and generic answer fallback validation/selection for troubleshooting comparisons; no API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null.",
+      "status": "rows_8_9_clean_fallback_validation_after_partial_side_containment_rerun",
+      "scope_note": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix."
     },
     "latest_comparison_setting_side_binding_containment": {
       "status": "addressed",
@@ -2131,7 +2145,7 @@
     },
     "latest_cross_document_row8_answer_repair": {
       "timestamp": "2026-08-28T04:22:00Z",
-      "status": "addressed",
+      "status": "addressed_and_partial_side_guardrail_followup_clean",
       "target": "curated_cross_document_v2 row 8 answer evidence selection",
       "production_change": "For comparison troubleshooting/corrective-action questions, retrieval identifier-context matching now requires stronger side-specific condition overlap for cause/remedy/corrective-action fields, and answer validation/fallback uses side-matched troubleshooting rows so a sibling corrective action cannot satisfy a different requested condition.",
       "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py::test_comparison_identifier_context_rejects_partial_sibling_condition tests/unit/test_retriever.py::test_comparison_table_promotion_replaces_same_product_wrong_setting tests/unit/test_retriever.py::test_comparison_table_lexical_does_not_promote_wrong_setting_for_missing_side tests/unit/test_parser_and_answering.py::test_comparison_troubleshooting_fallback_prefers_side_specific_symptom_rows tests/unit/test_parser_and_answering.py::test_comparison_troubleshooting_fallback_rejects_wrong_sibling_answer -q -> 5 passed",
@@ -2149,23 +2163,111 @@
       },
       "loaded_controls": "Loaded API-container control selected cvx-gray-binary plus xgx-unsupported-card for the row-8-shaped query and replaced a wrong Color-to-Grayscale generated answer with retrieval-grounded fallback that states Color to Binary. Legitimate comparison-setting controls still passed after scoping the stronger context threshold to cause/remedy/corrective-action fields.",
       "actual_http_evidence": {
-        "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_repair",
+        "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_partial_side_containment_rerun",
         "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
         "query_offset": 7,
         "max_queries": 2,
-        "latest_run": "retrieval_eval_20260828_041628",
-        "dataset": "test_reports/retrieval_eval_dataset_20260828_041628.jsonl",
-        "results": "test_reports/retrieval_eval_results_20260828_041628.jsonl",
-        "summary": "test_reports/retrieval_eval_summary_20260828_041628.json",
-        "manifest": "test_reports/retrieval_eval_manifest_20260828_041628.json",
+        "latest_run": "retrieval_eval_20260828_050015",
+        "dataset": "test_reports/retrieval_eval_dataset_20260828_050015.jsonl",
+        "results": "test_reports/retrieval_eval_results_20260828_050015.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260828_050015.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260828_050015.json",
         "retrieval_result": "Rows 8-9 passed 2/2 retrieval at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
         "answer_result": "Rows 8-9 passed 2/2 actual HTTP API answer grounding with answer_sources {fallback_validation: 2}, answer_fallback_count 2, and answer_failure_reasons {}.",
-        "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_041628.jsonl. Row 8 cites expected CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a on page 507, which directly states Inspection is not stable in gray binary and Select Color to Binary in Extract Colors; it also cites XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content and parent context directly support the unsupported SD-card KEYENCE/non-industrial-card guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236, supporting the unsupported SD-card guidance and Increase the Max. Segments corrective action. All quote_spans were null, so there was no generated quote self-validation.",
-        "status": "rows_8_9_clean_fallback_validation_after_side_specific_retrieval_and_answer_fallback_repair",
-        "scope_note": "Changed only generic retrieval comparison context matching and generic answer fallback validation/selection for troubleshooting comparisons; no API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
+        "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null.",
+        "status": "rows_8_9_clean_fallback_validation_after_partial_side_containment_rerun",
+        "scope_note": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix."
       },
       "endpoint_model_comparability": "Active API used the existing compose environment after api restart; pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited.",
-      "generalization_check": "Valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it binds comparison troubleshooting evidence to side-specific visible conditions and fields without filenames, document ids, vendor shortcuts, query hardcoding, inferred filters, or weakened expected evidence."
+      "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause.",
+      "partial_side_guardrail_followup": {
+        "timestamp": "2026-08-28T05:06:00Z",
+        "guardrail_timestamp": "2026-08-28T04:30:16Z",
+        "status": "addressed_with_partial_side_adverse_control_loaded_runtime_and_http_rerun",
+        "commit": null,
+        "guardrail_finding": "The staged row-8 validator treated fewer than two side-row matches as sufficient, allowing a comparison answer to retain an unsupported second-side troubleshooting claim when only one valid side citation and one unrelated/sibling citation were present.",
+        "scoped_fix": "Comparison troubleshooting validation now fails when fewer side-specific evidence rows match the requested side clauses, and fallback evidence selection returns only the matched side evidence instead of padding with unrelated chunks.",
+        "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'comparison_troubleshooting_fallback' -> 3 passed, 63 deselected, 5 warnings",
+        "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 420 passed, 59 warnings",
+        "runtime_load": {
+          "api_restart": "docker compose -f infra/compose/docker-compose.yml restart api",
+          "answering._comparison_side_clauses_sha256": "f1d33fdc6202038604ecdec5f421091be0ecc73684ccd772323cc0ea789f2ab1",
+          "answering._result_matches_comparison_side_clause_sha256": "d25893e2629210d7513007fea62ae5a48b3e6e7edfc0a75bf624c0523e051d4e",
+          "answering._comparison_troubleshooting_side_matches_sha256": "36250f07d027990ff85e73048ec35916a4887c8995a3083cbadac16390940d72",
+          "answering._answer_uses_comparison_troubleshooting_side_rows_sha256": "cd5464a5c3b53ed4cfaf1495438355c7c0cffeba59f32e71e34c39e19cd6294c",
+          "answering._fallback_evidence_results_sha256": "4f3f453fae3266d269170635a25a9c27ef4b65e8042592add4cbf8eaf1f57a1a",
+          "answering.validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3",
+          "OLLAMA_URL": "http://host.docker.internal:11437",
+          "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+          "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+          "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+          "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
+        },
+        "loaded_controls": {
+          "adverse": "In the restarted API container, a row-8-shaped answer with correct CV-X gray-binary evidence plus an unrelated XG-X global-variable citation was replaced with fallback using only cvx-gray-binary; the unsupported XG-X commercially-available-SD-card claim was not retained.",
+          "positive": "The same loaded control with the correct XG-X unsupported-card row selected cvx-gray-binary plus xgx-unsupported-card as the two side-specific fallback evidence rows."
+        },
+        "actual_http_evidence": {
+          "run": "retrieval_eval_20260828_050015",
+          "dataset": "test_reports/retrieval_eval_dataset_20260828_050015.jsonl",
+          "results": "test_reports/retrieval_eval_results_20260828_050015.jsonl",
+          "summary": "test_reports/retrieval_eval_summary_20260828_050015.json",
+          "manifest": "test_reports/retrieval_eval_manifest_20260828_050015.json",
+          "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+          "query_offset": 7,
+          "max_queries": 2,
+          "search_mode": "http",
+          "response_mode": "answer_with_citations",
+          "result": "Rows 8-9 passed 2/2 retrieval and 2/2 actual HTTP API answer grounding; answer_sources {fallback_validation: 2}; answer_fallback_count 2; failure categories {}.",
+          "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null."
+        },
+        "scope": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix.",
+        "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause."
+      }
+    },
+    "latest_cross_document_row8_answer_partial_side_containment": {
+      "timestamp": "2026-08-28T05:06:00Z",
+      "guardrail_timestamp": "2026-08-28T04:30:16Z",
+      "status": "addressed_with_partial_side_adverse_control_loaded_runtime_and_http_rerun",
+      "commit": null,
+      "guardrail_finding": "The staged row-8 validator treated fewer than two side-row matches as sufficient, allowing a comparison answer to retain an unsupported second-side troubleshooting claim when only one valid side citation and one unrelated/sibling citation were present.",
+      "scoped_fix": "Comparison troubleshooting validation now fails when fewer side-specific evidence rows match the requested side clauses, and fallback evidence selection returns only the matched side evidence instead of padding with unrelated chunks.",
+      "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'comparison_troubleshooting_fallback' -> 3 passed, 63 deselected, 5 warnings",
+      "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 420 passed, 59 warnings",
+      "runtime_load": {
+        "api_restart": "docker compose -f infra/compose/docker-compose.yml restart api",
+        "answering._comparison_side_clauses_sha256": "f1d33fdc6202038604ecdec5f421091be0ecc73684ccd772323cc0ea789f2ab1",
+        "answering._result_matches_comparison_side_clause_sha256": "d25893e2629210d7513007fea62ae5a48b3e6e7edfc0a75bf624c0523e051d4e",
+        "answering._comparison_troubleshooting_side_matches_sha256": "36250f07d027990ff85e73048ec35916a4887c8995a3083cbadac16390940d72",
+        "answering._answer_uses_comparison_troubleshooting_side_rows_sha256": "cd5464a5c3b53ed4cfaf1495438355c7c0cffeba59f32e71e34c39e19cd6294c",
+        "answering._fallback_evidence_results_sha256": "4f3f453fae3266d269170635a25a9c27ef4b65e8042592add4cbf8eaf1f57a1a",
+        "answering.validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3",
+        "OLLAMA_URL": "http://host.docker.internal:11437",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
+      },
+      "loaded_controls": {
+        "adverse": "In the restarted API container, a row-8-shaped answer with correct CV-X gray-binary evidence plus an unrelated XG-X global-variable citation was replaced with fallback using only cvx-gray-binary; the unsupported XG-X commercially-available-SD-card claim was not retained.",
+        "positive": "The same loaded control with the correct XG-X unsupported-card row selected cvx-gray-binary plus xgx-unsupported-card as the two side-specific fallback evidence rows."
+      },
+      "actual_http_evidence": {
+        "run": "retrieval_eval_20260828_050015",
+        "dataset": "test_reports/retrieval_eval_dataset_20260828_050015.jsonl",
+        "results": "test_reports/retrieval_eval_results_20260828_050015.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260828_050015.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260828_050015.json",
+        "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "query_offset": 7,
+        "max_queries": 2,
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "result": "Rows 8-9 passed 2/2 retrieval and 2/2 actual HTTP API answer grounding; answer_sources {fallback_validation: 2}; answer_fallback_count 2; failure categories {}.",
+        "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null."
+      },
+      "scope": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix.",
+      "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause."
     }
   },
   "latest_false_negative_repair": {
@@ -8114,7 +8216,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Continue broad actual HTTP API answer-grounding rotations on curated cross-document v2 rows 10-11 or the next manifest-prioritized realistic multi-step/cross-document cases, while preserving row 8 clean fallback-validation evidence from retrieval_eval_20260828_041628, row 9 clean fallback-validation evidence from retrieval_eval_20260828_041628, row 6 clean direct-API evidence from retrieval_eval_20260828_023537, row 7 clean fallback-validation evidence from retrieval_eval_20260828_023537, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, the comparison side-binding/provenance corrections, and all citation-fidelity containments.",
+  "next_target": "Continue broad actual HTTP API answer-grounding rotations on curated cross-document v2 rows 10-11 or the next manifest-prioritized realistic multi-step/cross-document cases, while preserving row 8 and row 9 clean fallback-validation evidence from retrieval_eval_20260828_050015, row 6 clean direct-API evidence from retrieval_eval_20260828_023537, row 7 clean fallback-validation evidence from retrieval_eval_20260828_023537, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, the comparison side-binding/provenance corrections, and all citation-fidelity containments.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -9001,6 +9103,20 @@
   ],
   "unresolved_guardrail_findings": [
     {
+      "timestamp": "2026-08-28T04:30:16Z",
+      "severity": "needs_fix",
+      "finding": "Partial-side comparison troubleshooting validator could retain an unsupported second-side claim when fewer than two side rows matched.",
+      "status": "addressed_this_run_partial_side_guardrail_followup",
+      "evidence": [
+        "Added a relation-preserving adverse unit control for correct CV-X side evidence plus unrelated XG-X side citation where the XG-X SD-card claim must not be retained.",
+        "Focused comparison troubleshooting fallback controls passed 3 tests; full unit gate passed 420 tests with 59 warnings.",
+        "After API restart, loaded fingerprints show the updated comparison-side validator and fallback evidence selector.",
+        "Loaded adverse control selected only cvx-gray-binary and did not retain the unsupported XG-X SD-card claim; loaded positive control selected cvx-gray-binary plus xgx-unsupported-card.",
+        "Actual HTTP rerun retrieval_eval_20260828_050015 passed rows 8-9 at 2/2 retrieval and 2/2 answer grounding with manual JSONL/citation inspection."
+      ],
+      "required_next_action": "Continue broad answer-grounding rotations; preserve the partial-side containment and row 8/9 clean fallback-validation evidence from retrieval_eval_20260828_050015."
+    },
+    {
       "timestamp": "2026-08-28T02:52:45Z",
       "severity": "needs_fix",
       "finding": "Guardrail found undocumented API/eval-generation/config-model surface changes in 0e84e3a and a missing deterministic manifest pair check for latest_comparison_setting_side_binding_containment.",
@@ -9768,20 +9884,20 @@
   },
   "retrieval_current_failure_categories": {},
   "latest_cross_document_answer_rotation": {
-    "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_repair",
+    "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_partial_side_containment_rerun",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
     "query_offset": 7,
     "max_queries": 2,
-    "latest_run": "retrieval_eval_20260828_041628",
-    "dataset": "test_reports/retrieval_eval_dataset_20260828_041628.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260828_041628.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260828_041628.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260828_041628.json",
+    "latest_run": "retrieval_eval_20260828_050015",
+    "dataset": "test_reports/retrieval_eval_dataset_20260828_050015.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260828_050015.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260828_050015.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260828_050015.json",
     "retrieval_result": "Rows 8-9 passed 2/2 retrieval at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
     "answer_result": "Rows 8-9 passed 2/2 actual HTTP API answer grounding with answer_sources {fallback_validation: 2}, answer_fallback_count 2, and answer_failure_reasons {}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_041628.jsonl. Row 8 cites expected CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a on page 507, which directly states Inspection is not stable in gray binary and Select Color to Binary in Extract Colors; it also cites XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content and parent context directly support the unsupported SD-card KEYENCE/non-industrial-card guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236, supporting the unsupported SD-card guidance and Increase the Max. Segments corrective action. All quote_spans were null, so there was no generated quote self-validation.",
-    "status": "rows_8_9_clean_fallback_validation_after_side_specific_retrieval_and_answer_fallback_repair",
-    "scope_note": "Changed only generic retrieval comparison context matching and generic answer fallback validation/selection for troubleshooting comparisons; no API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null.",
+    "status": "rows_8_9_clean_fallback_validation_after_partial_side_containment_rerun",
+    "scope_note": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix."
   },
   "latest_comparison_setting_side_binding_containment": {
     "status": "addressed",
@@ -9843,7 +9959,7 @@
   },
   "latest_cross_document_row8_answer_repair": {
     "timestamp": "2026-08-28T04:22:00Z",
-    "status": "addressed",
+    "status": "addressed_and_partial_side_guardrail_followup_clean",
     "target": "curated_cross_document_v2 row 8 answer evidence selection",
     "production_change": "For comparison troubleshooting/corrective-action questions, retrieval identifier-context matching now requires stronger side-specific condition overlap for cause/remedy/corrective-action fields, and answer validation/fallback uses side-matched troubleshooting rows so a sibling corrective action cannot satisfy a different requested condition.",
     "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py::test_comparison_identifier_context_rejects_partial_sibling_condition tests/unit/test_retriever.py::test_comparison_table_promotion_replaces_same_product_wrong_setting tests/unit/test_retriever.py::test_comparison_table_lexical_does_not_promote_wrong_setting_for_missing_side tests/unit/test_parser_and_answering.py::test_comparison_troubleshooting_fallback_prefers_side_specific_symptom_rows tests/unit/test_parser_and_answering.py::test_comparison_troubleshooting_fallback_rejects_wrong_sibling_answer -q -> 5 passed",
@@ -9861,22 +9977,110 @@
     },
     "loaded_controls": "Loaded API-container control selected cvx-gray-binary plus xgx-unsupported-card for the row-8-shaped query and replaced a wrong Color-to-Grayscale generated answer with retrieval-grounded fallback that states Color to Binary. Legitimate comparison-setting controls still passed after scoping the stronger context threshold to cause/remedy/corrective-action fields.",
     "actual_http_evidence": {
-      "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_repair",
+      "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_partial_side_containment_rerun",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
       "query_offset": 7,
       "max_queries": 2,
-      "latest_run": "retrieval_eval_20260828_041628",
-      "dataset": "test_reports/retrieval_eval_dataset_20260828_041628.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260828_041628.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260828_041628.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260828_041628.json",
+      "latest_run": "retrieval_eval_20260828_050015",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_050015.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260828_050015.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_050015.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_050015.json",
       "retrieval_result": "Rows 8-9 passed 2/2 retrieval at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
       "answer_result": "Rows 8-9 passed 2/2 actual HTTP API answer grounding with answer_sources {fallback_validation: 2}, answer_fallback_count 2, and answer_failure_reasons {}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_041628.jsonl. Row 8 cites expected CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a on page 507, which directly states Inspection is not stable in gray binary and Select Color to Binary in Extract Colors; it also cites XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content and parent context directly support the unsupported SD-card KEYENCE/non-industrial-card guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236, supporting the unsupported SD-card guidance and Increase the Max. Segments corrective action. All quote_spans were null, so there was no generated quote self-validation.",
-      "status": "rows_8_9_clean_fallback_validation_after_side_specific_retrieval_and_answer_fallback_repair",
-      "scope_note": "Changed only generic retrieval comparison context matching and generic answer fallback validation/selection for troubleshooting comparisons; no API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null.",
+      "status": "rows_8_9_clean_fallback_validation_after_partial_side_containment_rerun",
+      "scope_note": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix."
     },
     "endpoint_model_comparability": "Active API used the existing compose environment after api restart; pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited.",
-    "generalization_check": "Valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it binds comparison troubleshooting evidence to side-specific visible conditions and fields without filenames, document ids, vendor shortcuts, query hardcoding, inferred filters, or weakened expected evidence."
+    "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause.",
+    "partial_side_guardrail_followup": {
+      "timestamp": "2026-08-28T05:06:00Z",
+      "guardrail_timestamp": "2026-08-28T04:30:16Z",
+      "status": "addressed_with_partial_side_adverse_control_loaded_runtime_and_http_rerun",
+      "commit": null,
+      "guardrail_finding": "The staged row-8 validator treated fewer than two side-row matches as sufficient, allowing a comparison answer to retain an unsupported second-side troubleshooting claim when only one valid side citation and one unrelated/sibling citation were present.",
+      "scoped_fix": "Comparison troubleshooting validation now fails when fewer side-specific evidence rows match the requested side clauses, and fallback evidence selection returns only the matched side evidence instead of padding with unrelated chunks.",
+      "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'comparison_troubleshooting_fallback' -> 3 passed, 63 deselected, 5 warnings",
+      "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 420 passed, 59 warnings",
+      "runtime_load": {
+        "api_restart": "docker compose -f infra/compose/docker-compose.yml restart api",
+        "answering._comparison_side_clauses_sha256": "f1d33fdc6202038604ecdec5f421091be0ecc73684ccd772323cc0ea789f2ab1",
+        "answering._result_matches_comparison_side_clause_sha256": "d25893e2629210d7513007fea62ae5a48b3e6e7edfc0a75bf624c0523e051d4e",
+        "answering._comparison_troubleshooting_side_matches_sha256": "36250f07d027990ff85e73048ec35916a4887c8995a3083cbadac16390940d72",
+        "answering._answer_uses_comparison_troubleshooting_side_rows_sha256": "cd5464a5c3b53ed4cfaf1495438355c7c0cffeba59f32e71e34c39e19cd6294c",
+        "answering._fallback_evidence_results_sha256": "4f3f453fae3266d269170635a25a9c27ef4b65e8042592add4cbf8eaf1f57a1a",
+        "answering.validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3",
+        "OLLAMA_URL": "http://host.docker.internal:11437",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
+      },
+      "loaded_controls": {
+        "adverse": "In the restarted API container, a row-8-shaped answer with correct CV-X gray-binary evidence plus an unrelated XG-X global-variable citation was replaced with fallback using only cvx-gray-binary; the unsupported XG-X commercially-available-SD-card claim was not retained.",
+        "positive": "The same loaded control with the correct XG-X unsupported-card row selected cvx-gray-binary plus xgx-unsupported-card as the two side-specific fallback evidence rows."
+      },
+      "actual_http_evidence": {
+        "run": "retrieval_eval_20260828_050015",
+        "dataset": "test_reports/retrieval_eval_dataset_20260828_050015.jsonl",
+        "results": "test_reports/retrieval_eval_results_20260828_050015.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260828_050015.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260828_050015.json",
+        "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+        "query_offset": 7,
+        "max_queries": 2,
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "result": "Rows 8-9 passed 2/2 retrieval and 2/2 actual HTTP API answer grounding; answer_sources {fallback_validation: 2}; answer_fallback_count 2; failure categories {}.",
+        "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null."
+      },
+      "scope": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix.",
+      "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause."
+    }
+  },
+  "latest_cross_document_row8_answer_partial_side_containment": {
+    "timestamp": "2026-08-28T05:06:00Z",
+    "guardrail_timestamp": "2026-08-28T04:30:16Z",
+    "status": "addressed_with_partial_side_adverse_control_loaded_runtime_and_http_rerun",
+    "commit": null,
+    "guardrail_finding": "The staged row-8 validator treated fewer than two side-row matches as sufficient, allowing a comparison answer to retain an unsupported second-side troubleshooting claim when only one valid side citation and one unrelated/sibling citation were present.",
+    "scoped_fix": "Comparison troubleshooting validation now fails when fewer side-specific evidence rows match the requested side clauses, and fallback evidence selection returns only the matched side evidence instead of padding with unrelated chunks.",
+    "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'comparison_troubleshooting_fallback' -> 3 passed, 63 deselected, 5 warnings",
+    "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 420 passed, 59 warnings",
+    "runtime_load": {
+      "api_restart": "docker compose -f infra/compose/docker-compose.yml restart api",
+      "answering._comparison_side_clauses_sha256": "f1d33fdc6202038604ecdec5f421091be0ecc73684ccd772323cc0ea789f2ab1",
+      "answering._result_matches_comparison_side_clause_sha256": "d25893e2629210d7513007fea62ae5a48b3e6e7edfc0a75bf624c0523e051d4e",
+      "answering._comparison_troubleshooting_side_matches_sha256": "36250f07d027990ff85e73048ec35916a4887c8995a3083cbadac16390940d72",
+      "answering._answer_uses_comparison_troubleshooting_side_rows_sha256": "cd5464a5c3b53ed4cfaf1495438355c7c0cffeba59f32e71e34c39e19cd6294c",
+      "answering._fallback_evidence_results_sha256": "4f3f453fae3266d269170635a25a9c27ef4b65e8042592add4cbf8eaf1f57a1a",
+      "answering.validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3",
+      "OLLAMA_URL": "http://host.docker.internal:11437",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
+    },
+    "loaded_controls": {
+      "adverse": "In the restarted API container, a row-8-shaped answer with correct CV-X gray-binary evidence plus an unrelated XG-X global-variable citation was replaced with fallback using only cvx-gray-binary; the unsupported XG-X commercially-available-SD-card claim was not retained.",
+      "positive": "The same loaded control with the correct XG-X unsupported-card row selected cvx-gray-binary plus xgx-unsupported-card as the two side-specific fallback evidence rows."
+    },
+    "actual_http_evidence": {
+      "run": "retrieval_eval_20260828_050015",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_050015.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260828_050015.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_050015.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_050015.json",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "query_offset": 7,
+      "max_queries": 2,
+      "search_mode": "http",
+      "response_mode": "answer_with_citations",
+      "result": "Rows 8-9 passed 2/2 retrieval and 2/2 actual HTTP API answer grounding; answer_sources {fallback_validation: 2}; answer_fallback_count 2; failure categories {}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null."
+    },
+    "scope": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix.",
+    "generalization_check": "Valid for unseen manuals/vendors and realistic users because comparison troubleshooting answers should not retain a material side claim unless cited evidence matches that requested side clause."
   }
 }
