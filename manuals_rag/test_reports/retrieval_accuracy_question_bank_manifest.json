@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T10:29:00Z",
+  "updated_at": "2026-08-28T12:43:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -668,6 +668,20 @@
           "test_reports/retrieval_eval_summary_20260828_095500.json"
         ],
         "remaining": "Fix or source-review rows 5-6 answer evidence selection before counting this contextual procedure slice as clean."
+      },
+      "2026-08-28T12:25:00Z": {
+        "severity": "critical",
+        "status": "addressed_this_run_same_page_scorer_reverted_to_source_terms",
+        "addressed_this_run": "Removed the dirty same-page retrieval pass shortcut before commit. score_search_results no longer passes merely because a result is from the same document page; existing exact-chunk, same-section/document expected-term overlap, answerable evidence, and applicable-equivalent source-support checks remain the allowed pass paths.",
+        "evidence": [
+          "Removed dirty _result_page_overlap / match_reason same_page path from packages/evals/src/manuals_rag_evals/retrieval_eval.py before committing.",
+          "Added adverse scorer regression test: tests/unit/test_retrieval_eval.py::test_score_search_results_rejects_same_page_without_source_terms.",
+          "Focused scorer tests: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'same_page_without_source_terms or score_search_results_passes_on_same_document_term_overlap' -> 2 passed, 104 deselected.",
+          "Full unit gate: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 433 passed, 59 warnings.",
+          "rg same_page/_result_page_overlap/page_overlap now finds no scorer implementation references, only the adverse regression test name.",
+          "No actual HTTP answer rerun was promoted as clean evidence in this containment run; contextual procedure rows 5-6 remain current expected_evidence_not_cited answer failures."
+        ],
+        "remaining": "Document and validate or keep out of scope the other dirty production answering/retrieval/UI changes from the pre-existing worktree before any future commit that includes them. Then resume the contextual procedure rows 5-6 answer evidence-selection target; do not count retrieval_eval_20260828_120030, 120744, or 122030 as clean unless their actual JSONL payloads cite every expected evidence role."
       }
     },
     "diagnostics": [
@@ -1658,6 +1672,21 @@
           "Current run added source-repaired contextual procedure replacements and validated retrieval_eval_20260828_092535 at 2/2 retrieval and 2/2 actual HTTP answer grounding with manual citation inspection; original rows 3-4 remain diagnostic/excluded."
         ],
         "required_next_action": "Continue broad actual HTTP API answer-grounding coverage with the next realistic contextual procedure multi-step slice, likely rows 5-6 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl, while preserving rows 3-4 source-repaired replacement evidence from retrieval_eval_20260828_092535, original rows 3-4 diagnostic/source-equivalence evidence from retrieval_eval_20260828_075458, contextual rows 1-2 clean evidence from retrieval_eval_20260828_073436, cross-document rows 8-10 clean evidence from retrieval_eval_20260828_064019, rows 6-7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, and all prior diagnostics/exclusions/containments."
+      },
+      {
+        "timestamp": "2026-08-28T12:25:00Z",
+        "severity": "critical",
+        "status": "addressed_this_run_same_page_scorer_reverted_to_source_terms",
+        "finding": "Dirty eval scorer briefly allowed same-page same-document overlap to pass retrieval without expected source terms or direct evidence support.",
+        "evidence": [
+          "Removed dirty _result_page_overlap / match_reason same_page path from packages/evals/src/manuals_rag_evals/retrieval_eval.py before committing.",
+          "Added adverse scorer regression test: tests/unit/test_retrieval_eval.py::test_score_search_results_rejects_same_page_without_source_terms.",
+          "Focused scorer tests: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'same_page_without_source_terms or score_search_results_passes_on_same_document_term_overlap' -> 2 passed, 104 deselected.",
+          "Full unit gate: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 433 passed, 59 warnings.",
+          "rg same_page/_result_page_overlap/page_overlap now finds no scorer implementation references, only the adverse regression test name.",
+          "No actual HTTP answer rerun was promoted as clean evidence in this containment run; contextual procedure rows 5-6 remain current expected_evidence_not_cited answer failures."
+        ],
+        "required_next_action": "Document and validate or keep out of scope the other dirty production answering/retrieval/UI changes from the pre-existing worktree before any future commit that includes them. Then resume the contextual procedure rows 5-6 answer evidence-selection target; do not count retrieval_eval_20260828_120030, 120744, or 122030 as clean unless their actual JSONL payloads cite every expected evidence role."
       }
     ],
     "answer_grounding_sibling_rows_15_16": {
@@ -1739,7 +1768,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-28T10:29:00Z",
+    "updated_at": "2026-08-28T12:43:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -9712,6 +9741,21 @@
         "Current run added source-repaired contextual procedure replacements and validated retrieval_eval_20260828_092535 at 2/2 retrieval and 2/2 actual HTTP answer grounding with manual citation inspection; original rows 3-4 remain diagnostic/excluded."
       ],
       "required_next_action": "Continue broad actual HTTP API answer-grounding coverage with the next realistic contextual procedure multi-step slice, likely rows 5-6 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl, while preserving rows 3-4 source-repaired replacement evidence from retrieval_eval_20260828_092535, original rows 3-4 diagnostic/source-equivalence evidence from retrieval_eval_20260828_075458, contextual rows 1-2 clean evidence from retrieval_eval_20260828_073436, cross-document rows 8-10 clean evidence from retrieval_eval_20260828_064019, rows 6-7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, and all prior diagnostics/exclusions/containments."
+    },
+    {
+      "timestamp": "2026-08-28T12:25:00Z",
+      "severity": "critical",
+      "status": "addressed_this_run_same_page_scorer_reverted_to_source_terms",
+      "finding": "Dirty eval scorer briefly allowed same-page same-document overlap to pass retrieval without expected source terms or direct evidence support.",
+      "evidence": [
+        "Removed dirty _result_page_overlap / match_reason same_page path from packages/evals/src/manuals_rag_evals/retrieval_eval.py before committing.",
+        "Added adverse scorer regression test: tests/unit/test_retrieval_eval.py::test_score_search_results_rejects_same_page_without_source_terms.",
+        "Focused scorer tests: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'same_page_without_source_terms or score_search_results_passes_on_same_document_term_overlap' -> 2 passed, 104 deselected.",
+        "Full unit gate: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 433 passed, 59 warnings.",
+        "rg same_page/_result_page_overlap/page_overlap now finds no scorer implementation references, only the adverse regression test name.",
+        "No actual HTTP answer rerun was promoted as clean evidence in this containment run; contextual procedure rows 5-6 remain current expected_evidence_not_cited answer failures."
+      ],
+      "required_next_action": "Document and validate or keep out of scope the other dirty production answering/retrieval/UI changes from the pre-existing worktree before any future commit that includes them. Then resume the contextual procedure rows 5-6 answer evidence-selection target; do not count retrieval_eval_20260828_120030, 120744, or 122030 as clean unless their actual JSONL payloads cite every expected evidence role."
     }
   ],
   "answer_grounding_sibling_rows_15_16": {
@@ -10426,5 +10470,18 @@
       ],
       "remaining": "Continue broader contextual procedure answer rotations; do not overclaim this replacement as separate atomic multi-chunk retrieval proof because the cited consolidated chunk contains both roles."
     }
+  },
+  "latest_same_page_scorer_containment": {
+    "timestamp": "2026-08-28T12:43:00Z",
+    "guardrail_timestamp": "2026-08-28T12:25:00Z",
+    "status": "addressed_tracking_and_regression_test_only",
+    "scope": "eval scorer containment; no production retrieval, answering, API, UI, parser, ingestion, model/provider, infrastructure, Docker, schema, or deployment behavior committed by this run",
+    "validation": [
+      "Added adverse scorer regression test: tests/unit/test_retrieval_eval.py::test_score_search_results_rejects_same_page_without_source_terms.",
+      "Focused scorer tests: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'same_page_without_source_terms or score_search_results_passes_on_same_document_term_overlap' -> 2 passed, 104 deselected.",
+      "Full unit gate: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 433 passed, 59 warnings.",
+      "rg same_page/_result_page_overlap/page_overlap now finds no scorer implementation references, only the adverse regression test name."
+    ],
+    "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments."
   }
 }

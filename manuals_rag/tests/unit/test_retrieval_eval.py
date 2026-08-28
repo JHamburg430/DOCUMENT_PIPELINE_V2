@@ -4304,6 +4304,41 @@ def test_score_search_results_passes_on_same_document_term_overlap():
     assert evaluation["metadata_document_selection"]["attempted"] is False
 
 
+def test_score_search_results_rejects_same_page_without_source_terms():
+    case = RetrievalEvalCase(
+        case_id="c-page",
+        query="What voltage does MODEL-1 use?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-expected",
+        source_title="MODEL-1 Manual",
+        source_filename="model-1.pdf",
+        chunk_type="spec_record",
+        section_path="Specifications",
+        page_from=12,
+        page_to=12,
+        expected_terms=["24", "vdc"],
+        expected_snippet="Power supply voltage: 24 VDC",
+        generation_method="spec_primary",
+        source_metadata={"product_model": "MODEL-1"},
+    )
+    results = [
+        {
+            "chunk_id": "chunk-same-page",
+            "source_document_id": "doc-1",
+            "pages": [12],
+            "content": "Related voltage information from the same manual page.",
+            "metadata": {"chunk_type": "spec_record"},
+        }
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is False
+    assert evaluation["failure_category"] == "ranking_or_context_loss"
+    assert evaluation["match_reason"] == "no_match"
+
+
 def test_score_document_selection_passes_when_expected_document_is_selected():
     case = RetrievalEvalCase(
         case_id="c-selection",
