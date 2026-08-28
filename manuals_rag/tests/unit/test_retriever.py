@@ -2236,6 +2236,7 @@ def test_comparison_configuration_queries_keep_table_family_allowed():
     assert "configuration" in analysis.query_types
     assert retriever._preferred_family_order(analysis)[:2] == ["spec", "table"]
     assert "table" in retriever._allowed_families(analysis)
+    assert retriever._comparison_setting_phrases(analysis.raw_query) == ["condition list", "standard angle"]
 
 
 def test_comparison_table_lexical_prefilter_includes_symbol_terms(monkeypatch):
@@ -2819,6 +2820,80 @@ def test_comparison_table_promotion_replaces_same_product_wrong_requested_field(
     assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
     assert promoted[1].chunk_id == "mod-a-cause"
     assert promoted[2].chunk_id == "mod-b-remedy"
+
+
+def test_comparison_table_promotion_replaces_same_product_wrong_setting():
+    analysis = analyze_query("For MOD1-A and MOD2-B, compare what the Condition list and Standard Angle settings control.")
+    reranked = [
+        SearchResult(
+            chunk_id="mod-a-angle-range",
+            score=4.0,
+            title="MOD1-A Manual",
+            document_version_id="ver-a",
+            source_document_id="doc-a",
+            pages=[10],
+            section_path=["Settings"],
+            content="Setting item: Angle range; Settings: Specifies the allowed angle range.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_key_value": True,
+                "product_model": "MOD1-A",
+            },
+        ),
+        SearchResult(
+            chunk_id="mod-b-label-order",
+            score=3.8,
+            title="MOD2-B Manual",
+            document_version_id="ver-b",
+            source_document_id="doc-b",
+            pages=[20],
+            section_path=["Settings"],
+            content="Setting item: Label Order; Settings: Specifies sorting order.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_key_value": True,
+                "product_model": "MOD2-B",
+            },
+        ),
+    ]
+    supplemental = [
+        SearchResult(
+            chunk_id="mod-a-condition-list",
+            score=1.5,
+            title="MOD1-A Manual",
+            document_version_id="ver-a",
+            source_document_id="doc-a",
+            pages=[11],
+            section_path=["Settings"],
+            content="Setting item: Condition list; Settings: A maximum of 16 reference conditions can be set.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_key_value": True,
+                "product_model": "MOD1-A",
+            },
+        ),
+        SearchResult(
+            chunk_id="mod-b-standard-angle",
+            score=1.4,
+            title="MOD2-B Manual",
+            document_version_id="ver-b",
+            source_document_id="doc-b",
+            pages=[21],
+            section_path=["Settings"],
+            content='Setting item: Standard Angle; Settings: Specifies the start angle for numbering when label order is "clockwise".',
+            metadata={
+                "chunk_type": "table_record",
+                "table_key_value": True,
+                "product_model": "MOD2-B",
+            },
+        ),
+    ]
+
+    promoted = retriever._promote_comparison_table_candidates(reranked, supplemental, analysis, limit=6)
+
+    assert [result.chunk_id for result in promoted[:2]] == ["mod-a-condition-list", "mod-b-standard-angle"]
+    assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
+    assert promoted[1].metadata["retrieval_stage"] == "comparison_table_promoted"
 
 
 def test_comparison_requested_field_terms_ignore_ordinary_correct_usage():

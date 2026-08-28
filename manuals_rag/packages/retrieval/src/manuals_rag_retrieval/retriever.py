@@ -556,6 +556,74 @@ def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase
     return score + float(row.get("priority_score") or 0.0) / 100.0
 
 
+def _comparison_setting_phrases(query: str) -> list[str]:
+    lowered = query.lower()
+    phrases: list[str] = []
+    for match in re.finditer(
+        r"\b(?:compare\s+what\s+the|compare\s+the|what\s+the)\s+(?P<labels>.+?)\s+settings?\s+(?:control|controls|do|does|mean|represent|for|with|listed)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        labels = re.split(r"\s+(?:and|with|versus|vs\.?)\s+|,", match.group("labels"))
+        for label in labels:
+            normalized = re.sub(r"\s+", " ", re.sub(r"[^A-Za-z0-9/_. -]+", " ", label)).strip()
+            if not normalized:
+                continue
+            terms = [
+                re.sub(r"[^a-z0-9]+", "", term.lower())
+                for term in tokenize(normalized)
+                if re.sub(r"[^a-z0-9]+", "", term.lower())
+            ]
+            if len(terms) < 2:
+                continue
+            if any(term in {"compare", "what", "setting", "settings", "control", "controls"} for term in terms):
+                continue
+            phrase = " ".join(terms)
+            if phrase and phrase not in phrases and phrase in re.sub(r"[^a-z0-9]+", " ", lowered):
+                phrases.append(phrase)
+    return phrases[:6]
+
+
+def _comparison_setting_phrase_score(result: SearchResult, phrases: list[str]) -> float:
+    if not phrases:
+        return 0.0
+    row_header_text = " ".join(str(item) for item in result.metadata.get("table_row_headers") or [])
+    column_header_text = " ".join(str(item) for item in result.metadata.get("table_column_headers") or [])
+    haystack = re.sub(
+        r"[^a-z0-9]+",
+        " ",
+        " ".join([str(result.content or ""), row_header_text, column_header_text]).lower(),
+    )
+    score = 0.0
+    for phrase in phrases:
+        if re.search(rf"\b{re.escape(phrase)}\b", haystack):
+            score += 4.0
+        else:
+            phrase_terms = [term for term in phrase.split() if len(term) >= 4]
+            if phrase_terms and all(re.search(rf"\b{re.escape(term)}\b", haystack) for term in phrase_terms):
+                score += 2.0
+    return score
+
+
+def _comparison_result_matches_setting_phrase(result: SearchResult, phrases: list[str]) -> bool:
+    if not phrases:
+        return True
+    return _comparison_setting_phrase_score(result, phrases) >= 4.0
+
+
+def _comparison_setting_phrases_for_identifier(query: str, identifiers: list[str], identifier: str) -> list[str]:
+    phrases = _comparison_setting_phrases(query)
+    if len(phrases) < 2:
+        return phrases
+    try:
+        index = identifiers.index(identifier)
+    except ValueError:
+        return phrases
+    if index < len(phrases):
+        return [phrases[index]]
+    return phrases
+
+
 def run_table_lexical_search(
     query: str,
     corpus_ids: list[str],
@@ -730,6 +798,46 @@ def run_table_lexical_search(
                     tuple(supplemental_params),
                 )
             )
+        setting_phrases = _comparison_setting_phrases(query)
+        identifiers = [str(identifier) for identifier in analysis.product_identifiers]
+        if setting_phrases and product_patterns:
+            supplemental_where = [*where]
+            supplemental_params = [*params]
+            supplemental_where.append(
+                "(" + " or ".join(["content ilike %s or metadata_json->>'table_row_headers' ilike %s"] * len(setting_phrases)) + ")"
+            )
+            for phrase in setting_phrases:
+                pattern = f"%{'%'.join(phrase.split())}%"
+                supplemental_params.extend([pattern, pattern])
+            supplemental_where.append(
+                "("
+                + " or ".join(
+                    [
+                        "metadata_json->>'product_model' ilike %s "
+                        "or metadata_json->>'product_family' ilike %s "
+                        "or metadata_json->>'product_models' ilike %s "
+                        "or metadata_json->>'devices' ilike %s "
+                        "or title ilike %s"
+                    ]
+                    * len(product_patterns)
+                )
+                + ")"
+            )
+            for pattern in product_patterns:
+                supplemental_params.extend([pattern, pattern, pattern, pattern, pattern])
+            rows.extend(
+                fetch_all(
+                    f"""
+                    select id, document_version_id, source_document_id, title, section_path_text,
+                           page_from, page_to, content, metadata_json, priority_score
+                    from retrieval_chunks
+                    where {" and ".join(supplemental_where)}
+                    order by priority_score desc, id
+                    limit 120
+                    """,
+                    tuple(supplemental_params),
+                )
+            )
     ranked: list[tuple[float, SearchResult]] = []
     seen_rows: set[str] = set()
     for row in rows:
@@ -776,6 +884,7 @@ def run_table_lexical_search(
     ranked.sort(key=lambda item: item[0], reverse=True)
     results = [result for _, result in ranked]
     if is_comparison_lookup and len(analysis.product_identifiers) >= 2:
+        setting_phrases = _comparison_setting_phrases(query)
         row_code_terms = _comparison_row_code_terms(
             analysis.raw_query,
             [str(identifier) for identifier in analysis.product_identifiers],
@@ -796,8 +905,16 @@ def run_table_lexical_search(
                 and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
             ]
             context_terms = _identifier_context_terms(analysis.raw_query, identifier)
+            side_setting_phrases = _comparison_setting_phrases_for_identifier(analysis.raw_query, identifiers, str(identifier))
             if context_terms:
-                candidates.sort(key=lambda result: (_identifier_context_score(result, context_terms), result.score), reverse=True)
+                candidates.sort(
+                    key=lambda result: (
+                        _comparison_setting_phrase_score(result, side_setting_phrases),
+                        _identifier_context_score(result, context_terms),
+                        result.score,
+                    ),
+                    reverse=True,
+                )
             promotion_limit = 2 if row_code_terms else 1
             for candidate in candidates[:promotion_limit]:
                 seen_ids.add(candidate.chunk_id)
@@ -1599,6 +1716,7 @@ def _promote_comparison_table_candidates(
     if "comparison" not in analysis.query_types or len(identifiers) < 2 or not supplemental_results:
         return primary_results
     row_code_terms = _comparison_row_code_terms(analysis.raw_query, identifiers)
+    setting_phrases = _comparison_setting_phrases(analysis.raw_query)
     field_terms = _comparison_requested_field_terms(analysis.raw_query)
     if len(row_code_terms) < 2:
         row_code_terms = []
@@ -1612,11 +1730,13 @@ def _promote_comparison_table_candidates(
     seen: set[str] = set()
     for identifier in identifiers:
         context_terms = set() if row_code_terms else _identifier_context_terms(analysis.raw_query, identifier)
+        side_setting_phrases = _comparison_setting_phrases_for_identifier(analysis.raw_query, identifiers, identifier)
         if not row_code_terms and not context_terms and not field_terms:
             continue
         if any(
             _result_matches_primary_identifier(result, identifier)
             and _is_structured_comparison_table_result(result)
+            and _comparison_result_matches_setting_phrase(result, side_setting_phrases)
             and _comparison_result_satisfies_identifier_context(result, context_terms, field_terms)
             and (
                 not row_code_terms
@@ -1632,11 +1752,19 @@ def _promote_comparison_table_candidates(
             and str(result.metadata.get("chunk_type") or "") == "table_record"
             and _is_structured_comparison_table_result(result)
             and _result_matches_primary_identifier(result, identifier)
+            and _comparison_result_matches_setting_phrase(result, side_setting_phrases)
             and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
             and _comparison_result_satisfies_identifier_context(result, context_terms, field_terms)
         ]
         if context_terms:
-            candidates.sort(key=lambda result: (_identifier_context_score(result, context_terms), result.score), reverse=True)
+            candidates.sort(
+                key=lambda result: (
+                    _comparison_setting_phrase_score(result, side_setting_phrases),
+                    _identifier_context_score(result, context_terms),
+                    result.score,
+                ),
+                reverse=True,
+            )
         promotion_limit = 2 if row_code_terms else 1
         for candidate in candidates[:promotion_limit]:
             seen.add(candidate.chunk_id)

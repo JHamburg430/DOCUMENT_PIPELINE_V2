@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T00:56:00Z",
+  "updated_at": "2026-08-28T01:50:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1020,39 +1020,42 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 1
-    },
-    "next_target": "Fix curated cross-document v2 row 6 answer evidence selection so the API answer cites and uses the returned CV-X Condition list and LJ-X8000 Standard Angle expected chunks, while preserving row 7 as content/citation-clean but fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, contextual rows 15-16 clean evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
-    "answer_grounding_status": "Composite citation scoring containment corrected the non-exact cited-chunk source-equivalence policy: sibling identifier bindings, swapped numeric role/value bindings, polarity/action inversion, and cross-role quantity mixing are rejected, while source-supported contextual rows 15-16 still pass. retrieval_eval_20260828_003910 passed 2/2 retrieval and 2/2 actual HTTP API answer grounding with fallback_validation telemetry preserved. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}, limited to curated cross-document v2 row 6 from retrieval_eval_20260827_230123.",
+    "answer_current_failure_categories": {},
+    "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step and cross-document cases, while preserving row 7 as fallback-normalized content/citation-clean evidence from retrieval_eval_20260828_014208, curated cross-document row 6 as clean direct API evidence from retrieval_eval_20260828_014041, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
+    "answer_grounding_status": "Curated cross-document v2 row 6 answer evidence selection was repaired by generic comparison setting-label table promotion. retrieval_eval_20260828_014041 passed 1/1 retrieval and 1/1 actual HTTP API answer grounding with answer_sources {api: 1}, fallback 0. Manual JSONL inspection confirmed cited returned chunk 00b27fd9-c458-547b-bf5c-b97599125345 directly supports CV-X Condition list and cited returned chunk 8ad34fac-f607-5515-9860-76a9a831db3f directly contains the LJ-X8000 Standard Angle setting text. retrieval_eval_20260828_014208 preserved row 7 as 1/1 clean fallback_validation control. Current retrieval failures are {}; current answer failures are {}.",
     "answer_grounding_rotation": {
       "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
       "query_offset": 5,
-      "max_queries": 2,
+      "max_queries": "1+1 separate loaded HTTP controls",
       "diagnostic_false_green_run": "retrieval_eval_20260827_225720",
-      "latest_run": "retrieval_eval_20260827_230123",
-      "dataset": "test_reports/retrieval_eval_dataset_20260827_230123.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260827_230123.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
-      "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
-      "answer_result": "1/2 actual HTTP API answers passed under corrected scorer after fallback telemetry normalization; normalized answer_sources {api: 1, fallback_validation: 1}; normalized answer_fallback_count 1; answer_failure_reasons {expected_evidence_not_cited: 1}. Row 6 remains failed; row 7 remains content/citation-clean as fallback-validation evidence, not direct API/no-fallback evidence.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
-      "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
+      "superseded_failure_run": "retrieval_eval_20260827_230123",
+      "row_6_latest_run": "retrieval_eval_20260828_014041",
+      "row_6_dataset": "test_reports/retrieval_eval_dataset_20260828_014041.jsonl",
+      "row_6_results": "test_reports/retrieval_eval_results_20260828_014041.jsonl",
+      "row_6_summary": "test_reports/retrieval_eval_summary_20260828_014041.json",
+      "row_6_manifest": "test_reports/retrieval_eval_manifest_20260828_014041.json",
+      "row_7_control_run": "retrieval_eval_20260828_014208",
+      "row_7_dataset": "test_reports/retrieval_eval_dataset_20260828_014208.jsonl",
+      "row_7_results": "test_reports/retrieval_eval_results_20260828_014208.jsonl",
+      "row_7_summary": "test_reports/retrieval_eval_summary_20260828_014208.json",
+      "row_7_manifest": "test_reports/retrieval_eval_manifest_20260828_014208.json",
+      "retrieval_result": "Row 6 loaded HTTP rerun passed 1/1 retrieval at rank 1; row 7 loaded HTTP control passed 1/1 retrieval at rank 1; failure_categories {}.",
+      "answer_result": "Row 6 passed 1/1 actual HTTP API answer grounding as direct api/no-fallback evidence; row 7 passed 1/1 as fallback_validation content/citation-clean control. Current answer failures {}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_014041.jsonl. Row 6 answer cites returned chunk 00b27fd9-c458-547b-bf5c-b97599125345, whose content states Condition list allows a maximum of 16 reference conditions and combined/range matching of read data, and cites returned chunk 8ad34fac-f607-5515-9860-76a9a831db3f, whose content includes Setting item: Standard Angle and says it specifies the sorting start angle for Clockwise/Counterclockwise label order. Inspected test_reports/retrieval_eval_results_20260828_014208.jsonl summary/control output; row 7 remains clean with fallback_validation telemetry. Older retrieval_eval_20260827_230123 row 6 remains superseded diagnostic failed evidence.",
+      "runtime_load": "Restarted only api service and verified loaded retrieval fingerprints: _comparison_setting_phrases_sha256=b279608b97a3d814434bd6b40b2bc68e66e8bc39baa8f15f000d84d9ad88fa4e, _comparison_setting_phrase_score_sha256=c991ebb77e5fa67f05211f848d2c186e815462dd3793841c5b0aae7204607a87, _comparison_setting_phrases_for_identifier_sha256=cf3ed6cdc0433d06626f4a3b6e4cf8518ffd0892d354950011124ec7aeba4910, _promote_comparison_table_candidates_sha256=06df76cd92dc7b6933f06c8e93297e12cc9ee830fe9b2fa26b793ae2cdf6e96f.",
+      "production_change": "Generic comparison table retrieval now extracts multiword setting labels from comparison questions and requires/promotes side-aligned setting-row phrase matches before accepting same-product table candidates as sufficient. No document, vendor, filename, chunk-id, or query-specific routing was added.",
       "tests": [
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'expected_chunk_not_same_document_overlap or exact_cited_chunk_to_be_returned or null_quote_nearby_sibling_chunk or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 88 deselected",
-        "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_configuration_queries_keep_table_family_allowed or wrong_setting or comparison_table_promotion' -> 8 passed, 99 deselected",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 107 passed, 1 warning",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 404 passed, 59 warnings",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK"
       ],
-      "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but is fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, not direct API/no-fallback evidence.",
-      "status": "row_6_failed_row_7_clean_fallback_telemetry_normalized",
-      "telemetry_reconciliation": "Replayed retrieval_eval_results_20260827_230123.jsonl with the updated HTTP fallback normalizer: row 6 remains api/no-fallback and failed expected_evidence_not_cited; row 7 is fallback_validation with used_fallback=true and remains content/citation-clean. This supersedes the original retrieval_eval_summary_20260827_230123 source metrics of api:2/fallback 0 for current tracking."
+      "remaining": "Continue answer-grounding rotations across validated multi-step and cross-document cases; no current row-6 answer failure remains.",
+      "status": "rows_6_7_clean_row_6_direct_api_row_7_fallback_validation_control"
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 1
-    },
+    "current_answer_failure_categories": {},
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1209,6 +1212,18 @@
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-28T01:22:02Z",
+        "severity": "ok",
+        "finding": "Latest guardrail cleared the fallback telemetry tracking reconciliation and required continuing with curated cross-document v2 row 6 answer evidence selection.",
+        "status": "followed_up_this_run_row_6_clean_loaded_http_rerun",
+        "evidence": [
+          "retrieval_eval_20260828_014041 row 6 passed retrieval and answer grounding after loaded API restart",
+          "manual JSONL inspection confirmed cited chunks support Condition list and Standard Angle roles",
+          "retrieval_eval_20260828_014208 preserved row 7 fallback-validation clean control"
+        ],
+        "required_next_action": "Continue broad answer-grounding rotations; preserve all diagnostic exclusions and containments."
+      },
       {
         "timestamp": "2026-08-28T00:55:28Z",
         "severity": "needs_fix",
@@ -1917,28 +1932,34 @@
     },
     "answer_grounding_cross_document_rows_6_7": {
       "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
       "query_offset": 5,
-      "max_queries": 2,
+      "max_queries": "1+1 separate loaded HTTP controls",
       "diagnostic_false_green_run": "retrieval_eval_20260827_225720",
-      "latest_run": "retrieval_eval_20260827_230123",
-      "dataset": "test_reports/retrieval_eval_dataset_20260827_230123.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260827_230123.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
-      "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
-      "answer_result": "Row 6 remains failed with expected_evidence_not_cited. Row 7 remains content/citation-clean; fallback telemetry normalization classifies row 7 as fallback_validation evidence, so retrieval_eval_20260827_230123 must not be cited as direct API/no-fallback evidence.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
-      "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
+      "superseded_failure_run": "retrieval_eval_20260827_230123",
+      "row_6_latest_run": "retrieval_eval_20260828_014041",
+      "row_6_dataset": "test_reports/retrieval_eval_dataset_20260828_014041.jsonl",
+      "row_6_results": "test_reports/retrieval_eval_results_20260828_014041.jsonl",
+      "row_6_summary": "test_reports/retrieval_eval_summary_20260828_014041.json",
+      "row_6_manifest": "test_reports/retrieval_eval_manifest_20260828_014041.json",
+      "row_7_control_run": "retrieval_eval_20260828_014208",
+      "row_7_dataset": "test_reports/retrieval_eval_dataset_20260828_014208.jsonl",
+      "row_7_results": "test_reports/retrieval_eval_results_20260828_014208.jsonl",
+      "row_7_summary": "test_reports/retrieval_eval_summary_20260828_014208.json",
+      "row_7_manifest": "test_reports/retrieval_eval_manifest_20260828_014208.json",
+      "retrieval_result": "Row 6 loaded HTTP rerun passed 1/1 retrieval at rank 1; row 7 loaded HTTP control passed 1/1 retrieval at rank 1; failure_categories {}.",
+      "answer_result": "Row 6 passed 1/1 actual HTTP API answer grounding as direct api/no-fallback evidence; row 7 passed 1/1 as fallback_validation content/citation-clean control. Current answer failures {}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_014041.jsonl. Row 6 answer cites returned chunk 00b27fd9-c458-547b-bf5c-b97599125345, whose content states Condition list allows a maximum of 16 reference conditions and combined/range matching of read data, and cites returned chunk 8ad34fac-f607-5515-9860-76a9a831db3f, whose content includes Setting item: Standard Angle and says it specifies the sorting start angle for Clockwise/Counterclockwise label order. Inspected test_reports/retrieval_eval_results_20260828_014208.jsonl summary/control output; row 7 remains clean with fallback_validation telemetry. Older retrieval_eval_20260827_230123 row 6 remains superseded diagnostic failed evidence.",
+      "runtime_load": "Restarted only api service and verified loaded retrieval fingerprints: _comparison_setting_phrases_sha256=b279608b97a3d814434bd6b40b2bc68e66e8bc39baa8f15f000d84d9ad88fa4e, _comparison_setting_phrase_score_sha256=c991ebb77e5fa67f05211f848d2c186e815462dd3793841c5b0aae7204607a87, _comparison_setting_phrases_for_identifier_sha256=cf3ed6cdc0433d06626f4a3b6e4cf8518ffd0892d354950011124ec7aeba4910, _promote_comparison_table_candidates_sha256=06df76cd92dc7b6933f06c8e93297e12cc9ee830fe9b2fa26b793ae2cdf6e96f.",
+      "production_change": "Generic comparison table retrieval now extracts multiword setting labels from comparison questions and requires/promotes side-aligned setting-row phrase matches before accepting same-product table candidates as sufficient. No document, vendor, filename, chunk-id, or query-specific routing was added.",
       "tests": [
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'expected_chunk_not_same_document_overlap or exact_cited_chunk_to_be_returned or null_quote_nearby_sibling_chunk or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 88 deselected",
-        "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_configuration_queries_keep_table_family_allowed or wrong_setting or comparison_table_promotion' -> 8 passed, 99 deselected",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 107 passed, 1 warning",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 404 passed, 59 warnings",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK"
       ],
-      "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but is fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, not direct API/no-fallback evidence.",
-      "status": "row_6_failed_row_7_clean_fallback_telemetry_normalized",
-      "manifest_checker": "scripts/maintenance/check_retrieval_accuracy_manifest.py now requires answer_grounding_cross_document_rows_6_7 at both root and question_bank; missing-root, missing-question_bank, and unequal negative controls fail.",
-      "telemetry_reconciliation": "Replayed retrieval_eval_results_20260827_230123.jsonl with the updated HTTP fallback normalizer: row 6 remains api/no-fallback and failed expected_evidence_not_cited; row 7 is fallback_validation with used_fallback=true and remains content/citation-clean. This supersedes the original retrieval_eval_summary_20260827_230123 source metrics of api:2/fallback 0 for current tracking."
+      "remaining": "Continue answer-grounding rotations across validated multi-step and cross-document cases; no current row-6 answer failure remains.",
+      "status": "rows_6_7_clean_row_6_direct_api_row_7_fallback_validation_control"
     },
     "latest_http_fallback_telemetry_containment": {
       "timestamp": "2026-08-27T23:28:20Z",
@@ -7956,7 +7977,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Fix curated cross-document v2 row 6 answer evidence selection so the API answer cites and uses the returned CV-X Condition list and LJ-X8000 Standard Angle expected chunks, while preserving row 7 as content/citation-clean but fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, contextual rows 15-16 clean evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
+  "next_target": "Continue broadening validated actual HTTP API answer-grounding coverage across realistic multi-step and cross-document cases, while preserving row 7 as fallback-normalized content/citation-clean evidence from retrieval_eval_20260828_014208, curated cross-document row 6 as clean direct API evidence from retrieval_eval_20260828_014041, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -8240,33 +8261,38 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 1
-  },
-  "answer_grounding_status": "Composite citation scoring containment corrected the non-exact cited-chunk source-equivalence policy: sibling identifier bindings, swapped numeric role/value bindings, polarity/action inversion, and cross-role quantity mixing are rejected, while source-supported contextual rows 15-16 still pass. retrieval_eval_20260828_003910 passed 2/2 retrieval and 2/2 actual HTTP API answer grounding with fallback_validation telemetry preserved. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}, limited to curated cross-document v2 row 6 from retrieval_eval_20260827_230123.",
+  "answer_current_failure_categories": {},
+  "answer_grounding_status": "Curated cross-document v2 row 6 answer evidence selection was repaired by generic comparison setting-label table promotion. retrieval_eval_20260828_014041 passed 1/1 retrieval and 1/1 actual HTTP API answer grounding with answer_sources {api: 1}, fallback 0. Manual JSONL inspection confirmed cited returned chunk 00b27fd9-c458-547b-bf5c-b97599125345 directly supports CV-X Condition list and cited returned chunk 8ad34fac-f607-5515-9860-76a9a831db3f directly contains the LJ-X8000 Standard Angle setting text. retrieval_eval_20260828_014208 preserved row 7 as 1/1 clean fallback_validation control. Current retrieval failures are {}; current answer failures are {}.",
   "answer_grounding_rotation": {
     "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
     "query_offset": 5,
-    "max_queries": 2,
+    "max_queries": "1+1 separate loaded HTTP controls",
     "diagnostic_false_green_run": "retrieval_eval_20260827_225720",
-    "latest_run": "retrieval_eval_20260827_230123",
-    "dataset": "test_reports/retrieval_eval_dataset_20260827_230123.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260827_230123.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
-    "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
-    "answer_result": "1/2 actual HTTP API answers passed under corrected scorer after fallback telemetry normalization; normalized answer_sources {api: 1, fallback_validation: 1}; normalized answer_fallback_count 1; answer_failure_reasons {expected_evidence_not_cited: 1}. Row 6 remains failed; row 7 remains content/citation-clean as fallback-validation evidence, not direct API/no-fallback evidence.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
-    "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
+    "superseded_failure_run": "retrieval_eval_20260827_230123",
+    "row_6_latest_run": "retrieval_eval_20260828_014041",
+    "row_6_dataset": "test_reports/retrieval_eval_dataset_20260828_014041.jsonl",
+    "row_6_results": "test_reports/retrieval_eval_results_20260828_014041.jsonl",
+    "row_6_summary": "test_reports/retrieval_eval_summary_20260828_014041.json",
+    "row_6_manifest": "test_reports/retrieval_eval_manifest_20260828_014041.json",
+    "row_7_control_run": "retrieval_eval_20260828_014208",
+    "row_7_dataset": "test_reports/retrieval_eval_dataset_20260828_014208.jsonl",
+    "row_7_results": "test_reports/retrieval_eval_results_20260828_014208.jsonl",
+    "row_7_summary": "test_reports/retrieval_eval_summary_20260828_014208.json",
+    "row_7_manifest": "test_reports/retrieval_eval_manifest_20260828_014208.json",
+    "retrieval_result": "Row 6 loaded HTTP rerun passed 1/1 retrieval at rank 1; row 7 loaded HTTP control passed 1/1 retrieval at rank 1; failure_categories {}.",
+    "answer_result": "Row 6 passed 1/1 actual HTTP API answer grounding as direct api/no-fallback evidence; row 7 passed 1/1 as fallback_validation content/citation-clean control. Current answer failures {}.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_014041.jsonl. Row 6 answer cites returned chunk 00b27fd9-c458-547b-bf5c-b97599125345, whose content states Condition list allows a maximum of 16 reference conditions and combined/range matching of read data, and cites returned chunk 8ad34fac-f607-5515-9860-76a9a831db3f, whose content includes Setting item: Standard Angle and says it specifies the sorting start angle for Clockwise/Counterclockwise label order. Inspected test_reports/retrieval_eval_results_20260828_014208.jsonl summary/control output; row 7 remains clean with fallback_validation telemetry. Older retrieval_eval_20260827_230123 row 6 remains superseded diagnostic failed evidence.",
+    "runtime_load": "Restarted only api service and verified loaded retrieval fingerprints: _comparison_setting_phrases_sha256=b279608b97a3d814434bd6b40b2bc68e66e8bc39baa8f15f000d84d9ad88fa4e, _comparison_setting_phrase_score_sha256=c991ebb77e5fa67f05211f848d2c186e815462dd3793841c5b0aae7204607a87, _comparison_setting_phrases_for_identifier_sha256=cf3ed6cdc0433d06626f4a3b6e4cf8518ffd0892d354950011124ec7aeba4910, _promote_comparison_table_candidates_sha256=06df76cd92dc7b6933f06c8e93297e12cc9ee830fe9b2fa26b793ae2cdf6e96f.",
+    "production_change": "Generic comparison table retrieval now extracts multiword setting labels from comparison questions and requires/promotes side-aligned setting-row phrase matches before accepting same-product table candidates as sufficient. No document, vendor, filename, chunk-id, or query-specific routing was added.",
     "tests": [
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'expected_chunk_not_same_document_overlap or exact_cited_chunk_to_be_returned or null_quote_nearby_sibling_chunk or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 88 deselected",
-      "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_configuration_queries_keep_table_family_allowed or wrong_setting or comparison_table_promotion' -> 8 passed, 99 deselected",
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 107 passed, 1 warning",
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 404 passed, 59 warnings",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK"
     ],
-    "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but is fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, not direct API/no-fallback evidence.",
-    "status": "row_6_failed_row_7_clean_fallback_telemetry_normalized",
-    "telemetry_reconciliation": "Replayed retrieval_eval_results_20260827_230123.jsonl with the updated HTTP fallback normalizer: row 6 remains api/no-fallback and failed expected_evidence_not_cited; row 7 is fallback_validation with used_fallback=true and remains content/citation-clean. This supersedes the original retrieval_eval_summary_20260827_230123 source metrics of api:2/fallback 0 for current tracking."
+    "remaining": "Continue answer-grounding rotations across validated multi-step and cross-document cases; no current row-6 answer failure remains.",
+    "status": "rows_6_7_clean_row_6_direct_api_row_7_fallback_validation_control"
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -8695,9 +8721,7 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 1
-  },
+  "current_answer_failure_categories": {},
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
@@ -8854,6 +8878,18 @@
     }
   ],
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-28T01:22:02Z",
+      "severity": "ok",
+      "finding": "Latest guardrail cleared the fallback telemetry tracking reconciliation and required continuing with curated cross-document v2 row 6 answer evidence selection.",
+      "status": "followed_up_this_run_row_6_clean_loaded_http_rerun",
+      "evidence": [
+        "retrieval_eval_20260828_014041 row 6 passed retrieval and answer grounding after loaded API restart",
+        "manual JSONL inspection confirmed cited chunks support Condition list and Standard Angle roles",
+        "retrieval_eval_20260828_014208 preserved row 7 fallback-validation clean control"
+      ],
+      "required_next_action": "Continue broad answer-grounding rotations; preserve all diagnostic exclusions and containments."
+    },
     {
       "timestamp": "2026-08-28T00:55:28Z",
       "severity": "needs_fix",
@@ -9471,28 +9507,34 @@
   },
   "answer_grounding_cross_document_rows_6_7": {
     "scope": "curated_cross_document_v2_rows_6_7_answer_grounding",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_235830.jsonl",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
     "query_offset": 5,
-    "max_queries": 2,
+    "max_queries": "1+1 separate loaded HTTP controls",
     "diagnostic_false_green_run": "retrieval_eval_20260827_225720",
-    "latest_run": "retrieval_eval_20260827_230123",
-    "dataset": "test_reports/retrieval_eval_dataset_20260827_230123.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260827_230123.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
-    "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
-    "answer_result": "Row 6 remains failed with expected_evidence_not_cited. Row 7 remains content/citation-clean; fallback telemetry normalization classifies row 7 as fallback_validation evidence, so retrieval_eval_20260827_230123 must not be cited as direct API/no-fallback evidence.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
-    "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
+    "superseded_failure_run": "retrieval_eval_20260827_230123",
+    "row_6_latest_run": "retrieval_eval_20260828_014041",
+    "row_6_dataset": "test_reports/retrieval_eval_dataset_20260828_014041.jsonl",
+    "row_6_results": "test_reports/retrieval_eval_results_20260828_014041.jsonl",
+    "row_6_summary": "test_reports/retrieval_eval_summary_20260828_014041.json",
+    "row_6_manifest": "test_reports/retrieval_eval_manifest_20260828_014041.json",
+    "row_7_control_run": "retrieval_eval_20260828_014208",
+    "row_7_dataset": "test_reports/retrieval_eval_dataset_20260828_014208.jsonl",
+    "row_7_results": "test_reports/retrieval_eval_results_20260828_014208.jsonl",
+    "row_7_summary": "test_reports/retrieval_eval_summary_20260828_014208.json",
+    "row_7_manifest": "test_reports/retrieval_eval_manifest_20260828_014208.json",
+    "retrieval_result": "Row 6 loaded HTTP rerun passed 1/1 retrieval at rank 1; row 7 loaded HTTP control passed 1/1 retrieval at rank 1; failure_categories {}.",
+    "answer_result": "Row 6 passed 1/1 actual HTTP API answer grounding as direct api/no-fallback evidence; row 7 passed 1/1 as fallback_validation content/citation-clean control. Current answer failures {}.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_014041.jsonl. Row 6 answer cites returned chunk 00b27fd9-c458-547b-bf5c-b97599125345, whose content states Condition list allows a maximum of 16 reference conditions and combined/range matching of read data, and cites returned chunk 8ad34fac-f607-5515-9860-76a9a831db3f, whose content includes Setting item: Standard Angle and says it specifies the sorting start angle for Clockwise/Counterclockwise label order. Inspected test_reports/retrieval_eval_results_20260828_014208.jsonl summary/control output; row 7 remains clean with fallback_validation telemetry. Older retrieval_eval_20260827_230123 row 6 remains superseded diagnostic failed evidence.",
+    "runtime_load": "Restarted only api service and verified loaded retrieval fingerprints: _comparison_setting_phrases_sha256=b279608b97a3d814434bd6b40b2bc68e66e8bc39baa8f15f000d84d9ad88fa4e, _comparison_setting_phrase_score_sha256=c991ebb77e5fa67f05211f848d2c186e815462dd3793841c5b0aae7204607a87, _comparison_setting_phrases_for_identifier_sha256=cf3ed6cdc0433d06626f4a3b6e4cf8518ffd0892d354950011124ec7aeba4910, _promote_comparison_table_candidates_sha256=06df76cd92dc7b6933f06c8e93297e12cc9ee830fe9b2fa26b793ae2cdf6e96f.",
+    "production_change": "Generic comparison table retrieval now extracts multiword setting labels from comparison questions and requires/promotes side-aligned setting-row phrase matches before accepting same-product table candidates as sufficient. No document, vendor, filename, chunk-id, or query-specific routing was added.",
     "tests": [
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'expected_chunk_not_same_document_overlap or exact_cited_chunk_to_be_returned or null_quote_nearby_sibling_chunk or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 88 deselected",
-      "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_configuration_queries_keep_table_family_allowed or wrong_setting or comparison_table_promotion' -> 8 passed, 99 deselected",
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 107 passed, 1 warning",
+      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 404 passed, 59 warnings",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK"
     ],
-    "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but is fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, not direct API/no-fallback evidence.",
-    "status": "row_6_failed_row_7_clean_fallback_telemetry_normalized",
-    "manifest_checker": "scripts/maintenance/check_retrieval_accuracy_manifest.py now requires answer_grounding_cross_document_rows_6_7 at both root and question_bank; missing-root, missing-question_bank, and unequal negative controls fail.",
-    "telemetry_reconciliation": "Replayed retrieval_eval_results_20260827_230123.jsonl with the updated HTTP fallback normalizer: row 6 remains api/no-fallback and failed expected_evidence_not_cited; row 7 is fallback_validation with used_fallback=true and remains content/citation-clean. This supersedes the original retrieval_eval_summary_20260827_230123 source metrics of api:2/fallback 0 for current tracking."
+    "remaining": "Continue answer-grounding rotations across validated multi-step and cross-document cases; no current row-6 answer failure remains.",
+    "status": "rows_6_7_clean_row_6_direct_api_row_7_fallback_validation_control"
   },
   "latest_http_fallback_telemetry_containment": {
     "timestamp": "2026-08-27T23:28:20Z",
