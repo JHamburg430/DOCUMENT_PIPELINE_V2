@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T02:45:00Z",
+  "updated_at": "2026-08-28T03:28:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1205,14 +1205,14 @@
         "timestamp": "2026-08-28T02:52:45Z",
         "severity": "needs_fix",
         "finding": "Guardrail found undocumented API/eval-generation/config-model surface changes in 0e84e3a and a missing deterministic manifest pair check for latest_comparison_setting_side_binding_containment.",
-        "status": "addressed_this_run_tracking_checker_bounded_no_optional_rotation",
+        "status": "addressed_this_run_provenance_corrected_tracking_only",
         "evidence": [
           "Added latest_comparison_setting_side_binding_containment to REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
           "Added deterministic equal-copy coverage through the minimal manifest plus missing-root, missing-question_bank, and unequal-value unit controls for that field.",
           "Updated both manifest copies of latest_comparison_setting_side_binding_containment from commit_pending true to committed 9e43e7e and recorded checker-validation evidence.",
-          "Recorded commit 0e84e3a as an unapproved scope/provenance blocker: it changes apps/api/main.py, packages/common config, eval generation, and eval tests, so generated question-bank evidence from the new defaults remains diagnostic until approved, split, or reverted."
+          "Corrected the 0e84e3a provenance record: John explicitly authorized the larger eval-question model/context, prior section-question context, logical-question generation, and NONE behavior in OpenClaw dashboard session aca6d8e1-705e-452f-959b-8e26bad1f3a1; the dashboard session, not this accuracy cron, authored and pushed 0e84e3a."
         ],
-        "required_next_action": "Resolve 0e84e3a through explicit approval or a separate split/revert decision before relying on new-default generated question-bank evidence; then resume the manifest target to fix curated cross-document v2 row 8 answer evidence selection."
+        "required_next_action": "Resume the manifest target to fix curated cross-document v2 row 8 answer evidence selection. Generated question-bank evidence from 0e84e3a still needs normal source review, endpoint/model comparability records, and question-quality validation before promotion."
       },
       {
         "timestamp": "2026-08-28T02:22:53Z",
@@ -2111,20 +2111,27 @@
       "checker_validation": "This run adds latest_comparison_setting_side_binding_containment to the deterministic required root/question_bank pair checker with equal, missing-root, missing-question_bank, and unequal negative controls."
     },
     "latest_eval_question_generation_context_scope_review": {
-      "timestamp": "2026-08-28T03:05:00Z",
+      "timestamp": "2026-08-28T03:28:00Z",
       "guardrail_timestamp": "2026-08-28T02:52:45Z",
-      "status": "recorded_scope_provenance_blocker_no_approval_claim",
+      "status": "corrected_user_authorized_dashboard_session_provenance",
       "commit": "0e84e3a",
       "commit_subject": "Improve eval question generation context",
+      "authorized_by": "John in OpenClaw dashboard session aca6d8e1-705e-452f-959b-8e26bad1f3a1",
+      "provenance": "Dashboard-session/user-authorized eval-question generation work authored and pushed 0e84e3a; it should not be treated as an unapproved accuracy-cron API/config/model-surface change.",
       "files_changed": [
         "apps/api/main.py",
         "packages/common/src/manuals_rag_common/config.py",
         "packages/evals/src/manuals_rag_evals/retrieval_eval.py",
         "tests/unit/test_retrieval_eval.py"
       ],
-      "scope_review": "The commit changes API/eval-generation context lookup plus eval-question model config defaults. This run found no explicit approval evidence and does not treat the change as an accepted accuracy-cron production/retrieval change.",
-      "containment": "Generated question-bank evidence using these new defaults should remain diagnostic until source-reviewed and until John or a separate approved workflow accepts the API/config/model-surface change, or the change is split/reverted outside this bounded tracking/checker repair.",
-      "current_run_action": "Tracking/checker-only correction; no API, UI, config, model, retrieval, answering, parser, ingestion, infrastructure, Docker, schema, or benchmark behavior changed in this run."
+      "scope_review": "The commit changes API/eval-generation context lookup plus eval-question model config defaults, but current authoritative provenance says this was explicitly requested by John in the dashboard session rather than authored by the accuracy cron.",
+      "remaining_constraints": "This correction does not waive source review, endpoint/model comparability, question-quality validation, or the normal prohibition on future accuracy-cron API/config/model changes.",
+      "evidence": [
+        "Supervisor correction in the 2026-08-28 03:26 UTC cron payload states John authorized the work in dashboard session aca6d8e1-705e-452f-959b-8e26bad1f3a1.",
+        "memory/2026-08-27.md records 0e84e3a as a pushed Manuals RAG eval-question generation improvement.",
+        "Guardrail commit ba3ebb5 deterministic duplicate checks are preserved."
+      ],
+      "current_run_action": "Tracking-only provenance correction; no API, UI, config, model, retrieval, answering, parser, ingestion, infrastructure, Docker, schema, eval generation/scoring, benchmark, or production behavior changed in this run."
     }
   },
   "latest_false_negative_repair": {
@@ -8967,14 +8974,14 @@
       "timestamp": "2026-08-28T02:52:45Z",
       "severity": "needs_fix",
       "finding": "Guardrail found undocumented API/eval-generation/config-model surface changes in 0e84e3a and a missing deterministic manifest pair check for latest_comparison_setting_side_binding_containment.",
-      "status": "addressed_this_run_tracking_checker_bounded_no_optional_rotation",
+      "status": "addressed_this_run_provenance_corrected_tracking_only",
       "evidence": [
         "Added latest_comparison_setting_side_binding_containment to REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
         "Added deterministic equal-copy coverage through the minimal manifest plus missing-root, missing-question_bank, and unequal-value unit controls for that field.",
         "Updated both manifest copies of latest_comparison_setting_side_binding_containment from commit_pending true to committed 9e43e7e and recorded checker-validation evidence.",
-        "Recorded commit 0e84e3a as an unapproved scope/provenance blocker: it changes apps/api/main.py, packages/common config, eval generation, and eval tests, so generated question-bank evidence from the new defaults remains diagnostic until approved, split, or reverted."
+        "Corrected the 0e84e3a provenance record: John explicitly authorized the larger eval-question model/context, prior section-question context, logical-question generation, and NONE behavior in OpenClaw dashboard session aca6d8e1-705e-452f-959b-8e26bad1f3a1; the dashboard session, not this accuracy cron, authored and pushed 0e84e3a."
       ],
-      "required_next_action": "Resolve 0e84e3a through explicit approval or a separate split/revert decision before relying on new-default generated question-bank evidence; then resume the manifest target to fix curated cross-document v2 row 8 answer evidence selection."
+      "required_next_action": "Resume the manifest target to fix curated cross-document v2 row 8 answer evidence selection. Generated question-bank evidence from 0e84e3a still needs normal source review, endpoint/model comparability records, and question-quality validation before promotion."
     },
     {
       "timestamp": "2026-08-28T02:22:53Z",
@@ -9782,19 +9789,26 @@
     "checker_validation": "This run adds latest_comparison_setting_side_binding_containment to the deterministic required root/question_bank pair checker with equal, missing-root, missing-question_bank, and unequal negative controls."
   },
   "latest_eval_question_generation_context_scope_review": {
-    "timestamp": "2026-08-28T03:05:00Z",
+    "timestamp": "2026-08-28T03:28:00Z",
     "guardrail_timestamp": "2026-08-28T02:52:45Z",
-    "status": "recorded_scope_provenance_blocker_no_approval_claim",
+    "status": "corrected_user_authorized_dashboard_session_provenance",
     "commit": "0e84e3a",
     "commit_subject": "Improve eval question generation context",
+    "authorized_by": "John in OpenClaw dashboard session aca6d8e1-705e-452f-959b-8e26bad1f3a1",
+    "provenance": "Dashboard-session/user-authorized eval-question generation work authored and pushed 0e84e3a; it should not be treated as an unapproved accuracy-cron API/config/model-surface change.",
     "files_changed": [
       "apps/api/main.py",
       "packages/common/src/manuals_rag_common/config.py",
       "packages/evals/src/manuals_rag_evals/retrieval_eval.py",
       "tests/unit/test_retrieval_eval.py"
     ],
-    "scope_review": "The commit changes API/eval-generation context lookup plus eval-question model config defaults. This run found no explicit approval evidence and does not treat the change as an accepted accuracy-cron production/retrieval change.",
-    "containment": "Generated question-bank evidence using these new defaults should remain diagnostic until source-reviewed and until John or a separate approved workflow accepts the API/config/model-surface change, or the change is split/reverted outside this bounded tracking/checker repair.",
-    "current_run_action": "Tracking/checker-only correction; no API, UI, config, model, retrieval, answering, parser, ingestion, infrastructure, Docker, schema, or benchmark behavior changed in this run."
+    "scope_review": "The commit changes API/eval-generation context lookup plus eval-question model config defaults, but current authoritative provenance says this was explicitly requested by John in the dashboard session rather than authored by the accuracy cron.",
+    "remaining_constraints": "This correction does not waive source review, endpoint/model comparability, question-quality validation, or the normal prohibition on future accuracy-cron API/config/model changes.",
+    "evidence": [
+      "Supervisor correction in the 2026-08-28 03:26 UTC cron payload states John authorized the work in dashboard session aca6d8e1-705e-452f-959b-8e26bad1f3a1.",
+      "memory/2026-08-27.md records 0e84e3a as a pushed Manuals RAG eval-question generation improvement.",
+      "Guardrail commit ba3ebb5 deterministic duplicate checks are preserved."
+    ],
+    "current_run_action": "Tracking-only provenance correction; no API, UI, config, model, retrieval, answering, parser, ingestion, infrastructure, Docker, schema, eval generation/scoring, benchmark, or production behavior changed in this run."
   }
 }
