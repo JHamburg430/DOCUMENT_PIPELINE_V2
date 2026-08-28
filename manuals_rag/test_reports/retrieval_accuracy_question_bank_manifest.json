@@ -1202,6 +1202,19 @@
     ],
     "unresolved_guardrail_findings": [
       {
+        "timestamp": "2026-08-28T02:52:45Z",
+        "severity": "needs_fix",
+        "finding": "Guardrail found undocumented API/eval-generation/config-model surface changes in 0e84e3a and a missing deterministic manifest pair check for latest_comparison_setting_side_binding_containment.",
+        "status": "addressed_this_run_tracking_checker_bounded_no_optional_rotation",
+        "evidence": [
+          "Added latest_comparison_setting_side_binding_containment to REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+          "Added deterministic equal-copy coverage through the minimal manifest plus missing-root, missing-question_bank, and unequal-value unit controls for that field.",
+          "Updated both manifest copies of latest_comparison_setting_side_binding_containment from commit_pending true to committed 9e43e7e and recorded checker-validation evidence.",
+          "Recorded commit 0e84e3a as an unapproved scope/provenance blocker: it changes apps/api/main.py, packages/common config, eval generation, and eval tests, so generated question-bank evidence from the new defaults remains diagnostic until approved, split, or reverted."
+        ],
+        "required_next_action": "Resolve 0e84e3a through explicit approval or a separate split/revert decision before relying on new-default generated question-bank evidence; then resume the manifest target to fix curated cross-document v2 row 8 answer evidence selection."
+      },
+      {
         "timestamp": "2026-08-28T02:22:53Z",
         "severity": "needs_fix",
         "finding": "run_table_lexical_search could fabricate comparison side coverage by returning a same-model row for a different requested setting when the side-specific setting was absent.",
@@ -2065,7 +2078,7 @@
     "latest_comparison_setting_side_binding_containment": {
       "status": "addressed",
       "guardrail_timestamp": "2026-08-28T02:22:53Z",
-      "commit_pending": true,
+      "commit_pending": false,
       "production_change": "run_table_lexical_search now requires an explicitly side-assigned setting phrase match before retaining/promoting a comparison table row for a requested product side when the query names multiple settings.",
       "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_table_lexical_promotes_two_side_setting_matches or comparison_table_lexical_does_not_promote_wrong_setting_for_missing_side or comparison_table_promotion_replaces_same_product_wrong_setting' -> 3 passed, 106 deselected",
       "retriever_suite": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 109 passed, 1 warning",
@@ -2093,7 +2106,25 @@
         "manual_jsonl_inspection": "Row 6 cited returned chunks 00b27fd9 and 8ad34fac, supporting CV-X Condition list and LJ-X8000 Standard Angle respectively. Row 7 cited returned chunks including af1d8a26 and 7469d2a2, supporting PMSR DC2LAR and RTO2L meanings. Quote spans were null and support came from cited chunk content."
       },
       "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
-      "preserves": "Row 8 remains the current expected_evidence_not_cited answer failure from retrieval_eval_20260828_015749; row 9 remains clean fallback-validation evidence; row 6 direct-API and row 7 fallback-validation evidence remain preserved."
+      "preserves": "Row 8 remains the current expected_evidence_not_cited answer failure from retrieval_eval_20260828_015749; row 9 remains clean fallback-validation evidence; row 6 direct-API and row 7 fallback-validation evidence remain preserved.",
+      "commit": "9e43e7e",
+      "checker_validation": "This run adds latest_comparison_setting_side_binding_containment to the deterministic required root/question_bank pair checker with equal, missing-root, missing-question_bank, and unequal negative controls."
+    },
+    "latest_eval_question_generation_context_scope_review": {
+      "timestamp": "2026-08-28T03:05:00Z",
+      "guardrail_timestamp": "2026-08-28T02:52:45Z",
+      "status": "recorded_scope_provenance_blocker_no_approval_claim",
+      "commit": "0e84e3a",
+      "commit_subject": "Improve eval question generation context",
+      "files_changed": [
+        "apps/api/main.py",
+        "packages/common/src/manuals_rag_common/config.py",
+        "packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+        "tests/unit/test_retrieval_eval.py"
+      ],
+      "scope_review": "The commit changes API/eval-generation context lookup plus eval-question model config defaults. This run found no explicit approval evidence and does not treat the change as an accepted accuracy-cron production/retrieval change.",
+      "containment": "Generated question-bank evidence using these new defaults should remain diagnostic until source-reviewed and until John or a separate approved workflow accepts the API/config/model-surface change, or the change is split/reverted outside this bounded tracking/checker repair.",
+      "current_run_action": "Tracking/checker-only correction; no API, UI, config, model, retrieval, answering, parser, ingestion, infrastructure, Docker, schema, or benchmark behavior changed in this run."
     }
   },
   "latest_false_negative_repair": {
@@ -8933,6 +8964,19 @@
   ],
   "unresolved_guardrail_findings": [
     {
+      "timestamp": "2026-08-28T02:52:45Z",
+      "severity": "needs_fix",
+      "finding": "Guardrail found undocumented API/eval-generation/config-model surface changes in 0e84e3a and a missing deterministic manifest pair check for latest_comparison_setting_side_binding_containment.",
+      "status": "addressed_this_run_tracking_checker_bounded_no_optional_rotation",
+      "evidence": [
+        "Added latest_comparison_setting_side_binding_containment to REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+        "Added deterministic equal-copy coverage through the minimal manifest plus missing-root, missing-question_bank, and unequal-value unit controls for that field.",
+        "Updated both manifest copies of latest_comparison_setting_side_binding_containment from commit_pending true to committed 9e43e7e and recorded checker-validation evidence.",
+        "Recorded commit 0e84e3a as an unapproved scope/provenance blocker: it changes apps/api/main.py, packages/common config, eval generation, and eval tests, so generated question-bank evidence from the new defaults remains diagnostic until approved, split, or reverted."
+      ],
+      "required_next_action": "Resolve 0e84e3a through explicit approval or a separate split/revert decision before relying on new-default generated question-bank evidence; then resume the manifest target to fix curated cross-document v2 row 8 answer evidence selection."
+    },
+    {
       "timestamp": "2026-08-28T02:22:53Z",
       "severity": "needs_fix",
       "finding": "run_table_lexical_search could fabricate comparison side coverage by returning a same-model row for a different requested setting when the side-specific setting was absent.",
@@ -9705,7 +9749,7 @@
   "latest_comparison_setting_side_binding_containment": {
     "status": "addressed",
     "guardrail_timestamp": "2026-08-28T02:22:53Z",
-    "commit_pending": true,
+    "commit_pending": false,
     "production_change": "run_table_lexical_search now requires an explicitly side-assigned setting phrase match before retaining/promoting a comparison table row for a requested product side when the query names multiple settings.",
     "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_table_lexical_promotes_two_side_setting_matches or comparison_table_lexical_does_not_promote_wrong_setting_for_missing_side or comparison_table_promotion_replaces_same_product_wrong_setting' -> 3 passed, 106 deselected",
     "retriever_suite": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 109 passed, 1 warning",
@@ -9733,6 +9777,24 @@
       "manual_jsonl_inspection": "Row 6 cited returned chunks 00b27fd9 and 8ad34fac, supporting CV-X Condition list and LJ-X8000 Standard Angle respectively. Row 7 cited returned chunks including af1d8a26 and 7469d2a2, supporting PMSR DC2LAR and RTO2L meanings. Quote spans were null and support came from cited chunk content."
     },
     "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
-    "preserves": "Row 8 remains the current expected_evidence_not_cited answer failure from retrieval_eval_20260828_015749; row 9 remains clean fallback-validation evidence; row 6 direct-API and row 7 fallback-validation evidence remain preserved."
+    "preserves": "Row 8 remains the current expected_evidence_not_cited answer failure from retrieval_eval_20260828_015749; row 9 remains clean fallback-validation evidence; row 6 direct-API and row 7 fallback-validation evidence remain preserved.",
+    "commit": "9e43e7e",
+    "checker_validation": "This run adds latest_comparison_setting_side_binding_containment to the deterministic required root/question_bank pair checker with equal, missing-root, missing-question_bank, and unequal negative controls."
+  },
+  "latest_eval_question_generation_context_scope_review": {
+    "timestamp": "2026-08-28T03:05:00Z",
+    "guardrail_timestamp": "2026-08-28T02:52:45Z",
+    "status": "recorded_scope_provenance_blocker_no_approval_claim",
+    "commit": "0e84e3a",
+    "commit_subject": "Improve eval question generation context",
+    "files_changed": [
+      "apps/api/main.py",
+      "packages/common/src/manuals_rag_common/config.py",
+      "packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+      "tests/unit/test_retrieval_eval.py"
+    ],
+    "scope_review": "The commit changes API/eval-generation context lookup plus eval-question model config defaults. This run found no explicit approval evidence and does not treat the change as an accepted accuracy-cron production/retrieval change.",
+    "containment": "Generated question-bank evidence using these new defaults should remain diagnostic until source-reviewed and until John or a separate approved workflow accepts the API/config/model-surface change, or the change is split/reverted outside this bounded tracking/checker repair.",
+    "current_run_action": "Tracking/checker-only correction; no API, UI, config, model, retrieval, answering, parser, ingestion, infrastructure, Docker, schema, or benchmark behavior changed in this run."
   }
 }

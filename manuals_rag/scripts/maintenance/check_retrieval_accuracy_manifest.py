@@ -24,6 +24,8 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "latest_matrix_retrieval_guardrail_containment",
     "latest_http_fallback_telemetry_containment",
     "latest_composite_citation_scoring_containment",
+    "latest_comparison_setting_side_binding_containment",
+    "latest_eval_question_generation_context_scope_review",
     "answer_grounding_cross_document_rows_6_7",
     "partial_claim_citation_pruning_containment",
     "llm_answer_judge_policy",

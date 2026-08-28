@@ -35,6 +35,8 @@ def _minimal_manifest():
         "latest_matrix_retrieval_guardrail_containment": {"status": "addressed"},
         "latest_http_fallback_telemetry_containment": {"status": "addressed"},
         "latest_composite_citation_scoring_containment": {"status": "addressed"},
+        "latest_comparison_setting_side_binding_containment": {"status": "addressed"},
+        "latest_eval_question_generation_context_scope_review": {"status": "recorded_scope_blocker"},
         "answer_grounding_cross_document_rows_6_7": {"status": "row_6_failed_row_7_clean"},
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
@@ -191,3 +193,87 @@ def test_manifest_checker_rejects_unequal_composite_citation_containment():
     errors = module.check_manifest(manifest)
 
     assert any("latest_composite_citation_scoring_containment mismatch" in error for error in errors)
+
+
+def test_manifest_checker_rejects_missing_root_comparison_setting_side_binding_containment():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    del manifest["latest_comparison_setting_side_binding_containment"]
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "latest_comparison_setting_side_binding_containment missing required duplicate" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_missing_question_bank_comparison_setting_side_binding_containment():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    del manifest["question_bank"]["latest_comparison_setting_side_binding_containment"]
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "question_bank.latest_comparison_setting_side_binding_containment" in error
+        and "missing required duplicate" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_unequal_comparison_setting_side_binding_containment():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["question_bank"]["latest_comparison_setting_side_binding_containment"] = {
+        "status": "stale"
+    }
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "latest_comparison_setting_side_binding_containment mismatch" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_missing_root_eval_question_generation_scope_review():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    del manifest["latest_eval_question_generation_context_scope_review"]
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "latest_eval_question_generation_context_scope_review missing required duplicate" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_missing_question_bank_eval_question_generation_scope_review():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    del manifest["question_bank"]["latest_eval_question_generation_context_scope_review"]
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "question_bank.latest_eval_question_generation_context_scope_review" in error
+        and "missing required duplicate" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_unequal_eval_question_generation_scope_review():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["question_bank"]["latest_eval_question_generation_context_scope_review"] = {
+        "status": "stale"
+    }
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "latest_eval_question_generation_context_scope_review mismatch" in error
+        for error in errors
+    )
