@@ -14,12 +14,28 @@ The job must improve three capabilities:
 2. Multi-step retrieval for questions that require gathering evidence from multiple chunks, sections, tables, pages, or documents before answering.
 3. Final answer generation that accurately uses the retrieved evidence, cites/grounds claims, and says when the indexed documents do not contain enough information.
 
+## Application Quality Standard
+
+John expects this automation to analyze the application at the same level of detail he applies during live review. Do not stop at "tests pass" or "the command returned 0" when the workflow being improved is user-visible. Inspect the actual app behavior, API payloads, saved artifacts, and live job traces closely enough to catch missing status cells, stale table rows, hidden model switches, metadata loss, accepted-count drift, vague generated questions, and misleading progress displays.
+
+Every run should ask:
+
+- What would John see in the Eval Matrix or API response while this is running?
+- Does the UI expose enough detail to understand progress, failures, accepted/rejected decisions, source metadata, and generated artifacts without tailing logs?
+- Does the backend state agree with the frontend state after refresh, clear, restart, and completed-job reload?
+- Does a requested count mean successful accepted outcomes, not attempted candidates or partial work?
+- Does the model receive enough source context to produce grounded work without relying on filenames, pages, hidden chunk ids, or noisy ingestion metadata?
+- Are `NONE`, rejected, failed, and accepted outcomes classified and displayed honestly?
+- Would the behavior still be correct after a browser refresh, UI service restart, or a later cron run?
+
+When a bug spans retrieval/eval logic and the Eval Matrix or local app workflow, analyze the full path: user control, frontend payload, local UI endpoint, subprocess command, eval/generation code, event stream, persisted dataset, matrix reload, and visible table/detail rendering. Record the observed payload or job id when it proves behavior.
+
 ## Hard Scope
 
 - Use the same local models already configured in this application.
 - Do not change model providers, model names, embedding model, reranker model, or external services unless John explicitly asks.
-- Only update retrieval, evaluation, and answering logic.
-- Avoid ingestion, parser, UI, auth, infrastructure, Docker, schema, or deployment changes unless a test fixture or eval harness absolutely cannot run without a tiny scoped adjustment.
+- Prefer retrieval, evaluation, and answering logic, but fix the actual bottleneck. UI, local eval-console endpoints, and ingestion metadata are in scope when they directly affect evaluation usability, source-grounding, question quality, app observability, or John's ability to verify the system. Keep those changes tightly scoped and document why they were necessary.
+- Avoid auth, infrastructure, Docker, schema, deployment, model/provider, parser, or broad ingestion changes unless John explicitly asks or the run proves the current app cannot produce/verify grounded behavior without that scoped change.
 - Never make document-specific routing rules, filename heuristics, vendor-specific shortcuts, or eval-only production behavior.
 - Preserve explicit user/request filters, but do not turn query text into hard document filters unless the request explicitly provides filters.
 - Do not optimize by deleting hard questions, narrowing to tiny green subsets, weakening expected evidence without a source-backed reason, or adding logic that only works for the current eval cases.
@@ -40,25 +56,28 @@ If a file does not exist, create it before doing evaluation work.
 Each 30-minute run should do the smallest complete improvement cycle possible:
 
 1. Read `git status --short`, this runbook, and the progress manifest.
-2. Confirm the local stack/test environment is usable.
-3. Select one target from the current eval failures or coverage gaps.
-4. Expand or refine the question bank with realistic engineer questions.
-5. Run focused evals that distinguish:
+2. Confirm the local stack/test environment is usable and identify whether the running services have loaded the code path under test.
+3. Select one target from John's latest feedback, unresolved guardrail findings, current eval failures, replacement debt, UI observability gaps, or coverage gaps.
+4. Reproduce the target through the same route John uses when practical: Eval Matrix UI/local endpoint, generation job endpoint, eval script, saved dataset, or search/answer API.
+5. Expand or refine the question bank with realistic engineer questions.
+6. Run focused evals that distinguish:
    - single-step retrieval
    - multi-step retrieval
    - final answer accuracy and citation grounding
-6. Make only scoped code/test changes in retrieval, evals, or answering.
-7. Run focused tests first, then broader tests when the change affects shared behavior.
-8. Update the progress note and manifest with:
+7. Make only scoped code/test changes in the layer that actually owns the problem.
+8. Run focused tests first, then broader tests when the change affects shared behavior.
+9. Run a live smoke check through the actual app/API path when the change affects a user-visible workflow, generated artifacts, model calls, or long-running jobs. Inspect the response or event stream, not just the final exit code.
+10. Update the progress note and manifest with:
    - question-bank size
    - datasets touched
    - pass/fail rates
    - failure categories fixed or introduced
    - commands run
+   - live job ids or API payload checks when relevant
    - files changed
    - next target
-9. Commit successful scoped changes with a clear message.
-10. Attempt to push; if credentials are unavailable, record that the local commit is ready.
+11. Commit successful scoped changes with a clear message.
+12. Attempt to push; if credentials are unavailable, record that the local commit is ready.
 
 ## Question Bank Requirements
 
@@ -88,6 +107,11 @@ Question generation rules:
 - Questions must be answerable from source documentation.
 - Do not include filename-only artifacts or opaque long-filename fragments.
 - Do not ask questions a user could only ask after seeing internal chunk ids, filenames, run ids, or eval metadata.
+- Use a model review pass for generated questions when quality is uncertain. The reviewer should receive the source content and generated question and either approve or provide actionable feedback; do not rely on brittle word-count or banned-word validation to decide quality.
+- If a generation request asks for `N` questions, keep going until `N` questions are accepted or the source candidates are exhausted. Rejections, parse failures, and `NONE` windows do not count toward the requested accepted total.
+- Treat `NONE` as the right output for weak, duplicate, internal-format, or already-covered source windows. Track `NONE` separately from rejection and failure.
+- Generated question rows must preserve model-facing source context such as parent article/section, product/device/family when grounded, source snippet, and expected evidence. If that information is unavailable or wrong because ingestion metadata is missing/noisy, investigate the ingestion metadata path rather than teaching the generator to guess.
+- The Eval Matrix must show live generation progress: model output, reviewer status, accepted/rejected/NONE decisions, accumulated accepted questions, generated dataset path, and review status after refresh.
 - Store expected evidence ids/snippets/terms so regressions are measurable.
 - Separate train/dev-style exploration data from locked regression data.
 
@@ -102,6 +126,8 @@ docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest 
 ```
 
 For eval-pipeline changes, also run the smallest relevant benchmark script and record the report path.
+
+For Eval Matrix or question-generation workflow changes, also exercise the local UI endpoint or browser-visible path and inspect the returned JSON/table state. Verify clear/generate/reload behavior when relevant, including that generated rows display review status and that requested accepted counts are honored.
 
 A change is not done if it improves one query by hardcoding that query, filename, vendor, product, or document-specific phrase.
 

@@ -8,6 +8,8 @@ Manuals RAG is being built as a production system that can retrieve and generate
 
 The guardrail job protects that goal. It should prevent the accuracy cron from drifting into benchmark gaming, narrow-case patching, eval bias, or unnecessary changes that make the system less generally useful.
 
+It should also protect John's app-level quality expectations. If the accuracy job changes a workflow that John experiences through the Eval Matrix, local UI endpoints, generated datasets, or long-running jobs, audit the user-visible behavior and persisted state, not only the code diff and pytest result.
+
 ## Audited Job
 
 - Accuracy job id: `39262386-1bb6-4571-98e1-13a30047ddb8`
@@ -29,6 +31,17 @@ Flag a critical issue if an accuracy run does any of these:
 - Commits a retrieval/answering change without meaningful regression gates for single-step retrieval, multi-step retrieval, and answer grounding when those surfaces are affected.
 - Leaves a failed or regressing experiment in production code.
 
+Flag at least `needs_fix` when an accuracy run claims a user-visible eval/generation workflow is fixed but does not prove the actual app path:
+
+- Requested `N` generated questions but accepted fewer than `N` while unattempted ranked source candidates remain.
+- Counts rejected candidates, parse failures, or `NONE` windows as generated/accepted questions.
+- Does not show live model/reviewer progress, accepted/rejected/NONE decisions, accumulated accepted questions, generated dataset path, or review status in the Eval Matrix when those are relevant.
+- Leaves generated rows without review status after refresh, clear, service restart, or matrix reload.
+- Clears backend state without the UI table reflecting the clear.
+- Uses mismatched models for generation/review without documenting and justifying the runtime-load cost.
+- Feeds the model misleading or missing source metadata when parent article, section, grounded product/device/family, or source snippet context is available.
+- Lets bad ingestion metadata force the question generator to guess instead of tracing and correcting the ingestion/source-context path.
+
 ## Review Checklist
 
 For each recent accuracy cron run, review:
@@ -40,6 +53,11 @@ For each recent accuracy cron run, review:
 - Whether eval datasets grew toward broad production coverage or merely optimized a narrow current bank.
 - Whether the change improves behavior for unseen manuals and realistic user phrasing, not only named examples in the current report.
 - Whether answer generation and citation grounding are being measured, not only retrieval ranking.
+- Whether any UI/local-endpoint workflow change was exercised through the actual route John uses, with job ids, API payloads, event traces, or visible table state recorded.
+- Whether model-generated questions were reviewed by a model using the source content and candidate question, and whether rejection feedback was used constructively instead of replaced by brittle banned-word/length filters.
+- Whether generated question batches meet accepted-count semantics: `max_questions` means accepted questions, while `NONE` and rejected candidates are tracked separately.
+- Whether generated rows retain and display review status after reload.
+- Whether source metadata supplied to the generation model is grounded and useful, and whether missing/noisy metadata was traced to ingestion or source-context construction.
 
 ## Allowed Findings
 
@@ -56,6 +74,13 @@ Use these severities:
 - For `watch` or `needs_fix`, append a concise note to `test_reports/retrieval_accuracy_guardrail.md` and set the next accuracy target in the manifest/progress log when appropriate.
 - For `critical`, append a guardrail note, attempt to pause or disable the accuracy cron if the cron tool permits it, and leave clear instructions for John/main-session review. Do not silently revert user or cron work.
 - Never edit production retrieval/answering logic from the guardrail job. Its job is audit, containment, and instruction correction.
+
+When auditing app-level workflow fixes, require evidence proportionate to the claim:
+
+- Code-only tests are enough for pure helpers and data transforms.
+- UI/local endpoint fixes require inspecting the endpoint response or browser-visible state.
+- Long-running matrix jobs require inspecting the job snapshot/event stream and the persisted dataset or matrix rows after completion.
+- Runtime behavior claims require evidence that the running service or subprocess loaded the changed code.
 
 ## Guardrail State
 
