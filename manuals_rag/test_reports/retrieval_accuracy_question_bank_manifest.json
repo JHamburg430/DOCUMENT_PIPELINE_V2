@@ -1020,27 +1020,32 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {},
-    "next_target": "Continue broad actual HTTP API answer-grounding rotations on curated cross-document v2 rows 10-11 or the next manifest-prioritized realistic multi-step/cross-document cases, while preserving row 8 and row 9 clean fallback-validation evidence from retrieval_eval_20260828_050015, row 6 clean direct-API evidence from retrieval_eval_20260828_023537, row 7 clean fallback-validation evidence from retrieval_eval_20260828_023537, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, the comparison side-binding/provenance corrections, and all citation-fidelity containments.",
-    "answer_grounding_status": "Curated cross-document v2 rows 8-9 answer repair ran as retrieval_eval_20260828_041628. Retrieval passed 2/2 at rank 1 and actual HTTP answer grounding passed 2/2. Row 8 now cites and uses the CV-X Color to Binary corrective-action chunk plus XG-X unsupported SD-card guidance; row 9 remains clean fallback-validation evidence. Current retrieval failures are {}; current answer failures are {}.",
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 1
+    },
+    "next_target": "Fix curated cross-document v2 row 10 multi-evidence retrieval/answer grounding so the API answer retrieves, cites, and uses both the SV2 symptom-monitoring supported-data-types chunk and the LJ-S8000 Index UINT Direction 0 receiving-side chunk, or source-review the case as dataset/scoring diagnostic before further optional rotations. Preserve row 8 and row 9 clean fallback-validation evidence from retrieval_eval_20260828_050015, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, and all prior diagnostic exclusions/containments.",
+    "answer_grounding_status": "Curated cross-document v2 row 10 ran as retrieval_eval_20260828_052349. Retrieval passed 1/1 at rank 1 under the current retrieval metric, but actual HTTP answer grounding failed 0/1 because the answer did not cite the source-reviewed LJ-S8000 Index > UINT evidence chunk. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}.",
     "answer_grounding_rotation": {
-      "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_repair",
+      "scope": "curated_cross_document_v2_row_10_answer_grounding_diagnostic",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-      "query_offset": 7,
-      "max_queries": 2,
-      "latest_run": "retrieval_eval_20260828_041628",
-      "dataset": "test_reports/retrieval_eval_dataset_20260828_041628.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260828_041628.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260828_041628.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260828_041628.json",
-      "retrieval_result": "Rows 8-9 passed 2/2 retrieval at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-      "answer_result": "Rows 8-9 passed 2/2 actual HTTP API answer grounding with answer_sources {fallback_validation: 2}, answer_fallback_count 2, and answer_failure_reasons {}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_041628.jsonl. Row 8 cites expected CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a on page 507, which directly states Inspection is not stable in gray binary and Select Color to Binary in Extract Colors; it also cites XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content and parent context directly support the unsupported SD-card KEYENCE/non-industrial-card guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236, supporting the unsupported SD-card guidance and Increase the Max. Segments corrective action. All quote_spans were null, so there was no generated quote self-validation.",
-      "status": "rows_8_9_clean_fallback_validation_after_side_specific_retrieval_and_answer_fallback_repair",
-      "scope_note": "Changed only generic retrieval comparison context matching and generic answer fallback validation/selection for troubleshooting comparisons; no API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
+      "query_offset": 9,
+      "max_queries": 1,
+      "latest_run": "retrieval_eval_20260828_052349",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_052349.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260828_052349.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_052349.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_052349.json",
+      "retrieval_result": "Row 10 passed retrieval at rank 1 under the current retrieval metric; candidate recall and metadata-document recall were 100%; failure_categories {}.",
+      "answer_result": "Row 10 failed actual HTTP API answer grounding: 0/1 answers passed, answer_sources {fallback_validation: 1}, answer_fallback_count 1, answer_failure_reasons {expected_evidence_not_cited: 1}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_052349.jsonl. The fallback answer cites returned SV2 chunk aa013e96-9241-54f8-a6c9-aac5c28e5f10, which supports UINT/INT/UDINT/DINT for symptom monitoring supported data types, but it does not retrieve or cite the expected LJ-S8000 Index > UINT chunk aacb725c-fa7b-51b1-aeec-fa1662318433 that states Direction 0 receiving side maps 0 Bit area, 1 Fixed byte data area, and 2 CommandParam area. The cited LJ-S8000 chunks are table summaries or sibling Attribute data/size rows, so the expected Index UINT role is not grounded. Quote spans were null; no generated quote self-validation was present.",
+      "classification": "diagnostic_not_clean_expected_evidence_not_cited",
+      "scope_note": "Tracking/eval-artifact update only; no production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
+      "endpoint_model_comparability": "Actual HTTP eval used the already-running compose API with the existing environment; pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited."
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {},
+    "current_answer_failure_categories": {
+      "expected_evidence_not_cited": 1
+    },
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1619,7 +1624,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-28T04:22:00Z",
+    "updated_at": "2026-08-28T05:30:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -2070,20 +2075,21 @@
     },
     "retrieval_current_failure_categories": {},
     "latest_cross_document_answer_rotation": {
-      "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_partial_side_containment_rerun",
+      "scope": "curated_cross_document_v2_row_10_answer_grounding_diagnostic",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-      "query_offset": 7,
-      "max_queries": 2,
-      "latest_run": "retrieval_eval_20260828_050015",
-      "dataset": "test_reports/retrieval_eval_dataset_20260828_050015.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260828_050015.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260828_050015.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260828_050015.json",
-      "retrieval_result": "Rows 8-9 passed 2/2 retrieval at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-      "answer_result": "Rows 8-9 passed 2/2 actual HTTP API answer grounding with answer_sources {fallback_validation: 2}, answer_fallback_count 2, and answer_failure_reasons {}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null.",
-      "status": "rows_8_9_clean_fallback_validation_after_partial_side_containment_rerun",
-      "scope_note": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix."
+      "query_offset": 9,
+      "max_queries": 1,
+      "latest_run": "retrieval_eval_20260828_052349",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_052349.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260828_052349.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_052349.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_052349.json",
+      "retrieval_result": "Row 10 passed retrieval at rank 1 under the current retrieval metric; candidate recall and metadata-document recall were 100%; failure_categories {}.",
+      "answer_result": "Row 10 failed actual HTTP API answer grounding: 0/1 answers passed, answer_sources {fallback_validation: 1}, answer_fallback_count 1, answer_failure_reasons {expected_evidence_not_cited: 1}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_052349.jsonl. The fallback answer cites returned SV2 chunk aa013e96-9241-54f8-a6c9-aac5c28e5f10, which supports UINT/INT/UDINT/DINT for symptom monitoring supported data types, but it does not retrieve or cite the expected LJ-S8000 Index > UINT chunk aacb725c-fa7b-51b1-aeec-fa1662318433 that states Direction 0 receiving side maps 0 Bit area, 1 Fixed byte data area, and 2 CommandParam area. The cited LJ-S8000 chunks are table summaries or sibling Attribute data/size rows, so the expected Index UINT role is not grounded. Quote spans were null; no generated quote self-validation was present.",
+      "classification": "diagnostic_not_clean_expected_evidence_not_cited",
+      "scope_note": "Tracking/eval-artifact update only; no production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
+      "endpoint_model_comparability": "Actual HTTP eval used the already-running compose API with the existing environment; pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited."
     },
     "latest_comparison_setting_side_binding_containment": {
       "status": "addressed",
@@ -8218,7 +8224,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Continue broad actual HTTP API answer-grounding rotations on curated cross-document v2 rows 10-11 or the next manifest-prioritized realistic multi-step/cross-document cases, while preserving row 8 and row 9 clean fallback-validation evidence from retrieval_eval_20260828_050015, row 6 clean direct-API evidence from retrieval_eval_20260828_023537, row 7 clean fallback-validation evidence from retrieval_eval_20260828_023537, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, the comparison side-binding/provenance corrections, and all citation-fidelity containments.",
+  "next_target": "Fix curated cross-document v2 row 10 multi-evidence retrieval/answer grounding so the API answer retrieves, cites, and uses both the SV2 symptom-monitoring supported-data-types chunk and the LJ-S8000 Index UINT Direction 0 receiving-side chunk, or source-review the case as dataset/scoring diagnostic before further optional rotations. Preserve row 8 and row 9 clean fallback-validation evidence from retrieval_eval_20260828_050015, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, and all prior diagnostic exclusions/containments.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -8502,23 +8508,26 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {},
-  "answer_grounding_status": "Curated cross-document v2 rows 8-9 answer repair ran as retrieval_eval_20260828_041628. Retrieval passed 2/2 at rank 1 and actual HTTP answer grounding passed 2/2. Row 8 now cites and uses the CV-X Color to Binary corrective-action chunk plus XG-X unsupported SD-card guidance; row 9 remains clean fallback-validation evidence. Current retrieval failures are {}; current answer failures are {}.",
+  "answer_current_failure_categories": {
+    "expected_evidence_not_cited": 1
+  },
+  "answer_grounding_status": "Curated cross-document v2 row 10 ran as retrieval_eval_20260828_052349. Retrieval passed 1/1 at rank 1 under the current retrieval metric, but actual HTTP answer grounding failed 0/1 because the answer did not cite the source-reviewed LJ-S8000 Index > UINT evidence chunk. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}.",
   "answer_grounding_rotation": {
-    "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_repair",
+    "scope": "curated_cross_document_v2_row_10_answer_grounding_diagnostic",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-    "query_offset": 7,
-    "max_queries": 2,
-    "latest_run": "retrieval_eval_20260828_041628",
-    "dataset": "test_reports/retrieval_eval_dataset_20260828_041628.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260828_041628.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260828_041628.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260828_041628.json",
-    "retrieval_result": "Rows 8-9 passed 2/2 retrieval at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-    "answer_result": "Rows 8-9 passed 2/2 actual HTTP API answer grounding with answer_sources {fallback_validation: 2}, answer_fallback_count 2, and answer_failure_reasons {}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_041628.jsonl. Row 8 cites expected CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a on page 507, which directly states Inspection is not stable in gray binary and Select Color to Binary in Extract Colors; it also cites XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content and parent context directly support the unsupported SD-card KEYENCE/non-industrial-card guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236, supporting the unsupported SD-card guidance and Increase the Max. Segments corrective action. All quote_spans were null, so there was no generated quote self-validation.",
-    "status": "rows_8_9_clean_fallback_validation_after_side_specific_retrieval_and_answer_fallback_repair",
-    "scope_note": "Changed only generic retrieval comparison context matching and generic answer fallback validation/selection for troubleshooting comparisons; no API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
+    "query_offset": 9,
+    "max_queries": 1,
+    "latest_run": "retrieval_eval_20260828_052349",
+    "dataset": "test_reports/retrieval_eval_dataset_20260828_052349.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260828_052349.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260828_052349.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260828_052349.json",
+    "retrieval_result": "Row 10 passed retrieval at rank 1 under the current retrieval metric; candidate recall and metadata-document recall were 100%; failure_categories {}.",
+    "answer_result": "Row 10 failed actual HTTP API answer grounding: 0/1 answers passed, answer_sources {fallback_validation: 1}, answer_fallback_count 1, answer_failure_reasons {expected_evidence_not_cited: 1}.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_052349.jsonl. The fallback answer cites returned SV2 chunk aa013e96-9241-54f8-a6c9-aac5c28e5f10, which supports UINT/INT/UDINT/DINT for symptom monitoring supported data types, but it does not retrieve or cite the expected LJ-S8000 Index > UINT chunk aacb725c-fa7b-51b1-aeec-fa1662318433 that states Direction 0 receiving side maps 0 Bit area, 1 Fixed byte data area, and 2 CommandParam area. The cited LJ-S8000 chunks are table summaries or sibling Attribute data/size rows, so the expected Index UINT role is not grounded. Quote spans were null; no generated quote self-validation was present.",
+    "classification": "diagnostic_not_clean_expected_evidence_not_cited",
+    "scope_note": "Tracking/eval-artifact update only; no production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
+    "endpoint_model_comparability": "Actual HTTP eval used the already-running compose API with the existing environment; pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -8947,7 +8956,9 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "expected_evidence_not_cited": 1
+  },
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
@@ -9886,20 +9897,21 @@
   },
   "retrieval_current_failure_categories": {},
   "latest_cross_document_answer_rotation": {
-    "scope": "curated_cross_document_v2_rows_8_9_answer_grounding_partial_side_containment_rerun",
+    "scope": "curated_cross_document_v2_row_10_answer_grounding_diagnostic",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-    "query_offset": 7,
-    "max_queries": 2,
-    "latest_run": "retrieval_eval_20260828_050015",
-    "dataset": "test_reports/retrieval_eval_dataset_20260828_050015.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260828_050015.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260828_050015.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260828_050015.json",
-    "retrieval_result": "Rows 8-9 passed 2/2 retrieval at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-    "answer_result": "Rows 8-9 passed 2/2 actual HTTP API answer grounding with answer_sources {fallback_validation: 2}, answer_fallback_count 2, and answer_failure_reasons {}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_050015.jsonl. Row 8 cites returned CV-X chunk 2fe755de-286b-5f46-9ed7-76f4b950e94a for Inspection is not stable in gray binary / Select Color to Binary in Extract Colors, and returned XG-X chunk 947ec30f-6046-58af-bf79-5d1160da3762 whose content/parent context supports the unsupported SD-card KEYENCE guarantee guidance. Row 9 cites returned chunks 1063a1fe-70e8-5538-a7b1-890b2f0564ba and 7e7adc82-2e03-5eed-a89a-3f9cfc39e236 supporting unsupported-card guidance and Increase the Max. Segments. Quote spans were null.",
-    "status": "rows_8_9_clean_fallback_validation_after_partial_side_containment_rerun",
-    "scope_note": "Changed only generic answer validation/fallback logic plus tests/tracking/eval artifacts; no retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed in this follow-up fix."
+    "query_offset": 9,
+    "max_queries": 1,
+    "latest_run": "retrieval_eval_20260828_052349",
+    "dataset": "test_reports/retrieval_eval_dataset_20260828_052349.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260828_052349.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260828_052349.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260828_052349.json",
+    "retrieval_result": "Row 10 passed retrieval at rank 1 under the current retrieval metric; candidate recall and metadata-document recall were 100%; failure_categories {}.",
+    "answer_result": "Row 10 failed actual HTTP API answer grounding: 0/1 answers passed, answer_sources {fallback_validation: 1}, answer_fallback_count 1, answer_failure_reasons {expected_evidence_not_cited: 1}.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_052349.jsonl. The fallback answer cites returned SV2 chunk aa013e96-9241-54f8-a6c9-aac5c28e5f10, which supports UINT/INT/UDINT/DINT for symptom monitoring supported data types, but it does not retrieve or cite the expected LJ-S8000 Index > UINT chunk aacb725c-fa7b-51b1-aeec-fa1662318433 that states Direction 0 receiving side maps 0 Bit area, 1 Fixed byte data area, and 2 CommandParam area. The cited LJ-S8000 chunks are table summaries or sibling Attribute data/size rows, so the expected Index UINT role is not grounded. Quote spans were null; no generated quote self-validation was present.",
+    "classification": "diagnostic_not_clean_expected_evidence_not_cited",
+    "scope_note": "Tracking/eval-artifact update only; no production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
+    "endpoint_model_comparability": "Actual HTTP eval used the already-running compose API with the existing environment; pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited."
   },
   "latest_comparison_setting_side_binding_containment": {
     "status": "addressed",
