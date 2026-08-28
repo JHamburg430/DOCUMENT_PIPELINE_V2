@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T19:25:00Z",
+  "updated_at": "2026-08-28T19:53:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1768,7 +1768,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-28T19:25:00Z",
+    "updated_at": "2026-08-28T19:53:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -2717,6 +2717,22 @@
               "source": "contextual procedure rows 5-6 from retrieval_eval_20260828_102649"
             },
             "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments."
+          },
+          {
+            "timestamp": "2026-08-28T19:53:00Z",
+            "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+            "guardrail_context": "Latest visible guardrail review in test_reports/retrieval_accuracy_guardrail.md remains ok at 2026-08-28T03:51:48Z; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c remained unavailable from this cron context.",
+            "status": "verified_already_enforced_tracking_only",
+            "evidence": [
+              "scripts/maintenance/check_retrieval_accuracy_manifest.py includes latest_contextual_procedure_rows_3_4_source_review in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+              "tests/unit/test_manifest_check.py includes equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail controls for latest_contextual_procedure_rows_3_4_source_review.",
+              "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 23 passed.",
+              "Explicit real-manifest controls behaved as required: equal copy passed; deleting root latest_contextual_procedure_rows_3_4_source_review failed; deleting question_bank.latest_contextual_procedure_rows_3_4_source_review failed; changing nested classification failed; deleting question_bank.latest_false_negative_repair failed; answer-failure alias mismatch failed; retrieval-failure alias mismatch failed.",
+              "git diff --check HEAD passed."
+            ],
+            "dirty_worktree_scope": "Preserved unrelated dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass eval-artifact deletions, and untracked eval/debug artifacts. No production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed in this run.",
+            "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating the remaining dirty production/eval/UI changes or validating any adopted production change with focused/full gates, runtime-load proof, and actual API changed-path evidence. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
           }
         ]
       },
@@ -10939,6 +10955,22 @@
             "source": "contextual procedure rows 5-6 from retrieval_eval_20260828_102649"
           },
           "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments."
+        },
+        {
+          "timestamp": "2026-08-28T19:53:00Z",
+          "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+          "guardrail_context": "Latest visible guardrail review in test_reports/retrieval_accuracy_guardrail.md remains ok at 2026-08-28T03:51:48Z; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c remained unavailable from this cron context.",
+          "status": "verified_already_enforced_tracking_only",
+          "evidence": [
+            "scripts/maintenance/check_retrieval_accuracy_manifest.py includes latest_contextual_procedure_rows_3_4_source_review in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+            "tests/unit/test_manifest_check.py includes equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail controls for latest_contextual_procedure_rows_3_4_source_review.",
+            "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 23 passed.",
+            "Explicit real-manifest controls behaved as required: equal copy passed; deleting root latest_contextual_procedure_rows_3_4_source_review failed; deleting question_bank.latest_contextual_procedure_rows_3_4_source_review failed; changing nested classification failed; deleting question_bank.latest_false_negative_repair failed; answer-failure alias mismatch failed; retrieval-failure alias mismatch failed.",
+            "git diff --check HEAD passed."
+          ],
+          "dirty_worktree_scope": "Preserved unrelated dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass eval-artifact deletions, and untracked eval/debug artifacts. No production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed in this run.",
+          "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating the remaining dirty production/eval/UI changes or validating any adopted production change with focused/full gates, runtime-load proof, and actual API changed-path evidence. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
         }
       ]
     },
