@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T12:43:00Z",
+  "updated_at": "2026-08-28T12:53:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -2474,7 +2474,25 @@
           "Real manifest passed deterministic consistency check; generated negative controls against the real manifest failed as expected.",
           "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 426 passed, 59 warnings."
         ],
-        "remaining": "Rows 3-4 remain diagnostic dataset/source-equivalence evidence; they still need true multi-step replacements or a source-backed equivalence policy plus actual HTTP rerun before counting as clean answer-grounding coverage."
+        "remaining": "Rows 3-4 remain diagnostic dataset/source-equivalence evidence; they still need true multi-step replacements or a source-backed equivalence policy plus actual HTTP rerun before counting as clean answer-grounding coverage.",
+        "validation_reruns": [
+          {
+            "timestamp": "2026-08-28T12:53:00Z",
+            "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+            "guardrail_context": "Latest guardrail ok at 2026-08-28T12:39:58Z; current cron payload also repeated the prior presence-aware manifest-pair requirement for latest_contextual_procedure_rows_3_4_source_review.",
+            "status": "verified_already_enforced_tracking_only",
+            "evidence": [
+              "scripts/maintenance/check_retrieval_accuracy_manifest.py already includes latest_contextual_procedure_rows_3_4_source_review in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+              "tests/unit/test_manifest_check.py already covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for latest_contextual_procedure_rows_3_4_source_review.",
+              "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 23 passed.",
+              "Explicit real-manifest controls passed/fail as required: equal copy passed; deleting root copy failed; deleting question_bank copy failed; unequal nested classification failed.",
+              "git diff --check HEAD passed."
+            ],
+            "dirty_worktree_scope": "Preserved unrelated dirty production answering/retrieval/eval/UI/compose changes, mass eval-artifact deletions, and untracked eval/debug artifacts. No production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed in this run.",
+            "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments."
+          }
+        ]
       },
       "replacement_repair": {
         "timestamp": "2026-08-28T09:29:00Z",
@@ -10452,7 +10470,25 @@
         "Real manifest passed deterministic consistency check; generated negative controls against the real manifest failed as expected.",
         "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 426 passed, 59 warnings."
       ],
-      "remaining": "Rows 3-4 remain diagnostic dataset/source-equivalence evidence; they still need true multi-step replacements or a source-backed equivalence policy plus actual HTTP rerun before counting as clean answer-grounding coverage."
+      "remaining": "Rows 3-4 remain diagnostic dataset/source-equivalence evidence; they still need true multi-step replacements or a source-backed equivalence policy plus actual HTTP rerun before counting as clean answer-grounding coverage.",
+      "validation_reruns": [
+        {
+          "timestamp": "2026-08-28T12:53:00Z",
+          "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+          "guardrail_context": "Latest guardrail ok at 2026-08-28T12:39:58Z; current cron payload also repeated the prior presence-aware manifest-pair requirement for latest_contextual_procedure_rows_3_4_source_review.",
+          "status": "verified_already_enforced_tracking_only",
+          "evidence": [
+            "scripts/maintenance/check_retrieval_accuracy_manifest.py already includes latest_contextual_procedure_rows_3_4_source_review in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+            "tests/unit/test_manifest_check.py already covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for latest_contextual_procedure_rows_3_4_source_review.",
+            "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 23 passed.",
+            "Explicit real-manifest controls passed/fail as required: equal copy passed; deleting root copy failed; deleting question_bank copy failed; unequal nested classification failed.",
+            "git diff --check HEAD passed."
+          ],
+          "dirty_worktree_scope": "Preserved unrelated dirty production answering/retrieval/eval/UI/compose changes, mass eval-artifact deletions, and untracked eval/debug artifacts. No production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed in this run.",
+          "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments."
+        }
+      ]
     },
     "replacement_repair": {
       "timestamp": "2026-08-28T09:29:00Z",
