@@ -1,0 +1,65 @@
+{
+  "total_queries": 3,
+  "passed_queries": 3,
+  "failed_queries": 0,
+  "pass_rate": 1.0,
+  "pass_at_1": 1.0,
+  "pass_at_3": 1.0,
+  "pass_at_5": 1.0,
+  "mean_passing_rank": 1.0,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 3,
+      "passed": 3
+    }
+  },
+  "by_retrieval_task": {
+    "multi_step_retrieval": {
+      "total": 3,
+      "passed": 3
+    }
+  },
+  "by_document": {
+    "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf": {
+      "total": 1,
+      "passed": 1
+    },
+    "AS_145895_KV-X_C_611X95_KA_US_2084_1.pdf": {
+      "total": 1,
+      "passed": 1
+    }
+  },
+  "failure_categories": {},
+  "benchmark_quality": {
+    "validated": 3
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 1.0,
+  "metadata_document_selection_attempts": 3,
+  "metadata_document_selection_recall_rate": 1.0,
+  "metadata_document_selection_rank_1_rate": 0.0,
+  "answer_eval_count": 3,
+  "answer_passed_queries": 3,
+  "answer_failed_queries": 0,
+  "answer_pass_rate": 1.0,
+  "answer_failure_reasons": {},
+  "answer_latency": {
+    "min_seconds": 51.15,
+    "max_seconds": 66.027,
+    "mean_seconds": 56.322,
+    "p95_seconds": 66.027
+  },
+  "answer_fallback_count": 3,
+  "answer_fallback_rate": 1.0,
+  "answer_sources": {
+    "fallback_validation": 3
+  },
+  "answer_fallback_reasons": {
+    "Generated answer was replaced by retrieval-grounded fallback during validation.": 3
+  },
+  "answer_mean_summary_count": null
+}

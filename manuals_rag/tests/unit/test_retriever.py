@@ -217,8 +217,7 @@ def test_query_analysis_extracts_short_letter_number_products_in_comparisons():
     )
 
     assert "comparison" in analysis.query_types
-    assert "SV2" in analysis.product_identifiers
-    assert "LJ-S8000" in analysis.product_identifiers
+    assert analysis.product_identifiers[:2] == ["SV2", "LJ-S8000"]
 
 
 def test_query_analysis_does_not_extract_embedded_model_prefix_in_comparisons():
@@ -2955,6 +2954,80 @@ def test_comparison_table_promotion_replaces_same_product_wrong_setting():
     assert promoted[1].metadata["retrieval_stage"] == "comparison_table_promoted"
 
 
+def test_comparison_table_promotion_replaces_weaker_same_side_context_match():
+    analysis = analyze_query(
+        "Compare the corrective action for unstable gray-binary inspection on MOD1-A "
+        "with the MOD2-B guidance for an unsupported SD card access failure."
+    )
+    reranked = [
+        SearchResult(
+            chunk_id="mod1-weaker-gray",
+            score=4.0,
+            title="MOD1-A Manual",
+            document_version_id="ver-a",
+            source_document_id="doc-a",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content=(
+                "Status: The detection is unstable when Mode of Extract Colors is Gray.; "
+                "Corrective action: Select Color to Grayscale in Mode of Extract Colors."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Corrective action"],
+                "table_row_headers": ["The detection is unstable when Mode of Extract Colors is Gray."],
+                "product_model": "MOD1-A",
+            },
+        ),
+        SearchResult(
+            chunk_id="mod2-card",
+            score=3.0,
+            title="MOD2-B Manual",
+            document_version_id="ver-b",
+            source_document_id="doc-b",
+            pages=[20],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective Action; Row headers: unsupported SD card access failure; "
+                "Cell value: Use an industrial rated card."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Corrective Action"],
+                "table_row_headers": ["unsupported SD card access failure"],
+                "product_model": "MOD2-B",
+            },
+        ),
+    ]
+    supplemental = [
+        SearchResult(
+            chunk_id="mod1-gray-binary",
+            score=3.5,
+            title="MOD1-A Manual",
+            document_version_id="ver-a",
+            source_document_id="doc-a",
+            pages=[11],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective action; Row headers: Inspection is not stable in gray binary.; "
+                "Cell value: Select Color to Binary in Extract Colors."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Corrective action"],
+                "table_row_headers": ["Inspection is not stable in gray binary."],
+                "product_model": "MOD1-A",
+            },
+        )
+    ]
+
+    promoted = retriever._promote_comparison_table_candidates(reranked, supplemental, analysis, limit=5)
+
+    assert promoted[0].chunk_id == "mod1-gray-binary"
+    assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
+    assert promoted[1].chunk_id == "mod1-weaker-gray"
+
+
 def test_comparison_table_lexical_promotes_two_side_setting_matches(monkeypatch):
     def fake_fetch_all(_query: str, _params: tuple[object, ...]) -> list[dict[str, object]]:
         return [
@@ -3044,6 +3117,87 @@ def test_comparison_table_lexical_does_not_promote_wrong_setting_for_missing_sid
 
     assert [result.chunk_id for result in results] == ["mod1-alpha"]
     assert retriever._comparison_setting_phrase_score(results[0], ["alpha mode"]) > 0
+
+
+def test_comparison_table_lexical_promotes_side_specific_entry_phrases(monkeypatch):
+    def fake_fetch_all(_query: str, _params: tuple[object, ...]) -> list[dict[str, object]]:
+        return [
+            {
+                "id": "lj-summary",
+                "document_version_id": "ver-lj",
+                "source_document_id": "doc-lj",
+                "title": "LJ-S8000 Manual",
+                "section_path_text": "Data Tables",
+                "page_from": 346,
+                "page_to": 346,
+                "content": "Table summary: Name | Data type | Details",
+                "metadata_json": {
+                    "chunk_type": "table_record",
+                    "table_summary": True,
+                    "product_model": "LJ: S8000 Series",
+                    "product_family": "LJ-S8000 Series",
+                },
+                "priority_score": 10.0,
+            },
+            {
+                "id": "lj-index-uint",
+                "document_version_id": "ver-lj",
+                "source_document_id": "doc-lj",
+                "title": "LJ-S8000 Manual",
+                "section_path_text": "Data Tables",
+                "page_from": 347,
+                "page_to": 347,
+                "content": (
+                    "Column headers: Details; Row headers: Index > UINT; Cell value: "
+                    "When Direction is 0 (receiving side), 1 is Fixed byte data area, "
+                    "and 2 is CommandParam area."
+                ),
+                "metadata_json": {
+                    "chunk_type": "table_record",
+                    "table_cell": True,
+                    "table_column_headers": ["Details"],
+                    "table_row_headers": ["Index", "UINT"],
+                    "product_model": "LJ: S8000 Series",
+                    "product_family": "LJ-S8000 Series",
+                },
+                "priority_score": 13.0,
+            },
+            {
+                "id": "sv2-supported-types",
+                "document_version_id": "ver-sv",
+                "source_document_id": "doc-sv",
+                "title": "SV2 Manual",
+                "section_path_text": "Data Tables",
+                "page_from": 37,
+                "page_to": 37,
+                "content": (
+                    "Column headers: Details; Row headers: Symptom monitoring (word) > "
+                    "Supported data types; Cell value: UINT, INT, UDINT, DINT."
+                ),
+                "metadata_json": {
+                    "chunk_type": "table_record",
+                    "table_cell": True,
+                    "table_column_headers": ["Details"],
+                    "table_row_headers": ["Symptom monitoring (word)", "Supported data types"],
+                    "product_family": "SV2 Series",
+                },
+                "priority_score": 13.0,
+            },
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+    analysis = analyze_query(
+        "For SV2 and LJ-S8000 data tables, compare the details listed for symptom monitoring "
+        "supported data types with the Index UINT entry."
+    )
+
+    results = retriever.run_table_lexical_search(analysis.raw_query, ["corpus-1"], {}, analysis, limit=5)
+
+    assert [result.chunk_id for result in results[:2]] == ["sv2-supported-types", "lj-index-uint"]
+    assert retriever._comparison_side_context_terms(analysis.raw_query, analysis.product_identifiers, "LJ-S8000") == {
+        "index",
+        "uint",
+    }
 
 
 def test_comparison_requested_field_terms_ignore_ordinary_correct_usage():

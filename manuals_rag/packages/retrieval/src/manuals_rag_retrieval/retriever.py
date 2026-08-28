@@ -932,7 +932,7 @@ def run_table_lexical_search(
                 and _comparison_result_matches_setting_phrase(result, side_setting_phrases)
                 and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
             ]
-            context_terms = _identifier_context_terms(analysis.raw_query, identifier)
+            context_terms = _comparison_side_context_terms(analysis.raw_query, identifiers, str(identifier))
             if context_terms:
                 candidates.sort(
                     key=lambda result: (
@@ -1684,6 +1684,40 @@ def _identifier_context_terms(query: str, identifier: str) -> set[str]:
     }
 
 
+def _comparison_side_context_terms(query: str, identifiers: list[str], identifier: str) -> set[str]:
+    if len(identifiers) < 2:
+        return _identifier_context_terms(query, identifier)
+    try:
+        index = identifiers.index(identifier)
+    except ValueError:
+        return _identifier_context_terms(query, identifier)
+    match = re.search(r"\bcompare\b(?P<body>.+?)(?:\?|$)", query, flags=re.IGNORECASE)
+    if not match:
+        return _identifier_context_terms(query, identifier)
+    parts = re.split(r"\s+\bwith\b\s+", match.group("body"), maxsplit=1, flags=re.IGNORECASE)
+    if len(parts) < 2 or index >= len(parts):
+        return _identifier_context_terms(query, identifier)
+    side_text = parts[index]
+    for other in identifiers:
+        side_text = re.sub(re.escape(other), " ", side_text, flags=re.IGNORECASE)
+    side_text = re.sub(
+        r"\b(?:the|what|which|is|are|listed|specified|shown|given|for|on|in|entry|entries|"
+        r"data|tables?|compare|details?)\b",
+        " ",
+        side_text,
+        flags=re.IGNORECASE,
+    )
+    identifier_terms = _text_terms(identifier)
+    terms = {
+        term
+        for term in _text_terms(side_text)
+        if term not in identifier_terms
+        and term not in LEXICAL_TABLE_STOPWORDS
+        and not (len(term) < 4 and not any(char.isdigit() for char in term))
+    }
+    return terms or _identifier_context_terms(query, identifier)
+
+
 def _identifier_context_score(result: SearchResult, context_terms: set[str]) -> float:
     if not context_terms:
         return 0.0
@@ -1737,6 +1771,14 @@ def _comparison_result_satisfies_identifier_context(result: SearchResult, contex
     return _identifier_context_score(result, context_terms) >= required_overlap
 
 
+def _comparison_side_match_score(result: SearchResult, setting_phrases: list[str], context_terms: set[str]) -> tuple[float, float, float]:
+    return (
+        _comparison_setting_phrase_score(result, setting_phrases),
+        _identifier_context_score(result, context_terms),
+        result.score,
+    )
+
+
 def _is_structured_comparison_table_result(result: SearchResult) -> bool:
     return bool(
         result.metadata.get("table_column_headers")
@@ -1770,21 +1812,9 @@ def _promote_comparison_table_candidates(
     promoted: list[SearchResult] = []
     seen: set[str] = set()
     for identifier in identifiers:
-        context_terms = set() if row_code_terms else _identifier_context_terms(analysis.raw_query, identifier)
+        context_terms = set() if row_code_terms else _comparison_side_context_terms(analysis.raw_query, identifiers, identifier)
         side_setting_phrases = _comparison_setting_phrases_for_identifier(analysis.raw_query, identifiers, identifier)
         if not row_code_terms and not context_terms and not field_terms:
-            continue
-        if any(
-            _result_matches_primary_identifier(result, identifier)
-            and _is_structured_comparison_table_result(result)
-            and _comparison_result_matches_setting_phrase(result, side_setting_phrases)
-            and _comparison_result_satisfies_identifier_context(result, context_terms, field_terms)
-            and (
-                not row_code_terms
-                or _matching_comparison_row_codes(result, uncovered_row_codes)
-            )
-            for result in primary_results[:5]
-        ):
             continue
         candidates = [
             result
@@ -1797,15 +1827,33 @@ def _promote_comparison_table_candidates(
             and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
             and _comparison_result_satisfies_identifier_context(result, context_terms, field_terms)
         ]
+        existing_matches = [
+            result
+            for result in primary_results[:5]
+            if _result_matches_primary_identifier(result, identifier)
+            and _is_structured_comparison_table_result(result)
+            and _comparison_result_matches_setting_phrase(result, side_setting_phrases)
+            and _comparison_result_satisfies_identifier_context(result, context_terms, field_terms)
+            and (
+                not row_code_terms
+                or _matching_comparison_row_codes(result, uncovered_row_codes)
+            )
+        ]
         if context_terms:
             candidates.sort(
                 key=lambda result: (
-                    _comparison_setting_phrase_score(result, side_setting_phrases),
-                    _identifier_context_score(result, context_terms),
-                    result.score,
+                    _comparison_side_match_score(result, side_setting_phrases, context_terms),
                 ),
                 reverse=True,
             )
+            existing_matches.sort(
+                key=lambda result: (
+                    _comparison_side_match_score(result, side_setting_phrases, context_terms),
+                ),
+                reverse=True,
+            )
+        if existing_matches and (not candidates or _comparison_side_match_score(existing_matches[0], side_setting_phrases, context_terms) >= _comparison_side_match_score(candidates[0], side_setting_phrases, context_terms)):
+            continue
         promotion_limit = 2 if row_code_terms else 1
         for candidate in candidates[:promotion_limit]:
             seen.add(candidate.chunk_id)

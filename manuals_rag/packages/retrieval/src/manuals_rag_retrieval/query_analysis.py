@@ -150,11 +150,11 @@ def analyze_query(query: str) -> QueryAnalysis:
     if not types:
         types.append("general")
     model_match_spans: list[tuple[int, int]] = []
-    model_matches = []
+    model_matches: list[tuple[int, str]] = []
     for match in re.finditer(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query):
         if not any(char.isdigit() for char in match.group(0)):
             continue
-        model_matches.append(match.group(0))
+        model_matches.append((match.start(), match.group(0)))
         model_match_spans.append(match.span())
     if (
         len(model_matches) >= 2
@@ -166,10 +166,10 @@ def analyze_query(query: str) -> QueryAnalysis:
     ):
         types.append("comparison")
         preferred_chunk_types.extend(["spec_record", "datasheet_record", "table_record"])
-    comparison_identifier_matches: list[str] = []
+    comparison_identifier_matches: list[tuple[int, str]] = []
     if "comparison" in types or "compatibility" in types:
         comparison_identifier_matches = [
-            match.group(0)
+            (match.start(), match.group(0))
             for match in re.finditer(
                 r"\b(?:[A-Z]{2,5}\d{1,5}|[A-Z]{1,5}-[A-Z]{1,8})\b",
                 query,
@@ -184,7 +184,7 @@ def analyze_query(query: str) -> QueryAnalysis:
     if model_match and not any(char.isdigit() for char in model_match.group(0)):
         model_match = None
     family_matches = [
-        match.group(1).upper()
+        (match.start(1), match.group(1).upper())
         for match in re.finditer(
             r"\b([A-Z]{1,5}-[A-Z0-9]{1,8}|[A-Z]{1,5}\d{2,8}|[A-Z]{2,5})\s+(?:series|family)\b",
             query,
@@ -205,7 +205,7 @@ def analyze_query(query: str) -> QueryAnalysis:
     explicit_identifier_count = int(bool(model_match)) + int(bool(error_match))
     filter_strictness = "strict" if explicit_identifier_count >= 2 else ("balanced" if explicit_identifier_count == 1 else "loose")
     product_identifiers: list[str] = []
-    for identifier in [*model_matches, *family_matches, *comparison_identifier_matches]:
+    for _start, identifier in sorted([*model_matches, *family_matches, *comparison_identifier_matches], key=lambda item: item[0]):
         if identifier and identifier not in product_identifiers:
             product_identifiers.append(identifier)
     return QueryAnalysis(
