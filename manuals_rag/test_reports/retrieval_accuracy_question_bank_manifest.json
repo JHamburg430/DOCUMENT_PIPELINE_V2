@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T09:58:00Z",
+  "updated_at": "2026-08-28T10:29:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -715,11 +715,11 @@
     "run_budget_minutes": 30
   },
   "question_bank": {
-    "total_questions": 206,
+    "total_questions": 208,
     "single_step_questions": 101,
-    "multi_step_questions": 105,
+    "multi_step_questions": 107,
     "locked_regression_questions": 0,
-    "exploratory_questions": 206,
+    "exploratory_questions": 208,
     "datasets": [
       {
         "path": "test_reports/retrieval_accuracy_question_bank_20260824_024426.jsonl",
@@ -1044,6 +1044,23 @@
         },
         "quality_review": "Manual source repair made the procedure/context evidence material to the visible user questions while preserving source-backed table-value evidence.",
         "notes": "retrieval_eval_20260828_092535 passed 2/2 retrieval and 2/2 actual HTTP API answer grounding. Manual JSONL inspection confirmed consolidated cited chunk cd130759 directly supports both expected roles for both replacement cases; quote_spans were null. Do not treat this as separate atomic multi-chunk retrieval proof."
+      },
+      {
+        "path": "test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260828_102649.json",
+        "created_at": "2026-08-28T10:29:00Z",
+        "corpus_id": "manuals_vendor_keyence",
+        "generation": "manual_source_repaired_contextual_procedure_rows_5_6_attempt",
+        "status": "exploratory_diagnostic_current_answer_failure",
+        "supersedes": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl rows 5-6 clean answer-evidence claim only; original rows remain diagnostic history",
+        "total_questions": 2,
+        "single_step_questions": 0,
+        "multi_step_questions": 2,
+        "by_chunk_type": {
+          "procedure_record": 2
+        },
+        "quality_review": "Manual source repair made procedure/context roles material to visible user questions while preserving source-backed expected chunks.",
+        "notes": "retrieval_eval_20260828_102649 passed 2/2 retrieval but failed 0/2 actual HTTP API answer grounding with expected_evidence_not_cited after manual citation inspection; keep as active diagnostic answer-evidence coverage, not clean evidence."
       }
     ],
     "failure_categories": {},
@@ -1052,34 +1069,32 @@
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 2
     },
-    "next_target": "Fix or source-review contextual procedure multi-step rows 5-6 from retrieval_eval_20260828_095500: retrieval is clean, but fallback answers do not cite every source-reviewed expected evidence role. Row 5 needs the CV-X Multi-Capture trigger timing chart / Control-data I/O timing evidence rather than the image-buffer-off basic-operations chart; row 6 needs the XG-X Standard Lighting Mode camera-trigger-light configuration and simulation image capture evidence rather than only a later LumiTrax simulation-image-capture section. Preserve rows 3-4 source-repaired replacement evidence from retrieval_eval_20260828_092535, original rows 3-4 diagnostic/source-equivalence evidence from retrieval_eval_20260828_075458, contextual rows 1-2 clean evidence from retrieval_eval_20260828_073436, cross-document rows 8-10 clean evidence from retrieval_eval_20260828_064019, rows 6-7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, and all prior diagnostics/exclusions/containments.",
-    "answer_grounding_status": "Contextual procedure rows 5-6 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl were rotated through actual HTTP API answer mode in retrieval_eval_20260828_095500. Retrieval passed 2/2 at rank 1, but answer grounding failed 0/2 with expected_evidence_not_cited. Both user-visible answers used validation fallback with consistent telemetry and null quote_spans. Row 5 cited CV-X chunk 6b37984c about basic operations when image buffer is off, not the expected Multi-Capture trigger timing chart evidence. Row 6 cited XG-X LumiTrax Specular Reflection simulation-image-capture chunk 3d82fca5 while the expected Standard Lighting Mode camera/trigger/light configuration and simulation image capture evidence was returned but not cited. Treat this run as diagnostic/not-clean and a current answer-evidence selection target.",
+    "next_target": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments.",
+    "answer_grounding_status": "Contextual procedure rows 5-6 now have both the original diagnostic run retrieval_eval_20260828_095500 and a source-repaired replacement attempt retrieval_eval_20260828_102649. The replacement questions were realistic and made the expected procedure context material, and retrieval passed 2/2 at rank 1, but actual HTTP API answer grounding failed 0/2 with expected_evidence_not_cited. Manual JSONL inspection found row 5 cited returned chunk 86e3ce5c, an asynchronous-trigger CV-X timing chart, not expected Multi-Capture trigger-input operation chunk 02b921f5; row 6 cited returned chunk f8248412, a broad XG-X line-scan section, not expected capture-environment procedure ece874eb or Camera-Trigger-Light configuration chunk 3a64a87a. Quote spans were null and fallback telemetry was consistent. Treat both runs as diagnostic/not-clean current answer-evidence selection failures.",
     "answer_grounding_rotation": {
-      "scope": "contextual_procedure_rows_5_6_answer_rotation",
+      "scope": "contextual_procedure_rows_5_6_source_repaired_answer_attempt",
+      "classification": "diagnostic_not_clean_current_answer_evidence_selection_failure",
+      "latest_run": "retrieval_eval_20260828_102649",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "query_offset": 4,
+      "replacement_dataset": "test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_102649.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260828_102649.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_102649.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_102649.json",
+      "query_offset": 0,
       "max_queries": 2,
-      "latest_run": "retrieval_eval_20260828_095500",
-      "dataset": "test_reports/retrieval_eval_dataset_20260828_095500.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260828_095500.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260828_095500.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260828_095500.json",
       "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
       "answer_result": "0/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer failures {\"expected_evidence_not_cited\": 2}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_095500.jsonl for both cases. Row 5 fallback answer cites returned chunk 6b37984c with quote_span null; that chunk supports a CV-X basic-operations timing chart when image buffer is off, but does not cite expected chunks 02b921f5/878ea631 for Multi-Capture trigger timing and Control/data output via I/O terminals. Row 6 fallback answer cites returned chunk 3d82fca5 with quote_span null; it supports LumiTrax Specular Reflection simulation image capture, while expected Standard Lighting Mode trigger/settings chunk 3a64a87a and procedure chunk ece874eb were not cited despite related evidence appearing in top_results.",
-      "classification": "diagnostic_not_clean_current_answer_evidence_selection_failure",
-      "endpoint_model_identity": {
-        "OLLAMA_URL": "http://host.docker.internal:11437",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
-      },
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_102649.jsonl for both replacement cases. Row 5 fallback answer cites returned chunk 86e3ce5c with quote_span null; that chunk supports a CV-X asynchronous-trigger timing chart, but not the expected Multi-Capture trigger-input operation chunk 02b921f5. Row 6 fallback answer cites returned chunk f8248412 with quote_span null; it supports a broad Standard Lighting Mode line-scan overview, but not the expected capture-environment procedure chunk ece874eb or Camera-Trigger-Light configuration chunk 3a64a87a.",
       "validation": [
         "docker compose -f infra/compose/docker-compose.yml ps -> local stack usable",
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before run",
-        "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_095500",
+        "jq empty passed for the replacement dataset and retrieval_eval_20260828_102649 dataset/results/summary/manifest artifacts",
+        "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_102649",
         "Manual JSONL/citation inspection completed for both cases; cited chunks do not satisfy every expected evidence role and quote_spans were null."
+      ],
+      "limitations": [
+        "The replacement questions are source-backed active diagnostic coverage, but they are not clean answer-grounding evidence.",
+        "No production code changed in this run, so this records the current failure instead of repairing answer selection."
       ],
       "preserved_evidence": [
         "Rows 3-4 source-repaired replacement evidence from retrieval_eval_20260828_092535 remains clean through consolidated cited content.",
@@ -1087,10 +1102,6 @@
         "Contextual rows 1-2 clean evidence from retrieval_eval_20260828_073436 remains preserved.",
         "Cross-document rows 8-10 clean evidence from retrieval_eval_20260828_064019 and rows 6-7 clean evidence from retrieval_eval_20260828_023537 remain preserved.",
         "All prior diagnostic exclusions and guardrail containments remain preserved."
-      ],
-      "limitations": [
-        "No production code changed in this run, so this is tracking/eval evidence, not a repair.",
-        "The row-5 and row-6 failures should be fixed or source-reviewed before further optional contextual procedure rotations are counted as clean."
       ]
     },
     "current_retrieval_failure_categories": {},
@@ -1263,6 +1274,11 @@
           4
         ],
         "exclusion": "Do not count original rows 3-4 as clean multi-step answer evidence; source review found visible questions were overconstrained and replacements are tracked separately."
+      },
+      {
+        "run_id": "retrieval_eval_20260828_102649",
+        "scope": "contextual procedure rows 5-6 source-repaired replacement clean answer-evidence claim",
+        "reason": "diagnostic/not-clean: actual HTTP fallback answers cite asynchronous-trigger or broad line-scan overview chunks and miss the source-reviewed Multi-Capture and Camera-Trigger-Light expected evidence roles."
       }
     ],
     "unresolved_guardrail_findings": [
@@ -1723,7 +1739,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-28T09:58:00Z",
+    "updated_at": "2026-08-28T10:29:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -8395,7 +8411,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Fix or source-review contextual procedure multi-step rows 5-6 from retrieval_eval_20260828_095500: retrieval is clean, but fallback answers do not cite every source-reviewed expected evidence role. Row 5 needs the CV-X Multi-Capture trigger timing chart / Control-data I/O timing evidence rather than the image-buffer-off basic-operations chart; row 6 needs the XG-X Standard Lighting Mode camera-trigger-light configuration and simulation image capture evidence rather than only a later LumiTrax simulation-image-capture section. Preserve rows 3-4 source-repaired replacement evidence from retrieval_eval_20260828_092535, original rows 3-4 diagnostic/source-equivalence evidence from retrieval_eval_20260828_075458, contextual rows 1-2 clean evidence from retrieval_eval_20260828_073436, cross-document rows 8-10 clean evidence from retrieval_eval_20260828_064019, rows 6-7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, and all prior diagnostics/exclusions/containments.",
+  "next_target": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -8682,33 +8698,31 @@
   "answer_current_failure_categories": {
     "expected_evidence_not_cited": 2
   },
-  "answer_grounding_status": "Contextual procedure rows 5-6 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl were rotated through actual HTTP API answer mode in retrieval_eval_20260828_095500. Retrieval passed 2/2 at rank 1, but answer grounding failed 0/2 with expected_evidence_not_cited. Both user-visible answers used validation fallback with consistent telemetry and null quote_spans. Row 5 cited CV-X chunk 6b37984c about basic operations when image buffer is off, not the expected Multi-Capture trigger timing chart evidence. Row 6 cited XG-X LumiTrax Specular Reflection simulation-image-capture chunk 3d82fca5 while the expected Standard Lighting Mode camera/trigger/light configuration and simulation image capture evidence was returned but not cited. Treat this run as diagnostic/not-clean and a current answer-evidence selection target.",
+  "answer_grounding_status": "Contextual procedure rows 5-6 now have both the original diagnostic run retrieval_eval_20260828_095500 and a source-repaired replacement attempt retrieval_eval_20260828_102649. The replacement questions were realistic and made the expected procedure context material, and retrieval passed 2/2 at rank 1, but actual HTTP API answer grounding failed 0/2 with expected_evidence_not_cited. Manual JSONL inspection found row 5 cited returned chunk 86e3ce5c, an asynchronous-trigger CV-X timing chart, not expected Multi-Capture trigger-input operation chunk 02b921f5; row 6 cited returned chunk f8248412, a broad XG-X line-scan section, not expected capture-environment procedure ece874eb or Camera-Trigger-Light configuration chunk 3a64a87a. Quote spans were null and fallback telemetry was consistent. Treat both runs as diagnostic/not-clean current answer-evidence selection failures.",
   "answer_grounding_rotation": {
-    "scope": "contextual_procedure_rows_5_6_answer_rotation",
+    "scope": "contextual_procedure_rows_5_6_source_repaired_answer_attempt",
+    "classification": "diagnostic_not_clean_current_answer_evidence_selection_failure",
+    "latest_run": "retrieval_eval_20260828_102649",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-    "query_offset": 4,
+    "replacement_dataset": "test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260828_102649.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260828_102649.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260828_102649.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260828_102649.json",
+    "query_offset": 0,
     "max_queries": 2,
-    "latest_run": "retrieval_eval_20260828_095500",
-    "dataset": "test_reports/retrieval_eval_dataset_20260828_095500.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260828_095500.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260828_095500.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260828_095500.json",
     "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
     "answer_result": "0/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer failures {\"expected_evidence_not_cited\": 2}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_095500.jsonl for both cases. Row 5 fallback answer cites returned chunk 6b37984c with quote_span null; that chunk supports a CV-X basic-operations timing chart when image buffer is off, but does not cite expected chunks 02b921f5/878ea631 for Multi-Capture trigger timing and Control/data output via I/O terminals. Row 6 fallback answer cites returned chunk 3d82fca5 with quote_span null; it supports LumiTrax Specular Reflection simulation image capture, while expected Standard Lighting Mode trigger/settings chunk 3a64a87a and procedure chunk ece874eb were not cited despite related evidence appearing in top_results.",
-    "classification": "diagnostic_not_clean_current_answer_evidence_selection_failure",
-    "endpoint_model_identity": {
-      "OLLAMA_URL": "http://host.docker.internal:11437",
-      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
-    },
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_102649.jsonl for both replacement cases. Row 5 fallback answer cites returned chunk 86e3ce5c with quote_span null; that chunk supports a CV-X asynchronous-trigger timing chart, but not the expected Multi-Capture trigger-input operation chunk 02b921f5. Row 6 fallback answer cites returned chunk f8248412 with quote_span null; it supports a broad Standard Lighting Mode line-scan overview, but not the expected capture-environment procedure chunk ece874eb or Camera-Trigger-Light configuration chunk 3a64a87a.",
     "validation": [
       "docker compose -f infra/compose/docker-compose.yml ps -> local stack usable",
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before run",
-      "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_095500",
+      "jq empty passed for the replacement dataset and retrieval_eval_20260828_102649 dataset/results/summary/manifest artifacts",
+      "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_102649",
       "Manual JSONL/citation inspection completed for both cases; cited chunks do not satisfy every expected evidence role and quote_spans were null."
+    ],
+    "limitations": [
+      "The replacement questions are source-backed active diagnostic coverage, but they are not clean answer-grounding evidence.",
+      "No production code changed in this run, so this records the current failure instead of repairing answer selection."
     ],
     "preserved_evidence": [
       "Rows 3-4 source-repaired replacement evidence from retrieval_eval_20260828_092535 remains clean through consolidated cited content.",
@@ -8716,10 +8730,6 @@
       "Contextual rows 1-2 clean evidence from retrieval_eval_20260828_073436 remains preserved.",
       "Cross-document rows 8-10 clean evidence from retrieval_eval_20260828_064019 and rows 6-7 clean evidence from retrieval_eval_20260828_023537 remain preserved.",
       "All prior diagnostic exclusions and guardrail containments remain preserved."
-    ],
-    "limitations": [
-      "No production code changed in this run, so this is tracking/eval evidence, not a repair.",
-      "The row-5 and row-6 failures should be fixed or source-reviewed before further optional contextual procedure rotations are counted as clean."
     ]
   },
   "latest_eval_generation_quality": {
@@ -9318,6 +9328,11 @@
         4
       ],
       "exclusion": "Do not count original rows 3-4 as clean multi-step answer evidence; source review found visible questions were overconstrained and replacements are tracked separately."
+    },
+    {
+      "run_id": "retrieval_eval_20260828_102649",
+      "scope": "contextual procedure rows 5-6 source-repaired replacement clean answer-evidence claim",
+      "reason": "diagnostic/not-clean: actual HTTP fallback answers cite asynchronous-trigger or broad line-scan overview chunks and miss the source-reviewed Multi-Capture and Camera-Trigger-Light expected evidence roles."
     }
   ],
   "unresolved_guardrail_findings": [
