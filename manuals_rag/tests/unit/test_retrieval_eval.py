@@ -3376,12 +3376,16 @@ def test_build_eval_cases_allows_repeated_content_but_dedupes_questions(monkeypa
         "page_from": 1,
         "page_to": 1,
         "content": "Power supply voltage: 24 VDC for standard operation.",
-        "metadata_json": {"product_model": "CA-EN100U"},
+        "metadata_json": {
+            "product_model": "CA-EN100U",
+            "local_rerank_context": "Specifications also list current draw and operating temperature for CA-EN100U.",
+        },
         "product_model": "CA-EN100U",
     }
     duplicate_chunk = {
         **base_chunk,
         "id": "chunk-llm-2",
+        "section_path_text": "Electrical Specifications",
         "page_from": 2,
         "page_to": 2,
     }
@@ -3448,8 +3452,189 @@ def test_build_eval_cases_passes_previous_chunk_questions_to_generator(monkeypat
     )
 
     assert [case.query for case in cases] == ["What current draw is specified for CA-EN100U?"]
-    assert "previous_questions_for_this_chunk" in prompts[0]
+    assert "previous_questions_for_this_section" in prompts[0]
     assert "What power supply voltage is required for CA-EN100U?" in prompts[0]
+
+
+def test_build_eval_cases_passes_previous_section_questions_to_generator(monkeypatch):
+    prompts = []
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "response": (
+                    '{"queries":['
+                    '{"query":"What current draw is specified for CA-EN100U?","intent":"spec_lookup","reason":"new facet"}'
+                    ']}'
+                )
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            prompts.append(kwargs["json"]["prompt"])
+            return FakeResponse()
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+
+    chunk = {
+        "id": "chunk-section-new",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "datasheet_record",
+        "title": "CA-EN100U Datasheet",
+        "source_filename": "CA-EN100U_Datasheet.pdf",
+        "section_path_text": "Specifications",
+        "page_from": 1,
+        "page_to": 1,
+        "content": "Power supply voltage: 24 VDC. Current draw: 120 mA.",
+        "metadata_json": {"product_model": "CA-EN100U"},
+        "product_model": "CA-EN100U",
+    }
+
+    cases = build_eval_cases_from_chunks(
+        [chunk],
+        max_cases=2,
+        per_chunk_limit=1,
+        previous_questions_by_section_key={
+            "doc-1\x1fver-1\x1fSpecifications": ["What voltage does CA-EN100U need for power?"],
+        },
+    )
+
+    assert [case.query for case in cases] == ["What current draw is specified for CA-EN100U?"]
+    assert "What voltage does CA-EN100U need for power?" in prompts[0]
+
+
+def test_build_eval_cases_tracks_questions_generated_for_same_section(monkeypatch):
+    prompts = []
+
+    class FakeResponse:
+        def __init__(self, query):
+            self.query = query
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "response": (
+                    '{"queries":['
+                    f'{{"query":"{self.query}","intent":"spec_lookup","reason":"new facet"}}'
+                    ']}'
+                )
+            }
+
+    class FakeClient:
+        calls = 0
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            prompts.append(kwargs["json"]["prompt"])
+            self.__class__.calls += 1
+            query = (
+                "What current draw is specified for CA-EN100U?"
+                if self.__class__.calls == 1
+                else "What operating temperature applies to CA-EN100U?"
+            )
+            return FakeResponse(query)
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+
+    base_chunk = {
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "datasheet_record",
+        "title": "CA-EN100U Datasheet",
+        "source_filename": "CA-EN100U_Datasheet.pdf",
+        "section_path_text": "Specifications",
+        "page_from": 1,
+        "page_to": 1,
+        "metadata_json": {"product_model": "CA-EN100U"},
+        "product_model": "CA-EN100U",
+    }
+    chunks = [
+        {
+            **base_chunk,
+            "id": "chunk-current",
+            "content": "Power supply current draw: 120 mA during standard operation for CA-EN100U.",
+        },
+        {
+            **base_chunk,
+            "id": "chunk-temp",
+            "content": "Operating temperature range: 0 to 50 C during standard operation for CA-EN100U.",
+        },
+    ]
+
+    cases = build_eval_cases_from_chunks(chunks, max_cases=2, per_chunk_limit=1)
+
+    assert [case.query for case in cases] == [
+        "What current draw is specified for CA-EN100U?",
+        "What operating temperature applies to CA-EN100U?",
+    ]
+    assert "What current draw is specified for CA-EN100U?" in prompts[1]
+
+
+def test_build_eval_cases_honors_none_from_llm_generation(monkeypatch):
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"response": "NONE"}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+
+    chunk = {
+        "id": "chunk-none",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "datasheet_record",
+        "title": "CA-EN100U Datasheet",
+        "source_filename": "CA-EN100U_Datasheet.pdf",
+        "section_path_text": "Specifications",
+        "page_from": 1,
+        "page_to": 1,
+        "content": "Power supply voltage: 24 VDC for standard operation.",
+        "metadata_json": {
+            "product_model": "CA-EN100U",
+            "local_rerank_context": "Specifications also list current draw and operating temperature for CA-EN100U.",
+        },
+        "product_model": "CA-EN100U",
+    }
+
+    assert build_eval_cases_from_chunks([chunk], max_cases=2) == []
 
 
 def test_llm_generation_prompt_uses_generic_few_shot_examples(monkeypatch):
@@ -3497,7 +3682,10 @@ def test_llm_generation_prompt_uses_generic_few_shot_examples(monkeypatch):
         "page_from": 1,
         "page_to": 1,
         "content": "Power supply voltage: 24 VDC for standard operation.",
-        "metadata_json": {"product_model": "CA-EN100U"},
+        "metadata_json": {
+            "product_model": "CA-EN100U",
+            "local_rerank_context": "Specifications also list current draw and operating temperature for CA-EN100U.",
+        },
         "product_model": "CA-EN100U",
     }
 
@@ -3508,7 +3696,12 @@ def test_llm_generation_prompt_uses_generic_few_shot_examples(monkeypatch):
     assert "fallback_examples" not in prompts[0]
     assert "Good query: What voltage does MODEL-A need for power?" in prompts[0]
     assert "Bad query: Which disconnect all other devices detail is needed?" in prompts[0]
+    assert "section_context_excerpt" in prompts[0]
+    assert "current draw and operating temperature" in prompts[0]
     assert request_bodies[0]["think"] is False
+    assert request_bodies[0]["model"] == "qwen3.5:27b"
+    assert request_bodies[0]["options"]["num_ctx"] == 32768
+    assert "format" not in request_bodies[0]
 
 
 def test_parse_generated_queries_accepts_common_model_json_wrappers():

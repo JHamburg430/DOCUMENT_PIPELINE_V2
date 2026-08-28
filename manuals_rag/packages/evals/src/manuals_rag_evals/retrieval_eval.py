@@ -302,10 +302,14 @@ You generate realistic retrieval benchmark queries for technical documents.
 Return strict JSON with this shape:
 {"queries":[{"query":"...","intent":"...","reason":"..."}]}
 
+If the current section/context already has all logical, fair questions covered, return exactly:
+NONE
+
 Rules:
 - Write concise question-form queries a real technician, engineer, operator, purchaser, or integrator might ask.
 - Base every query on the provided context, especially the source snippet, structured fields, labels, and extracted terms.
 - Make each query answerable from the source snippet itself, not merely from a surrounding section.
+- Use surrounding section context only to understand what would distinguish this source from nearby sibling rows or steps.
 - Represent the kind of question a user would ask before seeing the answer text; do not turn source wording into a keyword query.
 - Include enough fair discriminators that the intended row, warning, step, or spec can be found without reading adjacent context.
 - Use product names, model numbers, protocol names, units, and standardized technical terms as anchors when needed.
@@ -328,7 +332,9 @@ Rules:
 - If the snippet contains explicit fields, labels, units, steps, warnings, or settings, use those concrete concepts in the query.
 - Prefer concrete terms from the snippet such as field names, units, menu labels, protocol names, settings, or actions.
 - Avoid vague storage-only phrasing such as "stores number" unless the query also includes the specific field/action name, for example "command number" or "specified-command".
-- If previous questions are provided, do not repeat them or make close paraphrases. Ask about a different concrete facet of the same snippet.
+- Previous questions are scoped to this section/context. Do not repeat them or make close paraphrases. Ask about a different concrete facet of the same snippet only when one is logical and fair.
+- If no additional logical, answerable, non-duplicative question is possible for this section/context, return exactly NONE and no JSON.
+- Do not make a question so specific that it merely restates the full answer or exact table cell. Include enough context to disambiguate sibling rows, but keep it natural.
 - Do not invent facts not present in the input.
 - Return 2 or 3 diverse queries when the context is strong, otherwise return 1.
 - Return at most 3 queries.
@@ -1114,6 +1120,11 @@ def _structured_eval_input(chunk: dict[str, Any], anchors: list[str]) -> dict[st
     metadata = dict(chunk.get("metadata_json", {}))
     content = str(chunk.get("content", ""))
     prompt_content = _unbracket_source_labels(content)
+    context_parts: list[str] = []
+    for key in ("local_rerank_context", "table_row_group_context", "context_window", "parent_context", "content_for_rerank"):
+        value = str(metadata.get(key) or "").strip()
+        if value and value != content and value not in context_parts:
+            context_parts.append(_unbracket_source_labels(value))
     field_matches = _field_value_pairs(content)
     return {
         "chunk_type": str(chunk.get("chunk_type", "")),
@@ -1121,13 +1132,16 @@ def _structured_eval_input(chunk: dict[str, Any], anchors: list[str]) -> dict[st
         "product_model": _safe_query_label(chunk),
         "section_path": str(chunk.get("section_path_text", "")).strip(),
         "anchors": anchors[:6],
+        "table_row_headers": _metadata_list(metadata, "table_row_headers")[:6],
+        "table_column_headers": _metadata_list(metadata, "table_column_headers")[:6],
         "menu_labels": [_strip_bracket_label(label) for label in _quoted_menu_labels(content)[:3]],
         "field_value_pairs": [
             {"field": field.strip(), "value": value.strip()}
             for field, value in field_matches[:6]
         ],
         "expected_terms": anchors[:4],
-        "snippet": content_preview(prompt_content, limit=420),
+        "snippet": content_preview(prompt_content, limit=900),
+        "section_context_excerpt": content_preview("\n\n".join(context_parts), limit=6000) if context_parts else "",
     }
 
 
@@ -1249,6 +1263,21 @@ def _parse_generated_queries(payload: str) -> list[dict[str, str]]:
     return parsed
 
 
+def _generated_query_response_is_none(payload: str) -> bool:
+    text = _strip_generated_json_wrappers(payload).strip()
+    return text.upper() == "NONE"
+
+
+def _section_context_key(chunk: dict[str, Any]) -> str:
+    return "\x1f".join(
+        [
+            str(chunk.get("source_document_id") or ""),
+            str(chunk.get("document_version_id") or ""),
+            str(chunk.get("section_path_text") or chunk.get("section_path") or ""),
+        ]
+    )
+
+
 def _loads_generated_query_payload(payload: str) -> dict[str, Any] | list[Any]:
     text = _strip_generated_json_wrappers(payload)
     if not text:
@@ -1315,31 +1344,46 @@ def generate_user_style_queries(
     previous_questions = previous_questions or []
     prompt = {
         "document_title": _safe_query_label(chunk),
+        "section_path": chunk.get("section_path_text") or chunk.get("section_path"),
         "structured_input": _structured_eval_input(chunk, anchors),
-        "previous_questions_for_this_chunk": previous_questions[:10],
+        "previous_questions_for_this_section": previous_questions[:30],
     }
+    model_declared_none = False
     try:
-        with httpx.Client(base_url=settings.ollama_url, timeout=20.0) as client:
+        with httpx.Client(base_url=settings.ollama_url, timeout=settings.ollama_eval_question_timeout_seconds) as client:
             response = client.post(
                 "/api/generate",
                 json={
-                    "model": settings.ollama_eval_model,
+                    "model": settings.ollama_eval_question_model,
                     "prompt": (
                         f"{USER_STYLE_QUERY_SYSTEM_PROMPT}\n\n"
                         f"{USER_STYLE_QUERY_FEW_SHOT_EXAMPLES}\n\n"
                         f"Current input: {json.dumps(prompt, ensure_ascii=True)}"
                     ),
                     "stream": False,
-                    "format": "json",
                     "think": False,
+                    "options": {
+                        "temperature": 0.15,
+                        "top_p": 0.85,
+                        "top_k": 30,
+                        "num_ctx": settings.ollama_eval_question_num_ctx,
+                        "num_predict": 700,
+                        "presence_penalty": 1.3,
+                    },
                 },
             )
             response.raise_for_status()
             payload: dict[str, Any] = response.json()
             response_text = str(payload.get("response") or payload.get("thinking") or "")
-            generated = _parse_generated_queries(response_text)
+            if _generated_query_response_is_none(response_text):
+                model_declared_none = True
+                generated = []
+            else:
+                generated = _parse_generated_queries(response_text)
     except Exception:
         generated = []
+    if model_declared_none:
+        return []
 
     queries: list[tuple[str, str]] = []
     seen: set[str] = {_normalized_query_key(question) for question in previous_questions}
@@ -1382,9 +1426,12 @@ def build_eval_cases_from_chunks(
     per_chunk_limit: int = 3,
     use_llm_generation: bool = True,
     previous_questions_by_chunk_id: dict[str, list[str]] | None = None,
+    previous_questions_by_section_key: dict[str, list[str]] | None = None,
 ) -> list[RetrievalEvalCase]:
     cases: list[RetrievalEvalCase] = []
     previous_questions_by_chunk_id = previous_questions_by_chunk_id or {}
+    previous_questions_by_section_key = previous_questions_by_section_key or {}
+    generated_questions_by_section_key: dict[str, list[str]] = {}
     for chunk in chunks:
         anchors = extract_anchor_terms(str(chunk["content"]))
         if str(chunk.get("chunk_type", "")) == "table_record":
@@ -1393,7 +1440,12 @@ def build_eval_cases_from_chunks(
                 anchors = table_expected_terms
         if not chunk_is_queryworthy(chunk, anchors):
             continue
-        previous_questions = previous_questions_by_chunk_id.get(str(chunk.get("id")), [])
+        section_key = _section_context_key(chunk)
+        previous_questions = [
+            *previous_questions_by_section_key.get(section_key, []),
+            *generated_questions_by_section_key.get(section_key, []),
+            *previous_questions_by_chunk_id.get(str(chunk.get("id")), []),
+        ]
         fallback_candidates = build_query_candidates(chunk)[: max(per_chunk_limit * 4, per_chunk_limit)]
         candidates = (
             generate_user_style_queries(
@@ -1416,6 +1468,7 @@ def build_eval_cases_from_chunks(
             if not is_valid:
                 continue
             accepted_query_texts.append(query)
+            generated_questions_by_section_key.setdefault(section_key, []).append(query)
             cases.append(
                 RetrievalEvalCase(
                     case_id=f"{chunk['id']}::{index}",

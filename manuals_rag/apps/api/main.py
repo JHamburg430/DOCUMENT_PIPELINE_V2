@@ -184,6 +184,64 @@ def _fetch_previous_eval_questions_by_chunk_id(chunk_ids: list[str], *, limit_pe
     return questions_by_chunk_id
 
 
+def _eval_section_context_key(row: dict[str, Any]) -> str:
+    return "\x1f".join(
+        [
+            str(row.get("source_document_id") or ""),
+            str(row.get("document_version_id") or ""),
+            str(row.get("section_path_text") or row.get("section_path") or ""),
+        ]
+    )
+
+
+def _fetch_previous_eval_questions_by_section_key(
+    chunk_rows: list[dict[str, Any]],
+    *,
+    limit_per_section: int = 30,
+) -> dict[str, list[str]]:
+    section_keys = {
+        _eval_section_context_key(row)
+        for row in chunk_rows
+        if row.get("source_document_id") and row.get("document_version_id") and (row.get("section_path_text") or row.get("section_path"))
+    }
+    if not section_keys:
+        return {}
+    rows = fetch_all(
+        """
+        select
+            item -> 'case' ->> 'source_document_id' as source_document_id,
+            item -> 'case' ->> 'document_version_id' as document_version_id,
+            item -> 'case' ->> 'section_path' as section_path,
+            item -> 'case' ->> 'query' as query,
+            ar.created_at
+        from app_runs ar
+        cross join lateral jsonb_array_elements(coalesce(ar.result_json -> 'items', '[]'::jsonb)) item
+        where ar.run_type = 'end_to_end_eval'
+          and ar.status = 'completed'
+          and item -> 'case' ->> 'source_document_id' = any(%s)
+          and item -> 'case' ->> 'document_version_id' = any(%s)
+          and coalesce(item -> 'case' ->> 'query', '') <> ''
+        order by ar.created_at desc
+        """,
+        (
+            sorted({key.split("\x1f")[0] for key in section_keys}),
+            sorted({key.split("\x1f")[1] for key in section_keys}),
+        ),
+    )
+    questions_by_section_key: dict[str, list[str]] = {}
+    for row in rows:
+        key = _eval_section_context_key(row)
+        if key not in section_keys:
+            continue
+        query = str(row.get("query") or "").strip()
+        if not query:
+            continue
+        questions = questions_by_section_key.setdefault(key, [])
+        if query not in questions and len(questions) < limit_per_section:
+            questions.append(query)
+    return questions_by_section_key
+
+
 def _answer_contains_expected_terms(answer: dict[str, Any], expected_terms: list[str]) -> dict[str, Any]:
     answer_text = str(answer.get("answer") or "")
     answer_text_lower = answer_text.lower()
@@ -529,11 +587,13 @@ def _load_eval_cases(payload: dict[str, Any]) -> tuple[list[str], str | None, li
     previous_questions_by_chunk_id = _fetch_previous_eval_questions_by_chunk_id(
         [str(row.get("id")) for row in chunk_rows if row.get("id")]
     )
+    previous_questions_by_section_key = _fetch_previous_eval_questions_by_section_key(chunk_rows)
     cases = build_eval_cases_from_chunks(
         chunk_rows,
         max_cases=max_questions,
         use_llm_generation=use_llm_generation,
         previous_questions_by_chunk_id=previous_questions_by_chunk_id,
+        previous_questions_by_section_key=previous_questions_by_section_key,
     )
     warnings = [] if cases else ["No query-worthy indexed chunks were found for the requested scope."]
     return corpus_ids, document_id, cases, warnings
