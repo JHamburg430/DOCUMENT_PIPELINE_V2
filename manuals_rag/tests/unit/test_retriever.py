@@ -2896,6 +2896,97 @@ def test_comparison_table_promotion_replaces_same_product_wrong_setting():
     assert promoted[1].metadata["retrieval_stage"] == "comparison_table_promoted"
 
 
+def test_comparison_table_lexical_promotes_two_side_setting_matches(monkeypatch):
+    def fake_fetch_all(_query: str, _params: tuple[object, ...]) -> list[dict[str, object]]:
+        return [
+            {
+                "id": "mod1-alpha",
+                "document_version_id": "ver-a",
+                "source_document_id": "doc-a",
+                "title": "MOD1-A Manual",
+                "section_path_text": "Settings",
+                "page_from": 10,
+                "page_to": 10,
+                "content": "Setting item: Alpha Mode; Settings: Controls gain for MOD1-A.",
+                "metadata_json": {
+                    "chunk_type": "table_record",
+                    "table_key_value": True,
+                    "product_model": "MOD1-A",
+                },
+                "priority_score": 0.0,
+            },
+            {
+                "id": "mod2-beta",
+                "document_version_id": "ver-b",
+                "source_document_id": "doc-b",
+                "title": "MOD2-B Manual",
+                "section_path_text": "Settings",
+                "page_from": 20,
+                "page_to": 20,
+                "content": "Setting item: Beta Mode; Settings: Controls timing for MOD2-B.",
+                "metadata_json": {
+                    "chunk_type": "table_record",
+                    "table_key_value": True,
+                    "product_model": "MOD2-B",
+                },
+                "priority_score": 0.0,
+            },
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+    analysis = analyze_query("For MOD1-A and MOD2-B, compare what the Alpha Mode and Beta Mode settings control.")
+
+    results = retriever.run_table_lexical_search(analysis.raw_query, ["corpus-1"], {}, analysis, limit=5)
+
+    assert [result.chunk_id for result in results[:2]] == ["mod1-alpha", "mod2-beta"]
+
+
+def test_comparison_table_lexical_does_not_promote_wrong_setting_for_missing_side(monkeypatch):
+    def fake_fetch_all(_query: str, _params: tuple[object, ...]) -> list[dict[str, object]]:
+        return [
+            {
+                "id": "mod1-alpha",
+                "document_version_id": "ver-a",
+                "source_document_id": "doc-a",
+                "title": "MOD1-A Manual",
+                "section_path_text": "Settings",
+                "page_from": 10,
+                "page_to": 10,
+                "content": "Setting item: Alpha Mode; Settings: Controls gain for MOD1-A.",
+                "metadata_json": {
+                    "chunk_type": "table_record",
+                    "table_key_value": True,
+                    "product_model": "MOD1-A",
+                },
+                "priority_score": 0.0,
+            },
+            {
+                "id": "mod2-alpha",
+                "document_version_id": "ver-b",
+                "source_document_id": "doc-b",
+                "title": "MOD2-B Manual",
+                "section_path_text": "Settings",
+                "page_from": 20,
+                "page_to": 20,
+                "content": "Setting item: Alpha Mode; Settings: Controls gain for MOD2-B.",
+                "metadata_json": {
+                    "chunk_type": "table_record",
+                    "table_key_value": True,
+                    "product_model": "MOD2-B",
+                },
+                "priority_score": 0.0,
+            },
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+    analysis = analyze_query("For MOD1-A and MOD2-B, compare what the Alpha Mode and Beta Mode settings control.")
+
+    results = retriever.run_table_lexical_search(analysis.raw_query, ["corpus-1"], {}, analysis, limit=5)
+
+    assert [result.chunk_id for result in results] == ["mod1-alpha"]
+    assert retriever._comparison_setting_phrase_score(results[0], ["alpha mode"]) > 0
+
+
 def test_comparison_requested_field_terms_ignore_ordinary_correct_usage():
     assert retriever._comparison_requested_field_terms("Compare the correct specifications for MOD1-A and MOD2-B") == set()
     assert retriever._comparison_requested_field_terms("Which model is correct for MOD1-A operation?") == set()

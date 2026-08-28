@@ -624,6 +624,26 @@ def _comparison_setting_phrases_for_identifier(query: str, identifiers: list[str
     return phrases
 
 
+def _comparison_result_matches_any_side_setting(result: SearchResult, query: str, identifiers: list[str]) -> bool:
+    phrases = _comparison_setting_phrases(query)
+    if len(phrases) < 2:
+        return True
+    matched_identifiers = [
+        identifier
+        for identifier in identifiers
+        if _result_matches_primary_identifier(result, identifier)
+    ]
+    if not matched_identifiers:
+        return True
+    return any(
+        _comparison_result_matches_setting_phrase(
+            result,
+            _comparison_setting_phrases_for_identifier(query, identifiers, identifier),
+        )
+        for identifier in matched_identifiers
+    )
+
+
 def run_table_lexical_search(
     query: str,
     corpus_ids: list[str],
@@ -884,10 +904,16 @@ def run_table_lexical_search(
     ranked.sort(key=lambda item: item[0], reverse=True)
     results = [result for _, result in ranked]
     if is_comparison_lookup and len(analysis.product_identifiers) >= 2:
+        identifiers = [str(identifier) for identifier in analysis.product_identifiers]
+        results = [
+            result
+            for result in results
+            if _comparison_result_matches_any_side_setting(result, analysis.raw_query, identifiers)
+        ]
         setting_phrases = _comparison_setting_phrases(query)
         row_code_terms = _comparison_row_code_terms(
             analysis.raw_query,
-            [str(identifier) for identifier in analysis.product_identifiers],
+            identifiers,
         )
         if len(row_code_terms) < 2:
             row_code_terms = []
@@ -898,14 +924,15 @@ def run_table_lexical_search(
             uncovered_row_codes = [term for term in row_code_terms if term not in covered_row_codes]
             if row_code_terms and not uncovered_row_codes:
                 break
+            side_setting_phrases = _comparison_setting_phrases_for_identifier(analysis.raw_query, identifiers, str(identifier))
             candidates = [
                 result
                 for result in results
                 if result.chunk_id not in seen_ids and _result_matches_primary_identifier(result, identifier)
+                and _comparison_result_matches_setting_phrase(result, side_setting_phrases)
                 and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
             ]
             context_terms = _identifier_context_terms(analysis.raw_query, identifier)
-            side_setting_phrases = _comparison_setting_phrases_for_identifier(analysis.raw_query, identifiers, str(identifier))
             if context_terms:
                 candidates.sort(
                     key=lambda result: (

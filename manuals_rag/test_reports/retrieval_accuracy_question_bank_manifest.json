@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T01:50:00Z",
+  "updated_at": "2026-08-28T02:45:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1023,7 +1023,7 @@
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 1
     },
-    "next_target": "Fix curated cross-document v2 row 8 answer evidence selection so the API answer cites and uses the returned CV-X Color to Binary corrective-action evidence and the XG-X unsupported SD-card evidence, while preserving row 9 clean fallback-validation evidence from retrieval_eval_20260828_015749, row 6 clean direct-API evidence from retrieval_eval_20260828_014041, row 7 clean fallback-validation evidence from retrieval_eval_20260828_014208, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
+    "next_target": "Fix curated cross-document v2 row 8 answer evidence selection so the API answer cites and uses the returned CV-X Color to Binary corrective-action evidence and the XG-X unsupported SD-card evidence, while preserving row 9 clean fallback-validation evidence from retrieval_eval_20260828_015749, row 6 clean direct-API evidence from retrieval_eval_20260828_023537, row 7 clean fallback-validation evidence from retrieval_eval_20260828_023537, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
     "answer_grounding_status": "Curated cross-document v2 rows 8-9 answer rotation ran as retrieval_eval_20260828_015749. Retrieval passed 2/2, but answer grounding passed 1/2. Row 8 is the current answer failure: the direct API answer used/cited sibling or wrong evidence and said CV-X482 unstable gray-binary inspection should select Color to Grayscale instead of citing/using the expected Color to Binary corrective action. Row 9 is clean fallback-validation evidence for XG-X unsupported SD-card guidance and CV-X Increase the Max. Segments. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 1}.",
     "answer_grounding_rotation": {
       "scope": "curated_cross_document_v2_rows_8_9_answer_grounding",
@@ -1201,6 +1201,20 @@
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-28T02:22:53Z",
+        "severity": "needs_fix",
+        "finding": "run_table_lexical_search could fabricate comparison side coverage by returning a same-model row for a different requested setting when the side-specific setting was absent.",
+        "status": "addressed_this_run_side_setting_binding_required",
+        "evidence": [
+          "Added run_table_lexical_search-level controls for a legitimate MOD1-A Alpha Mode plus MOD2-B Beta Mode two-side positive and the missing-side/wrong-setting MOD2-B Alpha Mode adverse case.",
+          "Loaded API-container adverse control returned only mod1-alpha for the missing MOD2-B Beta Mode case; mod2-alpha was no longer accepted as side coverage.",
+          "Focused retriever controls passed; full retriever suite passed 109 tests; full unit gate passed 406 tests with 59 warnings.",
+          "After an api restart, loaded fingerprints included run_table_lexical_search_sha256=b5b129f6a44fbf38dcce881212f40b0a5838d1fcae527589bd532e76f029c451 and _comparison_result_matches_any_side_setting_sha256=668ae524cf91420edc977e888c2fcc964e75e5206a98e1e778238b64c2bc6b7b.",
+          "Actual HTTP rerun retrieval_eval_20260828_023537 preserved curated cross-document v2 rows 6-7 at 2/2 retrieval and 2/2 answer grounding; row 6 remained direct API and row 7 remained fallback_validation."
+        ],
+        "required_next_action": "Resume the manifest target: fix curated cross-document v2 row 8 answer evidence selection while preserving row 9 clean fallback-validation evidence and all prior containments/provenance."
+      },
       {
         "timestamp": "2026-08-28T01:53:18Z",
         "severity": "ok",
@@ -1582,7 +1596,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-28T00:56:00Z",
+    "updated_at": "2026-08-28T02:45:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -2047,6 +2061,39 @@
       "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_015749.jsonl. Row 8 asks for CV-X482 unstable gray-binary inspection versus XG-X unsupported SD-card access corrective actions. The answer incorrectly says CV-X should select [Color to Grayscale] and cites chunks 947ec30f, c5e39faf, and 1215683a instead of the expected CV-X Color to Binary chunk 2fe755de and XG-X unsupported-card chunk b577062c, so it remains failed diagnostic answer evidence. Row 9 asks the reverse XG-X unsupported SD-card and CV-X edge-detection-halfway comparison; it used validation fallback, cited returned chunks including 1063a1fe and 027df64e, and the cited chunks directly support the unsupported SD-card warning and Increase the Max. Segments corrective action.",
       "status": "row_8_failed_answer_evidence_selection_row_9_clean_fallback_validation_control",
       "scope_note": "Tracking/eval evidence only; no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
+    },
+    "latest_comparison_setting_side_binding_containment": {
+      "status": "addressed",
+      "guardrail_timestamp": "2026-08-28T02:22:53Z",
+      "commit_pending": true,
+      "production_change": "run_table_lexical_search now requires an explicitly side-assigned setting phrase match before retaining/promoting a comparison table row for a requested product side when the query names multiple settings.",
+      "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_table_lexical_promotes_two_side_setting_matches or comparison_table_lexical_does_not_promote_wrong_setting_for_missing_side or comparison_table_promotion_replaces_same_product_wrong_setting' -> 3 passed, 106 deselected",
+      "retriever_suite": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 109 passed, 1 warning",
+      "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 406 passed, 59 warnings",
+      "runtime_load": {
+        "api_restart": "docker compose -f infra/compose/docker-compose.yml restart api",
+        "run_table_lexical_search_sha256": "b5b129f6a44fbf38dcce881212f40b0a5838d1fcae527589bd532e76f029c451",
+        "_comparison_result_matches_any_side_setting_sha256": "668ae524cf91420edc977e888c2fcc964e75e5206a98e1e778238b64c2bc6b7b",
+        "_comparison_setting_phrases_sha256": "b279608b97a3d814434bd6b40b2bc68e66e8bc39baa8f15f000d84d9ad88fa4e",
+        "_comparison_setting_phrase_score_sha256": "c991ebb77e5fa67f05211f848d2c186e815462dd3793841c5b0aae7204607a87",
+        "_comparison_setting_phrases_for_identifier_sha256": "cf3ed6cdc0433d06626f4a3b6e4cf8518ffd0892d354950011124ec7aeba4910",
+        "_promote_comparison_table_candidates_sha256": "06df76cd92dc7b6933f06c8e93297e12cc9ee830fe9b2fa26b793ae2cdf6e96f"
+      },
+      "loaded_controls": {
+        "positive": "MOD1-A Alpha Mode plus MOD2-B Beta Mode returned ['mod1-alpha', 'mod2-beta'].",
+        "adverse": "MOD1-A Alpha Mode plus missing MOD2-B Beta Mode with only MOD2-B Alpha Mode returned ['mod1-alpha']; the wrong MOD2-B setting was not returned as coverage."
+      },
+      "actual_http_evidence": {
+        "run": "retrieval_eval_20260828_023537",
+        "dataset": "test_reports/retrieval_eval_dataset_20260828_023537.jsonl",
+        "results": "test_reports/retrieval_eval_results_20260828_023537.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260828_023537.json",
+        "manifest": "test_reports/retrieval_eval_manifest_20260828_023537.json",
+        "result": "Curated cross-document v2 rows 6-7 passed 2/2 retrieval and 2/2 answer grounding; answer_sources {api: 1, fallback_validation: 1}; answer_fallback_count 1.",
+        "manual_jsonl_inspection": "Row 6 cited returned chunks 00b27fd9 and 8ad34fac, supporting CV-X Condition list and LJ-X8000 Standard Angle respectively. Row 7 cited returned chunks including af1d8a26 and 7469d2a2, supporting PMSR DC2LAR and RTO2L meanings. Quote spans were null and support came from cited chunk content."
+      },
+      "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
+      "preserves": "Row 8 remains the current expected_evidence_not_cited answer failure from retrieval_eval_20260828_015749; row 9 remains clean fallback-validation evidence; row 6 direct-API and row 7 fallback-validation evidence remain preserved."
     }
   },
   "latest_false_negative_repair": {
@@ -7995,7 +8042,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Fix curated cross-document v2 row 8 answer evidence selection so the API answer cites and uses the returned CV-X Color to Binary corrective-action evidence and the XG-X unsupported SD-card evidence, while preserving row 9 clean fallback-validation evidence from retrieval_eval_20260828_015749, row 6 clean direct-API evidence from retrieval_eval_20260828_014041, row 7 clean fallback-validation evidence from retrieval_eval_20260828_014208, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
+  "next_target": "Fix curated cross-document v2 row 8 answer evidence selection so the API answer cites and uses the returned CV-X Color to Binary corrective-action evidence and the XG-X unsupported SD-card evidence, while preserving row 9 clean fallback-validation evidence from retrieval_eval_20260828_015749, row 6 clean direct-API evidence from retrieval_eval_20260828_023537, row 7 clean fallback-validation evidence from retrieval_eval_20260828_023537, contextual rows 15-16 clean fallback-validation evidence from retrieval_eval_20260828_003910, diagnostic false-green retrieval_eval_20260827_225720, telemetry-defect run retrieval_eval_20260827_223414, relation-preserving quantity validation behavior, matrix containment, row-5/row-6 prior diagnostic exclusions, and all citation-fidelity containments.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -8886,6 +8933,20 @@
   ],
   "unresolved_guardrail_findings": [
     {
+      "timestamp": "2026-08-28T02:22:53Z",
+      "severity": "needs_fix",
+      "finding": "run_table_lexical_search could fabricate comparison side coverage by returning a same-model row for a different requested setting when the side-specific setting was absent.",
+      "status": "addressed_this_run_side_setting_binding_required",
+      "evidence": [
+        "Added run_table_lexical_search-level controls for a legitimate MOD1-A Alpha Mode plus MOD2-B Beta Mode two-side positive and the missing-side/wrong-setting MOD2-B Alpha Mode adverse case.",
+        "Loaded API-container adverse control returned only mod1-alpha for the missing MOD2-B Beta Mode case; mod2-alpha was no longer accepted as side coverage.",
+        "Focused retriever controls passed; full retriever suite passed 109 tests; full unit gate passed 406 tests with 59 warnings.",
+        "After an api restart, loaded fingerprints included run_table_lexical_search_sha256=b5b129f6a44fbf38dcce881212f40b0a5838d1fcae527589bd532e76f029c451 and _comparison_result_matches_any_side_setting_sha256=668ae524cf91420edc977e888c2fcc964e75e5206a98e1e778238b64c2bc6b7b.",
+        "Actual HTTP rerun retrieval_eval_20260828_023537 preserved curated cross-document v2 rows 6-7 at 2/2 retrieval and 2/2 answer grounding; row 6 remained direct API and row 7 remained fallback_validation."
+      ],
+      "required_next_action": "Resume the manifest target: fix curated cross-document v2 row 8 answer evidence selection while preserving row 9 clean fallback-validation evidence and all prior containments/provenance."
+    },
+    {
       "timestamp": "2026-08-28T01:53:18Z",
       "severity": "ok",
       "finding": "Latest guardrail cleared comparison setting evidence and required continuing broad actual HTTP answer-grounding rotations.",
@@ -9640,5 +9701,38 @@
     "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_015749.jsonl. Row 8 asks for CV-X482 unstable gray-binary inspection versus XG-X unsupported SD-card access corrective actions. The answer incorrectly says CV-X should select [Color to Grayscale] and cites chunks 947ec30f, c5e39faf, and 1215683a instead of the expected CV-X Color to Binary chunk 2fe755de and XG-X unsupported-card chunk b577062c, so it remains failed diagnostic answer evidence. Row 9 asks the reverse XG-X unsupported SD-card and CV-X edge-detection-halfway comparison; it used validation fallback, cited returned chunks including 1063a1fe and 027df64e, and the cited chunks directly support the unsupported SD-card warning and Increase the Max. Segments corrective action.",
     "status": "row_8_failed_answer_evidence_selection_row_9_clean_fallback_validation_control",
     "scope_note": "Tracking/eval evidence only; no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
+  },
+  "latest_comparison_setting_side_binding_containment": {
+    "status": "addressed",
+    "guardrail_timestamp": "2026-08-28T02:22:53Z",
+    "commit_pending": true,
+    "production_change": "run_table_lexical_search now requires an explicitly side-assigned setting phrase match before retaining/promoting a comparison table row for a requested product side when the query names multiple settings.",
+    "focused_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'comparison_table_lexical_promotes_two_side_setting_matches or comparison_table_lexical_does_not_promote_wrong_setting_for_missing_side or comparison_table_promotion_replaces_same_product_wrong_setting' -> 3 passed, 106 deselected",
+    "retriever_suite": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 109 passed, 1 warning",
+    "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 406 passed, 59 warnings",
+    "runtime_load": {
+      "api_restart": "docker compose -f infra/compose/docker-compose.yml restart api",
+      "run_table_lexical_search_sha256": "b5b129f6a44fbf38dcce881212f40b0a5838d1fcae527589bd532e76f029c451",
+      "_comparison_result_matches_any_side_setting_sha256": "668ae524cf91420edc977e888c2fcc964e75e5206a98e1e778238b64c2bc6b7b",
+      "_comparison_setting_phrases_sha256": "b279608b97a3d814434bd6b40b2bc68e66e8bc39baa8f15f000d84d9ad88fa4e",
+      "_comparison_setting_phrase_score_sha256": "c991ebb77e5fa67f05211f848d2c186e815462dd3793841c5b0aae7204607a87",
+      "_comparison_setting_phrases_for_identifier_sha256": "cf3ed6cdc0433d06626f4a3b6e4cf8518ffd0892d354950011124ec7aeba4910",
+      "_promote_comparison_table_candidates_sha256": "06df76cd92dc7b6933f06c8e93297e12cc9ee830fe9b2fa26b793ae2cdf6e96f"
+    },
+    "loaded_controls": {
+      "positive": "MOD1-A Alpha Mode plus MOD2-B Beta Mode returned ['mod1-alpha', 'mod2-beta'].",
+      "adverse": "MOD1-A Alpha Mode plus missing MOD2-B Beta Mode with only MOD2-B Alpha Mode returned ['mod1-alpha']; the wrong MOD2-B setting was not returned as coverage."
+    },
+    "actual_http_evidence": {
+      "run": "retrieval_eval_20260828_023537",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_023537.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260828_023537.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_023537.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_023537.json",
+      "result": "Curated cross-document v2 rows 6-7 passed 2/2 retrieval and 2/2 answer grounding; answer_sources {api: 1, fallback_validation: 1}; answer_fallback_count 1.",
+      "manual_jsonl_inspection": "Row 6 cited returned chunks 00b27fd9 and 8ad34fac, supporting CV-X Condition list and LJ-X8000 Standard Angle respectively. Row 7 cited returned chunks including af1d8a26 and 7469d2a2, supporting PMSR DC2LAR and RTO2L meanings. Quote spans were null and support came from cited chunk content."
+    },
+    "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
+    "preserves": "Row 8 remains the current expected_evidence_not_cited answer failure from retrieval_eval_20260828_015749; row 9 remains clean fallback-validation evidence; row 6 direct-API and row 7 fallback-validation evidence remain preserved."
   }
 }
