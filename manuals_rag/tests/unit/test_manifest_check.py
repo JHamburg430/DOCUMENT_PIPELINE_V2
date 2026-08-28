@@ -40,6 +40,9 @@ def _minimal_manifest():
         "latest_cross_document_answer_rotation": {"status": "row_10_diagnostic"},
         "latest_cross_document_row8_answer_repair": {"status": "addressed"},
         "latest_cross_document_row8_answer_partial_side_containment": {"status": "addressed"},
+        "latest_contextual_procedure_rows_3_4_source_review": {
+            "status": "diagnostic_source_equivalence"
+        },
         "answer_grounding_cross_document_rows_6_7": {"status": "row_6_failed_row_7_clean"},
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
@@ -268,6 +271,32 @@ def test_manifest_checker_rejects_missing_or_unequal_row8_partial_side_containme
     )
     assert any(
         "latest_cross_document_row8_answer_partial_side_containment mismatch" in error
+        for error in module.check_manifest(unequal)
+    )
+
+
+def test_manifest_checker_rejects_missing_or_unequal_contextual_procedure_source_review():
+    module = _load_manifest_check_module()
+    missing_root = _minimal_manifest()
+    del missing_root["latest_contextual_procedure_rows_3_4_source_review"]
+    missing_nested = _minimal_manifest()
+    del missing_nested["question_bank"]["latest_contextual_procedure_rows_3_4_source_review"]
+    unequal = _minimal_manifest()
+    unequal["question_bank"]["latest_contextual_procedure_rows_3_4_source_review"] = {
+        "status": "stale"
+    }
+
+    assert any(
+        "latest_contextual_procedure_rows_3_4_source_review missing required duplicate" in error
+        for error in module.check_manifest(missing_root)
+    )
+    assert any(
+        "question_bank.latest_contextual_procedure_rows_3_4_source_review" in error
+        and "missing required duplicate" in error
+        for error in module.check_manifest(missing_nested)
+    )
+    assert any(
+        "latest_contextual_procedure_rows_3_4_source_review mismatch" in error
         for error in module.check_manifest(unequal)
     )
 

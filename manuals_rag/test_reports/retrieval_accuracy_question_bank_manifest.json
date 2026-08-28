@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T08:27:49Z",
+  "updated_at": "2026-08-28T08:59:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1585,6 +1585,21 @@
           "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
         ],
         "required_next_action": "No further quantity-validator containment is required before optional rotations; preserve retrieval_eval_20260827_223414 and continue broad answer-grounding coverage."
+      },
+      {
+        "timestamp": "2026-08-28T08:48:29Z",
+        "severity": "needs_fix",
+        "finding": "latest_contextual_procedure_rows_3_4_source_review was duplicated at manifest root and question_bank but was not registered in the deterministic required-pair checker, so deleting either copy or changing one copy could pass.",
+        "status": "addressed_this_run_manifest_pair_enforcement",
+        "evidence": [
+          "Added latest_contextual_procedure_rows_3_4_source_review to REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS in scripts/maintenance/check_retrieval_accuracy_manifest.py.",
+          "Added deterministic test controls in tests/unit/test_manifest_check.py covering equal copies, missing root, missing question_bank, and unequal values.",
+          "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 23 passed.",
+          "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+          "Actual-manifest negative controls failed as expected for missing root copy, missing question_bank copy, and unequal classification.",
+          "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 426 passed, 59 warnings."
+        ],
+        "required_next_action": "No further checker repair required for this field. Continue with the prior next target: add or source-repair true contextual procedure multi-step replacements for rows 3-4, or define a general source-backed equivalence policy plus actual HTTP rerun before counting that slice as clean."
       }
     ],
     "answer_grounding_sibling_rows_15_16": {
@@ -1666,7 +1681,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-28T08:27:49Z",
+    "updated_at": "2026-08-28T08:59:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -2361,7 +2376,19 @@
         "Both rows are useful diagnostics for dataset/equivalence policy, but not clean multi-step answer evidence because the expected multi-step roles are overconstrained for the visible questions.",
         "No retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, model, Docker, schema, or infrastructure code changed."
       ],
-      "remaining": "Need replacement true multi-step contextual procedure questions or a general source-backed equivalence policy plus actual HTTP rerun before this slice can count as clean answer-grounding coverage."
+      "remaining": "Need replacement true multi-step contextual procedure questions or a general source-backed equivalence policy plus actual HTTP rerun before this slice can count as clean answer-grounding coverage.",
+      "checker_repair": {
+        "timestamp": "2026-08-28T08:59:00Z",
+        "guardrail_timestamp": "2026-08-28T08:48:29Z",
+        "status": "checker_pair_enforced",
+        "evidence": [
+          "Required manifest-pair checker now includes latest_contextual_procedure_rows_3_4_source_review.",
+          "Focused tests cover equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail.",
+          "Real manifest passed deterministic consistency check; generated negative controls against the real manifest failed as expected.",
+          "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 426 passed, 59 warnings."
+        ],
+        "remaining": "Rows 3-4 remain diagnostic dataset/source-equivalence evidence; they still need true multi-step replacements or a source-backed equivalence policy plus actual HTTP rerun before counting as clean answer-grounding coverage."
+      }
     }
   },
   "latest_false_negative_repair": {
@@ -9583,6 +9610,21 @@
         "Manual JSONL inspection verified row 15 cites returned page 6-125 quantity evidence supporting 10 lines and two overlap lines; row 16 remained clean."
       ],
       "required_next_action": "No further quantity-validator containment is required before optional rotations; preserve retrieval_eval_20260827_223414 and continue broad answer-grounding coverage."
+    },
+    {
+      "timestamp": "2026-08-28T08:48:29Z",
+      "severity": "needs_fix",
+      "finding": "latest_contextual_procedure_rows_3_4_source_review was duplicated at manifest root and question_bank but was not registered in the deterministic required-pair checker, so deleting either copy or changing one copy could pass.",
+      "status": "addressed_this_run_manifest_pair_enforcement",
+      "evidence": [
+        "Added latest_contextual_procedure_rows_3_4_source_review to REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS in scripts/maintenance/check_retrieval_accuracy_manifest.py.",
+        "Added deterministic test controls in tests/unit/test_manifest_check.py covering equal copies, missing root, missing question_bank, and unequal values.",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 23 passed.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+        "Actual-manifest negative controls failed as expected for missing root copy, missing question_bank copy, and unequal classification.",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 426 passed, 59 warnings."
+      ],
+      "required_next_action": "No further checker repair required for this field. Continue with the prior next target: add or source-repair true contextual procedure multi-step replacements for rows 3-4, or define a general source-backed equivalence policy plus actual HTTP rerun before counting that slice as clean."
     }
   ],
   "answer_grounding_sibling_rows_15_16": {
@@ -10268,6 +10310,18 @@
       "Both rows are useful diagnostics for dataset/equivalence policy, but not clean multi-step answer evidence because the expected multi-step roles are overconstrained for the visible questions.",
       "No retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, model, Docker, schema, or infrastructure code changed."
     ],
-    "remaining": "Need replacement true multi-step contextual procedure questions or a general source-backed equivalence policy plus actual HTTP rerun before this slice can count as clean answer-grounding coverage."
+    "remaining": "Need replacement true multi-step contextual procedure questions or a general source-backed equivalence policy plus actual HTTP rerun before this slice can count as clean answer-grounding coverage.",
+    "checker_repair": {
+      "timestamp": "2026-08-28T08:59:00Z",
+      "guardrail_timestamp": "2026-08-28T08:48:29Z",
+      "status": "checker_pair_enforced",
+      "evidence": [
+        "Required manifest-pair checker now includes latest_contextual_procedure_rows_3_4_source_review.",
+        "Focused tests cover equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail.",
+        "Real manifest passed deterministic consistency check; generated negative controls against the real manifest failed as expected.",
+        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 426 passed, 59 warnings."
+      ],
+      "remaining": "Rows 3-4 remain diagnostic dataset/source-equivalence evidence; they still need true multi-step replacements or a source-backed equivalence policy plus actual HTTP rerun before counting as clean answer-grounding coverage."
+    }
   }
 }
