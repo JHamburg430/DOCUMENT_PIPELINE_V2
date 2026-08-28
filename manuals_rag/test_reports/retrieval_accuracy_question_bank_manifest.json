@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T04:22:00Z",
+  "updated_at": "2026-08-28T05:58:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1203,6 +1203,20 @@
     ],
     "unresolved_guardrail_findings": [
       {
+        "timestamp": "2026-08-28T05:39:56Z",
+        "severity": "needs_fix",
+        "finding": "latest_cross_document_answer_rotation was duplicated at root and question_bank, but the deterministic manifest checker did not fail when the root copy was removed.",
+        "status": "addressed_this_run_manifest_pair_checker",
+        "evidence": [
+          "Added latest_cross_document_answer_rotation to REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS so current duplicated cross-document answer-rotation state is presence-aware.",
+          "Added deterministic manifest unit coverage via the minimal manifest plus missing-root, missing-question_bank, and unequal-value controls for latest_cross_document_answer_rotation.",
+          "Focused manifest tests passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 22 passed.",
+          "Real manifest check passed: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+          "Explicit negative controls passed: equal real copies passed, deleting the root copy failed, deleting the question_bank copy failed, and changing the nested value failed."
+        ],
+        "required_next_action": "Continue from the preserved manifest target: fix curated cross-document v2 row 10 multi-evidence retrieval/answer grounding, or source-review the case as dataset/scoring diagnostic before further optional rotations."
+      },
+      {
         "timestamp": "2026-08-28T04:30:16Z",
         "severity": "needs_fix",
         "finding": "Partial-side comparison troubleshooting validator could retain an unsupported second-side claim when fewer than two side rows matched.",
@@ -1624,7 +1638,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-28T05:30:00Z",
+    "updated_at": "2026-08-28T05:58:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -2089,7 +2103,18 @@
       "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_052349.jsonl. The fallback answer cites returned SV2 chunk aa013e96-9241-54f8-a6c9-aac5c28e5f10, which supports UINT/INT/UDINT/DINT for symptom monitoring supported data types, but it does not retrieve or cite the expected LJ-S8000 Index > UINT chunk aacb725c-fa7b-51b1-aeec-fa1662318433 that states Direction 0 receiving side maps 0 Bit area, 1 Fixed byte data area, and 2 CommandParam area. The cited LJ-S8000 chunks are table summaries or sibling Attribute data/size rows, so the expected Index UINT role is not grounded. Quote spans were null; no generated quote self-validation was present.",
       "classification": "diagnostic_not_clean_expected_evidence_not_cited",
       "scope_note": "Tracking/eval-artifact update only; no production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
-      "endpoint_model_comparability": "Actual HTTP eval used the already-running compose API with the existing environment; pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited."
+      "endpoint_model_comparability": "Actual HTTP eval used the already-running compose API with the existing environment; pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited.",
+      "manifest_checker_validation": {
+        "guardrail_finding": "2026-08-28T05:39:56Z needs_fix",
+        "status": "addressed_this_run_manifest_pair_checker",
+        "code_change": "Added latest_cross_document_answer_rotation to the required root/question_bank paired-field manifest checker and focused unit controls.",
+        "validation": [
+          "Focused manifest tests passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 22 passed.",
+          "Real manifest check passed: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+          "Explicit negative controls passed: equal real copies passed, deleting the root copy failed, deleting the question_bank copy failed, and changing the nested value failed."
+        ],
+        "scope_note": "Checker/tracking-only change; no production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
+      }
     },
     "latest_comparison_setting_side_binding_containment": {
       "status": "addressed",
@@ -9116,6 +9141,20 @@
   ],
   "unresolved_guardrail_findings": [
     {
+      "timestamp": "2026-08-28T05:39:56Z",
+      "severity": "needs_fix",
+      "finding": "latest_cross_document_answer_rotation was duplicated at root and question_bank, but the deterministic manifest checker did not fail when the root copy was removed.",
+      "status": "addressed_this_run_manifest_pair_checker",
+      "evidence": [
+        "Added latest_cross_document_answer_rotation to REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS so current duplicated cross-document answer-rotation state is presence-aware.",
+        "Added deterministic manifest unit coverage via the minimal manifest plus missing-root, missing-question_bank, and unequal-value controls for latest_cross_document_answer_rotation.",
+        "Focused manifest tests passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 22 passed.",
+        "Real manifest check passed: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+        "Explicit negative controls passed: equal real copies passed, deleting the root copy failed, deleting the question_bank copy failed, and changing the nested value failed."
+      ],
+      "required_next_action": "Continue from the preserved manifest target: fix curated cross-document v2 row 10 multi-evidence retrieval/answer grounding, or source-review the case as dataset/scoring diagnostic before further optional rotations."
+    },
+    {
       "timestamp": "2026-08-28T04:30:16Z",
       "severity": "needs_fix",
       "finding": "Partial-side comparison troubleshooting validator could retain an unsupported second-side claim when fewer than two side rows matched.",
@@ -9911,7 +9950,18 @@
     "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_052349.jsonl. The fallback answer cites returned SV2 chunk aa013e96-9241-54f8-a6c9-aac5c28e5f10, which supports UINT/INT/UDINT/DINT for symptom monitoring supported data types, but it does not retrieve or cite the expected LJ-S8000 Index > UINT chunk aacb725c-fa7b-51b1-aeec-fa1662318433 that states Direction 0 receiving side maps 0 Bit area, 1 Fixed byte data area, and 2 CommandParam area. The cited LJ-S8000 chunks are table summaries or sibling Attribute data/size rows, so the expected Index UINT role is not grounded. Quote spans were null; no generated quote self-validation was present.",
     "classification": "diagnostic_not_clean_expected_evidence_not_cited",
     "scope_note": "Tracking/eval-artifact update only; no production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
-    "endpoint_model_comparability": "Actual HTTP eval used the already-running compose API with the existing environment; pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited."
+    "endpoint_model_comparability": "Actual HTTP eval used the already-running compose API with the existing environment; pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited.",
+    "manifest_checker_validation": {
+      "guardrail_finding": "2026-08-28T05:39:56Z needs_fix",
+      "status": "addressed_this_run_manifest_pair_checker",
+      "code_change": "Added latest_cross_document_answer_rotation to the required root/question_bank paired-field manifest checker and focused unit controls.",
+      "validation": [
+        "Focused manifest tests passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 22 passed.",
+        "Real manifest check passed: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+        "Explicit negative controls passed: equal real copies passed, deleting the root copy failed, deleting the question_bank copy failed, and changing the nested value failed."
+      ],
+      "scope_note": "Checker/tracking-only change; no production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
+    }
   },
   "latest_comparison_setting_side_binding_containment": {
     "status": "addressed",
