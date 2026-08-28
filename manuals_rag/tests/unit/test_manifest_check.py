@@ -49,6 +49,7 @@ def _minimal_manifest():
         "failure_categories": retrieval_failures,
         "current_failure_categories": retrieval_failures,
         "current_retrieval_failure_categories": retrieval_failures,
+        "retrieval_current_failure_categories": retrieval_failures,
         "answer_current_failure_categories": failure_categories,
         "current_answer_failure_categories": failure_categories,
     }
@@ -383,3 +384,13 @@ def test_manifest_checker_rejects_unequal_eval_question_generation_scope_review(
         "latest_eval_question_generation_context_scope_review mismatch" in error
         for error in errors
     )
+
+
+def test_manifest_checker_rejects_retrieval_failure_semantic_alias_mismatch():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["retrieval_current_failure_categories"] = {"candidate_miss": 99}
+
+    errors = module.check_manifest(manifest)
+
+    assert any("retrieval_failure_categories mismatch" in error for error in errors)

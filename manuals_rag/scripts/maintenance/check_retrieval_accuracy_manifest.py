@@ -39,6 +39,7 @@ RETRIEVAL_FAILURE_ALIASES = (
     "failure_categories",
     "current_failure_categories",
     "current_retrieval_failure_categories",
+    "retrieval_current_failure_categories",
 )
 
 ANSWER_FAILURE_ALIASES = (
