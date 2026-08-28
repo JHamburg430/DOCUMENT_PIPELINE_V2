@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T06:44:00Z",
+  "updated_at": "2026-08-28T07:00:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1020,55 +1020,51 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {},
-    "next_target": "Continue broad actual HTTP API answer-grounding coverage by adding or source-reviewing the next realistic multi-step/cross-document question slice beyond curated cross-document v2 rows 1-10; preserve loaded-runtime clean rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, the row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments.",
-    "answer_grounding_status": "Curated cross-document v2 rows 8-10 reran as retrieval_eval_20260828_064019 after the comparison side-entry retrieval repair. Retrieval passed 3/3 at rank 1 and actual HTTP answer grounding passed 3/3; answer_sources {fallback_validation: 3}; answer_fallback_count 3; current retrieval failures are {}; current answer failures are {}. Row 10 now retrieves and cites both the SV2 supported-data-types chunk and the LJ-S8000 Index > UINT receiving-side chunk.",
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 1
+    },
+    "next_target": "Fix or source-review contextual procedure multi-step row 1 from retrieval_eval_20260828_065528: retrieval is clean, but the fallback answer cites the XG-8000/7000 short-period trigger precaution chunk instead of the expected XG-X flowchart branch rule chunk. Preserve row 2 clean fallback-validation evidence from retrieval_eval_20260828_065528, loaded-runtime clean cross-document rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, the row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments.",
+    "answer_grounding_status": "Contextual procedure multi-step rows 1-2 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl reran as retrieval_eval_20260828_065528. Retrieval passed 2/2 at rank 1 and actual HTTP answer grounding passed 1/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2. Row 1 failed expected_evidence_not_cited because the user-visible fallback answer cited chunk 004ba384 about XG-8000/7000 short-period trigger behavior, not the expected XG-X flowchart branch rule chunk 7ba4e5f2. Row 2 passed and cites returned chunk 0c943b9a containing the multiple-cameras-asynchronously / place-multiple-capture-units evidence.",
     "answer_grounding_rotation": {
-      "scope": "curated_cross_document_v2_rows_8_10_loaded_runtime_answer_grounding_clean",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-      "query_offset": 7,
-      "max_queries": 3,
-      "latest_run": "retrieval_eval_20260828_064019",
-      "dataset": "test_reports/retrieval_eval_dataset_20260828_064019.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260828_064019.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260828_064019.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260828_064019.json",
+      "scope": "contextual_procedure_multi_step_rows_1_2_answer_grounding_rotation",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "query_offset": 0,
+      "max_queries": 2,
+      "latest_run": "retrieval_eval_20260828_065528",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_065528.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260828_065528.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_065528.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_065528.json",
+      "retrieval_result": "Rows 1-2 passed retrieval 2/2 at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
+      "answer_result": "Rows 1-2 passed actual HTTP API answer grounding 1/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {expected_evidence_not_cited: 1}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_065528.jsonl for both new cases. Row 1 asks for the XG-X asynchronous-capture flowchart branching rule; retrieval contains expected chunks 0d116180 and 7ba4e5f2 at rank 1, but the fallback answer cites returned chunk 004ba384 and discusses XG-8000/7000 short-period trigger behavior, so it is diagnostic/not-clean for expected branch-rule support. Row 2 asks whether multiple capture units can be placed in the flow for multiple XG-X cameras; it cites returned chunk 0c943b9a, which contains the expected multiple-cameras-asynchronously / place-multiple-capture-units evidence. Citation quote_spans were null, so no generated quote self-validation was present.",
+      "classification": "diagnostic_answer_failure_with_clean_retrieval_plus_one_clean_control",
+      "endpoint_model_comparability": "Actual HTTP eval used the existing compose API service, which was already running from the prior loaded-runtime validation. The pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited.",
+      "preserved_prior_clean_evidence": [
+        "retrieval_eval_20260828_064019 rows 8-10 clean loaded-runtime cross-document answer grounding",
+        "retrieval_eval_20260828_023537 rows 6-7 clean cross-document answer grounding",
+        "retrieval_eval_20260828_003910 contextual rows 15-16 clean fallback-validation answer grounding"
+      ],
       "previous_diagnostics": [
         {
           "run": "retrieval_eval_20260828_052349",
-          "classification": "diagnostic_not_clean_expected_evidence_not_cited",
-          "evidence": "Row 10 failed answer grounding before this repair because the answer cited SV2 supported data types but did not retrieve/cite the LJ-S8000 Index > UINT receiving-side chunk."
+          "classification": "diagnostic_not_clean_expected_evidence_not_cited"
         },
         {
           "run": "retrieval_eval_20260828_063102",
-          "classification": "diagnostic_intermediate_regression_not_clean",
-          "evidence": "An intermediate loaded-runtime rows 8-10 run made row 10 clean but regressed row 8 to the CV-X Color to Grayscale sibling citation; the final side-match replacement fix superseded it."
+          "classification": "diagnostic_intermediate_regression_not_clean"
         }
       ],
-      "retrieval_result": "Rows 8-10 passed retrieval 3/3 at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-      "answer_result": "Rows 8-10 passed actual HTTP API answer grounding 3/3; answer_sources {fallback_validation: 3}; answer_fallback_count 3; answer_failure_reasons {}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_064019.jsonl for every new final case. Row 8 cites returned CV-X chunk 2fe755de on page 507, which states Inspection is not stable in gray binary and Select Color to Binary in Extract Colors, plus XG-X chunk 947ec30f on page 1262 with unsupported SD-card guidance in row context. Row 9 cites returned XG-X chunk 1063a1fe and CV-X chunk 7e7adc82 supporting unsupported SD-card guidance and Increase the Max. Segments. Row 10 cites returned SV2 chunk aa013e96 on page 37 with UINT, INT, UDINT, DINT supported data types and LJ-S8000 chunk aacb725c on page 347 with Index > UINT Direction 0 receiving-side mappings to Bit area, Fixed byte data area, and CommandParam area. All citation quote_spans were null, so no generated quote self-validation was present.",
-      "runtime_load": {
-        "api_restart": "docker compose -f infra/compose/docker-compose.yml restart api",
-        "query_analysis.analyze_query_sha256": "f2432dec60d6fbf506d5d8c6d23002f17707454d7a2f561173342969c190a5ad",
-        "retriever._comparison_side_context_terms_sha256": "2626abf6ed8a01fb3610e2913b5d7a6258bf1d97ab7f3a40cf33d0c54d179f72",
-        "retriever._comparison_side_match_score_sha256": "ad1c47b6056ddd4daa866aa016800f2ed7666c3874adf3497d25579ab2a659e6",
-        "retriever.run_table_lexical_search_sha256": "d21a10c709457f39127d825f98f684d73be8d07dcba11e107bad5bb209dfd11a",
-        "retriever._promote_comparison_table_candidates_sha256": "e2dd6e5529d061de50f0f22ec3fecf393f6f0e656a9f06e1e5573071ad4b1b2e",
-        "loaded_control": "Loaded API container reported product_identifiers [SV2, LJ-S8000], SV2 side context [monitoring, supported, symptom, types], and LJ-S8000 side context [index, uint]."
-      },
+      "scope_note": "Tracking/eval-artifact coverage update only. No production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
       "validation": [
-        "Focused retriever controls passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'short_letter_number_products or side_specific_entry_phrases or weaker_same_side_context_match or comparison_table_lexical_promotes_two_side_setting_matches or comparison_table_lexical_does_not_promote_wrong_setting_for_missing_side or comparison_table_promotion_replaces_same_product_wrong_setting' -> 6 passed, 106 deselected.",
-        "Full unit gate passed after final patch: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 424 passed, 59 warnings.",
-        "Loaded-runtime HTTP answer run retrieval_eval_20260828_064019 passed rows 8-10 at 3/3 retrieval and 3/3 answers."
-      ],
-      "production_change": "Comparison query analysis now preserves product identifiers in visible query order. Comparison table promotion uses side-specific compare-with entry phrases, and can replace a weaker same-side primary row only when a supplemental table row has stronger relation-preserving side/context support.",
-      "scope_note": "Changed only retrieval query analysis/retrieval ranking and retriever tests plus tracking/eval artifacts. No ingestion, parser, UI, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, reranker, API, eval scoring, or answer-generation behavior changed.",
-      "endpoint_model_comparability": "Actual HTTP eval used the restarted compose API with the existing environment. The pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited.",
-      "classification": "clean_loaded_runtime_answer_grounding"
+        "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 0 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_065528.",
+        "Manual JSONL/citation inspection completed for both cases; row 1 is preserved as failed diagnostic evidence and row 2 as clean fallback-validation evidence."
+      ]
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {},
+    "current_answer_failure_categories": {
+      "expected_evidence_not_cited": 1
+    },
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1229,16 +1225,17 @@
         "timestamp": "2026-08-28T05:39:56Z",
         "severity": "needs_fix",
         "finding": "latest_cross_document_answer_rotation was duplicated at root and question_bank, but the deterministic manifest checker did not fail when the root copy was removed.",
-        "status": "addressed_followup_row10_clean_loaded_runtime",
+        "status": "addressed_followup_row10_clean_loaded_runtime_and_next_contextual_rotation_diagnostic",
         "evidence": [
           "Added latest_cross_document_answer_rotation to REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS so current duplicated cross-document answer-rotation state is presence-aware.",
           "Added deterministic manifest unit coverage via the minimal manifest plus missing-root, missing-question_bank, and unequal-value controls for latest_cross_document_answer_rotation.",
           "Focused manifest tests passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 22 passed.",
           "Real manifest check passed: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
           "Explicit negative controls passed: equal real copies passed, deleting the root copy failed, deleting the question_bank copy failed, and changing the nested value failed.",
-          "Follow-up production retrieval repair preserved query-order side binding and side-specific compare-with context, then retrieval_eval_20260828_064019 passed curated cross-document v2 rows 8-10 at 3/3 retrieval and 3/3 actual HTTP answer grounding after API restart/runtime fingerprinting."
+          "Follow-up production retrieval repair preserved query-order side binding and side-specific compare-with context, then retrieval_eval_20260828_064019 passed curated cross-document v2 rows 8-10 at 3/3 retrieval and 3/3 actual HTTP answer grounding after API restart/runtime fingerprinting.",
+          "Follow-up contextual answer rotation retrieval_eval_20260828_065528 broadened actual HTTP answer-grounding coverage beyond curated cross-document v2 rows 1-10 and surfaced contextual row 1 as the next answer evidence-selection target."
         ],
-        "required_next_action": "Continue broad actual HTTP API answer-grounding coverage by adding or source-reviewing the next realistic multi-step/cross-document question slice beyond curated cross-document v2 rows 1-10; preserve loaded-runtime clean rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, the row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments."
+        "required_next_action": "Fix or source-review contextual procedure multi-step row 1 from retrieval_eval_20260828_065528: retrieval is clean, but the fallback answer cites the XG-8000/7000 short-period trigger precaution chunk instead of the expected XG-X flowchart branch rule chunk. Preserve row 2 clean fallback-validation evidence from retrieval_eval_20260828_065528, loaded-runtime clean cross-document rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, the row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments."
       },
       {
         "timestamp": "2026-08-28T04:30:16Z",
@@ -1662,7 +1659,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-28T06:44:00Z",
+    "updated_at": "2026-08-28T07:00:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -8289,7 +8286,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Continue broad actual HTTP API answer-grounding coverage by adding or source-reviewing the next realistic multi-step/cross-document question slice beyond curated cross-document v2 rows 1-10; preserve loaded-runtime clean rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, the row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments.",
+  "next_target": "Fix or source-review contextual procedure multi-step row 1 from retrieval_eval_20260828_065528: retrieval is clean, but the fallback answer cites the XG-8000/7000 short-period trigger precaution chunk instead of the expected XG-X flowchart branch rule chunk. Preserve row 2 clean fallback-validation evidence from retrieval_eval_20260828_065528, loaded-runtime clean cross-document rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, the row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -8573,51 +8570,45 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {},
-  "answer_grounding_status": "Curated cross-document v2 rows 8-10 reran as retrieval_eval_20260828_064019 after the comparison side-entry retrieval repair. Retrieval passed 3/3 at rank 1 and actual HTTP answer grounding passed 3/3; answer_sources {fallback_validation: 3}; answer_fallback_count 3; current retrieval failures are {}; current answer failures are {}. Row 10 now retrieves and cites both the SV2 supported-data-types chunk and the LJ-S8000 Index > UINT receiving-side chunk.",
+  "answer_current_failure_categories": {
+    "expected_evidence_not_cited": 1
+  },
+  "answer_grounding_status": "Contextual procedure multi-step rows 1-2 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl reran as retrieval_eval_20260828_065528. Retrieval passed 2/2 at rank 1 and actual HTTP answer grounding passed 1/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2. Row 1 failed expected_evidence_not_cited because the user-visible fallback answer cited chunk 004ba384 about XG-8000/7000 short-period trigger behavior, not the expected XG-X flowchart branch rule chunk 7ba4e5f2. Row 2 passed and cites returned chunk 0c943b9a containing the multiple-cameras-asynchronously / place-multiple-capture-units evidence.",
   "answer_grounding_rotation": {
-    "scope": "curated_cross_document_v2_rows_8_10_loaded_runtime_answer_grounding_clean",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-    "query_offset": 7,
-    "max_queries": 3,
-    "latest_run": "retrieval_eval_20260828_064019",
-    "dataset": "test_reports/retrieval_eval_dataset_20260828_064019.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260828_064019.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260828_064019.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260828_064019.json",
+    "scope": "contextual_procedure_multi_step_rows_1_2_answer_grounding_rotation",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+    "query_offset": 0,
+    "max_queries": 2,
+    "latest_run": "retrieval_eval_20260828_065528",
+    "dataset": "test_reports/retrieval_eval_dataset_20260828_065528.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260828_065528.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260828_065528.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260828_065528.json",
+    "retrieval_result": "Rows 1-2 passed retrieval 2/2 at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
+    "answer_result": "Rows 1-2 passed actual HTTP API answer grounding 1/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {expected_evidence_not_cited: 1}.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_065528.jsonl for both new cases. Row 1 asks for the XG-X asynchronous-capture flowchart branching rule; retrieval contains expected chunks 0d116180 and 7ba4e5f2 at rank 1, but the fallback answer cites returned chunk 004ba384 and discusses XG-8000/7000 short-period trigger behavior, so it is diagnostic/not-clean for expected branch-rule support. Row 2 asks whether multiple capture units can be placed in the flow for multiple XG-X cameras; it cites returned chunk 0c943b9a, which contains the expected multiple-cameras-asynchronously / place-multiple-capture-units evidence. Citation quote_spans were null, so no generated quote self-validation was present.",
+    "classification": "diagnostic_answer_failure_with_clean_retrieval_plus_one_clean_control",
+    "endpoint_model_comparability": "Actual HTTP eval used the existing compose API service, which was already running from the prior loaded-runtime validation. The pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited.",
+    "preserved_prior_clean_evidence": [
+      "retrieval_eval_20260828_064019 rows 8-10 clean loaded-runtime cross-document answer grounding",
+      "retrieval_eval_20260828_023537 rows 6-7 clean cross-document answer grounding",
+      "retrieval_eval_20260828_003910 contextual rows 15-16 clean fallback-validation answer grounding"
+    ],
     "previous_diagnostics": [
       {
         "run": "retrieval_eval_20260828_052349",
-        "classification": "diagnostic_not_clean_expected_evidence_not_cited",
-        "evidence": "Row 10 failed answer grounding before this repair because the answer cited SV2 supported data types but did not retrieve/cite the LJ-S8000 Index > UINT receiving-side chunk."
+        "classification": "diagnostic_not_clean_expected_evidence_not_cited"
       },
       {
         "run": "retrieval_eval_20260828_063102",
-        "classification": "diagnostic_intermediate_regression_not_clean",
-        "evidence": "An intermediate loaded-runtime rows 8-10 run made row 10 clean but regressed row 8 to the CV-X Color to Grayscale sibling citation; the final side-match replacement fix superseded it."
+        "classification": "diagnostic_intermediate_regression_not_clean"
       }
     ],
-    "retrieval_result": "Rows 8-10 passed retrieval 3/3 at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-    "answer_result": "Rows 8-10 passed actual HTTP API answer grounding 3/3; answer_sources {fallback_validation: 3}; answer_fallback_count 3; answer_failure_reasons {}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_064019.jsonl for every new final case. Row 8 cites returned CV-X chunk 2fe755de on page 507, which states Inspection is not stable in gray binary and Select Color to Binary in Extract Colors, plus XG-X chunk 947ec30f on page 1262 with unsupported SD-card guidance in row context. Row 9 cites returned XG-X chunk 1063a1fe and CV-X chunk 7e7adc82 supporting unsupported SD-card guidance and Increase the Max. Segments. Row 10 cites returned SV2 chunk aa013e96 on page 37 with UINT, INT, UDINT, DINT supported data types and LJ-S8000 chunk aacb725c on page 347 with Index > UINT Direction 0 receiving-side mappings to Bit area, Fixed byte data area, and CommandParam area. All citation quote_spans were null, so no generated quote self-validation was present.",
-    "runtime_load": {
-      "api_restart": "docker compose -f infra/compose/docker-compose.yml restart api",
-      "query_analysis.analyze_query_sha256": "f2432dec60d6fbf506d5d8c6d23002f17707454d7a2f561173342969c190a5ad",
-      "retriever._comparison_side_context_terms_sha256": "2626abf6ed8a01fb3610e2913b5d7a6258bf1d97ab7f3a40cf33d0c54d179f72",
-      "retriever._comparison_side_match_score_sha256": "ad1c47b6056ddd4daa866aa016800f2ed7666c3874adf3497d25579ab2a659e6",
-      "retriever.run_table_lexical_search_sha256": "d21a10c709457f39127d825f98f684d73be8d07dcba11e107bad5bb209dfd11a",
-      "retriever._promote_comparison_table_candidates_sha256": "e2dd6e5529d061de50f0f22ec3fecf393f6f0e656a9f06e1e5573071ad4b1b2e",
-      "loaded_control": "Loaded API container reported product_identifiers [SV2, LJ-S8000], SV2 side context [monitoring, supported, symptom, types], and LJ-S8000 side context [index, uint]."
-    },
+    "scope_note": "Tracking/eval-artifact coverage update only. No production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
     "validation": [
-      "Focused retriever controls passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -k 'short_letter_number_products or side_specific_entry_phrases or weaker_same_side_context_match or comparison_table_lexical_promotes_two_side_setting_matches or comparison_table_lexical_does_not_promote_wrong_setting_for_missing_side or comparison_table_promotion_replaces_same_product_wrong_setting' -> 6 passed, 106 deselected.",
-      "Full unit gate passed after final patch: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 424 passed, 59 warnings.",
-      "Loaded-runtime HTTP answer run retrieval_eval_20260828_064019 passed rows 8-10 at 3/3 retrieval and 3/3 answers."
-    ],
-    "production_change": "Comparison query analysis now preserves product identifiers in visible query order. Comparison table promotion uses side-specific compare-with entry phrases, and can replace a weaker same-side primary row only when a supplemental table row has stronger relation-preserving side/context support.",
-    "scope_note": "Changed only retrieval query analysis/retrieval ranking and retriever tests plus tracking/eval artifacts. No ingestion, parser, UI, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, reranker, API, eval scoring, or answer-generation behavior changed.",
-    "endpoint_model_comparability": "Actual HTTP eval used the restarted compose API with the existing environment. The pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited.",
-    "classification": "clean_loaded_runtime_answer_grounding"
+      "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 0 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_065528.",
+      "Manual JSONL/citation inspection completed for both cases; row 1 is preserved as failed diagnostic evidence and row 2 as clean fallback-validation evidence."
+    ]
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -9046,7 +9037,9 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "expected_evidence_not_cited": 1
+  },
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
@@ -9207,16 +9200,17 @@
       "timestamp": "2026-08-28T05:39:56Z",
       "severity": "needs_fix",
       "finding": "latest_cross_document_answer_rotation was duplicated at root and question_bank, but the deterministic manifest checker did not fail when the root copy was removed.",
-      "status": "addressed_followup_row10_clean_loaded_runtime",
+      "status": "addressed_followup_row10_clean_loaded_runtime_and_next_contextual_rotation_diagnostic",
       "evidence": [
         "Added latest_cross_document_answer_rotation to REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS so current duplicated cross-document answer-rotation state is presence-aware.",
         "Added deterministic manifest unit coverage via the minimal manifest plus missing-root, missing-question_bank, and unequal-value controls for latest_cross_document_answer_rotation.",
         "Focused manifest tests passed: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 22 passed.",
         "Real manifest check passed: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
         "Explicit negative controls passed: equal real copies passed, deleting the root copy failed, deleting the question_bank copy failed, and changing the nested value failed.",
-        "Follow-up production retrieval repair preserved query-order side binding and side-specific compare-with context, then retrieval_eval_20260828_064019 passed curated cross-document v2 rows 8-10 at 3/3 retrieval and 3/3 actual HTTP answer grounding after API restart/runtime fingerprinting."
+        "Follow-up production retrieval repair preserved query-order side binding and side-specific compare-with context, then retrieval_eval_20260828_064019 passed curated cross-document v2 rows 8-10 at 3/3 retrieval and 3/3 actual HTTP answer grounding after API restart/runtime fingerprinting.",
+        "Follow-up contextual answer rotation retrieval_eval_20260828_065528 broadened actual HTTP answer-grounding coverage beyond curated cross-document v2 rows 1-10 and surfaced contextual row 1 as the next answer evidence-selection target."
       ],
-      "required_next_action": "Continue broad actual HTTP API answer-grounding coverage by adding or source-reviewing the next realistic multi-step/cross-document question slice beyond curated cross-document v2 rows 1-10; preserve loaded-runtime clean rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, the row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments."
+      "required_next_action": "Fix or source-review contextual procedure multi-step row 1 from retrieval_eval_20260828_065528: retrieval is clean, but the fallback answer cites the XG-8000/7000 short-period trigger precaution chunk instead of the expected XG-X flowchart branch rule chunk. Preserve row 2 clean fallback-validation evidence from retrieval_eval_20260828_065528, loaded-runtime clean cross-document rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, the row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments."
     },
     {
       "timestamp": "2026-08-28T04:30:16Z",
