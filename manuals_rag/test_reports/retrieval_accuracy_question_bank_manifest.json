@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T13:23:00Z",
+  "updated_at": "2026-08-28T13:53:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -2496,6 +2496,22 @@
             "timestamp": "2026-08-28T13:23:00Z",
             "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
             "guardrail_context": "Latest guardrail ok at 2026-08-28T13:09:57Z; no unresolved watch/needs_fix/critical guardrail finding required a production change before the preserved contextual rows 5-6 target.",
+            "status": "verified_already_enforced_tracking_only_dirty_worktree_blocker",
+            "evidence": [
+              "scripts/maintenance/check_retrieval_accuracy_manifest.py includes latest_contextual_procedure_rows_3_4_source_review in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+              "tests/unit/test_manifest_check.py covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for latest_contextual_procedure_rows_3_4_source_review.",
+              "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 23 passed.",
+              "Explicit real-manifest controls passed/fail as required: equal copy passed; deleting root copy failed; deleting question_bank copy failed; unequal nested classification failed.",
+              "git diff --check HEAD passed."
+            ],
+            "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI/compose changes, mass eval-artifact deletions, and untracked eval/debug artifacts. This run did not edit or accept those changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
+            "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments."
+          },
+          {
+            "timestamp": "2026-08-28T13:53:00Z",
+            "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+            "guardrail_context": "Cron payload repeated the presence-aware manifest-check validation requirement; latest checked guardrail note remains ok and no production change was safe to make with unrelated dirty production/eval/UI work present.",
             "status": "verified_already_enforced_tracking_only_dirty_worktree_blocker",
             "evidence": [
               "scripts/maintenance/check_retrieval_accuracy_manifest.py includes latest_contextual_procedure_rows_3_4_source_review in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
@@ -10508,6 +10524,22 @@
           "timestamp": "2026-08-28T13:23:00Z",
           "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
           "guardrail_context": "Latest guardrail ok at 2026-08-28T13:09:57Z; no unresolved watch/needs_fix/critical guardrail finding required a production change before the preserved contextual rows 5-6 target.",
+          "status": "verified_already_enforced_tracking_only_dirty_worktree_blocker",
+          "evidence": [
+            "scripts/maintenance/check_retrieval_accuracy_manifest.py includes latest_contextual_procedure_rows_3_4_source_review in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+            "tests/unit/test_manifest_check.py covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for latest_contextual_procedure_rows_3_4_source_review.",
+            "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 23 passed.",
+            "Explicit real-manifest controls passed/fail as required: equal copy passed; deleting root copy failed; deleting question_bank copy failed; unequal nested classification failed.",
+            "git diff --check HEAD passed."
+          ],
+          "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI/compose changes, mass eval-artifact deletions, and untracked eval/debug artifacts. This run did not edit or accept those changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
+          "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments."
+        },
+        {
+          "timestamp": "2026-08-28T13:53:00Z",
+          "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+          "guardrail_context": "Cron payload repeated the presence-aware manifest-check validation requirement; latest checked guardrail note remains ok and no production change was safe to make with unrelated dirty production/eval/UI work present.",
           "status": "verified_already_enforced_tracking_only_dirty_worktree_blocker",
           "evidence": [
             "scripts/maintenance/check_retrieval_accuracy_manifest.py includes latest_contextual_procedure_rows_3_4_source_review in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
