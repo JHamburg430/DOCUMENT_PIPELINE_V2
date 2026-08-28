@@ -2961,6 +2961,34 @@ def _citation_document_id(citation: dict[str, Any]) -> str:
     return str(citation.get("document_id") or citation.get("source_document_id") or "")
 
 
+def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text: str) -> bool:
+    text_lower = cited_text.lower()
+    text_tokens = set(tokenize(text_lower))
+    expected_terms = [str(term) for term in item.get("expected_terms") or [] if str(term).strip()]
+    role_terms = [
+        term
+        for term in expected_terms
+        if normalize_text(term) not in {"procedure", "step", "setting", "item", "settings", "column", "headers", "row", "cell", "value"}
+    ]
+    required_terms = role_terms or expected_terms
+    if required_terms and not all(_expected_term_matches_text(term, text_lower, text_tokens) for term in required_terms):
+        return False
+    snippet = str(item.get("snippet") or "")
+    snippet_terms = [
+        term
+        for term in extract_anchor_terms(snippet, limit=8)
+        if normalize_text(term) not in {"procedure", "step", "setting", "item", "settings", "column", "headers", "row", "cell", "value"}
+    ]
+    if not snippet_terms:
+        return bool(required_terms)
+    matched_snippet_terms = [
+        term
+        for term in snippet_terms
+        if _expected_term_matches_text(term, text_lower, text_tokens)
+    ]
+    return len(matched_snippet_terms) >= max(2, min(len(snippet_terms), len(snippet_terms) - 1))
+
+
 def _expected_evidence_citation_support(
     case: RetrievalEvalCase,
     answer: dict[str, Any],
@@ -2998,10 +3026,13 @@ def _expected_evidence_citation_support(
             cited_chunk_id = str(citation.get("chunk_id") or "")
             if expected_document_id and _citation_document_id(citation) != expected_document_id:
                 continue
-            if expected_chunk_id and cited_chunk_id != expected_chunk_id:
-                continue
             cited_text = chunk_texts.get(cited_chunk_id, "")
             if not cited_text:
+                continue
+            if expected_chunk_id and cited_chunk_id != expected_chunk_id:
+                if _expected_evidence_supported_by_cited_text(item, cited_text):
+                    supported = True
+                    break
                 continue
             if expected_chunk_id and cited_chunk_id == expected_chunk_id and not expected_terms:
                 supported = True

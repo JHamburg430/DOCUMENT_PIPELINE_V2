@@ -1539,6 +1539,125 @@ def test_answer_response_scoring_requires_expected_chunk_not_same_document_overl
     } == {"condition-list", "standard-angle"}
 
 
+def test_answer_response_scoring_accepts_cited_composite_chunk_with_source_evidence():
+    case = RetrievalEvalCase(
+        case_id="answer-composite-source-evidence",
+        query="For asynchronous trigger input, what happens when TRG1 is input for camera 1?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="procedure-step",
+        source_title="Timing chart",
+        source_filename="Manual.pdf",
+        chunk_type="procedure_record",
+        section_path="Timing chart",
+        page_from=113,
+        page_to=113,
+        expected_terms=["trigger", "camera", "trg1", "measurement"],
+        expected_snippet="TRG1 for CAM 1 executes capture and measurement processing.",
+        generation_method="contextual_procedure_plus_section_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "procedure-step",
+                "source_document_id": "doc-cvx",
+                "expected_terms": ["procedure", "typical", "operations", "trigger"],
+                "snippet": "Procedure step 2: Typical operations at trigger input (Capture Type: Asynchronous Trigger)",
+            },
+            {
+                "chunk_id": "detail-atomic",
+                "source_document_id": "doc-cvx",
+                "expected_terms": ["inputting", "trigger", "signal", "having"],
+                "snippet": (
+                    "By inputting the trigger signal having the same number as the camera number "
+                    "(TRG1 for CAM 1), capture and measurement processing is executed."
+                ),
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "When TRG1 is input for CAM 1, capture and measurement processing for that camera "
+                "is executed as one measurement."
+            ),
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "section-window", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-cvx"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "section-window",
+                "source_document_id": "doc-cvx",
+                "content": (
+                    "2. Typical operations at trigger input (Capture Type: Asynchronous Trigger). "
+                    "By inputting the trigger signal having the same number as the camera number "
+                    "(TRG1 for CAM 1), capture + measurement processing is executed as 1 measurement."
+                ),
+            }
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert scored["evidence_citation_support"]["passed"] is True
+
+
+def test_answer_response_scoring_rejects_composite_chunk_without_source_role_terms():
+    case = RetrievalEvalCase(
+        case_id="answer-composite-source-evidence-negative",
+        query="For asynchronous trigger input, what happens when TRG1 is input for camera 1?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="procedure-step",
+        source_title="Timing chart",
+        source_filename="Manual.pdf",
+        chunk_type="procedure_record",
+        section_path="Timing chart",
+        page_from=113,
+        page_to=113,
+        expected_terms=["trigger", "camera", "trg1", "measurement"],
+        expected_snippet="TRG1 for CAM 1 executes capture and measurement processing.",
+        generation_method="contextual_procedure_plus_section_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "detail-atomic",
+                "source_document_id": "doc-cvx",
+                "expected_terms": ["inputting", "trigger", "signal", "having"],
+                "snippet": (
+                    "By inputting the trigger signal having the same number as the camera number "
+                    "(TRG1 for CAM 1), capture and measurement processing is executed."
+                ),
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The timing chart describes trigger input for camera measurements.",
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "nearby-section", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-cvx"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "nearby-section",
+                "source_document_id": "doc-cvx",
+                "content": "Timing chart overview for trigger input and camera measurement setup.",
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+
+
 def test_large_retrieval_eval_summarizes_answer_metrics():
     import importlib.util
     from pathlib import Path
