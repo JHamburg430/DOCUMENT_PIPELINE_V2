@@ -2376,6 +2376,65 @@ def test_comparison_table_score_prefers_issue_specific_row_header():
     assert retriever._table_lexical_score(precise_cell, terms) > retriever._table_lexical_score(broad_sibling_group, terms)
 
 
+def test_comparison_identifier_context_rejects_partial_sibling_condition():
+    analysis = analyze_query(
+        "Compare the corrective action for unstable gray-binary inspection on CV-X482 "
+        "with the XG-X guidance for an unsupported SD card access failure."
+    )
+    context_terms = retriever._identifier_context_terms(analysis.raw_query, "CV-X482")
+    wrong_sibling = SearchResult(
+        chunk_id="wrong-sibling",
+        score=0.9,
+        title="CV-X Manual",
+        document_version_id="v1",
+        source_document_id="doc-cv",
+        pages=[318],
+        section_path=["Troubleshooting"],
+        content=(
+            "Status: The detection is unstable when Mode of Extract Colors is Gray.; "
+            "Corrective action: Select Color to Grayscale in Mode of Extract Colors."
+        ),
+        metadata={
+            "chunk_type": "table_record",
+            "table_column_headers": ["Corrective action"],
+            "product_model": "CV-X482",
+            "product_family": "CV-X Series",
+        },
+    )
+    precise_row = SearchResult(
+        chunk_id="precise-row",
+        score=0.8,
+        title="CV-X Manual",
+        document_version_id="v1",
+        source_document_id="doc-cv",
+        pages=[507],
+        section_path=["Troubleshooting"],
+        content=(
+            "Column headers: Corrective action; Row headers: Inspection is not stable in gray binary.; "
+            "Cell value: Select Color to Binary in Extract Colors and extract the desired colors."
+        ),
+        metadata={
+            "chunk_type": "table_record",
+            "table_column_headers": ["Corrective action"],
+            "table_row_headers": ["Inspection is not stable in gray binary."],
+            "product_model": "CV-X482",
+            "product_family": "CV-X Series",
+        },
+    )
+
+    assert {"gray", "binary", "inspection"}.issubset(context_terms)
+    assert not retriever._comparison_result_satisfies_identifier_context(
+        wrong_sibling,
+        context_terms,
+        {"correctiveaction", "remedy"},
+    )
+    assert retriever._comparison_result_satisfies_identifier_context(
+        precise_row,
+        context_terms,
+        {"correctiveaction", "remedy"},
+    )
+
+
 def test_table_score_prefers_listed_value_exact_table_path():
     analysis = analyze_query(
         "What value is listed for LumiTrax Capture Settings Track Moving Object: "

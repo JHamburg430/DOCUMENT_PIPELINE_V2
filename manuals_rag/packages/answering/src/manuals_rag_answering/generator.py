@@ -612,6 +612,93 @@ def _focused_troubleshooting_results(query: str, results: list[SearchResult]) ->
     return results
 
 
+def _comparison_side_clauses(query: str) -> list[str]:
+    if not _is_comparison_query(query):
+        return []
+    normalized = re.sub(r"\s+", " ", query).strip(" .?")
+    normalized = re.sub(r"^\s*compare\s+", "", normalized, flags=re.IGNORECASE)
+    parts = [
+        part.strip(" ,.;:?")
+        for part in re.split(r"\b(?:with|versus|vs\.?|whereas|while)\b", normalized, flags=re.IGNORECASE)
+        if part.strip(" ,.;:?")
+    ]
+    if len(parts) < 2:
+        return []
+    return parts
+
+
+def _meaningful_comparison_clause_terms(clause: str) -> set[str]:
+    generic_terms = {
+        "action",
+        "correct",
+        "corrective",
+        "failure",
+        "guidance",
+        "listed",
+        "manual",
+        "remedy",
+        "series",
+        "system",
+    }
+    terms = {
+        term
+        for term in _material_claim_terms(clause)
+        if term not in generic_terms and not re.fullmatch(r"[a-z]{1,4}-?[a-z]?\d{0,4}", term)
+    }
+    expanded_terms = set(terms)
+    for term in terms:
+        if "-" in term:
+            expanded_terms.update(part for part in term.split("-") if len(part) >= 3)
+    return expanded_terms
+
+
+def _result_matches_comparison_side_clause(result: SearchResult, clause: str) -> bool:
+    clause_terms = _meaningful_comparison_clause_terms(clause)
+    if not clause_terms:
+        return False
+    evidence_terms = _material_claim_terms(_troubleshooting_context_text(result))
+    if not evidence_terms:
+        return False
+    model_terms = _model_tokens(clause)
+    if model_terms and not any(_result_mentions_requested_model_side(result, model) for model in model_terms):
+        return False
+    matched = clause_terms.intersection(evidence_terms)
+    required = max(1, min(4, len(clause_terms) // 2 + 1))
+    return len(matched) >= required
+
+
+def _comparison_troubleshooting_side_matches(query: str, results: list[SearchResult]) -> list[SearchResult]:
+    if not (_is_comparison_query(query) and _is_troubleshooting_query(query)):
+        return []
+    clauses = _comparison_side_clauses(query)
+    if len(clauses) < 2:
+        return []
+
+    selected: list[SearchResult] = []
+    seen_chunks: set[str] = set()
+    for clause in clauses:
+        matches = [
+            result
+            for result in results
+            if result.chunk_id not in seen_chunks and _result_matches_comparison_side_clause(result, clause)
+        ]
+        if not matches:
+            continue
+        best = max(matches, key=lambda result: _troubleshooting_evidence_score(clause, result))
+        selected.append(best)
+        seen_chunks.add(best.chunk_id)
+    return selected
+
+
+def _comparison_scoped_troubleshooting_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
+    selected = _comparison_troubleshooting_side_matches(query, results)
+    if not selected:
+        return results
+    seen_chunks = {result.chunk_id for result in selected}
+    selected.extend(result for result in results if result.chunk_id not in seen_chunks)
+    return selected
+
+
 def _matching_troubleshooting_row_text(query: str, result: SearchResult) -> str:
     anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
     if len(anchor) < 10:
@@ -685,6 +772,26 @@ def _answer_uses_matching_troubleshooting_row(answer: str, query: str, results: 
         if len(matched) >= required:
             return True
     return False
+
+
+def _answer_uses_comparison_troubleshooting_side_rows(answer: str, query: str, results: list[SearchResult]) -> bool:
+    side_results = _comparison_troubleshooting_side_matches(query, results)
+    if len(side_results) < 2:
+        return True
+    answer_terms = _material_claim_terms(answer)
+    for result in side_results:
+        action = _row_action_text(_fallback_answer_text(result))
+        action_terms = _material_claim_terms(action or _fallback_answer_text(result))
+        if not action_terms:
+            continue
+        action_verbs = action_terms.intersection(TROUBLESHOOTING_ACTION_VERBS)
+        if action_verbs and not action_verbs.intersection(answer_terms):
+            return False
+        matched = action_terms.intersection(answer_terms)
+        required = max(2, min(len(action_terms), len(action_terms) // 2 + 1))
+        if len(matched) < required:
+            return False
+    return True
 
 
 def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
@@ -764,7 +871,10 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
 
 
 def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
-    ordered_results = _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results))
+    ordered_results = _comparison_scoped_troubleshooting_results(
+        query,
+        _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results)),
+    )
     if not _is_comparison_query(query):
         if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
             return ordered_results[:1]
@@ -786,6 +896,20 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
     seen_chunks: set[str] = set()
     seen_evidence: set[str] = set()
     seen_documents: set[str] = set()
+
+    side_matches = _comparison_troubleshooting_side_matches(query, ordered_results)
+    for result in side_matches:
+        evidence_key = f"{result.source_document_id}:{_normalized_citation_text(_fallback_answer_text(result))[:500]}"
+        if result.chunk_id in seen_chunks or evidence_key in seen_evidence:
+            continue
+        selected.append(result)
+        seen_chunks.add(result.chunk_id)
+        seen_evidence.add(evidence_key)
+        seen_documents.add(result.source_document_id)
+        if len(selected) >= 5:
+            break
+    if len(selected) >= 2 and len(selected) == len(side_matches):
+        return selected
 
     for score, _index, result in scored:
         if score < 2.0 or result.source_document_id in seen_documents:
@@ -1024,6 +1148,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         or not _citation_quotes_are_supported(list(answer.citations), results)
         or not _answer_addresses_troubleshooting_anchor(answer.answer, query, list(answer.citations), results)
         or not _answer_uses_matching_troubleshooting_row(answer.answer, query, results)
+        or not _answer_uses_comparison_troubleshooting_side_rows(answer.answer, query, results)
         or not _comparison_answer_covers_retrieved_model_sides(query, list(answer.citations), results)
         or not _answer_addresses_quantity_request(answer.answer, query, results)
     ):

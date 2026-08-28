@@ -37,6 +37,7 @@ def _minimal_manifest():
         "latest_composite_citation_scoring_containment": {"status": "addressed"},
         "latest_comparison_setting_side_binding_containment": {"status": "addressed"},
         "latest_eval_question_generation_context_scope_review": {"status": "recorded_scope_blocker"},
+        "latest_cross_document_row8_answer_repair": {"status": "addressed"},
         "answer_grounding_cross_document_rows_6_7": {"status": "row_6_failed_row_7_clean"},
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
@@ -193,6 +194,30 @@ def test_manifest_checker_rejects_unequal_composite_citation_containment():
     errors = module.check_manifest(manifest)
 
     assert any("latest_composite_citation_scoring_containment mismatch" in error for error in errors)
+
+
+def test_manifest_checker_rejects_missing_or_unequal_row8_answer_repair():
+    module = _load_manifest_check_module()
+    missing_root = _minimal_manifest()
+    del missing_root["latest_cross_document_row8_answer_repair"]
+    missing_nested = _minimal_manifest()
+    del missing_nested["question_bank"]["latest_cross_document_row8_answer_repair"]
+    unequal = _minimal_manifest()
+    unequal["question_bank"]["latest_cross_document_row8_answer_repair"] = {"status": "stale"}
+
+    assert any(
+        "latest_cross_document_row8_answer_repair missing required duplicate" in error
+        for error in module.check_manifest(missing_root)
+    )
+    assert any(
+        "question_bank.latest_cross_document_row8_answer_repair" in error
+        and "missing required duplicate" in error
+        for error in module.check_manifest(missing_nested)
+    )
+    assert any(
+        "latest_cross_document_row8_answer_repair mismatch" in error
+        for error in module.check_manifest(unequal)
+    )
 
 
 def test_manifest_checker_rejects_missing_root_comparison_setting_side_binding_containment():

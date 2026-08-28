@@ -4,6 +4,7 @@ import fitz
 
 from manuals_rag_answering.generator import (
     _comparison_answer_covers_retrieved_model_sides,
+    _fallback_evidence_results,
     _parse_relevance_response,
     generate_answer,
     generate_answer_with_trace,
@@ -663,6 +664,162 @@ def test_validate_answer_comparison_fallback_uses_multiple_structured_rows():
         "wrong-neighbor",
         "enclosure-row",
         "shock-row",
+    ]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_comparison_troubleshooting_fallback_prefers_side_specific_symptom_rows():
+    query = (
+        "Compare the corrective action for unstable gray-binary inspection on CV-X482 "
+        "with the XG-X guidance for an unsupported SD card access failure."
+    )
+    results = [
+        SearchResult(
+            chunk_id="cvx-sibling",
+            score=0.95,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[507],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective action; Row headers: Inspection is not stable in color extraction.; "
+                "Cell value: Select Color to Grayscale in Extract Colors."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_model": "CV-X482",
+                "product_family": "CV-X Series",
+            },
+        ),
+        SearchResult(
+            chunk_id="cvx-gray-binary",
+            score=0.8,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[507],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective action; Row headers: Inspection is not stable in gray binary.; "
+                "Cell value: Select Color to Binary in Extract Colors and extract the desired colors."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_model": "CV-X482",
+                "product_family": "CV-X Series",
+            },
+        ),
+        SearchResult(
+            chunk_id="xgx-unsupported-card",
+            score=0.7,
+            title="XG-X Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[1262],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective Action; Row headers: Failed to access SD Card 1. "
+                "> An unsupported SD card is being used.; Cell value: KEYENCE does not guarantee operation "
+                "with commercially available SD cards."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_family": "XG-X Series",
+            },
+        ),
+    ]
+
+    selected = _fallback_evidence_results(query, results)
+
+    assert [result.chunk_id for result in selected[:2]] == ["cvx-gray-binary", "xgx-unsupported-card"]
+    assert "Color to Grayscale" not in "\n".join(result.content for result in selected[:2])
+
+
+def test_comparison_troubleshooting_fallback_rejects_wrong_sibling_answer():
+    query = (
+        "Compare the corrective action for unstable gray-binary inspection on CV-X482 "
+        "with the XG-X guidance for an unsupported SD card access failure."
+    )
+    answer = AnswerResponse(
+        answer=(
+            "For CV-X482, select Color to Grayscale in Extract Colors. "
+            "For XG-X, KEYENCE does not guarantee operation with commercially available SD cards."
+        ),
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {"chunk_id": "cvx-sibling", "document_id": "d1", "pages": [507], "quote_span": None},
+            {"chunk_id": "xgx-unsupported-card", "document_id": "d2", "pages": [1262], "quote_span": None},
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="cvx-sibling",
+            score=0.95,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[507],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective action; Row headers: Inspection is not stable in color extraction.; "
+                "Cell value: Select Color to Grayscale in Extract Colors."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_model": "CV-X482",
+                "product_family": "CV-X Series",
+            },
+        ),
+        SearchResult(
+            chunk_id="cvx-gray-binary",
+            score=0.8,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[507],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective action; Row headers: Inspection is not stable in gray binary.; "
+                "Cell value: Select Color to Binary in Extract Colors and extract the desired colors."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_model": "CV-X482",
+                "product_family": "CV-X Series",
+            },
+        ),
+        SearchResult(
+            chunk_id="xgx-unsupported-card",
+            score=0.7,
+            title="XG-X Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[1262],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective Action; Row headers: Failed to access SD Card 1. "
+                "> An unsupported SD card is being used.; Cell value: KEYENCE does not guarantee operation "
+                "with commercially available SD cards."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_family": "XG-X Series",
+            },
+        ),
+    ]
+
+    validated = validate_answer(answer, results, query=query)
+
+    assert "Color to Binary" in validated.answer
+    assert "Color to Grayscale" not in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations[:2]] == [
+        "cvx-gray-binary",
+        "xgx-unsupported-card",
     ]
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 

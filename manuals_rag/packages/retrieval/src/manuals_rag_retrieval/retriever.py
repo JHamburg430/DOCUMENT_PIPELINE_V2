@@ -1658,7 +1658,18 @@ def _identifier_context_terms(query: str, identifier: str) -> set[str]:
     right_boundary = min(right_candidates) if right_candidates else len(query)
     clause = query[left_boundary + 1 : right_boundary]
     identifier_terms = _text_terms(identifier)
-    ignored_context_terms = {"compare", "correct", "documentation", "listed", "manual", "operation", "specification", "specifications"}
+    ignored_context_terms = {
+        "action",
+        "compare",
+        "correct",
+        "corrective",
+        "documentation",
+        "listed",
+        "manual",
+        "operation",
+        "specification",
+        "specifications",
+    }
     terms = {
         term
         for term in terms_from_text(clause)
@@ -1719,7 +1730,10 @@ def _comparison_result_satisfies_identifier_context(result: SearchResult, contex
         return False
     if not context_terms:
         return True
-    required_overlap = min(2, len(context_terms))
+    if field_terms and field_terms.intersection({"cause", "remedy", "correctiveaction"}):
+        required_overlap = max(1, min(4, len(context_terms) // 2 + 1))
+    else:
+        required_overlap = min(2, len(context_terms))
     return _identifier_context_score(result, context_terms) >= required_overlap
 
 
