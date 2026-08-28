@@ -1357,6 +1357,54 @@ def test_prioritize_results_preserves_comparison_evidence_before_model_pruning(m
     ]
 
 
+def test_prioritize_results_preserves_procedure_rule_evidence_before_model_pruning(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="flowchart-rule",
+            score=0.9,
+            title="XG-X manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[600],
+            section_path=["Image capture buffer"],
+            content=(
+                "When multiple capture units are used, the passing status of the capture unit "
+                "executed before the branch unit must be specified as the branch condition."
+            ),
+            metadata={"chunk_type": "parent_section"},
+        ),
+        SearchResult(
+            chunk_id="adjacent-precaution",
+            score=0.8,
+            title="XG-X manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[601],
+            section_path=["Image capture buffer"],
+            content=(
+                "In older controller series, multiple images captured with the same capture unit "
+                "parameters may be processed by a different capture unit."
+            ),
+            metadata={"chunk_type": "atomic_text"},
+        ),
+    ]
+
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.judge_retrieval_relevance",
+        lambda _query, _results: [
+            {"chunk_id": "flowchart-rule", "verdict": "not_relevant", "reason": "Incorrectly pruned."},
+            {"chunk_id": "adjacent-precaution", "verdict": "relevant", "reason": "Adjacent topic."},
+        ],
+    )
+
+    prioritized = prioritize_results_for_answer(
+        "For asynchronous capture with multiple capture units, what flowchart branching rule should be followed?",
+        results,
+    )
+
+    assert prioritized["prioritized_results"][0].chunk_id == "flowchart-rule"
+
+
 def test_validate_answer_fallback_uses_matching_troubleshooting_row_from_parent_context():
     answer = AnswerResponse(
         answer=(

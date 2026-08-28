@@ -530,6 +530,17 @@ def _is_comparison_query(query: str) -> bool:
     )
 
 
+def _is_procedure_rule_query(query: str) -> bool:
+    return bool(
+        re.search(r"\b(what|which|how|when)\b", query, flags=re.IGNORECASE)
+        and re.search(
+            r"\b(branch(?:ed|ing)?|condition|flowchart|procedure|rule|step|follow(?:ed)?|should)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
 def _query_troubleshooting_anchor(query: str) -> str:
     patterns = (
         r"\bwhat causes\s+(.+?)\s+for\s+.+?\b(?:and|,)\s+how should",
@@ -1344,7 +1355,12 @@ def prioritize_results_for_answer(query: str, candidate_results: list[SearchResu
     focused_results = _focused_troubleshooting_results(query, candidate_results)
     anchored_results = focused_results if [result.chunk_id for result in focused_results] != [result.chunk_id for result in candidate_results] else []
     comparison_evidence = _fallback_evidence_results(query, candidate_results) if _is_comparison_query(query) else []
-    prioritized_results = [result for result in [*anchored_results, *comparison_evidence]]
+    procedure_evidence = (
+        _fallback_evidence_results(query, candidate_results)
+        if _is_procedure_rule_query(query) and not _is_troubleshooting_query(query)
+        else []
+    )
+    prioritized_results = [result for result in [*anchored_results, *comparison_evidence, *procedure_evidence]]
     prioritized_results.extend(
         result
         for result in candidate_results

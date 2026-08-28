@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T07:00:00Z",
+  "updated_at": "2026-08-28T07:38:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -777,8 +777,9 @@
         "quality_review": "Full 20-case contextual procedure slice manually reviewed on 2026-08-26T04:55:08Z; cases 1-2 had prior guardrail rephrase, cases 3-20 were rephrased to remove mechanical/source-shaped artifacts while preserving expected evidence.",
         "quality_review_path": "test_reports/retrieval_eval_quality_review_20260826_045508.json",
         "latest_retrieval_summary": "test_reports/retrieval_eval_summary_20260826_045805.json",
-        "latest_answer_summary": "test_reports/retrieval_eval_summary_20260826_050007.json",
-        "notes": "Contextual procedure-plus-section multi-step bank is now fully manual-reviewed for query phrasing. Post-review direct rerun retrieval_eval_20260826_045805 passed 16/20 with four eval timeouts; rows 3-4 actual API answer rerun retrieval_eval_20260826_050007 passed 2/2."
+        "latest_answer_summary": "test_reports/retrieval_eval_summary_20260828_073436.json",
+        "notes": "Contextual procedure-plus-section multi-step bank is now fully manual-reviewed for query phrasing. Post-review direct rerun retrieval_eval_20260826_045805 passed 16/20 with four eval timeouts; rows 3-4 actual API answer rerun retrieval_eval_20260826_050007 passed 2/2. Rows 1-2 are clean loaded-runtime actual HTTP answer evidence from retrieval_eval_20260828_073436 after the procedure-rule answer-evidence ordering fix; row 1 supersedes the diagnostic failure in retrieval_eval_20260828_065528, and row 2 remains a clean fallback-validation control.",
+        "answer_grounding_status": "actual_http_api_rows_1_2_clean_rows_15_16_clean_other_rows_pending_rotation"
       },
       {
         "path": "test_reports/retrieval_eval_dataset_20260824_095925.jsonl",
@@ -1020,32 +1021,49 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 1
-    },
-    "next_target": "Fix or source-review contextual procedure multi-step row 1 from retrieval_eval_20260828_065528: retrieval is clean, but the fallback answer cites the XG-8000/7000 short-period trigger precaution chunk instead of the expected XG-X flowchart branch rule chunk. Preserve row 2 clean fallback-validation evidence from retrieval_eval_20260828_065528, loaded-runtime clean cross-document rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, the row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments.",
-    "answer_grounding_status": "Contextual procedure multi-step rows 1-2 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl reran as retrieval_eval_20260828_065528. Retrieval passed 2/2 at rank 1 and actual HTTP answer grounding passed 1/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2. Row 1 failed expected_evidence_not_cited because the user-visible fallback answer cited chunk 004ba384 about XG-8000/7000 short-period trigger behavior, not the expected XG-X flowchart branch rule chunk 7ba4e5f2. Row 2 passed and cites returned chunk 0c943b9a containing the multiple-cameras-asynchronously / place-multiple-capture-units evidence.",
+    "answer_current_failure_categories": {},
+    "next_target": "Continue broad actual HTTP API answer-grounding coverage by rotating the next source-reviewed contextual procedure multi-step cases (rows 3-4 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl) or another manifest-prioritized realistic multi-step/cross-document slice. Preserve contextual rows 1-2 clean loaded-runtime evidence from retrieval_eval_20260828_073436, loaded-runtime clean cross-document rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments.",
+    "answer_grounding_status": "Contextual procedure multi-step rows 1-2 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl reran with loaded post-change API code as retrieval_eval_20260828_073436. Retrieval passed 2/2 at rank 1 and actual HTTP answer grounding passed 2/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2. Row 1 now cites returned chunk ac2cfb14 on pages 599-600, whose content directly contains the XG-X multiple-capture-unit flowchart branch rule: branch on the passing status of the first capture unit, specify the passing status of the capture unit executed before the branch unit as the branch condition, and process each trigger independently when trigger/camera/lighting/flash are the same as Capture Priority. Row 2 remains clean and cites returned chunk 0c943b9a containing the multiple-cameras-asynchronously / place-multiple-capture-units evidence.",
     "answer_grounding_rotation": {
       "scope": "contextual_procedure_multi_step_rows_1_2_answer_grounding_rotation",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
       "query_offset": 0,
       "max_queries": 2,
-      "latest_run": "retrieval_eval_20260828_065528",
-      "dataset": "test_reports/retrieval_eval_dataset_20260828_065528.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260828_065528.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260828_065528.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260828_065528.json",
+      "latest_run": "retrieval_eval_20260828_073436",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_073436.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260828_073436.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260828_073436.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260828_073436.json",
       "retrieval_result": "Rows 1-2 passed retrieval 2/2 at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-      "answer_result": "Rows 1-2 passed actual HTTP API answer grounding 1/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {expected_evidence_not_cited: 1}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_065528.jsonl for both new cases. Row 1 asks for the XG-X asynchronous-capture flowchart branching rule; retrieval contains expected chunks 0d116180 and 7ba4e5f2 at rank 1, but the fallback answer cites returned chunk 004ba384 and discusses XG-8000/7000 short-period trigger behavior, so it is diagnostic/not-clean for expected branch-rule support. Row 2 asks whether multiple capture units can be placed in the flow for multiple XG-X cameras; it cites returned chunk 0c943b9a, which contains the expected multiple-cameras-asynchronously / place-multiple-capture-units evidence. Citation quote_spans were null, so no generated quote self-validation was present.",
-      "classification": "diagnostic_answer_failure_with_clean_retrieval_plus_one_clean_control",
-      "endpoint_model_comparability": "Actual HTTP eval used the existing compose API service, which was already running from the prior loaded-runtime validation. The pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited.",
+      "answer_result": "Rows 1-2 passed actual HTTP API answer grounding 2/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_073436.jsonl for both cases. Row 1 asks for the XG-X asynchronous-capture flowchart branching rule and now cites returned chunk ac2cfb14 on pages 599-600; the cited chunk directly states the multiple-capture-unit flowchart context, the branch on passing status, and the requirement to specify the passing status of the capture unit executed before the branch unit as the branch condition. Row 2 cites returned chunk 0c943b9a, which contains the expected multiple-cameras-asynchronously / place-multiple-capture-units evidence. Citation quote_spans were null, so no generated quote self-validation was present.",
+      "classification": "clean_loaded_runtime_actual_http_answer_evidence_with_row2_control",
+      "runtime_load": {
+        "api_restart": "docker compose -f infra/compose/docker-compose.yml restart api",
+        "_is_procedure_rule_query_sha256": "96082a7e610a4c18cd06be9153ff62bf6ed7117d5730f4a251fda2dd68cea27d",
+        "prioritize_results_for_answer_sha256": "e9629ef2282bc829154167e18344b6927501f8c4dfdbf467002448170ad2c233",
+        "_fallback_evidence_results_sha256": "4f3f453fae3266d269170635a25a9c27ef4b65e8042592add4cbf8eaf1f57a1a",
+        "validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3"
+      },
+      "production_change": "Procedure/rule-style answer evidence ordering now preserves the strongest deterministic retrieved procedure evidence before model relevance pruning, while excluding troubleshooting queries so existing exact troubleshooting-anchor behavior is not duplicated or weakened.",
+      "validation": [
+        "Focused answer controls: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'procedure_rule_evidence or exact_troubleshooting_anchor_before_model_judgments or comparison_evidence_before_model_pruning' -> 3 passed, 64 deselected",
+        "Full answer tests: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -> 67 passed, 23 warnings",
+        "Full unit gate: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 425 passed, 59 warnings",
+        "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 0 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_073436",
+        "Manual JSONL/citation inspection completed for both cases; row 1 now cites source-supported branch-rule evidence and row 2 remains a clean control."
+      ],
       "preserved_prior_clean_evidence": [
         "retrieval_eval_20260828_064019 rows 8-10 clean loaded-runtime cross-document answer grounding",
         "retrieval_eval_20260828_023537 rows 6-7 clean cross-document answer grounding",
-        "retrieval_eval_20260828_003910 contextual rows 15-16 clean fallback-validation answer grounding"
+        "retrieval_eval_20260828_003910 contextual rows 15-16 clean fallback-validation answer grounding",
+        "retrieval_eval_20260828_065528 row 2 clean fallback-validation evidence is superseded by the fresh row-2 control in retrieval_eval_20260828_073436"
       ],
       "previous_diagnostics": [
+        {
+          "run": "retrieval_eval_20260828_065528",
+          "classification": "diagnostic_not_clean_row1_expected_evidence_not_cited_row2_clean_control"
+        },
         {
           "run": "retrieval_eval_20260828_052349",
           "classification": "diagnostic_not_clean_expected_evidence_not_cited"
@@ -1055,16 +1073,10 @@
           "classification": "diagnostic_intermediate_regression_not_clean"
         }
       ],
-      "scope_note": "Tracking/eval-artifact coverage update only. No production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
-      "validation": [
-        "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 0 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_065528.",
-        "Manual JSONL/citation inspection completed for both cases; row 1 is preserved as failed diagnostic evidence and row 2 as clean fallback-validation evidence."
-      ]
+      "scope_note": "Changed only production answering evidence ordering, focused answer tests, tracking files, and new eval artifacts. No retrieval, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 1
-    },
+    "current_answer_failure_categories": {},
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1659,7 +1671,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-28T07:00:00Z",
+    "updated_at": "2026-08-28T07:38:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -8286,7 +8298,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Fix or source-review contextual procedure multi-step row 1 from retrieval_eval_20260828_065528: retrieval is clean, but the fallback answer cites the XG-8000/7000 short-period trigger precaution chunk instead of the expected XG-X flowchart branch rule chunk. Preserve row 2 clean fallback-validation evidence from retrieval_eval_20260828_065528, loaded-runtime clean cross-document rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, the row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments.",
+  "next_target": "Continue broad actual HTTP API answer-grounding coverage by rotating the next source-reviewed contextual procedure multi-step cases (rows 3-4 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl) or another manifest-prioritized realistic multi-step/cross-document slice. Preserve contextual rows 1-2 clean loaded-runtime evidence from retrieval_eval_20260828_073436, loaded-runtime clean cross-document rows 8-10 from retrieval_eval_20260828_064019, row 6/7 clean evidence from retrieval_eval_20260828_023537, contextual rows 15-16 evidence from retrieval_eval_20260828_003910, diagnostic row-10 failure retrieval_eval_20260828_052349, row8 regression diagnostic retrieval_eval_20260828_063102, and all prior diagnostic exclusions/containments.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -8570,31 +8582,48 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 1
-  },
-  "answer_grounding_status": "Contextual procedure multi-step rows 1-2 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl reran as retrieval_eval_20260828_065528. Retrieval passed 2/2 at rank 1 and actual HTTP answer grounding passed 1/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2. Row 1 failed expected_evidence_not_cited because the user-visible fallback answer cited chunk 004ba384 about XG-8000/7000 short-period trigger behavior, not the expected XG-X flowchart branch rule chunk 7ba4e5f2. Row 2 passed and cites returned chunk 0c943b9a containing the multiple-cameras-asynchronously / place-multiple-capture-units evidence.",
+  "answer_current_failure_categories": {},
+  "answer_grounding_status": "Contextual procedure multi-step rows 1-2 from test_reports/retrieval_eval_dataset_20260824_080232.jsonl reran with loaded post-change API code as retrieval_eval_20260828_073436. Retrieval passed 2/2 at rank 1 and actual HTTP answer grounding passed 2/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2. Row 1 now cites returned chunk ac2cfb14 on pages 599-600, whose content directly contains the XG-X multiple-capture-unit flowchart branch rule: branch on the passing status of the first capture unit, specify the passing status of the capture unit executed before the branch unit as the branch condition, and process each trigger independently when trigger/camera/lighting/flash are the same as Capture Priority. Row 2 remains clean and cites returned chunk 0c943b9a containing the multiple-cameras-asynchronously / place-multiple-capture-units evidence.",
   "answer_grounding_rotation": {
     "scope": "contextual_procedure_multi_step_rows_1_2_answer_grounding_rotation",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
     "query_offset": 0,
     "max_queries": 2,
-    "latest_run": "retrieval_eval_20260828_065528",
-    "dataset": "test_reports/retrieval_eval_dataset_20260828_065528.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260828_065528.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260828_065528.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260828_065528.json",
+    "latest_run": "retrieval_eval_20260828_073436",
+    "dataset": "test_reports/retrieval_eval_dataset_20260828_073436.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260828_073436.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260828_073436.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260828_073436.json",
     "retrieval_result": "Rows 1-2 passed retrieval 2/2 at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-    "answer_result": "Rows 1-2 passed actual HTTP API answer grounding 1/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {expected_evidence_not_cited: 1}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_065528.jsonl for both new cases. Row 1 asks for the XG-X asynchronous-capture flowchart branching rule; retrieval contains expected chunks 0d116180 and 7ba4e5f2 at rank 1, but the fallback answer cites returned chunk 004ba384 and discusses XG-8000/7000 short-period trigger behavior, so it is diagnostic/not-clean for expected branch-rule support. Row 2 asks whether multiple capture units can be placed in the flow for multiple XG-X cameras; it cites returned chunk 0c943b9a, which contains the expected multiple-cameras-asynchronously / place-multiple-capture-units evidence. Citation quote_spans were null, so no generated quote self-validation was present.",
-    "classification": "diagnostic_answer_failure_with_clean_retrieval_plus_one_clean_control",
-    "endpoint_model_comparability": "Actual HTTP eval used the existing compose API service, which was already running from the prior loaded-runtime validation. The pre-existing infra/compose/docker-compose.yml OLLAMA_URL port drift was preserved and not edited.",
+    "answer_result": "Rows 1-2 passed actual HTTP API answer grounding 2/2; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_073436.jsonl for both cases. Row 1 asks for the XG-X asynchronous-capture flowchart branching rule and now cites returned chunk ac2cfb14 on pages 599-600; the cited chunk directly states the multiple-capture-unit flowchart context, the branch on passing status, and the requirement to specify the passing status of the capture unit executed before the branch unit as the branch condition. Row 2 cites returned chunk 0c943b9a, which contains the expected multiple-cameras-asynchronously / place-multiple-capture-units evidence. Citation quote_spans were null, so no generated quote self-validation was present.",
+    "classification": "clean_loaded_runtime_actual_http_answer_evidence_with_row2_control",
+    "runtime_load": {
+      "api_restart": "docker compose -f infra/compose/docker-compose.yml restart api",
+      "_is_procedure_rule_query_sha256": "96082a7e610a4c18cd06be9153ff62bf6ed7117d5730f4a251fda2dd68cea27d",
+      "prioritize_results_for_answer_sha256": "e9629ef2282bc829154167e18344b6927501f8c4dfdbf467002448170ad2c233",
+      "_fallback_evidence_results_sha256": "4f3f453fae3266d269170635a25a9c27ef4b65e8042592add4cbf8eaf1f57a1a",
+      "validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3"
+    },
+    "production_change": "Procedure/rule-style answer evidence ordering now preserves the strongest deterministic retrieved procedure evidence before model relevance pruning, while excluding troubleshooting queries so existing exact troubleshooting-anchor behavior is not duplicated or weakened.",
+    "validation": [
+      "Focused answer controls: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'procedure_rule_evidence or exact_troubleshooting_anchor_before_model_judgments or comparison_evidence_before_model_pruning' -> 3 passed, 64 deselected",
+      "Full answer tests: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -> 67 passed, 23 warnings",
+      "Full unit gate: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 425 passed, 59 warnings",
+      "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 0 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_073436",
+      "Manual JSONL/citation inspection completed for both cases; row 1 now cites source-supported branch-rule evidence and row 2 remains a clean control."
+    ],
     "preserved_prior_clean_evidence": [
       "retrieval_eval_20260828_064019 rows 8-10 clean loaded-runtime cross-document answer grounding",
       "retrieval_eval_20260828_023537 rows 6-7 clean cross-document answer grounding",
-      "retrieval_eval_20260828_003910 contextual rows 15-16 clean fallback-validation answer grounding"
+      "retrieval_eval_20260828_003910 contextual rows 15-16 clean fallback-validation answer grounding",
+      "retrieval_eval_20260828_065528 row 2 clean fallback-validation evidence is superseded by the fresh row-2 control in retrieval_eval_20260828_073436"
     ],
     "previous_diagnostics": [
+      {
+        "run": "retrieval_eval_20260828_065528",
+        "classification": "diagnostic_not_clean_row1_expected_evidence_not_cited_row2_clean_control"
+      },
       {
         "run": "retrieval_eval_20260828_052349",
         "classification": "diagnostic_not_clean_expected_evidence_not_cited"
@@ -8604,11 +8633,7 @@
         "classification": "diagnostic_intermediate_regression_not_clean"
       }
     ],
-    "scope_note": "Tracking/eval-artifact coverage update only. No production retrieval, answering, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
-    "validation": [
-      "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 0 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_065528.",
-      "Manual JSONL/citation inspection completed for both cases; row 1 is preserved as failed diagnostic evidence and row 2 as clean fallback-validation evidence."
-    ]
+    "scope_note": "Changed only production answering evidence ordering, focused answer tests, tracking files, and new eval artifacts. No retrieval, eval generation/scoring, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -9037,9 +9062,7 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 1
-  },
+  "current_answer_failure_categories": {},
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
