@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T17:53:00Z",
+  "updated_at": "2026-08-28T18:28:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1768,7 +1768,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-28T17:53:00Z",
+    "updated_at": "2026-08-28T18:28:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -2658,6 +2658,28 @@
                 "expected_evidence_not_cited": 2
               }
             },
+            "remaining": "Contextual procedure rows 5-6 still require answer evidence selection for CV-X Multi-Capture trigger-input/timing evidence and XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence. Do not count dirty-worktree diagnostics or retrieval_eval_20260828_120030, retrieval_eval_20260828_120744, retrieval_eval_20260828_122030 as clean without JSONL citation inspection and attributable runtime-load proof."
+          },
+          {
+            "timestamp": "2026-08-28T18:28:00Z",
+            "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+            "status": "verified_already_enforced_tracking_only_dirty_worktree_blocker_preserved",
+            "guardrail_context": "Latest visible guardrail review is ok at 2026-08-28T18:10:37Z; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c remained unavailable because the cron tool is restricted to the current cron job.",
+            "evidence": [
+              "Read runbook, progress log, question-bank manifest, guardrail runbook, and guardrail findings at run start.",
+              "docker compose -f infra/compose/docker-compose.yml ps --format json showed API, Postgres, Qdrant, Redis, workers, and UI running.",
+              "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 23 passed.",
+              "Explicit real-manifest controls passed/fail as required: equal manifest passed; deleting root latest_contextual_procedure_rows_3_4_source_review failed; deleting question_bank.latest_contextual_procedure_rows_3_4_source_review failed; changing nested classification failed; deleting question_bank.latest_false_negative_repair failed; answer-failure alias mismatch failed; retrieval-failure alias mismatch failed."
+            ],
+            "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI/compose changes, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. This run did not edit, accept, revert, or commit those changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
+            "current_failures_preserved": {
+              "retrieval": {},
+              "answer": {
+                "expected_evidence_not_cited": 2
+              }
+            },
+            "current_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments.",
             "remaining": "Contextual procedure rows 5-6 still require answer evidence selection for CV-X Multi-Capture trigger-input/timing evidence and XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence. Do not count dirty-worktree diagnostics or retrieval_eval_20260828_120030, retrieval_eval_20260828_120744, retrieval_eval_20260828_122030 as clean without JSONL citation inspection and attributable runtime-load proof."
           }
         ]
@@ -10822,6 +10844,28 @@
               "expected_evidence_not_cited": 2
             }
           },
+          "remaining": "Contextual procedure rows 5-6 still require answer evidence selection for CV-X Multi-Capture trigger-input/timing evidence and XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence. Do not count dirty-worktree diagnostics or retrieval_eval_20260828_120030, retrieval_eval_20260828_120744, retrieval_eval_20260828_122030 as clean without JSONL citation inspection and attributable runtime-load proof."
+        },
+        {
+          "timestamp": "2026-08-28T18:28:00Z",
+          "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+          "status": "verified_already_enforced_tracking_only_dirty_worktree_blocker_preserved",
+          "guardrail_context": "Latest visible guardrail review is ok at 2026-08-28T18:10:37Z; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c remained unavailable because the cron tool is restricted to the current cron job.",
+          "evidence": [
+            "Read runbook, progress log, question-bank manifest, guardrail runbook, and guardrail findings at run start.",
+            "docker compose -f infra/compose/docker-compose.yml ps --format json showed API, Postgres, Qdrant, Redis, workers, and UI running.",
+            "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 23 passed.",
+            "Explicit real-manifest controls passed/fail as required: equal manifest passed; deleting root latest_contextual_procedure_rows_3_4_source_review failed; deleting question_bank.latest_contextual_procedure_rows_3_4_source_review failed; changing nested classification failed; deleting question_bank.latest_false_negative_repair failed; answer-failure alias mismatch failed; retrieval-failure alias mismatch failed."
+          ],
+          "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI/compose changes, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. This run did not edit, accept, revert, or commit those changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
+          "current_failures_preserved": {
+            "retrieval": {},
+            "answer": {
+              "expected_evidence_not_cited": 2
+            }
+          },
+          "current_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments.",
           "remaining": "Contextual procedure rows 5-6 still require answer evidence selection for CV-X Multi-Capture trigger-input/timing evidence and XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence. Do not count dirty-worktree diagnostics or retrieval_eval_20260828_120030, retrieval_eval_20260828_120744, retrieval_eval_20260828_122030 as clean without JSONL citation inspection and attributable runtime-load proof."
         }
       ]
