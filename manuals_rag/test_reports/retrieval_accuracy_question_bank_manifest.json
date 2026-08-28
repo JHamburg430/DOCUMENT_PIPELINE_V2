@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-28T00:39:10Z",
+  "updated_at": "2026-08-28T00:56:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1037,7 +1037,7 @@
       "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
       "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
       "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
-      "answer_result": "1/2 actual HTTP API answers passed under corrected scorer; answer_sources api:2; fallback 0; answer_failure_reasons {expected_evidence_not_cited: 1}.",
+      "answer_result": "1/2 actual HTTP API answers passed under corrected scorer after fallback telemetry normalization; normalized answer_sources {api: 1, fallback_validation: 1}; normalized answer_fallback_count 1; answer_failure_reasons {expected_evidence_not_cited: 1}. Row 6 remains failed; row 7 remains content/citation-clean as fallback-validation evidence, not direct API/no-fallback evidence.",
       "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
       "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
       "tests": [
@@ -1045,8 +1045,9 @@
         "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
         "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
       ],
-      "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Continue broader answer-grounding rotations only after preserving this scorer containment.",
-      "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean"
+      "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but is fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, not direct API/no-fallback evidence.",
+      "status": "row_6_failed_row_7_clean_fallback_telemetry_normalized",
+      "telemetry_reconciliation": "Replayed retrieval_eval_results_20260827_230123.jsonl with the updated HTTP fallback normalizer: row 6 remains api/no-fallback and failed expected_evidence_not_cited; row 7 is fallback_validation with used_fallback=true and remains content/citation-clean. This supersedes the original retrieval_eval_summary_20260827_230123 source metrics of api:2/fallback 0 for current tracking."
     },
     "current_retrieval_failure_categories": {},
     "current_answer_failure_categories": {
@@ -1208,6 +1209,19 @@
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-28T00:55:28Z",
+        "severity": "needs_fix",
+        "finding": "answer_grounding_rotation still carried stale direct API/no-fallback metrics for retrieval_eval_20260827_230123 row 7 after fallback telemetry normalization.",
+        "status": "addressed_this_run_tracking_reconciliation",
+        "evidence": [
+          "Replayed retrieval_eval_results_20260827_230123.jsonl with normalize_api_answer_payload and summarize inside the API container.",
+          "Normalized replay produced answer_sources {api: 1, fallback_validation: 1}, answer_fallback_count 1, answer_fallback_rate 0.5, and answer_failure_reasons {expected_evidence_not_cited: 1}.",
+          "Updated root and question_bank answer_grounding_rotation copies so row 7 is preserved only as fallback-telemetry-normalized content/citation-clean evidence.",
+          "Manifest checker remains responsible for root/question_bank answer_grounding_rotation equality and required presence."
+        ],
+        "required_next_action": "Fix curated cross-document v2 row 6 expected_evidence_not_cited before optional answer rotations; preserve row 7 only as fallback-normalized content/citation evidence and contextual rows 15-16 as clean fallback-validation evidence from retrieval_eval_20260828_003910."
+      },
       {
         "timestamp": "2026-08-28T00:21:02Z",
         "severity": "needs_fix",
@@ -1552,7 +1566,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-28T00:39:10Z",
+    "updated_at": "2026-08-28T00:56:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -1913,7 +1927,7 @@
       "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
       "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
       "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
-      "answer_result": "Row 6 remains failed with expected_evidence_not_cited. Row 7 remains content/citation-clean, but after fallback telemetry normalization the old retrieval_eval_20260827_230123 source metrics must be read as fallback_validation for row 7 rather than direct api/no-fallback evidence.",
+      "answer_result": "Row 6 remains failed with expected_evidence_not_cited. Row 7 remains content/citation-clean; fallback telemetry normalization classifies row 7 as fallback_validation evidence, so retrieval_eval_20260827_230123 must not be cited as direct API/no-fallback evidence.",
       "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
       "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
       "tests": [
@@ -1921,9 +1935,10 @@
         "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
         "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
       ],
-      "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but fallback-telemetry-normalized diagnostic/source evidence from retrieval_eval_20260827_230123.",
-      "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean",
-      "manifest_checker": "scripts/maintenance/check_retrieval_accuracy_manifest.py now requires answer_grounding_cross_document_rows_6_7 at both root and question_bank; missing-root, missing-question_bank, and unequal negative controls fail."
+      "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but is fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, not direct API/no-fallback evidence.",
+      "status": "row_6_failed_row_7_clean_fallback_telemetry_normalized",
+      "manifest_checker": "scripts/maintenance/check_retrieval_accuracy_manifest.py now requires answer_grounding_cross_document_rows_6_7 at both root and question_bank; missing-root, missing-question_bank, and unequal negative controls fail.",
+      "telemetry_reconciliation": "Replayed retrieval_eval_results_20260827_230123.jsonl with the updated HTTP fallback normalizer: row 6 remains api/no-fallback and failed expected_evidence_not_cited; row 7 is fallback_validation with used_fallback=true and remains content/citation-clean. This supersedes the original retrieval_eval_summary_20260827_230123 source metrics of api:2/fallback 0 for current tracking."
     },
     "latest_http_fallback_telemetry_containment": {
       "timestamp": "2026-08-27T23:28:20Z",
@@ -8241,7 +8256,7 @@
     "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
     "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
     "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
-    "answer_result": "1/2 actual HTTP API answers passed under corrected scorer; answer_sources api:2; fallback 0; answer_failure_reasons {expected_evidence_not_cited: 1}.",
+    "answer_result": "1/2 actual HTTP API answers passed under corrected scorer after fallback telemetry normalization; normalized answer_sources {api: 1, fallback_validation: 1}; normalized answer_fallback_count 1; answer_failure_reasons {expected_evidence_not_cited: 1}. Row 6 remains failed; row 7 remains content/citation-clean as fallback-validation evidence, not direct API/no-fallback evidence.",
     "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
     "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
     "tests": [
@@ -8249,8 +8264,9 @@
       "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
       "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
     ],
-    "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Continue broader answer-grounding rotations only after preserving this scorer containment.",
-    "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean"
+    "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but is fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, not direct API/no-fallback evidence.",
+    "status": "row_6_failed_row_7_clean_fallback_telemetry_normalized",
+    "telemetry_reconciliation": "Replayed retrieval_eval_results_20260827_230123.jsonl with the updated HTTP fallback normalizer: row 6 remains api/no-fallback and failed expected_evidence_not_cited; row 7 is fallback_validation with used_fallback=true and remains content/citation-clean. This supersedes the original retrieval_eval_summary_20260827_230123 source metrics of api:2/fallback 0 for current tracking."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -8838,6 +8854,19 @@
     }
   ],
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-28T00:55:28Z",
+      "severity": "needs_fix",
+      "finding": "answer_grounding_rotation still carried stale direct API/no-fallback metrics for retrieval_eval_20260827_230123 row 7 after fallback telemetry normalization.",
+      "status": "addressed_this_run_tracking_reconciliation",
+      "evidence": [
+        "Replayed retrieval_eval_results_20260827_230123.jsonl with normalize_api_answer_payload and summarize inside the API container.",
+        "Normalized replay produced answer_sources {api: 1, fallback_validation: 1}, answer_fallback_count 1, answer_fallback_rate 0.5, and answer_failure_reasons {expected_evidence_not_cited: 1}.",
+        "Updated root and question_bank answer_grounding_rotation copies so row 7 is preserved only as fallback-telemetry-normalized content/citation-clean evidence.",
+        "Manifest checker remains responsible for root/question_bank answer_grounding_rotation equality and required presence."
+      ],
+      "required_next_action": "Fix curated cross-document v2 row 6 expected_evidence_not_cited before optional answer rotations; preserve row 7 only as fallback-normalized content/citation evidence and contextual rows 15-16 as clean fallback-validation evidence from retrieval_eval_20260828_003910."
+    },
     {
       "timestamp": "2026-08-28T00:21:02Z",
       "severity": "needs_fix",
@@ -9452,7 +9481,7 @@
     "summary": "test_reports/retrieval_eval_summary_20260827_230123.json",
     "manifest": "test_reports/retrieval_eval_manifest_20260827_230123.json",
     "retrieval_result": "2/2 direct evidence matched in final top-k, pass@1 2/2, failure_categories {}.",
-    "answer_result": "Row 6 remains failed with expected_evidence_not_cited. Row 7 remains content/citation-clean, but after fallback telemetry normalization the old retrieval_eval_20260827_230123 source metrics must be read as fallback_validation for row 7 rather than direct api/no-fallback evidence.",
+    "answer_result": "Row 6 remains failed with expected_evidence_not_cited. Row 7 remains content/citation-clean; fallback telemetry normalization classifies row 7 as fallback_validation evidence, so retrieval_eval_20260827_230123 must not be cited as direct API/no-fallback evidence.",
     "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_230123.jsonl. Row 6 retrieved both expected chunks 7361e08a-84bb-5f53-954c-819d2c179a3e and 125b3908-de90-53b8-809e-b367bcc83548, but the API answer cited unrelated/sibling chunks 0b67267f-e63e-52ce-8144-5e193cdbd27d, d399bf71-2fff-59dd-86e8-5a52d88f8583, f1f70c8f-da43-5bd7-b0eb-1fbd58481cf0, 5742d04b-eedd-5f99-b9ed-a32a8d33f419, and 0de32bed-b7d2-5ae1-93fc-ce72c32ba4f2, so it remains an answer evidence/citation failure. Row 7 cites returned expected chunks af1d8a26-c533-50a2-92d7-e5d1ee16598b and 7469d2a2-b0b6-5b53-aea2-335f61269609 and is clean, although it uses retrieval-grounded fallback text.",
     "scorer_change": "Expected-evidence citation support now requires a concrete expected chunk id to be cited from retrieved_results; same-document or same-term overlap no longer satisfies source-reviewed expected evidence without an explicit equivalence policy.",
     "tests": [
@@ -9460,9 +9489,10 @@
       "corrected rerun retrieval_eval_20260827_230123 produced 1/2 answer evidence with row 6 failed and row 7 clean",
       "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 388 passed, 59 warnings"
     ],
-    "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but fallback-telemetry-normalized diagnostic/source evidence from retrieval_eval_20260827_230123.",
-    "status": "row_6_failed_after_source_chunk_citation_scoring_row_7_clean",
-    "manifest_checker": "scripts/maintenance/check_retrieval_accuracy_manifest.py now requires answer_grounding_cross_document_rows_6_7 at both root and question_bank; missing-root, missing-question_bank, and unequal negative controls fail."
+    "remaining": "Fix cross-document row 6 answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks, then rerun actual HTTP answer scoring. Row 7 remains content/citation-clean but is fallback-telemetry-normalized evidence from retrieval_eval_20260827_230123, not direct API/no-fallback evidence.",
+    "status": "row_6_failed_row_7_clean_fallback_telemetry_normalized",
+    "manifest_checker": "scripts/maintenance/check_retrieval_accuracy_manifest.py now requires answer_grounding_cross_document_rows_6_7 at both root and question_bank; missing-root, missing-question_bank, and unequal negative controls fail.",
+    "telemetry_reconciliation": "Replayed retrieval_eval_results_20260827_230123.jsonl with the updated HTTP fallback normalizer: row 6 remains api/no-fallback and failed expected_evidence_not_cited; row 7 is fallback_validation with used_fallback=true and remains content/citation-clean. This supersedes the original retrieval_eval_summary_20260827_230123 source metrics of api:2/fallback 0 for current tracking."
   },
   "latest_http_fallback_telemetry_containment": {
     "timestamp": "2026-08-27T23:28:20Z",
