@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-29T12:55:07Z",
+  "updated_at": "2026-08-29T13:25:37Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1768,7 +1768,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-29T12:55:07Z",
+    "updated_at": "2026-08-29T13:25:37Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3428,6 +3428,21 @@
             "jsonl_evidence": "Committed retrieval_eval_results_20260828_102649 remains diagnostic/not-clean from HEAD. Manual JSONL inspection confirmed both cases have retrieval passed at rank 1 but answer_evaluation failed expected_evidence_not_cited: row 5 cites chunk 86e3ce5c with null quote_span while expected Multi-Capture operation chunk 02b921f5 and control/data timing evidence 878ea631 are missing from citation support; row 6 cites chunk f8248412 with null quote_span while expected capture-environment chunk ece874eb and Camera-Trigger-Light context chunk 3a64a87a are missing from citation support.",
             "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, dirty unit-test files, and untracked eval/debug artifacts. This run did not edit, accept, revert, or commit those unrelated changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
             "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+          },
+          {
+            "timestamp": "2026-08-29T13:25:37Z",
+            "target": "manifest_required_pair_enforcement_for_existing_duplicated_current_state_fields",
+            "change": "Registered existing duplicated current-state fields in the deterministic root/question_bank required-pair checker: latest_cross_document_probe, answer_grounding_contextual_rows_15_16, answer_grounding_sibling_rows_15_16, answer_grounding_single_step_v2_rows_5_6, and updated_at.",
+            "validation": [
+              "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 26 passed",
+              "Real-manifest controls passed/fail as required for each newly registered field: equal copy passed; missing root failed; missing question_bank failed; unequal copy failed.",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 445 passed, 59 warnings"
+            ],
+            "scope": "eval-maintenance manifest checker/tests and tracking only; no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change",
+            "coverage_impact": "none; active exploratory coverage remains 208 total, 101 single-step and 107 multi-step; replacement debt remains 0",
+            "current_failures_preserved": "Current retrieval failures remain {}; current answer failures remain expected_evidence_not_cited: 2 for contextual procedure rows 5-6 from retrieval_eval_20260828_102649; no clean answer evidence claimed.",
+            "guardrail_context": "Latest visible guardrail finding is ok at 2026-08-29T12:09:48Z; direct guardrail cron history was restricted for this run. This repair follows the presence-aware manifest-check policy by making existing duplicated current-state fields fail closed."
           }
         ]
       },
@@ -12359,6 +12374,21 @@
           "jsonl_evidence": "Committed retrieval_eval_results_20260828_102649 remains diagnostic/not-clean from HEAD. Manual JSONL inspection confirmed both cases have retrieval passed at rank 1 but answer_evaluation failed expected_evidence_not_cited: row 5 cites chunk 86e3ce5c with null quote_span while expected Multi-Capture operation chunk 02b921f5 and control/data timing evidence 878ea631 are missing from citation support; row 6 cites chunk f8248412 with null quote_span while expected capture-environment chunk ece874eb and Camera-Trigger-Light context chunk 3a64a87a are missing from citation support.",
           "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, dirty unit-test files, and untracked eval/debug artifacts. This run did not edit, accept, revert, or commit those unrelated changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
           "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+        },
+        {
+          "timestamp": "2026-08-29T13:25:37Z",
+          "target": "manifest_required_pair_enforcement_for_existing_duplicated_current_state_fields",
+          "change": "Registered existing duplicated current-state fields in the deterministic root/question_bank required-pair checker: latest_cross_document_probe, answer_grounding_contextual_rows_15_16, answer_grounding_sibling_rows_15_16, answer_grounding_single_step_v2_rows_5_6, and updated_at.",
+          "validation": [
+            "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 26 passed",
+            "Real-manifest controls passed/fail as required for each newly registered field: equal copy passed; missing root failed; missing question_bank failed; unequal copy failed.",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 445 passed, 59 warnings"
+          ],
+          "scope": "eval-maintenance manifest checker/tests and tracking only; no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change",
+          "coverage_impact": "none; active exploratory coverage remains 208 total, 101 single-step and 107 multi-step; replacement debt remains 0",
+          "current_failures_preserved": "Current retrieval failures remain {}; current answer failures remain expected_evidence_not_cited: 2 for contextual procedure rows 5-6 from retrieval_eval_20260828_102649; no clean answer evidence claimed.",
+          "guardrail_context": "Latest visible guardrail finding is ok at 2026-08-29T12:09:48Z; direct guardrail cron history was restricted for this run. This repair follows the presence-aware manifest-check policy by making existing duplicated current-state fields fail closed."
         }
       ]
     },

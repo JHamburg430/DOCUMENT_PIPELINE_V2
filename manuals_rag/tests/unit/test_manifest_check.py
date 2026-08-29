@@ -23,6 +23,7 @@ def _minimal_manifest():
     retrieval_failures = {"candidate_miss": 1}
     paired = {
         "latest_false_negative_repair": duplicate,
+        "updated_at": "2026-08-29T13:23:00Z",
         "next_target": "continue source-first evidence selection",
         "answer_grounding_status": {"rows": "diagnostic"},
         "answer_grounding_rotation": {"next": "rows 15-17"},
@@ -30,6 +31,7 @@ def _minimal_manifest():
         "unresolved_guardrail_findings": ["source-first citation fidelity"],
         "current_retrieval_failure_source": "retrieval_eval_20260826_005723",
         "latest_cross_document_validation": {"run": "retrieval_eval_20260827_042612"},
+        "latest_cross_document_probe": {"status": "preserved"},
         "latest_contextual_row14_repair": {"run": "retrieval_eval_20260827_053144"},
         "latest_contextual_quantity_answer_repair": {"run": "retrieval_eval_20260827_212947"},
         "latest_matrix_retrieval_guardrail_containment": {"status": "addressed"},
@@ -47,6 +49,9 @@ def _minimal_manifest():
             "status": "current_expected_evidence_not_cited"
         },
         "answer_grounding_cross_document_rows_6_7": {"status": "row_6_failed_row_7_clean"},
+        "answer_grounding_contextual_rows_15_16": {"status": "diagnostic"},
+        "answer_grounding_sibling_rows_15_16": {"status": "diagnostic"},
+        "answer_grounding_single_step_v2_rows_5_6": {"status": "diagnostic"},
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
         "failure_categories": retrieval_failures,
@@ -330,6 +335,35 @@ def test_manifest_checker_rejects_missing_or_unequal_contextual_rows_5_6_answer_
         "latest_contextual_procedure_rows_5_6_answer_evidence_failure mismatch" in error
         for error in module.check_manifest(unequal)
     )
+
+
+def test_manifest_checker_rejects_missing_or_unequal_late_current_state_pairs():
+    module = _load_manifest_check_module()
+    fields = [
+        "latest_cross_document_probe",
+        "answer_grounding_contextual_rows_15_16",
+        "answer_grounding_sibling_rows_15_16",
+        "answer_grounding_single_step_v2_rows_5_6",
+        "updated_at",
+    ]
+
+    for field in fields:
+        missing_root = _minimal_manifest()
+        del missing_root[field]
+        missing_nested = _minimal_manifest()
+        del missing_nested["question_bank"][field]
+        unequal = _minimal_manifest()
+        unequal["question_bank"][field] = {"status": "stale"}
+
+        assert any(
+            f"{field} missing required duplicate" in error
+            for error in module.check_manifest(missing_root)
+        )
+        assert any(
+            f"question_bank.{field}" in error and "missing required duplicate" in error
+            for error in module.check_manifest(missing_nested)
+        )
+        assert any(f"{field} mismatch" in error for error in module.check_manifest(unequal))
 
 
 def test_manifest_checker_rejects_missing_root_comparison_setting_side_binding_containment():

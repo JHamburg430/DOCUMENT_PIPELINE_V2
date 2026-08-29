@@ -19,6 +19,7 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "unresolved_guardrail_findings",
     "current_retrieval_failure_source",
     "latest_cross_document_validation",
+    "latest_cross_document_probe",
     "latest_contextual_row14_repair",
     "latest_contextual_quantity_answer_repair",
     "latest_matrix_retrieval_guardrail_containment",
@@ -32,8 +33,12 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "latest_contextual_procedure_rows_3_4_source_review",
     "latest_contextual_procedure_rows_5_6_answer_evidence_failure",
     "answer_grounding_cross_document_rows_6_7",
+    "answer_grounding_contextual_rows_15_16",
+    "answer_grounding_sibling_rows_15_16",
+    "answer_grounding_single_step_v2_rows_5_6",
     "partial_claim_citation_pruning_containment",
     "llm_answer_judge_policy",
+    "updated_at",
 )
 
 RETRIEVAL_FAILURE_ALIASES = (
