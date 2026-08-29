@@ -143,6 +143,107 @@ def test_validate_answer_falls_back_when_generated_answer_is_not_supported():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_multi_part_procedure_fallback_keeps_clause_bound_evidence():
+    answer = AnswerResponse(
+        answer="Configure OPC-UA security certificates.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="async-trigger",
+            score=0.91,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-cvx",
+            pages=[113],
+            section_path=["Timing chart"],
+            content=(
+                "Control/data output via I/O terminals Timing chart. "
+                "Typical operations at trigger input, Capture Type: Asynchronous Trigger."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+        SearchResult(
+            chunk_id="multi-capture-operation",
+            score=0.89,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-cvx",
+            pages=[114],
+            section_path=["Multi-Capture"],
+            content=(
+                "Typical operations at trigger input, Capture Type: Multi-Capture. "
+                "Performs multiple image captures at the same location and processes them as a single measurement."
+            ),
+            metadata={"chunk_type": "procedure_record"},
+        ),
+        SearchResult(
+            chunk_id="timing-chart",
+            score=0.88,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-cvx",
+            pages=[114],
+            section_path=["Timing chart"],
+            content="Timing chart Control/data output via I/O terminals.",
+            metadata={"chunk_type": "procedure_record"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="For CV-X Multi-Capture trigger input timing, what operation does the section describe and which control/data I/O timing chart should I use?",
+    )
+
+    assert [citation["chunk_id"] for citation in validated.citations] == [
+        "multi-capture-operation",
+        "timing-chart",
+    ]
+    assert "Asynchronous Trigger" not in validated.answer
+    assert "Multi-Capture" in validated.answer
+    assert "Control/data output via I/O terminals" in validated.answer
+
+
+def test_direct_procedure_fallback_still_uses_top_evidence_only():
+    results = [
+        SearchResult(
+            chunk_id="top-procedure",
+            score=0.91,
+            title="Manual",
+            document_version_id="v1",
+            source_document_id="doc-1",
+            pages=[5],
+            section_path=["Setup"],
+            content="Set the controller mode to Run before starting inspection.",
+            metadata={"chunk_type": "procedure_record"},
+        ),
+        SearchResult(
+            chunk_id="nearby-procedure",
+            score=0.89,
+            title="Manual",
+            document_version_id="v1",
+            source_document_id="doc-1",
+            pages=[6],
+            section_path=["Setup"],
+            content="Set the controller mode to Program before editing tools.",
+            metadata={"chunk_type": "procedure_record"},
+        ),
+    ]
+
+    selected = _fallback_evidence_results(
+        "Which controller mode is required before starting inspection?",
+        results,
+    )
+
+    assert [result.chunk_id for result in selected] == ["top-procedure"]
+
+
 def test_validate_answer_falls_back_when_citation_quote_is_not_in_cited_chunk():
     answer = AnswerResponse(
         answer="Change the trigger signal assignment to one that can be used.",

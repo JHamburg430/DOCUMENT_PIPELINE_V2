@@ -884,12 +884,69 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
     return score
 
 
+def _multi_part_evidence_clauses(query: str) -> list[str]:
+    if _is_comparison_query(query):
+        return []
+    normalized = re.sub(r"\s+", " ", query).strip(" .?")
+    question_markers = re.findall(r"\b(?:what|which|where|when|how)\b", normalized, flags=re.IGNORECASE)
+    if len(question_markers) < 2:
+        return []
+    parts = [
+        part.strip(" ,.;:?")
+        for part in re.split(r"\b(?:and|plus|as well as)\s+(?=(?:what|which|where|when|how)\b)", normalized, flags=re.IGNORECASE)
+        if part.strip(" ,.;:?")
+    ]
+    if len(parts) < 2:
+        return []
+    return parts
+
+
+def _result_evidence_key(result: SearchResult) -> str:
+    return f"{result.source_document_id}:{_normalized_citation_text(_fallback_answer_text(result))[:500]}"
+
+
+def _multi_part_fallback_evidence_results(query: str, ordered_results: list[SearchResult]) -> list[SearchResult]:
+    clauses = _multi_part_evidence_clauses(query)
+    if len(clauses) < 2:
+        return []
+
+    selected: list[SearchResult] = []
+    seen_chunks: set[str] = set()
+    seen_evidence: set[str] = set()
+    for clause in clauses:
+        scored = [
+            (_fallback_evidence_score(clause, result), index, result)
+            for index, result in enumerate(ordered_results[:8])
+            if result.chunk_id not in seen_chunks
+        ]
+        if not scored:
+            continue
+        best_score, _best_index, best_result = max(scored, key=lambda item: (item[0], -item[1]))
+        if best_score < 2.0:
+            continue
+        evidence_key = _result_evidence_key(best_result)
+        if evidence_key in seen_evidence:
+            continue
+        selected.append(best_result)
+        seen_chunks.add(best_result.chunk_id)
+        seen_evidence.add(evidence_key)
+        if len(selected) >= 4:
+            break
+
+    if len(selected) >= 2:
+        return selected
+    return []
+
+
 def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
     ordered_results = _comparison_scoped_troubleshooting_results(
         query,
         _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results)),
     )
     if not _is_comparison_query(query):
+        multi_part_results = _multi_part_fallback_evidence_results(query, ordered_results)
+        if multi_part_results:
+            return multi_part_results
         if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
             return ordered_results[:1]
         scored = [
@@ -913,7 +970,7 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
 
     side_matches = _comparison_troubleshooting_side_matches(query, ordered_results)
     for result in side_matches:
-        evidence_key = f"{result.source_document_id}:{_normalized_citation_text(_fallback_answer_text(result))[:500]}"
+        evidence_key = _result_evidence_key(result)
         if result.chunk_id in seen_chunks or evidence_key in seen_evidence:
             continue
         selected.append(result)
@@ -930,7 +987,7 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
     for score, _index, result in scored:
         if score < 2.0 or result.source_document_id in seen_documents:
             continue
-        evidence_key = f"{result.source_document_id}:{_normalized_citation_text(_fallback_answer_text(result))[:500]}"
+        evidence_key = _result_evidence_key(result)
         selected.append(result)
         seen_chunks.add(result.chunk_id)
         seen_evidence.add(evidence_key)
@@ -941,7 +998,7 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
     for score, _index, result in sorted(scored, key=lambda item: (-item[0], item[1])):
         if score < 2.0 or result.chunk_id in seen_chunks:
             continue
-        evidence_key = f"{result.source_document_id}:{_normalized_citation_text(_fallback_answer_text(result))[:500]}"
+        evidence_key = _result_evidence_key(result)
         if evidence_key in seen_evidence:
             continue
         selected.append(result)

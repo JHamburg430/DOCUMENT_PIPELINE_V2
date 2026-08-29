@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-29T20:24:00Z",
+  "updated_at": "2026-08-29T21:11:42Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1081,46 +1081,54 @@
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
     "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 2
+      "expected_evidence_not_cited": 1
     },
-    "next_target": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence.",
-    "answer_grounding_status": "Contextual procedure rows 5-6 now have both the original diagnostic run retrieval_eval_20260828_095500 and a source-repaired replacement attempt retrieval_eval_20260828_102649. The replacement questions were realistic and made the expected procedure context material, and retrieval passed 2/2 at rank 1, but actual HTTP API answer grounding failed 0/2 with expected_evidence_not_cited. Manual JSONL inspection found row 5 cited returned chunk 86e3ce5c, an asynchronous-trigger CV-X timing chart, not expected Multi-Capture trigger-input operation chunk 02b921f5; row 6 cited returned chunk f8248412, a broad XG-X line-scan section, not expected capture-environment procedure ece874eb or Camera-Trigger-Light configuration chunk 3a64a87a. Quote spans were null and fallback telemetry was consistent. Treat both runs as diagnostic/not-clean current answer-evidence selection failures.",
+    "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. The 2026-08-29 clean-worktree fallback selection patch repaired row 6, but row 5 still cites RESET/asynchronous-trigger sections instead of CV-X Multi-Capture trigger-input operation chunk 02b921f5 plus control/data I/O timing evidence 878ea631.",
+    "answer_grounding_status": "Contextual procedure rows 5-6 now have a clean-worktree production answering change and loaded HTTP rerun retrieval_eval_20260829_210829. Row 6 is clean answer-grounding evidence after multi-part fallback evidence selection cited the broad line-scan section plus the consolidated capture-environment/Camera-Trigger-Light context chunk 86ffe1a3, satisfying expected chunks ece874eb and 3a64a87a. Row 5 remains diagnostic/not-clean: the loaded API fallback cited fa88bd05 RESET timing and 86e3ce5c Asynchronous Trigger chunks instead of expected Multi-Capture operation chunk 02b921f5 and timing evidence 878ea631. Current answer failure count is therefore expected_evidence_not_cited: 1.",
     "answer_grounding_rotation": {
-      "scope": "contextual_procedure_rows_5_6_source_repaired_answer_attempt",
-      "classification": "diagnostic_not_clean_current_answer_evidence_selection_failure",
-      "latest_run": "retrieval_eval_20260828_102649",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "replacement_dataset": "test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260828_102649.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260828_102649.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260828_102649.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260828_102649.json",
+      "scope": "contextual_procedure_rows_5_6_multi_part_fallback_partial_repair",
+      "classification": "partial_clean_row_6_row_5_remains_current_answer_evidence_selection_failure",
+      "latest_run": "retrieval_eval_20260829_210829",
+      "previous_run": "retrieval_eval_20260828_102649",
+      "dataset": "test_reports/retrieval_eval_dataset_20260829_210829.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260829_210829.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260829_210829.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260829_210829.json",
       "query_offset": 0,
       "max_queries": 2,
       "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-      "answer_result": "0/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer failures {\"expected_evidence_not_cited\": 2}.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_102649.jsonl for both replacement cases. Row 5 fallback answer cites returned chunk 86e3ce5c with quote_span null; that chunk supports a CV-X asynchronous-trigger timing chart, but not the expected Multi-Capture trigger-input operation chunk 02b921f5. Row 6 fallback answer cites returned chunk f8248412 with quote_span null; it supports a broad Standard Lighting Mode line-scan overview, but not the expected capture-environment procedure chunk ece874eb or Camera-Trigger-Light configuration chunk 3a64a87a.",
+      "answer_result": "1/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer failures {\"expected_evidence_not_cited\": 1}.",
+      "runtime_load": {
+        "api": "clean worktree one-off API on http://127.0.0.1:8700, container c4e326dad170, separate from dirty-mounted service on 8600",
+        "fingerprints": {
+          "_multi_part_fallback_evidence_results_sha256": "a33e94013a5b806fafeb5d3a5ba932c2ca9722871e549e9a802fd20c0f58f2ea",
+          "_fallback_evidence_results_sha256": "6421aa3f91c0706e2e26c40d78f98ee0226fbab9f10efa98f8f8fabeac343b45",
+          "validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3"
+        },
+        "endpoint_model_note": "Clean checked-in API compose environment used OLLAMA_URL=http://host.docker.internal:11434 and OLLAMA_ANSWER_MODEL=qwen3.5:9b; dirty primary checkout still has an unrelated compose OLLAMA_URL 11437 drift that this run preserved and did not commit."
+      },
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260829_210829.jsonl for both cases. Row 5 still failed expected_evidence_not_cited: user-visible fallback answer cited fa88bd05 and 86e3ce5c with null quote_spans, covering RESET/asynchronous-trigger timing rather than Multi-Capture operation 02b921f5 plus timing evidence 878ea631. Row 6 passed: the answer cited f8248412 and 86ffe1a3 with null quote_spans; cited chunk 86ffe1a3 directly states the Step 1/3 Capture Environment Adj. setting change and lists Camera - Trigger - Light Configuration Settings plus Simulation Image Capture.",
       "validation": [
-        "docker compose -f infra/compose/docker-compose.yml ps -> local stack usable",
-        "jq empty passed for the replacement dataset and retrieval_eval_20260828_102649 dataset/results/summary/manifest artifacts",
-        "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_102649",
-        "Manual JSONL/citation inspection completed for both cases; cited chunks do not satisfy every expected evidence role and quote_spans were null."
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'multi_part_procedure_fallback or direct_procedure_fallback' -> 2 passed",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps -v tmp_eval_docs_small:... api python -m pytest tests/unit/test_parser_and_answering.py -q -> 69 passed",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps ... api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_answering_workflow.py -q -> 107 passed",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 432 passed, 59 warnings",
+        "Clean loaded HTTP eval: docker exec -e API_BASE=http://127.0.0.1:8700 c4e326dad170 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260829_210829"
       ],
       "limitations": [
-        "The replacement questions are source-backed active diagnostic coverage, but they are not clean answer-grounding evidence.",
-        "No production code changed in this run, so this records the current failure instead of repairing answer selection."
+        "This is a partial production-answering improvement, not full closure of contextual rows 5-6.",
+        "Row 5 appears to need a retrieval/candidate-selection correction because the loaded API answer fallback selected only returned RESET/asynchronous-trigger sections for the Multi-Capture role."
       ],
       "preserved_evidence": [
+        "Previous retrieval_eval_20260828_102649 remains diagnostic/not-clean for rows 5-6 before this production answering change.",
         "Rows 3-4 source-repaired replacement evidence from retrieval_eval_20260828_092535 remains clean through consolidated cited content.",
         "Original retrieval_eval_20260828_075458 rows 3-4 remain diagnostic/source-equivalence evidence and excluded from clean multi-step answer-evidence claims.",
-        "Contextual rows 1-2 clean evidence from retrieval_eval_20260828_073436 remains preserved.",
-        "Cross-document rows 8-10 clean evidence from retrieval_eval_20260828_064019 and rows 6-7 clean evidence from retrieval_eval_20260828_023537 remain preserved.",
         "All prior diagnostic exclusions and guardrail containments remain preserved."
       ]
     },
     "current_retrieval_failure_categories": {},
     "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 2
+      "expected_evidence_not_cited": 1
     },
     "run_exclusions": [
       {
@@ -1768,7 +1776,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-29T20:24:00Z",
+    "updated_at": "2026-08-29T21:11:42Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3086,17 +3094,17 @@
       }
     },
     "latest_contextual_procedure_rows_5_6_answer_evidence_failure": {
-      "timestamp": "2026-08-29T04:25:24Z",
+      "timestamp": "2026-08-29T21:11:42Z",
       "guardrail_timestamp": "2026-08-29T03:09:45Z",
-      "run": "retrieval_eval_20260828_102649",
+      "run": "retrieval_eval_20260829_210829",
       "dataset": "test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl",
       "rows": [
         5,
         6
       ],
-      "classification": "current_answer_evidence_selection_failure_not_clean",
-      "retrieval_result": "2/2 multi-step retrieval passed at rank 1 with all expected evidence present in final top-k.",
-      "answer_result": "0/2 actual HTTP API answers passed; both failed expected_evidence_not_cited after manual JSONL inspection.",
+      "classification": "partial_clean_row_6_row_5_current_answer_evidence_selection_failure_not_clean",
+      "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
+      "answer_result": "1/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer failures {\"expected_evidence_not_cited\": 1}.",
       "failures": [
         {
           "row": 5,
@@ -3125,41 +3133,12 @@
             }
           ],
           "answer_warning": "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback."
-        },
-        {
-          "row": 6,
-          "query": "In XG-X Standard Lighting Mode line-scan setup, where do I change capture-environment settings, and what camera/trigger/light configuration section leads to simulation image capture?",
-          "expected_evidence": [
-            {
-              "chunk_id": "ece874eb-6b99-52c5-9a83-d2bcce1d9a75",
-              "role": "capture-environment procedure step",
-              "snippet": "On the Step 1/3 Capture Environment Adj. screen, change the settings in accordance with the capture environment."
-            },
-            {
-              "chunk_id": "3a64a87a-eb90-599e-90e2-05ffe036af7d",
-              "role": "Camera-Trigger-Light to Simulation Image Capture section context",
-              "snippet": "Camera - Trigger - Light Configuration Settings and Simulation Image Capture are listed in the relevant setup context."
-            }
-          ],
-          "cited_chunks": [
-            {
-              "chunk_id": "f8248412-fb24-5066-ada0-409d9eb60eb7",
-              "pages": [
-                977,
-                978
-              ],
-              "quote_span": null,
-              "problem": "Cited a broad XG-X line-scan capture section instead of the expected capture-environment procedure and Camera-Trigger-Light context chunks."
-            }
-          ],
-          "answer_warning": "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback."
         }
       ],
       "evidence": [
-        "Committed summary retrieval_eval_summary_20260828_102649 reports retrieval pass 2/2, answer pass 0/2, answer_fallback_count 2, answer_sources fallback_validation 2, and answer_failure_reasons expected_evidence_not_cited 2.",
-        "Manual JSONL inspection from HEAD confirmed row 5 cited chunk 86e3ce5c with null quote span while expected chunk 02b921f5 was missing from citation support.",
-        "Manual JSONL inspection from HEAD confirmed row 6 cited chunk f8248412 with null quote span while expected chunks ece874eb and 3a64a87a were missing from citation support.",
-        "This run did not edit or accept existing dirty production answering/retrieval/eval/UI changes, so no new clean answer evidence is claimed."
+        "retrieval_eval_20260829_210829 improved contextual rows 5-6 from 0/2 to 1/2 actual HTTP answer grounding after a general multi-part fallback evidence selection change.",
+        "Manual JSONL inspection confirmed row 6 is clean and row 5 remains expected_evidence_not_cited.",
+        "Full unit gate passed from the clean worktree container with all required untracked fixture directories mounted read-only: 432 passed, 59 warnings."
       ],
       "checker_repair": {
         "timestamp": "2026-08-29T04:25:24Z",
@@ -3168,7 +3147,7 @@
           "scripts/maintenance/check_retrieval_accuracy_manifest.py registers latest_contextual_procedure_rows_5_6_answer_evidence_failure as a required root/question_bank pair.",
           "tests/unit/test_manifest_check.py covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for this field."
         ],
-        "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence.",
+        "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. The 2026-08-29 clean-worktree fallback selection patch repaired row 6, but row 5 still cites RESET/asynchronous-trigger sections instead of CV-X Multi-Capture trigger-input operation chunk 02b921f5 plus control/data I/O timing evidence 878ea631.",
         "validation_reruns": [
           {
             "timestamp": "2026-08-29T04:55:17Z",
@@ -3658,10 +3637,65 @@
             "dirty_worktree_status": "Preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. The dirty answering diff contains broad fallback/citation-selection changes, but this run did not adopt, revert, or count them as loaded production evidence.",
             "result": "tracking_only_no_safe_production_change",
             "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+          },
+          {
+            "timestamp": "2026-08-29T21:11:42Z",
+            "type": "cron_loaded_partial_production_repair",
+            "scope": "general_multi_part_fallback_evidence_selection",
+            "guardrail_status": "Latest direct guardrail cron summary was ok for accuracy commit 321f4c7 with guardrail commit f1eece8; no unresolved watch/needs_fix/critical finding superseded contextual rows 5-6.",
+            "checks": [
+              "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'multi_part_procedure_fallback or direct_procedure_fallback' -> 2 passed",
+              "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps -v tmp_eval_docs_small:... api python -m pytest tests/unit/test_parser_and_answering.py -q -> 69 passed",
+              "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps ... api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_answering_workflow.py -q -> 107 passed",
+              "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 432 passed, 59 warnings",
+              "Clean loaded HTTP eval: docker exec -e API_BASE=http://127.0.0.1:8700 c4e326dad170 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260829_210829"
+            ],
+            "jsonl_evidence": "Inspected test_reports/retrieval_eval_results_20260829_210829.jsonl for both cases. Row 5 still failed expected_evidence_not_cited: user-visible fallback answer cited fa88bd05 and 86e3ce5c with null quote_spans, covering RESET/asynchronous-trigger timing rather than Multi-Capture operation 02b921f5 plus timing evidence 878ea631. Row 6 passed: the answer cited f8248412 and 86ffe1a3 with null quote_spans; cited chunk 86ffe1a3 directly states the Step 1/3 Capture Environment Adj. setting change and lists Camera - Trigger - Light Configuration Settings plus Simulation Image Capture.",
+            "runtime_load": {
+              "api": "clean worktree one-off API on http://127.0.0.1:8700, container c4e326dad170, separate from dirty-mounted service on 8600",
+              "fingerprints": {
+                "_multi_part_fallback_evidence_results_sha256": "a33e94013a5b806fafeb5d3a5ba932c2ca9722871e549e9a802fd20c0f58f2ea",
+                "_fallback_evidence_results_sha256": "6421aa3f91c0706e2e26c40d78f98ee0226fbab9f10efa98f8f8fabeac343b45",
+                "validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3"
+              },
+              "endpoint_model_note": "Clean checked-in API compose environment used OLLAMA_URL=http://host.docker.internal:11434 and OLLAMA_ANSWER_MODEL=qwen3.5:9b; dirty primary checkout still has an unrelated compose OLLAMA_URL 11437 drift that this run preserved and did not commit."
+            },
+            "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. The 2026-08-29 clean-worktree fallback selection patch repaired row 6, but row 5 still cites RESET/asynchronous-trigger sections instead of CV-X Multi-Capture trigger-input operation chunk 02b921f5 plus control/data I/O timing evidence 878ea631."
           }
         ]
       },
-      "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+      "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. The 2026-08-29 clean-worktree fallback selection patch repaired row 6, but row 5 still cites RESET/asynchronous-trigger sections instead of CV-X Multi-Capture trigger-input operation chunk 02b921f5 plus control/data I/O timing evidence 878ea631.",
+      "resolved_rows": [
+        {
+          "row": 6,
+          "query": "In XG-X Standard Lighting Mode line-scan setup, where do I change capture-environment settings, and what camera/trigger/light configuration section leads to simulation image capture?",
+          "run": "retrieval_eval_20260829_210829",
+          "classification": "clean_loaded_http_answer_grounding",
+          "cited_chunks": [
+            {
+              "chunk_id": "f8248412-fb24-5066-ada0-409d9eb60eb7",
+              "pages": [
+                977,
+                978
+              ],
+              "quote_span": null
+            },
+            {
+              "chunk_id": "86ffe1a3-ae77-59b7-a449-8902bb19535f",
+              "pages": [
+                973,
+                974,
+                975,
+                976,
+                977,
+                978
+              ],
+              "quote_span": null
+            }
+          ],
+          "evidence": "Chunk 86ffe1a3 directly states Step 1/3 Capture Environment Adj. change settings in accordance with capture environment and lists Camera - Trigger - Light Configuration Settings plus Simulation Image Capture."
+        }
+      ]
     },
     "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
   },
@@ -9611,7 +9645,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence.",
+  "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. The 2026-08-29 clean-worktree fallback selection patch repaired row 6, but row 5 still cites RESET/asynchronous-trigger sections instead of CV-X Multi-Capture trigger-input operation chunk 02b921f5 plus control/data I/O timing evidence 878ea631.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -9896,39 +9930,47 @@
     }
   },
   "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 2
+    "expected_evidence_not_cited": 1
   },
-  "answer_grounding_status": "Contextual procedure rows 5-6 now have both the original diagnostic run retrieval_eval_20260828_095500 and a source-repaired replacement attempt retrieval_eval_20260828_102649. The replacement questions were realistic and made the expected procedure context material, and retrieval passed 2/2 at rank 1, but actual HTTP API answer grounding failed 0/2 with expected_evidence_not_cited. Manual JSONL inspection found row 5 cited returned chunk 86e3ce5c, an asynchronous-trigger CV-X timing chart, not expected Multi-Capture trigger-input operation chunk 02b921f5; row 6 cited returned chunk f8248412, a broad XG-X line-scan section, not expected capture-environment procedure ece874eb or Camera-Trigger-Light configuration chunk 3a64a87a. Quote spans were null and fallback telemetry was consistent. Treat both runs as diagnostic/not-clean current answer-evidence selection failures.",
+  "answer_grounding_status": "Contextual procedure rows 5-6 now have a clean-worktree production answering change and loaded HTTP rerun retrieval_eval_20260829_210829. Row 6 is clean answer-grounding evidence after multi-part fallback evidence selection cited the broad line-scan section plus the consolidated capture-environment/Camera-Trigger-Light context chunk 86ffe1a3, satisfying expected chunks ece874eb and 3a64a87a. Row 5 remains diagnostic/not-clean: the loaded API fallback cited fa88bd05 RESET timing and 86e3ce5c Asynchronous Trigger chunks instead of expected Multi-Capture operation chunk 02b921f5 and timing evidence 878ea631. Current answer failure count is therefore expected_evidence_not_cited: 1.",
   "answer_grounding_rotation": {
-    "scope": "contextual_procedure_rows_5_6_source_repaired_answer_attempt",
-    "classification": "diagnostic_not_clean_current_answer_evidence_selection_failure",
-    "latest_run": "retrieval_eval_20260828_102649",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-    "replacement_dataset": "test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260828_102649.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260828_102649.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260828_102649.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260828_102649.json",
+    "scope": "contextual_procedure_rows_5_6_multi_part_fallback_partial_repair",
+    "classification": "partial_clean_row_6_row_5_remains_current_answer_evidence_selection_failure",
+    "latest_run": "retrieval_eval_20260829_210829",
+    "previous_run": "retrieval_eval_20260828_102649",
+    "dataset": "test_reports/retrieval_eval_dataset_20260829_210829.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260829_210829.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260829_210829.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260829_210829.json",
     "query_offset": 0,
     "max_queries": 2,
     "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-    "answer_result": "0/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer failures {\"expected_evidence_not_cited\": 2}.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_102649.jsonl for both replacement cases. Row 5 fallback answer cites returned chunk 86e3ce5c with quote_span null; that chunk supports a CV-X asynchronous-trigger timing chart, but not the expected Multi-Capture trigger-input operation chunk 02b921f5. Row 6 fallback answer cites returned chunk f8248412 with quote_span null; it supports a broad Standard Lighting Mode line-scan overview, but not the expected capture-environment procedure chunk ece874eb or Camera-Trigger-Light configuration chunk 3a64a87a.",
+    "answer_result": "1/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer failures {\"expected_evidence_not_cited\": 1}.",
+    "runtime_load": {
+      "api": "clean worktree one-off API on http://127.0.0.1:8700, container c4e326dad170, separate from dirty-mounted service on 8600",
+      "fingerprints": {
+        "_multi_part_fallback_evidence_results_sha256": "a33e94013a5b806fafeb5d3a5ba932c2ca9722871e549e9a802fd20c0f58f2ea",
+        "_fallback_evidence_results_sha256": "6421aa3f91c0706e2e26c40d78f98ee0226fbab9f10efa98f8f8fabeac343b45",
+        "validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3"
+      },
+      "endpoint_model_note": "Clean checked-in API compose environment used OLLAMA_URL=http://host.docker.internal:11434 and OLLAMA_ANSWER_MODEL=qwen3.5:9b; dirty primary checkout still has an unrelated compose OLLAMA_URL 11437 drift that this run preserved and did not commit."
+    },
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260829_210829.jsonl for both cases. Row 5 still failed expected_evidence_not_cited: user-visible fallback answer cited fa88bd05 and 86e3ce5c with null quote_spans, covering RESET/asynchronous-trigger timing rather than Multi-Capture operation 02b921f5 plus timing evidence 878ea631. Row 6 passed: the answer cited f8248412 and 86ffe1a3 with null quote_spans; cited chunk 86ffe1a3 directly states the Step 1/3 Capture Environment Adj. setting change and lists Camera - Trigger - Light Configuration Settings plus Simulation Image Capture.",
     "validation": [
-      "docker compose -f infra/compose/docker-compose.yml ps -> local stack usable",
-      "jq empty passed for the replacement dataset and retrieval_eval_20260828_102649 dataset/results/summary/manifest artifacts",
-      "Actual HTTP answer eval: docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260828_102649",
-      "Manual JSONL/citation inspection completed for both cases; cited chunks do not satisfy every expected evidence role and quote_spans were null."
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'multi_part_procedure_fallback or direct_procedure_fallback' -> 2 passed",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps -v tmp_eval_docs_small:... api python -m pytest tests/unit/test_parser_and_answering.py -q -> 69 passed",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps ... api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_answering_workflow.py -q -> 107 passed",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 432 passed, 59 warnings",
+      "Clean loaded HTTP eval: docker exec -e API_BASE=http://127.0.0.1:8700 c4e326dad170 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260829_210829"
     ],
     "limitations": [
-      "The replacement questions are source-backed active diagnostic coverage, but they are not clean answer-grounding evidence.",
-      "No production code changed in this run, so this records the current failure instead of repairing answer selection."
+      "This is a partial production-answering improvement, not full closure of contextual rows 5-6.",
+      "Row 5 appears to need a retrieval/candidate-selection correction because the loaded API answer fallback selected only returned RESET/asynchronous-trigger sections for the Multi-Capture role."
     ],
     "preserved_evidence": [
+      "Previous retrieval_eval_20260828_102649 remains diagnostic/not-clean for rows 5-6 before this production answering change.",
       "Rows 3-4 source-repaired replacement evidence from retrieval_eval_20260828_092535 remains clean through consolidated cited content.",
       "Original retrieval_eval_20260828_075458 rows 3-4 remain diagnostic/source-equivalence evidence and excluded from clean multi-step answer-evidence claims.",
-      "Contextual rows 1-2 clean evidence from retrieval_eval_20260828_073436 remains preserved.",
-      "Cross-document rows 8-10 clean evidence from retrieval_eval_20260828_064019 and rows 6-7 clean evidence from retrieval_eval_20260828_023537 remain preserved.",
       "All prior diagnostic exclusions and guardrail containments remain preserved."
     ]
   },
@@ -10360,7 +10402,7 @@
   },
   "current_retrieval_failure_categories": {},
   "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 2
+    "expected_evidence_not_cited": 1
   },
   "run_exclusions": [
     {
@@ -12248,17 +12290,17 @@
     "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments."
   },
   "latest_contextual_procedure_rows_5_6_answer_evidence_failure": {
-    "timestamp": "2026-08-29T04:25:24Z",
+    "timestamp": "2026-08-29T21:11:42Z",
     "guardrail_timestamp": "2026-08-29T03:09:45Z",
-    "run": "retrieval_eval_20260828_102649",
+    "run": "retrieval_eval_20260829_210829",
     "dataset": "test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl",
     "rows": [
       5,
       6
     ],
-    "classification": "current_answer_evidence_selection_failure_not_clean",
-    "retrieval_result": "2/2 multi-step retrieval passed at rank 1 with all expected evidence present in final top-k.",
-    "answer_result": "0/2 actual HTTP API answers passed; both failed expected_evidence_not_cited after manual JSONL inspection.",
+    "classification": "partial_clean_row_6_row_5_current_answer_evidence_selection_failure_not_clean",
+    "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
+    "answer_result": "1/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer failures {\"expected_evidence_not_cited\": 1}.",
     "failures": [
       {
         "row": 5,
@@ -12287,41 +12329,12 @@
           }
         ],
         "answer_warning": "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback."
-      },
-      {
-        "row": 6,
-        "query": "In XG-X Standard Lighting Mode line-scan setup, where do I change capture-environment settings, and what camera/trigger/light configuration section leads to simulation image capture?",
-        "expected_evidence": [
-          {
-            "chunk_id": "ece874eb-6b99-52c5-9a83-d2bcce1d9a75",
-            "role": "capture-environment procedure step",
-            "snippet": "On the Step 1/3 Capture Environment Adj. screen, change the settings in accordance with the capture environment."
-          },
-          {
-            "chunk_id": "3a64a87a-eb90-599e-90e2-05ffe036af7d",
-            "role": "Camera-Trigger-Light to Simulation Image Capture section context",
-            "snippet": "Camera - Trigger - Light Configuration Settings and Simulation Image Capture are listed in the relevant setup context."
-          }
-        ],
-        "cited_chunks": [
-          {
-            "chunk_id": "f8248412-fb24-5066-ada0-409d9eb60eb7",
-            "pages": [
-              977,
-              978
-            ],
-            "quote_span": null,
-            "problem": "Cited a broad XG-X line-scan capture section instead of the expected capture-environment procedure and Camera-Trigger-Light context chunks."
-          }
-        ],
-        "answer_warning": "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback."
       }
     ],
     "evidence": [
-      "Committed summary retrieval_eval_summary_20260828_102649 reports retrieval pass 2/2, answer pass 0/2, answer_fallback_count 2, answer_sources fallback_validation 2, and answer_failure_reasons expected_evidence_not_cited 2.",
-      "Manual JSONL inspection from HEAD confirmed row 5 cited chunk 86e3ce5c with null quote span while expected chunk 02b921f5 was missing from citation support.",
-      "Manual JSONL inspection from HEAD confirmed row 6 cited chunk f8248412 with null quote span while expected chunks ece874eb and 3a64a87a were missing from citation support.",
-      "This run did not edit or accept existing dirty production answering/retrieval/eval/UI changes, so no new clean answer evidence is claimed."
+      "retrieval_eval_20260829_210829 improved contextual rows 5-6 from 0/2 to 1/2 actual HTTP answer grounding after a general multi-part fallback evidence selection change.",
+      "Manual JSONL inspection confirmed row 6 is clean and row 5 remains expected_evidence_not_cited.",
+      "Full unit gate passed from the clean worktree container with all required untracked fixture directories mounted read-only: 432 passed, 59 warnings."
     ],
     "checker_repair": {
       "timestamp": "2026-08-29T04:25:24Z",
@@ -12330,7 +12343,7 @@
         "scripts/maintenance/check_retrieval_accuracy_manifest.py registers latest_contextual_procedure_rows_5_6_answer_evidence_failure as a required root/question_bank pair.",
         "tests/unit/test_manifest_check.py covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for this field."
       ],
-      "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence.",
+      "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. The 2026-08-29 clean-worktree fallback selection patch repaired row 6, but row 5 still cites RESET/asynchronous-trigger sections instead of CV-X Multi-Capture trigger-input operation chunk 02b921f5 plus control/data I/O timing evidence 878ea631.",
       "validation_reruns": [
         {
           "timestamp": "2026-08-29T04:55:17Z",
@@ -12820,10 +12833,65 @@
           "dirty_worktree_status": "Preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. The dirty answering diff contains broad fallback/citation-selection changes, but this run did not adopt, revert, or count them as loaded production evidence.",
           "result": "tracking_only_no_safe_production_change",
           "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+        },
+        {
+          "timestamp": "2026-08-29T21:11:42Z",
+          "type": "cron_loaded_partial_production_repair",
+          "scope": "general_multi_part_fallback_evidence_selection",
+          "guardrail_status": "Latest direct guardrail cron summary was ok for accuracy commit 321f4c7 with guardrail commit f1eece8; no unresolved watch/needs_fix/critical finding superseded contextual rows 5-6.",
+          "checks": [
+            "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'multi_part_procedure_fallback or direct_procedure_fallback' -> 2 passed",
+            "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps -v tmp_eval_docs_small:... api python -m pytest tests/unit/test_parser_and_answering.py -q -> 69 passed",
+            "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps ... api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_answering_workflow.py -q -> 107 passed",
+            "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 432 passed, 59 warnings",
+            "Clean loaded HTTP eval: docker exec -e API_BASE=http://127.0.0.1:8700 c4e326dad170 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260829_210829"
+          ],
+          "jsonl_evidence": "Inspected test_reports/retrieval_eval_results_20260829_210829.jsonl for both cases. Row 5 still failed expected_evidence_not_cited: user-visible fallback answer cited fa88bd05 and 86e3ce5c with null quote_spans, covering RESET/asynchronous-trigger timing rather than Multi-Capture operation 02b921f5 plus timing evidence 878ea631. Row 6 passed: the answer cited f8248412 and 86ffe1a3 with null quote_spans; cited chunk 86ffe1a3 directly states the Step 1/3 Capture Environment Adj. setting change and lists Camera - Trigger - Light Configuration Settings plus Simulation Image Capture.",
+          "runtime_load": {
+            "api": "clean worktree one-off API on http://127.0.0.1:8700, container c4e326dad170, separate from dirty-mounted service on 8600",
+            "fingerprints": {
+              "_multi_part_fallback_evidence_results_sha256": "a33e94013a5b806fafeb5d3a5ba932c2ca9722871e549e9a802fd20c0f58f2ea",
+              "_fallback_evidence_results_sha256": "6421aa3f91c0706e2e26c40d78f98ee0226fbab9f10efa98f8f8fabeac343b45",
+              "validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3"
+            },
+            "endpoint_model_note": "Clean checked-in API compose environment used OLLAMA_URL=http://host.docker.internal:11434 and OLLAMA_ANSWER_MODEL=qwen3.5:9b; dirty primary checkout still has an unrelated compose OLLAMA_URL 11437 drift that this run preserved and did not commit."
+          },
+          "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. The 2026-08-29 clean-worktree fallback selection patch repaired row 6, but row 5 still cites RESET/asynchronous-trigger sections instead of CV-X Multi-Capture trigger-input operation chunk 02b921f5 plus control/data I/O timing evidence 878ea631."
         }
       ]
     },
-    "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+    "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. The 2026-08-29 clean-worktree fallback selection patch repaired row 6, but row 5 still cites RESET/asynchronous-trigger sections instead of CV-X Multi-Capture trigger-input operation chunk 02b921f5 plus control/data I/O timing evidence 878ea631.",
+    "resolved_rows": [
+      {
+        "row": 6,
+        "query": "In XG-X Standard Lighting Mode line-scan setup, where do I change capture-environment settings, and what camera/trigger/light configuration section leads to simulation image capture?",
+        "run": "retrieval_eval_20260829_210829",
+        "classification": "clean_loaded_http_answer_grounding",
+        "cited_chunks": [
+          {
+            "chunk_id": "f8248412-fb24-5066-ada0-409d9eb60eb7",
+            "pages": [
+              977,
+              978
+            ],
+            "quote_span": null
+          },
+          {
+            "chunk_id": "86ffe1a3-ae77-59b7-a449-8902bb19535f",
+            "pages": [
+              973,
+              974,
+              975,
+              976,
+              977,
+              978
+            ],
+            "quote_span": null
+          }
+        ],
+        "evidence": "Chunk 86ffe1a3 directly states Step 1/3 Capture Environment Adj. change settings in accordance with capture environment and lists Camera - Trigger - Light Configuration Settings plus Simulation Image Capture."
+      }
+    ]
   },
   "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
 }
