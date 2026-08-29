@@ -2,6 +2,19 @@
 
 This log is maintained by the recurring retrieval accuracy cron job.
 
+## 2026-08-29 Cron 39262386 Manifest Pair Validation Rerun
+
+- Target: honor the current guardrail/payload containment before optional retrieval or answer work by revalidating presence-aware manifest-pair enforcement for `latest_contextual_procedure_rows_3_4_source_review` and preserving the current contextual rows 5-6 answer-evidence target.
+- Guardrail review: read the guardrail findings file at run start; direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` returned `Cron tool is restricted to the current cron job`, so the findings file was the available guardrail source. No unresolved newer watch/needs_fix/critical item displaced the manifest-pair validation check.
+- Local stack: `docker compose -f infra/compose/docker-compose.yml ps --format json` showed API, Postgres, Qdrant, Redis, workers, and UI running.
+- Validation: `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` -> manifest consistency OK; `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q` -> 24 passed.
+- Explicit controls: equal real manifest passed; deleting root `latest_contextual_procedure_rows_3_4_source_review` failed; deleting `question_bank.latest_contextual_procedure_rows_3_4_source_review` failed; changing nested classification failed; deleting `question_bank.latest_false_negative_repair` failed; answer-failure alias mismatch failed; retrieval-current failure alias mismatch failed.
+- Scope: tracking-only. The run preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty `infra/compose/docker-compose.yml` endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. It did not edit, accept, revert, or commit those unrelated changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.
+
+Next target:
+
+- Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating the remaining dirty production/eval/UI changes or validating any adopted production change with focused/full gates, runtime-load proof, and actual API changed-path evidence. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence. Do not count dirty-worktree diagnostics as clean without JSONL citation inspection and attributable runtime-load proof.
+
 ## 2026-08-23 Setup
 
 - Created the standing runbook at `docs/runbooks/retrieval_accuracy_cron.md`.
