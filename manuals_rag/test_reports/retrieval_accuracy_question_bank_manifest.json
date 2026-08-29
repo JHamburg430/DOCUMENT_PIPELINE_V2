@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-29T22:02:00Z",
+  "updated_at": "2026-08-29T22:31:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1083,8 +1083,8 @@
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 1
     },
-    "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve origin/main row 6 clean evidence from retrieval_eval_20260829_210829 and do not merge stale local tracking commit ffc3e0d, which re-recorded the older 2-failure state after baa9ed0 reduced current answer failures to row 5 only.",
-    "answer_grounding_status": "Contextual procedure rows 5-6 now have a clean-worktree production answering change and loaded HTTP rerun retrieval_eval_20260829_210829. Row 6 is clean answer-grounding evidence after multi-part fallback evidence selection cited the broad line-scan section plus the consolidated capture-environment/Camera-Trigger-Light context chunk 86ffe1a3, satisfying expected chunks ece874eb and 3a64a87a. Row 5 remains diagnostic/not-clean: the loaded API fallback cited fa88bd05 RESET timing and 86e3ce5c Asynchronous Trigger chunks instead of expected Multi-Capture operation chunk 02b921f5 and timing evidence 878ea631. Current answer failure count is therefore expected_evidence_not_cited: 1.",
+    "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve origin/main row 6 clean evidence from retrieval_eval_20260829_210829 and do not merge stale local tracking commit ffc3e0d or ffc6ee2, which re-recorded the older 2-failure state after baa9ed0 reduced current answer failures to row 5 only.",
+    "answer_grounding_status": "Contextual procedure rows 5-6 now have a clean-worktree production answering change and loaded HTTP rerun retrieval_eval_20260829_210829. Row 6 is clean answer-grounding evidence after multi-part fallback evidence selection cited the broad line-scan section plus the consolidated capture-environment/Camera-Trigger-Light context chunk 86ffe1a3, satisfying expected chunks ece874eb and 3a64a87a. Row 5 remains diagnostic/not-clean: the loaded API fallback cited fa88bd05 RESET timing and 86e3ce5c Asynchronous Trigger chunks instead of expected Multi-Capture operation chunk 02b921f5 and timing evidence 878ea631. Current answer failure count remains expected_evidence_not_cited: 1.",
     "answer_grounding_rotation": {
       "scope": "contextual_procedure_rows_5_6_multi_part_fallback_partial_repair",
       "classification": "partial_clean_row_6_row_5_remains_current_answer_evidence_selection_failure",
@@ -1795,7 +1795,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-29T22:02:00Z",
+    "updated_at": "2026-08-29T22:31:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3123,7 +3123,7 @@
       ],
       "classification": "partial_clean_row_6_row_5_current_answer_evidence_selection_failure_not_clean",
       "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-      "answer_result": "1/2 actual HTTP API answer grounding passed; row 6 is clean and row 5 remains expected_evidence_not_cited after manual JSONL inspection.",
+      "answer_result": "1/2 actual HTTP API answer grounding passed in retrieval_eval_20260829_210829; row 6 is clean and row 5 remains expected_evidence_not_cited after manual JSONL inspection.",
       "failures": [
         {
           "row": 5,
@@ -3694,6 +3694,19 @@
             ],
             "jsonl_evidence": "Inspected retrieval_eval_results_20260829_210829 in clean origin/main worktree: row 6 evidence_citation_support passed with no missing evidence; row 5 evidence_citation_support failed because expected chunk 02b921f5 was not supported by the cited fallback chunks.",
             "remaining": "Continue row 5 Multi-Capture answer evidence selection from origin/main. Do not merge stale local ffc3e0d without reconciling row 6 clean / row 5 failing state."
+          },
+          {
+            "type": "cron_tracking_validation_rerun",
+            "timestamp": "2026-08-29T22:31:00Z",
+            "scope": "tracking_only_remote_state_preservation",
+            "guardrail_status": "Latest checked-in guardrail review at 2026-08-29T22:16:00Z is ok for remote accuracy state through correction commit 5567f34; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c remained restricted to the current job.",
+            "jsonl_evidence": "Committed retrieval_eval_results_20260829_210829 remains the current evidence. Manual JSONL inspection confirmed row 6 is clean with citation chunk 86ffe1a3 supporting capture-environment and Camera-Trigger-Light/Simulation Image Capture roles; row 5 still fails expected_evidence_not_cited because the answer cites fa88bd05 RESET timing and 86e3ce5c Asynchronous Trigger instead of expected Multi-Capture chunk 02b921f5 plus timing evidence 878ea631.",
+            "checks": [
+              "Read remote origin/main guardrail/progress/manifest state in a clean temporary worktree after primary checkout push was rejected as non-fast-forward.",
+              "git show HEAD:manuals_rag/test_reports/retrieval_eval_results_20260829_210829.jsonl manual inspection -> row 6 clean, row 5 diagnostic/not-clean.",
+              "Preserved remote current answer failure aliases as expected_evidence_not_cited: 1 and current retrieval failures as {}."
+            ],
+            "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve origin/main row 6 clean evidence from retrieval_eval_20260829_210829 and do not merge stale local tracking commit ffc3e0d or ffc6ee2, which re-recorded the older 2-failure state after baa9ed0 reduced current answer failures to row 5 only."
           }
         ]
       },
@@ -9678,7 +9691,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve origin/main row 6 clean evidence from retrieval_eval_20260829_210829 and do not merge stale local tracking commit ffc3e0d, which re-recorded the older 2-failure state after baa9ed0 reduced current answer failures to row 5 only.",
+  "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve origin/main row 6 clean evidence from retrieval_eval_20260829_210829 and do not merge stale local tracking commit ffc3e0d or ffc6ee2, which re-recorded the older 2-failure state after baa9ed0 reduced current answer failures to row 5 only.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -9965,7 +9978,7 @@
   "answer_current_failure_categories": {
     "expected_evidence_not_cited": 1
   },
-  "answer_grounding_status": "Contextual procedure rows 5-6 now have a clean-worktree production answering change and loaded HTTP rerun retrieval_eval_20260829_210829. Row 6 is clean answer-grounding evidence after multi-part fallback evidence selection cited the broad line-scan section plus the consolidated capture-environment/Camera-Trigger-Light context chunk 86ffe1a3, satisfying expected chunks ece874eb and 3a64a87a. Row 5 remains diagnostic/not-clean: the loaded API fallback cited fa88bd05 RESET timing and 86e3ce5c Asynchronous Trigger chunks instead of expected Multi-Capture operation chunk 02b921f5 and timing evidence 878ea631. Current answer failure count is therefore expected_evidence_not_cited: 1.",
+  "answer_grounding_status": "Contextual procedure rows 5-6 now have a clean-worktree production answering change and loaded HTTP rerun retrieval_eval_20260829_210829. Row 6 is clean answer-grounding evidence after multi-part fallback evidence selection cited the broad line-scan section plus the consolidated capture-environment/Camera-Trigger-Light context chunk 86ffe1a3, satisfying expected chunks ece874eb and 3a64a87a. Row 5 remains diagnostic/not-clean: the loaded API fallback cited fa88bd05 RESET timing and 86e3ce5c Asynchronous Trigger chunks instead of expected Multi-Capture operation chunk 02b921f5 and timing evidence 878ea631. Current answer failure count remains expected_evidence_not_cited: 1.",
   "answer_grounding_rotation": {
     "scope": "contextual_procedure_rows_5_6_multi_part_fallback_partial_repair",
     "classification": "partial_clean_row_6_row_5_remains_current_answer_evidence_selection_failure",
@@ -12352,7 +12365,7 @@
     ],
     "classification": "partial_clean_row_6_row_5_current_answer_evidence_selection_failure_not_clean",
     "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-    "answer_result": "1/2 actual HTTP API answer grounding passed; row 6 is clean and row 5 remains expected_evidence_not_cited after manual JSONL inspection.",
+    "answer_result": "1/2 actual HTTP API answer grounding passed in retrieval_eval_20260829_210829; row 6 is clean and row 5 remains expected_evidence_not_cited after manual JSONL inspection.",
     "failures": [
       {
         "row": 5,
@@ -12923,6 +12936,19 @@
           ],
           "jsonl_evidence": "Inspected retrieval_eval_results_20260829_210829 in clean origin/main worktree: row 6 evidence_citation_support passed with no missing evidence; row 5 evidence_citation_support failed because expected chunk 02b921f5 was not supported by the cited fallback chunks.",
           "remaining": "Continue row 5 Multi-Capture answer evidence selection from origin/main. Do not merge stale local ffc3e0d without reconciling row 6 clean / row 5 failing state."
+        },
+        {
+          "type": "cron_tracking_validation_rerun",
+          "timestamp": "2026-08-29T22:31:00Z",
+          "scope": "tracking_only_remote_state_preservation",
+          "guardrail_status": "Latest checked-in guardrail review at 2026-08-29T22:16:00Z is ok for remote accuracy state through correction commit 5567f34; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c remained restricted to the current job.",
+          "jsonl_evidence": "Committed retrieval_eval_results_20260829_210829 remains the current evidence. Manual JSONL inspection confirmed row 6 is clean with citation chunk 86ffe1a3 supporting capture-environment and Camera-Trigger-Light/Simulation Image Capture roles; row 5 still fails expected_evidence_not_cited because the answer cites fa88bd05 RESET timing and 86e3ce5c Asynchronous Trigger instead of expected Multi-Capture chunk 02b921f5 plus timing evidence 878ea631.",
+          "checks": [
+            "Read remote origin/main guardrail/progress/manifest state in a clean temporary worktree after primary checkout push was rejected as non-fast-forward.",
+            "git show HEAD:manuals_rag/test_reports/retrieval_eval_results_20260829_210829.jsonl manual inspection -> row 6 clean, row 5 diagnostic/not-clean.",
+            "Preserved remote current answer failure aliases as expected_evidence_not_cited: 1 and current retrieval failures as {}."
+          ],
+          "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve origin/main row 6 clean evidence from retrieval_eval_20260829_210829 and do not merge stale local tracking commit ffc3e0d or ffc6ee2, which re-recorded the older 2-failure state after baa9ed0 reduced current answer failures to row 5 only."
         }
       ]
     },

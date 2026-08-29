@@ -2,6 +2,20 @@
 
 This log is maintained by the recurring retrieval accuracy cron job.
 
+## 2026-08-29 Cron 39262386 Row 5 Remote-State Preservation
+
+- Target: execute the guardrail-first cron loop after the primary checkout push was rejected as non-fast-forward. The latest checked-in guardrail review at `2026-08-29T22:16:00Z` is `ok` for remote accuracy state through `5567f34`, and direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` remained restricted to the current job.
+- Remote state correction: aborted the stale cherry-pick of local `ffc6ee2` because `origin/main` already contains `baa9ed0` plus correction `5567f34`, which reduced the current answer failure from rows 5-6 to row 5 only. This run preserves row 6 as clean evidence from `retrieval_eval_20260829_210829` and does not reintroduce the older two-failure tracking state.
+- Evidence inspection: committed `retrieval_eval_results_20260829_210829.jsonl` shows row 6 is clean: citation chunk `86ffe1a3` directly supports changing settings on the Step 1/3 Capture Environment Adj. screen and the Camera - Trigger - Light Configuration Settings / Simulation Image Capture roles. Row 5 remains diagnostic/not-clean: the answer cites `fa88bd05` RESET timing and `86e3ce5c` Asynchronous Trigger with null quote spans instead of expected Multi-Capture operation chunk `02b921f5` plus timing evidence `878ea631`.
+- Tracking: updated root and `question_bank` copies of `updated_at`, `next_target`, answer failure aliases, `answer_grounding_status`, and `latest_contextual_procedure_rows_5_6_answer_evidence_failure.checker_repair.validation_reruns` atomically in a clean temporary worktree from `origin/main`. Current retrieval failures remain `{}`; current answer failures remain `expected_evidence_not_cited: 1`; active exploratory coverage remains 208 questions total: 101 single-step and 107 multi-step; replacement debt remains 0.
+- Scope/provenance: tracking-only. No production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed in this run. The primary checkout's dirty production/eval/UI/test changes, compose endpoint drift, mass eval-artifact deletions, and untracked artifacts were preserved and not accepted, reverted, or committed.
+- Validation: `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` and focused manifest tests were run before the stale local commit; this remote-state correction was also rechecked from the clean temporary worktree before commit.
+- Generalization check before commit: this tracking outcome remains valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it preserves source-backed row 6 evidence and keeps unresolved row 5 evidence selection explicit rather than accepting stale local state.
+
+Next target:
+
+- Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve origin/main row 6 clean evidence from retrieval_eval_20260829_210829 and do not merge stale local tracking commit ffc3e0d or ffc6ee2, which re-recorded the older 2-failure state after baa9ed0 reduced current answer failures to row 5 only.
+
 ## 2026-08-29 Cron 39262386 Multi-Part Fallback Evidence Partial Repair
 
 - Target: guardrail-first contextual procedure rows 5-6. Latest direct guardrail cron summary was `ok` for accuracy commit `321f4c7` with guardrail commit `f1eece8`; no unresolved watch/needs_fix/critical finding superseded the rows 5-6 target.
