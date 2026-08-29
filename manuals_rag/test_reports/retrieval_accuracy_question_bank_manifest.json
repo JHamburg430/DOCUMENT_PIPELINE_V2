@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-29T03:55:23Z",
+  "updated_at": "2026-08-29T04:25:24Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1768,7 +1768,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-29T03:55:23Z",
+    "updated_at": "2026-08-29T04:25:24Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3084,6 +3084,93 @@
         ],
         "remaining": "Continue broader contextual procedure answer rotations; do not overclaim this replacement as separate atomic multi-chunk retrieval proof because the cited consolidated chunk contains both roles."
       }
+    },
+    "latest_contextual_procedure_rows_5_6_answer_evidence_failure": {
+      "timestamp": "2026-08-29T04:25:24Z",
+      "guardrail_timestamp": "2026-08-29T03:09:45Z",
+      "run": "retrieval_eval_20260828_102649",
+      "dataset": "test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl",
+      "rows": [
+        5,
+        6
+      ],
+      "classification": "current_answer_evidence_selection_failure_not_clean",
+      "retrieval_result": "2/2 multi-step retrieval passed at rank 1 with all expected evidence present in final top-k.",
+      "answer_result": "0/2 actual HTTP API answers passed; both failed expected_evidence_not_cited after manual JSONL inspection.",
+      "failures": [
+        {
+          "row": 5,
+          "query": "For CV-X Multi-Capture trigger input timing, what operation does the section describe and which control/data I/O timing chart should I use?",
+          "expected_evidence": [
+            {
+              "chunk_id": "02b921f5-082d-5b31-8565-8d22f5023169",
+              "role": "Multi-Capture trigger-input operation",
+              "snippet": "Performs multiple image captures at the same location and processes them as a single measurement."
+            },
+            {
+              "chunk_id": "878ea631-da45-5385-8868-5cc5f197b8dc",
+              "role": "control/data I/O timing chart",
+              "snippet": "Timing chart Control/data output via I/O terminals."
+            }
+          ],
+          "cited_chunks": [
+            {
+              "chunk_id": "86e3ce5c-95ea-5a0a-aab1-49bbfe7f88ed",
+              "pages": [
+                851,
+                852
+              ],
+              "quote_span": null,
+              "problem": "Cited nearby Asynchronous Trigger section-window context instead of the expected Multi-Capture operation chunk."
+            }
+          ],
+          "answer_warning": "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback."
+        },
+        {
+          "row": 6,
+          "query": "In XG-X Standard Lighting Mode line-scan setup, where do I change capture-environment settings, and what camera/trigger/light configuration section leads to simulation image capture?",
+          "expected_evidence": [
+            {
+              "chunk_id": "ece874eb-6b99-52c5-9a83-d2bcce1d9a75",
+              "role": "capture-environment procedure step",
+              "snippet": "On the Step 1/3 Capture Environment Adj. screen, change the settings in accordance with the capture environment."
+            },
+            {
+              "chunk_id": "3a64a87a-eb90-599e-90e2-05ffe036af7d",
+              "role": "Camera-Trigger-Light to Simulation Image Capture section context",
+              "snippet": "Camera - Trigger - Light Configuration Settings and Simulation Image Capture are listed in the relevant setup context."
+            }
+          ],
+          "cited_chunks": [
+            {
+              "chunk_id": "f8248412-fb24-5066-ada0-409d9eb60eb7",
+              "pages": [
+                977,
+                978
+              ],
+              "quote_span": null,
+              "problem": "Cited a broad XG-X line-scan capture section instead of the expected capture-environment procedure and Camera-Trigger-Light context chunks."
+            }
+          ],
+          "answer_warning": "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback."
+        }
+      ],
+      "evidence": [
+        "Committed summary retrieval_eval_summary_20260828_102649 reports retrieval pass 2/2, answer pass 0/2, answer_fallback_count 2, answer_sources fallback_validation 2, and answer_failure_reasons expected_evidence_not_cited 2.",
+        "Manual JSONL inspection from HEAD confirmed row 5 cited chunk 86e3ce5c with null quote span while expected chunk 02b921f5 was missing from citation support.",
+        "Manual JSONL inspection from HEAD confirmed row 6 cited chunk f8248412 with null quote span while expected chunks ece874eb and 3a64a87a were missing from citation support.",
+        "This run did not edit or accept existing dirty production answering/retrieval/eval/UI changes, so no new clean answer evidence is claimed."
+      ],
+      "checker_repair": {
+        "timestamp": "2026-08-29T04:25:24Z",
+        "status": "registered_required_manifest_pair",
+        "evidence": [
+          "scripts/maintenance/check_retrieval_accuracy_manifest.py registers latest_contextual_procedure_rows_5_6_answer_evidence_failure as a required root/question_bank pair.",
+          "tests/unit/test_manifest_check.py covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for this field."
+        ],
+        "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+      },
+      "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
     }
   },
   "latest_false_negative_repair": {
@@ -11667,5 +11754,92 @@
       "rg same_page/_result_page_overlap/page_overlap now finds no scorer implementation references, only the adverse regression test name."
     ],
     "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments."
+  },
+  "latest_contextual_procedure_rows_5_6_answer_evidence_failure": {
+    "timestamp": "2026-08-29T04:25:24Z",
+    "guardrail_timestamp": "2026-08-29T03:09:45Z",
+    "run": "retrieval_eval_20260828_102649",
+    "dataset": "test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl",
+    "rows": [
+      5,
+      6
+    ],
+    "classification": "current_answer_evidence_selection_failure_not_clean",
+    "retrieval_result": "2/2 multi-step retrieval passed at rank 1 with all expected evidence present in final top-k.",
+    "answer_result": "0/2 actual HTTP API answers passed; both failed expected_evidence_not_cited after manual JSONL inspection.",
+    "failures": [
+      {
+        "row": 5,
+        "query": "For CV-X Multi-Capture trigger input timing, what operation does the section describe and which control/data I/O timing chart should I use?",
+        "expected_evidence": [
+          {
+            "chunk_id": "02b921f5-082d-5b31-8565-8d22f5023169",
+            "role": "Multi-Capture trigger-input operation",
+            "snippet": "Performs multiple image captures at the same location and processes them as a single measurement."
+          },
+          {
+            "chunk_id": "878ea631-da45-5385-8868-5cc5f197b8dc",
+            "role": "control/data I/O timing chart",
+            "snippet": "Timing chart Control/data output via I/O terminals."
+          }
+        ],
+        "cited_chunks": [
+          {
+            "chunk_id": "86e3ce5c-95ea-5a0a-aab1-49bbfe7f88ed",
+            "pages": [
+              851,
+              852
+            ],
+            "quote_span": null,
+            "problem": "Cited nearby Asynchronous Trigger section-window context instead of the expected Multi-Capture operation chunk."
+          }
+        ],
+        "answer_warning": "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback."
+      },
+      {
+        "row": 6,
+        "query": "In XG-X Standard Lighting Mode line-scan setup, where do I change capture-environment settings, and what camera/trigger/light configuration section leads to simulation image capture?",
+        "expected_evidence": [
+          {
+            "chunk_id": "ece874eb-6b99-52c5-9a83-d2bcce1d9a75",
+            "role": "capture-environment procedure step",
+            "snippet": "On the Step 1/3 Capture Environment Adj. screen, change the settings in accordance with the capture environment."
+          },
+          {
+            "chunk_id": "3a64a87a-eb90-599e-90e2-05ffe036af7d",
+            "role": "Camera-Trigger-Light to Simulation Image Capture section context",
+            "snippet": "Camera - Trigger - Light Configuration Settings and Simulation Image Capture are listed in the relevant setup context."
+          }
+        ],
+        "cited_chunks": [
+          {
+            "chunk_id": "f8248412-fb24-5066-ada0-409d9eb60eb7",
+            "pages": [
+              977,
+              978
+            ],
+            "quote_span": null,
+            "problem": "Cited a broad XG-X line-scan capture section instead of the expected capture-environment procedure and Camera-Trigger-Light context chunks."
+          }
+        ],
+        "answer_warning": "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback."
+      }
+    ],
+    "evidence": [
+      "Committed summary retrieval_eval_summary_20260828_102649 reports retrieval pass 2/2, answer pass 0/2, answer_fallback_count 2, answer_sources fallback_validation 2, and answer_failure_reasons expected_evidence_not_cited 2.",
+      "Manual JSONL inspection from HEAD confirmed row 5 cited chunk 86e3ce5c with null quote span while expected chunk 02b921f5 was missing from citation support.",
+      "Manual JSONL inspection from HEAD confirmed row 6 cited chunk f8248412 with null quote span while expected chunks ece874eb and 3a64a87a were missing from citation support.",
+      "This run did not edit or accept existing dirty production answering/retrieval/eval/UI changes, so no new clean answer evidence is claimed."
+    ],
+    "checker_repair": {
+      "timestamp": "2026-08-29T04:25:24Z",
+      "status": "registered_required_manifest_pair",
+      "evidence": [
+        "scripts/maintenance/check_retrieval_accuracy_manifest.py registers latest_contextual_procedure_rows_5_6_answer_evidence_failure as a required root/question_bank pair.",
+        "tests/unit/test_manifest_check.py covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for this field."
+      ],
+      "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+    },
+    "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
   }
 }
