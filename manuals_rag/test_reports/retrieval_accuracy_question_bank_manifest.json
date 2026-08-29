@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-29T18:54:27Z",
+  "updated_at": "2026-08-29T19:24:59Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1768,7 +1768,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-29T18:54:27Z",
+    "updated_at": "2026-08-29T19:24:59Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3609,6 +3609,19 @@
               "git diff --check HEAD -> passed"
             ],
             "result": "tracking_only_no_safe_production_change",
+            "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+          },
+          {
+            "timestamp": "2026-08-29T19:24:59Z",
+            "type": "cron_tracking_validation_rerun",
+            "scope": "tracking_only_dirty_worktree_containment",
+            "guardrail_status": "Latest checked-in guardrail review is ok for accuracy commit 3cbdf7d, with guardrail commit cd69775; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c remained restricted to the current job.",
+            "jsonl_evidence": "Committed retrieval_eval_results_20260828_102649 remains diagnostic/not-clean. Manual HEAD JSONL inspection confirmed row 5 retrieval matched expected chunks 02b921f5 and 878ea631, but the API fallback answer cites 86e3ce5c with null quote_span and describes asynchronous trigger instead of Multi-Capture. Row 6 retrieval matched expected chunks ece874eb and 3a64a87a, but the API fallback answer cites f8248412 with null quote_span and omits the expected capture-environment plus Camera-Trigger-Light/Simulation Image Capture evidence. No clean answer-grounding evidence was claimed.",
+            "checks": [
+              "docker compose -f infra/compose/docker-compose.yml ps --format json -> API, Postgres, Qdrant, Redis, workers, and UI running; API remains older/running image state",
+              "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 26 passed"
+            ],
             "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
           }
         ]
@@ -12723,6 +12736,19 @@
             "git diff --check HEAD -> passed"
           ],
           "result": "tracking_only_no_safe_production_change",
+          "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+        },
+        {
+          "timestamp": "2026-08-29T19:24:59Z",
+          "type": "cron_tracking_validation_rerun",
+          "scope": "tracking_only_dirty_worktree_containment",
+          "guardrail_status": "Latest checked-in guardrail review is ok for accuracy commit 3cbdf7d, with guardrail commit cd69775; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c remained restricted to the current job.",
+          "jsonl_evidence": "Committed retrieval_eval_results_20260828_102649 remains diagnostic/not-clean. Manual HEAD JSONL inspection confirmed row 5 retrieval matched expected chunks 02b921f5 and 878ea631, but the API fallback answer cites 86e3ce5c with null quote_span and describes asynchronous trigger instead of Multi-Capture. Row 6 retrieval matched expected chunks ece874eb and 3a64a87a, but the API fallback answer cites f8248412 with null quote_span and omits the expected capture-environment plus Camera-Trigger-Light/Simulation Image Capture evidence. No clean answer-grounding evidence was claimed.",
+          "checks": [
+            "docker compose -f infra/compose/docker-compose.yml ps --format json -> API, Postgres, Qdrant, Redis, workers, and UI running; API remains older/running image state",
+            "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 26 passed"
+          ],
           "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
         }
       ]
