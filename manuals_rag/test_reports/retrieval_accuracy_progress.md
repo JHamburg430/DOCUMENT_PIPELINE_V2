@@ -2,6 +2,21 @@
 
 This log is maintained by the recurring retrieval accuracy cron job.
 
+## 2026-08-29 Cron 39262386 Contextual Rows 5-6 Dirty-State Validation Rerun 25
+
+- Target: execute the guardrail-first cron loop. Checked-in guardrail findings latest reachable review is `ok` for accuracy commit `5540e35`, with guardrail commit `86e541e`; direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` remained restricted to the current job. No unresolved newer watch/needs_fix/critical finding superseded contextual procedure rows 5-6.
+- Stack check: `docker compose -f infra/compose/docker-compose.yml ps --format json` showed API, Postgres, Qdrant, Redis, workers, and UI running. API/UI containers are older long-running image states. Existing dirty production answering/retrieval/eval-generation/UI/test changes, dirty `infra/compose/docker-compose.yml` endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts were preserved and not edited.
+- Evidence status: committed `retrieval_eval_results_20260828_102649` remains diagnostic/not-clean. Prior and current HEAD artifact inspection preserve the failure: retrieval found expected row 5 chunks `02b921f5` and `878ea631` and row 6 chunks `ece874eb` and `3a64a87a`, but user-visible fallback answers cite `86e3ce5c` and `f8248412` respectively with null quote spans. Current answer failure remains `expected_evidence_not_cited: 2`; no clean answer-grounding evidence was claimed.
+- Dirty production diff review: the worktree contains broad uncommitted answering fallback/citation-selection changes plus retrieval/eval/UI/test edits. This run did not adopt, revert, commit, or treat those dirty changes as loaded production evidence because the guardrail requires provenance, full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection before acceptance.
+- Validation: `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` -> manifest consistency OK. `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q` -> 26 passed. `git diff --check HEAD` passed before the tracking edit. One Python JSONL inspection one-liner failed due to shell quoting; it changed no repo state. Corrected committed JSONL inspection treated `retrieval_eval_results_20260828_102649.jsonl` as a two-line replacement-results file and confirmed both cases fail `expected_evidence_not_cited` with citations `86e3ce5c` and `f8248412` and null quote spans.
+- Tracking: updated root and `question_bank` copies of `updated_at`, `next_target`, current retrieval/answer failure aliases, and `latest_contextual_procedure_rows_5_6_answer_evidence_failure.checker_repair.validation_reruns` atomically. Active exploratory coverage remains 208 questions total: 101 single-step and 107 multi-step; replacement debt remains 0.
+- Scope/provenance: tracking-only. This run made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.
+- Generalization check before commit: this tracking outcome remains valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it preserves unresolved answer-evidence failures and avoids treating unisolated dirty code or stale runtime state as production evidence.
+
+Next target:
+
+- Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence.
+
 ## 2026-08-29 Cron 39262386 Contextual Rows 5-6 Dirty-State Validation Rerun 24
 
 - Target: execute the guardrail-first cron loop. The latest direct guardrail cron summary was `ok` for accuracy commit `538f5ae`, with guardrail commit `86e541e`; checked-in guardrail findings showed no newer unresolved watch/needs_fix/critical finding superseding contextual procedure rows 5-6.
