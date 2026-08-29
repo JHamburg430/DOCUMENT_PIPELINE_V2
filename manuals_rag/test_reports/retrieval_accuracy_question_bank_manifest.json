@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-29T13:25:37Z",
+  "updated_at": "2026-08-29T13:57:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1768,7 +1768,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-29T13:25:37Z",
+    "updated_at": "2026-08-29T13:57:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3443,6 +3443,27 @@
             "coverage_impact": "none; active exploratory coverage remains 208 total, 101 single-step and 107 multi-step; replacement debt remains 0",
             "current_failures_preserved": "Current retrieval failures remain {}; current answer failures remain expected_evidence_not_cited: 2 for contextual procedure rows 5-6 from retrieval_eval_20260828_102649; no clean answer evidence claimed.",
             "guardrail_context": "Latest visible guardrail finding is ok at 2026-08-29T12:09:48Z; direct guardrail cron history was restricted for this run. This repair follows the presence-aware manifest-check policy by making existing duplicated current-state fields fail closed."
+          },
+          {
+            "timestamp": "2026-08-29T13:57:00Z",
+            "type": "cron_tracking_validation_rerun",
+            "scope": "tracking_only_dirty_worktree_containment",
+            "guardrail_status": "Latest guardrail findings entry read at run start is ok at 2026-08-29T13:39:39Z for accuracy commit 72cea26, with guardrail commit b2a401a; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c was attempted and remained restricted to the current job.",
+            "checks": [
+              "git status --short showed existing dirty production answering/retrieval/eval-generation/UI/test changes, dirty infra/compose/docker-compose.yml endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts; this run preserved them without accepting, reverting, or committing them.",
+              "docker compose -f infra/compose/docker-compose.yml ps --format json -> API, Postgres, Qdrant, Redis, workers, and UI running.",
+              "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 26 passed."
+            ],
+            "jsonl_evidence": "Committed HEAD copy of retrieval_eval_results_20260828_102649.jsonl remains diagnostic/not-clean. Row 5 still cites 86e3ce5c with null quote_span instead of expected Multi-Capture operation chunk 02b921f5 plus timing evidence 878ea631. Row 6 still cites f8248412 with null quote_span instead of expected capture-environment chunk ece874eb plus Camera-Trigger-Light context chunk 3a64a87a. No clean answer-grounding evidence was claimed.",
+            "current_failures": {
+              "current_retrieval_failure_categories": {},
+              "current_answer_failure_categories": {
+                "expected_evidence_not_cited": 2
+              },
+              "source": "contextual procedure rows 5-6 from retrieval_eval_20260828_102649"
+            },
+            "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
           }
         ]
       },
@@ -12389,6 +12410,27 @@
           "coverage_impact": "none; active exploratory coverage remains 208 total, 101 single-step and 107 multi-step; replacement debt remains 0",
           "current_failures_preserved": "Current retrieval failures remain {}; current answer failures remain expected_evidence_not_cited: 2 for contextual procedure rows 5-6 from retrieval_eval_20260828_102649; no clean answer evidence claimed.",
           "guardrail_context": "Latest visible guardrail finding is ok at 2026-08-29T12:09:48Z; direct guardrail cron history was restricted for this run. This repair follows the presence-aware manifest-check policy by making existing duplicated current-state fields fail closed."
+        },
+        {
+          "timestamp": "2026-08-29T13:57:00Z",
+          "type": "cron_tracking_validation_rerun",
+          "scope": "tracking_only_dirty_worktree_containment",
+          "guardrail_status": "Latest guardrail findings entry read at run start is ok at 2026-08-29T13:39:39Z for accuracy commit 72cea26, with guardrail commit b2a401a; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c was attempted and remained restricted to the current job.",
+          "checks": [
+            "git status --short showed existing dirty production answering/retrieval/eval-generation/UI/test changes, dirty infra/compose/docker-compose.yml endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts; this run preserved them without accepting, reverting, or committing them.",
+            "docker compose -f infra/compose/docker-compose.yml ps --format json -> API, Postgres, Qdrant, Redis, workers, and UI running.",
+            "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 26 passed."
+          ],
+          "jsonl_evidence": "Committed HEAD copy of retrieval_eval_results_20260828_102649.jsonl remains diagnostic/not-clean. Row 5 still cites 86e3ce5c with null quote_span instead of expected Multi-Capture operation chunk 02b921f5 plus timing evidence 878ea631. Row 6 still cites f8248412 with null quote_span instead of expected capture-environment chunk ece874eb plus Camera-Trigger-Light context chunk 3a64a87a. No clean answer-grounding evidence was claimed.",
+          "current_failures": {
+            "current_retrieval_failure_categories": {},
+            "current_answer_failure_categories": {
+              "expected_evidence_not_cited": 2
+            },
+            "source": "contextual procedure rows 5-6 from retrieval_eval_20260828_102649"
+          },
+          "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
         }
       ]
     },
