@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-29T17:54:12Z",
+  "updated_at": "2026-08-29T18:24:48Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1768,7 +1768,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-29T17:54:12Z",
+    "updated_at": "2026-08-29T18:24:48Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3579,6 +3579,20 @@
               "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
               "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 26 passed"
             ],
+            "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+          },
+          {
+            "type": "cron_guardrail_state_validation_rerun",
+            "timestamp": "2026-08-29T18:24:48Z",
+            "scope": "tracking_only_dirty_worktree_containment",
+            "guardrail_status": "Checked-in guardrail file latest reachable entry is ok for accuracy commit 963212d with guardrail commit c87b54e; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c remained restricted to the current job.",
+            "checks": [
+              "git status --short --branch -> broad pre-existing dirty production/eval/UI/test changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts remain; this run preserved them.",
+              "docker compose -f infra/compose/docker-compose.yml ps --format json -> API, Postgres, Qdrant, Redis, workers, and UI running.",
+              "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 26 passed."
+            ],
+            "jsonl_evidence": "Read committed HEAD copy of retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl, retrieval_eval_summary_20260828_102649.json, and retrieval_eval_results_20260828_102649.jsonl because the worktree copies are affected by unrelated dirty artifact cleanup. Summary still reports 2/2 retrieval passed but 0/2 actual HTTP API answer grounding passed with expected_evidence_not_cited: 2, answer_sources fallback_validation: 2, and fallback count 2. Manual result inspection confirms row 5 cites chunk 86e3ce5c with null quote_span instead of expected Multi-Capture chunks 02b921f5 and 878ea631; row 6 cites chunk f8248412 with null quote_span instead of expected capture-environment/camera-trigger-light chunks ece874eb and 3a64a87a.",
             "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
           }
         ]
@@ -12663,6 +12677,20 @@
             "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
             "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 26 passed"
           ],
+          "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+        },
+        {
+          "type": "cron_guardrail_state_validation_rerun",
+          "timestamp": "2026-08-29T18:24:48Z",
+          "scope": "tracking_only_dirty_worktree_containment",
+          "guardrail_status": "Checked-in guardrail file latest reachable entry is ok for accuracy commit 963212d with guardrail commit c87b54e; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c remained restricted to the current job.",
+          "checks": [
+            "git status --short --branch -> broad pre-existing dirty production/eval/UI/test changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts remain; this run preserved them.",
+            "docker compose -f infra/compose/docker-compose.yml ps --format json -> API, Postgres, Qdrant, Redis, workers, and UI running.",
+            "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 26 passed."
+          ],
+          "jsonl_evidence": "Read committed HEAD copy of retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl, retrieval_eval_summary_20260828_102649.json, and retrieval_eval_results_20260828_102649.jsonl because the worktree copies are affected by unrelated dirty artifact cleanup. Summary still reports 2/2 retrieval passed but 0/2 actual HTTP API answer grounding passed with expected_evidence_not_cited: 2, answer_sources fallback_validation: 2, and fallback count 2. Manual result inspection confirms row 5 cites chunk 86e3ce5c with null quote_span instead of expected Multi-Capture chunks 02b921f5 and 878ea631; row 6 cites chunk f8248412 with null quote_span instead of expected capture-environment/camera-trigger-light chunks ece874eb and 3a64a87a.",
           "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
         }
       ]
