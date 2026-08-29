@@ -2,6 +2,20 @@
 
 This log is maintained by the recurring retrieval accuracy cron job.
 
+## 2026-08-29 Cron 39262386 Contextual Rows 5-6 Dirty-State Validation Rerun 14
+
+- Target: execute the guardrail-first cron loop. The latest checked-in guardrail findings entry read at run start was `ok` at `2026-08-29T14:11:00Z` for accuracy commit `963212d`, with guardrail commit `c87b54e`; direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was attempted and remained restricted to the current job. No unresolved newer watch/needs_fix/critical finding superseded the preserved contextual rows 5-6 answer-evidence target.
+- Stack check: `docker compose -f infra/compose/docker-compose.yml ps --format json` showed API, Postgres, Qdrant, Redis, workers, and UI running. The existing dirty `infra/compose/docker-compose.yml` `OLLAMA_URL` endpoint drift to port 11437 was inspected, preserved, and not edited. This run did not change Docker, model provider/name, embedding, reranker, API, UI, parser, ingestion, schema, auth, infrastructure, or deployment settings.
+- Evidence inspection: committed `retrieval_eval_results_20260828_102649.jsonl` remains diagnostic/not-clean. Manual JSONL inspection from `HEAD` confirmed row 5 retrieval matched expected chunks `02b921f5` and `878ea631`, but the user-visible fallback answer cites chunk `86e3ce5c` with null `quote_span`; row 6 retrieval matched expected chunks `ece874eb` and `3a64a87a`, but the user-visible fallback answer cites chunk `f8248412` with null `quote_span`. No clean answer-grounding evidence was claimed.
+- Validation: `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` -> manifest consistency OK. `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q` -> 26 passed. `git diff --check HEAD` passed.
+- Tracking: updated root and `question_bank` copies of `updated_at` and `latest_contextual_procedure_rows_5_6_answer_evidence_failure.checker_repair.validation_reruns` atomically. Current retrieval failures remain `{}`. Current answer failures remain `expected_evidence_not_cited: 2`; active exploratory coverage remains 208 questions total: 101 single-step and 107 multi-step; replacement debt remains 0.
+- Scope/provenance: tracking-only. Existing dirty production answering/retrieval/eval-generation/UI/test changes, dirty compose endpoint drift, 639 tracked eval-artifact deletions, and untracked eval/debug artifacts were preserved and not accepted, reverted, or committed. This run made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.
+- Generalization check before commit: this tracking outcome is valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it preserves unresolved answer-evidence failures and avoids treating unisolated dirty code as production evidence.
+
+Next target:
+
+- Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence.
+
 ## 2026-08-29 Cron 39262386 Contextual Rows 5-6 Dirty-State Validation Rerun 13
 
 - Target: execute the guardrail-first cron loop. The latest guardrail findings entry read at run start was `ok` at `2026-08-29T14:11:00Z` for accuracy commit `963212d`, with guardrail commit `c87b54e`; direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was attempted and remained restricted to the current job. No unresolved newer watch/needs_fix/critical finding superseded the preserved contextual rows 5-6 answer-evidence target.
