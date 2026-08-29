@@ -2,6 +2,19 @@
 
 This log is maintained by the recurring retrieval accuracy cron job.
 
+## 2026-08-29 Cron 39262386 Contextual Rows 5-6 Dirty-State Containment
+
+- Target: follow the current manifest/guardrail next target for contextual procedure rows 5-6 answer evidence selection while preserving unrelated dirty worktree changes. Latest guardrail findings file entry available at run start was `ok`; direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was attempted and returned restricted-to-current-job.
+- Stack check: `docker compose -f infra/compose/docker-compose.yml ps --format json` showed API, Postgres, Qdrant, Redis, workers, and UI running. The existing compose endpoint drift was left untouched.
+- Findings: `packages/answering/src/manuals_rag_answering/generator.py`, `packages/retrieval/src/manuals_rag_retrieval/retriever.py`, `packages/evals/src/manuals_rag_evals/retrieval_eval.py`, UI files, compose, tests, mass eval-artifact deletions, and untracked eval/debug artifacts were already dirty before this run. The dirty answering/retrieval diff appears aimed at mode/context evidence selection, but this cron cannot prove authorship, runtime load, or full validation, so it was not adopted, edited, reverted, or committed.
+- Validation performed: `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` -> manifest consistency OK. `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q` -> 24 passed. `rg` confirmed the current paired manifest fields remain registered in the checker/tests, and `git diff --check HEAD` passed. Explicit controls passed/fail as required: equal copy passed; deleting root `latest_contextual_procedure_rows_3_4_source_review` failed; deleting `question_bank.latest_contextual_procedure_rows_3_4_source_review` failed; changing nested `classification` failed; deleting `question_bank.latest_false_negative_repair` failed; answer-failure alias mismatch failed; retrieval-current failure alias mismatch failed.
+- Tracking: updated root and `question_bank` copies of `updated_at` and `latest_contextual_procedure_rows_3_4_source_review.checker_repair.validation_reruns` atomically. Current retrieval failures remain `{}`. Current answer failures remain `expected_evidence_not_cited: 2` for contextual procedure rows 5-6 from `retrieval_eval_20260828_102649`; no new retrieval, answer, scorer, API, UI, or question-bank evidence was claimed. Active coverage remains 208 exploratory questions total: 101 single-step and 107 multi-step; replacement debt remains 0.
+- Generalization check before commit: deferring unisolated production changes is valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it prevents accepting an answer-grounding path without citation inspection, runtime-load proof, and regression gates.
+
+Next target:
+
+- Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating the dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, and actual API changed-path evidence. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence. Do not count dirty-worktree diagnostics as clean without JSONL citation inspection and attributable runtime-load proof.
+
 ## 2026-08-29 Cron 39262386 Manifest Pair Validation Tracking
 
 - Target: honor the repeated guardrail/payload containment before optional retrieval or answer work by revalidating presence-aware manifest-pair enforcement for `latest_contextual_procedure_rows_3_4_source_review`.
