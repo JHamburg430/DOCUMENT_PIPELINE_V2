@@ -2952,6 +2952,21 @@
             },
             "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. This run did not edit, accept, revert, or commit those unrelated changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
             "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating the remaining dirty production/eval/UI changes or validating any adopted production change with focused/full gates, runtime-load proof, and actual API changed-path evidence. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence. Do not count dirty-worktree diagnostics as clean without JSONL citation inspection and attributable runtime-load proof."
+          },
+          {
+            "timestamp": "2026-08-29T01:24:10Z",
+            "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+            "guardrail_context": "Latest visible guardrail finding is ok at 2026-08-29T01:08:00Z for accuracy commit c6cf379; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c returned restricted-to-current-job in this run. The payload again required presence-aware manifest-pair validation for latest_contextual_procedure_rows_3_4_source_review before optional work.",
+            "status": "verified_already_enforced_tracking_only",
+            "evidence": [
+              "scripts/maintenance/check_retrieval_accuracy_manifest.py includes latest_contextual_procedure_rows_3_4_source_review in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+              "tests/unit/test_manifest_check.py includes equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail controls for latest_contextual_procedure_rows_3_4_source_review.",
+              "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 24 passed.",
+              "Explicit real-manifest controls passed/fail as required: equal manifest passed; deleting root latest_contextual_procedure_rows_3_4_source_review failed; deleting question_bank.latest_contextual_procedure_rows_3_4_source_review failed; changing nested classification failed; deleting question_bank.latest_false_negative_repair failed; answer-failure alias mismatch failed; retrieval-current failure alias mismatch failed."
+            ],
+            "dirty_worktree_scope": "Preserved unrelated dirty production answering/retrieval/eval/UI/compose changes, mass eval-artifact deletions, and untracked eval/debug artifacts. No production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed in this run.",
+            "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating the remaining dirty production/eval/UI changes or validating any adopted production change with focused/full gates, runtime-load proof, and actual API changed-path evidence. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence. Do not count dirty-worktree diagnostics as clean without JSONL citation inspection and attributable runtime-load proof."
           }
         ]
       },
@@ -11408,6 +11423,21 @@
             "source": "contextual procedure rows 5-6 from retrieval_eval_20260828_102649"
           },
           "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. This run did not edit, accept, revert, or commit those unrelated changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
+          "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating the remaining dirty production/eval/UI changes or validating any adopted production change with focused/full gates, runtime-load proof, and actual API changed-path evidence. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence. Do not count dirty-worktree diagnostics as clean without JSONL citation inspection and attributable runtime-load proof."
+        },
+        {
+          "timestamp": "2026-08-29T01:24:10Z",
+          "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+          "guardrail_context": "Latest visible guardrail finding is ok at 2026-08-29T01:08:00Z for accuracy commit c6cf379; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c returned restricted-to-current-job in this run. The payload again required presence-aware manifest-pair validation for latest_contextual_procedure_rows_3_4_source_review before optional work.",
+          "status": "verified_already_enforced_tracking_only",
+          "evidence": [
+            "scripts/maintenance/check_retrieval_accuracy_manifest.py includes latest_contextual_procedure_rows_3_4_source_review in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+            "tests/unit/test_manifest_check.py includes equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail controls for latest_contextual_procedure_rows_3_4_source_review.",
+            "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 24 passed.",
+            "Explicit real-manifest controls passed/fail as required: equal manifest passed; deleting root latest_contextual_procedure_rows_3_4_source_review failed; deleting question_bank.latest_contextual_procedure_rows_3_4_source_review failed; changing nested classification failed; deleting question_bank.latest_false_negative_repair failed; answer-failure alias mismatch failed; retrieval-current failure alias mismatch failed."
+          ],
+          "dirty_worktree_scope": "Preserved unrelated dirty production answering/retrieval/eval/UI/compose changes, mass eval-artifact deletions, and untracked eval/debug artifacts. No production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed in this run.",
           "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating the remaining dirty production/eval/UI changes or validating any adopted production change with focused/full gates, runtime-load proof, and actual API changed-path evidence. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence. Do not count dirty-worktree diagnostics as clean without JSONL citation inspection and attributable runtime-load proof."
         }
       ]
