@@ -2,6 +2,19 @@
 
 This log is maintained by the recurring retrieval accuracy cron job.
 
+## 2026-08-29 Cron 39262386 Contextual Rows 5-6 Dirty-State Rerun
+
+- Target: continue the guardrail-first loop. The latest guardrail findings entry read at run start was `ok` at `2026-08-29T03:09:45Z` for accuracy commit `6174f22`; direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` returned restricted-to-current-job.
+- Stack check: `docker compose -f infra/compose/docker-compose.yml ps --format json` showed API, Postgres, Qdrant, Redis, workers, and UI running.
+- Validation: `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` -> manifest consistency OK. `docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q` -> 24 passed. Explicit real-manifest controls passed/fail as required: equal manifest passed; deleting root `latest_contextual_procedure_rows_3_4_source_review` failed; deleting `question_bank.latest_contextual_procedure_rows_3_4_source_review` failed; changing nested classification failed; deleting `question_bank.latest_false_negative_repair` failed; answer-failure alias mismatch failed; retrieval-current failure alias mismatch failed.
+- Tracking: updated root and `question_bank` copies of `updated_at`, current retrieval/answer failure aliases, and `latest_contextual_procedure_rows_3_4_source_review.checker_repair.validation_reruns` atomically. Current retrieval failures remain {}. Current answer failures remain `expected_evidence_not_cited: 2` for contextual procedure rows 5-6 from `retrieval_eval_20260828_102649`; no new retrieval, answer, scorer, API, UI, or question-bank evidence was claimed. Active coverage remains 208 exploratory questions total: 101 single-step and 107 multi-step; replacement debt remains 0.
+- Scope/provenance: preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. This run did not edit, accept, revert, or commit those unrelated changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.
+- Generalization check before commit: this tracking outcome is valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it keeps duplicated manifest state fail-closed and avoids accepting unisolated dirty production/eval/UI changes as clean answer evidence.
+
+Next target:
+
+- Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence. Do not count dirty-worktree diagnostics as clean without JSONL citation inspection and attributable runtime-load proof.
+
 ## 2026-08-28 Cron 39262386 Contextual Manifest Validation Rerun 22
 
 - Target: execute the guardrail-first cron loop. The latest guardrail findings file entry is `ok` at `2026-08-29T02:39:36Z`; direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` returned restricted-to-current-job in this run.

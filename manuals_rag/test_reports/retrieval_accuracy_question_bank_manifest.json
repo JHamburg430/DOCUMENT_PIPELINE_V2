@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-29T03:24:09Z",
+  "updated_at": "2026-08-29T03:55:23Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1768,7 +1768,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-29T03:24:09Z",
+    "updated_at": "2026-08-29T03:55:23Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3041,6 +3041,29 @@
               "git diff --check HEAD passed."
             ],
             "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. This run did not edit, accept, revert, or commit those unrelated changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
+            "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+          },
+          {
+            "timestamp": "2026-08-29T03:55:23Z",
+            "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+            "status": "verified_manifest_pairs_tracking_only_dirty_worktree_blocker",
+            "guardrail_context": "Latest guardrail findings file entry is ok at 2026-08-29T03:09:45Z for accuracy commit 6174f22; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c returned restricted-to-current-job in this run.",
+            "evidence": [
+              "Read git status, retrieval accuracy runbook, progress log, question-bank manifest, guardrail runbook, and guardrail findings file at run start.",
+              "docker compose -f infra/compose/docker-compose.yml ps --format json showed API, Postgres, Qdrant, Redis, workers, and UI running.",
+              "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 24 passed.",
+              "Explicit real-manifest controls passed/fail as required: equal manifest passed; deleting root latest_contextual_procedure_rows_3_4_source_review failed; deleting question_bank.latest_contextual_procedure_rows_3_4_source_review failed; changing nested classification failed; deleting question_bank.latest_false_negative_repair failed; answer-failure alias mismatch failed; retrieval-current failure alias mismatch failed."
+            ],
+            "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. This run did not edit, accept, revert, or commit those unrelated changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
+            "current_failures_preserved": {
+              "retrieval": {},
+              "answer": {
+                "expected_evidence_not_cited": 2
+              },
+              "source": "contextual procedure rows 5-6 from retrieval_eval_20260828_102649"
+            },
+            "clean_evidence_claimed": false,
             "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
           }
         ]
@@ -11588,6 +11611,29 @@
             "git diff --check HEAD passed."
           ],
           "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. This run did not edit, accept, revert, or commit those unrelated changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
+          "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+        },
+        {
+          "timestamp": "2026-08-29T03:55:23Z",
+          "cron_job": "39262386-1bb6-4571-98e1-13a30047ddb8",
+          "status": "verified_manifest_pairs_tracking_only_dirty_worktree_blocker",
+          "guardrail_context": "Latest guardrail findings file entry is ok at 2026-08-29T03:09:45Z for accuracy commit 6174f22; direct guardrail cron history for ca862d7a-e46f-4de3-870e-1cca28a3510c returned restricted-to-current-job in this run.",
+          "evidence": [
+            "Read git status, retrieval accuracy runbook, progress log, question-bank manifest, guardrail runbook, and guardrail findings file at run start.",
+            "docker compose -f infra/compose/docker-compose.yml ps --format json showed API, Postgres, Qdrant, Redis, workers, and UI running.",
+            "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_manifest_check.py -q -> 24 passed.",
+            "Explicit real-manifest controls passed/fail as required: equal manifest passed; deleting root latest_contextual_procedure_rows_3_4_source_review failed; deleting question_bank.latest_contextual_procedure_rows_3_4_source_review failed; changing nested classification failed; deleting question_bank.latest_false_negative_repair failed; answer-failure alias mismatch failed; retrieval-current failure alias mismatch failed."
+          ],
+          "dirty_worktree_scope": "Preserved existing dirty production answering/retrieval/eval-generation/UI changes, dirty compose endpoint drift, mass tracked eval-artifact deletions, and untracked eval/debug artifacts. This run did not edit, accept, revert, or commit those unrelated changes and made no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.",
+          "current_failures_preserved": {
+            "retrieval": {},
+            "answer": {
+              "expected_evidence_not_cited": 2
+            },
+            "source": "contextual procedure rows 5-6 from retrieval_eval_20260828_102649"
+          },
+          "clean_evidence_claimed": false,
           "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
         }
       ]
