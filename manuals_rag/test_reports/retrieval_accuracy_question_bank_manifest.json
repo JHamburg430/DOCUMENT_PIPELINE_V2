@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T00:31:00Z",
+  "updated_at": "2026-08-30T01:16:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1083,8 +1083,8 @@
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 1
     },
-    "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and do not revive stale local tracking commits ffc3e0d, ffc6ee2, 2ff4463, 69a5139, or ad668d0 as current state.",
-    "answer_grounding_status": "Primary checkout reconciled with origin/main after guardrail commit 71ec0f4. Contextual procedure rows 5-6 current evidence remains retrieval_eval_20260829_210829: row 6 is clean answer-grounding evidence, and row 5 remains diagnostic/not-clean with expected_evidence_not_cited: 1 because the fallback cited fa88bd05 and 86e3ce5c instead of expected Multi-Capture chunks 02b921f5 and 878ea631.",
+    "next_target": "Fix row 5 Multi-Capture actual answer payload and scoring: the API answer must state the multiple-image-captures operation and cite compatible timing evidence, and the scorer must reject green results that omit that material operation or use sibling RESET/asynchronous timing context.",
+    "answer_grounding_status": "Row 5 remains diagnostic/not-clean after loaded dirty-runtime checks retrieval_eval_20260830_005646 and retrieval_eval_20260830_010931: the scorer went green, but manual JSONL inspection found the visible fallback answer still omits the Multi-Capture operation and includes RESET timing evidence. Row 6 remains clean from retrieval_eval_20260829_210829 and control run retrieval_eval_20260830_010707.",
     "answer_grounding_rotation": {
       "scope": "contextual_procedure_rows_5_6_multi_part_fallback_partial_repair",
       "classification": "partial_clean_row_6_row_5_remains_current_answer_evidence_selection_failure",
@@ -1810,7 +1810,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T00:31:00Z",
+    "updated_at": "2026-08-30T01:16:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3138,7 +3138,7 @@
       ],
       "classification": "partial_clean_row_6_row_5_current_answer_evidence_selection_failure_not_clean",
       "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-      "answer_result": "1/2 actual HTTP API answer grounding passed in retrieval_eval_20260829_210829; row 6 is clean and row 5 remains expected_evidence_not_cited after manual JSONL inspection.",
+      "answer_result": "Current committed state remains row 6 clean and row 5 expected_evidence_not_cited: 1. Dirty-runtime diagnostic runs retrieval_eval_20260830_005646 and retrieval_eval_20260830_010931 scored row 5 green, but manual inspection keeps them diagnostic/not-clean because the actual answer payload omits the expected Multi-Capture operation and includes RESET timing evidence.",
       "failures": [
         {
           "row": 5,
@@ -3722,10 +3722,47 @@
               "Preserved remote current answer failure aliases as expected_evidence_not_cited: 1 and current retrieval failures as {}."
             ],
             "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve origin/main row 6 clean evidence from retrieval_eval_20260829_210829 and do not merge stale local tracking commit ffc3e0d or ffc6ee2, which re-recorded the older 2-failure state after baa9ed0 reduced current answer failures to row 5 only."
+          },
+          {
+            "timestamp": "2026-08-30T01:16:00Z",
+            "type": "loaded_dirty_runtime_row5_diagnostic",
+            "guardrail_status": "latest guardrail cron summary ok for ccd00a6 with guardrail commit 5136585; no unresolved watch/needs_fix/critical finding superseded row 5",
+            "runtime": {
+              "path": "temporary side-port API inside compose-api-1 on http://127.0.0.1:8700",
+              "generator_sha256": "309f87cf410502dc5407ef0b76ffe5f2fbe852d52d73df3ecb1bdbeb17f0e304",
+              "retriever_sha256": "0fd04bc2b17360753ee2f69c7d702747da4b35f73e3e28a6a5a9a1f633263830",
+              "ollama_url": "http://host.docker.internal:11437",
+              "answer_model": "qwen3.5:9b",
+              "note": "Endpoint/model identity reflects the existing dirty local compose state; no compose restart or config change was performed."
+            },
+            "checks": [
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 113 passed, 1 warning",
+              "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 444 passed, 59 warnings before the rejected answering experiment",
+              "Focused answering experiment test passed, but the actual API payload did not change; the answering edit was reverted before tracking."
+            ],
+            "diagnostic_runs": [
+              {
+                "run": "retrieval_eval_20260830_005646",
+                "classification": "diagnostic_not_clean_false_positive",
+                "summary": "Row 5 scored green after the pre-existing dirty retriever mode-phrase change, but manual JSONL inspection showed the visible fallback answer omitted the material Multi-Capture operation and included RESET timing evidence."
+              },
+              {
+                "run": "retrieval_eval_20260830_010931",
+                "classification": "diagnostic_not_clean_false_positive_after_rejected_answering_experiment",
+                "summary": "After a side-port API reload with the attempted answering fallback context patch, row 5 still emitted the same visible answer: citation 02b921f5 plus fa88bd05, no multiple-image-captures operation sentence, and RESET terminal operation text. The patch was reverted."
+              },
+              {
+                "run": "retrieval_eval_20260830_010707",
+                "classification": "row6_control_still_clean",
+                "summary": "Row 6 control remained automatically green through the same dirty side-port API path; this does not resolve row 5."
+              }
+            ],
+            "manual_jsonl_evidence": "retrieval_eval_results_20260830_010931 row 5 answer_passed=True but user-visible answer does not contain the expected operation sentence about multiple image captures at the same location and still contains RESET terminal operation text from fa88bd05. Therefore row 5 remains expected_evidence_not_cited / answer-payload false-positive diagnostic, not clean grounded evidence.",
+            "remaining": "Isolate a safe production fix for row 5 so the actual API answer states the Multi-Capture operation and cites compatible timing evidence; also tighten answer evidence scoring so a fallback answer cannot pass when the user-visible payload omits the expected material operation or substitutes sibling timing context."
           }
         ]
       },
-      "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z.",
+      "remaining": "Fix row 5 Multi-Capture actual answer payload and scoring: the API answer must state the multiple-image-captures operation and cite compatible timing evidence, and the scorer must reject green results that omit that material operation or use sibling RESET/asynchronous timing context.",
       "resolved_rows": [
         {
           "row": 6,
@@ -9720,7 +9757,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and do not revive stale local tracking commits ffc3e0d, ffc6ee2, 2ff4463, 69a5139, or ad668d0 as current state.",
+  "next_target": "Fix row 5 Multi-Capture actual answer payload and scoring: the API answer must state the multiple-image-captures operation and cite compatible timing evidence, and the scorer must reject green results that omit that material operation or use sibling RESET/asynchronous timing context.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10007,7 +10044,7 @@
   "answer_current_failure_categories": {
     "expected_evidence_not_cited": 1
   },
-  "answer_grounding_status": "Primary checkout reconciled with origin/main after guardrail commit 71ec0f4. Contextual procedure rows 5-6 current evidence remains retrieval_eval_20260829_210829: row 6 is clean answer-grounding evidence, and row 5 remains diagnostic/not-clean with expected_evidence_not_cited: 1 because the fallback cited fa88bd05 and 86e3ce5c instead of expected Multi-Capture chunks 02b921f5 and 878ea631.",
+  "answer_grounding_status": "Row 5 remains diagnostic/not-clean after loaded dirty-runtime checks retrieval_eval_20260830_005646 and retrieval_eval_20260830_010931: the scorer went green, but manual JSONL inspection found the visible fallback answer still omits the Multi-Capture operation and includes RESET timing evidence. Row 6 remains clean from retrieval_eval_20260829_210829 and control run retrieval_eval_20260830_010707.",
   "answer_grounding_rotation": {
     "scope": "contextual_procedure_rows_5_6_multi_part_fallback_partial_repair",
     "classification": "partial_clean_row_6_row_5_remains_current_answer_evidence_selection_failure",
@@ -12409,7 +12446,7 @@
     ],
     "classification": "partial_clean_row_6_row_5_current_answer_evidence_selection_failure_not_clean",
     "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-    "answer_result": "1/2 actual HTTP API answer grounding passed in retrieval_eval_20260829_210829; row 6 is clean and row 5 remains expected_evidence_not_cited after manual JSONL inspection.",
+    "answer_result": "Current committed state remains row 6 clean and row 5 expected_evidence_not_cited: 1. Dirty-runtime diagnostic runs retrieval_eval_20260830_005646 and retrieval_eval_20260830_010931 scored row 5 green, but manual inspection keeps them diagnostic/not-clean because the actual answer payload omits the expected Multi-Capture operation and includes RESET timing evidence.",
     "failures": [
       {
         "row": 5,
@@ -12993,10 +13030,47 @@
             "Preserved remote current answer failure aliases as expected_evidence_not_cited: 1 and current retrieval failures as {}."
           ],
           "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve origin/main row 6 clean evidence from retrieval_eval_20260829_210829 and do not merge stale local tracking commit ffc3e0d or ffc6ee2, which re-recorded the older 2-failure state after baa9ed0 reduced current answer failures to row 5 only."
+        },
+        {
+          "timestamp": "2026-08-30T01:16:00Z",
+          "type": "loaded_dirty_runtime_row5_diagnostic",
+          "guardrail_status": "latest guardrail cron summary ok for ccd00a6 with guardrail commit 5136585; no unresolved watch/needs_fix/critical finding superseded row 5",
+          "runtime": {
+            "path": "temporary side-port API inside compose-api-1 on http://127.0.0.1:8700",
+            "generator_sha256": "309f87cf410502dc5407ef0b76ffe5f2fbe852d52d73df3ecb1bdbeb17f0e304",
+            "retriever_sha256": "0fd04bc2b17360753ee2f69c7d702747da4b35f73e3e28a6a5a9a1f633263830",
+            "ollama_url": "http://host.docker.internal:11437",
+            "answer_model": "qwen3.5:9b",
+            "note": "Endpoint/model identity reflects the existing dirty local compose state; no compose restart or config change was performed."
+          },
+          "checks": [
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retriever.py -q -> 113 passed, 1 warning",
+            "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 444 passed, 59 warnings before the rejected answering experiment",
+            "Focused answering experiment test passed, but the actual API payload did not change; the answering edit was reverted before tracking."
+          ],
+          "diagnostic_runs": [
+            {
+              "run": "retrieval_eval_20260830_005646",
+              "classification": "diagnostic_not_clean_false_positive",
+              "summary": "Row 5 scored green after the pre-existing dirty retriever mode-phrase change, but manual JSONL inspection showed the visible fallback answer omitted the material Multi-Capture operation and included RESET timing evidence."
+            },
+            {
+              "run": "retrieval_eval_20260830_010931",
+              "classification": "diagnostic_not_clean_false_positive_after_rejected_answering_experiment",
+              "summary": "After a side-port API reload with the attempted answering fallback context patch, row 5 still emitted the same visible answer: citation 02b921f5 plus fa88bd05, no multiple-image-captures operation sentence, and RESET terminal operation text. The patch was reverted."
+            },
+            {
+              "run": "retrieval_eval_20260830_010707",
+              "classification": "row6_control_still_clean",
+              "summary": "Row 6 control remained automatically green through the same dirty side-port API path; this does not resolve row 5."
+            }
+          ],
+          "manual_jsonl_evidence": "retrieval_eval_results_20260830_010931 row 5 answer_passed=True but user-visible answer does not contain the expected operation sentence about multiple image captures at the same location and still contains RESET terminal operation text from fa88bd05. Therefore row 5 remains expected_evidence_not_cited / answer-payload false-positive diagnostic, not clean grounded evidence.",
+          "remaining": "Isolate a safe production fix for row 5 so the actual API answer states the Multi-Capture operation and cites compatible timing evidence; also tighten answer evidence scoring so a fallback answer cannot pass when the user-visible payload omits the expected material operation or substitutes sibling timing context."
         }
       ]
     },
-    "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z.",
+    "remaining": "Fix row 5 Multi-Capture actual answer payload and scoring: the API answer must state the multiple-image-captures operation and cite compatible timing evidence, and the scorer must reject green results that omit that material operation or use sibling RESET/asynchronous timing context.",
     "resolved_rows": [
       {
         "row": 6,

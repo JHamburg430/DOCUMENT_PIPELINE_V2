@@ -2,6 +2,20 @@
 
 This log is maintained by the recurring retrieval accuracy cron job.
 
+## 2026-08-29 Cron 39262386 Row 5 Dirty-Runtime False Positive Diagnostic
+
+- Target: guardrail-first row 5 Multi-Capture answer evidence selection. Latest guardrail cron history was `ok` for accuracy commit `ccd00a6` with guardrail commit `5136585`; no unresolved watch/needs_fix/critical finding superseded the row 5 target.
+- Stack/runtime: compose services were running. I did not restart through compose because `infra/compose/docker-compose.yml` still has pre-existing dirty `OLLAMA_URL` drift to `http://host.docker.internal:11437`. I started a temporary side-port API inside `compose-api-1` on `http://127.0.0.1:8700` and recorded loaded module fingerprints: retriever sha256 `0fd04bc2b17360753ee2f69c7d702747da4b35f73e3e28a6a5a9a1f633263830`, generator sha256 `309f87cf410502dc5407ef0b76ffe5f2fbe852d52d73df3ecb1bdbeb17f0e304`, answer model `qwen3.5:9b`, endpoint `11437`.
+- Evidence: focused retriever tests passed (`113 passed, 1 warning`) and the full dirty-mounted unit gate passed before the rejected answering experiment (`444 passed, 59 warnings`). Row 5 actual HTTP runs `retrieval_eval_20260830_005646` and `retrieval_eval_20260830_010931` both scored green, but manual JSONL inspection keeps them diagnostic/not-clean: the visible fallback answer cites `02b921f5` plus sibling `fa88bd05`, omits the material operation sentence that Multi-Capture performs multiple image captures at the same location and processes them as a single measurement, and includes RESET terminal timing text. Row 6 control `retrieval_eval_20260830_010707` stayed green.
+- Rejected experiment: tried a narrow answering fallback change to expand terse procedure records from same-result context and prefer a single expanded result for multi-part questions. Focused tests passed after refinement, but loaded actual API row 5 still emitted the same insufficient visible answer, so I reverted the answering code/test edits before tracking. No production answering change is being claimed.
+- Tracking: updated root and `question_bank` manifest copies atomically. Current retrieval failures remain `{}`. Current answer failures remain `expected_evidence_not_cited: 1`. Active exploratory coverage remains 208 questions total: 101 single-step and 107 multi-step; replacement debt remains 0. No new clean answer evidence was accepted.
+- Scope/provenance: preserved pre-existing dirty retriever/eval-generation/UI/test changes, dirty compose endpoint drift, mass historical eval-artifact deletions, and untracked eval/debug artifacts. This run committed only tracking for the failed diagnostic and did not adopt the pre-existing dirty retriever patch as production evidence.
+- Generalization check before commit: the result is valid for unseen manuals/vendors and realistic engineers, technicians, support staff, managers, and salespeople because it refuses a scorer-only green result when the user-visible answer does not state the source-backed material operation and substitutes sibling timing context.
+
+Next target:
+
+- Fix row 5 Multi-Capture actual answer payload and scoring: the API answer must state the multiple-image-captures operation and cite compatible timing evidence, and the scorer must reject green results that omit the material operation or use sibling RESET/asynchronous timing context.
+
 ## 2026-08-29 Cron 39262386 Row 5 Remote-State Preservation
 
 - Target: execute the guardrail-first cron loop after the primary checkout push was rejected as non-fast-forward. The latest checked-in guardrail review at `2026-08-29T22:16:00Z` is `ok` for remote accuracy state through `5567f34`, and direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` remained restricted to the current job.
