@@ -453,6 +453,103 @@ def test_direct_procedure_fallback_still_uses_top_evidence_only():
     assert [result.chunk_id for result in selected] == ["top-procedure"]
 
 
+def test_image_capture_buffer_fallback_prefers_disabled_trigger_rule():
+    results = [
+        SearchResult(
+            chunk_id="branching-section",
+            score=0.94,
+            title="Controller Manual",
+            document_version_id="v1",
+            source_document_id="doc-x",
+            pages=[600, 601],
+            section_path=["Image Capture Buffer"],
+            content=(
+                "When capture priorities are different after branching, trigger input can be allowed "
+                "or prohibited depending on the capture unit reached after branching."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+        SearchResult(
+            chunk_id="disabled-trigger-rule",
+            score=0.88,
+            title="Controller Manual",
+            document_version_id="v1",
+            source_document_id="doc-x",
+            pages=[596, 597],
+            section_path=["Image Capture Buffer"],
+            content=(
+                "Examples of How the Image Capture Buffer is Used. 1. Image Capture Buffer: Disabled. "
+                "If the image capture buffer is disabled, trigger input is only permitted while the flow "
+                "is stopped at the capture unit and trigger input is prohibited at any other time. "
+                "Receiving trigger input Prohibited Prohibited Prohibited Prohibited Allowed."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+    ]
+
+    selected = _fallback_evidence_results(
+        "With the image capture buffer disabled, are trigger inputs allowed while capture is in progress?",
+        results,
+    )
+
+    assert [result.chunk_id for result in selected] == ["disabled-trigger-rule"]
+
+
+def test_image_capture_buffer_fallback_binds_same_priority_condition():
+    results = [
+        SearchResult(
+            chunk_id="multi-capture-branch",
+            score=0.94,
+            title="Controller Manual",
+            document_version_id="v1",
+            source_document_id="doc-x",
+            pages=[599, 600],
+            section_path=["Image Capture Buffer"],
+            content=(
+                "When multiple capture units are used, the branch destination can receive trigger "
+                "inputs for another camera if the first capture unit passes."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+        SearchResult(
+            chunk_id="disabled-buffer-context",
+            score=0.91,
+            title="Controller Manual",
+            document_version_id="v1",
+            source_document_id="doc-x",
+            pages=[596, 597],
+            section_path=["Image Capture Buffer"],
+            content=(
+                "Examples of How the Image Capture Buffer is Used. 1. Image Capture Buffer: Disabled. "
+                "If the image capture buffer is disabled, trigger input is only permitted while the flow "
+                "is stopped at the capture unit."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+        SearchResult(
+            chunk_id="same-priority-condition",
+            score=0.82,
+            title="Controller Manual",
+            document_version_id="v1",
+            source_document_id="doc-x",
+            pages=[597],
+            section_path=["Image Capture Buffer"],
+            content="Using only one camera or multiple cameras that all use the same capture priority condition.",
+            metadata={"chunk_type": "atomic_text"},
+        ),
+    ]
+
+    selected = _fallback_evidence_results(
+        "With image capture buffer disabled, can it be used with one camera or multiple cameras sharing the same capture-priority condition?",
+        results,
+    )
+
+    assert [result.chunk_id for result in selected] == [
+        "same-priority-condition",
+        "disabled-buffer-context",
+    ]
+
+
 def test_validate_answer_falls_back_when_citation_quote_is_not_in_cited_chunk():
     answer = AnswerResponse(
         answer="Change the trigger signal assignment to one that can be used.",

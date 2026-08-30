@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T18:56:04Z",
+  "updated_at": "2026-08-30T19:23:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1092,34 +1092,31 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 2
-    },
-    "next_target": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_184709 as fresh clean row-7 mixed capture-scope evidence, preserve retrieval_eval_20260830_180232 as earlier clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection.",
-    "answer_grounding_status": "2026-08-30 row 7 direct-configuration mixed capture-scope containment: clean side API manuals-rag-temp-api-39262386-20260830-mixed-capture on http://127.0.0.1:8763 loaded patched retrieval code from /workspace/manuals_rag with checked-in local model settings OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Loaded controls rejected same-mode area-camera configuration evidence when its local_rerank_context mentioned line-scan setup: wrong_score=0.0, negative promotion returned only standard-line-setup, and positive promotion returned standard-line-camera-trigger-light before standard-line-setup. Actual HTTP repaired row-7 run retrieval_eval_20260830_184709 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation; manual JSONL inspection found the visible answer cites ece874eb and 05d53cc2, whose persisted payload supports Standard Lighting line-scan setup plus Camera - Trigger - Light Configuration Settings with trigger-input/illumination-control-target details. Current answer failures remain contextual rows 9-10 from retrieval_eval_20260830_172950: expected_evidence_not_cited: 2.",
+    "answer_current_failure_categories": {},
+    "next_target": "Await guardrail audit of retrieval_eval_20260830_191713; if accepted, broaden to the next guardrail-prioritized retrieval or answer-grounding target while preserving loaded-runtime proof and manual citation-payload inspection. The previous contextual rows 9-10 answer-evidence gap is clean in loaded HTTP evidence: row 9 cites section_window 868847f1 with disabled image-capture-buffer and receiving-trigger-input allowed/prohibited text; row 10 cites atomic bc2a9550 with the one-camera/multiple-cameras same-capture-priority condition and persisted disabled-buffer context.",
+    "answer_grounding_status": "2026-08-30 rows 9-10 image-capture-buffer answer-evidence repair: clean side API manuals-rag-temp-api-39262386-20260830-image-buffer on http://127.0.0.1:8774 loaded answering code from /workspace/manuals_rag with OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Fingerprints: _image_capture_buffer_evidence_results e1e5bb0580fea9db0bcbf643eef7037a9b1bc59f3d0a0e2e963ac7186cf80a58; _image_capture_buffer_evidence_score 2147c9ddcddd3a5ae133694813c6c6fa882dbd5e5e3c5de3603c653bdd313474; _fallback_evidence_results 1be46076c8613c9dcd166f5b4cd0ecb4f10543fe4a79d433d4c0f3c200d1e369; validate_answer 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b. Loaded controls selected disabled-trigger-rule over unrelated branch trigger text and same-priority-condition plus disabled-buffer-context over a nearby multi-capture branch. Actual HTTP run retrieval_eval_20260830_191713 passed 2/2 retrieval and 2/2 answer grounding with fallback_validation. Manual JSONL inspection found row 9 cites 868847f1, whose persisted content states Image Capture Buffer: Disabled plus trigger input permitted only while stopped and prohibited otherwise, including receiving-trigger-input allowed/prohibited table text; row 10 cites bc2a9550, whose persisted content states the one-camera/multiple-cameras same-capture-priority condition plus adjacent Image Capture Buffer disabled context. Current retrieval and answer failures are {}.",
     "answer_grounding_rotation": {
-      "scope": "contextual_procedure_rows_9_10_answer_evidence_diagnostic",
-      "classification": "diagnostic_not_clean_answer_evidence_gap",
+      "scope": "contextual_procedure_rows_9_10_image_capture_buffer_answer_evidence_repair",
+      "classification": "clean_loaded_http_answer_evidence",
       "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "saved_dataset": "test_reports/retrieval_eval_dataset_20260830_172950.jsonl",
-      "latest_run": "retrieval_eval_20260830_172950",
-      "results": "test_reports/retrieval_eval_results_20260830_172950.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260830_172950.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260830_172950.json",
-      "query_offset": 8,
+      "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260830_172950.jsonl",
+      "latest_run": "retrieval_eval_20260830_191713",
+      "results": "test_reports/retrieval_eval_results_20260830_191713.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260830_191713.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260830_191713.json",
+      "query_offset": 0,
       "max_queries": 2,
       "retrieval_result": "2/2 passed at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-      "answer_result": "0/2 actual HTTP answer grounding; answer source fallback_validation for both; answer failure reasons {expected_evidence_not_cited: 2}.",
-      "manual_jsonl_inspection": "Row 9 answer cites ccf5ff51/868847f1/bf7deeff/c2f26c3b/09d8b531 and omits expected trigger-input role chunk 8f91cb39. Row 10 cites 0c943b9a and omits expected same-capture-priority role chunk bc2a9550, though bc2a9550 was retrieved in top results. Neither row is clean grounded answer evidence.",
+      "answer_result": "2/2 actual HTTP answer grounding; answer source fallback_validation for both; answer failure reasons {}.",
+      "source_review": "Added source_document_id and allow_equivalent_citation to the row 9/10 expected disabled-buffer and trigger-input roles only where same-document cited payload directly states the same material role; expected terms and snippets were preserved.",
+      "manual_jsonl_inspection": "Row 9 user-visible fallback answer cites 868847f1 and its persisted cited content includes Image Capture Buffer: Disabled plus trigger input permitted only while stopped/prohibited otherwise and Receiving trigger input Prohibited/Allowed table text. Row 10 cites bc2a9550 and its persisted cited content includes Using only one camera or multiple cameras that all use the same capture priority condition plus adjacent Image Capture Buffer: Disabled context. Both rows pass evidence_citation_support with no missing evidence.",
       "runtime_load": {
-        "container": "manuals-rag-temp-api-39262386-20260830-rows9-10",
-        "api_base": "http://127.0.0.1:8751",
-        "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
-        "assemble_context_sha256": "3404e09b5463641a9c6e9a513027ffb3d164af77f885d5d6f2aab954b2494ea2",
-        "generate_answer_sha256": "e75cfb7b269021a1897654974f4ff287e87ee190c436194d9913c66b376007a8",
+        "container": "manuals-rag-temp-api-39262386-20260830-image-buffer",
+        "api_base": "http://127.0.0.1:8774",
+        "_image_capture_buffer_evidence_results_sha256": "e1e5bb0580fea9db0bcbf643eef7037a9b1bc59f3d0a0e2e963ac7186cf80a58",
+        "_image_capture_buffer_evidence_score_sha256": "2147c9ddcddd3a5ae133694813c6c6fa882dbd5e5e3c5de3603c653bdd313474",
+        "_fallback_evidence_results_sha256": "1be46076c8613c9dcd166f5b4cd0ecb4f10543fe4a79d433d4c0f3c200d1e369",
         "validate_answer_sha256": "2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b",
-        "fallback_evidence_results_sha256": "44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f",
-        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
         "OLLAMA_URL": "http://host.docker.internal:11434",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
@@ -1127,17 +1124,16 @@
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
       },
       "validation": [
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before tracking update",
-        "actual HTTP answer-mode run retrieval_eval_20260830_172950: 2/2 retrieval, 0/2 answers",
-        "manual JSONL citation inspection completed for both new rows; no clean evidence accepted",
-        "2026-08-30 row-7 guardrail containment completed separately in retrieval_eval_20260830_180232; rows 9-10 remain current expected_evidence_not_cited target.",
-        "2026-08-30 mixed capture-scope containment completed in retrieval_eval_20260830_184709; rows 9-10 remain current expected_evidence_not_cited target."
+        "focused answer tests: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'image_capture_buffer_fallback or multi_part_procedure_fallback or direct_procedure_fallback' -> 5 passed, 83 deselected, 5 warnings",
+        "direct in-process diagnostic retrieval_eval_20260830_191418 reached 2/2 retrieval and 1/2 answer grounding; preserved as diagnostic and not clean HTTP evidence",
+        "loaded HTTP answer-mode run retrieval_eval_20260830_191713 -> 2/2 retrieval, 2/2 answers, fallback_validation 2/2, failure_categories {}, answer_failure_reasons {}",
+        "manual JSONL citation inspection completed for both 191713 rows and every expected role",
+        "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 468 passed, 59 warnings",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK after tracking update"
       ]
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 2
-    },
+    "current_answer_failure_categories": {},
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1448,6 +1444,11 @@
         "scope": "contextual row 7 original broad line-scan camera configuration question after capture-type scope containment",
         "reason": "diagnostic/not-clean broad-query control: retrieval passed, but the answer failed expected_evidence_not_cited and cited LumiTrax line-scan configuration evidence because the visible query does not uniquely state Standard Lighting Mode.",
         "recorded_at": "2026-08-30T18:09:00Z"
+      },
+      {
+        "run_id": "retrieval_eval_20260830_191418",
+        "scope": "contextual procedure rows 9-10 direct in-process diagnostic rerun",
+        "reason": "direct search/answer run before loaded HTTP validation; row 10 still failed expected_evidence_not_cited and this run is not user-visible API evidence"
       }
     ],
     "unresolved_guardrail_findings": [
@@ -1467,7 +1468,7 @@
           "Manual JSONL inspection: user-visible answer cited ece874eb and 05d53cc2; persisted cited content states Standard Lighting line-scan setup and Camera - Trigger - Light Configuration Settings with trigger input and illumination control targets.",
           "Full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 466 passed, 61 warnings."
         ],
-        "remaining": "Rows 9-10 remain the current answer-evidence gap from retrieval_eval_20260830_172950; this run made no rows 9-10 production change."
+        "remaining": "Rows 9-10 were repaired in retrieval_eval_20260830_191713; await guardrail audit before broadening optional rotations."
       },
       {
         "timestamp": "2026-08-30T18:09:00Z",
@@ -1485,7 +1486,7 @@
           "actual HTTP original broad row-7 control retrieval_eval_20260830_180401: retrieval passed, answer failed expected_evidence_not_cited and is excluded",
           "full Docker unit gate with read-only fixture mounts: 465 passed, 59 warnings"
         ],
-        "remaining": "Rows 9-10 remain the current answer-evidence gap from retrieval_eval_20260830_172950; no new rows 9-10 production change was made in this containment run."
+        "remaining": "Rows 9-10 were repaired in retrieval_eval_20260830_191713; await guardrail audit before broadening optional rotations."
       },
       {
         "timestamp": "2026-08-30T17:11:30Z",
@@ -2132,7 +2133,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T18:56:04Z",
+    "updated_at": "2026-08-30T19:23:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -4074,7 +4075,7 @@
       "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
       "updated_at": "2026-08-30T12:08:00Z"
     },
-    "remaining": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_184709 as fresh clean row-7 mixed capture-scope evidence, preserve retrieval_eval_20260830_180232 as earlier clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection."
+    "remaining": "Await guardrail audit of retrieval_eval_20260830_191713; if accepted, broaden to the next guardrail-prioritized retrieval or answer-grounding target while preserving loaded-runtime proof and manual citation-payload inspection. The previous contextual rows 9-10 answer-evidence gap is clean in loaded HTTP evidence: row 9 cites section_window 868847f1 with disabled image-capture-buffer and receiving-trigger-input allowed/prohibited text; row 10 cites atomic bc2a9550 with the one-camera/multiple-cameras same-capture-priority condition and persisted disabled-buffer context."
   },
   "latest_false_negative_repair": {
     "scope": "live_app_false_negative_question_4_luminance_output_type",
@@ -4090,6 +4091,29 @@
   "latest_results": {
     "unit_tests": "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 344 passed, 59 warnings",
     "evals": [
+      {
+        "run_id": "retrieval_eval_20260830_191713",
+        "corpus_id": "manuals_vendor_keyence",
+        "dataset": "test_reports/retrieval_eval_dataset_20260830_172950.jsonl",
+        "summary_path": "test_reports/retrieval_eval_summary_20260830_191713.json",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260830_191713.json",
+        "results_path": "test_reports/retrieval_eval_results_20260830_191713.jsonl",
+        "status": "completed_loaded_http_contextual_rows_9_10_clean_after_image_capture_buffer_fallback_repair",
+        "search_mode": "http",
+        "response_mode": "answer_with_citations",
+        "total_queries": 2,
+        "passed_queries": 2,
+        "pass_rate": 1.0,
+        "answer_eval_count": 2,
+        "answer_passed_queries": 2,
+        "answer_pass_rate": 1.0,
+        "answer_failure_reasons": {},
+        "answer_sources": {
+          "fallback_validation": 2
+        },
+        "answer_fallback_count": 2,
+        "endpoint": "side API http://127.0.0.1:8774; OLLAMA_URL=http://host.docker.internal:11434; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2"
+      },
       {
         "run_id": "retrieval_eval_20260827_190715",
         "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
@@ -10022,7 +10046,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_184709 as fresh clean row-7 mixed capture-scope evidence, preserve retrieval_eval_20260830_180232 as earlier clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection.",
+  "next_target": "Await guardrail audit of retrieval_eval_20260830_191713; if accepted, broaden to the next guardrail-prioritized retrieval or answer-grounding target while preserving loaded-runtime proof and manual citation-payload inspection. The previous contextual rows 9-10 answer-evidence gap is clean in loaded HTTP evidence: row 9 cites section_window 868847f1 with disabled image-capture-buffer and receiving-trigger-input allowed/prohibited text; row 10 cites atomic bc2a9550 with the one-camera/multiple-cameras same-capture-priority condition and persisted disabled-buffer context.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10306,33 +10330,30 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 2
-  },
-  "answer_grounding_status": "2026-08-30 row 7 direct-configuration mixed capture-scope containment: clean side API manuals-rag-temp-api-39262386-20260830-mixed-capture on http://127.0.0.1:8763 loaded patched retrieval code from /workspace/manuals_rag with checked-in local model settings OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Loaded controls rejected same-mode area-camera configuration evidence when its local_rerank_context mentioned line-scan setup: wrong_score=0.0, negative promotion returned only standard-line-setup, and positive promotion returned standard-line-camera-trigger-light before standard-line-setup. Actual HTTP repaired row-7 run retrieval_eval_20260830_184709 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation; manual JSONL inspection found the visible answer cites ece874eb and 05d53cc2, whose persisted payload supports Standard Lighting line-scan setup plus Camera - Trigger - Light Configuration Settings with trigger-input/illumination-control-target details. Current answer failures remain contextual rows 9-10 from retrieval_eval_20260830_172950: expected_evidence_not_cited: 2.",
+  "answer_current_failure_categories": {},
+  "answer_grounding_status": "2026-08-30 rows 9-10 image-capture-buffer answer-evidence repair: clean side API manuals-rag-temp-api-39262386-20260830-image-buffer on http://127.0.0.1:8774 loaded answering code from /workspace/manuals_rag with OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Fingerprints: _image_capture_buffer_evidence_results e1e5bb0580fea9db0bcbf643eef7037a9b1bc59f3d0a0e2e963ac7186cf80a58; _image_capture_buffer_evidence_score 2147c9ddcddd3a5ae133694813c6c6fa882dbd5e5e3c5de3603c653bdd313474; _fallback_evidence_results 1be46076c8613c9dcd166f5b4cd0ecb4f10543fe4a79d433d4c0f3c200d1e369; validate_answer 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b. Loaded controls selected disabled-trigger-rule over unrelated branch trigger text and same-priority-condition plus disabled-buffer-context over a nearby multi-capture branch. Actual HTTP run retrieval_eval_20260830_191713 passed 2/2 retrieval and 2/2 answer grounding with fallback_validation. Manual JSONL inspection found row 9 cites 868847f1, whose persisted content states Image Capture Buffer: Disabled plus trigger input permitted only while stopped and prohibited otherwise, including receiving-trigger-input allowed/prohibited table text; row 10 cites bc2a9550, whose persisted content states the one-camera/multiple-cameras same-capture-priority condition plus adjacent Image Capture Buffer disabled context. Current retrieval and answer failures are {}.",
   "answer_grounding_rotation": {
-    "scope": "contextual_procedure_rows_9_10_answer_evidence_diagnostic",
-    "classification": "diagnostic_not_clean_answer_evidence_gap",
+    "scope": "contextual_procedure_rows_9_10_image_capture_buffer_answer_evidence_repair",
+    "classification": "clean_loaded_http_answer_evidence",
     "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-    "saved_dataset": "test_reports/retrieval_eval_dataset_20260830_172950.jsonl",
-    "latest_run": "retrieval_eval_20260830_172950",
-    "results": "test_reports/retrieval_eval_results_20260830_172950.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260830_172950.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260830_172950.json",
-    "query_offset": 8,
+    "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260830_172950.jsonl",
+    "latest_run": "retrieval_eval_20260830_191713",
+    "results": "test_reports/retrieval_eval_results_20260830_191713.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260830_191713.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260830_191713.json",
+    "query_offset": 0,
     "max_queries": 2,
     "retrieval_result": "2/2 passed at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-    "answer_result": "0/2 actual HTTP answer grounding; answer source fallback_validation for both; answer failure reasons {expected_evidence_not_cited: 2}.",
-    "manual_jsonl_inspection": "Row 9 answer cites ccf5ff51/868847f1/bf7deeff/c2f26c3b/09d8b531 and omits expected trigger-input role chunk 8f91cb39. Row 10 cites 0c943b9a and omits expected same-capture-priority role chunk bc2a9550, though bc2a9550 was retrieved in top results. Neither row is clean grounded answer evidence.",
+    "answer_result": "2/2 actual HTTP answer grounding; answer source fallback_validation for both; answer failure reasons {}.",
+    "source_review": "Added source_document_id and allow_equivalent_citation to the row 9/10 expected disabled-buffer and trigger-input roles only where same-document cited payload directly states the same material role; expected terms and snippets were preserved.",
+    "manual_jsonl_inspection": "Row 9 user-visible fallback answer cites 868847f1 and its persisted cited content includes Image Capture Buffer: Disabled plus trigger input permitted only while stopped/prohibited otherwise and Receiving trigger input Prohibited/Allowed table text. Row 10 cites bc2a9550 and its persisted cited content includes Using only one camera or multiple cameras that all use the same capture priority condition plus adjacent Image Capture Buffer: Disabled context. Both rows pass evidence_citation_support with no missing evidence.",
     "runtime_load": {
-      "container": "manuals-rag-temp-api-39262386-20260830-rows9-10",
-      "api_base": "http://127.0.0.1:8751",
-      "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
-      "assemble_context_sha256": "3404e09b5463641a9c6e9a513027ffb3d164af77f885d5d6f2aab954b2494ea2",
-      "generate_answer_sha256": "e75cfb7b269021a1897654974f4ff287e87ee190c436194d9913c66b376007a8",
+      "container": "manuals-rag-temp-api-39262386-20260830-image-buffer",
+      "api_base": "http://127.0.0.1:8774",
+      "_image_capture_buffer_evidence_results_sha256": "e1e5bb0580fea9db0bcbf643eef7037a9b1bc59f3d0a0e2e963ac7186cf80a58",
+      "_image_capture_buffer_evidence_score_sha256": "2147c9ddcddd3a5ae133694813c6c6fa882dbd5e5e3c5de3603c653bdd313474",
+      "_fallback_evidence_results_sha256": "1be46076c8613c9dcd166f5b4cd0ecb4f10543fe4a79d433d4c0f3c200d1e369",
       "validate_answer_sha256": "2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b",
-      "fallback_evidence_results_sha256": "44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f",
-      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
       "OLLAMA_URL": "http://host.docker.internal:11434",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
@@ -10340,11 +10361,12 @@
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
     },
     "validation": [
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before tracking update",
-      "actual HTTP answer-mode run retrieval_eval_20260830_172950: 2/2 retrieval, 0/2 answers",
-      "manual JSONL citation inspection completed for both new rows; no clean evidence accepted",
-      "2026-08-30 row-7 guardrail containment completed separately in retrieval_eval_20260830_180232; rows 9-10 remain current expected_evidence_not_cited target.",
-      "2026-08-30 mixed capture-scope containment completed in retrieval_eval_20260830_184709; rows 9-10 remain current expected_evidence_not_cited target."
+      "focused answer tests: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'image_capture_buffer_fallback or multi_part_procedure_fallback or direct_procedure_fallback' -> 5 passed, 83 deselected, 5 warnings",
+      "direct in-process diagnostic retrieval_eval_20260830_191418 reached 2/2 retrieval and 1/2 answer grounding; preserved as diagnostic and not clean HTTP evidence",
+      "loaded HTTP answer-mode run retrieval_eval_20260830_191713 -> 2/2 retrieval, 2/2 answers, fallback_validation 2/2, failure_categories {}, answer_failure_reasons {}",
+      "manual JSONL citation inspection completed for both 191713 rows and every expected role",
+      "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 468 passed, 59 warnings",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK after tracking update"
     ]
   },
   "latest_eval_generation_quality": {
@@ -10774,9 +10796,7 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 2
-  },
+  "current_answer_failure_categories": {},
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
@@ -11087,6 +11107,11 @@
       "scope": "contextual row 7 original broad line-scan camera configuration question after capture-type scope containment",
       "reason": "diagnostic/not-clean broad-query control: retrieval passed, but the answer failed expected_evidence_not_cited and cited LumiTrax line-scan configuration evidence because the visible query does not uniquely state Standard Lighting Mode.",
       "recorded_at": "2026-08-30T18:09:00Z"
+    },
+    {
+      "run_id": "retrieval_eval_20260830_191418",
+      "scope": "contextual procedure rows 9-10 direct in-process diagnostic rerun",
+      "reason": "direct search/answer run before loaded HTTP validation; row 10 still failed expected_evidence_not_cited and this run is not user-visible API evidence"
     }
   ],
   "unresolved_guardrail_findings": [
@@ -11106,7 +11131,7 @@
         "Manual JSONL inspection: user-visible answer cited ece874eb and 05d53cc2; persisted cited content states Standard Lighting line-scan setup and Camera - Trigger - Light Configuration Settings with trigger input and illumination control targets.",
         "Full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 466 passed, 61 warnings."
       ],
-      "remaining": "Rows 9-10 remain the current answer-evidence gap from retrieval_eval_20260830_172950; this run made no rows 9-10 production change."
+      "remaining": "Rows 9-10 were repaired in retrieval_eval_20260830_191713; await guardrail audit before broadening optional rotations."
     },
     {
       "timestamp": "2026-08-30T18:09:00Z",
@@ -11124,7 +11149,7 @@
         "actual HTTP original broad row-7 control retrieval_eval_20260830_180401: retrieval passed, answer failed expected_evidence_not_cited and is excluded",
         "full Docker unit gate with read-only fixture mounts: 465 passed, 59 warnings"
       ],
-      "remaining": "Rows 9-10 remain the current answer-evidence gap from retrieval_eval_20260830_172950; no new rows 9-10 production change was made in this containment run."
+      "remaining": "Rows 9-10 were repaired in retrieval_eval_20260830_191713; await guardrail audit before broadening optional rotations."
     },
     {
       "timestamp": "2026-08-30T17:11:30Z",
@@ -13635,5 +13660,5 @@
     "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
     "updated_at": "2026-08-30T12:08:00Z"
   },
-  "remaining": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_184709 as fresh clean row-7 mixed capture-scope evidence, preserve retrieval_eval_20260830_180232 as earlier clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection."
+  "remaining": "Await guardrail audit of retrieval_eval_20260830_191713; if accepted, broaden to the next guardrail-prioritized retrieval or answer-grounding target while preserving loaded-runtime proof and manual citation-payload inspection. The previous contextual rows 9-10 answer-evidence gap is clean in loaded HTTP evidence: row 9 cites section_window 868847f1 with disabled image-capture-buffer and receiving-trigger-input allowed/prohibited text; row 10 cites atomic bc2a9550 with the one-camera/multiple-cameras same-capture-priority condition and persisted disabled-buffer context."
 }

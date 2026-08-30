@@ -1271,11 +1271,127 @@ def _multi_part_fallback_evidence_results(query: str, ordered_results: list[Sear
     return []
 
 
+def _image_capture_buffer_query_terms(query: str) -> set[str]:
+    query_terms = _answer_terms(query)
+    if not {"image", "capture", "buffer"}.issubset(query_terms):
+        return set()
+    return query_terms
+
+
+def _image_capture_buffer_evidence_score(query_terms: set[str], result: SearchResult) -> float:
+    evidence = _fallback_answer_text(result)
+    normalized = " ".join(re.findall(r"[a-z0-9]+", evidence.lower()))
+    evidence_terms = _answer_terms(evidence)
+    has_buffer_context = {"image", "capture", "buffer"}.issubset(evidence_terms) or bool(
+        re.search(r"\bimage\s+capture\s+buffer\b", normalized)
+    )
+    has_same_priority_role = bool(re.search(r"\bsame\s+capture\s+priority\s+condition\b", normalized))
+    if not has_buffer_context and not has_same_priority_role:
+        return 0.0
+
+    score = min(4.0, float(len(query_terms.intersection(evidence_terms))))
+    if re.search(r"\bimage\s+capture\s+buffer\b.{0,80}\bdisabled\b", normalized):
+        score += 4.0
+    elif "disabled" in query_terms and "disabled" in evidence_terms:
+        score += 1.0
+
+    if "trigger" in query_terms and {"input", "inputs"}.intersection(query_terms):
+        if re.search(r"\btrigger\s+inputs?\b", normalized):
+            score += 2.0
+        if {"allowed", "prohibited"}.intersection(evidence_terms) or {"permitted", "prohibited"}.issubset(evidence_terms):
+            score += 2.0
+        if re.search(r"\breceiving\s+trigger\s+inputs?\b", normalized):
+            score += 1.0
+        if "progress" in query_terms and re.search(r"\bflow\b.{0,50}\bstopped\b|\bany\s+other\s+time\b", normalized):
+            score += 1.0
+
+    if {"camera", "cameras", "multiple", "condition"}.intersection(query_terms):
+        if re.search(r"\bone\s+camera\b|\bmultiple\s+cameras\b", normalized):
+            score += 2.0
+        if re.search(r"\bsame\s+capture\s+priority\s+condition\b", normalized):
+            score += 4.0
+        elif {"same", "capture", "priority", "condition"}.issubset(evidence_terms):
+            score += 2.0
+
+    chunk_type = str(result.metadata.get("chunk_type") or "")
+    if chunk_type == "atomic_text":
+        score += 0.6
+    elif chunk_type in {"procedure_record", "section_window"}:
+        score += 0.3
+    return score
+
+
+def _image_capture_buffer_evidence_results(query: str, ordered_results: list[SearchResult]) -> list[SearchResult]:
+    query_terms = _image_capture_buffer_query_terms(query)
+    if not query_terms:
+        return []
+
+    scored = [
+        (_image_capture_buffer_evidence_score(query_terms, result), index, result)
+        for index, result in enumerate(ordered_results[:8])
+    ]
+    scored = [item for item in scored if item[0] >= 5.0]
+    if not scored:
+        return []
+
+    selected: list[SearchResult] = []
+    seen_chunks: set[str] = set()
+
+    def add_best(predicate: Any) -> None:
+        matches = [(score, index, result) for score, index, result in scored if predicate(result)]
+        if not matches:
+            return
+        _score, _index, result = max(matches, key=lambda item: (item[0], -item[1]))
+        if result.chunk_id not in seen_chunks:
+            selected.append(result)
+            seen_chunks.add(result.chunk_id)
+
+    def has_disabled_buffer_state(result: SearchResult) -> bool:
+        return (
+            re.search(
+                r"\bimage\s+capture\s+buffer\b.{0,80}\bdisabled\b",
+                " ".join(re.findall(r"[a-z0-9]+", _fallback_answer_text(result).lower())),
+            )
+            is not None
+        )
+
+    if "trigger" in query_terms and {"input", "inputs"}.intersection(query_terms):
+        add_best(
+            lambda result: re.search(
+                r"\btrigger\s+inputs?\b",
+                " ".join(re.findall(r"[a-z0-9]+", _fallback_answer_text(result).lower())),
+            )
+            is not None
+            and {"allowed", "permitted", "prohibited"}.intersection(_answer_terms(_fallback_answer_text(result)))
+            and ("disabled" not in query_terms or has_disabled_buffer_state(result))
+        )
+
+    if {"camera", "cameras", "multiple", "condition"}.intersection(query_terms):
+        add_best(
+            lambda result: re.search(
+                r"\bone\s+camera\b|\bmultiple\s+cameras\b|\bsame\s+capture\s+priority\s+condition\b",
+                " ".join(re.findall(r"[a-z0-9]+", _fallback_answer_text(result).lower())),
+            )
+            is not None
+        )
+
+    if "disabled" in query_terms:
+        add_best(has_disabled_buffer_state)
+
+    if selected:
+        return selected[:3]
+
+    best_score, _best_index, best_result = max(scored, key=lambda item: (item[0], -item[1]))
+    return [best_result] if best_score >= 6.0 else []
+
+
 def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
     ordered_results = _comparison_scoped_troubleshooting_results(
         query,
         _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results)),
     )
+    if image_buffer_results := _image_capture_buffer_evidence_results(query, ordered_results):
+        return image_buffer_results
     if not _is_comparison_query(query):
         multi_part_results = _multi_part_fallback_evidence_results(query, ordered_results)
         if multi_part_results:
