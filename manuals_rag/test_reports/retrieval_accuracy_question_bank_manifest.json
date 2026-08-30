@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T20:24:00Z",
+  "updated_at": "2026-08-30T20:45:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1098,7 +1098,7 @@
     "answer_grounding_rotation": {
       "scope": "contextual_procedure_rows_9_10_image_capture_buffer_answer_evidence_repair",
       "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_194345.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_201603.jsonl",
       "latest_run": "retrieval_eval_20260830_201603",
       "results": "test_reports/retrieval_eval_results_20260830_201603.jsonl",
       "summary": "test_reports/retrieval_eval_summary_20260830_201603.json",
@@ -1129,7 +1129,8 @@
         "focused retrieval assembly tests: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'assemble_context_preserves_parent_source_for_atomic_fragments or assemble_context_uses_nearest_table_row_group' -> 2 passed, 116 deselected",
         "loaded HTTP answer-mode run retrieval_eval_20260830_201603 -> 2/2 retrieval, 2/2 answers, fallback_validation 2/2",
         "manual JSONL citation/content inspection completed for both 201603 rows",
-        "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 472 passed, 59 warnings"
+        "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 472 passed, 59 warnings",
+        "2026-08-30T20:45:00Z guardrail tracking repair: corrected answer_grounding_rotation.dataset to retrieval_eval_dataset_20260830_201603.jsonl and added deterministic artifact run-id consistency checks."
       ]
     },
     "current_retrieval_failure_categories": {},
@@ -2074,7 +2075,8 @@
           "retrieval_eval_20260830_163816 passed 1/1 retrieval and 1/1 answer grounding through a loaded side API, with manual citation-payload inspection."
         ],
         "required_next_action": "Continue broader source-reviewed actual HTTP answer-grounding rotations from the next unresolved guardrail/current-state target; keep loaded-runtime proof and manual citation-payload inspection before accepting clean evidence."
-      }
+      },
+      "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
     ],
     "answer_grounding_sibling_rows_15_16": {
       "target": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers",
@@ -2155,7 +2157,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T20:24:00Z",
+    "updated_at": "2026-08-30T20:45:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -4097,7 +4099,7 @@
       "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
       "updated_at": "2026-08-30T12:08:00Z"
     },
-    "remaining": "Continue broader source-reviewed contextual answer-grounding coverage after row 10 image-capture-buffer repair. Preserve retrieval_eval_20260830_201603 rows 9-10 as clean only under citation-content inspection: row 10 now cites returned content that directly carries both the disabled image-capture-buffer state and the one-camera/multiple-cameras same-capture-priority condition. Next safe target should come from the latest guardrail finding, then current answer/retrieval failures, without using metadata-only or sibling-context citation support."
+    "remaining": "Continue broader source-reviewed contextual answer-grounding coverage after row 10 image-capture-buffer repair. Preserve retrieval_eval_20260830_201603 rows 9-10 as clean only under citation-content inspection with the corrected 201603 dataset provenance; next safe target should come from the latest guardrail finding, then current answer/retrieval failures, without using metadata-only or sibling-context citation support."
   },
   "latest_false_negative_repair": {
     "scope": "live_app_false_negative_question_4_luminance_output_type",
@@ -10357,7 +10359,7 @@
   "answer_grounding_rotation": {
     "scope": "contextual_procedure_rows_9_10_image_capture_buffer_answer_evidence_repair",
     "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_194345.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260830_201603.jsonl",
     "latest_run": "retrieval_eval_20260830_201603",
     "results": "test_reports/retrieval_eval_results_20260830_201603.jsonl",
     "summary": "test_reports/retrieval_eval_summary_20260830_201603.json",
@@ -10388,7 +10390,8 @@
       "focused retrieval assembly tests: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'assemble_context_preserves_parent_source_for_atomic_fragments or assemble_context_uses_nearest_table_row_group' -> 2 passed, 116 deselected",
       "loaded HTTP answer-mode run retrieval_eval_20260830_201603 -> 2/2 retrieval, 2/2 answers, fallback_validation 2/2",
       "manual JSONL citation/content inspection completed for both 201603 rows",
-      "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 472 passed, 59 warnings"
+      "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 472 passed, 59 warnings",
+      "2026-08-30T20:45:00Z guardrail tracking repair: corrected answer_grounding_rotation.dataset to retrieval_eval_dataset_20260830_201603.jsonl and added deterministic artifact run-id consistency checks."
     ]
   },
   "latest_eval_generation_quality": {
@@ -11759,7 +11762,8 @@
         "retrieval_eval_20260830_163816 passed 1/1 retrieval and 1/1 answer grounding through a loaded side API, with manual citation-payload inspection."
       ],
       "required_next_action": "Continue broader source-reviewed actual HTTP answer-grounding rotations from the next unresolved guardrail/current-state target; keep loaded-runtime proof and manual citation-payload inspection before accepting clean evidence."
-    }
+    },
+    "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
   ],
   "answer_grounding_sibling_rows_15_16": {
     "target": "validated_sibling_troubleshooting_rows_15_16_actual_http_api_answers",
@@ -13704,5 +13708,5 @@
     "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
     "updated_at": "2026-08-30T12:08:00Z"
   },
-  "remaining": "Continue broader source-reviewed contextual answer-grounding coverage after row 10 image-capture-buffer repair. Preserve retrieval_eval_20260830_201603 rows 9-10 as clean only under citation-content inspection: row 10 now cites returned content that directly carries both the disabled image-capture-buffer state and the one-camera/multiple-cameras same-capture-priority condition. Next safe target should come from the latest guardrail finding, then current answer/retrieval failures, without using metadata-only or sibling-context citation support."
+  "remaining": "Continue broader source-reviewed contextual answer-grounding coverage after row 10 image-capture-buffer repair. Preserve retrieval_eval_20260830_201603 rows 9-10 as clean only under citation-content inspection with the corrected 201603 dataset provenance; next safe target should come from the latest guardrail finding, then current answer/retrieval failures, without using metadata-only or sibling-context citation support."
 }

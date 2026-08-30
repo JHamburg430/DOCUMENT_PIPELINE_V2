@@ -27,7 +27,14 @@ def _minimal_manifest():
         "next_target": "continue source-first evidence selection",
         "remaining": "continue source-first evidence selection",
         "answer_grounding_status": {"rows": "diagnostic"},
-        "answer_grounding_rotation": {"next": "rows 15-17"},
+        "answer_grounding_rotation": {
+            "latest_run": "retrieval_eval_20260830_201603",
+            "dataset": "test_reports/retrieval_eval_dataset_20260830_201603.jsonl",
+            "results": "test_reports/retrieval_eval_results_20260830_201603.jsonl",
+            "summary": "test_reports/retrieval_eval_summary_20260830_201603.json",
+            "manifest": "test_reports/retrieval_eval_manifest_20260830_201603.json",
+            "next": "rows 15-17",
+        },
         "run_exclusions": {"excluded": ["retrieval_eval_20260826_170130"]},
         "unresolved_guardrail_findings": ["source-first citation fidelity"],
         "current_retrieval_failure_source": "retrieval_eval_20260826_005723",
@@ -127,6 +134,43 @@ def test_manifest_checker_rejects_missing_or_unequal_remaining():
         for error in module.check_manifest(missing_nested)
     )
     assert any("remaining mismatch" in error for error in module.check_manifest(unequal))
+
+
+def test_manifest_checker_rejects_answer_grounding_rotation_artifact_run_mismatch():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["answer_grounding_rotation"][
+        "dataset"
+    ] = "test_reports/retrieval_eval_dataset_20260830_194345.jsonl"
+    manifest["question_bank"]["answer_grounding_rotation"][
+        "dataset"
+    ] = "test_reports/retrieval_eval_dataset_20260830_194345.jsonl"
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "answer_grounding_rotation.dataset run id mismatch" in error for error in errors
+    )
+    assert any(
+        "question_bank.answer_grounding_rotation.dataset run id mismatch" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_nested_answer_grounding_rotation_artifact_run_mismatch():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["question_bank"]["answer_grounding_rotation"][
+        "results"
+    ] = "test_reports/retrieval_eval_results_20260830_194345.jsonl"
+
+    errors = module.check_manifest(manifest)
+
+    assert any("answer_grounding_rotation mismatch" in error for error in errors)
+    assert any(
+        "question_bank.answer_grounding_rotation.results run id mismatch" in error
+        for error in errors
+    )
 
 
 def test_manifest_checker_rejects_stale_remaining_row_target():

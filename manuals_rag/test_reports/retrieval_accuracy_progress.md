@@ -5171,3 +5171,18 @@ Next target:
 Next target:
 
 - Await guardrail audit of `retrieval_eval_20260830_191713`; if accepted, broaden to the next guardrail-prioritized retrieval or answer-grounding target while preserving loaded-runtime proof and manual citation-payload inspection.
+
+## 2026-08-30 Cron 39262386 Row 9-10 Dataset Provenance Guardrail Repair
+
+- Target: address the latest guardrail `needs_fix` from `2026-08-30T20:35:00Z` / guardrail commit `2425cfa`, which found that `retrieval_eval_20260830_201603` row 9/10 answer evidence appears source-backed but the durable `answer_grounding_rotation.dataset` pointer still referenced `test_reports/retrieval_eval_dataset_20260830_194345.jsonl`.
+- Guardrail review: direct guardrail cron history was available and reported `needs_fix` for the stale dataset provenance pointer. The primary checkout remains behind `origin/main` with unrelated dirty UI/retrieval/eval/test/compose/artifact changes, so this run used clean detached worktree `/tmp/manuals_rag_accuracy_cron_20260830_qSCxCT/manuals_rag/manuals_rag` at `origin/main` `2425cfa` and preserved the primary checkout state.
+- Change: corrected both root and `question_bank` `answer_grounding_rotation.dataset` to `test_reports/retrieval_eval_dataset_20260830_201603.jsonl`. Added deterministic manifest validation so `answer_grounding_rotation.latest_run`, `dataset`, `results`, `summary`, and `manifest` cannot silently point to different `retrieval_eval_*` run ids when those artifact paths carry run ids.
+- Evidence: inspected `test_reports/retrieval_eval_results_20260830_201603.jsonl`; row 9 cites `c2f26c3b` and row 10 cites `bc2a9550`, both with `quote_span: null` and `evidence_citation_support.passed=true`. This run did not create new answer evidence or broaden coverage; it repaired provenance for the already source-reviewed `201603` claim.
+- Validation: `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` -> manifest consistency OK. Focused Docker manifest tests -> 30 passed. Explicit copied-real-manifest controls behaved as required: equal manifest passed; changing both dataset pointers back to `194345` failed for root and `question_bank`; deleting root `answer_grounding_rotation` failed; deleting `question_bank.answer_grounding_rotation` failed. Full Docker unit gate with read-only `tmp_eval_docs*` fixture mounts -> 474 passed, 59 warnings. `git diff --check HEAD` passed.
+- Tracking: current retrieval failures remain `{}` and current answer failures remain `{}`. Active exploratory coverage remains 208 questions total: 101 single-step and 107 multi-step; replacement debt remains 0. Existing run exclusions and prior diagnostic classifications were preserved.
+- Scope/provenance: changed only the manifest checker, focused manifest-check tests, progress log, and manifest tracking. No production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed.
+- Generalization check before commit: this repair is valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it keeps durable evidence provenance internally consistent and fail-closed instead of relying on a stale dataset path.
+
+Next target:
+
+- Continue broader source-reviewed contextual answer-grounding coverage from the latest guardrail-prioritized target or current eval failures. Preserve `retrieval_eval_20260830_201603` rows 9-10 as clean only with the corrected `201603` dataset provenance and manual citation-content inspection; do not accept metadata-only, sibling-context, or stale-path evidence as clean.

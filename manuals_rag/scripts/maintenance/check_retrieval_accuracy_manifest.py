@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -55,6 +56,9 @@ ANSWER_FAILURE_ALIASES = (
 )
 
 _MISSING = object()
+_RUN_ID_RE = re.compile(
+    r"retrieval_eval_(?:dataset_|results_|summary_|manifest_)?(\d{8}_\d{6})"
+)
 
 
 def _target_row_refs(value: Any) -> set[str]:
@@ -132,6 +136,35 @@ def _require_same(label: str, values: dict[str, Any], errors: list[str]) -> None
         _same(label, values, errors)
 
 
+def _run_id_from_value(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    match = _RUN_ID_RE.search(value)
+    if not match:
+        return None
+    return f"retrieval_eval_{match.group(1)}"
+
+
+def _check_answer_grounding_rotation_artifacts(
+    label: str, rotation: Any, errors: list[str]
+) -> None:
+    if not isinstance(rotation, dict):
+        return
+    latest_run = rotation.get("latest_run")
+    if not isinstance(latest_run, str):
+        return
+    for key in ("dataset", "results", "summary", "manifest"):
+        value = rotation.get(key)
+        artifact_run = _run_id_from_value(value)
+        if artifact_run is None:
+            continue
+        if artifact_run != latest_run:
+            errors.append(
+                f"{label}.{key} run id mismatch: latest_run={latest_run!r} "
+                f"but {key}={value!r}"
+            )
+
+
 def check_manifest(data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     question_bank = data.get("question_bank")
@@ -170,6 +203,16 @@ def check_manifest(data: dict[str, Any]) -> list[str]:
             f"question_bank.{field}": _get_path(data, f"question_bank.{field}")
             for field in ANSWER_FAILURE_ALIASES
         },
+        errors,
+    )
+    _check_answer_grounding_rotation_artifacts(
+        "answer_grounding_rotation",
+        _get_path(data, "answer_grounding_rotation"),
+        errors,
+    )
+    _check_answer_grounding_rotation_artifacts(
+        "question_bank.answer_grounding_rotation",
+        _get_path(data, "question_bank.answer_grounding_rotation"),
         errors,
     )
 
