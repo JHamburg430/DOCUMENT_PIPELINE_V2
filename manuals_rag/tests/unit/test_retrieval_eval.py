@@ -1860,7 +1860,7 @@ def test_answer_response_scoring_accepts_operation_fact_terms_from_source_eviden
     assert scored["term_check"]["material_matched_terms"] == ["performs", "multiple", "image", "captures"]
 
 
-def test_answer_response_scoring_accepts_expected_role_from_cited_local_context():
+def test_answer_response_scoring_rejects_expected_role_only_from_cited_local_context():
     case = RetrievalEvalCase(
         case_id="answer-operation-source-context-clean",
         query=(
@@ -1932,8 +1932,16 @@ def test_answer_response_scoring_accepts_expected_role_from_cited_local_context(
         ],
     )
 
-    assert scored["passed"] is True
-    assert scored["evidence_citation_support"]["passed"] is True
+    assert scored["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+    assert scored["evidence_citation_support"]["missing_evidence"] == [
+        {
+            "chunk_id": "timing-chart",
+            "source_document_id": "doc-cvx",
+            "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
+            "reason": "expected_evidence_not_supported_by_citations",
+        }
+    ]
 
 
 def test_answer_response_scoring_rejects_composite_chunk_without_source_role_terms():
