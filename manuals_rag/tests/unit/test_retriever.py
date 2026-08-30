@@ -1162,6 +1162,130 @@ def test_select_family_candidates_prefers_table_family_for_structured_lookup():
     assert "prose" not in [item.chunk_id for item in chosen]
 
 
+def test_direct_configuration_promotion_prefers_scoped_detail_candidate():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    analysis = analyze_query(query)
+    broad_trigger = SearchResult(
+        chunk_id="standard-trigger",
+        score=9.0,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[983],
+        section_path=["Standard Lighting Mode"],
+        content=(
+            "Capture Using Line Scan Cameras (Standard Lighting Mode). Trigger Settings "
+            "specify the settings for triggering the controller to take an image."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    direct_standard = SearchResult(
+        chunk_id="standard-camera-trigger-light",
+        score=1.2,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[978, 979],
+        section_path=["Standard Lighting Mode"],
+        content=(
+            "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+            "Camera: Trigger - Light Configuration Settings. The connected cameras and "
+            "illumination expansion units, trigger input for each camera, and illumination "
+            "control targets can be configured together."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    wrong_mode = SearchResult(
+        chunk_id="lumitrax-camera-trigger-light",
+        score=1.3,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1001],
+        section_path=["LumiTrax Specular Reflection Mode"],
+        content=(
+            "Capture Using Line Scan Cameras (LumiTrax Specular Reflection Mode). "
+            "Camera: Trigger - Light Configuration Settings. The connected cameras and "
+            "illumination expansion units, trigger input for each camera, and illumination "
+            "control targets can be configured together."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    promoted = retriever._promote_direct_configuration_candidates(
+        [broad_trigger],
+        [wrong_mode, direct_standard],
+        analysis,
+        limit=3,
+    )
+
+    assert [result.chunk_id for result in promoted[:2]] == [
+        "standard-camera-trigger-light",
+        "standard-trigger",
+    ]
+    assert promoted[0].metadata["retrieval_stage"] == "direct_configuration_promoted"
+
+
+def test_direct_configuration_promotion_rejects_wrong_scope_and_label_only_candidates():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    analysis = analyze_query(query)
+    primary = SearchResult(
+        chunk_id="standard-trigger",
+        score=9.0,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[983],
+        section_path=["Standard Lighting Mode"],
+        content="Capture Using Line Scan Cameras (Standard Lighting Mode). Trigger Settings.",
+        metadata={"chunk_type": "section_window"},
+    )
+    label_only = SearchResult(
+        chunk_id="standard-label-only",
+        score=1.2,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[978],
+        section_path=["Standard Lighting Mode"],
+        content=(
+            "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+            "Camera: Trigger - Light Configuration Settings."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    wrong_mode = SearchResult(
+        chunk_id="lumitrax-details",
+        score=1.3,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1001],
+        section_path=["LumiTrax Specular Reflection Mode"],
+        content=(
+            "Capture Using Line Scan Cameras (LumiTrax Specular Reflection Mode). "
+            "Camera: Trigger - Light Configuration Settings. The trigger input for each camera "
+            "and illumination control targets can be configured together."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    promoted = retriever._promote_direct_configuration_candidates(
+        [primary],
+        [label_only, wrong_mode],
+        analysis,
+        limit=3,
+    )
+
+    assert promoted == [primary]
+
+
 def test_structured_lookup_family_scoring_demotes_table_header_chunks():
     analysis = analyze_query("What address applies to IV4-G120?")
     header = SearchResult(

@@ -1029,11 +1029,50 @@ def _direct_configuration_detail_supported(query: str, evidence: str) -> bool:
     return has_trigger_input and has_light_target
 
 
-def _configuration_requested_candidate(
-    query: str, query_terms: set[str], scored: list[tuple[float, int, SearchResult]]
+def _configuration_setup_candidate(
+    query: str,
+    configuration_result: SearchResult,
+    scored: list[tuple[float, int, SearchResult]],
 ) -> SearchResult | None:
-    if "configuration" not in query_terms:
+    if not _explicit_scope_phrase_groups(query):
         return None
+    matches: list[tuple[float, int, SearchResult]] = []
+    for _score, index, result in scored:
+        if result.chunk_id == configuration_result.chunk_id:
+            continue
+        if result.source_document_id != configuration_result.source_document_id:
+            continue
+        if not _explicit_scope_phrases_supported(query, result):
+            continue
+        evidence = _fallback_answer_text(result)[:1200]
+        normalized = " ".join(re.findall(r"[a-z0-9]+", evidence.lower()))
+        has_setup_action = (
+            re.search(r"\b(change|configure|adjust|set)\b.{0,60}\bsettings?\b", normalized) is not None
+            or re.search(r"\bsettings?\b.{0,60}\b(change|configure|adjust|set)\b", normalized) is not None
+        )
+        has_setup_context = (
+            "capture environment" in normalized
+            or "line camera setting navigation" in normalized
+            or "line scan camera" in normalized
+        )
+        if not (has_setup_action and has_setup_context):
+            continue
+        candidate_score = _fallback_evidence_score(query, result)
+        if str(result.metadata.get("chunk_type") or "") == "procedure_record":
+            candidate_score += 1.0
+        if "capture environment" in normalized:
+            candidate_score += 1.0
+        matches.append((candidate_score, index, result))
+    if not matches:
+        return None
+    return max(matches, key=lambda item: (item[0], -item[1]))[2]
+
+
+def _configuration_requested_candidates(
+    query: str, query_terms: set[str], scored: list[tuple[float, int, SearchResult]]
+) -> list[SearchResult]:
+    if "configuration" not in query_terms:
+        return []
     candidates = [
         (score + _direct_configuration_label_score(query, _fallback_answer_text(result)[:1000]), index, result)
         for score, index, result in scored
@@ -1046,11 +1085,14 @@ def _configuration_requested_candidate(
         > 0.0
     ]
     if not candidates:
-        return None
+        return []
     best_score, _best_index, best_result = max(candidates, key=lambda item: (item[0], -item[1]))
     if best_score >= 2.0:
-        return best_result
-    return None
+        selected = [best_result]
+        if support := _configuration_setup_candidate(query, best_result, scored):
+            selected.append(support)
+        return selected
+    return []
 
 
 def _requires_direct_configuration_evidence(query: str) -> bool:
@@ -1189,8 +1231,8 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
                 if not _explicit_scope_has_candidate(query, [result for _score, _index, result in scored]):
                     return []
                 query_terms = _answer_terms(query)
-                if configuration_result := _configuration_requested_candidate(query, query_terms, scored):
-                    return [configuration_result]
+                if configuration_results := _configuration_requested_candidates(query, query_terms, scored):
+                    return configuration_results
                 if _requires_direct_configuration_evidence(query):
                     return []
                 first_score = scored[0][0]

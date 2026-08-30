@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T16:02:05Z",
+  "updated_at": "2026-08-30T16:47:30Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1092,18 +1092,31 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {
-      "insufficient_evidence": 1,
-      "expected_terms_missing": 1,
-      "expected_evidence_not_cited": 1
-    },
-    "next_target": "Continue contextual row 7 as a retrieval-to-answer evidence gap after claim-level validator containment: fallback selection and validate_answer now refuse wrong-mode, broad same-mode, and direct-label-only Camera-Trigger-Light evidence when the cited chunk does not support trigger-input plus illumination-control-target details. Next source-review or improve retrieval/answer candidate coverage so Standard Lighting direct configuration evidence 93d11edf, or a source-reviewed equivalent that directly states Camera: Trigger - Light Configuration Settings plus trigger/light assignment details, is present in user-visible answer evidence; rerun loaded HTTP and manually inspect citations before accepting clean evidence.",
-    "answer_grounding_status": "2026-08-30 claim-level direct-configuration containment: direct camera/trigger/light configuration questions now require same-scope evidence that states both the configuration label and the retained trigger/light assignment details. Loaded side API manuals-rag-temp-api-39262386-20260830-claim on http://127.0.0.1:8741 loaded validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 b6f97b501bd958c7e526faa02b451d982a7c889c94e77cb46557e9f866f791a5, _configuration_requested_candidate sha256 a3e428c27a4ed3b039a93226ffb8c6283f9263b434f4f6053bfc11bacb8c1932, and _direct_configuration_detail_supported sha256 67e33864bf2b0a37f0020bfd4a5d2eb3326d7da8873ed9015d661e38374e369f. Loaded controls: label-only same-mode evidence returned insufficient_evidence=true with citations=[], while direct same-mode evidence with trigger input plus illumination control targets retained the answer and cited standard-config. Actual HTTP row 7 rerun retrieval_eval_20260830_155841 retrieved expected evidence at rank 1 but remains diagnostic/not-clean: user-visible answer is insufficient_evidence=true with citations=[] and validation-fallback trace. Current retrieval failures remain {}; current answer failures remain insufficient_evidence/expected_terms_missing/expected_evidence_not_cited: 1 each.",
+    "answer_current_failure_categories": {},
+    "next_target": "Continue broader source-reviewed actual HTTP answer-grounding coverage after contextual row 7 direct-configuration repair. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence.",
+    "answer_grounding_status": "2026-08-30 row 7 direct-configuration evidence repair: retrieval now promotes explicit-scope Camera-Trigger-Light configuration evidence only when the candidate directly states the configuration label plus trigger-input and illumination-control-target details, and also carries same-scope setup context when available. Answer fallback now keeps the same-scope setup candidate with the direct configuration evidence instead of dropping it. Loaded side API manuals-rag-temp-api-39262386-20260830-row7-direct-config on http://127.0.0.1:8743 loaded retrieve sha256 ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3, _promote_direct_configuration_candidates sha256 7ef7af4e1f9575782d9de69a2f981d820e3c4158baaeed465d4e7a0d420943d2, _direct_configuration_setup_candidate sha256 d532c45745484a1d1f08f0636ae87f4c0c2381aa0708e0c71823efb5a34256af, validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f, _configuration_requested_candidates sha256 c2ab843d14fc4c818349aae5bc9da84cadac830040ec4ed814011677db7f3af3, and _configuration_setup_candidate sha256 ff13ddc85e3eff109d5e8bf7bdacde9678b1e0f4f2673a5ee8eac2a779cd30e9. Actual HTTP row 7 rerun retrieval_eval_20260830_163816 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation. Manual JSONL inspection confirms the user-visible answer cites ece874eb; its persisted cited payload contains both Procedure step 2/change settings in accordance with the capture environment and the Camera - Trigger - Light Configuration Settings text stating trigger input for each camera and illumination control targets. Current retrieval and answer failure aliases are now {} for this rotation.",
     "answer_grounding_rotation": {
-      "scope": "contextual_procedure_row7_direct_configuration_claim_level_containment",
-      "classification": "safer_insufficient_evidence_diagnostic_not_clean",
-      "latest_run": "retrieval_eval_20260830_155841",
-      "baseline_run": "retrieval_eval_20260830_145838",
+      "scope": "contextual_procedure_row7_direct_configuration_evidence_repair",
+      "classification": "clean_loaded_http_answer_evidence_after_manual_citation_payload_inspection",
+      "baseline_run": "retrieval_eval_20260830_155841",
+      "latest_run": "retrieval_eval_20260830_163816",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_155841.jsonl",
+      "saved_datasets": [
+        "test_reports/retrieval_eval_dataset_20260830_163238.jsonl",
+        "test_reports/retrieval_eval_dataset_20260830_163816.jsonl"
+      ],
+      "results": [
+        "test_reports/retrieval_eval_results_20260830_163238.jsonl",
+        "test_reports/retrieval_eval_results_20260830_163816.jsonl"
+      ],
+      "summaries": [
+        "test_reports/retrieval_eval_summary_20260830_163238.json",
+        "test_reports/retrieval_eval_summary_20260830_163816.json"
+      ],
+      "manifests": [
+        "test_reports/retrieval_eval_manifest_20260830_163238.json",
+        "test_reports/retrieval_eval_manifest_20260830_163816.json"
+      ],
       "prior_partial_runs": [
         "retrieval_eval_20260830_130420",
         "retrieval_eval_20260830_130550",
@@ -1113,47 +1126,29 @@
         "retrieval_eval_20260830_140312",
         "retrieval_eval_20260830_143453",
         "retrieval_eval_20260830_145838",
-        "retrieval_eval_20260830_153044"
+        "retrieval_eval_20260830_153044",
+        "retrieval_eval_20260830_155841",
+        "retrieval_eval_20260830_163238"
       ],
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_145838.jsonl",
-      "saved_datasets": [
-        "test_reports/retrieval_eval_dataset_20260830_153044.jsonl",
-        "test_reports/retrieval_eval_dataset_20260830_155841.jsonl"
-      ],
-      "results": [
-        "test_reports/retrieval_eval_results_20260830_153044.jsonl",
-        "test_reports/retrieval_eval_results_20260830_155841.jsonl"
-      ],
-      "summaries": [
-        "test_reports/retrieval_eval_summary_20260830_153044.json",
-        "test_reports/retrieval_eval_summary_20260830_155841.json"
-      ],
-      "manifests": [
-        "test_reports/retrieval_eval_manifest_20260830_153044.json",
-        "test_reports/retrieval_eval_manifest_20260830_155841.json"
-      ],
-      "retrieval_result": "Loaded actual HTTP rerun retrieval_eval_20260830_155841 retrieved expected row 7 evidence at rank 1 with candidate and metadata-document recall 100%.",
-      "answer_result": "Loaded actual HTTP rerun failed 0/1 answer grounding with insufficient_evidence, expected_terms_missing, and expected_evidence_not_cited. This is safer diagnostic containment, not clean answer evidence.",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_155841.jsonl. The case expected chunks ece874eb and 93d11edf; retrieval matched both, with 93d11edf at rank 1 and ece874eb at rank 3. The user-visible answer is \"I could not answer from the available evidence.\", insufficient_evidence=true, citations=[], and _eval_trace reports answer_source=fallback_validation/used_fallback=true. No clean row-7 answer evidence is accepted.",
-      "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-claim on http://127.0.0.1:8741 loaded validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 b6f97b501bd958c7e526faa02b451d982a7c889c94e77cb46557e9f866f791a5, _configuration_requested_candidate sha256 a3e428c27a4ed3b039a93226ffb8c6283f9263b434f4f6053bfc11bacb8c1932, _direct_configuration_detail_supported sha256 67e33864bf2b0a37f0020bfd4a5d2eb3326d7da8873ed9015d661e38374e369f, and _direct_configuration_label_score sha256 f0281e050909738190f64b6016856395e730a8bcaa6f3487136152461f37046d. Models stayed checked-in: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2.",
+      "retrieval_result": "Loaded actual HTTP rerun retrieval_eval_20260830_163816 passed 1/1 retrieval; direct configuration promotion placed same-scope Standard Lighting section_window ccd9c7e8 first and setup procedure ece874eb second in focused retrieval smoke evidence before the HTTP run.",
+      "answer_result": "Loaded actual HTTP rerun retrieval_eval_20260830_163816 passed 1/1 answer grounding with source fallback_validation after manual citation-payload inspection. Earlier same-run retrieval_eval_20260830_163238 is preserved as diagnostic/not-clean because answer grounding failed expected_evidence_not_cited before setup evidence was retained with the direct configuration candidate.",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_163816.jsonl. The user-visible answer cites ece874eb and edcd5d51. The cited persisted payload for ece874eb contains Procedure step 2, the source sentence to change settings in accordance with the capture environment, Camera - Trigger - Light Configuration Settings, and the source sentence that connected cameras/illumination expansion units, trigger input for each camera, and illumination control targets can be configured together. This satisfies expected setup role ece874eb and source-reviewed direct-configuration-equivalent support for 93d11edf; edcd5d51 is an extra broad same-scope preparation citation and is not used to satisfy the direct configuration role.",
       "changed_path_controls": {
-        "negative_direct_label_only": "Loaded validate_answer control returned insufficient_evidence=true, answer \"I could not answer from the available evidence.\", and citations=[] for a plausible answer whose only same-mode evidence merely stated Camera: Trigger - Light Configuration Settings without trigger-input or illumination-control-target details.",
-        "positive_direct_same_mode_with_details": "Loaded validate_answer control retained the plausible Camera: Trigger - Light Configuration Settings answer and reconstructed a standard-config citation when the candidate directly stated the configuration label plus trigger input and illumination control targets.",
-        "actual_http_row7": "retrieval_eval_20260830_155841 exercised the loaded HTTP path and remained diagnostic/not-clean with insufficient_evidence=true and citations=[]."
+        "focused_retrieval_smoke": "Retriever.retrieve for the repaired Standard Lighting query returned ccd9c7e8 with retrieval_stage direct_configuration_promoted at rank 1 and ece874eb with retrieval_stage direct_configuration_setup_promoted at rank 2.",
+        "actual_http_row7_before_answer_patch": "retrieval_eval_20260830_163238 is diagnostic/not-clean: retrieval passed but answer failed expected_evidence_not_cited after citing only the direct configuration section without the expected setup role.",
+        "actual_http_row7_after_answer_patch": "retrieval_eval_20260830_163816 is clean for this row: answer cites ece874eb persisted payload containing both setup and direct configuration-equivalent evidence."
       },
+      "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-row7-direct-config on http://127.0.0.1:8743 loaded retrieve sha256 ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3, _promote_direct_configuration_candidates sha256 7ef7af4e1f9575782d9de69a2f981d820e3c4158baaeed465d4e7a0d420943d2, _direct_configuration_setup_candidate sha256 d532c45745484a1d1f08f0636ae87f4c0c2381aa0708e0c71823efb5a34256af, _direct_configuration_result_score sha256 0a1615acb41b3ca6af5fa7c54335a7109d66ef6b68bd953ddcda13d83871ba66, validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f, _configuration_requested_candidates sha256 c2ab843d14fc4c818349aae5bc9da84cadac830040ec4ed814011677db7f3af3, and _configuration_setup_candidate sha256 ff13ddc85e3eff109d5e8bf7bdacde9678b1e0f4f2673a5ee8eac2a779cd30e9. Models stayed checked-in: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2.",
       "validation": [
-        "Focused answering controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'direct_label_without_trigger_light_details or trigger_light_details or configuration_fallback' -> 8 passed, 74 deselected.",
-        "Full Docker unit gate with read-only fixture mounts passed: 458 passed, 59 warnings.",
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before and after tracking update."
+        "Focused retriever controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'direct_configuration_promotion or configuration' -> 3 passed, 112 deselected.",
+        "Focused answering controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'configuration_fallback or direct_configuration' -> 8 passed, 75 deselected.",
+        "Full Docker unit gate with read-only fixture mounts passed: 461 passed, 59 warnings.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed after tracking update."
       ],
-      "remaining": "Row 7 still needs retrieval/answer candidate coverage or a source-reviewed equivalent for direct Standard Lighting configuration evidence before clean answer evidence can be accepted."
+      "remaining": "Row 7 direct-configuration evidence gap is repaired for the source-reviewed Standard Lighting question. Continue broader source-reviewed actual HTTP answer-grounding rotations; keep prior row 7 diagnostic exclusions and do not treat retrieval_eval_20260830_163238 as clean."
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {
-      "insufficient_evidence": 1,
-      "expected_terms_missing": 1,
-      "expected_evidence_not_cited": 1
-    },
+    "current_answer_failure_categories": {},
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1440,6 +1435,13 @@
         "scope": "contextual procedure row 7 direct-configuration claim-level containment rerun",
         "reason": "diagnostic/not-clean: retrieval passed expected evidence at rank 1, but user-visible answer returned insufficient evidence with no citations after label-only/broad direct-configuration validation failed closed; preserves containment without accepting clean row-7 answer evidence",
         "recorded_at": "2026-08-30T16:02:05Z"
+      },
+      {
+        "run_id": "retrieval_eval_20260830_163238",
+        "recorded_at": "2026-08-30T16:47:30Z",
+        "scope": "contextual procedure row 7 direct-configuration retrieval promotion pre-answer-retention rerun",
+        "reason": "diagnostic/not-clean: retrieval passed but answer failed expected_evidence_not_cited before same-scope setup evidence was retained with direct configuration fallback evidence.",
+        "evidence": "Manual inspection showed user-visible answer/citations did not yet cover every expected row 7 evidence role; final clean evidence comes from retrieval_eval_20260830_163816."
       }
     ],
     "unresolved_guardrail_findings": [
@@ -1975,6 +1977,21 @@
           "manual JSONL inspection of retrieval_eval_results_20260830_120143 cited persisted metadata.content"
         ],
         "required_next_action": "Continue with contextual procedure row 7 answer evidence selection from retrieval_eval_20260830_063002: retrieval found expected capture-environment and Camera - Trigger - Light Configuration chunks, but the user-visible fallback answer cited only broad preparation chunk edcd5d51. Preserve row 8 as clean deferred evidence from retrieval_eval_20260830_063002 now that rows 5-6 citation-fidelity containment is resolved."
+      },
+      {
+        "timestamp": "2026-08-30T16:47:30Z",
+        "severity": "needs_fix",
+        "finding": "Contextual row 7 Standard Lighting direct-configuration evidence gap after claim-level direct-configuration containment required clean loaded HTTP evidence with a cited payload supporting both setup and Camera-Trigger-Light configuration roles.",
+        "status": "addressed_this_run_clean_loaded_http_row7_direct_configuration_evidence",
+        "evidence": [
+          "Source-reviewed ccd9c7e8 as same-document Standard Lighting Camera: Trigger - Light Configuration Settings evidence with trigger input and illumination control targets.",
+          "Source-reviewed ece874eb persisted cited payload as containing the capture-environment setup step plus the direct configuration table context/details used for source-reviewed equivalence to 93d11edf.",
+          "Added general explicit-scope direct-configuration retrieval promotion and same-scope setup promotion without document/vendor/query hardcoding.",
+          "Added answer fallback retention of same-scope setup evidence alongside direct configuration evidence.",
+          "retrieval_eval_20260830_163238 preserved as diagnostic/not-clean expected_evidence_not_cited.",
+          "retrieval_eval_20260830_163816 passed 1/1 retrieval and 1/1 answer grounding through a loaded side API, with manual citation-payload inspection."
+        ],
+        "required_next_action": "Continue broader source-reviewed actual HTTP answer-grounding rotations from the next unresolved guardrail/current-state target; keep loaded-runtime proof and manual citation-payload inspection before accepting clean evidence."
       }
     ],
     "answer_grounding_sibling_rows_15_16": {
@@ -2056,7 +2073,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T16:02:05Z",
+    "updated_at": "2026-08-30T16:47:30Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3998,7 +4015,7 @@
       "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
       "updated_at": "2026-08-30T12:08:00Z"
     },
-    "remaining": "Continue contextual row 7 as a retrieval-to-answer evidence gap after claim-level validator containment: fallback selection and validate_answer now refuse wrong-mode, broad same-mode, and direct-label-only Camera-Trigger-Light evidence when the cited chunk does not support trigger-input plus illumination-control-target details. Next source-review or improve retrieval/answer candidate coverage so Standard Lighting direct configuration evidence 93d11edf, or a source-reviewed equivalent that directly states Camera: Trigger - Light Configuration Settings plus trigger/light assignment details, is present in user-visible answer evidence; rerun loaded HTTP and manually inspect citations before accepting clean evidence."
+    "remaining": "Continue broader source-reviewed actual HTTP answer-grounding coverage after contextual row 7 direct-configuration repair. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence."
   },
   "latest_false_negative_repair": {
     "scope": "live_app_false_negative_question_4_luminance_output_type",
@@ -9946,7 +9963,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Continue contextual row 7 as a retrieval-to-answer evidence gap after claim-level validator containment: fallback selection and validate_answer now refuse wrong-mode, broad same-mode, and direct-label-only Camera-Trigger-Light evidence when the cited chunk does not support trigger-input plus illumination-control-target details. Next source-review or improve retrieval/answer candidate coverage so Standard Lighting direct configuration evidence 93d11edf, or a source-reviewed equivalent that directly states Camera: Trigger - Light Configuration Settings plus trigger/light assignment details, is present in user-visible answer evidence; rerun loaded HTTP and manually inspect citations before accepting clean evidence.",
+  "next_target": "Continue broader source-reviewed actual HTTP answer-grounding coverage after contextual row 7 direct-configuration repair. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10230,17 +10247,30 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {
-    "insufficient_evidence": 1,
-    "expected_terms_missing": 1,
-    "expected_evidence_not_cited": 1
-  },
-  "answer_grounding_status": "2026-08-30 claim-level direct-configuration containment: direct camera/trigger/light configuration questions now require same-scope evidence that states both the configuration label and the retained trigger/light assignment details. Loaded side API manuals-rag-temp-api-39262386-20260830-claim on http://127.0.0.1:8741 loaded validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 b6f97b501bd958c7e526faa02b451d982a7c889c94e77cb46557e9f866f791a5, _configuration_requested_candidate sha256 a3e428c27a4ed3b039a93226ffb8c6283f9263b434f4f6053bfc11bacb8c1932, and _direct_configuration_detail_supported sha256 67e33864bf2b0a37f0020bfd4a5d2eb3326d7da8873ed9015d661e38374e369f. Loaded controls: label-only same-mode evidence returned insufficient_evidence=true with citations=[], while direct same-mode evidence with trigger input plus illumination control targets retained the answer and cited standard-config. Actual HTTP row 7 rerun retrieval_eval_20260830_155841 retrieved expected evidence at rank 1 but remains diagnostic/not-clean: user-visible answer is insufficient_evidence=true with citations=[] and validation-fallback trace. Current retrieval failures remain {}; current answer failures remain insufficient_evidence/expected_terms_missing/expected_evidence_not_cited: 1 each.",
+  "answer_current_failure_categories": {},
+  "answer_grounding_status": "2026-08-30 row 7 direct-configuration evidence repair: retrieval now promotes explicit-scope Camera-Trigger-Light configuration evidence only when the candidate directly states the configuration label plus trigger-input and illumination-control-target details, and also carries same-scope setup context when available. Answer fallback now keeps the same-scope setup candidate with the direct configuration evidence instead of dropping it. Loaded side API manuals-rag-temp-api-39262386-20260830-row7-direct-config on http://127.0.0.1:8743 loaded retrieve sha256 ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3, _promote_direct_configuration_candidates sha256 7ef7af4e1f9575782d9de69a2f981d820e3c4158baaeed465d4e7a0d420943d2, _direct_configuration_setup_candidate sha256 d532c45745484a1d1f08f0636ae87f4c0c2381aa0708e0c71823efb5a34256af, validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f, _configuration_requested_candidates sha256 c2ab843d14fc4c818349aae5bc9da84cadac830040ec4ed814011677db7f3af3, and _configuration_setup_candidate sha256 ff13ddc85e3eff109d5e8bf7bdacde9678b1e0f4f2673a5ee8eac2a779cd30e9. Actual HTTP row 7 rerun retrieval_eval_20260830_163816 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation. Manual JSONL inspection confirms the user-visible answer cites ece874eb; its persisted cited payload contains both Procedure step 2/change settings in accordance with the capture environment and the Camera - Trigger - Light Configuration Settings text stating trigger input for each camera and illumination control targets. Current retrieval and answer failure aliases are now {} for this rotation.",
   "answer_grounding_rotation": {
-    "scope": "contextual_procedure_row7_direct_configuration_claim_level_containment",
-    "classification": "safer_insufficient_evidence_diagnostic_not_clean",
-    "latest_run": "retrieval_eval_20260830_155841",
-    "baseline_run": "retrieval_eval_20260830_145838",
+    "scope": "contextual_procedure_row7_direct_configuration_evidence_repair",
+    "classification": "clean_loaded_http_answer_evidence_after_manual_citation_payload_inspection",
+    "baseline_run": "retrieval_eval_20260830_155841",
+    "latest_run": "retrieval_eval_20260830_163816",
+    "dataset": "test_reports/retrieval_eval_dataset_20260830_155841.jsonl",
+    "saved_datasets": [
+      "test_reports/retrieval_eval_dataset_20260830_163238.jsonl",
+      "test_reports/retrieval_eval_dataset_20260830_163816.jsonl"
+    ],
+    "results": [
+      "test_reports/retrieval_eval_results_20260830_163238.jsonl",
+      "test_reports/retrieval_eval_results_20260830_163816.jsonl"
+    ],
+    "summaries": [
+      "test_reports/retrieval_eval_summary_20260830_163238.json",
+      "test_reports/retrieval_eval_summary_20260830_163816.json"
+    ],
+    "manifests": [
+      "test_reports/retrieval_eval_manifest_20260830_163238.json",
+      "test_reports/retrieval_eval_manifest_20260830_163816.json"
+    ],
     "prior_partial_runs": [
       "retrieval_eval_20260830_130420",
       "retrieval_eval_20260830_130550",
@@ -10250,40 +10280,26 @@
       "retrieval_eval_20260830_140312",
       "retrieval_eval_20260830_143453",
       "retrieval_eval_20260830_145838",
-      "retrieval_eval_20260830_153044"
+      "retrieval_eval_20260830_153044",
+      "retrieval_eval_20260830_155841",
+      "retrieval_eval_20260830_163238"
     ],
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_145838.jsonl",
-    "saved_datasets": [
-      "test_reports/retrieval_eval_dataset_20260830_153044.jsonl",
-      "test_reports/retrieval_eval_dataset_20260830_155841.jsonl"
-    ],
-    "results": [
-      "test_reports/retrieval_eval_results_20260830_153044.jsonl",
-      "test_reports/retrieval_eval_results_20260830_155841.jsonl"
-    ],
-    "summaries": [
-      "test_reports/retrieval_eval_summary_20260830_153044.json",
-      "test_reports/retrieval_eval_summary_20260830_155841.json"
-    ],
-    "manifests": [
-      "test_reports/retrieval_eval_manifest_20260830_153044.json",
-      "test_reports/retrieval_eval_manifest_20260830_155841.json"
-    ],
-    "retrieval_result": "Loaded actual HTTP rerun retrieval_eval_20260830_155841 retrieved expected row 7 evidence at rank 1 with candidate and metadata-document recall 100%.",
-    "answer_result": "Loaded actual HTTP rerun failed 0/1 answer grounding with insufficient_evidence, expected_terms_missing, and expected_evidence_not_cited. This is safer diagnostic containment, not clean answer evidence.",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_155841.jsonl. The case expected chunks ece874eb and 93d11edf; retrieval matched both, with 93d11edf at rank 1 and ece874eb at rank 3. The user-visible answer is \"I could not answer from the available evidence.\", insufficient_evidence=true, citations=[], and _eval_trace reports answer_source=fallback_validation/used_fallback=true. No clean row-7 answer evidence is accepted.",
-    "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-claim on http://127.0.0.1:8741 loaded validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 b6f97b501bd958c7e526faa02b451d982a7c889c94e77cb46557e9f866f791a5, _configuration_requested_candidate sha256 a3e428c27a4ed3b039a93226ffb8c6283f9263b434f4f6053bfc11bacb8c1932, _direct_configuration_detail_supported sha256 67e33864bf2b0a37f0020bfd4a5d2eb3326d7da8873ed9015d661e38374e369f, and _direct_configuration_label_score sha256 f0281e050909738190f64b6016856395e730a8bcaa6f3487136152461f37046d. Models stayed checked-in: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2.",
+    "retrieval_result": "Loaded actual HTTP rerun retrieval_eval_20260830_163816 passed 1/1 retrieval; direct configuration promotion placed same-scope Standard Lighting section_window ccd9c7e8 first and setup procedure ece874eb second in focused retrieval smoke evidence before the HTTP run.",
+    "answer_result": "Loaded actual HTTP rerun retrieval_eval_20260830_163816 passed 1/1 answer grounding with source fallback_validation after manual citation-payload inspection. Earlier same-run retrieval_eval_20260830_163238 is preserved as diagnostic/not-clean because answer grounding failed expected_evidence_not_cited before setup evidence was retained with the direct configuration candidate.",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_163816.jsonl. The user-visible answer cites ece874eb and edcd5d51. The cited persisted payload for ece874eb contains Procedure step 2, the source sentence to change settings in accordance with the capture environment, Camera - Trigger - Light Configuration Settings, and the source sentence that connected cameras/illumination expansion units, trigger input for each camera, and illumination control targets can be configured together. This satisfies expected setup role ece874eb and source-reviewed direct-configuration-equivalent support for 93d11edf; edcd5d51 is an extra broad same-scope preparation citation and is not used to satisfy the direct configuration role.",
     "changed_path_controls": {
-      "negative_direct_label_only": "Loaded validate_answer control returned insufficient_evidence=true, answer \"I could not answer from the available evidence.\", and citations=[] for a plausible answer whose only same-mode evidence merely stated Camera: Trigger - Light Configuration Settings without trigger-input or illumination-control-target details.",
-      "positive_direct_same_mode_with_details": "Loaded validate_answer control retained the plausible Camera: Trigger - Light Configuration Settings answer and reconstructed a standard-config citation when the candidate directly stated the configuration label plus trigger input and illumination control targets.",
-      "actual_http_row7": "retrieval_eval_20260830_155841 exercised the loaded HTTP path and remained diagnostic/not-clean with insufficient_evidence=true and citations=[]."
+      "focused_retrieval_smoke": "Retriever.retrieve for the repaired Standard Lighting query returned ccd9c7e8 with retrieval_stage direct_configuration_promoted at rank 1 and ece874eb with retrieval_stage direct_configuration_setup_promoted at rank 2.",
+      "actual_http_row7_before_answer_patch": "retrieval_eval_20260830_163238 is diagnostic/not-clean: retrieval passed but answer failed expected_evidence_not_cited after citing only the direct configuration section without the expected setup role.",
+      "actual_http_row7_after_answer_patch": "retrieval_eval_20260830_163816 is clean for this row: answer cites ece874eb persisted payload containing both setup and direct configuration-equivalent evidence."
     },
+    "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-row7-direct-config on http://127.0.0.1:8743 loaded retrieve sha256 ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3, _promote_direct_configuration_candidates sha256 7ef7af4e1f9575782d9de69a2f981d820e3c4158baaeed465d4e7a0d420943d2, _direct_configuration_setup_candidate sha256 d532c45745484a1d1f08f0636ae87f4c0c2381aa0708e0c71823efb5a34256af, _direct_configuration_result_score sha256 0a1615acb41b3ca6af5fa7c54335a7109d66ef6b68bd953ddcda13d83871ba66, validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f, _configuration_requested_candidates sha256 c2ab843d14fc4c818349aae5bc9da84cadac830040ec4ed814011677db7f3af3, and _configuration_setup_candidate sha256 ff13ddc85e3eff109d5e8bf7bdacde9678b1e0f4f2673a5ee8eac2a779cd30e9. Models stayed checked-in: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2.",
     "validation": [
-      "Focused answering controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'direct_label_without_trigger_light_details or trigger_light_details or configuration_fallback' -> 8 passed, 74 deselected.",
-      "Full Docker unit gate with read-only fixture mounts passed: 458 passed, 59 warnings.",
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before and after tracking update."
+      "Focused retriever controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'direct_configuration_promotion or configuration' -> 3 passed, 112 deselected.",
+      "Focused answering controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'configuration_fallback or direct_configuration' -> 8 passed, 75 deselected.",
+      "Full Docker unit gate with read-only fixture mounts passed: 461 passed, 59 warnings.",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed after tracking update."
     ],
-    "remaining": "Row 7 still needs retrieval/answer candidate coverage or a source-reviewed equivalent for direct Standard Lighting configuration evidence before clean answer evidence can be accepted."
+    "remaining": "Row 7 direct-configuration evidence gap is repaired for the source-reviewed Standard Lighting question. Continue broader source-reviewed actual HTTP answer-grounding rotations; keep prior row 7 diagnostic exclusions and do not treat retrieval_eval_20260830_163238 as clean."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -10712,11 +10728,7 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {
-    "insufficient_evidence": 1,
-    "expected_terms_missing": 1,
-    "expected_evidence_not_cited": 1
-  },
+  "current_answer_failure_categories": {},
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
@@ -11003,6 +11015,13 @@
       "scope": "contextual procedure row 7 direct-configuration claim-level containment rerun",
       "reason": "diagnostic/not-clean: retrieval passed expected evidence at rank 1, but user-visible answer returned insufficient evidence with no citations after label-only/broad direct-configuration validation failed closed; preserves containment without accepting clean row-7 answer evidence",
       "recorded_at": "2026-08-30T16:02:05Z"
+    },
+    {
+      "run_id": "retrieval_eval_20260830_163238",
+      "recorded_at": "2026-08-30T16:47:30Z",
+      "scope": "contextual procedure row 7 direct-configuration retrieval promotion pre-answer-retention rerun",
+      "reason": "diagnostic/not-clean: retrieval passed but answer failed expected_evidence_not_cited before same-scope setup evidence was retained with direct configuration fallback evidence.",
+      "evidence": "Manual inspection showed user-visible answer/citations did not yet cover every expected row 7 evidence role; final clean evidence comes from retrieval_eval_20260830_163816."
     }
   ],
   "unresolved_guardrail_findings": [
@@ -11538,6 +11557,21 @@
         "manual JSONL inspection of retrieval_eval_results_20260830_120143 cited persisted metadata.content"
       ],
       "required_next_action": "Continue with contextual procedure row 7 answer evidence selection from retrieval_eval_20260830_063002: retrieval found expected capture-environment and Camera - Trigger - Light Configuration chunks, but the user-visible fallback answer cited only broad preparation chunk edcd5d51. Preserve row 8 as clean deferred evidence from retrieval_eval_20260830_063002 now that rows 5-6 citation-fidelity containment is resolved."
+    },
+    {
+      "timestamp": "2026-08-30T16:47:30Z",
+      "severity": "needs_fix",
+      "finding": "Contextual row 7 Standard Lighting direct-configuration evidence gap after claim-level direct-configuration containment required clean loaded HTTP evidence with a cited payload supporting both setup and Camera-Trigger-Light configuration roles.",
+      "status": "addressed_this_run_clean_loaded_http_row7_direct_configuration_evidence",
+      "evidence": [
+        "Source-reviewed ccd9c7e8 as same-document Standard Lighting Camera: Trigger - Light Configuration Settings evidence with trigger input and illumination control targets.",
+        "Source-reviewed ece874eb persisted cited payload as containing the capture-environment setup step plus the direct configuration table context/details used for source-reviewed equivalence to 93d11edf.",
+        "Added general explicit-scope direct-configuration retrieval promotion and same-scope setup promotion without document/vendor/query hardcoding.",
+        "Added answer fallback retention of same-scope setup evidence alongside direct configuration evidence.",
+        "retrieval_eval_20260830_163238 preserved as diagnostic/not-clean expected_evidence_not_cited.",
+        "retrieval_eval_20260830_163816 passed 1/1 retrieval and 1/1 answer grounding through a loaded side API, with manual citation-payload inspection."
+      ],
+      "required_next_action": "Continue broader source-reviewed actual HTTP answer-grounding rotations from the next unresolved guardrail/current-state target; keep loaded-runtime proof and manual citation-payload inspection before accepting clean evidence."
     }
   ],
   "answer_grounding_sibling_rows_15_16": {
@@ -13483,5 +13517,5 @@
     "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
     "updated_at": "2026-08-30T12:08:00Z"
   },
-  "remaining": "Continue contextual row 7 as a retrieval-to-answer evidence gap after claim-level validator containment: fallback selection and validate_answer now refuse wrong-mode, broad same-mode, and direct-label-only Camera-Trigger-Light evidence when the cited chunk does not support trigger-input plus illumination-control-target details. Next source-review or improve retrieval/answer candidate coverage so Standard Lighting direct configuration evidence 93d11edf, or a source-reviewed equivalent that directly states Camera: Trigger - Light Configuration Settings plus trigger/light assignment details, is present in user-visible answer evidence; rerun loaded HTTP and manually inspect citations before accepting clean evidence."
+  "remaining": "Continue broader source-reviewed actual HTTP answer-grounding coverage after contextual row 7 direct-configuration repair. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence."
 }

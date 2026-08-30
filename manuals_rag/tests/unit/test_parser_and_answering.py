@@ -1088,6 +1088,63 @@ def test_configuration_fallback_keeps_same_mode_configuration_evidence():
     assert selected[0].chunk_id == "standard-config"
 
 
+def test_configuration_fallback_keeps_same_scope_setup_context_with_direct_evidence():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    results = [
+        SearchResult(
+            chunk_id="standard-config",
+            score=0.9,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[981],
+            section_path=["Standard Lighting Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+                "Camera: Trigger - Light Configuration Settings. "
+                "The trigger input for each camera and illumination control targets can be configured together."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+        SearchResult(
+            chunk_id="standard-setup-step",
+            score=0.8,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[973],
+            section_path=["Standard Lighting Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+                "Change the settings in accordance with the capture environment on the "
+                "Line Camera Setting Navigation screen."
+            ),
+            metadata={"chunk_type": "procedure_record"},
+        ),
+        SearchResult(
+            chunk_id="wrong-mode-setup",
+            score=0.85,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[1001],
+            section_path=["LumiTrax Specular Reflection Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (LumiTrax Specular Reflection Mode). "
+                "Change the settings in accordance with the capture environment."
+            ),
+            metadata={"chunk_type": "procedure_record"},
+        ),
+    ]
+
+    selected = _fallback_evidence_results(query, results)
+
+    assert [result.chunk_id for result in selected] == ["standard-config", "standard-setup-step"]
+
+
 def test_configuration_fallback_prefers_direct_label_over_broad_mode_context():
     query = (
         "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
