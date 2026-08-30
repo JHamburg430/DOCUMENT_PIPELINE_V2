@@ -1,38 +1,62 @@
 {
   "answer_current_failure_categories": {},
+  "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
-    "code_change": "Non-exact cited composite chunks must preserve distinctive identifier bindings, polarity/action terms, and source role/value quantity relations before they can satisfy source-reviewed expected evidence. Code-like identifier phrases such as TRG1/CAM 1 are handled as bindings, while prose is not over-read as a quantity relation unless the role is a real measurable/spec role.",
     "controls": [
-      "Focused scorer/checker controls: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_manifest_check.py -q -k 'composite_chunk or expected_chunk_not_same_document_overlap or cited_chunk_to_support_expected_evidence_role or manifest_checker' -> 18 passed, 92 deselected.",
-      "Composite adverse controls now reject sibling TRG2/CAM2 for expected TRG1/CAM1, swapped voltage/current values with identical tokens, enable/disable polarity inversion, and cross-role quantity mixing such as backup current limit borrowing the expected current value.",
-      "Manifest negative controls failed as required for missing root answer_grounding_cross_document_rows_6_7, missing question_bank.answer_grounding_cross_document_rows_6_7, and unequal copies.",
-      "Real manifest check: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
-      "Full unit gate after final scorer adjustment: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 399 passed, 59 warnings."
+      "jq empty passed for the new source-equivalence dataset and rerun artifacts.",
+      "Focused manifest tests passed: 30 passed.",
+      "Real manifest checker rerun after tracking update."
     ],
     "latest_run": {
       "answer_result": "2/2 actual HTTP API answers passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-      "dataset": "test_reports/retrieval_eval_dataset_20260828_003910.jsonl",
-      "manifest": "test_reports/retrieval_eval_manifest_20260828_003910.json",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_003910.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains the LJ-V continuous/Total Number of Lines setup, Number of Lines 10, Number of Overlapping Lines Two lines, and explanatory 10/two overlap relation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains asynchronous trigger input and TRG1 for CAM 1 capture plus measurement-processing evidence. Both payloads include the validation-fallback warning and normalized _eval_trace used_fallback=true/answer_source=fallback_validation.",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl",
+      "manifest": "test_reports/retrieval_eval_manifest_20260830_234218.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_234218 and the diagnostic pre-repair retrieval_eval_results_20260830_233933. Row 15 user-visible fallback answer cites consolidated same-source chunk 02767534 with null quote_span; returned metadata.content/context_window directly contains the LJ-V Continuous/Total Number of Lines procedure, Camera settings Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines Enabled 23 lines, and explanatory sentence binding lines=10 and overlap lines=two. Row 16 cites consolidated same-source chunk 450fca55 with null quote_span; returned content directly contains the Asynchronous Trigger procedure plus TRG1 for CAM 1 capture and measurement processing of only that camera as one measurement.",
       "max_queries": 2,
-      "query_offset": 14,
+      "query_offset": 0,
       "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260828_003910.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260830_234218.jsonl",
       "retrieval_result": "2/2 retrieval passed; pass@1 1/2 and pass@3/pass@5 2/2.",
-      "run_id": "retrieval_eval_20260828_003910",
+      "run_id": "retrieval_eval_20260830_234218",
       "search_mode": "http",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260828_003910.json"
+      "summary": "test_reports/retrieval_eval_summary_20260830_234218.json"
     },
     "prior_diagnostic_runs": [
       "retrieval_eval_20260827_223414",
       "retrieval_eval_20260827_232820",
-      "retrieval_eval_20260828_003633"
+      "retrieval_eval_20260828_003633",
+      "retrieval_eval_20260830_233933"
     ],
-    "remaining": "Curated cross-document v2 row 6 remains the only current answer evidence/citation failure; fix answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks before optional answer rotations.",
-    "scope": "eval answer-evidence citation scoring, manifest consistency checker/tests, tracking, and actual HTTP answer rerun only; no production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
-    "status": "contextual_rows_15_16_clean_after_relation_preserving_composite_citation_scoring",
-    "timestamp": "2026-08-28T00:39:10Z"
+    "remaining": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
+    "runtime_load_evidence": {
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+      "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+      "api_base": "http://127.0.0.1:8796 host / http://127.0.0.1:8600 inside container",
+      "container": "manuals-rag-temp-api-39262386-20260830-rows15-16",
+      "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
+      "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+      "retrieval_eval_file_sha256": "11731953c287b11053767e59c7bb303ef272abe778c3ca2d0253b3488637c6e0",
+      "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+      "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
+      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+      "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
+    },
+    "scope": "eval dataset/source-equivalence review, progress/manifest tracking, and actual HTTP answer rerun only; no production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
+    "source_review": {
+      "diagnostic_reason": "The unrepaired dataset lacked allow_equivalent_citation for consolidated same-source chunks, so both otherwise source-supported fallback answers failed expected_evidence_not_cited. This is a dataset/source-equivalence refresh, not a production answering change.",
+      "original_diagnostic_run": "retrieval_eval_20260830_233933",
+      "repair_policy": "Allow same-source consolidated citation only when cited returned content directly contains each expected evidence role and preserves distinctive quantity, identifier, action, polarity, and value bindings; do not accept answer-text-only support, metadata-only sibling support, cross-document support, or loose token overlap."
+    },
+    "status": "contextual_rows_15_16_clean_after_current_same_source_consolidated_citation_review",
+    "timestamp": "2026-08-30T23:49:00Z"
   },
   "answer_grounding_contextual_rows_17_18": {
     "dataset": "test_reports/retrieval_eval_dataset_20260826_085824.jsonl",
@@ -84,137 +108,64 @@
     ]
   },
   "answer_grounding_rotation": {
-    "latest_run": "retrieval_eval_20260830_231038",
-    "classification": "clean_source_scoped_contextual_rows_13_14_repair_preserving_original_diagnostic",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260830_2239_contextual_rows_13_14_source_equivalence.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_2310_contextual_rows_13_14_source_scope_repair.jsonl",
-    "run_dataset": "test_reports/retrieval_eval_dataset_20260830_231038.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260830_231038.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260830_231038.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260830_231038.json",
-    "query_offset": 0,
-    "max_queries": 2,
-    "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100% with setup-guide source document 7927e7fc selected rank 1 for row 13 and rank 2 for row 14.",
     "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_231038 for both rows. Both user-visible fallback_validation answers cite setup-guide section-window chunk eba458c3 from document 7927e7fc with null quote_span. The returned cited content itself contains the EtherNet/IP memory-monitor Not Connected failure and 1.1 Connecting Devices recheck guidance, the 2. Controlling the Image Capture Timing chapter context, and the high-speed short-trigger-interval instruction to use discrete I/O on the terminal block instead of EtherNet/IP. This supports expected role chunks 7aaa0e2c/f4bbc0fe and 7aaa0e2c/5e2de0a8 under the same-source returned-content equivalence policy.",
-    "source_review": {
-      "original_diagnostic_run": "retrieval_eval_20260830_223926",
-      "diagnostic_reason": "Original broad rows 13-14 questions did not uniquely require the LJ-X8000 setup-guide source; same-product user-manual citations answered plausible literal interpretations but did not satisfy the stored setup-guide expected evidence.",
-      "repair_policy": "Use realistic source-scoped wording when the intended expected evidence depends on a user-known guide/control-family context; do not globally accept cross-document same-product citations or hardcode document ids, filenames, vendors, rows, or phrases."
-    },
-    "runtime_load": {
-      "container": "manuals-rag-temp-api-39262386-20260830-rows13-14-scope",
-      "api_base": "http://127.0.0.1:8794",
-      "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
-      "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-      "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-      "retrieval_eval_file_sha256": "11731953c287b11053767e59c7bb303ef272abe778c3ca2d0253b3488637c6e0",
-      "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
-      "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
-      "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
-      "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
-      "assemble_context_sha256": "274065890032565f385a609051c8bce1f3bbe3b115db45f67cfc30422184b750",
-      "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-      "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
-      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "HAYSTACK_RERANK_DEVICE": "cuda:0"
+    "classification": "clean_same_source_contextual_rows_15_16_equivalence_refresh_preserving_pre_repair_diagnostic",
+    "dataset": "test_reports/retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl",
+    "latest_run": "retrieval_eval_20260830_234218",
+    "manifest": "test_reports/retrieval_eval_manifest_20260830_234218.json",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_234218 and the diagnostic pre-repair retrieval_eval_results_20260830_233933. Row 15 user-visible fallback answer cites consolidated same-source chunk 02767534 with null quote_span; returned metadata.content/context_window directly contains the LJ-V Continuous/Total Number of Lines procedure, Camera settings Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines Enabled 23 lines, and explanatory sentence binding lines=10 and overlap lines=two. Row 16 cites consolidated same-source chunk 450fca55 with null quote_span; returned content directly contains the Asynchronous Trigger procedure plus TRG1 for CAM 1 capture and measurement processing of only that camera as one measurement.",
+    "max_queries": 2,
+    "previous_clean_rotation_preserved": {
+      "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+      "classification": "clean_source_scoped_contextual_rows_13_14_repair_preserving_original_diagnostic",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_2310_contextual_rows_13_14_source_scope_repair.jsonl",
+      "latest_run": "retrieval_eval_20260830_231038",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_231038 for both rows. Both user-visible fallback_validation answers cite setup-guide section-window chunk eba458c3 from document 7927e7fc with null quote_span. The returned cited content itself contains the EtherNet/IP memory-monitor Not Connected failure and 1.1 Connecting Devices recheck guidance, the 2. Controlling the Image Capture Timing chapter context, and the high-speed short-trigger-interval instruction to use discrete I/O on the terminal block instead of EtherNet/IP. This supports expected role chunks 7aaa0e2c/f4bbc0fe and 7aaa0e2c/5e2de0a8 under the same-source returned-content equivalence policy.",
+      "results": "test_reports/retrieval_eval_results_20260830_231038.jsonl",
+      "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100% with setup-guide source document 7927e7fc selected rank 1 for row 13 and rank 2 for row 14.",
+      "summary": "test_reports/retrieval_eval_summary_20260830_231038.json"
     },
     "previous_diagnostic_preserved": {
-      "latest_run": "retrieval_eval_20260830_223926",
-      "classification": "diagnostic_not_clean_contextual_rows_13_14_expected_source_document_miss",
+      "answer_result": "0/2 actual HTTP answer grounding; expected_evidence_not_cited: 2 because same-source consolidated citation equivalence had not yet been source-reviewed for rows 15-16.",
+      "classification": "diagnostic_not_clean_contextual_rows_15_16_before_same_source_equivalence_review",
+      "latest_run": "retrieval_eval_20260830_233933",
+      "results": "test_reports/retrieval_eval_results_20260830_233933.jsonl",
+      "retrieval_result": "2/2 contextual multi-step retrieval passed.",
+      "run_dataset": "test_reports/retrieval_eval_dataset_20260830_233933.jsonl",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_2239_contextual_rows_13_14_source_equivalence.jsonl",
-      "run_dataset": "test_reports/retrieval_eval_dataset_20260830_223926.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260830_223926.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260830_223926.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260830_223926.json",
-      "query_offset": 0,
-      "max_queries": 2,
-      "retrieval_result": "1/2 contextual multi-step retrieval passed; row 13 expected evidence appeared at rank 2, row 14 was a candidate_miss. Candidate recall and metadata-document recall were 50%.",
-      "answer_result": "0/2 actual HTTP answer grounding passed. Both user-visible fallback_validation answers cited LJ-X user manual document 20fa9d9f instead of expected LJ-X8000 setup guide document 7927e7fc; answer failures were expected_document_not_cited_or_used: 2, expected_evidence_not_cited: 2, and retrieval_not_passed: 1.",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_223926 for both rows. Row 13 asks when to use discrete I/O for LJ-X8000 high-speed image-capture timing; the answer cited chunk 3b63ac7c from AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3 rather than the expected setup-guide chunks 7aaa0e2c/f4bbc0fe from source document 7927e7fc. Row 14 asks what to check when LJ-X8000 EtherNet/IP cyclic communication status is Not Connected; the answer cited chunk 87be5492 from AS_147290 instead of expected setup-guide chunks 7aaa0e2c/5e2de0a8. Because the accepted row 11-12 equivalence policy is same-source only, this cross-document/source-selection result is diagnostic/not-clean.",
-      "source_review": {
-        "expected_source_document_id": "7927e7fc-fc59-4c09-8a38-07c2e895f89b",
-        "actual_citation_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
-        "policy": "Same-source section-window equivalence remains limited to citations from the expected source document whose returned chunk text directly contains each expected role. Cross-document same-product citations are diagnostic until separately source-reviewed under a principled equivalence policy or the answer path retrieves/cites the expected source evidence."
-      },
-      "runtime_load": {
-        "container": "manuals-rag-temp-api-39262386-20260830-rows13-14",
-        "api_base": "http://127.0.0.1:8792",
-        "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
-        "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
-        "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
-        "assemble_context_sha256": "274065890032565f385a609051c8bce1f3bbe3b115db45f67cfc30422184b750",
-        "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-        "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "HAYSTACK_RERANK_DEVICE": "cuda:0"
-      },
-      "previous_clean_rotation_preserved": {
-        "latest_run": "retrieval_eval_20260830_221053",
-        "classification": "clean_source_reviewed_contextual_rows_11_12_same_source_section_window_equivalence",
-        "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-        "dataset": "test_reports/retrieval_eval_dataset_20260830_2212_contextual_rows_11_12_source_equivalence.jsonl",
-        "run_dataset": "test_reports/retrieval_eval_dataset_20260830_221053.jsonl",
-        "results": "test_reports/retrieval_eval_results_20260830_221053.jsonl",
-        "summary": "test_reports/retrieval_eval_summary_20260830_221053.json",
-        "manifest": "test_reports/retrieval_eval_manifest_20260830_221053.json",
-        "query_offset": 0,
-        "max_queries": 2,
-        "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100%.",
-        "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-        "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_221053 for both rows. Both user-visible fallback_validation answers cite same-source section-window chunk eba458c3 with null quote_span. The cited returned content itself contains the EtherNet/IP memory-monitor connection check, the Controlling the Image Capture Timing heading, and the chapter explanation about outputting inspection results and measured values before configuration, satisfying expected role chunks 7aaa0e2c/82880372 and 7aaa0e2c/e6d1ab33 under source-reviewed allow_equivalent_citation.",
-        "source_review": {
-          "accepted_equivalent_chunk_id": "eba458c3-f748-5577-8129-166b7943327c",
-          "source_document_id": "7927e7fc-fc59-4c09-8a38-07c2e895f89b",
-          "policy": "Same-source section-window citations may satisfy atomic expected evidence only when the expected evidence role explicitly allows equivalent citation and the cited returned chunk text directly contains the role terms; missing source identity, cross-document citations, and missing-role text fail closed.",
-          "prior_diagnostic_run_preserved": "retrieval_eval_20260830_213843"
-        },
-        "runtime_load": {
-          "container": "manuals-rag-temp-api-39262386-20260830-rows11-12-equiv",
-          "api_base": "http://127.0.0.1:8790",
-          "api_main_file": "/workspace/manuals_rag/apps/api/main.py",
-          "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
-          "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-          "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-          "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-          "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
-          "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-          "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395",
-          "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
-          "OLLAMA_URL": "http://host.docker.internal:11434",
-          "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-          "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-          "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-          "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-          "HAYSTACK_RERANK_DEVICE": "cuda:0"
-        },
-        "previous_diagnostic_run_preserved": {
-          "latest_run": "retrieval_eval_20260830_213843",
-          "classification": "diagnostic_not_clean_until_source_equivalence_declared",
-          "summary": "test_reports/retrieval_eval_summary_20260830_213843.json"
-        },
-        "previous_clean_rotation_preserved": {
-          "latest_run": "retrieval_eval_20260830_201603",
-          "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
-          "summary": "test_reports/retrieval_eval_summary_20260830_201603.json"
-        },
-        "scope": "source-reviewed eval dataset/evidence-policy repair, focused scorer regression, tracking, and actual HTTP answer rerun only; no production retrieval, answering, eval scoring/generation logic, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed"
-      },
-      "scope": "source-reviewed diagnostic dataset/eval artifacts and tracking only; no production retrieval, answering, eval scoring/generation logic, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed"
-    }
+      "summary": "test_reports/retrieval_eval_summary_20260830_233933.json"
+    },
+    "query_offset": 0,
+    "results": "test_reports/retrieval_eval_results_20260830_234218.jsonl",
+    "retrieval_result": "2/2 contextual multi-step retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
+    "run_dataset": "test_reports/retrieval_eval_dataset_20260830_234218.jsonl",
+    "runtime_load": {
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+      "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+      "api_base": "http://127.0.0.1:8796 host / http://127.0.0.1:8600 inside container",
+      "container": "manuals-rag-temp-api-39262386-20260830-rows15-16",
+      "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
+      "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+      "retrieval_eval_file_sha256": "11731953c287b11053767e59c7bb303ef272abe778c3ca2d0253b3488637c6e0",
+      "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+      "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
+      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+      "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
+    },
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+    "source_review": {
+      "diagnostic_reason": "The unrepaired dataset lacked allow_equivalent_citation for consolidated same-source chunks, so both otherwise source-supported fallback answers failed expected_evidence_not_cited. This is a dataset/source-equivalence refresh, not a production answering change.",
+      "original_diagnostic_run": "retrieval_eval_20260830_233933",
+      "repair_policy": "Allow same-source consolidated citation only when cited returned content directly contains each expected evidence role and preserves distinctive quantity, identifier, action, polarity, and value bindings; do not accept answer-text-only support, metadata-only sibling support, cross-document support, or loose token overlap."
+    },
+    "summary": "test_reports/retrieval_eval_summary_20260830_234218.json"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -563,7 +514,7 @@
       "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
     ]
   },
-  "answer_grounding_status": "2026-08-30 contextual rows 13-14 source-scope repair: original run retrieval_eval_20260830_223926 remains diagnostic/not-clean because the broad visible questions did not uniquely require the setup-guide source and answers cited user-manual document 20fa9d9f. Repaired dataset retrieval_eval_dataset_20260830_2310_contextual_rows_13_14_source_scope_repair.jsonl adds realistic setup-guide/Allen-Bradley CompactLogix/ControlLogix scope while preserving expected evidence. Loaded HTTP run retrieval_eval_20260830_231038 passed 2/2 retrieval at rank 1 and 2/2 answer grounding; both fallback_validation answers cited setup-guide chunk eba458c3 from source document 7927e7fc, and manual JSONL inspection confirmed cited content directly supports Not Connected recheck, image-capture-timing chapter context, and discrete I/O high-speed trigger guidance.",
+  "answer_grounding_status": "2026-08-30 contextual rows 15-16 source-equivalence refresh: original current-runtime run retrieval_eval_20260830_233933 passed 2/2 retrieval but failed 0/2 answer grounding because the answers cited consolidated same-source chunks rather than exact expected atomic chunks. Source-reviewed dataset retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl declares equivalent citation only when the same-source returned content directly supports every expected role and preserves value bindings. Loaded HTTP run retrieval_eval_20260830_234218 passed 2/2 retrieval and 2/2 answer grounding; manual JSONL inspection confirmed row 15 cites chunk 02767534 whose metadata content binds Number of Lines to 10 and Number of Overlapping Lines to two, and row 16 cites chunk 450fca55 whose content binds TRG1 to CAM 1 capture/measurement processing as one measurement.",
   "constraints": {
     "allowed_logic": [
       "retrieval",
@@ -2156,55 +2107,44 @@
     "updated_at": "2026-08-30T12:08:00Z"
   },
   "latest_contextual_quantity_answer_repair": {
-    "answer_result": "2/2 actual HTTP API answers passed with relation-preserving composite citation scoring and fallback_validation telemetry; answer_failure_reasons {}.",
-    "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-    "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
-    "guardrail_addressed": {
-      "evidence": [
-        "Updated eval telemetry normalization from payload warning.",
-        "Reran actual HTTP answer mode as retrieval_eval_20260827_232820.",
-        "Manual JSONL inspection confirmed normalized fallback_validation traces and current expected_evidence_not_cited failures."
-      ],
-      "finding": "HTTP fallback telemetry for retrieval_eval_20260827_223414 contradicted the user-visible validation-fallback warning.",
-      "remaining": "Fix current answer citation/evidence failures; do not count 223414 or 232820 rows 15-16 as clean answer evidence yet.",
-      "timestamp": "2026-08-27T23:25:00Z"
-    },
-    "latest_run": "retrieval_eval_20260828_003910",
-    "loaded_validator_controls": {
-      "correct_binding": "retained The example uses 10 lines and two overlap lines.",
-      "missing_overlap": "fallback used for The example uses 10 lines.",
-      "swapped_binding": "fallback used for The example uses two lines and 10 overlap lines.",
-      "total_only_or_wrong_line": "fallback used for The example uses 23 total lines and two overlap lines."
-    },
-    "manifest": "test_reports/retrieval_eval_manifest_20260828_003910.json",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_003910.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains the LJ-V continuous/Total Number of Lines setup, Number of Lines 10, Number of Overlapping Lines Two lines, and explanatory 10/two overlap relation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains asynchronous trigger input and TRG1 for CAM 1 capture plus measurement-processing evidence. Both payloads include the validation-fallback warning and normalized _eval_trace used_fallback=true/answer_source=fallback_validation.",
+    "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+    "generated_dataset": "test_reports/retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl",
+    "latest_run": "retrieval_eval_20260830_234218",
+    "manifest": "test_reports/retrieval_eval_manifest_20260830_234218.json",
+    "manual_jsonl_inspection": "Row 15 cites same-source chunk 02767534. Its returned metadata.content/context_window explicitly binds Number of Lines to 10 and Number of Overlapping Lines to two, also stating Total Number of Lines 23; this preserves the prior quantity role/value containment and is not a token-overlap-only acceptance. Row 16 cites 450fca55 for TRG1/CAM1 identifier binding.",
     "max_queries": 2,
-    "previous_clean_run": "retrieval_eval_20260827_212947",
-    "previous_telemetry_inconsistent_run": "retrieval_eval_20260827_223414",
-    "query_offset": 14,
-    "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
-    "remaining": "Quantity role/value validation behavior remains preserved. Curated cross-document row 6 remains the only current answer evidence/citation failure.",
-    "results": "test_reports/retrieval_eval_results_20260828_003910.jsonl",
-    "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
+    "previous_clean_run": "retrieval_eval_20260828_003910",
+    "previous_current_runtime_diagnostic": "retrieval_eval_20260830_233933",
+    "query_offset": 0,
+    "question_bank_counts": "Active coverage remains 208 exploratory questions total: 101 single-step and 107 multi-step; replacement debt remains 0.",
+    "remaining": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
+    "results": "test_reports/retrieval_eval_results_20260830_234218.jsonl",
+    "retrieval_result": "2/2 contextual multi-step retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
     "runtime_load_evidence": {
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
       "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_URL": "http://host.docker.internal:11437",
-      "_answer_addresses_quantity_request_sha256": "c416da03a9cb46b99e9199a3fde5735297ea73cf9a0d04b06db81030abed9213",
-      "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
-      "_quantity_role_value_groups_sha256": "7b69f86cf32d3213521fdaf9219f04c843d83db99864db0a0700705e3060c24a",
-      "_quantity_role_values_sha256": "2cbcb13e5175dedfa15104e96dd8f8f7d95813ad278f51a5fdbe1bd09aa1efe6",
-      "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
-      "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-      "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b"
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+      "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+      "api_base": "http://127.0.0.1:8796 host / http://127.0.0.1:8600 inside container",
+      "container": "manuals-rag-temp-api-39262386-20260830-rows15-16",
+      "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
+      "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+      "retrieval_eval_file_sha256": "11731953c287b11053767e59c7bb303ef272abe778c3ca2d0253b3488637c6e0",
+      "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+      "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
+      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+      "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
     },
-    "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
+    "scope": "eval dataset/source-equivalence review, progress/manifest tracking, and actual HTTP answer rerun only; no production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-    "status": "contextual_rows_15_16_clean_after_relation_preserving_composite_citation_scoring",
-    "summary": "test_reports/retrieval_eval_summary_20260828_003910.json",
-    "supersedes_failed_run": "retrieval_eval_20260827_195423"
+    "status": "contextual_rows_15_16_quantity_binding_preserved_in_current_source_equivalence_rerun",
+    "summary": "test_reports/retrieval_eval_summary_20260830_234218.json",
+    "timestamp": "2026-08-30T23:49:00Z"
   },
   "latest_contextual_question_quality": {
     "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step, 103 multi-step",
@@ -8744,7 +8684,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Continue broader contextual answer-grounding coverage with the next source-reviewed contextual slice or an unresolved validated target. Preserve retrieval_eval_20260830_223926 as diagnostic/not-clean; rows 13-14 are clean only for the source-scoped repaired questions in retrieval_eval_20260830_231038, whose visible wording asks for the LJ-X8000 EtherNet/IP setup guide for Allen-Bradley CompactLogix/ControlLogix.",
+  "next_target": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9498,39 +9438,63 @@
   },
   "question_bank": {
     "answer_current_failure_categories": {},
+    "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
-      "code_change": "Non-exact cited composite chunks must preserve distinctive identifier bindings, polarity/action terms, and source role/value quantity relations before they can satisfy source-reviewed expected evidence. Code-like identifier phrases such as TRG1/CAM 1 are handled as bindings, while prose is not over-read as a quantity relation unless the role is a real measurable/spec role.",
       "controls": [
-        "Focused scorer/checker controls: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_retrieval_eval.py tests/unit/test_manifest_check.py -q -k 'composite_chunk or expected_chunk_not_same_document_overlap or cited_chunk_to_support_expected_evidence_role or manifest_checker' -> 18 passed, 92 deselected.",
-        "Composite adverse controls now reject sibling TRG2/CAM2 for expected TRG1/CAM1, swapped voltage/current values with identical tokens, enable/disable polarity inversion, and cross-role quantity mixing such as backup current limit borrowing the expected current value.",
-        "Manifest negative controls failed as required for missing root answer_grounding_cross_document_rows_6_7, missing question_bank.answer_grounding_cross_document_rows_6_7, and unequal copies.",
-        "Real manifest check: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
-        "Full unit gate after final scorer adjustment: docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 399 passed, 59 warnings."
+        "jq empty passed for the new source-equivalence dataset and rerun artifacts.",
+        "Focused manifest tests passed: 30 passed.",
+        "Real manifest checker rerun after tracking update."
       ],
       "latest_run": {
         "answer_result": "2/2 actual HTTP API answers passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-        "dataset": "test_reports/retrieval_eval_dataset_20260828_003910.jsonl",
-        "manifest": "test_reports/retrieval_eval_manifest_20260828_003910.json",
-        "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_003910.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains the LJ-V continuous/Total Number of Lines setup, Number of Lines 10, Number of Overlapping Lines Two lines, and explanatory 10/two overlap relation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains asynchronous trigger input and TRG1 for CAM 1 capture plus measurement-processing evidence. Both payloads include the validation-fallback warning and normalized _eval_trace used_fallback=true/answer_source=fallback_validation.",
+        "dataset": "test_reports/retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl",
+        "manifest": "test_reports/retrieval_eval_manifest_20260830_234218.json",
+        "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_234218 and the diagnostic pre-repair retrieval_eval_results_20260830_233933. Row 15 user-visible fallback answer cites consolidated same-source chunk 02767534 with null quote_span; returned metadata.content/context_window directly contains the LJ-V Continuous/Total Number of Lines procedure, Camera settings Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines Enabled 23 lines, and explanatory sentence binding lines=10 and overlap lines=two. Row 16 cites consolidated same-source chunk 450fca55 with null quote_span; returned content directly contains the Asynchronous Trigger procedure plus TRG1 for CAM 1 capture and measurement processing of only that camera as one measurement.",
         "max_queries": 2,
-        "query_offset": 14,
+        "query_offset": 0,
         "response_mode": "answer_with_citations",
-        "results": "test_reports/retrieval_eval_results_20260828_003910.jsonl",
+        "results": "test_reports/retrieval_eval_results_20260830_234218.jsonl",
         "retrieval_result": "2/2 retrieval passed; pass@1 1/2 and pass@3/pass@5 2/2.",
-        "run_id": "retrieval_eval_20260828_003910",
+        "run_id": "retrieval_eval_20260830_234218",
         "search_mode": "http",
         "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-        "summary": "test_reports/retrieval_eval_summary_20260828_003910.json"
+        "summary": "test_reports/retrieval_eval_summary_20260830_234218.json"
       },
       "prior_diagnostic_runs": [
         "retrieval_eval_20260827_223414",
         "retrieval_eval_20260827_232820",
-        "retrieval_eval_20260828_003633"
+        "retrieval_eval_20260828_003633",
+        "retrieval_eval_20260830_233933"
       ],
-      "remaining": "Curated cross-document v2 row 6 remains the only current answer evidence/citation failure; fix answer evidence selection so the API answer cites/uses the returned Condition list and Standard Angle expected chunks before optional answer rotations.",
-      "scope": "eval answer-evidence citation scoring, manifest consistency checker/tests, tracking, and actual HTTP answer rerun only; no production retrieval, answering, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
-      "status": "contextual_rows_15_16_clean_after_relation_preserving_composite_citation_scoring",
-      "timestamp": "2026-08-28T00:39:10Z"
+      "remaining": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
+      "runtime_load_evidence": {
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+        "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+        "api_base": "http://127.0.0.1:8796 host / http://127.0.0.1:8600 inside container",
+        "container": "manuals-rag-temp-api-39262386-20260830-rows15-16",
+        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
+        "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+        "retrieval_eval_file_sha256": "11731953c287b11053767e59c7bb303ef272abe778c3ca2d0253b3488637c6e0",
+        "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+        "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
+        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+        "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
+      },
+      "scope": "eval dataset/source-equivalence review, progress/manifest tracking, and actual HTTP answer rerun only; no production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
+      "source_review": {
+        "diagnostic_reason": "The unrepaired dataset lacked allow_equivalent_citation for consolidated same-source chunks, so both otherwise source-supported fallback answers failed expected_evidence_not_cited. This is a dataset/source-equivalence refresh, not a production answering change.",
+        "original_diagnostic_run": "retrieval_eval_20260830_233933",
+        "repair_policy": "Allow same-source consolidated citation only when cited returned content directly contains each expected evidence role and preserves distinctive quantity, identifier, action, polarity, and value bindings; do not accept answer-text-only support, metadata-only sibling support, cross-document support, or loose token overlap."
+      },
+      "status": "contextual_rows_15_16_clean_after_current_same_source_consolidated_citation_review",
+      "timestamp": "2026-08-30T23:49:00Z"
     },
     "answer_grounding_cross_document_rows_6_7": {
       "answer_result": "Row 6 passed 1/1 actual HTTP API answer grounding as direct api/no-fallback evidence; row 7 passed 1/1 as fallback_validation content/citation-clean control. Current answer failures {}.",
@@ -9564,137 +9528,64 @@
       ]
     },
     "answer_grounding_rotation": {
-      "latest_run": "retrieval_eval_20260830_231038",
-      "classification": "clean_source_scoped_contextual_rows_13_14_repair_preserving_original_diagnostic",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260830_2239_contextual_rows_13_14_source_equivalence.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_2310_contextual_rows_13_14_source_scope_repair.jsonl",
-      "run_dataset": "test_reports/retrieval_eval_dataset_20260830_231038.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260830_231038.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260830_231038.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260830_231038.json",
-      "query_offset": 0,
-      "max_queries": 2,
-      "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100% with setup-guide source document 7927e7fc selected rank 1 for row 13 and rank 2 for row 14.",
       "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_231038 for both rows. Both user-visible fallback_validation answers cite setup-guide section-window chunk eba458c3 from document 7927e7fc with null quote_span. The returned cited content itself contains the EtherNet/IP memory-monitor Not Connected failure and 1.1 Connecting Devices recheck guidance, the 2. Controlling the Image Capture Timing chapter context, and the high-speed short-trigger-interval instruction to use discrete I/O on the terminal block instead of EtherNet/IP. This supports expected role chunks 7aaa0e2c/f4bbc0fe and 7aaa0e2c/5e2de0a8 under the same-source returned-content equivalence policy.",
-      "source_review": {
-        "original_diagnostic_run": "retrieval_eval_20260830_223926",
-        "diagnostic_reason": "Original broad rows 13-14 questions did not uniquely require the LJ-X8000 setup-guide source; same-product user-manual citations answered plausible literal interpretations but did not satisfy the stored setup-guide expected evidence.",
-        "repair_policy": "Use realistic source-scoped wording when the intended expected evidence depends on a user-known guide/control-family context; do not globally accept cross-document same-product citations or hardcode document ids, filenames, vendors, rows, or phrases."
-      },
-      "runtime_load": {
-        "container": "manuals-rag-temp-api-39262386-20260830-rows13-14-scope",
-        "api_base": "http://127.0.0.1:8794",
-        "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
-        "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-        "retrieval_eval_file_sha256": "11731953c287b11053767e59c7bb303ef272abe778c3ca2d0253b3488637c6e0",
-        "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
-        "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
-        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
-        "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
-        "assemble_context_sha256": "274065890032565f385a609051c8bce1f3bbe3b115db45f67cfc30422184b750",
-        "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-        "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "HAYSTACK_RERANK_DEVICE": "cuda:0"
+      "classification": "clean_same_source_contextual_rows_15_16_equivalence_refresh_preserving_pre_repair_diagnostic",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl",
+      "latest_run": "retrieval_eval_20260830_234218",
+      "manifest": "test_reports/retrieval_eval_manifest_20260830_234218.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_234218 and the diagnostic pre-repair retrieval_eval_results_20260830_233933. Row 15 user-visible fallback answer cites consolidated same-source chunk 02767534 with null quote_span; returned metadata.content/context_window directly contains the LJ-V Continuous/Total Number of Lines procedure, Camera settings Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines Enabled 23 lines, and explanatory sentence binding lines=10 and overlap lines=two. Row 16 cites consolidated same-source chunk 450fca55 with null quote_span; returned content directly contains the Asynchronous Trigger procedure plus TRG1 for CAM 1 capture and measurement processing of only that camera as one measurement.",
+      "max_queries": 2,
+      "previous_clean_rotation_preserved": {
+        "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+        "classification": "clean_source_scoped_contextual_rows_13_14_repair_preserving_original_diagnostic",
+        "dataset": "test_reports/retrieval_eval_dataset_20260830_2310_contextual_rows_13_14_source_scope_repair.jsonl",
+        "latest_run": "retrieval_eval_20260830_231038",
+        "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_231038 for both rows. Both user-visible fallback_validation answers cite setup-guide section-window chunk eba458c3 from document 7927e7fc with null quote_span. The returned cited content itself contains the EtherNet/IP memory-monitor Not Connected failure and 1.1 Connecting Devices recheck guidance, the 2. Controlling the Image Capture Timing chapter context, and the high-speed short-trigger-interval instruction to use discrete I/O on the terminal block instead of EtherNet/IP. This supports expected role chunks 7aaa0e2c/f4bbc0fe and 7aaa0e2c/5e2de0a8 under the same-source returned-content equivalence policy.",
+        "results": "test_reports/retrieval_eval_results_20260830_231038.jsonl",
+        "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100% with setup-guide source document 7927e7fc selected rank 1 for row 13 and rank 2 for row 14.",
+        "summary": "test_reports/retrieval_eval_summary_20260830_231038.json"
       },
       "previous_diagnostic_preserved": {
-        "latest_run": "retrieval_eval_20260830_223926",
-        "classification": "diagnostic_not_clean_contextual_rows_13_14_expected_source_document_miss",
+        "answer_result": "0/2 actual HTTP answer grounding; expected_evidence_not_cited: 2 because same-source consolidated citation equivalence had not yet been source-reviewed for rows 15-16.",
+        "classification": "diagnostic_not_clean_contextual_rows_15_16_before_same_source_equivalence_review",
+        "latest_run": "retrieval_eval_20260830_233933",
+        "results": "test_reports/retrieval_eval_results_20260830_233933.jsonl",
+        "retrieval_result": "2/2 contextual multi-step retrieval passed.",
+        "run_dataset": "test_reports/retrieval_eval_dataset_20260830_233933.jsonl",
         "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-        "dataset": "test_reports/retrieval_eval_dataset_20260830_2239_contextual_rows_13_14_source_equivalence.jsonl",
-        "run_dataset": "test_reports/retrieval_eval_dataset_20260830_223926.jsonl",
-        "results": "test_reports/retrieval_eval_results_20260830_223926.jsonl",
-        "summary": "test_reports/retrieval_eval_summary_20260830_223926.json",
-        "manifest": "test_reports/retrieval_eval_manifest_20260830_223926.json",
-        "query_offset": 0,
-        "max_queries": 2,
-        "retrieval_result": "1/2 contextual multi-step retrieval passed; row 13 expected evidence appeared at rank 2, row 14 was a candidate_miss. Candidate recall and metadata-document recall were 50%.",
-        "answer_result": "0/2 actual HTTP answer grounding passed. Both user-visible fallback_validation answers cited LJ-X user manual document 20fa9d9f instead of expected LJ-X8000 setup guide document 7927e7fc; answer failures were expected_document_not_cited_or_used: 2, expected_evidence_not_cited: 2, and retrieval_not_passed: 1.",
-        "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_223926 for both rows. Row 13 asks when to use discrete I/O for LJ-X8000 high-speed image-capture timing; the answer cited chunk 3b63ac7c from AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3 rather than the expected setup-guide chunks 7aaa0e2c/f4bbc0fe from source document 7927e7fc. Row 14 asks what to check when LJ-X8000 EtherNet/IP cyclic communication status is Not Connected; the answer cited chunk 87be5492 from AS_147290 instead of expected setup-guide chunks 7aaa0e2c/5e2de0a8. Because the accepted row 11-12 equivalence policy is same-source only, this cross-document/source-selection result is diagnostic/not-clean.",
-        "source_review": {
-          "expected_source_document_id": "7927e7fc-fc59-4c09-8a38-07c2e895f89b",
-          "actual_citation_document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
-          "policy": "Same-source section-window equivalence remains limited to citations from the expected source document whose returned chunk text directly contains each expected role. Cross-document same-product citations are diagnostic until separately source-reviewed under a principled equivalence policy or the answer path retrieves/cites the expected source evidence."
-        },
-        "runtime_load": {
-          "container": "manuals-rag-temp-api-39262386-20260830-rows13-14",
-          "api_base": "http://127.0.0.1:8792",
-          "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
-          "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-          "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-          "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-          "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
-          "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
-          "assemble_context_sha256": "274065890032565f385a609051c8bce1f3bbe3b115db45f67cfc30422184b750",
-          "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-          "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395",
-          "OLLAMA_URL": "http://host.docker.internal:11434",
-          "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-          "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-          "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-          "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-          "HAYSTACK_RERANK_DEVICE": "cuda:0"
-        },
-        "previous_clean_rotation_preserved": {
-          "latest_run": "retrieval_eval_20260830_221053",
-          "classification": "clean_source_reviewed_contextual_rows_11_12_same_source_section_window_equivalence",
-          "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-          "dataset": "test_reports/retrieval_eval_dataset_20260830_2212_contextual_rows_11_12_source_equivalence.jsonl",
-          "run_dataset": "test_reports/retrieval_eval_dataset_20260830_221053.jsonl",
-          "results": "test_reports/retrieval_eval_results_20260830_221053.jsonl",
-          "summary": "test_reports/retrieval_eval_summary_20260830_221053.json",
-          "manifest": "test_reports/retrieval_eval_manifest_20260830_221053.json",
-          "query_offset": 0,
-          "max_queries": 2,
-          "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100%.",
-          "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-          "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_221053 for both rows. Both user-visible fallback_validation answers cite same-source section-window chunk eba458c3 with null quote_span. The cited returned content itself contains the EtherNet/IP memory-monitor connection check, the Controlling the Image Capture Timing heading, and the chapter explanation about outputting inspection results and measured values before configuration, satisfying expected role chunks 7aaa0e2c/82880372 and 7aaa0e2c/e6d1ab33 under source-reviewed allow_equivalent_citation.",
-          "source_review": {
-            "accepted_equivalent_chunk_id": "eba458c3-f748-5577-8129-166b7943327c",
-            "source_document_id": "7927e7fc-fc59-4c09-8a38-07c2e895f89b",
-            "policy": "Same-source section-window citations may satisfy atomic expected evidence only when the expected evidence role explicitly allows equivalent citation and the cited returned chunk text directly contains the role terms; missing source identity, cross-document citations, and missing-role text fail closed.",
-            "prior_diagnostic_run_preserved": "retrieval_eval_20260830_213843"
-          },
-          "runtime_load": {
-            "container": "manuals-rag-temp-api-39262386-20260830-rows11-12-equiv",
-            "api_base": "http://127.0.0.1:8790",
-            "api_main_file": "/workspace/manuals_rag/apps/api/main.py",
-            "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
-            "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-            "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-            "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-            "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
-            "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-            "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395",
-            "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
-            "OLLAMA_URL": "http://host.docker.internal:11434",
-            "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-            "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-            "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-            "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-            "HAYSTACK_RERANK_DEVICE": "cuda:0"
-          },
-          "previous_diagnostic_run_preserved": {
-            "latest_run": "retrieval_eval_20260830_213843",
-            "classification": "diagnostic_not_clean_until_source_equivalence_declared",
-            "summary": "test_reports/retrieval_eval_summary_20260830_213843.json"
-          },
-          "previous_clean_rotation_preserved": {
-            "latest_run": "retrieval_eval_20260830_201603",
-            "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
-            "summary": "test_reports/retrieval_eval_summary_20260830_201603.json"
-          },
-          "scope": "source-reviewed eval dataset/evidence-policy repair, focused scorer regression, tracking, and actual HTTP answer rerun only; no production retrieval, answering, eval scoring/generation logic, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed"
-        },
-        "scope": "source-reviewed diagnostic dataset/eval artifacts and tracking only; no production retrieval, answering, eval scoring/generation logic, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed"
-      }
+        "summary": "test_reports/retrieval_eval_summary_20260830_233933.json"
+      },
+      "query_offset": 0,
+      "results": "test_reports/retrieval_eval_results_20260830_234218.jsonl",
+      "retrieval_result": "2/2 contextual multi-step retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
+      "run_dataset": "test_reports/retrieval_eval_dataset_20260830_234218.jsonl",
+      "runtime_load": {
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+        "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+        "api_base": "http://127.0.0.1:8796 host / http://127.0.0.1:8600 inside container",
+        "container": "manuals-rag-temp-api-39262386-20260830-rows15-16",
+        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
+        "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+        "retrieval_eval_file_sha256": "11731953c287b11053767e59c7bb303ef272abe778c3ca2d0253b3488637c6e0",
+        "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+        "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
+        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+        "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
+      },
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "source_review": {
+        "diagnostic_reason": "The unrepaired dataset lacked allow_equivalent_citation for consolidated same-source chunks, so both otherwise source-supported fallback answers failed expected_evidence_not_cited. This is a dataset/source-equivalence refresh, not a production answering change.",
+        "original_diagnostic_run": "retrieval_eval_20260830_233933",
+        "repair_policy": "Allow same-source consolidated citation only when cited returned content directly contains each expected evidence role and preserves distinctive quantity, identifier, action, polarity, and value bindings; do not accept answer-text-only support, metadata-only sibling support, cross-document support, or loose token overlap."
+      },
+      "summary": "test_reports/retrieval_eval_summary_20260830_234218.json"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -9832,7 +9723,7 @@
         "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
       ]
     },
-    "answer_grounding_status": "2026-08-30 contextual rows 13-14 source-scope repair: original run retrieval_eval_20260830_223926 remains diagnostic/not-clean because the broad visible questions did not uniquely require the setup-guide source and answers cited user-manual document 20fa9d9f. Repaired dataset retrieval_eval_dataset_20260830_2310_contextual_rows_13_14_source_scope_repair.jsonl adds realistic setup-guide/Allen-Bradley CompactLogix/ControlLogix scope while preserving expected evidence. Loaded HTTP run retrieval_eval_20260830_231038 passed 2/2 retrieval at rank 1 and 2/2 answer grounding; both fallback_validation answers cited setup-guide chunk eba458c3 from source document 7927e7fc, and manual JSONL inspection confirmed cited content directly supports Not Connected recheck, image-capture-timing chapter context, and discrete I/O high-speed trigger guidance.",
+    "answer_grounding_status": "2026-08-30 contextual rows 15-16 source-equivalence refresh: original current-runtime run retrieval_eval_20260830_233933 passed 2/2 retrieval but failed 0/2 answer grounding because the answers cited consolidated same-source chunks rather than exact expected atomic chunks. Source-reviewed dataset retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl declares equivalent citation only when the same-source returned content directly supports every expected role and preserves value bindings. Loaded HTTP run retrieval_eval_20260830_234218 passed 2/2 retrieval and 2/2 answer grounding; manual JSONL inspection confirmed row 15 cites chunk 02767534 whose metadata content binds Number of Lines to 10 and Number of Overlapping Lines to two, and row 16 cites chunk 450fca55 whose content binds TRG1 to CAM 1 capture/measurement processing as one measurement.",
     "current_answer_failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
@@ -11510,55 +11401,44 @@
       "updated_at": "2026-08-30T12:08:00Z"
     },
     "latest_contextual_quantity_answer_repair": {
-      "answer_result": "2/2 actual HTTP API answers passed with relation-preserving composite citation scoring and fallback_validation telemetry; answer_failure_reasons {}.",
-      "diagnostic_preload_run": "retrieval_eval_20260827_203931",
-      "generated_dataset": "test_reports/retrieval_eval_dataset_20260827_223414.jsonl",
-      "guardrail_addressed": {
-        "evidence": [
-          "Updated eval telemetry normalization from payload warning.",
-          "Reran actual HTTP answer mode as retrieval_eval_20260827_232820.",
-          "Manual JSONL inspection confirmed normalized fallback_validation traces and current expected_evidence_not_cited failures."
-        ],
-        "finding": "HTTP fallback telemetry for retrieval_eval_20260827_223414 contradicted the user-visible validation-fallback warning.",
-        "remaining": "Fix current answer citation/evidence failures; do not count 223414 or 232820 rows 15-16 as clean answer evidence yet.",
-        "timestamp": "2026-08-27T23:25:00Z"
-      },
-      "latest_run": "retrieval_eval_20260828_003910",
-      "loaded_validator_controls": {
-        "correct_binding": "retained The example uses 10 lines and two overlap lines.",
-        "missing_overlap": "fallback used for The example uses 10 lines.",
-        "swapped_binding": "fallback used for The example uses two lines and 10 overlap lines.",
-        "total_only_or_wrong_line": "fallback used for The example uses 23 total lines and two overlap lines."
-      },
-      "manifest": "test_reports/retrieval_eval_manifest_20260828_003910.json",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260828_003910.jsonl. Row 15 cites returned composite chunk a1b17edc-b6a7-5a0c-aee6-b72adb1e2e78, whose content directly contains the LJ-V continuous/Total Number of Lines setup, Number of Lines 10, Number of Overlapping Lines Two lines, and explanatory 10/two overlap relation. Row 16 cites returned composite chunk 450fca55-a67a-5e1d-844c-c82ca54965e9, whose content directly contains asynchronous trigger input and TRG1 for CAM 1 capture plus measurement-processing evidence. Both payloads include the validation-fallback warning and normalized _eval_trace used_fallback=true/answer_source=fallback_validation.",
+      "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+      "generated_dataset": "test_reports/retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl",
+      "latest_run": "retrieval_eval_20260830_234218",
+      "manifest": "test_reports/retrieval_eval_manifest_20260830_234218.json",
+      "manual_jsonl_inspection": "Row 15 cites same-source chunk 02767534. Its returned metadata.content/context_window explicitly binds Number of Lines to 10 and Number of Overlapping Lines to two, also stating Total Number of Lines 23; this preserves the prior quantity role/value containment and is not a token-overlap-only acceptance. Row 16 cites 450fca55 for TRG1/CAM1 identifier binding.",
       "max_queries": 2,
-      "previous_clean_run": "retrieval_eval_20260827_212947",
-      "previous_telemetry_inconsistent_run": "retrieval_eval_20260827_223414",
-      "query_offset": 14,
-      "question_bank_counts": "Active coverage remains 204 exploratory questions total: 101 single-step and 103 multi-step; replacement debt remains 0.",
-      "remaining": "Quantity role/value validation behavior remains preserved. Curated cross-document row 6 remains the only current answer evidence/citation failure.",
-      "results": "test_reports/retrieval_eval_results_20260828_003910.jsonl",
-      "retrieval_result": "2/2 retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
+      "previous_clean_run": "retrieval_eval_20260828_003910",
+      "previous_current_runtime_diagnostic": "retrieval_eval_20260830_233933",
+      "query_offset": 0,
+      "question_bank_counts": "Active coverage remains 208 exploratory questions total: 101 single-step and 107 multi-step; replacement debt remains 0.",
+      "remaining": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
+      "results": "test_reports/retrieval_eval_results_20260830_234218.jsonl",
+      "retrieval_result": "2/2 contextual multi-step retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
       "runtime_load_evidence": {
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
         "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_URL": "http://host.docker.internal:11437",
-        "_answer_addresses_quantity_request_sha256": "c416da03a9cb46b99e9199a3fde5735297ea73cf9a0d04b06db81030abed9213",
-        "_contextual_quantity_terms_sha256": "4f5980a7b8860a0c31b37e69f1bb2dbd59324beec4b1069a3602e95765df97c4",
-        "_quantity_role_value_groups_sha256": "7b69f86cf32d3213521fdaf9219f04c843d83db99864db0a0700705e3060c24a",
-        "_quantity_role_values_sha256": "2cbcb13e5175dedfa15104e96dd8f8f7d95813ad278f51a5fdbe1bd09aa1efe6",
-        "_quantity_terms_sha256": "fee0d95d85b781e38fabcccb425bd884f335db517d76f4aa66b89cf3531800c7",
-        "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-        "validate_answer_sha256": "57a17b18d4a36546e795b7ff6309edc9ee0bebb88be079c65c015d20e5081d8b"
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+        "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+        "api_base": "http://127.0.0.1:8796 host / http://127.0.0.1:8600 inside container",
+        "container": "manuals-rag-temp-api-39262386-20260830-rows15-16",
+        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
+        "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+        "retrieval_eval_file_sha256": "11731953c287b11053767e59c7bb303ef272abe778c3ca2d0253b3488637c6e0",
+        "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+        "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
+        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+        "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
       },
-      "scope": "Changed only production answering validation, parser/answering unit tests, progress/manifest tracking, and new eval artifacts. No retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed.",
+      "scope": "eval dataset/source-equivalence review, progress/manifest tracking, and actual HTTP answer rerun only; no production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "status": "contextual_rows_15_16_clean_after_relation_preserving_composite_citation_scoring",
-      "summary": "test_reports/retrieval_eval_summary_20260828_003910.json",
-      "supersedes_failed_run": "retrieval_eval_20260827_195423"
+      "status": "contextual_rows_15_16_quantity_binding_preserved_in_current_source_equivalence_rerun",
+      "summary": "test_reports/retrieval_eval_summary_20260830_234218.json",
+      "timestamp": "2026-08-30T23:49:00Z"
     },
     "latest_contextual_row14_repair": {
       "active_count_impact": "one-for-one contextual row-14 repair; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
@@ -11966,7 +11846,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Continue broader contextual answer-grounding coverage with the next source-reviewed contextual slice or an unresolved validated target. Preserve retrieval_eval_20260830_223926 as diagnostic/not-clean; rows 13-14 are clean only for the source-scoped repaired questions in retrieval_eval_20260830_231038, whose visible wording asks for the LJ-X8000 EtherNet/IP setup guide for Allen-Bradley CompactLogix/ControlLogix.",
+    "next_target": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12003,7 +11883,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader contextual answer-grounding coverage with the next source-reviewed contextual slice or an unresolved validated target. Preserve retrieval_eval_20260830_223926 as diagnostic/not-clean; rows 13-14 are clean only for the source-scoped repaired questions in retrieval_eval_20260830_231038, whose visible wording asks for the LJ-X8000 EtherNet/IP setup guide for Allen-Bradley CompactLogix/ControlLogix.",
+    "remaining": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12327,14 +12207,19 @@
         "scope": "contextual procedure row 10 and combined rows 9-10 clean claim"
       },
       {
+        "reason": "diagnostic/not-clean before source-reviewed same-source section-window equivalence was declared; superseded by clean rerun retrieval_eval_20260830_221053",
         "run_id": "retrieval_eval_20260830_213843",
-        "scope": "contextual rows 11-12",
-        "reason": "diagnostic/not-clean before source-reviewed same-source section-window equivalence was declared; superseded by clean rerun retrieval_eval_20260830_221053"
+        "scope": "contextual rows 11-12"
       },
       {
+        "reason": "diagnostic/not-clean: both answers cited LJ-X user manual document 20fa9d9f instead of expected LJ-X8000 setup-guide document 7927e7fc; row 14 also had candidate_miss. Cross-document same-product citations are not accepted under the same-source equivalence policy.",
         "run_id": "retrieval_eval_20260830_223926",
-        "scope": "contextual rows 13-14 source-equivalence attempt",
-        "reason": "diagnostic/not-clean: both answers cited LJ-X user manual document 20fa9d9f instead of expected LJ-X8000 setup-guide document 7927e7fc; row 14 also had candidate_miss. Cross-document same-product citations are not accepted under the same-source equivalence policy."
+        "scope": "contextual rows 13-14 source-equivalence attempt"
+      },
+      {
+        "reason": "diagnostic/not-clean current-runtime run: retrieval passed 2/2 but actual API answer grounding failed expected_evidence_not_cited: 2 because consolidated same-source cited chunks had not yet been source-reviewed for equivalent citation support.",
+        "run_id": "retrieval_eval_20260830_233933",
+        "scope": "contextual rows 15-16 before same-source consolidated citation review"
       }
     ],
     "single_step_questions": 101,
@@ -12960,14 +12845,9 @@
       },
       "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
     ],
-    "updated_at": "2026-08-30T23:13:00Z",
-    "answer_failure_categories": {
-      "expected_document_not_cited_or_used": 2,
-      "expected_evidence_not_cited": 2,
-      "retrieval_not_passed": 1
-    }
+    "updated_at": "2026-08-30T23:49:00Z"
   },
-  "remaining": "Continue broader contextual answer-grounding coverage with the next source-reviewed contextual slice or an unresolved validated target. Preserve retrieval_eval_20260830_223926 as diagnostic/not-clean; rows 13-14 are clean only for the source-scoped repaired questions in retrieval_eval_20260830_231038, whose visible wording asks for the LJ-X8000 EtherNet/IP setup guide for Allen-Bradley CompactLogix/ControlLogix.",
+  "remaining": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -13291,14 +13171,19 @@
       "scope": "contextual procedure row 10 and combined rows 9-10 clean claim"
     },
     {
+      "reason": "diagnostic/not-clean before source-reviewed same-source section-window equivalence was declared; superseded by clean rerun retrieval_eval_20260830_221053",
       "run_id": "retrieval_eval_20260830_213843",
-      "scope": "contextual rows 11-12",
-      "reason": "diagnostic/not-clean before source-reviewed same-source section-window equivalence was declared; superseded by clean rerun retrieval_eval_20260830_221053"
+      "scope": "contextual rows 11-12"
     },
     {
+      "reason": "diagnostic/not-clean: both answers cited LJ-X user manual document 20fa9d9f instead of expected LJ-X8000 setup-guide document 7927e7fc; row 14 also had candidate_miss. Cross-document same-product citations are not accepted under the same-source equivalence policy.",
       "run_id": "retrieval_eval_20260830_223926",
-      "scope": "contextual rows 13-14 source-equivalence attempt",
-      "reason": "diagnostic/not-clean: both answers cited LJ-X user manual document 20fa9d9f instead of expected LJ-X8000 setup-guide document 7927e7fc; row 14 also had candidate_miss. Cross-document same-product citations are not accepted under the same-source equivalence policy."
+      "scope": "contextual rows 13-14 source-equivalence attempt"
+    },
+    {
+      "reason": "diagnostic/not-clean current-runtime run: retrieval passed 2/2 but actual API answer grounding failed expected_evidence_not_cited: 2 because consolidated same-source cited chunks had not yet been source-reviewed for equivalent citation support.",
+      "run_id": "retrieval_eval_20260830_233933",
+      "scope": "contextual rows 15-16 before same-source consolidated citation review"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -13923,10 +13808,5 @@
     },
     "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
   ],
-  "updated_at": "2026-08-30T23:13:00Z",
-  "answer_failure_categories": {
-    "expected_document_not_cited_or_used": 2,
-    "expected_evidence_not_cited": 2,
-    "retrieval_not_passed": 1
-  }
+  "updated_at": "2026-08-30T23:49:00Z"
 }
