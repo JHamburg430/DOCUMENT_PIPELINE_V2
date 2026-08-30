@@ -1802,6 +1802,89 @@ def test_answer_response_scoring_accepts_same_document_equivalent_citation():
     assert scored["evidence_citation_support"]["passed"] is True
 
 
+def test_answer_response_scoring_accepts_same_document_section_window_for_atomic_roles():
+    case = RetrievalEvalCase(
+        case_id="answer-equivalent-section-window",
+        query="For LJ-X8000 image capture timing, what does the setup chapter cover before configuration?",
+        source_document_id="doc-ljx",
+        document_version_id="ver-ljx",
+        source_chunk_id="procedure-heading",
+        source_title="LJ-X8000 EtherNet/IP",
+        source_filename="ljx.pdf",
+        chunk_type="procedure_record",
+        section_path="1.2 Checking the Connection",
+        page_from=15,
+        page_to=15,
+        expected_terms=["controlling", "image", "capture", "inspection"],
+        expected_snippet="Controlling the Image Capture Timing. This chapter explains how to output inspection results.",
+        generation_method="contextual_procedure_plus_section_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "procedure-heading",
+                "source_document_id": "doc-ljx",
+                "allow_equivalent_citation": True,
+                "expected_terms": ["procedure", "controlling", "image", "capture"],
+                "snippet": "Procedure step 2: 2. Controlling the Image Capture Timing",
+            },
+            {
+                "chunk_id": "chapter-detail",
+                "source_document_id": "doc-ljx",
+                "allow_equivalent_citation": True,
+                "expected_terms": ["chapter", "explains", "inspection", "results"],
+                "snippet": "This chapter explains how to output data such as inspection results.",
+            },
+        ],
+    )
+
+    answer = {
+        "answer": (
+            "The setup chapter covers controlling image capture timing and explains how to "
+            "output inspection results and measured values to the PLC."
+        ),
+        "citations": [{"document_id": "doc-ljx", "chunk_id": "section-window", "quote_span": None}],
+        "used_documents": [{"document_id": "doc-ljx"}],
+        "insufficient_evidence": False,
+    }
+
+    scored = score_answer_response(
+        case,
+        answer,
+        {"passed": True},
+        [
+            {
+                "chunk_id": "section-window",
+                "source_document_id": "doc-ljx",
+                "content": (
+                    "1.2 Checking the Connection. 2. Controlling the Image Capture Timing. "
+                    "This chapter explains how to output data such as inspection results "
+                    "and measured values from the LJ-X8000 to the PLC over EtherNet/IP."
+                ),
+            }
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert scored["evidence_citation_support"]["passed"] is True
+
+    missing_role = score_answer_response(
+        case,
+        answer,
+        {"passed": True},
+        [
+            {
+                "chunk_id": "section-window",
+                "source_document_id": "doc-ljx",
+                "content": "1.2 Checking the Connection. Use the EtherNet/IP memory monitor.",
+            }
+        ],
+    )
+
+    assert missing_role["passed"] is False
+    assert "expected_evidence_not_cited" in missing_role["failure_reasons"]
+
+
 def test_answer_response_scoring_rejects_cross_document_equivalent_citation():
     case = RetrievalEvalCase(
         case_id="answer-equivalent-citation-cross-source",

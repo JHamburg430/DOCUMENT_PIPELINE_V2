@@ -1,7 +1,5 @@
 {
-  "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 2
-  },
+  "answer_current_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "code_change": "Non-exact cited composite chunks must preserve distinctive identifier bindings, polarity/action terms, and source role/value quantity relations before they can satisfy source-reviewed expected evidence. Code-like identifier phrases such as TRG1/CAM 1 are handled as bindings, while prose is not over-read as a quantity relation unless the role is a real measurable/spec role.",
     "controls": [
@@ -86,44 +84,55 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "0/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {expected_evidence_not_cited: 2}.",
-    "classification": "diagnostic_not_clean_contextual_rows_11_12_expected_evidence_not_cited",
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_213843.jsonl",
-    "latest_run": "retrieval_eval_20260830_213843",
-    "manifest": "test_reports/retrieval_eval_manifest_20260830_213843.json",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_213843 for both rows. Row 11 asks what PLC communication task the LJ-X8000 image-capture-timing setup chapter covers before configuration; row 12 asks how to check whether the sensor is connected to the PLC over EtherNet/IP. Both retrieved expected evidence at rank 1, but the user-visible fallback answer cites only consolidated chunk eba458c3 with null quote_span. The visible answer includes compatible connection/timing text, but the current expected evidence does not declare source-reviewed equivalence for eba458c3, so both rows remain diagnostic/not-clean expected_evidence_not_cited failures.",
+    "latest_run": "retrieval_eval_20260830_221053",
+    "classification": "clean_source_reviewed_contextual_rows_11_12_same_source_section_window_equivalence",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260830_2212_contextual_rows_11_12_source_equivalence.jsonl",
+    "run_dataset": "test_reports/retrieval_eval_dataset_20260830_221053.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260830_221053.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260830_221053.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260830_221053.json",
+    "query_offset": 0,
     "max_queries": 2,
-    "previous_clean_rotation_preserved": {
-      "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
-      "latest_run": "retrieval_eval_20260830_201603",
-      "summary": "test_reports/retrieval_eval_summary_20260830_201603.json"
+    "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100%.",
+    "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_221053 for both rows. Both user-visible fallback_validation answers cite same-source section-window chunk eba458c3 with null quote_span. The cited returned content itself contains the EtherNet/IP memory-monitor connection check, the Controlling the Image Capture Timing heading, and the chapter explanation about outputting inspection results and measured values before configuration, satisfying expected role chunks 7aaa0e2c/82880372 and 7aaa0e2c/e6d1ab33 under source-reviewed allow_equivalent_citation.",
+    "source_review": {
+      "accepted_equivalent_chunk_id": "eba458c3-f748-5577-8129-166b7943327c",
+      "source_document_id": "7927e7fc-fc59-4c09-8a38-07c2e895f89b",
+      "policy": "Same-source section-window citations may satisfy atomic expected evidence only when the expected evidence role explicitly allows equivalent citation and the cited returned chunk text directly contains the role terms; missing source identity, cross-document citations, and missing-role text fail closed.",
+      "prior_diagnostic_run_preserved": "retrieval_eval_20260830_213843"
     },
-    "query_offset": 10,
-    "results": "test_reports/retrieval_eval_results_20260830_213843.jsonl",
-    "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
     "runtime_load": {
-      "HAYSTACK_RERANK_DEVICE": "cuda:0",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "container": "manuals-rag-temp-api-39262386-20260830-rows11-12-equiv",
+      "api_base": "http://127.0.0.1:8790",
+      "api_main_file": "/workspace/manuals_rag/apps/api/main.py",
+      "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+      "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+      "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+      "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+      "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395",
+      "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
+      "OLLAMA_URL": "http://host.docker.internal:11434",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
-      "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-      "api_base": "http://127.0.0.1:8786",
-      "api_main_file": "/workspace/manuals_rag/apps/api/main.py",
-      "assemble_context_sha256": "274065890032565f385a609051c8bce1f3bbe3b115db45f67cfc30422184b750",
-      "container": "manuals-rag-temp-api-39262386-20260830-rows11-12",
-      "generate_answer_sha256": "e75cfb7b269021a1897654974f4ff287e87ee190c436194d9913c66b376007a8",
-      "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-      "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
-      "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
-      "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
-      "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "HAYSTACK_RERANK_DEVICE": "cuda:0"
     },
-    "scope": "diagnostic contextual rows 11-12 actual HTTP answer rotation only; no production retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260830_213843.json"
+    "previous_diagnostic_run_preserved": {
+      "latest_run": "retrieval_eval_20260830_213843",
+      "classification": "diagnostic_not_clean_until_source_equivalence_declared",
+      "summary": "test_reports/retrieval_eval_summary_20260830_213843.json"
+    },
+    "previous_clean_rotation_preserved": {
+      "latest_run": "retrieval_eval_20260830_201603",
+      "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
+      "summary": "test_reports/retrieval_eval_summary_20260830_201603.json"
+    },
+    "scope": "source-reviewed eval dataset/evidence-policy repair, focused scorer regression, tracking, and actual HTTP answer rerun only; no production retrieval, answering, eval scoring/generation logic, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -472,7 +481,7 @@
       "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
     ]
   },
-  "answer_grounding_status": "2026-08-30 contextual rows 11-12 diagnostic: clean side API manuals-rag-temp-api-39262386-20260830-rows11-12 on http://127.0.0.1:8786 loaded current origin/main code from /workspace/manuals_rag with checked-in local models. Actual HTTP run retrieval_eval_20260830_213843 passed 2/2 retrieval at rank 1 but 0/2 answer grounding; both user-visible fallback_validation answers cite only consolidated chunk eba458c3 while expected role chunks remain unsupported by citations. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 2}. Prior clean row 9-10 image-buffer evidence from retrieval_eval_20260830_201603 remains preserved, not replaced as clean evidence.",
+  "answer_grounding_status": "2026-08-30 contextual rows 11-12 source-reviewed equivalence repair: actual HTTP run retrieval_eval_20260830_221053 on clean side API manuals-rag-temp-api-39262386-20260830-rows11-12-equiv passed 2/2 retrieval at rank 1 and 2/2 answer grounding. Both fallback_validation answers cite same-source section-window chunk eba458c3; manual JSONL inspection confirmed the cited returned content directly contains every expected role for rows 11-12 under explicit allow_equivalent_citation/source_document_id policy. Current retrieval failures are {}; current answer failures are {}. Prior diagnostic retrieval_eval_20260830_213843 remains preserved as not clean before the source-equivalence declaration, and row 9-10 clean evidence from retrieval_eval_20260830_201603 remains preserved.",
   "constraints": {
     "allowed_logic": [
       "retrieval",
@@ -489,9 +498,7 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 2
-  },
+  "current_answer_failure_categories": {},
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -8655,7 +8662,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Source-review contextual rows 11-12 consolidated citation eba458c3 against expected role chunks 7aaa0e2c/82880372 and 7aaa0e2c/e6d1ab33. Either add a principled same-document/source-lineage equivalence policy with deterministic controls and rerun, or adjust answer fallback to cite the role-specific returned chunks directly; do not count retrieval_eval_20260830_213843 as clean.",
+  "next_target": "Continue broader contextual answer-grounding coverage with source-reviewed rows 13-14 or the next unresolved validated slice. Preserve row 11-12 clean evidence only under the explicit same-source returned-content equivalence policy; do not generalize to missing-source, cross-document, or missing-role citations.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9408,9 +9415,7 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 2
-    },
+    "answer_current_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "code_change": "Non-exact cited composite chunks must preserve distinctive identifier bindings, polarity/action terms, and source role/value quantity relations before they can satisfy source-reviewed expected evidence. Code-like identifier phrases such as TRG1/CAM 1 are handled as bindings, while prose is not over-read as a quantity relation unless the role is a real measurable/spec role.",
       "controls": [
@@ -9477,44 +9482,55 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "0/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {expected_evidence_not_cited: 2}.",
-      "classification": "diagnostic_not_clean_contextual_rows_11_12_expected_evidence_not_cited",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_213843.jsonl",
-      "latest_run": "retrieval_eval_20260830_213843",
-      "manifest": "test_reports/retrieval_eval_manifest_20260830_213843.json",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_213843 for both rows. Row 11 asks what PLC communication task the LJ-X8000 image-capture-timing setup chapter covers before configuration; row 12 asks how to check whether the sensor is connected to the PLC over EtherNet/IP. Both retrieved expected evidence at rank 1, but the user-visible fallback answer cites only consolidated chunk eba458c3 with null quote_span. The visible answer includes compatible connection/timing text, but the current expected evidence does not declare source-reviewed equivalence for eba458c3, so both rows remain diagnostic/not-clean expected_evidence_not_cited failures.",
+      "latest_run": "retrieval_eval_20260830_221053",
+      "classification": "clean_source_reviewed_contextual_rows_11_12_same_source_section_window_equivalence",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_2212_contextual_rows_11_12_source_equivalence.jsonl",
+      "run_dataset": "test_reports/retrieval_eval_dataset_20260830_221053.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260830_221053.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260830_221053.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260830_221053.json",
+      "query_offset": 0,
       "max_queries": 2,
-      "previous_clean_rotation_preserved": {
-        "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
-        "latest_run": "retrieval_eval_20260830_201603",
-        "summary": "test_reports/retrieval_eval_summary_20260830_201603.json"
+      "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100%.",
+      "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_221053 for both rows. Both user-visible fallback_validation answers cite same-source section-window chunk eba458c3 with null quote_span. The cited returned content itself contains the EtherNet/IP memory-monitor connection check, the Controlling the Image Capture Timing heading, and the chapter explanation about outputting inspection results and measured values before configuration, satisfying expected role chunks 7aaa0e2c/82880372 and 7aaa0e2c/e6d1ab33 under source-reviewed allow_equivalent_citation.",
+      "source_review": {
+        "accepted_equivalent_chunk_id": "eba458c3-f748-5577-8129-166b7943327c",
+        "source_document_id": "7927e7fc-fc59-4c09-8a38-07c2e895f89b",
+        "policy": "Same-source section-window citations may satisfy atomic expected evidence only when the expected evidence role explicitly allows equivalent citation and the cited returned chunk text directly contains the role terms; missing source identity, cross-document citations, and missing-role text fail closed.",
+        "prior_diagnostic_run_preserved": "retrieval_eval_20260830_213843"
       },
-      "query_offset": 10,
-      "results": "test_reports/retrieval_eval_results_20260830_213843.jsonl",
-      "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
       "runtime_load": {
-        "HAYSTACK_RERANK_DEVICE": "cuda:0",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "container": "manuals-rag-temp-api-39262386-20260830-rows11-12-equiv",
+        "api_base": "http://127.0.0.1:8790",
+        "api_main_file": "/workspace/manuals_rag/apps/api/main.py",
+        "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+        "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+        "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+        "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395",
+        "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
+        "OLLAMA_URL": "http://host.docker.internal:11434",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-        "api_base": "http://127.0.0.1:8786",
-        "api_main_file": "/workspace/manuals_rag/apps/api/main.py",
-        "assemble_context_sha256": "274065890032565f385a609051c8bce1f3bbe3b115db45f67cfc30422184b750",
-        "container": "manuals-rag-temp-api-39262386-20260830-rows11-12",
-        "generate_answer_sha256": "e75cfb7b269021a1897654974f4ff287e87ee190c436194d9913c66b376007a8",
-        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-        "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
-        "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
-        "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
-        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
-        "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "HAYSTACK_RERANK_DEVICE": "cuda:0"
       },
-      "scope": "diagnostic contextual rows 11-12 actual HTTP answer rotation only; no production retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260830_213843.json"
+      "previous_diagnostic_run_preserved": {
+        "latest_run": "retrieval_eval_20260830_213843",
+        "classification": "diagnostic_not_clean_until_source_equivalence_declared",
+        "summary": "test_reports/retrieval_eval_summary_20260830_213843.json"
+      },
+      "previous_clean_rotation_preserved": {
+        "latest_run": "retrieval_eval_20260830_201603",
+        "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
+        "summary": "test_reports/retrieval_eval_summary_20260830_201603.json"
+      },
+      "scope": "source-reviewed eval dataset/evidence-policy repair, focused scorer regression, tracking, and actual HTTP answer rerun only; no production retrieval, answering, eval scoring/generation logic, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -9652,10 +9668,8 @@
         "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
       ]
     },
-    "answer_grounding_status": "2026-08-30 contextual rows 11-12 diagnostic: clean side API manuals-rag-temp-api-39262386-20260830-rows11-12 on http://127.0.0.1:8786 loaded current origin/main code from /workspace/manuals_rag with checked-in local models. Actual HTTP run retrieval_eval_20260830_213843 passed 2/2 retrieval at rank 1 but 0/2 answer grounding; both user-visible fallback_validation answers cite only consolidated chunk eba458c3 while expected role chunks remain unsupported by citations. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 2}. Prior clean row 9-10 image-buffer evidence from retrieval_eval_20260830_201603 remains preserved, not replaced as clean evidence.",
-    "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 2
-    },
+    "answer_grounding_status": "2026-08-30 contextual rows 11-12 source-reviewed equivalence repair: actual HTTP run retrieval_eval_20260830_221053 on clean side API manuals-rag-temp-api-39262386-20260830-rows11-12-equiv passed 2/2 retrieval at rank 1 and 2/2 answer grounding. Both fallback_validation answers cite same-source section-window chunk eba458c3; manual JSONL inspection confirmed the cited returned content directly contains every expected role for rows 11-12 under explicit allow_equivalent_citation/source_document_id policy. Current retrieval failures are {}; current answer failures are {}. Prior diagnostic retrieval_eval_20260830_213843 remains preserved as not clean before the source-equivalence declaration, and row 9-10 clean evidence from retrieval_eval_20260830_201603 remains preserved.",
+    "current_answer_failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -11788,7 +11802,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Source-review contextual rows 11-12 consolidated citation eba458c3 against expected role chunks 7aaa0e2c/82880372 and 7aaa0e2c/e6d1ab33. Either add a principled same-document/source-lineage equivalence policy with deterministic controls and rerun, or adjust answer fallback to cite the role-specific returned chunks directly; do not count retrieval_eval_20260830_213843 as clean.",
+    "next_target": "Continue broader contextual answer-grounding coverage with source-reviewed rows 13-14 or the next unresolved validated slice. Preserve row 11-12 clean evidence only under the explicit same-source returned-content equivalence policy; do not generalize to missing-source, cross-document, or missing-role citations.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -11825,7 +11839,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Rows 11-12 need source-backed citation/equivalence repair. Preserve retrieval_eval_20260830_213843 as diagnostic/not-clean and preserve prior row 9-10 clean evidence from retrieval_eval_20260830_201603.",
+    "remaining": "Continue with rows 13-14 broader contextual answer-grounding rotation or the next unresolved validated slice. Preserve row 11-12 clean evidence only under the explicit same-source returned-content equivalence policy from retrieval_eval_20260830_221053.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12147,6 +12161,11 @@
         "reason": "guardrail false-clean: row 10 visible answer cited only bc2a9550 and omitted the disabled image-capture-buffer state while satisfying that role from adjacent metadata context; row 9 remains source-reviewed clean.",
         "run_id": "retrieval_eval_20260830_191713",
         "scope": "contextual procedure row 10 and combined rows 9-10 clean claim"
+      },
+      {
+        "run_id": "retrieval_eval_20260830_213843",
+        "scope": "contextual rows 11-12",
+        "reason": "diagnostic/not-clean before source-reviewed same-source section-window equivalence was declared; superseded by clean rerun retrieval_eval_20260830_221053"
       }
     ],
     "single_step_questions": 101,
@@ -12772,9 +12791,9 @@
       },
       "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
     ],
-    "updated_at": "2026-08-30T21:43:00Z"
+    "updated_at": "2026-08-30T22:16:00Z"
   },
-  "remaining": "Rows 11-12 need source-backed citation/equivalence repair. Preserve retrieval_eval_20260830_213843 as diagnostic/not-clean and preserve prior row 9-10 clean evidence from retrieval_eval_20260830_201603.",
+  "remaining": "Continue with rows 13-14 broader contextual answer-grounding rotation or the next unresolved validated slice. Preserve row 11-12 clean evidence only under the explicit same-source returned-content equivalence policy from retrieval_eval_20260830_221053.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -13096,6 +13115,11 @@
       "reason": "guardrail false-clean: row 10 visible answer cited only bc2a9550 and omitted the disabled image-capture-buffer state while satisfying that role from adjacent metadata context; row 9 remains source-reviewed clean.",
       "run_id": "retrieval_eval_20260830_191713",
       "scope": "contextual procedure row 10 and combined rows 9-10 clean claim"
+    },
+    {
+      "run_id": "retrieval_eval_20260830_213843",
+      "scope": "contextual rows 11-12",
+      "reason": "diagnostic/not-clean before source-reviewed same-source section-window equivalence was declared; superseded by clean rerun retrieval_eval_20260830_221053"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -13720,5 +13744,5 @@
     },
     "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
   ],
-  "updated_at": "2026-08-30T21:43:00Z"
+  "updated_at": "2026-08-30T22:16:00Z"
 }
