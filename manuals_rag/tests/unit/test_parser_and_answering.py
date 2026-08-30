@@ -550,6 +550,37 @@ def test_image_capture_buffer_fallback_binds_same_priority_condition():
     ]
 
 
+def test_image_capture_buffer_fallback_uses_source_parent_context_for_atomic_condition():
+    results = [
+        SearchResult(
+            chunk_id="same-priority-condition",
+            score=0.95,
+            title="Controller Manual",
+            document_version_id="v1",
+            source_document_id="doc-x",
+            pages=[597],
+            section_path=["Image Capture Buffer"],
+            content="Using only one camera or multiple cameras that all use the same capture priority condition.",
+            metadata={
+                "chunk_type": "atomic_text",
+                "parent_context": (
+                    "Examples of How the Image Capture Buffer is Used. "
+                    "Using only one camera or multiple cameras that all use the same capture priority condition. "
+                    "1. Image Capture Buffer: Disabled. "
+                    "If the image capture buffer is disabled, trigger input is prohibited while capture is in progress."
+                ),
+            },
+        )
+    ]
+
+    selected = _fallback_evidence_results(
+        "With image capture buffer disabled, can it be used with one camera or multiple cameras sharing the same capture-priority condition?",
+        results,
+    )
+
+    assert [result.chunk_id for result in selected] == ["same-priority-condition"]
+
+
 def test_image_capture_buffer_fallback_rejects_metadata_only_disabled_state():
     results = [
         SearchResult(

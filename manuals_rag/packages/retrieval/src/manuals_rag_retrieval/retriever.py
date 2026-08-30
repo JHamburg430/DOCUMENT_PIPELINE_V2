@@ -2549,15 +2549,20 @@ def assemble_context(results: list[SearchResult], *, limit: int = 10) -> list[Se
                 result.content,
                 table_row_group_context,
                 context.get(2),
-                context.get(3) if str(result.metadata.get("chunk_type") or "") in {"procedure_record", "table_record"} else None,
+                context.get(3)
+                if str(result.metadata.get("chunk_type") or "") in {"atomic_text", "procedure_record", "table_record"}
+                else None,
             ]
             if part
         ]
+        content_update: dict[str, object] = {}
         if source_context_parts:
             source_context = "\n\n".join(dict.fromkeys(str(part) for part in source_context_parts))
             if source_context and source_context != result.content:
                 metadata["content"] = source_context
-        assembled.append(result.model_copy(update={"metadata": metadata}))
+                if str(result.metadata.get("chunk_type") or "") == "atomic_text" and context.get(3):
+                    content_update["content"] = source_context
+        assembled.append(result.model_copy(update={"metadata": metadata, **content_update}))
     return assembled
 
 

@@ -1057,6 +1057,55 @@ def test_assemble_context_uses_nearest_table_row_group_for_table_cells(monkeypat
     assert assembled[0].metadata["table_row_group_context"] == assembled[0].metadata["context_window"]
 
 
+def test_assemble_context_preserves_parent_source_for_atomic_fragments(monkeypatch):
+    result = SearchResult(
+        chunk_id="atomic-condition",
+        score=0.7,
+        title="Doc",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[7],
+        section_path=["Image Capture Buffer"],
+        content="Using only one camera or multiple cameras that all use the same capture priority condition.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    monkeypatch.setattr(
+        retriever,
+        "fetch_all",
+        lambda *_args, **_kwargs: [
+            {
+                "document_version_id": "ver-1",
+                "section_path_text": "Image Capture Buffer",
+                "chunk_type": "section_window",
+                "chunk_level": 2,
+                "page_from": 7,
+                "page_to": 7,
+                "content": "Using only one camera or multiple cameras that all use the same capture priority condition.",
+                "metadata_json": {},
+            },
+            {
+                "document_version_id": "ver-1",
+                "section_path_text": "Image Capture Buffer",
+                "chunk_type": "parent_section",
+                "chunk_level": 3,
+                "page_from": 7,
+                "page_to": 8,
+                "content": (
+                    "Examples of How the Image Capture Buffer is Used. "
+                    "Using only one camera or multiple cameras that all use the same capture priority condition. "
+                    "1. Image Capture Buffer: Disabled."
+                ),
+                "metadata_json": {},
+            },
+        ],
+    )
+
+    assembled = retriever.assemble_context([result], limit=1)
+
+    assert "Image Capture Buffer: Disabled" in assembled[0].content
+    assert "Image Capture Buffer: Disabled" in assembled[0].metadata["content"]
+
+
 def test_semantic_completeness_penalizes_heading_like_fragments():
     result = SearchResult(
         chunk_id="heading",

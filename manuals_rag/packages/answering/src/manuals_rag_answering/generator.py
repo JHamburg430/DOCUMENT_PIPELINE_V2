@@ -502,6 +502,14 @@ def _fallback_answer_text(result: SearchResult) -> str:
         if expanded_context and (content.lower() in expanded_context.lower() or content_is_represented):
             if len(context_terms.difference(content_terms)) >= 4:
                 return expanded_context
+    if chunk_type == "atomic_text":
+        parent_context = str(result.metadata.get("parent_context") or "").strip()
+        content_terms = _answer_terms(content)
+        parent_terms = _answer_terms(parent_context)
+        content_is_represented = bool(content_terms) and len(content_terms.intersection(parent_terms)) >= min(3, len(content_terms))
+        if parent_context and (content.lower() in parent_context.lower() or content_is_represented):
+            if len(parent_terms.difference(content_terms)) >= 4:
+                return parent_context
     if str(result.metadata.get("chunk_type") or "") != "table_record" or not context:
         return content
     if content.lower() in context.lower():
