@@ -25,6 +25,7 @@ def _minimal_manifest():
         "latest_false_negative_repair": duplicate,
         "updated_at": "2026-08-29T13:23:00Z",
         "next_target": "continue source-first evidence selection",
+        "remaining": "continue source-first evidence selection",
         "answer_grounding_status": {"rows": "diagnostic"},
         "answer_grounding_rotation": {"next": "rows 15-17"},
         "run_exclusions": {"excluded": ["retrieval_eval_20260826_170130"]},
@@ -106,6 +107,41 @@ def test_manifest_checker_rejects_unequal_false_negative_repair():
     errors = module.check_manifest(manifest)
 
     assert any("latest_false_negative_repair mismatch" in error for error in errors)
+
+
+def test_manifest_checker_rejects_missing_or_unequal_remaining():
+    module = _load_manifest_check_module()
+    missing_root = _minimal_manifest()
+    del missing_root["remaining"]
+    missing_nested = _minimal_manifest()
+    del missing_nested["question_bank"]["remaining"]
+    unequal = _minimal_manifest()
+    unequal["question_bank"]["remaining"] = "stale target"
+
+    assert any(
+        "remaining missing required duplicate" in error
+        for error in module.check_manifest(missing_root)
+    )
+    assert any(
+        "question_bank.remaining" in error and "missing required duplicate" in error
+        for error in module.check_manifest(missing_nested)
+    )
+    assert any("remaining mismatch" in error for error in module.check_manifest(unequal))
+
+
+def test_manifest_checker_rejects_stale_remaining_row_target():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["next_target"] = manifest["question_bank"][
+        "next_target"
+    ] = "Continue with contextual procedure row 7 answer evidence selection."
+    manifest["remaining"] = manifest["question_bank"][
+        "remaining"
+    ] = "Fix contextual procedure row 5 Multi-Capture answer evidence selection."
+
+    errors = module.check_manifest(manifest)
+
+    assert any("current_target_alias mismatch" in error for error in errors)
 
 
 def test_manifest_checker_rejects_missing_root_matrix_retrieval_containment():

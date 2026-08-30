@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T12:08:00Z",
+  "updated_at": "2026-08-30T12:34:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -803,7 +803,7 @@
         "quality_review_path": "test_reports/retrieval_eval_quality_review_20260826_045508.json",
         "latest_retrieval_summary": "test_reports/retrieval_eval_summary_20260826_045805.json",
         "latest_answer_summary": "test_reports/retrieval_eval_summary_20260830_063002.json",
-        "notes": "Contextual procedure-plus-section multi-step bank is fully manual-reviewed for query phrasing. Rows 1-2 are clean loaded-runtime actual HTTP answer evidence from retrieval_eval_20260828_073436; source-repaired rows 3-4 are clean from retrieval_eval_20260828_092535 while original 20260828_075458 rows remain diagnostic/source-equivalence evidence. Rows 5-6 are currently diagnostic/not-clean: retrieval_eval_20260830_055809 improved source-compatible fallback answers but guardrail 2026-08-30T06:54:04Z found expected atomic chunks 878ea631 and 3a64a87a absent from citations/top_results, so the clean claim is excluded. Rows 7-8 rotation retrieval_eval_20260830_063002 is preserved as deferred diagnostic evidence until row 5-6 containment is resolved; row 7 failed expected_evidence_not_cited and row 8 should not advance current clean state yet.",
+        "notes": "Contextual procedure-plus-section multi-step bank is fully manual-reviewed for query phrasing. Rows 1-2 are clean loaded-runtime actual HTTP answer evidence from retrieval_eval_20260828_073436; source-repaired rows 3-4 are clean from retrieval_eval_20260828_092535 while original 20260828_075458 rows remain diagnostic/source-equivalence evidence. Rows 5-6 are source-reviewed clean evidence from retrieval_eval_20260830_120143 under explicit same-document equivalence; prior false-green and atomic-evidence runs remain diagnostic/excluded. Rows 7-8 rotation retrieval_eval_20260830_063002 is preserved as deferred diagnostic evidence: row 7 failed expected_evidence_not_cited, and row 8 can be promoted only after row 7 is fixed or separately tracked.",
         "answer_grounding_status": "rows_5_6_diagnostic_not_clean_atomic_citation_fidelity; rows_7_8_deferred_diagnostic_pending_row_5_6_containment"
       },
       {
@@ -1368,6 +1368,22 @@
     ],
     "unresolved_guardrail_findings": [
       {
+        "timestamp": "2026-08-30T12:34:00Z",
+        "guardrail_timestamp": "2026-08-30T12:18:00Z",
+        "guardrail_commit": "d4892d6",
+        "severity": "needs_fix",
+        "status": "addressed_this_run",
+        "finding": "Manifest root and question_bank.remaining still pointed at row 5 after next_target/current answer failures moved to contextual row 7.",
+        "addressed_this_run": "Updated both remaining copies to preserve row 5-6 history while naming contextual row 7 from retrieval_eval_20260830_063002 as the active expected_evidence_not_cited target. Added remaining as a required manifest pair and added a semantic current-target alias check so stale row targets fail even when root/question_bank copies agree.",
+        "evidence": [
+          "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py intentionally failed before the manifest correction with current_target_alias mismatch: next_target rows=[7] but remaining rows=[5].",
+          "After correction, python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed on the real manifest.",
+          "Focused manifest tests passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 28 passed.",
+          "Explicit real-manifest controls passed: equal manifest passed; missing root remaining failed; missing question_bank remaining failed; unequal remaining failed; stale row-5 remaining failed."
+        ],
+        "remaining": "No row 5-6 answer failure remains after retrieval_eval_20260830_120143. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002; preserve row 8 as clean deferred evidence until row 7 is fixed or separately tracked."
+      },
+      {
         "timestamp": "2026-08-28T05:39:56Z",
         "severity": "needs_fix",
         "finding": "latest_cross_document_answer_rotation was duplicated at root and question_bank, but the deterministic manifest checker did not fail when the root copy was removed.",
@@ -1885,7 +1901,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T12:08:00Z",
+    "updated_at": "2026-08-30T12:34:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3827,7 +3843,7 @@
       "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
       "updated_at": "2026-08-30T12:08:00Z"
     },
-    "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
+    "remaining": "No row 5-6 answer failure remains after retrieval_eval_20260830_120143. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002; preserve row 8 as clean deferred evidence until row 7 is fixed or separately tracked."
   },
   "latest_false_negative_repair": {
     "scope": "live_app_false_negative_question_4_luminance_output_type",
@@ -10772,6 +10788,22 @@
   ],
   "unresolved_guardrail_findings": [
     {
+      "timestamp": "2026-08-30T12:34:00Z",
+      "guardrail_timestamp": "2026-08-30T12:18:00Z",
+      "guardrail_commit": "d4892d6",
+      "severity": "needs_fix",
+      "status": "addressed_this_run",
+      "finding": "Manifest root and question_bank.remaining still pointed at row 5 after next_target/current answer failures moved to contextual row 7.",
+      "addressed_this_run": "Updated both remaining copies to preserve row 5-6 history while naming contextual row 7 from retrieval_eval_20260830_063002 as the active expected_evidence_not_cited target. Added remaining as a required manifest pair and added a semantic current-target alias check so stale row targets fail even when root/question_bank copies agree.",
+      "evidence": [
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py intentionally failed before the manifest correction with current_target_alias mismatch: next_target rows=[7] but remaining rows=[5].",
+        "After correction, python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed on the real manifest.",
+        "Focused manifest tests passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 28 passed.",
+        "Explicit real-manifest controls passed: equal manifest passed; missing root remaining failed; missing question_bank remaining failed; unequal remaining failed; stale row-5 remaining failed."
+      ],
+      "remaining": "No row 5-6 answer failure remains after retrieval_eval_20260830_120143. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002; preserve row 8 as clean deferred evidence until row 7 is fixed or separately tracked."
+    },
+    {
       "timestamp": "2026-08-28T05:39:56Z",
       "severity": "needs_fix",
       "finding": "latest_cross_document_answer_rotation was duplicated at root and question_bank, but the deterministic manifest checker did not fail when the root copy was removed.",
@@ -13153,5 +13185,5 @@
     "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
     "updated_at": "2026-08-30T12:08:00Z"
   },
-  "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
+  "remaining": "No row 5-6 answer failure remains after retrieval_eval_20260830_120143. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002; preserve row 8 as clean deferred evidence until row 7 is fixed or separately tracked."
 }

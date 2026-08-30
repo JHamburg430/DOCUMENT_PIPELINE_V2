@@ -2,6 +2,19 @@
 
 This log is maintained by the recurring retrieval accuracy cron job.
 
+## 2026-08-30 Cron 39262386 Remaining-Target Manifest Integrity Repair
+
+- Target: guardrail-first tracking-integrity finding from `2026-08-30T12:18:00Z` / guardrail commit `d4892d6`. The source-reviewed rows 5-6 equivalence repair from `retrieval_eval_20260830_120143` was plausible and preserved, but duplicated `remaining` fields still pointed at row 5 while `next_target`, answer-failure aliases, and `answer_grounding_status` had moved to contextual row 7.
+- Change: added `remaining` to `scripts/maintenance/check_retrieval_accuracy_manifest.py` required root/`question_bank` pairs and added a deterministic current-target alias check that compares active row references in `next_target` and `remaining` while ignoring historical/preservation clauses. Updated both manifest `remaining` copies and the contextual bank note/status so row 5-6 history is preserved without making it the current target.
+- Validation: before the manifest correction, the new checker failed the real manifest with `current_target_alias mismatch: next_target rows=['7'] but remaining rows=['5']`. After correction, `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` passed. Focused manifest tests passed: `docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q` -> 28 passed. Explicit real-manifest controls passed/fail as required: equal manifest passed; missing root `remaining` failed; missing `question_bank.remaining` failed; unequal `remaining` failed; stale row-5 `remaining` failed. `git diff --check` passed.
+- Tracking: current retrieval failures remain `{}`. Current answer failures remain `expected_evidence_not_cited: 1` for contextual row 7 from `retrieval_eval_20260830_063002`. Active exploratory coverage remains 208 questions total: 101 single-step and 107 multi-step; replacement debt remains 0. No production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed.
+- Scope/provenance: work was done in clean detached worktree `/tmp/manuals_rag_accuracy_PseNPs/manuals_rag/manuals_rag` at `origin/main` `d4892d6` because the primary checkout is behind and contains unrelated dirty UI/retrieval/eval/test/compose/artifact changes. Those changes were preserved and not committed.
+- Generalization check before commit: this tracking repair is valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it strengthens durable state consistency and does not tune production retrieval or answering behavior.
+
+Next target:
+
+- Continue with contextual procedure row 7 answer evidence selection from `retrieval_eval_20260830_063002`: retrieval found expected capture-environment and Camera - Trigger - Light Configuration chunks, but the user-visible fallback answer cited only broad preparation chunk `edcd5d51`. Preserve row 8 as clean deferred evidence until row 7 is fixed or separately tracked.
+
 ## 2026-08-30 Cron 39262386 Source-Reviewed Citation Equivalence Repair
 
 - Target: guardrail-first row 5-6 atomic citation-fidelity containment from `2026-08-30T06:54:04Z` / guardrail commit `20f9178`, preserved by latest `origin/main` guardrail audit `f95ebe3`. Primary checkout remained 21 commits behind `origin/main` with broad dirty UI/retrieval/eval/test changes, dirty compose endpoint drift, and many eval-artifact deletions, so this run used clean detached worktree `/tmp/manuals_rag_accuracy_esyrdN/manuals_rag` at `origin/main`.

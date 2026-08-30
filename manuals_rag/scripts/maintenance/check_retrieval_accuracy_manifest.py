@@ -13,6 +13,7 @@ from typing import Any
 REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "latest_false_negative_repair",
     "next_target",
+    "remaining",
     "answer_grounding_status",
     "answer_grounding_rotation",
     "run_exclusions",
@@ -54,6 +55,43 @@ ANSWER_FAILURE_ALIASES = (
 )
 
 _MISSING = object()
+
+
+def _target_row_refs(value: Any) -> set[str]:
+    if not isinstance(value, str):
+        return set()
+    normalized = value.lower()
+    active_index = normalized.rfind("continue with")
+    if active_index >= 0:
+        normalized = normalized[active_index:]
+    normalized = normalized.split("preserve", 1)[0]
+    refs: set[str] = set()
+    for prefix in ("row", "rows"):
+        marker = f"{prefix} "
+        start = 0
+        while True:
+            index = normalized.find(marker, start)
+            if index < 0:
+                break
+            cursor = index + len(marker)
+            token = []
+            while cursor < len(normalized) and (
+                normalized[cursor].isdigit() or normalized[cursor] in "-, /and"
+            ):
+                token.append(normalized[cursor])
+                cursor += 1
+            segment = "".join(token)
+            number = []
+            for char in segment:
+                if char.isdigit():
+                    number.append(char)
+                elif number:
+                    refs.add("".join(number))
+                    number = []
+            if number:
+                refs.add("".join(number))
+            start = cursor
+    return refs
 
 
 def _get_path(data: dict[str, Any], path: str) -> Any:
@@ -134,6 +172,14 @@ def check_manifest(data: dict[str, Any]) -> list[str]:
         },
         errors,
     )
+
+    target_rows = _target_row_refs(data.get("next_target"))
+    remaining_rows = _target_row_refs(data.get("remaining"))
+    if target_rows and remaining_rows and target_rows != remaining_rows:
+        errors.append(
+            "current_target_alias mismatch: "
+            f"next_target rows={sorted(target_rows)!r} but remaining rows={sorted(remaining_rows)!r}"
+        )
 
     root_counts = {
         "total_questions": data.get("total_questions"),
