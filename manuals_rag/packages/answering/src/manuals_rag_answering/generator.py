@@ -877,6 +877,25 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
     if not evidence_terms:
         return 0.0
     score = min(6.0, len(query_terms.intersection(evidence_terms)))
+    evidence_scope_terms = _answer_terms(
+        " ".join(
+            [
+                evidence,
+                str(result.title or ""),
+                " ".join(str(part) for part in result.section_path or []),
+            ]
+        )
+    )
+    distinctive_query_terms = {
+        term
+        for term in query_terms
+        if re.search(r"[-/]", term) or re.search(r"[a-z]+\d|\d+[a-z]+", term, flags=re.IGNORECASE)
+    }
+    for term in distinctive_query_terms:
+        if term in evidence_scope_terms:
+            score += 2.0
+        else:
+            score -= 3.0
     chunk_type = str(result.metadata.get("chunk_type") or "")
     if chunk_type in {"table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
         score += 2.0
@@ -914,6 +933,22 @@ def _result_evidence_key(result: SearchResult) -> str:
     return f"{result.source_document_id}:{_normalized_citation_text(_fallback_answer_text(result))[:500]}"
 
 
+def _multi_part_evidence_coherence_score(result: SearchResult, selected: list[SearchResult]) -> float:
+    if not selected:
+        return 0.0
+    score = 0.0
+    result_pages = set(result.pages or [])
+    result_section_path = tuple(str(part) for part in result.section_path or [])
+    for prior in selected:
+        if result.source_document_id and result.source_document_id == prior.source_document_id:
+            score += 0.5
+        if result_pages and result_pages.intersection(prior.pages or []):
+            score += 2.0
+        if result_section_path and result_section_path == tuple(str(part) for part in prior.section_path or []):
+            score += 2.0
+    return min(score, 3.0)
+
+
 def _multi_part_fallback_evidence_results(query: str, ordered_results: list[SearchResult]) -> list[SearchResult]:
     clauses = _multi_part_evidence_clauses(query)
     if len(clauses) < 2:
@@ -922,9 +957,17 @@ def _multi_part_fallback_evidence_results(query: str, ordered_results: list[Sear
     selected: list[SearchResult] = []
     seen_chunks: set[str] = set()
     seen_evidence: set[str] = set()
+    covered_clauses = 0
     for clause in clauses:
+        if any(_fallback_evidence_score(clause, result) >= 2.0 for result in selected):
+            covered_clauses += 1
+            continue
         scored = [
-            (_fallback_evidence_score(clause, result), index, result)
+            (
+                _fallback_evidence_score(clause, result) + _multi_part_evidence_coherence_score(result, selected),
+                index,
+                result,
+            )
             for index, result in enumerate(ordered_results[:8])
             if result.chunk_id not in seen_chunks
         ]
@@ -939,9 +982,12 @@ def _multi_part_fallback_evidence_results(query: str, ordered_results: list[Sear
         selected.append(best_result)
         seen_chunks.add(best_result.chunk_id)
         seen_evidence.add(evidence_key)
+        covered_clauses += 1
         if len(selected) >= 4:
             break
 
+    if selected and covered_clauses == len(clauses):
+        return selected
     if len(selected) >= 2:
         return selected
     return []

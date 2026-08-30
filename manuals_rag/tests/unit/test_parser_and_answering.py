@@ -193,6 +193,21 @@ def test_multi_part_procedure_fallback_keeps_clause_bound_evidence():
             content="Timing chart Control/data output via I/O terminals.",
             metadata={"chunk_type": "procedure_record"},
         ),
+        SearchResult(
+            chunk_id="ljv-continuous-timing",
+            score=0.87,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-cvx",
+            pages=[125],
+            section_path=["LJ-V continuous timing"],
+            content=(
+                "Control/data output via I/O terminals Timing chart. "
+                "Typical operations at trigger input when the LJ-V series head is used, "
+                "[Continuous] is set, and [Total Number of Lines] is enabled."
+            ),
+            metadata={"chunk_type": "procedure_record"},
+        ),
     ]
 
     validated = validate_answer(
@@ -205,6 +220,7 @@ def test_multi_part_procedure_fallback_keeps_clause_bound_evidence():
         "multi-capture-operation",
         "timing-chart",
     ]
+    assert "LJ-V series head" not in validated.answer
     assert "Asynchronous Trigger" not in validated.answer
     assert "Multi-Capture" in validated.answer
     assert "Control/data output via I/O terminals" in validated.answer
@@ -258,10 +274,7 @@ def test_multi_part_procedure_fallback_expands_heading_to_operation_context():
         query="For CV-X Multi-Capture trigger input timing, what operation does the section describe and which control/data I/O timing chart should I use?",
     )
 
-    assert [citation["chunk_id"] for citation in validated.citations] == [
-        "multi-capture-heading",
-        "timing-chart",
-    ]
+    assert [citation["chunk_id"] for citation in validated.citations] == ["multi-capture-heading"]
     assert "Performs multiple image captures" in validated.answer
     assert "single measurement" in validated.answer
 

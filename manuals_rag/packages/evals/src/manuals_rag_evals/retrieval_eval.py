@@ -3037,6 +3037,9 @@ def _retrieved_chunk_texts(results: list[dict[str, Any]] | None) -> dict[str, st
             str(result.get("content") or ""),
             str((result.get("metadata") or {}).get("content") or "") if isinstance(result.get("metadata"), dict) else "",
         ]
+        if isinstance(result.get("metadata"), dict):
+            for key in ("local_rerank_context", "context_window", "parent_context", "content_for_rerank"):
+                text_parts.append(str(result["metadata"].get(key) or ""))
         chunk_texts[chunk_id] = "\n".join(part for part in text_parts if part)
     return chunk_texts
 
