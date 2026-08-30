@@ -3349,7 +3349,7 @@ def _expected_evidence_citation_support(
             if not cited_text:
                 continue
             if expected_chunk_id and cited_chunk_id != expected_chunk_id:
-                if _expected_evidence_supported_by_cited_text(item, cited_text):
+                if item.get("allow_equivalent_citation") and _expected_evidence_supported_by_cited_text(item, cited_text):
                     supported = True
                     break
                 continue

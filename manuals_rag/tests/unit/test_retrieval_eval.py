@@ -1656,12 +1656,14 @@ def test_answer_response_scoring_accepts_cited_composite_chunk_with_source_evide
             {
                 "chunk_id": "procedure-step",
                 "source_document_id": "doc-cvx",
+                "allow_equivalent_citation": True,
                 "expected_terms": ["procedure", "typical", "operations", "trigger"],
                 "snippet": "Procedure step 2: Typical operations at trigger input (Capture Type: Asynchronous Trigger)",
             },
             {
                 "chunk_id": "detail-atomic",
                 "source_document_id": "doc-cvx",
+                "allow_equivalent_citation": True,
                 "expected_terms": ["inputting", "trigger", "signal", "having"],
                 "snippet": (
                     "By inputting the trigger signal having the same number as the camera number "
@@ -2212,6 +2214,7 @@ def test_answer_response_scoring_rejects_composite_chunk_with_swapped_numeric_bi
             {
                 "chunk_id": "setup-values",
                 "source_document_id": "doc-controller",
+                "allow_equivalent_citation": True,
                 "expected_terms": ["voltage", "5", "current", "10"],
                 "snippet": "Set voltage to 5 volts and current to 10 amps.",
             },
@@ -2262,6 +2265,7 @@ def test_answer_response_scoring_accepts_composite_chunk_with_correct_numeric_bi
             {
                 "chunk_id": "setup-values",
                 "source_document_id": "doc-controller",
+                "allow_equivalent_citation": True,
                 "expected_terms": ["voltage", "5", "current", "10"],
                 "snippet": "Set voltage to 5 volts and current to 10 amps.",
             },

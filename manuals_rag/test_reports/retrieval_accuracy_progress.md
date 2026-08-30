@@ -2,6 +2,21 @@
 
 This log is maintained by the recurring retrieval accuracy cron job.
 
+## 2026-08-30 Cron 39262386 Exact Citation Scorer Containment
+
+- Target: guardrail-first containment for `2026-08-30T06:54:04Z` / guardrail commit `20f9178`, which rejected `retrieval_eval_20260830_055809` as clean because rows 5-6 satisfied one expected atomic role from broad consolidated cited metadata instead of citing/persisting expected chunks `878ea631` and `3a64a87a`.
+- Change: tightened `score_answer_response` expected-evidence citation support so a different cited chunk can satisfy an expected `chunk_id` only when that expected-evidence item explicitly sets `allow_equivalent_citation`. This keeps exact expected atomic evidence fail-closed by default while preserving a deliberate future path for source-reviewed equivalence policies.
+- Runtime/evidence: started clean side API container `manuals-rag-temp-api-39262386-20260830-atomic-cites` on `http://127.0.0.1:8712`; `/health` returned ok. Loaded answering fingerprint included `_direct_fallback_evidence_score` during a rejected experiment, but that production answering tweak was reverted before commit because it still did not produce clean exact atomic citations. Clean env remained `OLLAMA_URL=http://host.docker.internal:11434`, `OLLAMA_ANSWER_MODEL=qwen3.5:9b`.
+- Diagnostic HTTP rerun: `retrieval_eval_20260830_073108` ran rows 5-6 and printed green before the scorer tightening, but replay with the patched scorer fails both rows as `expected_evidence_not_cited`. Manual JSONL inspection found row 1 cites `02b921f5` plus asynchronous-trigger sibling `86e3ce5c` while exact timing chunk `878ea631` is absent from citations/top_results; row 2 cites `f8248412` and `86ffe1a3` while exact expected chunks `ece874eb`/`3a64a87a` are not both cited and `3a64a87a` is absent from citations/top_results. The run is diagnostic/not-clean.
+- Validation: focused scorer controls passed (`11 passed, 101 deselected`), focused answering fallback regression controls passed after reverting the rejected production experiment (`3 passed, 68 deselected`), replay of `retrieval_eval_results_20260830_055809.jsonl` and `retrieval_eval_results_20260830_073108.jsonl` failed rows 5-6 under the patched scorer, and the full Docker unit gate with fixture mounts passed (`442 passed, 59 warnings`). Manifest checker passed after atomically updating root and `question_bank` aliases.
+- Tracking: current retrieval failures remain `{}`. Current answer failures remain `expected_evidence_not_cited: 2`. Active exploratory coverage remains 208 questions total: 101 single-step and 107 multi-step; replacement debt remains 0. Added `retrieval_eval_20260830_073108` to run exclusions and kept `055809`/`063002` diagnostic.
+- Scope/provenance: committed eval scoring/tests/tracking and diagnostic eval artifacts only. No production retrieval, answering, API, UI, parser, ingestion, auth, infrastructure, Docker config, schema, deployment, model provider/name, embedding model, reranker model, or document-specific routing change was kept. The primary checkout's dirty UI/retrieval/eval/test changes, compose endpoint drift, and artifact deletions were preserved.
+- Generalization check before commit: this containment is valid for unseen manuals/vendors and realistic engineers, technicians, support staff, managers, and salespeople because it prevents same-document sibling or broad consolidated context from silently replacing exact expected evidence unless a source-reviewed equivalence is explicit.
+
+Next target:
+
+- Repair the production answer/retrieval path so contextual rows 5-6 cite or persist exact expected atomic chunks `878ea631` and `3a64a87a`, or implement a source-reviewed explicit equivalence policy with deterministic controls, then rerun rows 5-6 through a loaded HTTP path and inspect JSONL before accepting clean evidence. Do not broaden rows 7-8 further until this containment is resolved.
+
 ## 2026-08-30 Cron 39262386 Contextual Rows 7-8 Answer Rotation
 
 - Target: guardrail-first continuation after `eb69faa` recorded contextual rows 5-6 as clean loaded API evidence and directed the next run to broaden actual HTTP answer-grounding coverage. Direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was restricted to the current job, so the checked-in guardrail findings file was used.

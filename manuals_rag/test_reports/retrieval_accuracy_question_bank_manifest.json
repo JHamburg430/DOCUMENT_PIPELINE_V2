@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T06:58:33Z",
+  "updated_at": "2026-08-30T07:38:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1083,34 +1083,38 @@
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 2
     },
-    "next_target": "Resolve contextual procedure rows 5-6 atomic citation fidelity before optional answer rotations: retrieval_eval_20260830_055809 is diagnostic/not-clean because row 5 cites only 02b921f5 while expected timing chunk 878ea631 is absent from citations/top_results, and row 6 cites only ece874eb while expected Camera-Trigger-Light chunk 3a64a87a is absent. Rerun only after the answer/retrieval path can cite or persist independently inspectable atomic role evidence, or after a source-reviewed consolidated-context policy is implemented and validated. Keep retrieval_eval_20260830_063002 rows 7-8 deferred/diagnostic until this containment is resolved.",
-    "answer_grounding_status": "Guardrail 2026-08-30T06:54:04Z reclassified retrieval_eval_20260830_055809 rows 5-6 as diagnostic/not-clean: the visible answers are source-compatible but each cites only one atomic chunk and satisfies the second expected role from broad consolidated metadata.content, with expected chunks 878ea631 and 3a64a87a absent from citations/top_results. The later rows 7-8 rotation retrieval_eval_20260830_063002 is preserved as deferred diagnostic evidence because it broadened optional coverage before row 5-6 citation-fidelity containment was resolved. Current answer failures are restored to expected_evidence_not_cited: 2 for rows 5-6; current retrieval failures remain {}.",
+    "next_target": "Resolve contextual procedure rows 5-6 atomic citation fidelity before optional answer rotations: the scorer now fails same-document sibling/consolidated citations unless an expected-evidence item explicitly allows equivalence, and both retrieval_eval_20260830_055809 plus diagnostic rerun retrieval_eval_20260830_073108 fail expected_evidence_not_cited under that rule. Next, change the answer/retrieval path so row 5 cites/persists exact timing chunk 878ea631 and row 6 cites/persists exact Camera-Trigger-Light chunk 3a64a87a, or implement a source-reviewed explicit equivalence policy with deterministic controls before rerunning rows 5-6. Do not broaden rows 7-8 further until this containment is resolved.",
+    "answer_grounding_status": "2026-08-30 scorer containment updated answer evidence citation support to require exact expected chunk citations by default; same-document sibling or consolidated context only counts when the expected-evidence item explicitly sets allow_equivalent_citation. Re-scoring retrieval_eval_20260830_055809 fails both rows: row 5 missing 878ea631 and row 6 missing 3a64a87a. Loaded HTTP diagnostic rerun retrieval_eval_20260830_073108 also fails under the patched scorer despite automated pre-patch green output: row 1 still misses 878ea631, and row 2 cites f8248412/86ffe1a3 instead of exact ece874eb/3a64a87a. Current answer failures remain expected_evidence_not_cited: 2; current retrieval failures remain {}.",
     "answer_grounding_rotation": {
       "scope": "contextual_procedure_rows_5_6_atomic_citation_fidelity_containment",
       "classification": "diagnostic_not_clean_rows_5_6_expected_atomic_evidence_not_independently_auditable",
-      "latest_run": "retrieval_eval_20260830_055809",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_055809.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260830_055809.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260830_055809.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260830_055809.json",
+      "latest_run": "retrieval_eval_20260830_073108",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_073108.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260830_073108.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260830_073108.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260830_073108.json",
       "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; retrieval itself is not the current blocker.",
-      "answer_result": "Automated answer summary reported 2/2, but manual guardrail inspection rejects the clean claim because expected atomic chunks 878ea631 and 3a64a87a are absent from citations/top_results and are only represented through consolidated metadata.content on neighboring cited chunks.",
-      "manual_jsonl_inspection": "retrieval_eval_results_20260830_055809 row 5 cites 02b921f5 only; expected timing chunk 878ea631 is absent from citations and top_results. Row 6 cites ece874eb only; expected Camera-Trigger-Light/Simulation Image Capture chunk 3a64a87a is absent from citations and top_results. Both answers use fallback_validation and are preserved as source-compatible diagnostic evidence, not clean grounded evidence.",
-      "deferred_optional_rotation": {
-        "run": "retrieval_eval_20260830_063002",
-        "scope": "contextual rows 7-8 answer rotation attempted before row 5-6 containment was resolved",
-        "classification": "diagnostic_deferred_not_current_clean_state",
-        "summary": "Row 7 failed expected_evidence_not_cited; row 8 appeared source-supported, but the run must not advance the current clean state until row 5-6 citation-fidelity containment is corrected."
-      },
+      "answer_result": "HTTP run was generated before the scorer tightening and printed 2/2 answer pass, but re-scoring with the patched exact-citation rule fails both rows as expected_evidence_not_cited.",
+      "manual_jsonl_inspection": "retrieval_eval_results_20260830_073108 row 1 cites 02b921f5 plus asynchronous-trigger sibling 86e3ce5c; expected timing chunk 878ea631 is absent from citations/top_results. Row 2 cites f8248412 and 86ffe1a3; exact expected chunks ece874eb and 3a64a87a are not both cited, and 3a64a87a is absent from citations/top_results.",
+      "previous_diagnostic_runs": [
+        "retrieval_eval_20260830_055809",
+        "retrieval_eval_20260830_063002"
+      ],
       "guardrail_finding": {
         "timestamp": "2026-08-30T06:54:04Z",
         "severity": "needs_fix",
         "guardrail_commit": "20f9178",
-        "status": "addressed_this_run_by_reclassification_and_exclusions"
+        "status": "partially_addressed_by_scorer_fail_closed_and_diagnostic_rerun"
       },
-      "validation": [],
-      "remaining": "Rerun rows 5-6 only after each expected evidence role is directly inspectable from cited chunk content/quote or from a validated role-level consolidated-context policy. Do not broaden optional rows 7-8 further until this is resolved.",
-      "updated_at": "2026-08-30T06:58:33Z"
+      "validation": [
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'cited_chunk_to_support_expected_evidence_role or exact_cited_chunk_to_be_returned or source_context_clean or scattered_persisted_citation_context_terms or wrong_operation_in_persisted_citation_context or composite_chunk' -> 11 passed, 101 deselected",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'multi_part_procedure_fallback or direct_procedure_fallback' -> 3 passed, 68 deselected",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python re-score retrieval_eval_results_20260830_055809.jsonl and retrieval_eval_results_20260830_073108.jsonl -> both rows fail expected_evidence_not_cited under patched scorer",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps -v tmp_eval_docs*:ro api python -m pytest tests/unit -q -> 442 passed, 59 warnings",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK"
+      ],
+      "remaining": "Production answer/retrieval selection still must cite or persist exact expected atomic chunks 878ea631 and 3a64a87a, or a future explicit source-reviewed equivalence policy must be added with deterministic controls. No clean row 5-6 answer evidence is accepted in this run.",
+      "updated_at": "2026-08-30T07:38:00Z"
     },
     "current_retrieval_failure_categories": {},
     "current_answer_failure_categories": {
@@ -1342,6 +1346,11 @@
         "run_id": "retrieval_eval_20260830_063002",
         "scope": "contextual rows 7-8 optional answer rotation while row 5-6 containment unresolved",
         "reason": "diagnostic/deferred: row 7 failed expected_evidence_not_cited and row 8 must not advance current clean state because the run broadened optional coverage before row 5-6 citation-fidelity containment was corrected."
+      },
+      {
+        "run_id": "retrieval_eval_20260830_073108",
+        "scope": "contextual procedure rows 5-6 atomic citation diagnostic rerun",
+        "reason": "pre-patch automated summary was green, but patched exact expected-evidence citation scorer and manual JSONL inspection show missing exact atomic chunks 878ea631 and 3a64a87a; not clean answer evidence"
       }
     ],
     "unresolved_guardrail_findings": [
@@ -1762,6 +1771,18 @@
           "Updated answer_grounding_status, answer_grounding_rotation, and latest_contextual_procedure_rows_5_6_answer_evidence_failure in root and question_bank copies atomically."
         ],
         "required_next_action": "Resolve contextual procedure rows 5-6 atomic citation fidelity before optional answer rotations: retrieval_eval_20260830_055809 is diagnostic/not-clean because row 5 cites only 02b921f5 while expected timing chunk 878ea631 is absent from citations/top_results, and row 6 cites only ece874eb while expected Camera-Trigger-Light chunk 3a64a87a is absent. Rerun only after the answer/retrieval path can cite or persist independently inspectable atomic role evidence, or after a source-reviewed consolidated-context policy is implemented and validated. Keep retrieval_eval_20260830_063002 rows 7-8 deferred/diagnostic until this containment is resolved."
+      },
+      {
+        "timestamp": "2026-08-30T07:38:00Z",
+        "severity": "needs_fix",
+        "finding": "Rows 5-6 exact atomic citation fidelity remains unresolved after scorer containment; production answer/retrieval path still does not cite/persist all exact expected chunks.",
+        "status": "partially_addressed_this_run_scorer_fails_closed",
+        "evidence": [
+          "score_answer_response exact citation change",
+          "retrieval_eval_20260830_073108 diagnostic replay",
+          "full unit gate 442 passed"
+        ],
+        "required_next_action": "Resolve contextual procedure rows 5-6 atomic citation fidelity before optional answer rotations: the scorer now fails same-document sibling/consolidated citations unless an expected-evidence item explicitly allows equivalence, and both retrieval_eval_20260830_055809 plus diagnostic rerun retrieval_eval_20260830_073108 fail expected_evidence_not_cited under that rule. Next, change the answer/retrieval path so row 5 cites/persists exact timing chunk 878ea631 and row 6 cites/persists exact Camera-Trigger-Light chunk 3a64a87a, or implement a source-reviewed explicit equivalence policy with deterministic controls before rerunning rows 5-6. Do not broaden rows 7-8 further until this containment is resolved."
       }
     ],
     "answer_grounding_sibling_rows_15_16": {
@@ -1843,7 +1864,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T06:58:33Z",
+    "updated_at": "2026-08-30T07:38:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3161,17 +3182,17 @@
       }
     },
     "latest_contextual_procedure_rows_5_6_answer_evidence_failure": {
-      "timestamp": "2026-08-30T06:58:33Z",
+      "timestamp": "2026-08-30T07:38:00Z",
       "guardrail_timestamp": "2026-08-30T06:54:04Z",
-      "run": "retrieval_eval_20260830_055809",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_055809.jsonl",
+      "run": "retrieval_eval_20260830_073108",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_073108.jsonl",
       "rows": [
         5,
         6
       ],
-      "classification": "diagnostic_not_clean_atomic_expected_evidence_not_independently_auditable",
+      "classification": "diagnostic_not_clean_exact_expected_evidence_not_cited",
       "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; failure_categories {}; candidate recall 100%; metadata-document recall 100%.",
-      "answer_result": "Automated 055809 summary reported 2/2, but guardrail/manual JSONL inspection reclassified both rows as not-clean because each expected evidence role is not independently auditable from cited/top_result chunks.",
+      "answer_result": "Patched scorer rejects same-document sibling or consolidated citations by default. Re-scoring 055809 and diagnostic loaded HTTP rerun 073108 fails rows 5-6 as expected_evidence_not_cited; no clean answer evidence is accepted.",
       "failures": [
         {
           "row": 5,
@@ -3226,7 +3247,9 @@
         "retrieval_eval_20260829_210829 improved contextual rows 5-6 from 0/2 to 1/2 actual HTTP answer grounding after a general multi-part fallback evidence selection change.",
         "Manual JSONL inspection confirmed row 6 is clean and row 5 remains expected_evidence_not_cited.",
         "Full unit gate passed from the clean worktree container with all required untracked fixture directories mounted read-only: 432 passed, 59 warnings.",
-        "2026-08-30 source-only scorer containment: retrieval_eval_20260830_033242 now fails closed for both rows when auxiliary local context is excluded from citation support."
+        "2026-08-30 source-only scorer containment: retrieval_eval_20260830_033242 now fails closed for both rows when auxiliary local context is excluded from citation support.",
+        "2026-08-30 exact expected-evidence citation containment: score_answer_response now accepts same-document equivalent citations only when allow_equivalent_citation is explicitly set on that expected-evidence item.",
+        "Diagnostic loaded HTTP rerun retrieval_eval_20260830_073108 remains not-clean after scorer replay: row 5 missing expected timing chunk 878ea631; row 6 missing exact Camera-Trigger-Light chunk 3a64a87a and did not cite exact capture-environment chunk ece874eb."
       ],
       "checker_repair": {
         "timestamp": "2026-08-29T04:25:24Z",
@@ -3235,7 +3258,7 @@
           "scripts/maintenance/check_retrieval_accuracy_manifest.py registers latest_contextual_procedure_rows_5_6_answer_evidence_failure as a required root/question_bank pair.",
           "tests/unit/test_manifest_check.py covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for this field."
         ],
-        "remaining": "Manifest pair enforcement is resolved; atomic answer evidence remains unresolved until rows 5-6 cite or persist independently inspectable expected chunks 878ea631 and 3a64a87a, or a future source-reviewed rule records auditable role-level consolidated support.",
+        "remaining": "Manifest pair enforcement is resolved; atomic answer evidence remains unresolved until rows 5-6 cite/persist exact expected chunks 878ea631 and 3a64a87a, or a future source-reviewed explicit equivalence rule records auditable role-level support.",
         "validation_reruns": [
           {
             "timestamp": "2026-08-29T04:55:17Z",
@@ -4081,6 +4104,16 @@
         "validation": [],
         "remaining": "Rerun rows 5-6 only after each expected evidence role is directly inspectable from cited chunk content/quote or from a validated role-level consolidated-context policy. Do not broaden optional rows 7-8 further until this is resolved.",
         "updated_at": "2026-08-30T06:58:33Z"
+      },
+      "scorer_repair": {
+        "timestamp": "2026-08-30T07:38:00Z",
+        "status": "exact_expected_chunk_required_by_default",
+        "change": "_expected_evidence_citation_support no longer allows a different cited chunk to satisfy an expected chunk_id unless allow_equivalent_citation is explicitly set on that expected-evidence item.",
+        "diagnostic_replay": {
+          "retrieval_eval_20260830_055809": "row 5 missing 878ea631; row 6 missing 3a64a87a",
+          "retrieval_eval_20260830_073108": "row 1 missing 878ea631; row 2 missing ece874eb and 3a64a87a under exact citation replay"
+        },
+        "remaining": "Need production answer/retrieval path repair or explicit source-reviewed equivalence policy before a clean rows 5-6 claim."
       }
     },
     "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
@@ -10031,7 +10064,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Resolve contextual procedure rows 5-6 atomic citation fidelity before optional answer rotations: retrieval_eval_20260830_055809 is diagnostic/not-clean because row 5 cites only 02b921f5 while expected timing chunk 878ea631 is absent from citations/top_results, and row 6 cites only ece874eb while expected Camera-Trigger-Light chunk 3a64a87a is absent. Rerun only after the answer/retrieval path can cite or persist independently inspectable atomic role evidence, or after a source-reviewed consolidated-context policy is implemented and validated. Keep retrieval_eval_20260830_063002 rows 7-8 deferred/diagnostic until this containment is resolved.",
+  "next_target": "Resolve contextual procedure rows 5-6 atomic citation fidelity before optional answer rotations: the scorer now fails same-document sibling/consolidated citations unless an expected-evidence item explicitly allows equivalence, and both retrieval_eval_20260830_055809 plus diagnostic rerun retrieval_eval_20260830_073108 fail expected_evidence_not_cited under that rule. Next, change the answer/retrieval path so row 5 cites/persists exact timing chunk 878ea631 and row 6 cites/persists exact Camera-Trigger-Light chunk 3a64a87a, or implement a source-reviewed explicit equivalence policy with deterministic controls before rerunning rows 5-6. Do not broaden rows 7-8 further until this containment is resolved.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10318,33 +10351,37 @@
   "answer_current_failure_categories": {
     "expected_evidence_not_cited": 2
   },
-  "answer_grounding_status": "Guardrail 2026-08-30T06:54:04Z reclassified retrieval_eval_20260830_055809 rows 5-6 as diagnostic/not-clean: the visible answers are source-compatible but each cites only one atomic chunk and satisfies the second expected role from broad consolidated metadata.content, with expected chunks 878ea631 and 3a64a87a absent from citations/top_results. The later rows 7-8 rotation retrieval_eval_20260830_063002 is preserved as deferred diagnostic evidence because it broadened optional coverage before row 5-6 citation-fidelity containment was resolved. Current answer failures are restored to expected_evidence_not_cited: 2 for rows 5-6; current retrieval failures remain {}.",
+  "answer_grounding_status": "2026-08-30 scorer containment updated answer evidence citation support to require exact expected chunk citations by default; same-document sibling or consolidated context only counts when the expected-evidence item explicitly sets allow_equivalent_citation. Re-scoring retrieval_eval_20260830_055809 fails both rows: row 5 missing 878ea631 and row 6 missing 3a64a87a. Loaded HTTP diagnostic rerun retrieval_eval_20260830_073108 also fails under the patched scorer despite automated pre-patch green output: row 1 still misses 878ea631, and row 2 cites f8248412/86ffe1a3 instead of exact ece874eb/3a64a87a. Current answer failures remain expected_evidence_not_cited: 2; current retrieval failures remain {}.",
   "answer_grounding_rotation": {
     "scope": "contextual_procedure_rows_5_6_atomic_citation_fidelity_containment",
     "classification": "diagnostic_not_clean_rows_5_6_expected_atomic_evidence_not_independently_auditable",
-    "latest_run": "retrieval_eval_20260830_055809",
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_055809.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260830_055809.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260830_055809.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260830_055809.json",
+    "latest_run": "retrieval_eval_20260830_073108",
+    "dataset": "test_reports/retrieval_eval_dataset_20260830_073108.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260830_073108.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260830_073108.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260830_073108.json",
     "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; retrieval itself is not the current blocker.",
-    "answer_result": "Automated answer summary reported 2/2, but manual guardrail inspection rejects the clean claim because expected atomic chunks 878ea631 and 3a64a87a are absent from citations/top_results and are only represented through consolidated metadata.content on neighboring cited chunks.",
-    "manual_jsonl_inspection": "retrieval_eval_results_20260830_055809 row 5 cites 02b921f5 only; expected timing chunk 878ea631 is absent from citations and top_results. Row 6 cites ece874eb only; expected Camera-Trigger-Light/Simulation Image Capture chunk 3a64a87a is absent from citations and top_results. Both answers use fallback_validation and are preserved as source-compatible diagnostic evidence, not clean grounded evidence.",
-    "deferred_optional_rotation": {
-      "run": "retrieval_eval_20260830_063002",
-      "scope": "contextual rows 7-8 answer rotation attempted before row 5-6 containment was resolved",
-      "classification": "diagnostic_deferred_not_current_clean_state",
-      "summary": "Row 7 failed expected_evidence_not_cited; row 8 appeared source-supported, but the run must not advance the current clean state until row 5-6 citation-fidelity containment is corrected."
-    },
+    "answer_result": "HTTP run was generated before the scorer tightening and printed 2/2 answer pass, but re-scoring with the patched exact-citation rule fails both rows as expected_evidence_not_cited.",
+    "manual_jsonl_inspection": "retrieval_eval_results_20260830_073108 row 1 cites 02b921f5 plus asynchronous-trigger sibling 86e3ce5c; expected timing chunk 878ea631 is absent from citations/top_results. Row 2 cites f8248412 and 86ffe1a3; exact expected chunks ece874eb and 3a64a87a are not both cited, and 3a64a87a is absent from citations/top_results.",
+    "previous_diagnostic_runs": [
+      "retrieval_eval_20260830_055809",
+      "retrieval_eval_20260830_063002"
+    ],
     "guardrail_finding": {
       "timestamp": "2026-08-30T06:54:04Z",
       "severity": "needs_fix",
       "guardrail_commit": "20f9178",
-      "status": "addressed_this_run_by_reclassification_and_exclusions"
+      "status": "partially_addressed_by_scorer_fail_closed_and_diagnostic_rerun"
     },
-    "validation": [],
-    "remaining": "Rerun rows 5-6 only after each expected evidence role is directly inspectable from cited chunk content/quote or from a validated role-level consolidated-context policy. Do not broaden optional rows 7-8 further until this is resolved.",
-    "updated_at": "2026-08-30T06:58:33Z"
+    "validation": [
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'cited_chunk_to_support_expected_evidence_role or exact_cited_chunk_to_be_returned or source_context_clean or scattered_persisted_citation_context_terms or wrong_operation_in_persisted_citation_context or composite_chunk' -> 11 passed, 101 deselected",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'multi_part_procedure_fallback or direct_procedure_fallback' -> 3 passed, 68 deselected",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python re-score retrieval_eval_results_20260830_055809.jsonl and retrieval_eval_results_20260830_073108.jsonl -> both rows fail expected_evidence_not_cited under patched scorer",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps -v tmp_eval_docs*:ro api python -m pytest tests/unit -q -> 442 passed, 59 warnings",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK"
+    ],
+    "remaining": "Production answer/retrieval selection still must cite or persist exact expected atomic chunks 878ea631 and 3a64a87a, or a future explicit source-reviewed equivalence policy must be added with deterministic controls. No clean row 5-6 answer evidence is accepted in this run.",
+    "updated_at": "2026-08-30T07:38:00Z"
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -11002,6 +11039,11 @@
       "run_id": "retrieval_eval_20260830_063002",
       "scope": "contextual rows 7-8 optional answer rotation while row 5-6 containment unresolved",
       "reason": "diagnostic/deferred: row 7 failed expected_evidence_not_cited and row 8 must not advance current clean state because the run broadened optional coverage before row 5-6 citation-fidelity containment was corrected."
+    },
+    {
+      "run_id": "retrieval_eval_20260830_073108",
+      "scope": "contextual procedure rows 5-6 atomic citation diagnostic rerun",
+      "reason": "pre-patch automated summary was green, but patched exact expected-evidence citation scorer and manual JSONL inspection show missing exact atomic chunks 878ea631 and 3a64a87a; not clean answer evidence"
     }
   ],
   "unresolved_guardrail_findings": [
@@ -11422,6 +11464,18 @@
         "Updated answer_grounding_status, answer_grounding_rotation, and latest_contextual_procedure_rows_5_6_answer_evidence_failure in root and question_bank copies atomically."
       ],
       "required_next_action": "Resolve contextual procedure rows 5-6 atomic citation fidelity before optional answer rotations: retrieval_eval_20260830_055809 is diagnostic/not-clean because row 5 cites only 02b921f5 while expected timing chunk 878ea631 is absent from citations/top_results, and row 6 cites only ece874eb while expected Camera-Trigger-Light chunk 3a64a87a is absent. Rerun only after the answer/retrieval path can cite or persist independently inspectable atomic role evidence, or after a source-reviewed consolidated-context policy is implemented and validated. Keep retrieval_eval_20260830_063002 rows 7-8 deferred/diagnostic until this containment is resolved."
+    },
+    {
+      "timestamp": "2026-08-30T07:38:00Z",
+      "severity": "needs_fix",
+      "finding": "Rows 5-6 exact atomic citation fidelity remains unresolved after scorer containment; production answer/retrieval path still does not cite/persist all exact expected chunks.",
+      "status": "partially_addressed_this_run_scorer_fails_closed",
+      "evidence": [
+        "score_answer_response exact citation change",
+        "retrieval_eval_20260830_073108 diagnostic replay",
+        "full unit gate 442 passed"
+      ],
+      "required_next_action": "Resolve contextual procedure rows 5-6 atomic citation fidelity before optional answer rotations: the scorer now fails same-document sibling/consolidated citations unless an expected-evidence item explicitly allows equivalence, and both retrieval_eval_20260830_055809 plus diagnostic rerun retrieval_eval_20260830_073108 fail expected_evidence_not_cited under that rule. Next, change the answer/retrieval path so row 5 cites/persists exact timing chunk 878ea631 and row 6 cites/persists exact Camera-Trigger-Light chunk 3a64a87a, or implement a source-reviewed explicit equivalence policy with deterministic controls before rerunning rows 5-6. Do not broaden rows 7-8 further until this containment is resolved."
     }
   ],
   "answer_grounding_sibling_rows_15_16": {
@@ -12743,17 +12797,17 @@
     "next_target_preserved": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after the source-repaired replacement attempt retrieval_eval_20260828_102649 also failed answer grounding: retrieval is clean at rank 1, but row 5 still cites the CV-X asynchronous-trigger chart instead of Multi-Capture trigger-input operation evidence, and row 6 still cites the broad XG-X line-scan section instead of the Standard Lighting Mode capture-environment and Camera-Trigger-Light configuration evidence. A safe next change should improve general fallback/citation evidence selection for procedure/context plus table/section roles, or source-review a narrower equivalence policy before counting these rows clean. Preserve all prior diagnostics/exclusions/containments."
   },
   "latest_contextual_procedure_rows_5_6_answer_evidence_failure": {
-    "timestamp": "2026-08-30T06:58:33Z",
+    "timestamp": "2026-08-30T07:38:00Z",
     "guardrail_timestamp": "2026-08-30T06:54:04Z",
-    "run": "retrieval_eval_20260830_055809",
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_055809.jsonl",
+    "run": "retrieval_eval_20260830_073108",
+    "dataset": "test_reports/retrieval_eval_dataset_20260830_073108.jsonl",
     "rows": [
       5,
       6
     ],
-    "classification": "diagnostic_not_clean_atomic_expected_evidence_not_independently_auditable",
+    "classification": "diagnostic_not_clean_exact_expected_evidence_not_cited",
     "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; failure_categories {}; candidate recall 100%; metadata-document recall 100%.",
-    "answer_result": "Automated 055809 summary reported 2/2, but guardrail/manual JSONL inspection reclassified both rows as not-clean because each expected evidence role is not independently auditable from cited/top_result chunks.",
+    "answer_result": "Patched scorer rejects same-document sibling or consolidated citations by default. Re-scoring 055809 and diagnostic loaded HTTP rerun 073108 fails rows 5-6 as expected_evidence_not_cited; no clean answer evidence is accepted.",
     "failures": [
       {
         "row": 5,
@@ -12808,7 +12862,9 @@
       "retrieval_eval_20260829_210829 improved contextual rows 5-6 from 0/2 to 1/2 actual HTTP answer grounding after a general multi-part fallback evidence selection change.",
       "Manual JSONL inspection confirmed row 6 is clean and row 5 remains expected_evidence_not_cited.",
       "Full unit gate passed from the clean worktree container with all required untracked fixture directories mounted read-only: 432 passed, 59 warnings.",
-      "2026-08-30 source-only scorer containment: retrieval_eval_20260830_033242 now fails closed for both rows when auxiliary local context is excluded from citation support."
+      "2026-08-30 source-only scorer containment: retrieval_eval_20260830_033242 now fails closed for both rows when auxiliary local context is excluded from citation support.",
+      "2026-08-30 exact expected-evidence citation containment: score_answer_response now accepts same-document equivalent citations only when allow_equivalent_citation is explicitly set on that expected-evidence item.",
+      "Diagnostic loaded HTTP rerun retrieval_eval_20260830_073108 remains not-clean after scorer replay: row 5 missing expected timing chunk 878ea631; row 6 missing exact Camera-Trigger-Light chunk 3a64a87a and did not cite exact capture-environment chunk ece874eb."
     ],
     "checker_repair": {
       "timestamp": "2026-08-29T04:25:24Z",
@@ -12817,7 +12873,7 @@
         "scripts/maintenance/check_retrieval_accuracy_manifest.py registers latest_contextual_procedure_rows_5_6_answer_evidence_failure as a required root/question_bank pair.",
         "tests/unit/test_manifest_check.py covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for this field."
       ],
-      "remaining": "Manifest pair enforcement is resolved; atomic answer evidence remains unresolved until rows 5-6 cite or persist independently inspectable expected chunks 878ea631 and 3a64a87a, or a future source-reviewed rule records auditable role-level consolidated support.",
+      "remaining": "Manifest pair enforcement is resolved; atomic answer evidence remains unresolved until rows 5-6 cite/persist exact expected chunks 878ea631 and 3a64a87a, or a future source-reviewed explicit equivalence rule records auditable role-level support.",
       "validation_reruns": [
         {
           "timestamp": "2026-08-29T04:55:17Z",
@@ -13663,6 +13719,16 @@
       "validation": [],
       "remaining": "Rerun rows 5-6 only after each expected evidence role is directly inspectable from cited chunk content/quote or from a validated role-level consolidated-context policy. Do not broaden optional rows 7-8 further until this is resolved.",
       "updated_at": "2026-08-30T06:58:33Z"
+    },
+    "scorer_repair": {
+      "timestamp": "2026-08-30T07:38:00Z",
+      "status": "exact_expected_chunk_required_by_default",
+      "change": "_expected_evidence_citation_support no longer allows a different cited chunk to satisfy an expected chunk_id unless allow_equivalent_citation is explicitly set on that expected-evidence item.",
+      "diagnostic_replay": {
+        "retrieval_eval_20260830_055809": "row 5 missing 878ea631; row 6 missing 3a64a87a",
+        "retrieval_eval_20260830_073108": "row 1 missing 878ea631; row 2 missing ece874eb and 3a64a87a under exact citation replay"
+      },
+      "remaining": "Need production answer/retrieval path repair or explicit source-reviewed equivalence policy before a clean rows 5-6 claim."
     }
   },
   "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
