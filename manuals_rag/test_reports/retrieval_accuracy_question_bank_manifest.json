@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T03:38:48Z",
+  "updated_at": "2026-08-30T04:05:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1080,12 +1080,14 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {},
-    "next_target": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual and cross-document multi-step cases. Preserve retrieval_eval_20260830_033242 rows 5-6 as clean auditable evidence; keep retrieval_eval_20260830_031111 and 032907 diagnostic-only for citation-persistence guardrail history.",
-    "answer_grounding_status": "Clean row 5/6 citation-source alignment from retrieval_eval_20260830_033242 after scorer and artifact-persistence repair: current answer failures are {}. Prior 031111/032907 green summaries are diagnostic because saved results did not preserve all cited chunks.",
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 2
+    },
+    "next_target": "Resolve row 5/6 atomic evidence accounting before optional answer rotations: either add a deterministic source-reviewed rule that permits persisted cited consolidated context to satisfy separate expected evidence roles only when each role is independently inspectable, or rerun rows 5-6 with citations/persisted evidence that include expected atomic chunks 878ea631 and 3a64a87a. Keep retrieval_eval_20260830_033242 diagnostic until then.",
+    "answer_grounding_status": "retrieval_eval_20260830_033242 is diagnostic/not-clean under guardrail 2026-08-30T03:52:41Z: the visible answers are source-compatible, but row 5 cites only 02b921f5 while expected timing chunk 878ea631 is absent from top_results/citations, and row 6 cites only ece874eb while expected Camera-Trigger-Light chunk 3a64a87a is absent from top_results/citations. Current answer failures restored to expected_evidence_not_cited: 2 until atomic role support is independently auditable.",
     "answer_grounding_rotation": {
       "scope": "contextual_procedure_rows_5_6_citation_persistence_repair",
-      "classification": "clean_loaded_http_answer_grounding_rows_5_6_after_persisted_cited_evidence_repair",
+      "classification": "diagnostic_not_clean_atomic_expected_evidence_not_independently_auditable",
       "previous_clean_claim_reclassified": "retrieval_eval_20260830_031111",
       "diagnostic_reruns": [
         "retrieval_eval_20260830_030535",
@@ -1097,8 +1099,8 @@
       "summary": "test_reports/retrieval_eval_summary_20260830_033242.json",
       "manifest": "test_reports/retrieval_eval_manifest_20260830_033242.json",
       "retrieval_result": "2/2 multi-step retrieval passed at rank 1; failure_categories {}; candidate recall 100%; metadata-document recall 100%.",
-      "answer_result": "2/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer_failure_reasons {}.",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_033242.jsonl. Row 5 cites 02b921f5, which is present in persisted top_results and whose returned source context states Timing chart Control/data output via I/O terminals plus the Multi-Capture multiple-image/single-measurement operation. Row 6 cites ece874eb, now appended to persisted top_results beyond the first five; its returned context states the Step 1/3 Capture Environment Adj. screen and Camera - Trigger - Light Configuration Settings through Simulation Image Capture.",
+      "answer_result": "0/2 clean atomic answer-grounding accepted for retrieval_eval_20260830_033242 after guardrail source review; visible answers are source-compatible but expected atomic evidence roles are not independently cited/persisted.",
+      "manual_jsonl_inspection": "Guardrail/source review of retrieval_eval_results_20260830_033242: row 5 expected 02b921f5 and 878ea631 but cited only 02b921f5 and top_results lacked 878ea631; row 6 expected ece874eb and 3a64a87a but cited only ece874eb and top_results lacked 3a64a87a. Do not count this run clean until a general source-reviewed consolidated-context rule or rerun supplies independently inspectable role support.",
       "guardrail_followup": "Addresses guardrail commit 0b7b868 by making null-quote citations to missing retrieved chunks fail closed and by persisting cited chunks found beyond top five in answer-mode JSONL artifacts.",
       "runtime_load": {
         "api": "existing side API on http://127.0.0.1:8700 used as actual HTTP answer source; eval harness/scorer ran from clean worktree container with this commit loaded",
@@ -1113,11 +1115,13 @@
         "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 438 passed, 59 warnings"
       ],
       "negative_control": "retrieval_eval_20260830_031111 and 032907 remain diagnostic: the patched scorer fails missing persisted cited chunks when re-scoring saved JSONL evidence.",
-      "remaining": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual/cross-document cases; do not accept future answer-mode green summaries unless persisted JSONL contains enough cited chunk/source context to audit every citation and expected evidence role.",
+      "remaining": "Resolve row 5/6 atomic evidence accounting before optional answer rotations: either add a deterministic source-reviewed rule that permits persisted cited consolidated context to satisfy separate expected evidence roles only when each role is independently inspectable, or rerun rows 5-6 with citations/persisted evidence that include expected atomic chunks 878ea631 and 3a64a87a. Keep retrieval_eval_20260830_033242 diagnostic until then.",
       "updated_at": "2026-08-30T03:38:48Z"
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {},
+    "current_answer_failure_categories": {
+      "expected_evidence_not_cited": 2
+    },
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1324,6 +1328,11 @@
         "run_id": "retrieval_eval_20260830_032907",
         "scope": "contextual rows 5-6 rerun after missing-citation scorer patch before persistence repair",
         "reason": "diagnostic/not-clean: saved row 6 answer cited ece874eb, but persisted top_results omitted that cited chunk; re-scoring the saved JSONL fails unsupported_citation_quote and expected_evidence_not_cited for row 6."
+      },
+      {
+        "run_id": "retrieval_eval_20260830_033242",
+        "scope": "contextual rows 5-6 row 5/6 clean atomic evidence claim",
+        "reason": "diagnostic/not-clean under guardrail 2026-08-30T03:52:41Z: answer citations use source-compatible consolidated context, but atomic expected chunks 878ea631 and 3a64a87a are absent from top_results/citations, so every expected evidence role is not independently auditable."
       }
     ],
     "unresolved_guardrail_findings": [
@@ -1813,7 +1822,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T03:38:48Z",
+    "updated_at": "2026-08-30T04:05:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3132,16 +3141,16 @@
     },
     "latest_contextual_procedure_rows_5_6_answer_evidence_failure": {
       "timestamp": "2026-08-29T21:11:42Z",
-      "guardrail_timestamp": "2026-08-29T03:09:45Z",
+      "guardrail_timestamp": "2026-08-30T03:52:41Z",
       "run": "retrieval_eval_20260829_210829",
       "dataset": "test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl",
       "rows": [
         5,
         6
       ],
-      "classification": "resolved_by_auditable_rerun_20260830_033242",
+      "classification": "diagnostic_not_clean_atomic_expected_evidence_not_independently_auditable",
       "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-      "answer_result": "1/2 actual HTTP API answer grounding passed. Row 5 failed expected_evidence_not_cited; row 6 passed. answer_sources {\"fallback_validation\": 2}; fallback count 2.",
+      "answer_result": "0/2 clean atomic answer-grounding accepted from retrieval_eval_20260830_033242 after guardrail source review; current answer failures expected_evidence_not_cited: 2.",
       "failures": [
         {
           "row": 5,
@@ -3766,7 +3775,7 @@
         ],
         "last_validation": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py plus focused/full unit gates in 2026-08-30 citation-persistence repair run."
       },
-      "remaining": "No current row 5/6 answer failure. Continue broad answer-grounding rotations and enforce persisted citation evidence for future clean claims.",
+      "remaining": "Resolve row 5/6 atomic evidence accounting before optional answer rotations: either add a deterministic source-reviewed rule that permits persisted cited consolidated context to satisfy separate expected evidence roles only when each role is independently inspectable, or rerun rows 5-6 with citations/persisted evidence that include expected atomic chunks 878ea631 and 3a64a87a. Keep retrieval_eval_20260830_033242 diagnostic until then.",
       "resolved_rows": [
         {
           "row": 6,
@@ -3846,15 +3855,38 @@
         "remaining": "Fix row 5 citation/source alignment so the actual API answer cites compatible timing evidence, or source-review a principled equivalent-evidence policy. Do not count retrieval_eval_20260830_023947 row 5 or the combined 2-case result as clean.",
         "updated_at": "2026-08-30T02:44:00Z"
       },
-      "status": "row_5_partial_answer_text_repair_citation_support_still_failing",
-      "updated_at": "2026-08-30T02:44:00Z",
+      "status": "atomic_evidence_accounting_unresolved",
+      "updated_at": "2026-08-30T04:05:00Z",
       "resolved_run": "retrieval_eval_20260830_033242",
-      "resolution": "Rows 5-6 now have clean actual HTTP answer evidence with persisted cited chunks/source context after scorer fail-closed and benchmark citation-persistence repairs. Prior 031111 and 032907 green summaries remain diagnostic-only.",
+      "resolution": "Retracted: retrieval_eval_20260830_033242 is no longer clean evidence because cited consolidated context was accepted without independently persisted/cited atomic expected chunks 878ea631 and 3a64a87a.",
       "resolved_evidence": [
-        "retrieval_eval_20260830_033242 persisted cited chunks 02b921f5 and ece874eb in top_results for audit.",
-        "Focused scorer/persistence controls passed and full unit gate passed 438 tests.",
-        "Manual JSONL inspection confirmed row 5 and row 6 cited source context supports expected evidence roles."
-      ]
+        "Guardrail 2026-08-30T03:52:41Z found row 5 expected chunks 02b921f5 and 878ea631, but the answer cited only 02b921f5 and top_results lacked 878ea631.",
+        "Guardrail 2026-08-30T03:52:41Z found row 6 expected chunks ece874eb and 3a64a87a, but the answer cited only ece874eb and top_results lacked 3a64a87a.",
+        "Visible answers remain source-compatible diagnostic evidence, but no clean atomic answer-grounding claim is accepted until every expected role is independently inspectable."
+      ],
+      "diagnostic_runs": [
+        {
+          "run_id": "retrieval_eval_20260830_033242",
+          "timestamp": "2026-08-30T03:52:41Z",
+          "classification": "diagnostic_not_clean_atomic_expected_evidence_not_independently_auditable",
+          "evidence": "Row 5 lacks expected atomic timing chunk 878ea631 in citations/top_results; row 6 lacks expected atomic Camera-Trigger-Light chunk 3a64a87a in citations/top_results.",
+          "guardrail": "2026-08-30T03:52:41Z needs_fix"
+        }
+      ],
+      "current_failure_categories": {
+        "expected_evidence_not_cited": 2
+      },
+      "atomic_evidence_guardrail": {
+        "timestamp": "2026-08-30T03:52:41Z",
+        "severity": "needs_fix",
+        "classification": "diagnostic_not_clean_atomic_expected_evidence_not_independently_auditable",
+        "run_id": "retrieval_eval_20260830_033242",
+        "evidence": [
+          "Row 5 expected 02b921f5 and 878ea631; answer cited only 02b921f5 and top_results lacked 878ea631.",
+          "Row 6 expected ece874eb and 3a64a87a; answer cited only ece874eb and top_results lacked 3a64a87a."
+        ],
+        "required_next_action": "Define a general source-reviewed consolidated-context policy with independently inspectable role support, or rerun rows 5-6 with citations/persisted evidence that include the missing atomic expected chunks."
+      }
     },
     "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
   },
@@ -9804,7 +9836,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual and cross-document multi-step cases. Preserve retrieval_eval_20260830_033242 rows 5-6 as clean auditable evidence; keep retrieval_eval_20260830_031111 and 032907 diagnostic-only for citation-persistence guardrail history.",
+  "next_target": "Resolve row 5/6 atomic evidence accounting before optional answer rotations: either add a deterministic source-reviewed rule that permits persisted cited consolidated context to satisfy separate expected evidence roles only when each role is independently inspectable, or rerun rows 5-6 with citations/persisted evidence that include expected atomic chunks 878ea631 and 3a64a87a. Keep retrieval_eval_20260830_033242 diagnostic until then.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10088,11 +10120,13 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {},
-  "answer_grounding_status": "Clean row 5/6 citation-source alignment from retrieval_eval_20260830_033242 after scorer and artifact-persistence repair: current answer failures are {}. Prior 031111/032907 green summaries are diagnostic because saved results did not preserve all cited chunks.",
+  "answer_current_failure_categories": {
+    "expected_evidence_not_cited": 2
+  },
+  "answer_grounding_status": "retrieval_eval_20260830_033242 is diagnostic/not-clean under guardrail 2026-08-30T03:52:41Z: the visible answers are source-compatible, but row 5 cites only 02b921f5 while expected timing chunk 878ea631 is absent from top_results/citations, and row 6 cites only ece874eb while expected Camera-Trigger-Light chunk 3a64a87a is absent from top_results/citations. Current answer failures restored to expected_evidence_not_cited: 2 until atomic role support is independently auditable.",
   "answer_grounding_rotation": {
     "scope": "contextual_procedure_rows_5_6_citation_persistence_repair",
-    "classification": "clean_loaded_http_answer_grounding_rows_5_6_after_persisted_cited_evidence_repair",
+    "classification": "diagnostic_not_clean_atomic_expected_evidence_not_independently_auditable",
     "previous_clean_claim_reclassified": "retrieval_eval_20260830_031111",
     "diagnostic_reruns": [
       "retrieval_eval_20260830_030535",
@@ -10104,8 +10138,8 @@
     "summary": "test_reports/retrieval_eval_summary_20260830_033242.json",
     "manifest": "test_reports/retrieval_eval_manifest_20260830_033242.json",
     "retrieval_result": "2/2 multi-step retrieval passed at rank 1; failure_categories {}; candidate recall 100%; metadata-document recall 100%.",
-    "answer_result": "2/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer_failure_reasons {}.",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_033242.jsonl. Row 5 cites 02b921f5, which is present in persisted top_results and whose returned source context states Timing chart Control/data output via I/O terminals plus the Multi-Capture multiple-image/single-measurement operation. Row 6 cites ece874eb, now appended to persisted top_results beyond the first five; its returned context states the Step 1/3 Capture Environment Adj. screen and Camera - Trigger - Light Configuration Settings through Simulation Image Capture.",
+    "answer_result": "0/2 clean atomic answer-grounding accepted for retrieval_eval_20260830_033242 after guardrail source review; visible answers are source-compatible but expected atomic evidence roles are not independently cited/persisted.",
+    "manual_jsonl_inspection": "Guardrail/source review of retrieval_eval_results_20260830_033242: row 5 expected 02b921f5 and 878ea631 but cited only 02b921f5 and top_results lacked 878ea631; row 6 expected ece874eb and 3a64a87a but cited only ece874eb and top_results lacked 3a64a87a. Do not count this run clean until a general source-reviewed consolidated-context rule or rerun supplies independently inspectable role support.",
     "guardrail_followup": "Addresses guardrail commit 0b7b868 by making null-quote citations to missing retrieved chunks fail closed and by persisting cited chunks found beyond top five in answer-mode JSONL artifacts.",
     "runtime_load": {
       "api": "existing side API on http://127.0.0.1:8700 used as actual HTTP answer source; eval harness/scorer ran from clean worktree container with this commit loaded",
@@ -10120,7 +10154,7 @@
       "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 438 passed, 59 warnings"
     ],
     "negative_control": "retrieval_eval_20260830_031111 and 032907 remain diagnostic: the patched scorer fails missing persisted cited chunks when re-scoring saved JSONL evidence.",
-    "remaining": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual/cross-document cases; do not accept future answer-mode green summaries unless persisted JSONL contains enough cited chunk/source context to audit every citation and expected evidence role.",
+    "remaining": "Resolve row 5/6 atomic evidence accounting before optional answer rotations: either add a deterministic source-reviewed rule that permits persisted cited consolidated context to satisfy separate expected evidence roles only when each role is independently inspectable, or rerun rows 5-6 with citations/persisted evidence that include expected atomic chunks 878ea631 and 3a64a87a. Keep retrieval_eval_20260830_033242 diagnostic until then.",
     "updated_at": "2026-08-30T03:38:48Z"
   },
   "latest_eval_generation_quality": {
@@ -10550,7 +10584,9 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "expected_evidence_not_cited": 2
+  },
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
@@ -10757,6 +10793,11 @@
       "run_id": "retrieval_eval_20260830_032907",
       "scope": "contextual rows 5-6 rerun after missing-citation scorer patch before persistence repair",
       "reason": "diagnostic/not-clean: saved row 6 answer cited ece874eb, but persisted top_results omitted that cited chunk; re-scoring the saved JSONL fails unsupported_citation_quote and expected_evidence_not_cited for row 6."
+    },
+    {
+      "run_id": "retrieval_eval_20260830_033242",
+      "scope": "contextual rows 5-6 row 5/6 clean atomic evidence claim",
+      "reason": "diagnostic/not-clean under guardrail 2026-08-30T03:52:41Z: answer citations use source-compatible consolidated context, but atomic expected chunks 878ea631 and 3a64a87a are absent from top_results/citations, so every expected evidence role is not independently auditable."
     }
   ],
   "unresolved_guardrail_findings": [
@@ -12487,16 +12528,16 @@
   },
   "latest_contextual_procedure_rows_5_6_answer_evidence_failure": {
     "timestamp": "2026-08-29T21:11:42Z",
-    "guardrail_timestamp": "2026-08-29T03:09:45Z",
+    "guardrail_timestamp": "2026-08-30T03:52:41Z",
     "run": "retrieval_eval_20260829_210829",
     "dataset": "test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl",
     "rows": [
       5,
       6
     ],
-    "classification": "resolved_by_auditable_rerun_20260830_033242",
+    "classification": "diagnostic_not_clean_atomic_expected_evidence_not_independently_auditable",
     "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-    "answer_result": "1/2 actual HTTP API answer grounding passed. Row 5 failed expected_evidence_not_cited; row 6 passed. answer_sources {\"fallback_validation\": 2}; fallback count 2.",
+    "answer_result": "0/2 clean atomic answer-grounding accepted from retrieval_eval_20260830_033242 after guardrail source review; current answer failures expected_evidence_not_cited: 2.",
     "failures": [
       {
         "row": 5,
@@ -13121,7 +13162,7 @@
       ],
       "last_validation": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py plus focused/full unit gates in 2026-08-30 citation-persistence repair run."
     },
-    "remaining": "No current row 5/6 answer failure. Continue broad answer-grounding rotations and enforce persisted citation evidence for future clean claims.",
+    "remaining": "Resolve row 5/6 atomic evidence accounting before optional answer rotations: either add a deterministic source-reviewed rule that permits persisted cited consolidated context to satisfy separate expected evidence roles only when each role is independently inspectable, or rerun rows 5-6 with citations/persisted evidence that include expected atomic chunks 878ea631 and 3a64a87a. Keep retrieval_eval_20260830_033242 diagnostic until then.",
     "resolved_rows": [
       {
         "row": 6,
@@ -13201,15 +13242,38 @@
       "remaining": "Fix row 5 citation/source alignment so the actual API answer cites compatible timing evidence, or source-review a principled equivalent-evidence policy. Do not count retrieval_eval_20260830_023947 row 5 or the combined 2-case result as clean.",
       "updated_at": "2026-08-30T02:44:00Z"
     },
-    "status": "row_5_partial_answer_text_repair_citation_support_still_failing",
-    "updated_at": "2026-08-30T02:44:00Z",
+    "status": "atomic_evidence_accounting_unresolved",
+    "updated_at": "2026-08-30T04:05:00Z",
     "resolved_run": "retrieval_eval_20260830_033242",
-    "resolution": "Rows 5-6 now have clean actual HTTP answer evidence with persisted cited chunks/source context after scorer fail-closed and benchmark citation-persistence repairs. Prior 031111 and 032907 green summaries remain diagnostic-only.",
+    "resolution": "Retracted: retrieval_eval_20260830_033242 is no longer clean evidence because cited consolidated context was accepted without independently persisted/cited atomic expected chunks 878ea631 and 3a64a87a.",
     "resolved_evidence": [
-      "retrieval_eval_20260830_033242 persisted cited chunks 02b921f5 and ece874eb in top_results for audit.",
-      "Focused scorer/persistence controls passed and full unit gate passed 438 tests.",
-      "Manual JSONL inspection confirmed row 5 and row 6 cited source context supports expected evidence roles."
-    ]
+      "Guardrail 2026-08-30T03:52:41Z found row 5 expected chunks 02b921f5 and 878ea631, but the answer cited only 02b921f5 and top_results lacked 878ea631.",
+      "Guardrail 2026-08-30T03:52:41Z found row 6 expected chunks ece874eb and 3a64a87a, but the answer cited only ece874eb and top_results lacked 3a64a87a.",
+      "Visible answers remain source-compatible diagnostic evidence, but no clean atomic answer-grounding claim is accepted until every expected role is independently inspectable."
+    ],
+    "diagnostic_runs": [
+      {
+        "run_id": "retrieval_eval_20260830_033242",
+        "timestamp": "2026-08-30T03:52:41Z",
+        "classification": "diagnostic_not_clean_atomic_expected_evidence_not_independently_auditable",
+        "evidence": "Row 5 lacks expected atomic timing chunk 878ea631 in citations/top_results; row 6 lacks expected atomic Camera-Trigger-Light chunk 3a64a87a in citations/top_results.",
+        "guardrail": "2026-08-30T03:52:41Z needs_fix"
+      }
+    ],
+    "current_failure_categories": {
+      "expected_evidence_not_cited": 2
+    },
+    "atomic_evidence_guardrail": {
+      "timestamp": "2026-08-30T03:52:41Z",
+      "severity": "needs_fix",
+      "classification": "diagnostic_not_clean_atomic_expected_evidence_not_independently_auditable",
+      "run_id": "retrieval_eval_20260830_033242",
+      "evidence": [
+        "Row 5 expected 02b921f5 and 878ea631; answer cited only 02b921f5 and top_results lacked 878ea631.",
+        "Row 6 expected ece874eb and 3a64a87a; answer cited only ece874eb and top_results lacked 3a64a87a."
+      ],
+      "required_next_action": "Define a general source-reviewed consolidated-context policy with independently inspectable role support, or rerun rows 5-6 with citations/persisted evidence that include the missing atomic expected chunks."
+    }
   },
   "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
 }
