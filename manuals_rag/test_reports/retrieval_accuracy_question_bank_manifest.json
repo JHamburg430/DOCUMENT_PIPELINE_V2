@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T05:10:00Z",
+  "updated_at": "2026-08-30T05:35:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1080,12 +1080,14 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {},
-    "next_target": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual and cross-document multi-step cases, starting with the next unresolved coverage gap; keep source-only citation payload inspection mandatory for every clean claim.",
-    "answer_grounding_status": "Contextual procedure rows 5-6 are clean after source-persisted citation-context repair: retrieval assembly persists same-section source context into metadata.content for cited chunks, fallback answering prefers that persisted content, and retrieval_eval_20260830_050202 passed 2/2 actual HTTP API answer grounding after manual JSONL inspection of every expected evidence role.",
+    "answer_current_failure_categories": {
+      "loaded_api_rerun_pending": 2
+    },
+    "next_target": "Rerun contextual procedure rows 5-6 through a loaded actual HTTP API path after the relation-preserving consolidated-citation scorer controls, then manually inspect the saved answer payloads/citations/persisted cited content before accepting clean answer evidence or broadening rotations.",
+    "answer_grounding_status": "Consolidated persisted-citation scorer guardrail is partially addressed: focused adverse controls now reject scattered same-section terms and sibling/wrong-operation context, and saved retrieval_eval_20260830_050202 still re-scores 2/2 with the tightened scorer. The 050202 clean claim is held diagnostic/pending, not accepted as final clean evidence, until rows 5-6 are rerun through a loaded actual API path and the saved answer/citations/persisted payloads are manually inspected.",
     "answer_grounding_rotation": {
       "scope": "contextual_procedure_rows_5_6_source_persisted_citation_repair",
-      "classification": "clean_loaded_http_source_persisted_context_citations",
+      "classification": "diagnostic_pending_loaded_api_rerun_after_relation_preserving_scorer_controls",
       "previous_diagnostic_run": "retrieval_eval_20260830_033242",
       "latest_run": "retrieval_eval_20260830_050202",
       "dataset": "test_reports/retrieval_eval_dataset_20260830_050202.jsonl",
@@ -1093,7 +1095,7 @@
       "summary": "test_reports/retrieval_eval_summary_20260830_050202.json",
       "manifest": "test_reports/retrieval_eval_manifest_20260830_050202.json",
       "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; failure_categories {}; candidate recall 100%; metadata-document recall 100%.",
-      "answer_result": "2/2 actual HTTP API answer grounding passed with fallback_validation answers; current answer failures are {}.",
+      "answer_result": "retrieval_eval_20260830_050202 remains source-compatible and passes the tightened saved-artifact re-score, but is not accepted as final clean answer evidence until a loaded actual API rerun confirms the same behavior after relation-preserving scorer controls.",
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_050202 for both cases. Row 5 user-visible answer cites 02b921f5 and the persisted cited payload contains the Multi-Capture operation plus Timing chart Control/data output via I/O terminals, satisfying expected roles 02b921f5 and 878ea631. Row 6 user-visible answer cites ece874eb and the persisted cited payload contains the Step 1/3 Capture Environment Adj. screen plus Camera - Trigger - Light Configuration Settings through Simulation Image Capture, satisfying expected roles ece874eb and 3a64a87a.",
       "guardrail_followup": "Follows the 2026-08-30T00:54 guardrail ok summary and the current target by making fallback answer context source-persisted in metadata.content instead of relying on hidden local_rerank_context/context_window fields.",
       "runtime_load": {
@@ -1108,18 +1110,19 @@
         "endpoint_model_note": "Clean side API used OLLAMA_URL=http://host.docker.internal:11434 and OLLAMA_ANSWER_MODEL=qwen3.5:9b. The dirty primary checkout compose OLLAMA_URL 11437 drift was preserved and not edited."
       },
       "validation": [
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'persisted_citation_context or multi_part_procedure_fallback' -> 3 passed, 68 deselected",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'assemble_context_persists_source_context_for_citation_audit' -> 1 passed, 112 deselected",
-        "Loaded HTTP answer eval retrieval_eval_20260830_050202 -> 2/2 retrieval and 2/2 answer grounding passed; answer_sources {fallback_validation: 2}",
-        "Manual JSONL inspection confirmed every expected evidence role is supported by the persisted cited payload content/metadata.content, with no unsupported quote spans.",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 440 passed, 59 warnings"
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'scattered_persisted_citation_context_terms or wrong_operation_in_persisted_citation_context or cited_composite_chunk_with_source_evidence or composite_chunk_with_correct_numeric_bindings' -> 4 passed, 108 deselected",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python re-score retrieval_eval_results_20260830_050202.jsonl -> rows 5-6 both pass with evidence_citation_support passed under tightened scorer",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> failed only because clean temp worktree lacked tmp_eval_docs fixture mounts (5 missing-fixture failures, 437 passed)",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 442 passed, 59 warnings"
       ],
-      "negative_control": "Existing source-only scorer containment remains in force: retrieval_eval_20260830_033242 stays diagnostic because its cited payloads did not persist the missing atomic role context. Focused tests now cover persisted-context positive behavior and retrieval assembly persistence.",
-      "remaining": "Continue broad actual HTTP API answer-grounding rotations across realistic contextual and cross-document multi-step cases. Do not accept future green answer summaries unless saved JSONL contains enough cited payload content to audit every expected evidence role.",
-      "updated_at": "2026-08-30T05:10:00Z"
+      "negative_control": "Added general focused controls that reject scattered persisted citation-context terms and sibling/wrong-operation persisted context while preserving legitimate composite and correct numeric-binding positives.",
+      "remaining": "Rerun contextual procedure rows 5-6 through a loaded actual HTTP API path, then manually inspect the results JSONL user-visible answers, citations, quote spans, and persisted cited payloads before clearing loaded_api_rerun_pending.",
+      "updated_at": "2026-08-30T05:35:00Z"
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {},
+    "current_answer_failure_categories": {
+      "loaded_api_rerun_pending": 2
+    },
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1331,6 +1334,11 @@
         "run_id": "retrieval_eval_20260830_033242",
         "scope": "contextual rows 5-6 row 5/6 clean atomic evidence claim",
         "reason": "diagnostic/not-clean under guardrail 2026-08-30T03:52:41Z: answer citations use source-compatible consolidated context, but atomic expected chunks 878ea631 and 3a64a87a are absent from top_results/citations, so every expected evidence role is not independently auditable."
+      },
+      {
+        "run_id": "retrieval_eval_20260830_050202",
+        "scope": "contextual procedure rows 5-6 clean claim after persisted citation-context repair",
+        "reason": "source-compatible but held diagnostic/pending because guardrail 2026-08-30T05:24:37Z found the generalized consolidated-citation scorer still accepted scattered same-section terms and sibling/wrong-operation context before relation-preserving controls were added; requires loaded actual API rerun with the tightened scorer before clean acceptance."
       }
     ],
     "unresolved_guardrail_findings": [
@@ -1820,7 +1828,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T05:10:00Z",
+    "updated_at": "2026-08-30T05:35:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3148,7 +3156,7 @@
       ],
       "classification": "resolved_clean_source_persisted_context_citations",
       "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-      "answer_result": "2/2 clean actual HTTP answer-grounding accepted after source-persisted citation-context repair; current answer failures {}.",
+      "answer_result": "Rows 5-6 are source-compatible in saved retrieval_eval_20260830_050202 and pass the tightened saved-artifact re-score, but the clean claim is held diagnostic/pending until a loaded actual API rerun is inspected after relation-preserving scorer controls.",
       "failures": [
         {
           "row": 5,
@@ -3774,7 +3782,7 @@
         ],
         "last_validation": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py plus focused/full unit gates in 2026-08-30 citation-persistence repair run."
       },
-      "remaining": "No current row 5/6 answer-evidence failure remains. Continue broad answer-grounding rotations with source-only citation-payload inspection.",
+      "remaining": "Loaded actual HTTP API rows 5-6 rerun and manual JSONL citation/payload inspection remain required before clearing the pending state.",
       "resolved_rows": [
         {
           "row": 6,
@@ -3873,7 +3881,7 @@
         }
       ],
       "current_failure_categories": {
-        "expected_evidence_not_cited": 2
+        "loaded_api_rerun_pending": 2
       },
       "atomic_evidence_guardrail": {
         "timestamp": "2026-08-30T03:52:41Z",
@@ -3903,7 +3911,21 @@
         "remaining": "Rerun contextual procedure rows 5-6 through the loaded actual answer path only after the answer/retrieval path can cite or persist independently inspectable atomic role evidence for expected chunks 878ea631 and 3a64a87a; keep retrieval_eval_20260830_033242 and prior false-green runs diagnostic until then."
       },
       "resolved_at": "2026-08-30T05:10:00Z",
-      "resolution_run": "retrieval_eval_20260830_050202"
+      "resolution_run": "retrieval_eval_20260830_050202",
+      "consolidated_citation_scorer_guardrail": {
+        "timestamp": "2026-08-30T05:24:37Z",
+        "guardrail_commit": "dc43f0e",
+        "severity": "needs_fix",
+        "finding": "The generalized consolidated-citation scoring path accepted scattered same-section terms and a sibling/wrong-operation persisted context even though retrieval_eval_20260830_050202 itself was source-compatible.",
+        "addressed_this_run": [
+          "Added relation-preserving segment checks for non-exact cited chunks that satisfy expected evidence via persisted cited text.",
+          "Added adverse scorer controls for scattered timing/control/I/O/terminal terms and wrong asynchronous-trigger operation context.",
+          "Preserved legitimate composite cited context and correct numeric binding positive controls.",
+          "Re-scored saved retrieval_eval_20260830_050202 as 2/2 passing under the tightened scorer."
+        ],
+        "remaining": "Run loaded actual HTTP API rows 5-6 and inspect JSONL before accepting 050202 or any successor as clean production answer evidence.",
+        "status": "scorer_controls_added_api_rerun_pending"
+      }
     },
     "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
   },
@@ -9853,7 +9875,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual and cross-document multi-step cases, starting with the next unresolved coverage gap; keep source-only citation payload inspection mandatory for every clean claim.",
+  "next_target": "Rerun contextual procedure rows 5-6 through a loaded actual HTTP API path after the relation-preserving consolidated-citation scorer controls, then manually inspect the saved answer payloads/citations/persisted cited content before accepting clean answer evidence or broadening rotations.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10137,11 +10159,13 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {},
-  "answer_grounding_status": "Contextual procedure rows 5-6 are clean after source-persisted citation-context repair: retrieval assembly persists same-section source context into metadata.content for cited chunks, fallback answering prefers that persisted content, and retrieval_eval_20260830_050202 passed 2/2 actual HTTP API answer grounding after manual JSONL inspection of every expected evidence role.",
+  "answer_current_failure_categories": {
+    "loaded_api_rerun_pending": 2
+  },
+  "answer_grounding_status": "Consolidated persisted-citation scorer guardrail is partially addressed: focused adverse controls now reject scattered same-section terms and sibling/wrong-operation context, and saved retrieval_eval_20260830_050202 still re-scores 2/2 with the tightened scorer. The 050202 clean claim is held diagnostic/pending, not accepted as final clean evidence, until rows 5-6 are rerun through a loaded actual API path and the saved answer/citations/persisted payloads are manually inspected.",
   "answer_grounding_rotation": {
     "scope": "contextual_procedure_rows_5_6_source_persisted_citation_repair",
-    "classification": "clean_loaded_http_source_persisted_context_citations",
+    "classification": "diagnostic_pending_loaded_api_rerun_after_relation_preserving_scorer_controls",
     "previous_diagnostic_run": "retrieval_eval_20260830_033242",
     "latest_run": "retrieval_eval_20260830_050202",
     "dataset": "test_reports/retrieval_eval_dataset_20260830_050202.jsonl",
@@ -10149,7 +10173,7 @@
     "summary": "test_reports/retrieval_eval_summary_20260830_050202.json",
     "manifest": "test_reports/retrieval_eval_manifest_20260830_050202.json",
     "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; failure_categories {}; candidate recall 100%; metadata-document recall 100%.",
-    "answer_result": "2/2 actual HTTP API answer grounding passed with fallback_validation answers; current answer failures are {}.",
+    "answer_result": "retrieval_eval_20260830_050202 remains source-compatible and passes the tightened saved-artifact re-score, but is not accepted as final clean answer evidence until a loaded actual API rerun confirms the same behavior after relation-preserving scorer controls.",
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_050202 for both cases. Row 5 user-visible answer cites 02b921f5 and the persisted cited payload contains the Multi-Capture operation plus Timing chart Control/data output via I/O terminals, satisfying expected roles 02b921f5 and 878ea631. Row 6 user-visible answer cites ece874eb and the persisted cited payload contains the Step 1/3 Capture Environment Adj. screen plus Camera - Trigger - Light Configuration Settings through Simulation Image Capture, satisfying expected roles ece874eb and 3a64a87a.",
     "guardrail_followup": "Follows the 2026-08-30T00:54 guardrail ok summary and the current target by making fallback answer context source-persisted in metadata.content instead of relying on hidden local_rerank_context/context_window fields.",
     "runtime_load": {
@@ -10164,15 +10188,14 @@
       "endpoint_model_note": "Clean side API used OLLAMA_URL=http://host.docker.internal:11434 and OLLAMA_ANSWER_MODEL=qwen3.5:9b. The dirty primary checkout compose OLLAMA_URL 11437 drift was preserved and not edited."
     },
     "validation": [
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'persisted_citation_context or multi_part_procedure_fallback' -> 3 passed, 68 deselected",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'assemble_context_persists_source_context_for_citation_audit' -> 1 passed, 112 deselected",
-      "Loaded HTTP answer eval retrieval_eval_20260830_050202 -> 2/2 retrieval and 2/2 answer grounding passed; answer_sources {fallback_validation: 2}",
-      "Manual JSONL inspection confirmed every expected evidence role is supported by the persisted cited payload content/metadata.content, with no unsupported quote spans.",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 440 passed, 59 warnings"
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'scattered_persisted_citation_context_terms or wrong_operation_in_persisted_citation_context or cited_composite_chunk_with_source_evidence or composite_chunk_with_correct_numeric_bindings' -> 4 passed, 108 deselected",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python re-score retrieval_eval_results_20260830_050202.jsonl -> rows 5-6 both pass with evidence_citation_support passed under tightened scorer",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> failed only because clean temp worktree lacked tmp_eval_docs fixture mounts (5 missing-fixture failures, 437 passed)",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 442 passed, 59 warnings"
     ],
-    "negative_control": "Existing source-only scorer containment remains in force: retrieval_eval_20260830_033242 stays diagnostic because its cited payloads did not persist the missing atomic role context. Focused tests now cover persisted-context positive behavior and retrieval assembly persistence.",
-    "remaining": "Continue broad actual HTTP API answer-grounding rotations across realistic contextual and cross-document multi-step cases. Do not accept future green answer summaries unless saved JSONL contains enough cited payload content to audit every expected evidence role.",
-    "updated_at": "2026-08-30T05:10:00Z"
+    "negative_control": "Added general focused controls that reject scattered persisted citation-context terms and sibling/wrong-operation persisted context while preserving legitimate composite and correct numeric-binding positives.",
+    "remaining": "Rerun contextual procedure rows 5-6 through a loaded actual HTTP API path, then manually inspect the results JSONL user-visible answers, citations, quote spans, and persisted cited payloads before clearing loaded_api_rerun_pending.",
+    "updated_at": "2026-08-30T05:35:00Z"
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -10601,7 +10624,9 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "loaded_api_rerun_pending": 2
+  },
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
@@ -10813,6 +10838,11 @@
       "run_id": "retrieval_eval_20260830_033242",
       "scope": "contextual rows 5-6 row 5/6 clean atomic evidence claim",
       "reason": "diagnostic/not-clean under guardrail 2026-08-30T03:52:41Z: answer citations use source-compatible consolidated context, but atomic expected chunks 878ea631 and 3a64a87a are absent from top_results/citations, so every expected evidence role is not independently auditable."
+    },
+    {
+      "run_id": "retrieval_eval_20260830_050202",
+      "scope": "contextual procedure rows 5-6 clean claim after persisted citation-context repair",
+      "reason": "source-compatible but held diagnostic/pending because guardrail 2026-08-30T05:24:37Z found the generalized consolidated-citation scorer still accepted scattered same-section terms and sibling/wrong-operation context before relation-preserving controls were added; requires loaded actual API rerun with the tightened scorer before clean acceptance."
     }
   ],
   "unresolved_guardrail_findings": [
@@ -12552,7 +12582,7 @@
     ],
     "classification": "resolved_clean_source_persisted_context_citations",
     "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-    "answer_result": "2/2 clean actual HTTP answer-grounding accepted after source-persisted citation-context repair; current answer failures {}.",
+    "answer_result": "Rows 5-6 are source-compatible in saved retrieval_eval_20260830_050202 and pass the tightened saved-artifact re-score, but the clean claim is held diagnostic/pending until a loaded actual API rerun is inspected after relation-preserving scorer controls.",
     "failures": [
       {
         "row": 5,
@@ -13178,7 +13208,7 @@
       ],
       "last_validation": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py plus focused/full unit gates in 2026-08-30 citation-persistence repair run."
     },
-    "remaining": "No current row 5/6 answer-evidence failure remains. Continue broad answer-grounding rotations with source-only citation-payload inspection.",
+    "remaining": "Loaded actual HTTP API rows 5-6 rerun and manual JSONL citation/payload inspection remain required before clearing the pending state.",
     "resolved_rows": [
       {
         "row": 6,
@@ -13277,7 +13307,7 @@
       }
     ],
     "current_failure_categories": {
-      "expected_evidence_not_cited": 2
+      "loaded_api_rerun_pending": 2
     },
     "atomic_evidence_guardrail": {
       "timestamp": "2026-08-30T03:52:41Z",
@@ -13307,7 +13337,21 @@
       "remaining": "Rerun contextual procedure rows 5-6 through the loaded actual answer path only after the answer/retrieval path can cite or persist independently inspectable atomic role evidence for expected chunks 878ea631 and 3a64a87a; keep retrieval_eval_20260830_033242 and prior false-green runs diagnostic until then."
     },
     "resolved_at": "2026-08-30T05:10:00Z",
-    "resolution_run": "retrieval_eval_20260830_050202"
+    "resolution_run": "retrieval_eval_20260830_050202",
+    "consolidated_citation_scorer_guardrail": {
+      "timestamp": "2026-08-30T05:24:37Z",
+      "guardrail_commit": "dc43f0e",
+      "severity": "needs_fix",
+      "finding": "The generalized consolidated-citation scoring path accepted scattered same-section terms and a sibling/wrong-operation persisted context even though retrieval_eval_20260830_050202 itself was source-compatible.",
+      "addressed_this_run": [
+        "Added relation-preserving segment checks for non-exact cited chunks that satisfy expected evidence via persisted cited text.",
+        "Added adverse scorer controls for scattered timing/control/I/O/terminal terms and wrong asynchronous-trigger operation context.",
+        "Preserved legitimate composite cited context and correct numeric binding positive controls.",
+        "Re-scored saved retrieval_eval_20260830_050202 as 2/2 passing under the tightened scorer."
+      ],
+      "remaining": "Run loaded actual HTTP API rows 5-6 and inspect JSONL before accepting 050202 or any successor as clean production answer evidence.",
+      "status": "scorer_controls_added_api_rerun_pending"
+    }
   },
   "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
 }

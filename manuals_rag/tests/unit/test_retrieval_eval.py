@@ -1944,6 +1944,143 @@ def test_answer_response_scoring_rejects_expected_role_only_from_cited_local_con
     ]
 
 
+def test_answer_response_scoring_rejects_scattered_persisted_citation_context_terms():
+    case = RetrievalEvalCase(
+        case_id="answer-consolidated-scattered-context",
+        query=(
+            "For CV-X Multi-Capture trigger input timing, what operation does the section describe "
+            "and which control/data I/O timing chart should I use?"
+        ),
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="multi-capture-step",
+        source_title="Timing chart",
+        source_filename="Manual.pdf",
+        chunk_type="procedure_record",
+        section_path="Timing chart",
+        page_from=114,
+        page_to=114,
+        expected_terms=["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
+        expected_snippet=(
+            "Timing chart Control/data output via I/O terminals; "
+            "Typical operations at trigger input (Capture Type: Multi-Capture); "
+            "Performs multiple image captures at the same location and processes them as a single measurement."
+        ),
+        generation_method="contextual_procedure_plus_section_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "timing-chart",
+                "source_document_id": "doc-cvx",
+                "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
+                "snippet": "Timing chart Control/data output via I/O terminals",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "The section says Multi-Capture performs multiple image captures at the same location "
+                "and processes them as a single measurement; use the control/data I/O timing chart."
+            ),
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "multi-capture-step", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-cvx"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "multi-capture-step",
+                "source_document_id": "doc-cvx",
+                "content": "Procedure step 2: Typical operations at trigger input (Capture Type: Multi-Capture).",
+                "metadata": {
+                    "content": (
+                        "Timing setup overview. The diagnostic chart is listed elsewhere. "
+                        "Control output is configured separately. Data export uses I/O mapping. "
+                        "Terminal labels are shown on the next page."
+                    )
+                },
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+
+
+def test_answer_response_scoring_rejects_wrong_operation_in_persisted_citation_context():
+    case = RetrievalEvalCase(
+        case_id="answer-consolidated-wrong-operation",
+        query=(
+            "For CV-X Multi-Capture trigger input timing, what operation does the section describe "
+            "and which control/data I/O timing chart should I use?"
+        ),
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="multi-capture-step",
+        source_title="Timing chart",
+        source_filename="Manual.pdf",
+        chunk_type="procedure_record",
+        section_path="Timing chart",
+        page_from=114,
+        page_to=114,
+        expected_terms=["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
+        expected_snippet=(
+            "Timing chart Control/data output via I/O terminals; "
+            "Typical operations at trigger input (Capture Type: Multi-Capture); "
+            "Performs multiple image captures at the same location and processes them as a single measurement."
+        ),
+        generation_method="contextual_procedure_plus_section_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "multi-capture-step",
+                "source_document_id": "doc-cvx",
+                "expected_terms": ["multi-capture", "trigger", "multiple", "image", "captures", "single", "measurement"],
+                "snippet": (
+                    "Procedure step 2: Typical operations at trigger input (Capture Type: Multi-Capture). "
+                    "Performs multiple image captures at the same location and processes them as a single measurement."
+                ),
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "The section says Multi-Capture performs multiple image captures at the same location "
+                "and processes them as a single measurement."
+            ),
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "section-window", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-cvx"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "section-window",
+                "source_document_id": "doc-cvx",
+                "content": "Procedure step 2: Typical operations at trigger input (Capture Type: Multi-Capture).",
+                "metadata": {
+                    "content": (
+                        "Timing chart Control/data output via I/O terminals. "
+                        "Typical operations at trigger input (Capture Type: Multi-Capture). "
+                        "For asynchronous trigger operation, one image is captured for one measurement."
+                    )
+                },
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+
+
 def test_answer_response_scoring_rejects_composite_chunk_without_source_role_terms():
     case = RetrievalEvalCase(
         case_id="answer-composite-source-evidence-negative",

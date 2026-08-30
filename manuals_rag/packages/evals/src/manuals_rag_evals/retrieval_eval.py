@@ -3112,7 +3112,66 @@ def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text:
         for term in snippet_terms
         if _expected_term_matches_text(term, text_lower, text_tokens)
     ]
-    return len(matched_snippet_terms) >= max(2, min(len(snippet_terms), len(snippet_terms) - 1))
+    if len(matched_snippet_terms) < max(2, min(len(snippet_terms), len(snippet_terms) - 1)):
+        return False
+    return _expected_evidence_role_segments_supported(item, cited_text)
+
+
+def _expected_evidence_role_segments_supported(item: dict[str, Any], cited_text: str) -> bool:
+    source_segments = _evidence_role_segments(str(item.get("snippet") or ""))
+    if not source_segments:
+        return True
+    cited_segments = _evidence_role_segments(cited_text)
+    if not cited_segments:
+        return False
+    expected_terms = {
+        normalize_text(term)
+        for term in item.get("expected_terms") or []
+        if str(term).strip()
+        and normalize_text(str(term)) not in ANSWER_SCORING_GENERIC_TERMS
+        and normalize_text(str(term)) not in {"procedure", "step", "setting", "item", "settings", "column", "headers", "row", "cell", "value"}
+    }
+    required_source_segments = []
+    for segment_terms in source_segments:
+        if expected_terms:
+            segment_terms = [term for term in segment_terms if term in expected_terms or any(part in expected_terms for part in term.split("/"))]
+        if len(segment_terms) >= 2:
+            required_source_segments.append(segment_terms)
+    if not required_source_segments:
+        return True
+
+    for source_terms in required_source_segments:
+        required_count = len(source_terms) if len(source_terms) <= 4 else max(4, len(source_terms) - 1)
+        if not any(len(set(source_terms).intersection(cited_terms)) >= required_count for cited_terms in cited_segments):
+            return False
+    return True
+
+
+def _evidence_role_segments(text: str) -> list[list[str]]:
+    segments: list[list[str]] = []
+    seen_segments: set[tuple[str, ...]] = set()
+    for segment in re.split(r"(?<=[.!?;:])\s+|\n+|\s+\|\s+", text):
+        terms: list[str] = []
+        seen_terms: set[str] = set()
+        for token in tokenize(segment):
+            normalized = normalize_text(token)
+            if (
+                not normalized
+                or normalized in STOPWORDS
+                or normalized in GENERIC_ANCHORS
+                or normalized in ANSWER_SCORING_GENERIC_TERMS
+            ):
+                continue
+            if normalized not in seen_terms:
+                seen_terms.add(normalized)
+                terms.append(normalized)
+        if len(terms) < 2:
+            continue
+        key = tuple(terms)
+        if key not in seen_segments:
+            seen_segments.add(key)
+            segments.append(terms)
+    return segments
 
 
 def _expected_evidence_binding_check(item: dict[str, Any], cited_text: str) -> dict[str, Any]:
