@@ -198,6 +198,49 @@ def test_direct_configuration_fallback_prefers_phrase_bound_evidence():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_fails_closed_when_plausible_answer_has_only_wrong_mode_evidence():
+    answer = AnswerResponse(
+        answer="Use Camera: Trigger - Light Configuration Settings for trigger and light settings.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="wrong-mode-config",
+            score=0.92,
+            title="XG-X manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[985],
+            section_path=["Capture Using Line Scan Cameras", "LumiTrax Specular Reflection Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (LumiTrax Specular Reflection Mode). "
+                "Camera: Trigger - Light Configuration Settings. Configure trigger input "
+                "and illumination control targets for LumiTrax line-scan capture."
+            ),
+            metadata={"chunk_type": "section_window"},
+        )
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+            "configuration area is used for trigger and light settings?"
+        ),
+    )
+
+    assert validated.insufficient_evidence is True
+    assert validated.citations == []
+    assert "Camera: Trigger - Light Configuration Settings" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_multi_part_procedure_fallback_keeps_clause_bound_evidence():
     answer = AnswerResponse(
         answer="Configure OPC-UA security certificates.",

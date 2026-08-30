@@ -1413,6 +1413,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         not _answer_supported_by_results(answer.answer, results)
         or _structured_answer_is_too_terse(answer.answer, results)
         or (answer.insufficient_evidence and len(_fallback_evidence_results(query, results)) > 1)
+        or (_should_score_direct_fallback(query) and not _explicit_scope_has_candidate(query, results))
         or _comparison_answer_is_overcautious(answer, query, results)
         or not _citation_quotes_are_supported(list(answer.citations), results)
         or not _answer_addresses_troubleshooting_anchor(answer.answer, query, list(answer.citations), results)
