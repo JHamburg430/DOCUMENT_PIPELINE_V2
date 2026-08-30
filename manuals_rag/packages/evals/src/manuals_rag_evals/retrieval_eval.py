@@ -3041,6 +3041,27 @@ def _retrieved_chunk_texts(results: list[dict[str, Any]] | None) -> dict[str, st
     return chunk_texts
 
 
+def _retrieved_chunk_document_ids(results: list[dict[str, Any]] | None) -> dict[str, str]:
+    chunk_document_ids: dict[str, str] = {}
+    for result in results or []:
+        if not isinstance(result, dict):
+            continue
+        chunk_id = str(result.get("chunk_id") or result.get("id") or "")
+        if not chunk_id:
+            continue
+        metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+        document_id = str(
+            result.get("source_document_id")
+            or result.get("document_id")
+            or metadata.get("source_document_id")
+            or metadata.get("document_id")
+            or ""
+        )
+        if document_id:
+            chunk_document_ids[chunk_id] = document_id
+    return chunk_document_ids
+
+
 def _answer_citation_fidelity(
     answer: dict[str, Any],
     retrieved_results: list[dict[str, Any]] | None,
@@ -3316,6 +3337,7 @@ def _expected_evidence_citation_support(
     if retrieved_results is None or not case.expected_evidence:
         return {"passed": True, "checked": False, "missing_evidence": []}
     chunk_texts = _retrieved_chunk_texts(retrieved_results)
+    chunk_document_ids = _retrieved_chunk_document_ids(retrieved_results)
     citations = [citation for citation in answer.get("citations") or [] if isinstance(citation, dict)]
     if not citations:
         return {
@@ -3337,19 +3359,29 @@ def _expected_evidence_citation_support(
         if not isinstance(item, dict):
             continue
         expected_chunk_id = str(item.get("chunk_id") or "")
-        expected_document_id = str(item.get("source_document_id") or item.get("document_id") or "")
+        expected_document_id = str(
+            item.get("source_document_id")
+            or item.get("document_id")
+            or chunk_document_ids.get(expected_chunk_id, "")
+        )
         expected_terms = [str(term) for term in item.get("expected_terms") or [] if str(term).strip()]
         term_required = len(expected_terms) if len(expected_terms) <= 2 else 2
         supported = False
         for citation in citations:
             cited_chunk_id = str(citation.get("chunk_id") or "")
-            if expected_document_id and _citation_document_id(citation) != expected_document_id:
+            cited_document_id = _citation_document_id(citation) or chunk_document_ids.get(cited_chunk_id, "")
+            if expected_document_id and cited_document_id != expected_document_id:
                 continue
             cited_text = chunk_texts.get(cited_chunk_id, "")
             if not cited_text:
                 continue
             if expected_chunk_id and cited_chunk_id != expected_chunk_id:
-                if item.get("allow_equivalent_citation") and _expected_evidence_supported_by_cited_text(item, cited_text):
+                if (
+                    item.get("allow_equivalent_citation")
+                    and expected_document_id
+                    and cited_document_id == expected_document_id
+                    and _expected_evidence_supported_by_cited_text(item, cited_text)
+                ):
                     supported = True
                     break
                 continue
