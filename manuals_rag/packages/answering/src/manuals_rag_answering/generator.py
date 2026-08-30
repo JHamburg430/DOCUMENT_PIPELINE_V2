@@ -882,6 +882,8 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
     if not evidence_terms:
         return 0.0
     score = min(6.0, len(query_terms.intersection(evidence_terms)))
+    score += _ordered_query_phrase_score(query, evidence)
+    score += _direct_configuration_binding_score(query_terms, evidence_terms)
     evidence_scope_terms = _answer_terms(
         " ".join(
             [
@@ -915,6 +917,74 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
     if re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
         score += min(4.0, float(len(_contextual_quantity_terms(evidence))))
     return score
+
+
+def _direct_configuration_binding_score(query_terms: set[str], evidence_terms: set[str]) -> float:
+    if not {"configuration", "setting", "settings", "area", "screen", "menu", "option"}.intersection(query_terms):
+        return 0.0
+    if "configuration" in query_terms and "configuration" not in evidence_terms:
+        return 0.0
+    anchors = {"camera", "trigger", "light", "lighting", "illumination"}.intersection(query_terms)
+    if len(anchors) < 2:
+        return 0.0
+    if not {"configuration", "setting", "settings", "screen", "menu"}.intersection(evidence_terms):
+        return 0.0
+    matched_anchors = anchors.intersection(evidence_terms)
+    if len(matched_anchors) < 2:
+        return 0.0
+    return min(3.0, 1.0 + float(len(matched_anchors)))
+
+
+def _configuration_requested_candidate(
+    query_terms: set[str], scored: list[tuple[float, int, SearchResult]]
+) -> SearchResult | None:
+    if "configuration" not in query_terms:
+        return None
+    candidates = [
+        (score, index, result)
+        for score, index, result in scored
+        if _direct_configuration_binding_score(
+            query_terms,
+            _answer_terms(_fallback_answer_text(result)[:800]),
+        )
+        > 0.0
+    ]
+    if not candidates:
+        return None
+    best_score, _best_index, best_result = max(candidates, key=lambda item: (item[0], -item[1]))
+    if best_score >= 2.0:
+        return best_result
+    return None
+
+
+def _ordered_query_phrase_score(query: str, evidence: str) -> float:
+    query_tokens = [
+        token
+        for token in re.findall(r"[a-z0-9]+", query.lower())
+        if token not in {"what", "which", "where", "when", "how", "for", "the", "is", "are", "used"}
+    ]
+    if len(query_tokens) < 2:
+        return 0.0
+    normalized_evidence = " ".join(re.findall(r"[a-z0-9]+", evidence.lower()))
+    score = 0.0
+    for size, weight in ((4, 1.5), (3, 1.0), (2, 0.5)):
+        for index in range(0, len(query_tokens) - size + 1):
+            phrase = " ".join(query_tokens[index : index + size])
+            if phrase in normalized_evidence:
+                score += weight
+                if score >= 3.0:
+                    return 3.0
+    return min(score, 3.0)
+
+
+def _should_score_direct_fallback(query: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(?:what|which)\b.+\b(?:area|screen|menu|setting|settings|configuration|option|field|parameter|control|value)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
 
 
 def _multi_part_evidence_clauses(query: str) -> list[str]:
@@ -1007,6 +1077,19 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
         multi_part_results = _multi_part_fallback_evidence_results(query, ordered_results)
         if multi_part_results:
             return multi_part_results
+        if _should_score_direct_fallback(query):
+            scored = [
+                (_fallback_evidence_score(query, result), index, result)
+                for index, result in enumerate(ordered_results[:8])
+            ]
+            if scored:
+                query_terms = _answer_terms(query)
+                if configuration_result := _configuration_requested_candidate(query_terms, scored):
+                    return [configuration_result]
+                first_score = scored[0][0]
+                best_score, _best_index, best_result = max(scored, key=lambda item: (item[0], -item[1]))
+                if best_score >= 2.0 and best_score > first_score:
+                    return [best_result]
         if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
             return ordered_results[:1]
         scored = [

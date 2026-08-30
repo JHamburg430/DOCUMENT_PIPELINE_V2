@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T12:34:00Z",
+  "updated_at": "2026-08-30T13:09:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1083,51 +1083,29 @@
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 1
     },
-    "next_target": "Continue with contextual procedure row 7 answer evidence selection from retrieval_eval_20260830_063002: retrieval found expected capture-environment and Camera - Trigger - Light Configuration chunks, but the user-visible fallback answer cited only broad preparation chunk edcd5d51. Preserve row 8 as clean deferred evidence from retrieval_eval_20260830_063002 now that rows 5-6 citation-fidelity containment is resolved.",
-    "answer_grounding_status": "2026-08-30 source-reviewed equivalence repair resolved contextual rows 5-6 atomic citation containment. Expected evidence now carries source_document_id, and allow_equivalent_citation is used only for source-reviewed same-document persisted citation context: row 5 cited 02b921f5 content supports both Multi-Capture operation and Control/data I/O timing heading; row 6 cited ece874eb content supports both capture-environment step and Camera-Trigger-Light/Simulation Image Capture context. Fresh loaded HTTP eval retrieval_eval_20260830_120143 passed 2/2 retrieval and 2/2 answer grounding with fallback_validation answers after manual JSONL/source-field inspection. Current answer failures move to contextual row 7 expected_evidence_not_cited: 1; current retrieval failures remain {}.",
+    "next_target": "Continue contextual row 7 as a source-scope and mode-binding answer target: the patched fallback selector moved the original visible query from broad preparation evidence to a directly answering Camera: Trigger - Light Configuration Settings chunk, but the visible question does not uniquely require Standard Lighting Mode and the Standard Lighting repair still selected the LumiTrax same-document setting chunk. Source-review the row 7 expected roles and either replace the question with a unique realistic Standard Lighting query whose retrieved/cited chunks support the answer, or add a principled mode-aware fallback rule with clean loaded HTTP evidence.",
+    "answer_grounding_status": "2026-08-30 row 7 diagnostic/partial repair: direct configuration fallback selection now scores setting/configuration questions and prefers leading cited text that binds requested configuration terms to camera/trigger/light anchors. Loaded HTTP run retrieval_eval_20260830_130420 changed the user-visible fallback from broad preparation chunk edcd5d51 to directly answering chunk 73a22558, which states Camera: Trigger - Light Configuration Settings and trigger/light assignment details, but it remains diagnostic/not-clean because that cited chunk is the LumiTrax line-scan section while the hidden expected evidence targets Standard Lighting row chunks ece874eb and 93d11edf. Source-repaired wording run retrieval_eval_20260830_130550 also remained not-clean for the same mode-selection/evidence-citation gap. Current answer failures remain expected_evidence_not_cited: 1; current retrieval failures remain {}.",
     "answer_grounding_rotation": {
-      "scope": "contextual_procedure_rows_5_6_source_reviewed_equivalent_citation_repair",
-      "classification": "clean_loaded_http_source_reviewed_same_document_equivalence",
-      "latest_run": "retrieval_eval_20260830_120143",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_0758_contextual_rows_5_6_source_equivalence.jsonl",
-      "saved_dataset": "test_reports/retrieval_eval_dataset_20260830_120143.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260830_120143.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260830_120143.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260830_120143.json",
-      "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; failure_categories {}; candidate recall 100%; metadata-document recall 100%.",
-      "answer_result": "2/2 actual HTTP API answer grounding passed under source-reviewed same-document equivalence; answer_sources {fallback_validation: 2}; fallback count 2.",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_120143. Row 1 answer cites 02b921f5 in source document 599c5822; cited persisted metadata.content contains Timing chart Control/data output via I/O terminals and the Multi-Capture multiple-image/single-measurement operation. Row 2 answer cites ece874eb in source document d0f2314c; cited persisted metadata.content contains Step 1/3 Capture Environment Adj., Camera - Trigger - Light Configuration Settings, and Simulation Image Capture. Citation quote_spans are null but cited chunks are returned and source-field support is present.",
-      "source_reviewed_equivalence_policy": "Equivalent citations are accepted only when the expected-evidence item explicitly sets allow_equivalent_citation, the expected role has a source_document_id, the citation resolves to a returned chunk from the same source_document_id, and the cited persisted source text supports the expected role terms/bindings. No filename, vendor, row, document-id, or query-specific production route was added.",
-      "guardrail_finding": {
-        "timestamp": "2026-08-30T06:54:04Z",
-        "severity": "needs_fix",
-        "guardrail_commit": "20f9178",
-        "status": "addressed_by_source_reviewed_same_document_equivalence_and_fresh_loaded_http_rerun"
-      },
+      "scope": "contextual_procedure_row7_direct_configuration_fallback_partial_repair",
+      "classification": "diagnostic_partial_loaded_http_not_clean",
+      "latest_run": "retrieval_eval_20260830_130550",
+      "baseline_run": "retrieval_eval_20260830_063002",
+      "changed_path_run": "retrieval_eval_20260830_130420",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_1305_contextual_row7_standard_lighting_repair.jsonl",
+      "saved_dataset": "test_reports/retrieval_eval_dataset_20260830_130550.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260830_130550.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260830_130550.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260830_130550.json",
+      "retrieval_result": "Both loaded HTTP reruns retrieved expected row 7 evidence at rank 1 with candidate and metadata-document recall 100%.",
+      "answer_result": "retrieval_eval_20260830_130420 and retrieval_eval_20260830_130550 each failed 0/1 answer grounding with expected_evidence_not_cited: 1; answer_source fallback_validation.",
+      "manual_jsonl_inspection": "Inspected both JSONL payloads. 130420 cites 73a22558 and answers with Camera: Trigger - Light Configuration Settings, but it is the LumiTrax Specular Reflection Mode section, not the hidden Standard Lighting expected chunks ece874eb/93d11edf. 130550 adds Standard Lighting Mode to the visible question and source_document_id to expected evidence, but still cites 73a22558; therefore the result remains diagnostic/not-clean.",
+      "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-row7 on http://127.0.0.1:8724 loaded _fallback_evidence_score sha256 904c888836828e4e85bbe9c5e3fc67556a7daba7ae24b3b6cbe313ade881626a, _configuration_requested_candidate sha256 ff268046aa6fc8c08056b21615e34e34bf9390e90acc9e7cbc04f7bdfa477e5e, _fallback_evidence_results sha256 c18a3055150f6df61f31b2a4f5937468d7cd66aa0184fbf50a1d5b48bf4f7852, OLLAMA_URL http://host.docker.internal:11434, OLLAMA_ANSWER_MODEL qwen3.5:9b, OLLAMA_EMBED_MODEL qwen3-embedding:0.6b, HAYSTACK_RERANK_MODEL cross-encoder/ms-marco-MiniLM-L-12-v2.",
       "validation": [
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'equivalent_citation or cited_composite_chunk_with_source_evidence or composite_chunk_with_swapped_numeric_bindings' -> 5 passed, 110 deselected",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python re-score retrieval_eval_results_20260830_073108.jsonl and 055809 with source-equivalence dataset -> both rows pass under explicit same-document equivalence",
-        "Fresh loaded HTTP answer eval retrieval_eval_20260830_120143 -> 2/2 retrieval, 2/2 answer grounding",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> failed only because clean worktree omitted tmp_eval_docs* fixtures",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps -v tmp_eval_docs*:ro api python -m pytest tests/unit -q -> 445 passed, 59 warnings"
+        "focused direct/multi-part fallback tests passed: 4 passed, 68 deselected",
+        "answering unit file with fixture mounts passed: 72 passed, 23 warnings",
+        "focused answer/evidence scorer tests passed: 45 passed, 70 deselected"
       ],
-      "loaded_runtime": {
-        "container": "manuals-rag-temp-api-39262386-20260830-equivalence-8720",
-        "api_base": "http://127.0.0.1:8720",
-        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
-        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-        "_retrieved_chunk_document_ids_sha256": "6cba9ca61f461ca78868689012e9d925a57b29e3ab3c2f7a692bb5d6c6ff553c",
-        "retrieve_sha256": "b025cc2aa9df0e47e5772ea29f11b22c34c8a2ba7d5604b576302c886e35caa5",
-        "generate_answer_sha256": "e75cfb7b269021a1897654974f4ff287e87ee190c436194d9913c66b376007a8",
-        "validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "HAYSTACK_RERANK_DEVICE": "cuda:0"
-      },
-      "remaining": "Rows 5-6 containment is resolved by explicit same-document equivalence. Next unresolved answer-grounding target is contextual row 7 from retrieval_eval_20260830_063002; row 8 can be preserved as clean deferred evidence after row 7 is fixed or separately tracked.",
-      "updated_at": "2026-08-30T12:08:00Z"
+      "remaining": "Row 7 is not clean. Next run should source-review mode-specific Standard Lighting evidence and add mode-aware fallback selection or replace the ambiguous visible question; preserve row 8 clean deferred evidence and rows 5-6 source-reviewed clean evidence."
     },
     "current_retrieval_failure_categories": {},
     "current_answer_failure_categories": {
@@ -1364,6 +1342,16 @@
         "run_id": "retrieval_eval_20260830_073108",
         "scope": "contextual procedure rows 5-6 atomic citation diagnostic rerun",
         "reason": "pre-patch automated summary was green, but patched exact expected-evidence citation scorer and manual JSONL inspection show missing exact atomic chunks 878ea631 and 3a64a87a; not clean answer evidence"
+      },
+      {
+        "run_id": "retrieval_eval_20260830_130420",
+        "scope": "contextual procedure row 7 answer evidence",
+        "reason": "diagnostic changed-path row 7 run; fallback cited directly answering Camera: Trigger - Light Configuration Settings chunk, but visible query allowed a LumiTrax sibling mode while expected evidence targeted Standard Lighting chunks"
+      },
+      {
+        "run_id": "retrieval_eval_20260830_130550",
+        "scope": "contextual procedure row 7 answer evidence",
+        "reason": "diagnostic source-repaired row 7 run; visible query specified Standard Lighting Mode but fallback still cited LumiTrax Camera: Trigger - Light Configuration Settings chunk, so answer evidence remains not clean"
       }
     ],
     "unresolved_guardrail_findings": [
@@ -1901,7 +1889,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T12:34:00Z",
+    "updated_at": "2026-08-30T13:09:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3843,7 +3831,7 @@
       "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
       "updated_at": "2026-08-30T12:08:00Z"
     },
-    "remaining": "No row 5-6 answer failure remains after retrieval_eval_20260830_120143. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002; preserve row 8 as clean deferred evidence until row 7 is fixed or separately tracked."
+    "remaining": "Continue contextual row 7 as a source-scope and mode-binding answer target: the patched fallback selector moved the original visible query from broad preparation evidence to a directly answering Camera: Trigger - Light Configuration Settings chunk, but the visible question does not uniquely require Standard Lighting Mode and the Standard Lighting repair still selected the LumiTrax same-document setting chunk. Source-review the row 7 expected roles and either replace the question with a unique realistic Standard Lighting query whose retrieved/cited chunks support the answer, or add a principled mode-aware fallback rule with clean loaded HTTP evidence."
   },
   "latest_false_negative_repair": {
     "scope": "live_app_false_negative_question_4_luminance_output_type",
@@ -9791,7 +9779,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Continue with contextual procedure row 7 answer evidence selection from retrieval_eval_20260830_063002: retrieval found expected capture-environment and Camera - Trigger - Light Configuration chunks, but the user-visible fallback answer cited only broad preparation chunk edcd5d51. Preserve row 8 as clean deferred evidence from retrieval_eval_20260830_063002 now that rows 5-6 citation-fidelity containment is resolved.",
+  "next_target": "Continue contextual row 7 as a source-scope and mode-binding answer target: the patched fallback selector moved the original visible query from broad preparation evidence to a directly answering Camera: Trigger - Light Configuration Settings chunk, but the visible question does not uniquely require Standard Lighting Mode and the Standard Lighting repair still selected the LumiTrax same-document setting chunk. Source-review the row 7 expected roles and either replace the question with a unique realistic Standard Lighting query whose retrieved/cited chunks support the answer, or add a principled mode-aware fallback rule with clean loaded HTTP evidence.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10078,50 +10066,28 @@
   "answer_current_failure_categories": {
     "expected_evidence_not_cited": 1
   },
-  "answer_grounding_status": "2026-08-30 source-reviewed equivalence repair resolved contextual rows 5-6 atomic citation containment. Expected evidence now carries source_document_id, and allow_equivalent_citation is used only for source-reviewed same-document persisted citation context: row 5 cited 02b921f5 content supports both Multi-Capture operation and Control/data I/O timing heading; row 6 cited ece874eb content supports both capture-environment step and Camera-Trigger-Light/Simulation Image Capture context. Fresh loaded HTTP eval retrieval_eval_20260830_120143 passed 2/2 retrieval and 2/2 answer grounding with fallback_validation answers after manual JSONL/source-field inspection. Current answer failures move to contextual row 7 expected_evidence_not_cited: 1; current retrieval failures remain {}.",
+  "answer_grounding_status": "2026-08-30 row 7 diagnostic/partial repair: direct configuration fallback selection now scores setting/configuration questions and prefers leading cited text that binds requested configuration terms to camera/trigger/light anchors. Loaded HTTP run retrieval_eval_20260830_130420 changed the user-visible fallback from broad preparation chunk edcd5d51 to directly answering chunk 73a22558, which states Camera: Trigger - Light Configuration Settings and trigger/light assignment details, but it remains diagnostic/not-clean because that cited chunk is the LumiTrax line-scan section while the hidden expected evidence targets Standard Lighting row chunks ece874eb and 93d11edf. Source-repaired wording run retrieval_eval_20260830_130550 also remained not-clean for the same mode-selection/evidence-citation gap. Current answer failures remain expected_evidence_not_cited: 1; current retrieval failures remain {}.",
   "answer_grounding_rotation": {
-    "scope": "contextual_procedure_rows_5_6_source_reviewed_equivalent_citation_repair",
-    "classification": "clean_loaded_http_source_reviewed_same_document_equivalence",
-    "latest_run": "retrieval_eval_20260830_120143",
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_0758_contextual_rows_5_6_source_equivalence.jsonl",
-    "saved_dataset": "test_reports/retrieval_eval_dataset_20260830_120143.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260830_120143.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260830_120143.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260830_120143.json",
-    "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; failure_categories {}; candidate recall 100%; metadata-document recall 100%.",
-    "answer_result": "2/2 actual HTTP API answer grounding passed under source-reviewed same-document equivalence; answer_sources {fallback_validation: 2}; fallback count 2.",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_120143. Row 1 answer cites 02b921f5 in source document 599c5822; cited persisted metadata.content contains Timing chart Control/data output via I/O terminals and the Multi-Capture multiple-image/single-measurement operation. Row 2 answer cites ece874eb in source document d0f2314c; cited persisted metadata.content contains Step 1/3 Capture Environment Adj., Camera - Trigger - Light Configuration Settings, and Simulation Image Capture. Citation quote_spans are null but cited chunks are returned and source-field support is present.",
-    "source_reviewed_equivalence_policy": "Equivalent citations are accepted only when the expected-evidence item explicitly sets allow_equivalent_citation, the expected role has a source_document_id, the citation resolves to a returned chunk from the same source_document_id, and the cited persisted source text supports the expected role terms/bindings. No filename, vendor, row, document-id, or query-specific production route was added.",
-    "guardrail_finding": {
-      "timestamp": "2026-08-30T06:54:04Z",
-      "severity": "needs_fix",
-      "guardrail_commit": "20f9178",
-      "status": "addressed_by_source_reviewed_same_document_equivalence_and_fresh_loaded_http_rerun"
-    },
+    "scope": "contextual_procedure_row7_direct_configuration_fallback_partial_repair",
+    "classification": "diagnostic_partial_loaded_http_not_clean",
+    "latest_run": "retrieval_eval_20260830_130550",
+    "baseline_run": "retrieval_eval_20260830_063002",
+    "changed_path_run": "retrieval_eval_20260830_130420",
+    "dataset": "test_reports/retrieval_eval_dataset_20260830_1305_contextual_row7_standard_lighting_repair.jsonl",
+    "saved_dataset": "test_reports/retrieval_eval_dataset_20260830_130550.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260830_130550.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260830_130550.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260830_130550.json",
+    "retrieval_result": "Both loaded HTTP reruns retrieved expected row 7 evidence at rank 1 with candidate and metadata-document recall 100%.",
+    "answer_result": "retrieval_eval_20260830_130420 and retrieval_eval_20260830_130550 each failed 0/1 answer grounding with expected_evidence_not_cited: 1; answer_source fallback_validation.",
+    "manual_jsonl_inspection": "Inspected both JSONL payloads. 130420 cites 73a22558 and answers with Camera: Trigger - Light Configuration Settings, but it is the LumiTrax Specular Reflection Mode section, not the hidden Standard Lighting expected chunks ece874eb/93d11edf. 130550 adds Standard Lighting Mode to the visible question and source_document_id to expected evidence, but still cites 73a22558; therefore the result remains diagnostic/not-clean.",
+    "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-row7 on http://127.0.0.1:8724 loaded _fallback_evidence_score sha256 904c888836828e4e85bbe9c5e3fc67556a7daba7ae24b3b6cbe313ade881626a, _configuration_requested_candidate sha256 ff268046aa6fc8c08056b21615e34e34bf9390e90acc9e7cbc04f7bdfa477e5e, _fallback_evidence_results sha256 c18a3055150f6df61f31b2a4f5937468d7cd66aa0184fbf50a1d5b48bf4f7852, OLLAMA_URL http://host.docker.internal:11434, OLLAMA_ANSWER_MODEL qwen3.5:9b, OLLAMA_EMBED_MODEL qwen3-embedding:0.6b, HAYSTACK_RERANK_MODEL cross-encoder/ms-marco-MiniLM-L-12-v2.",
     "validation": [
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'equivalent_citation or cited_composite_chunk_with_source_evidence or composite_chunk_with_swapped_numeric_bindings' -> 5 passed, 110 deselected",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python re-score retrieval_eval_results_20260830_073108.jsonl and 055809 with source-equivalence dataset -> both rows pass under explicit same-document equivalence",
-      "Fresh loaded HTTP answer eval retrieval_eval_20260830_120143 -> 2/2 retrieval, 2/2 answer grounding",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> failed only because clean worktree omitted tmp_eval_docs* fixtures",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps -v tmp_eval_docs*:ro api python -m pytest tests/unit -q -> 445 passed, 59 warnings"
+      "focused direct/multi-part fallback tests passed: 4 passed, 68 deselected",
+      "answering unit file with fixture mounts passed: 72 passed, 23 warnings",
+      "focused answer/evidence scorer tests passed: 45 passed, 70 deselected"
     ],
-    "loaded_runtime": {
-      "container": "manuals-rag-temp-api-39262386-20260830-equivalence-8720",
-      "api_base": "http://127.0.0.1:8720",
-      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
-      "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-      "_retrieved_chunk_document_ids_sha256": "6cba9ca61f461ca78868689012e9d925a57b29e3ab3c2f7a692bb5d6c6ff553c",
-      "retrieve_sha256": "b025cc2aa9df0e47e5772ea29f11b22c34c8a2ba7d5604b576302c886e35caa5",
-      "generate_answer_sha256": "e75cfb7b269021a1897654974f4ff287e87ee190c436194d9913c66b376007a8",
-      "validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
-      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "HAYSTACK_RERANK_DEVICE": "cuda:0"
-    },
-    "remaining": "Rows 5-6 containment is resolved by explicit same-document equivalence. Next unresolved answer-grounding target is contextual row 7 from retrieval_eval_20260830_063002; row 8 can be preserved as clean deferred evidence after row 7 is fixed or separately tracked.",
-    "updated_at": "2026-08-30T12:08:00Z"
+    "remaining": "Row 7 is not clean. Next run should source-review mode-specific Standard Lighting evidence and add mode-aware fallback selection or replace the ambiguous visible question; preserve row 8 clean deferred evidence and rows 5-6 source-reviewed clean evidence."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -10784,6 +10750,16 @@
       "run_id": "retrieval_eval_20260830_073108",
       "scope": "contextual procedure rows 5-6 atomic citation diagnostic rerun",
       "reason": "pre-patch automated summary was green, but patched exact expected-evidence citation scorer and manual JSONL inspection show missing exact atomic chunks 878ea631 and 3a64a87a; not clean answer evidence"
+    },
+    {
+      "run_id": "retrieval_eval_20260830_130420",
+      "scope": "contextual procedure row 7 answer evidence",
+      "reason": "diagnostic changed-path row 7 run; fallback cited directly answering Camera: Trigger - Light Configuration Settings chunk, but visible query allowed a LumiTrax sibling mode while expected evidence targeted Standard Lighting chunks"
+    },
+    {
+      "run_id": "retrieval_eval_20260830_130550",
+      "scope": "contextual procedure row 7 answer evidence",
+      "reason": "diagnostic source-repaired row 7 run; visible query specified Standard Lighting Mode but fallback still cited LumiTrax Camera: Trigger - Light Configuration Settings chunk, so answer evidence remains not clean"
     }
   ],
   "unresolved_guardrail_findings": [
@@ -13185,5 +13161,5 @@
     "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
     "updated_at": "2026-08-30T12:08:00Z"
   },
-  "remaining": "No row 5-6 answer failure remains after retrieval_eval_20260830_120143. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002; preserve row 8 as clean deferred evidence until row 7 is fixed or separately tracked."
+  "remaining": "Continue contextual row 7 as a source-scope and mode-binding answer target: the patched fallback selector moved the original visible query from broad preparation evidence to a directly answering Camera: Trigger - Light Configuration Settings chunk, but the visible question does not uniquely require Standard Lighting Mode and the Standard Lighting repair still selected the LumiTrax same-document setting chunk. Source-review the row 7 expected roles and either replace the question with a unique realistic Standard Lighting query whose retrieved/cited chunks support the answer, or add a principled mode-aware fallback rule with clean loaded HTTP evidence."
 }

@@ -143,6 +143,61 @@ def test_validate_answer_falls_back_when_generated_answer_is_not_supported():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_direct_configuration_fallback_prefers_phrase_bound_evidence():
+    answer = AnswerResponse(
+        answer="Configure OPC-UA security certificates.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="broad-preparation",
+            score=0.95,
+            title="XG-X manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[970],
+            section_path=["Preparing a Line Scan Camera"],
+            content=(
+                "Preparing a Line Scan Camera. Preparation 1: Changing the Camera, Trigger, "
+                "and Light Settings. Configure the following settings when using fixed capture."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+        SearchResult(
+            chunk_id="camera-trigger-light-settings",
+            score=0.9,
+            title="XG-X manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[979],
+            section_path=["Capture Using Line Scan Cameras"],
+            content=(
+                "Camera: Trigger - Light Configuration Settings. The connected cameras and "
+                "illumination expansion units, trigger input for each camera, and illumination "
+                "control targets can be configured together."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="For XG-X line-scan camera setup, what camera configuration area is used for trigger and light settings?",
+    )
+
+    assert "Camera: Trigger - Light Configuration Settings" in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == [
+        "camera-trigger-light-settings"
+    ]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_multi_part_procedure_fallback_keeps_clause_bound_evidence():
     answer = AnswerResponse(
         answer="Configure OPC-UA security certificates.",
