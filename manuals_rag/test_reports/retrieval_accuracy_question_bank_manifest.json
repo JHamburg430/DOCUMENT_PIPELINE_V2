@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T03:15:00Z",
+  "updated_at": "2026-08-30T03:38:48Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1081,44 +1081,40 @@
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
     "answer_current_failure_categories": {},
-    "next_target": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual and cross-document multi-step cases, starting with the next unresolved current failure or coverage gap. Preserve retrieval_eval_20260830_031111 rows 5-6 as clean focused evidence and keep prior row 5 false-positive/partial runs diagnostic-only.",
-    "answer_grounding_status": "Clean row 5 citation/source alignment from retrieval_eval_20260830_031111: rows 5-6 both pass actual HTTP API answer grounding after composite-context fallback selection and returned-context citation scoring. Current answer failures are {}.",
+    "next_target": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual and cross-document multi-step cases. Preserve retrieval_eval_20260830_033242 rows 5-6 as clean auditable evidence; keep retrieval_eval_20260830_031111 and 032907 diagnostic-only for citation-persistence guardrail history.",
+    "answer_grounding_status": "Clean row 5/6 citation-source alignment from retrieval_eval_20260830_033242 after scorer and artifact-persistence repair: current answer failures are {}. Prior 031111/032907 green summaries are diagnostic because saved results did not preserve all cited chunks.",
     "answer_grounding_rotation": {
-      "scope": "contextual_procedure_rows_5_6_composite_fallback_clean_repair",
-      "classification": "clean_loaded_http_answer_grounding_rows_5_6_after_composite_context_fallback",
-      "previous_run": "retrieval_eval_20260830_023947",
-      "diagnostic_rerun": "retrieval_eval_20260830_030535",
-      "latest_run": "retrieval_eval_20260830_031111",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_031111.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260830_031111.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260830_031111.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260830_031111.json",
+      "scope": "contextual_procedure_rows_5_6_citation_persistence_repair",
+      "classification": "clean_loaded_http_answer_grounding_rows_5_6_after_persisted_cited_evidence_repair",
+      "previous_clean_claim_reclassified": "retrieval_eval_20260830_031111",
+      "diagnostic_reruns": [
+        "retrieval_eval_20260830_030535",
+        "retrieval_eval_20260830_032907"
+      ],
+      "latest_run": "retrieval_eval_20260830_033242",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_033242.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260830_033242.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260830_033242.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260830_033242.json",
       "retrieval_result": "2/2 multi-step retrieval passed at rank 1; failure_categories {}; candidate recall 100%; metadata-document recall 100%.",
       "answer_result": "2/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer_failure_reasons {}.",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_031111.jsonl. Row 5 user-visible fallback answer cites only chunk 02b921f5 on page 853 and states both source-backed roles: Timing chart Control/data output via I/O terminals and Multi-Capture performs multiple image captures at the same location and processes them as a single measurement. The cited returned source context supports the expected 878ea631 timing-chart role without adding the prior LJ-V continuous-mode sibling section. Row 6 remains clean with ece874eb plus 86ffe1a3 supporting capture-environment and Camera-Trigger-Light/Simulation Image Capture roles.",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_033242.jsonl. Row 5 cites 02b921f5, which is present in persisted top_results and whose returned source context states Timing chart Control/data output via I/O terminals plus the Multi-Capture multiple-image/single-measurement operation. Row 6 cites ece874eb, now appended to persisted top_results beyond the first five; its returned context states the Step 1/3 Capture Environment Adj. screen and Camera - Trigger - Light Configuration Settings through Simulation Image Capture.",
+      "guardrail_followup": "Addresses guardrail commit 0b7b868 by making null-quote citations to missing retrieved chunks fail closed and by persisting cited chunks found beyond top five in answer-mode JSONL artifacts.",
       "runtime_load": {
-        "api": "clean worktree side API on http://127.0.0.1:8706, container manuals-rag-temp-api-39262386-20260830-composite, separate from dirty-mounted service on 8600",
-        "endpoint_model_note": "Clean checked-in compose environment used OLLAMA_URL=http://host.docker.internal:11434 and OLLAMA_ANSWER_MODEL=qwen3.5:9b; dirty primary checkout still has unrelated compose OLLAMA_URL 11437 drift that this run preserved and did not commit.",
-        "fingerprints": {
-          "generator._fallback_evidence_score_sha256": "9af0158762ce5a20caa2ed930c7c263614456f9261ff80718b59137e3d459992",
-          "generator._multi_part_evidence_coherence_score_sha256": "0625c36ac6f5d426895bca869199b454c3ff70370299680ae1309844ed0e4afc",
-          "generator._multi_part_fallback_evidence_results_sha256": "9c91a79d43fedf2a2902fa0618c3c2055adf4bbf6a4420a46866f287a8436907",
-          "generator._fallback_answer_text_sha256": "b906b94c99bd65c6bc207dee10f5fe1ba8f7564292837d528ca1d72802950bcd",
-          "generator.validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3",
-          "retrieval_eval._retrieved_chunk_texts_sha256": "179fc644ca55c4d61107af4adeff980ba3f776e76c4c42a1eb402dd21639dcd1",
-          "retrieval_eval._expected_evidence_supported_by_cited_text_sha256": "7ee6d40d0b22ddd2586868120449d92a62a02f4c23be07992bd41e399e5180de",
-          "retrieval_eval.score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16"
-        }
+        "api": "existing side API on http://127.0.0.1:8700 used as actual HTTP answer source; eval harness/scorer ran from clean worktree container with this commit loaded",
+        "endpoint_model_note": "Did not restart compose or alter models/providers. The primary checkout dirty OLLAMA_URL 11437 drift was preserved; the side API was used only for bounded answer payload evidence."
       },
       "validation": [
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'multi_part_procedure_fallback' -> 2 passed",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'operation_fact_terms or composite_chunk or expected_role_from_cited_local_context or answer_response_scoring' -> 28 passed",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only at /workspace/manuals_rag api python -m pytest tests/unit -q -> 436 passed, 59 warnings",
-        "Loaded HTTP eval via side API: docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260830-composite python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260830_031111"
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'persists_cited_evidence_beyond_top_five or null_quote_citations_missing_from_results or unsupported_citation_quote_spans or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 106 deselected",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python re-score retrieval_eval_results_20260830_031111.jsonl -> row 1 failed unsupported_citation_quote + expected_evidence_not_cited; row 2 failed unsupported_citation_quote",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python re-score retrieval_eval_results_20260830_032907.jsonl -> row 1 passed; row 2 failed unsupported_citation_quote + expected_evidence_not_cited because saved top_results omitted ece874eb",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps -e API_BASE=http://host.docker.internal:8700 api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260830_031111.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260830_033242",
+        "Manual JSONL inspection of retrieval_eval_results_20260830_033242 confirmed every citation is present in persisted top_results and supports the expected evidence roles.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 438 passed, 59 warnings"
       ],
-      "negative_control": "Intermediate loaded HTTP eval retrieval_eval_20260830_030535 remains diagnostic/not-clean: row 5 still added LJ-V continuous timing chunk 993dbb43 and failed expected_evidence_not_cited. Unit controls now cover the adverse sibling LJ-V continuous timing case and the evaluator accepts a separate expected timing role only when the cited source context contains it.",
-      "remaining": "Continue broad answer-grounding rotations on realistic contextual/cross-document cases; preserve retrieval_eval_20260830_031111 rows 5-6 as clean focused evidence and keep retrieval_eval_20260830_023947 and retrieval_eval_20260830_030535 excluded as diagnostics.",
-      "updated_at": "2026-08-30T03:15:00Z"
+      "negative_control": "retrieval_eval_20260830_031111 and 032907 remain diagnostic: the patched scorer fails missing persisted cited chunks when re-scoring saved JSONL evidence.",
+      "remaining": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual/cross-document cases; do not accept future answer-mode green summaries unless persisted JSONL contains enough cited chunk/source context to audit every citation and expected evidence role.",
+      "updated_at": "2026-08-30T03:38:48Z"
     },
     "current_retrieval_failure_categories": {},
     "current_answer_failure_categories": {},
@@ -1308,6 +1304,26 @@
         "run_id": "retrieval_eval_20260830_030535",
         "scope": "contextual procedure row 5 and combined rows 5-6",
         "reason": "diagnostic intermediate rerun before composite-context fallback correction; row 5 answer still added LJ-V continuous timing chunk and failed expected_evidence_not_cited"
+      },
+      {
+        "run_id": "retrieval_eval_20260830_005646",
+        "scope": "row 5 dirty-runtime false-green answer claim",
+        "reason": "diagnostic false positive: answer omitted the material Multi-Capture multiple-image/single-measurement operation while scoring green."
+      },
+      {
+        "run_id": "retrieval_eval_20260830_010931",
+        "scope": "row 5 dirty-runtime false-green answer claim after rejected answering experiment",
+        "reason": "diagnostic false positive: answer cited 02b921f5 plus RESET timing sibling fa88bd05 but omitted the material Multi-Capture operation."
+      },
+      {
+        "run_id": "retrieval_eval_20260830_031111",
+        "scope": "contextual rows 5-6 composite fallback clean claim",
+        "reason": "diagnostic/not-clean under guardrail 2026-08-30 citation-persistence review: saved top_results did not include all cited chunks, so citation support could not be independently audited from the JSONL."
+      },
+      {
+        "run_id": "retrieval_eval_20260830_032907",
+        "scope": "contextual rows 5-6 rerun after missing-citation scorer patch before persistence repair",
+        "reason": "diagnostic/not-clean: saved row 6 answer cited ece874eb, but persisted top_results omitted that cited chunk; re-scoring the saved JSONL fails unsupported_citation_quote and expected_evidence_not_cited for row 6."
       }
     ],
     "unresolved_guardrail_findings": [
@@ -1797,7 +1813,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T03:15:00Z",
+    "updated_at": "2026-08-30T03:38:48Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3123,7 +3139,7 @@
         5,
         6
       ],
-      "classification": "partial_clean_row_6_row_5_current_answer_evidence_selection_failure_not_clean",
+      "classification": "resolved_by_auditable_rerun_20260830_033242",
       "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
       "answer_result": "1/2 actual HTTP API answer grounding passed. Row 5 failed expected_evidence_not_cited; row 6 passed. answer_sources {\"fallback_validation\": 2}; fallback count 2.",
       "failures": [
@@ -3168,7 +3184,7 @@
           "scripts/maintenance/check_retrieval_accuracy_manifest.py registers latest_contextual_procedure_rows_5_6_answer_evidence_failure as a required root/question_bank pair.",
           "tests/unit/test_manifest_check.py covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for this field."
         ],
-        "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and exclude stale local ffc3e0d until reconciled.",
+        "remaining": "Resolved for rows 5-6 by retrieval_eval_20260830_033242; future clean claims still require persisted cited evidence.",
         "validation_reruns": [
           {
             "timestamp": "2026-08-29T04:55:17Z",
@@ -3747,9 +3763,10 @@
             "manual_jsonl_evidence": "retrieval_eval_results_20260830_010931 row 5 answer_passed=True but user-visible answer does not contain the expected operation sentence about multiple image captures at the same location and still contains RESET terminal operation text from fa88bd05. Therefore row 5 remains expected_evidence_not_cited / answer-payload false-positive diagnostic, not clean grounded evidence.",
             "remaining": "Isolate a safe production fix for row 5 so the actual API answer states the Multi-Capture operation and cites compatible timing evidence; also tighten answer evidence scoring so a fallback answer cannot pass when the user-visible payload omits the expected material operation or substitutes sibling timing context."
           }
-        ]
+        ],
+        "last_validation": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py plus focused/full unit gates in 2026-08-30 citation-persistence repair run."
       },
-      "remaining": "Fix row 5 citation/source alignment so the actual API answer cites compatible timing evidence, or source-review a principled equivalent-evidence policy. Do not count retrieval_eval_20260830_023947 row 5 or the combined 2-case result as clean.",
+      "remaining": "No current row 5/6 answer failure. Continue broad answer-grounding rotations and enforce persisted citation evidence for future clean claims.",
       "resolved_rows": [
         {
           "row": 6,
@@ -3830,7 +3847,14 @@
         "updated_at": "2026-08-30T02:44:00Z"
       },
       "status": "row_5_partial_answer_text_repair_citation_support_still_failing",
-      "updated_at": "2026-08-30T02:44:00Z"
+      "updated_at": "2026-08-30T02:44:00Z",
+      "resolved_run": "retrieval_eval_20260830_033242",
+      "resolution": "Rows 5-6 now have clean actual HTTP answer evidence with persisted cited chunks/source context after scorer fail-closed and benchmark citation-persistence repairs. Prior 031111 and 032907 green summaries remain diagnostic-only.",
+      "resolved_evidence": [
+        "retrieval_eval_20260830_033242 persisted cited chunks 02b921f5 and ece874eb in top_results for audit.",
+        "Focused scorer/persistence controls passed and full unit gate passed 438 tests.",
+        "Manual JSONL inspection confirmed row 5 and row 6 cited source context supports expected evidence roles."
+      ]
     },
     "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
   },
@@ -9780,7 +9804,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual and cross-document multi-step cases, starting with the next unresolved current failure or coverage gap. Preserve retrieval_eval_20260830_031111 rows 5-6 as clean focused evidence and keep prior row 5 false-positive/partial runs diagnostic-only.",
+  "next_target": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual and cross-document multi-step cases. Preserve retrieval_eval_20260830_033242 rows 5-6 as clean auditable evidence; keep retrieval_eval_20260830_031111 and 032907 diagnostic-only for citation-persistence guardrail history.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10065,43 +10089,39 @@
     }
   },
   "answer_current_failure_categories": {},
-  "answer_grounding_status": "Clean row 5 citation/source alignment from retrieval_eval_20260830_031111: rows 5-6 both pass actual HTTP API answer grounding after composite-context fallback selection and returned-context citation scoring. Current answer failures are {}.",
+  "answer_grounding_status": "Clean row 5/6 citation-source alignment from retrieval_eval_20260830_033242 after scorer and artifact-persistence repair: current answer failures are {}. Prior 031111/032907 green summaries are diagnostic because saved results did not preserve all cited chunks.",
   "answer_grounding_rotation": {
-    "scope": "contextual_procedure_rows_5_6_composite_fallback_clean_repair",
-    "classification": "clean_loaded_http_answer_grounding_rows_5_6_after_composite_context_fallback",
-    "previous_run": "retrieval_eval_20260830_023947",
-    "diagnostic_rerun": "retrieval_eval_20260830_030535",
-    "latest_run": "retrieval_eval_20260830_031111",
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_031111.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260830_031111.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260830_031111.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260830_031111.json",
+    "scope": "contextual_procedure_rows_5_6_citation_persistence_repair",
+    "classification": "clean_loaded_http_answer_grounding_rows_5_6_after_persisted_cited_evidence_repair",
+    "previous_clean_claim_reclassified": "retrieval_eval_20260830_031111",
+    "diagnostic_reruns": [
+      "retrieval_eval_20260830_030535",
+      "retrieval_eval_20260830_032907"
+    ],
+    "latest_run": "retrieval_eval_20260830_033242",
+    "dataset": "test_reports/retrieval_eval_dataset_20260830_033242.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260830_033242.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260830_033242.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260830_033242.json",
     "retrieval_result": "2/2 multi-step retrieval passed at rank 1; failure_categories {}; candidate recall 100%; metadata-document recall 100%.",
     "answer_result": "2/2 actual HTTP API answer grounding passed. answer_sources {\"fallback_validation\": 2}; fallback count 2; answer_failure_reasons {}.",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_031111.jsonl. Row 5 user-visible fallback answer cites only chunk 02b921f5 on page 853 and states both source-backed roles: Timing chart Control/data output via I/O terminals and Multi-Capture performs multiple image captures at the same location and processes them as a single measurement. The cited returned source context supports the expected 878ea631 timing-chart role without adding the prior LJ-V continuous-mode sibling section. Row 6 remains clean with ece874eb plus 86ffe1a3 supporting capture-environment and Camera-Trigger-Light/Simulation Image Capture roles.",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_033242.jsonl. Row 5 cites 02b921f5, which is present in persisted top_results and whose returned source context states Timing chart Control/data output via I/O terminals plus the Multi-Capture multiple-image/single-measurement operation. Row 6 cites ece874eb, now appended to persisted top_results beyond the first five; its returned context states the Step 1/3 Capture Environment Adj. screen and Camera - Trigger - Light Configuration Settings through Simulation Image Capture.",
+    "guardrail_followup": "Addresses guardrail commit 0b7b868 by making null-quote citations to missing retrieved chunks fail closed and by persisting cited chunks found beyond top five in answer-mode JSONL artifacts.",
     "runtime_load": {
-      "api": "clean worktree side API on http://127.0.0.1:8706, container manuals-rag-temp-api-39262386-20260830-composite, separate from dirty-mounted service on 8600",
-      "endpoint_model_note": "Clean checked-in compose environment used OLLAMA_URL=http://host.docker.internal:11434 and OLLAMA_ANSWER_MODEL=qwen3.5:9b; dirty primary checkout still has unrelated compose OLLAMA_URL 11437 drift that this run preserved and did not commit.",
-      "fingerprints": {
-        "generator._fallback_evidence_score_sha256": "9af0158762ce5a20caa2ed930c7c263614456f9261ff80718b59137e3d459992",
-        "generator._multi_part_evidence_coherence_score_sha256": "0625c36ac6f5d426895bca869199b454c3ff70370299680ae1309844ed0e4afc",
-        "generator._multi_part_fallback_evidence_results_sha256": "9c91a79d43fedf2a2902fa0618c3c2055adf4bbf6a4420a46866f287a8436907",
-        "generator._fallback_answer_text_sha256": "b906b94c99bd65c6bc207dee10f5fe1ba8f7564292837d528ca1d72802950bcd",
-        "generator.validate_answer_sha256": "561327819831d0072c8fc7205eb93fcd0c6168b5bf5ed6cc97b5813cc8bf66b3",
-        "retrieval_eval._retrieved_chunk_texts_sha256": "179fc644ca55c4d61107af4adeff980ba3f776e76c4c42a1eb402dd21639dcd1",
-        "retrieval_eval._expected_evidence_supported_by_cited_text_sha256": "7ee6d40d0b22ddd2586868120449d92a62a02f4c23be07992bd41e399e5180de",
-        "retrieval_eval.score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16"
-      }
+      "api": "existing side API on http://127.0.0.1:8700 used as actual HTTP answer source; eval harness/scorer ran from clean worktree container with this commit loaded",
+      "endpoint_model_note": "Did not restart compose or alter models/providers. The primary checkout dirty OLLAMA_URL 11437 drift was preserved; the side API was used only for bounded answer payload evidence."
     },
     "validation": [
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'multi_part_procedure_fallback' -> 2 passed",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'operation_fact_terms or composite_chunk or expected_role_from_cited_local_context or answer_response_scoring' -> 28 passed",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only at /workspace/manuals_rag api python -m pytest tests/unit -q -> 436 passed, 59 warnings",
-      "Loaded HTTP eval via side API: docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260830-composite python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260828_1024_contextual_procedure_rows_5_6_replacements.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260830_031111"
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'persists_cited_evidence_beyond_top_five or null_quote_citations_missing_from_results or unsupported_citation_quote_spans or cited_chunk_to_support_expected_evidence_role' -> 4 passed, 106 deselected",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python re-score retrieval_eval_results_20260830_031111.jsonl -> row 1 failed unsupported_citation_quote + expected_evidence_not_cited; row 2 failed unsupported_citation_quote",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python re-score retrieval_eval_results_20260830_032907.jsonl -> row 1 passed; row 2 failed unsupported_citation_quote + expected_evidence_not_cited because saved top_results omitted ece874eb",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps -e API_BASE=http://host.docker.internal:8700 api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260830_031111.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260830_033242",
+      "Manual JSONL inspection of retrieval_eval_results_20260830_033242 confirmed every citation is present in persisted top_results and supports the expected evidence roles.",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 438 passed, 59 warnings"
     ],
-    "negative_control": "Intermediate loaded HTTP eval retrieval_eval_20260830_030535 remains diagnostic/not-clean: row 5 still added LJ-V continuous timing chunk 993dbb43 and failed expected_evidence_not_cited. Unit controls now cover the adverse sibling LJ-V continuous timing case and the evaluator accepts a separate expected timing role only when the cited source context contains it.",
-    "remaining": "Continue broad answer-grounding rotations on realistic contextual/cross-document cases; preserve retrieval_eval_20260830_031111 rows 5-6 as clean focused evidence and keep retrieval_eval_20260830_023947 and retrieval_eval_20260830_030535 excluded as diagnostics.",
-    "updated_at": "2026-08-30T03:15:00Z"
+    "negative_control": "retrieval_eval_20260830_031111 and 032907 remain diagnostic: the patched scorer fails missing persisted cited chunks when re-scoring saved JSONL evidence.",
+    "remaining": "Continue broad actual HTTP API answer-grounding rotations on realistic contextual/cross-document cases; do not accept future answer-mode green summaries unless persisted JSONL contains enough cited chunk/source context to audit every citation and expected evidence role.",
+    "updated_at": "2026-08-30T03:38:48Z"
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -10717,6 +10737,26 @@
       "run_id": "retrieval_eval_20260830_030535",
       "scope": "contextual procedure row 5 and combined rows 5-6",
       "reason": "diagnostic intermediate rerun before composite-context fallback correction; row 5 answer still added LJ-V continuous timing chunk and failed expected_evidence_not_cited"
+    },
+    {
+      "run_id": "retrieval_eval_20260830_005646",
+      "scope": "row 5 dirty-runtime false-green answer claim",
+      "reason": "diagnostic false positive: answer omitted the material Multi-Capture multiple-image/single-measurement operation while scoring green."
+    },
+    {
+      "run_id": "retrieval_eval_20260830_010931",
+      "scope": "row 5 dirty-runtime false-green answer claim after rejected answering experiment",
+      "reason": "diagnostic false positive: answer cited 02b921f5 plus RESET timing sibling fa88bd05 but omitted the material Multi-Capture operation."
+    },
+    {
+      "run_id": "retrieval_eval_20260830_031111",
+      "scope": "contextual rows 5-6 composite fallback clean claim",
+      "reason": "diagnostic/not-clean under guardrail 2026-08-30 citation-persistence review: saved top_results did not include all cited chunks, so citation support could not be independently audited from the JSONL."
+    },
+    {
+      "run_id": "retrieval_eval_20260830_032907",
+      "scope": "contextual rows 5-6 rerun after missing-citation scorer patch before persistence repair",
+      "reason": "diagnostic/not-clean: saved row 6 answer cited ece874eb, but persisted top_results omitted that cited chunk; re-scoring the saved JSONL fails unsupported_citation_quote and expected_evidence_not_cited for row 6."
     }
   ],
   "unresolved_guardrail_findings": [
@@ -12454,7 +12494,7 @@
       5,
       6
     ],
-    "classification": "partial_clean_row_6_row_5_current_answer_evidence_selection_failure_not_clean",
+    "classification": "resolved_by_auditable_rerun_20260830_033242",
     "retrieval_result": "2/2 retrieval passed at rank 1; pass@1/pass@3/pass@5 100%; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
     "answer_result": "1/2 actual HTTP API answer grounding passed. Row 5 failed expected_evidence_not_cited; row 6 passed. answer_sources {\"fallback_validation\": 2}; fallback count 2.",
     "failures": [
@@ -12499,7 +12539,7 @@
         "scripts/maintenance/check_retrieval_accuracy_manifest.py registers latest_contextual_procedure_rows_5_6_answer_evidence_failure as a required root/question_bank pair.",
         "tests/unit/test_manifest_check.py covers equal-copy pass, missing-root fail, missing-question_bank fail, and unequal-value fail for this field."
       ],
-      "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and exclude stale local ffc3e0d until reconciled.",
+      "remaining": "Resolved for rows 5-6 by retrieval_eval_20260830_033242; future clean claims still require persisted cited evidence.",
       "validation_reruns": [
         {
           "timestamp": "2026-08-29T04:55:17Z",
@@ -13078,9 +13118,10 @@
           "manual_jsonl_evidence": "retrieval_eval_results_20260830_010931 row 5 answer_passed=True but user-visible answer does not contain the expected operation sentence about multiple image captures at the same location and still contains RESET terminal operation text from fa88bd05. Therefore row 5 remains expected_evidence_not_cited / answer-payload false-positive diagnostic, not clean grounded evidence.",
           "remaining": "Isolate a safe production fix for row 5 so the actual API answer states the Multi-Capture operation and cites compatible timing evidence; also tighten answer evidence scoring so a fallback answer cannot pass when the user-visible payload omits the expected material operation or substitutes sibling timing context."
         }
-      ]
+      ],
+      "last_validation": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py plus focused/full unit gates in 2026-08-30 citation-persistence repair run."
     },
-    "remaining": "Fix row 5 citation/source alignment so the actual API answer cites compatible timing evidence, or source-review a principled equivalent-evidence policy. Do not count retrieval_eval_20260830_023947 row 5 or the combined 2-case result as clean.",
+    "remaining": "No current row 5/6 answer failure. Continue broad answer-grounding rotations and enforce persisted citation evidence for future clean claims.",
     "resolved_rows": [
       {
         "row": 6,
@@ -13161,7 +13202,14 @@
       "updated_at": "2026-08-30T02:44:00Z"
     },
     "status": "row_5_partial_answer_text_repair_citation_support_still_failing",
-    "updated_at": "2026-08-30T02:44:00Z"
+    "updated_at": "2026-08-30T02:44:00Z",
+    "resolved_run": "retrieval_eval_20260830_033242",
+    "resolution": "Rows 5-6 now have clean actual HTTP answer evidence with persisted cited chunks/source context after scorer fail-closed and benchmark citation-persistence repairs. Prior 031111 and 032907 green summaries remain diagnostic-only.",
+    "resolved_evidence": [
+      "retrieval_eval_20260830_033242 persisted cited chunks 02b921f5 and ece874eb in top_results for audit.",
+      "Focused scorer/persistence controls passed and full unit gate passed 438 tests.",
+      "Manual JSONL inspection confirmed row 5 and row 6 cited source context supports expected evidence roles."
+    ]
   },
   "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
 }

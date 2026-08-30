@@ -422,6 +422,38 @@ def _top_results_from_search_payload(payload: dict[str, Any] | list[dict[str, An
     return list(payload.get("top_results", []))
 
 
+def results_for_persisted_evidence(
+    results: list[dict[str, Any]],
+    answer: dict[str, Any] | None = None,
+    *,
+    top_k: int = 5,
+) -> list[dict[str, Any]]:
+    persisted = list(results[:top_k])
+    persisted_ids = {str(result.get("chunk_id") or result.get("id") or "") for result in persisted}
+    citations = answer.get("citations") if isinstance(answer, dict) else []
+    cited_ids = [
+        str(citation.get("chunk_id") or "")
+        for citation in citations or []
+        if isinstance(citation, dict) and str(citation.get("chunk_id") or "")
+    ]
+    if not cited_ids:
+        return persisted
+    by_chunk_id = {
+        str(result.get("chunk_id") or result.get("id") or ""): result
+        for result in results
+        if isinstance(result, dict) and str(result.get("chunk_id") or result.get("id") or "")
+    }
+    for cited_id in cited_ids:
+        if cited_id in persisted_ids:
+            continue
+        result = by_chunk_id.get(cited_id)
+        if result is None:
+            continue
+        persisted.append(result)
+        persisted_ids.add(cited_id)
+    return persisted
+
+
 def run_warmup_searches(
     cases: list[dict[str, Any]],
     *,
@@ -896,7 +928,8 @@ def main() -> int:
                     "expected_document_used": False,
                     "elapsed_seconds": evaluation["elapsed_seconds"],
                 }
-        result_record: dict[str, Any] = {"case": case, "evaluation": evaluation, "top_results": search_results[:5]}
+        persisted_results = results_for_persisted_evidence(search_results, answer)
+        result_record: dict[str, Any] = {"case": case, "evaluation": evaluation, "top_results": persisted_results}
         if args.response_mode == "answer_with_citations":
             result_record["answer"] = answer or {}
             result_record["answer_evaluation"] = answer_evaluation or {}

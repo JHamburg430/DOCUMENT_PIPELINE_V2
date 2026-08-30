@@ -3057,14 +3057,14 @@ def _answer_citation_fidelity(
     for citation in answer.get("citations") or []:
         if not isinstance(citation, dict):
             continue
-        quote = str(citation.get("quote_span") or "").strip()
-        if not quote:
-            continue
         checked_count += 1
         chunk_id = str(citation.get("chunk_id") or "")
         chunk_text = chunk_texts.get(chunk_id)
         if chunk_text is None:
             missing_cited_chunks.append(chunk_id)
+            continue
+        quote = str(citation.get("quote_span") or "").strip()
+        if not quote:
             continue
         if _normalized_quote_text(quote) not in _normalized_quote_text(chunk_text):
             unsupported_quotes.append(

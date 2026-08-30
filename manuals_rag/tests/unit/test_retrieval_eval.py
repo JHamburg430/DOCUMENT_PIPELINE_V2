@@ -244,6 +244,32 @@ def test_large_retrieval_eval_recognizes_wrapped_query_timeouts():
     assert not module.is_query_timeout_exception(RuntimeError("qdrant collection unavailable"))
 
 
+def test_large_retrieval_eval_persists_cited_evidence_beyond_top_five():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    results = [{"chunk_id": f"chunk-{index}", "content": f"content {index}"} for index in range(1, 8)]
+    persisted = module.results_for_persisted_evidence(
+        results,
+        {"citations": [{"chunk_id": "chunk-7", "quote_span": None}]},
+    )
+
+    assert [result["chunk_id"] for result in persisted] == [
+        "chunk-1",
+        "chunk-2",
+        "chunk-3",
+        "chunk-4",
+        "chunk-5",
+        "chunk-7",
+    ]
+
+
 def test_large_retrieval_eval_enforces_elapsed_timeout_after_swallowed_signal(monkeypatch):
     import importlib.util
     from pathlib import Path
@@ -1223,6 +1249,75 @@ def test_answer_response_scoring_rejects_unsupported_citation_quote_spans():
     assert scored["passed"] is False
     assert "unsupported_citation_quote" in scored["failure_reasons"]
     assert scored["citation_fidelity"]["unsupported_quotes"][0]["chunk_id"] == "settings-page"
+
+
+def test_answer_response_scoring_rejects_null_quote_citations_missing_from_results():
+    case = RetrievalEvalCase(
+        case_id="case-missing-cited-context",
+        query=(
+            "For CV-X Multi-Capture trigger input timing, what operation does the section "
+            "describe and which control/data I/O timing chart should I use?"
+        ),
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="multi-capture-step",
+        source_title="CV-X",
+        source_filename="cvx.pdf",
+        chunk_type="procedure_record",
+        section_path="Timing",
+        page_from=853,
+        page_to=853,
+        expected_terms=["multi-capture", "trigger", "timing"],
+        expected_snippet="Typical operations at trigger input",
+        generation_method="contextual_procedure_plus_section_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "multi-capture-step",
+                "source_document_id": "doc-cvx",
+                "expected_terms": ["multi-capture", "multiple", "captures", "single", "measurement"],
+                "snippet": (
+                    "Performs multiple image captures at the same location and processes "
+                    "them as a single measurement."
+                ),
+            },
+            {
+                "chunk_id": "timing-chart",
+                "source_document_id": "doc-cvx",
+                "expected_terms": ["timing", "chart", "control/data", "i/o", "terminals"],
+                "snippet": "Timing chart Control/data output via I/O terminals.",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "The section describes Multi-Capture performing multiple image captures "
+                "at one location as a single measurement. Use the control/data I/O "
+                "terminal timing chart."
+            ),
+            "citations": [
+                {"document_id": "doc-cvx", "chunk_id": "multi-capture-step", "quote_span": None}
+            ],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "nearby-trigger-section",
+                "content": "Asynchronous Trigger timing for another procedure section.",
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "unsupported_citation_quote" in scored["failure_reasons"]
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+    assert scored["citation_fidelity"]["missing_cited_chunks"] == ["multi-capture-step"]
 
 
 def test_answer_response_scoring_requires_cited_chunk_to_support_expected_evidence_role():

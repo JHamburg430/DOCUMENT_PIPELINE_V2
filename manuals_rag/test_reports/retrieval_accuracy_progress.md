@@ -2,6 +2,20 @@
 
 This log is maintained by the recurring retrieval accuracy cron job.
 
+## 2026-08-29 Cron 39262386 Citation Persistence Scorer Repair
+
+- Target: guardrail-first citation-fidelity containment from guardrail commit `0b7b868`. The `retrieval_eval_20260830_031111` clean row 5/6 claim was not auditable because saved `top_results` omitted cited chunks with `quote_span: null`; direct guardrail cron history for `ca862d7a-e46f-4de3-870e-1cca28a3510c` was unavailable because the cron tool was restricted to the current job.
+- Change: tightened `score_answer_response` citation fidelity so null-quote citations still must resolve to a returned/persisted chunk. Updated `scripts/benchmark/run_large_retrieval_eval.py` so answer-mode JSONL persists the first five results plus any cited chunks present later in the scored result list, leaving truly missing cited chunks as failures instead of invisible passes.
+- Evidence: focused scorer/harness controls passed (`4 passed, 106 deselected`). Re-scoring saved `retrieval_eval_results_20260830_031111.jsonl` now fails row 1 with `unsupported_citation_quote` and `expected_evidence_not_cited`, and row 2 with `unsupported_citation_quote`. Intermediate HTTP rerun `retrieval_eval_20260830_032907` remains diagnostic because saved row 6 still omitted cited chunk `ece874eb` before the persistence helper.
+- Actual HTTP rerun: using the existing side API on `http://127.0.0.1:8700` as the answer source and the clean-worktree eval harness, `retrieval_eval_20260830_033242` passed 2/2 retrieval and 2/2 answer grounding. Manual JSONL inspection confirms row 5 cites persisted chunk `02b921f5`, whose returned context states both `Timing chart Control/data output via I/O terminals` and the Multi-Capture multiple-image/single-measurement operation; row 6 cites persisted chunk `ece874eb`, whose returned context states the capture-environment screen plus Camera - Trigger - Light Configuration Settings through Simulation Image Capture.
+- Validation: full Docker unit gate with fixture mounts passed (`438 passed, 59 warnings`). Manifest aliases were updated atomically at root and under `question_bank`; current retrieval failures are `{}` and current answer failures are `{}`. Added durable exclusions for false-green/diagnostic runs `retrieval_eval_20260830_005646`, `010931`, `031111`, and `032907`; prior partial diagnostics remain excluded.
+- Scope/provenance: eval scoring, benchmark evidence persistence, tests, tracking, and eval artifacts only. No ingestion, parser, UI, auth, infrastructure, Docker config, schema, deployment, model provider/name, embedding model, reranker model, or document-specific routing changed. The dirty primary checkout and its unrelated compose/UI/eval-artifact changes were preserved.
+- Generalization check before commit: this is valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because every answer-mode citation must be backed by persisted returned source context, independent of vendor, document, row, or current eval wording.
+
+Next target:
+
+- Continue broad actual HTTP API answer-grounding rotations on realistic contextual and cross-document multi-step cases. Do not accept future green answer summaries unless the saved JSONL contains enough cited chunk/source context to audit every citation and expected evidence role.
+
 ## 2026-08-29 Cron 39262386 Row 5 Composite Fallback Citation Repair
 
 - Target: guardrail-first row 5 Multi-Capture citation/source alignment after the `2026-08-29T23:58:00Z` guardrail `needs_fix` finding and the partial `a12f9ac` repair. The run worked from clean `origin/main` commit `a12f9ac` in `/tmp/manuals_rag_accuracy_dA50qo/manuals_rag/manuals_rag` and preserved the dirty primary checkout, including unrelated UI/compose/eval-artifact provenance and the pre-existing `infra/compose/docker-compose.yml` `OLLAMA_URL` port drift.
