@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-29T22:31:00Z",
+  "updated_at": "2026-08-30T00:31:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1083,8 +1083,8 @@
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 1
     },
-    "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve origin/main row 6 clean evidence from retrieval_eval_20260829_210829 and do not merge stale local tracking commit ffc3e0d or ffc6ee2, which re-recorded the older 2-failure state after baa9ed0 reduced current answer failures to row 5 only.",
-    "answer_grounding_status": "Contextual procedure rows 5-6 now have a clean-worktree production answering change and loaded HTTP rerun retrieval_eval_20260829_210829. Row 6 is clean answer-grounding evidence after multi-part fallback evidence selection cited the broad line-scan section plus the consolidated capture-environment/Camera-Trigger-Light context chunk 86ffe1a3, satisfying expected chunks ece874eb and 3a64a87a. Row 5 remains diagnostic/not-clean: the loaded API fallback cited fa88bd05 RESET timing and 86e3ce5c Asynchronous Trigger chunks instead of expected Multi-Capture operation chunk 02b921f5 and timing evidence 878ea631. Current answer failure count remains expected_evidence_not_cited: 1.",
+    "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and do not revive stale local tracking commits ffc3e0d, ffc6ee2, 2ff4463, 69a5139, or ad668d0 as current state.",
+    "answer_grounding_status": "Primary checkout reconciled with origin/main after guardrail commit 71ec0f4. Contextual procedure rows 5-6 current evidence remains retrieval_eval_20260829_210829: row 6 is clean answer-grounding evidence, and row 5 remains diagnostic/not-clean with expected_evidence_not_cited: 1 because the fallback cited fa88bd05 and 86e3ce5c instead of expected Multi-Capture chunks 02b921f5 and 878ea631.",
     "answer_grounding_rotation": {
       "scope": "contextual_procedure_rows_5_6_multi_part_fallback_partial_repair",
       "classification": "partial_clean_row_6_row_5_remains_current_answer_evidence_selection_failure",
@@ -1124,7 +1124,22 @@
         "Rows 3-4 source-repaired replacement evidence from retrieval_eval_20260828_092535 remains clean through consolidated cited content.",
         "Original retrieval_eval_20260828_075458 rows 3-4 remain diagnostic/source-equivalence evidence and excluded from clean multi-step answer-evidence claims.",
         "All prior diagnostic exclusions and guardrail containments remain preserved."
-      ]
+      ],
+      "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z.",
+      "primary_checkout_reconciliation": {
+        "timestamp": "2026-08-30T00:31:00Z",
+        "guardrail_commit": "71ec0f4",
+        "stale_local_tip_preserved_as": "backup/stale-contextual-tracking-20260830-0023",
+        "canonical_head": "origin/main 71ec0f4",
+        "status": "primary_checkout_reconciled_to_origin_main_row_6_clean_row_5_failing_state",
+        "evidence": [
+          "git status --short --branch showed main ahead 6, behind 8 before reconciliation.",
+          "openclaw cron runs for guardrail job reported needs_fix: stale local tracking commits conflicted with origin/main row-6-clean state.",
+          "After backup branch and update-ref, local HEAD and origin/main both resolved to 71ec0f4.",
+          "Manifest aliases now agree on current answer failures expected_evidence_not_cited: 1 and current retrieval failures {}."
+        ],
+        "remaining": "Row 5 Multi-Capture answer evidence selection remains the production target; no production code changed in this reconciliation run."
+      }
     },
     "current_retrieval_failure_categories": {},
     "current_answer_failure_categories": {
@@ -1795,7 +1810,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-29T22:31:00Z",
+    "updated_at": "2026-08-30T00:31:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3710,7 +3725,7 @@
           }
         ]
       },
-      "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. The 2026-08-29 clean-worktree fallback selection patch repaired row 6, but row 5 still cites RESET/asynchronous-trigger sections instead of CV-X Multi-Capture trigger-input operation chunk 02b921f5 plus control/data I/O timing evidence 878ea631.",
+      "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z.",
       "resolved_rows": [
         {
           "row": 6,
@@ -3741,9 +3756,23 @@
           ],
           "evidence": "Chunk 86ffe1a3 directly states Step 1/3 Capture Environment Adj. change settings in accordance with capture environment and lists Camera - Trigger - Light Configuration Settings plus Simulation Image Capture."
         }
-      ]
+      ],
+      "primary_checkout_reconciliation": {
+        "timestamp": "2026-08-30T00:31:00Z",
+        "guardrail_commit": "71ec0f4",
+        "stale_local_tip_preserved_as": "backup/stale-contextual-tracking-20260830-0023",
+        "canonical_head": "origin/main 71ec0f4",
+        "status": "primary_checkout_reconciled_to_origin_main_row_6_clean_row_5_failing_state",
+        "evidence": [
+          "git status --short --branch showed main ahead 6, behind 8 before reconciliation.",
+          "openclaw cron runs for guardrail job reported needs_fix: stale local tracking commits conflicted with origin/main row-6-clean state.",
+          "After backup branch and update-ref, local HEAD and origin/main both resolved to 71ec0f4.",
+          "Manifest aliases now agree on current answer failures expected_evidence_not_cited: 1 and current retrieval failures {}."
+        ],
+        "remaining": "Row 5 Multi-Capture answer evidence selection remains the production target; no production code changed in this reconciliation run."
+      }
     },
-    "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+    "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
   },
   "latest_false_negative_repair": {
     "scope": "live_app_false_negative_question_4_luminance_output_type",
@@ -9691,7 +9720,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve origin/main row 6 clean evidence from retrieval_eval_20260829_210829 and do not merge stale local tracking commit ffc3e0d or ffc6ee2, which re-recorded the older 2-failure state after baa9ed0 reduced current answer failures to row 5 only.",
+  "next_target": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and do not revive stale local tracking commits ffc3e0d, ffc6ee2, 2ff4463, 69a5139, or ad668d0 as current state.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -9978,7 +10007,7 @@
   "answer_current_failure_categories": {
     "expected_evidence_not_cited": 1
   },
-  "answer_grounding_status": "Contextual procedure rows 5-6 now have a clean-worktree production answering change and loaded HTTP rerun retrieval_eval_20260829_210829. Row 6 is clean answer-grounding evidence after multi-part fallback evidence selection cited the broad line-scan section plus the consolidated capture-environment/Camera-Trigger-Light context chunk 86ffe1a3, satisfying expected chunks ece874eb and 3a64a87a. Row 5 remains diagnostic/not-clean: the loaded API fallback cited fa88bd05 RESET timing and 86e3ce5c Asynchronous Trigger chunks instead of expected Multi-Capture operation chunk 02b921f5 and timing evidence 878ea631. Current answer failure count remains expected_evidence_not_cited: 1.",
+  "answer_grounding_status": "Primary checkout reconciled with origin/main after guardrail commit 71ec0f4. Contextual procedure rows 5-6 current evidence remains retrieval_eval_20260829_210829: row 6 is clean answer-grounding evidence, and row 5 remains diagnostic/not-clean with expected_evidence_not_cited: 1 because the fallback cited fa88bd05 and 86e3ce5c instead of expected Multi-Capture chunks 02b921f5 and 878ea631.",
   "answer_grounding_rotation": {
     "scope": "contextual_procedure_rows_5_6_multi_part_fallback_partial_repair",
     "classification": "partial_clean_row_6_row_5_remains_current_answer_evidence_selection_failure",
@@ -10018,7 +10047,22 @@
       "Rows 3-4 source-repaired replacement evidence from retrieval_eval_20260828_092535 remains clean through consolidated cited content.",
       "Original retrieval_eval_20260828_075458 rows 3-4 remain diagnostic/source-equivalence evidence and excluded from clean multi-step answer-evidence claims.",
       "All prior diagnostic exclusions and guardrail containments remain preserved."
-    ]
+    ],
+    "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z.",
+    "primary_checkout_reconciliation": {
+      "timestamp": "2026-08-30T00:31:00Z",
+      "guardrail_commit": "71ec0f4",
+      "stale_local_tip_preserved_as": "backup/stale-contextual-tracking-20260830-0023",
+      "canonical_head": "origin/main 71ec0f4",
+      "status": "primary_checkout_reconciled_to_origin_main_row_6_clean_row_5_failing_state",
+      "evidence": [
+        "git status --short --branch showed main ahead 6, behind 8 before reconciliation.",
+        "openclaw cron runs for guardrail job reported needs_fix: stale local tracking commits conflicted with origin/main row-6-clean state.",
+        "After backup branch and update-ref, local HEAD and origin/main both resolved to 71ec0f4.",
+        "Manifest aliases now agree on current answer failures expected_evidence_not_cited: 1 and current retrieval failures {}."
+      ],
+      "remaining": "Row 5 Multi-Capture answer evidence selection remains the production target; no production code changed in this reconciliation run."
+    }
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -12952,7 +12996,7 @@
         }
       ]
     },
-    "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. The 2026-08-29 clean-worktree fallback selection patch repaired row 6, but row 5 still cites RESET/asynchronous-trigger sections instead of CV-X Multi-Capture trigger-input operation chunk 02b921f5 plus control/data I/O timing evidence 878ea631.",
+    "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z.",
     "resolved_rows": [
       {
         "row": 6,
@@ -12983,7 +13027,21 @@
         ],
         "evidence": "Chunk 86ffe1a3 directly states Step 1/3 Capture Environment Adj. change settings in accordance with capture environment and lists Camera - Trigger - Light Configuration Settings plus Simulation Image Capture."
       }
-    ]
+    ],
+    "primary_checkout_reconciliation": {
+      "timestamp": "2026-08-30T00:31:00Z",
+      "guardrail_commit": "71ec0f4",
+      "stale_local_tip_preserved_as": "backup/stale-contextual-tracking-20260830-0023",
+      "canonical_head": "origin/main 71ec0f4",
+      "status": "primary_checkout_reconciled_to_origin_main_row_6_clean_row_5_failing_state",
+      "evidence": [
+        "git status --short --branch showed main ahead 6, behind 8 before reconciliation.",
+        "openclaw cron runs for guardrail job reported needs_fix: stale local tracking commits conflicted with origin/main row-6-clean state.",
+        "After backup branch and update-ref, local HEAD and origin/main both resolved to 71ec0f4.",
+        "Manifest aliases now agree on current answer failures expected_evidence_not_cited: 1 and current retrieval failures {}."
+      ],
+      "remaining": "Row 5 Multi-Capture answer evidence selection remains the production target; no production code changed in this reconciliation run."
+    }
   },
-  "remaining": "Fix contextual procedure multi-step rows 5-6 answer evidence selection after isolating dirty production/eval/UI changes or validating an adopted production change with focused/full gates, runtime-load proof, actual API changed-path evidence, and JSONL citation inspection for every expected evidence role. Row 5 needs CV-X Multi-Capture trigger-input/timing evidence; row 6 needs XG-X Standard Lighting Mode capture-environment plus Camera-Trigger-Light configuration evidence."
+  "remaining": "Fix contextual procedure row 5 Multi-Capture answer evidence selection with source-backed retrieval/candidate evidence and loaded actual-API validation. Preserve row 6 clean evidence from retrieval_eval_20260829_210829 and the primary-checkout reconciliation from 2026-08-30T00:31Z."
 }
