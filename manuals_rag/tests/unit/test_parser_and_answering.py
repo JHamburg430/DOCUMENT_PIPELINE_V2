@@ -1088,6 +1088,74 @@ def test_configuration_fallback_does_not_promote_wrong_mode_configuration_eviden
     assert "LumiTrax" not in selected[0].content
 
 
+def test_configuration_fallback_returns_no_evidence_for_only_wrong_mode_candidate():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    results = [
+        SearchResult(
+            chunk_id="wrong-mode-config",
+            score=0.9,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[1001],
+            section_path=["LumiTrax Specular Reflection Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (LumiTrax Specular Reflection Mode). "
+                "Camera: Trigger - Light Configuration Settings. "
+                "The trigger input for each camera and illumination control targets can be configured together."
+            ),
+            metadata={"chunk_type": "section_window"},
+        )
+    ]
+
+    selected = _fallback_evidence_results(query, results)
+
+    assert selected == []
+
+
+def test_validate_answer_fallback_is_insufficient_for_only_wrong_mode_candidate():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    answer = AnswerResponse(
+        answer="Use OPC-UA security certificate settings.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="wrong-mode-config",
+            score=0.9,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[1001],
+            section_path=["LumiTrax Specular Reflection Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (LumiTrax Specular Reflection Mode). "
+                "Camera: Trigger - Light Configuration Settings. "
+                "The trigger input for each camera and illumination control targets can be configured together."
+            ),
+            metadata={"chunk_type": "section_window"},
+        )
+    ]
+
+    validated = validate_answer(answer, results, query=query)
+
+    assert validated.insufficient_evidence is True
+    assert validated.citations == []
+    assert "LumiTrax" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_comparison_troubleshooting_fallback_rejects_wrong_sibling_answer():
     query = (
         "Compare the corrective action for unstable gray-binary inspection on CV-X482 "

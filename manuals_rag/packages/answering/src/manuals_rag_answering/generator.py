@@ -834,6 +834,16 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             insufficient_evidence=True,
         )
     fallback_results = _fallback_evidence_results(query, results)
+    if not fallback_results:
+        return AnswerResponse(
+            answer="I could not answer from the available evidence.",
+            confidence="low",
+            used_documents=[],
+            citations=[],
+            warnings=["No retrieved evidence met the requested scope."],
+            followup_questions=[],
+            insufficient_evidence=True,
+        )
     top = fallback_results[0]
     if len(fallback_results) == 1:
         answer_text = (
@@ -950,6 +960,13 @@ def _explicit_scope_phrases_supported(query: str, result: SearchResult) -> bool:
     )
     evidence_normalized = " ".join(re.findall(r"[a-z0-9]+", evidence_text.lower()))
     return all(any(scope in evidence_normalized for scope in group) for group in query_scope_groups)
+
+
+def _explicit_scope_has_candidate(query: str, results: list[SearchResult]) -> bool:
+    query_scope_groups = _explicit_scope_phrase_groups(query)
+    if not query_scope_groups:
+        return True
+    return any(_explicit_scope_phrases_supported(query, result) for result in results)
 
 
 def _direct_configuration_binding_score(query_terms: set[str], evidence_terms: set[str]) -> float:
@@ -1117,6 +1134,8 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
                 for index, result in enumerate(ordered_results[:8])
             ]
             if scored:
+                if not _explicit_scope_has_candidate(query, [result for _score, _index, result in scored]):
+                    return []
                 query_terms = _answer_terms(query)
                 if configuration_result := _configuration_requested_candidate(query, query_terms, scored):
                     return [configuration_result]
@@ -1418,7 +1437,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
     insufficient_evidence = answer.insufficient_evidence
     confidence = answer.confidence
 
-    if results and not citations:
+    if results and not citations and not insufficient_evidence:
         top = results[0]
         citations.append(
             {
