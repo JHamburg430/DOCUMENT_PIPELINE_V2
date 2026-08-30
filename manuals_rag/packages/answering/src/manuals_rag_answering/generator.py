@@ -903,6 +903,8 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
             score += 2.0
         else:
             score -= 3.0
+    if not _explicit_scope_phrases_supported(query, result):
+        score -= 8.0
     chunk_type = str(result.metadata.get("chunk_type") or "")
     if chunk_type in {"table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
         score += 2.0
@@ -917,6 +919,37 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
     if re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
         score += min(4.0, float(len(_contextual_quantity_terms(evidence))))
     return score
+
+
+def _explicit_scope_phrase_groups(text: str) -> list[set[str]]:
+    phrase_groups: list[set[str]] = []
+    for match in re.finditer(r"\b([A-Za-z0-9][A-Za-z0-9/\- ]{0,60}?\s+mode)\b", text, flags=re.IGNORECASE):
+        phrase = " ".join(re.findall(r"[a-z0-9]+", match.group(1).lower()))
+        words = phrase.split()
+        if len(words) >= 2:
+            candidates = {
+                " ".join(words[-size:])
+                for size in range(2, min(4, len(words)) + 1)
+                if len(words[-size]) >= 3
+            }
+            if candidates:
+                phrase_groups.append(candidates)
+    return phrase_groups
+
+
+def _explicit_scope_phrases_supported(query: str, result: SearchResult) -> bool:
+    query_scope_groups = _explicit_scope_phrase_groups(query)
+    if not query_scope_groups:
+        return True
+    evidence_text = " ".join(
+        [
+            _fallback_answer_text(result),
+            str(result.title or ""),
+            " ".join(str(part) for part in result.section_path or []),
+        ]
+    )
+    evidence_normalized = " ".join(re.findall(r"[a-z0-9]+", evidence_text.lower()))
+    return all(any(scope in evidence_normalized for scope in group) for group in query_scope_groups)
 
 
 def _direct_configuration_binding_score(query_terms: set[str], evidence_terms: set[str]) -> float:
@@ -936,13 +969,14 @@ def _direct_configuration_binding_score(query_terms: set[str], evidence_terms: s
 
 
 def _configuration_requested_candidate(
-    query_terms: set[str], scored: list[tuple[float, int, SearchResult]]
+    query: str, query_terms: set[str], scored: list[tuple[float, int, SearchResult]]
 ) -> SearchResult | None:
     if "configuration" not in query_terms:
         return None
     candidates = [
         (score, index, result)
         for score, index, result in scored
+        if _explicit_scope_phrases_supported(query, result)
         if _direct_configuration_binding_score(
             query_terms,
             _answer_terms(_fallback_answer_text(result)[:800]),
@@ -1084,7 +1118,7 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
             ]
             if scored:
                 query_terms = _answer_terms(query)
-                if configuration_result := _configuration_requested_candidate(query_terms, scored):
+                if configuration_result := _configuration_requested_candidate(query, query_terms, scored):
                     return [configuration_result]
                 first_score = scored[0][0]
                 best_score, _best_index, best_result = max(scored, key=lambda item: (item[0], -item[1]))

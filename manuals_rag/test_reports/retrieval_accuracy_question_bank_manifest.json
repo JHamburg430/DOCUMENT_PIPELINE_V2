@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T13:09:00Z",
+  "updated_at": "2026-08-30T13:36:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -682,6 +682,18 @@
           "No actual HTTP answer rerun was promoted as clean evidence in this containment run; contextual procedure rows 5-6 remain current expected_evidence_not_cited answer failures."
         ],
         "remaining": "Document and validate or keep out of scope the other dirty production answering/retrieval/UI changes from the pre-existing worktree before any future commit that includes them. Then resume the contextual procedure rows 5-6 answer evidence-selection target; do not count retrieval_eval_20260828_120030, 120744, or 122030 as clean unless their actual JSONL payloads cite every expected evidence role."
+      },
+      "2026-08-30T13:20:00Z": {
+        "severity": "needs_fix",
+        "status": "partially_addressed_this_run",
+        "addressed_this_run": "Added mode/scope-aware negative and positive controls for direct-configuration fallback selection and required candidates for explicit mode questions to carry the same mode phrase before being promoted. Reran original and Standard Lighting row 7 through a loaded HTTP path.",
+        "evidence": [
+          "tests/unit/test_parser_and_answering.py::test_configuration_fallback_does_not_promote_wrong_mode_configuration_evidence",
+          "tests/unit/test_parser_and_answering.py::test_configuration_fallback_keeps_same_mode_configuration_evidence",
+          "retrieval_eval_20260830_132807",
+          "retrieval_eval_20260830_132922"
+        ],
+        "remaining": "The Standard Lighting rerun no longer cites the LumiTrax chunk, but row 7 is still not clean because expected evidence needs source review/equivalence repair or a better realistic question. Original mode-ambiguous query remains diagnostic."
       }
     },
     "diagnostics": [
@@ -1083,29 +1095,48 @@
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 1
     },
-    "next_target": "Continue contextual row 7 as a source-scope and mode-binding answer target: the patched fallback selector moved the original visible query from broad preparation evidence to a directly answering Camera: Trigger - Light Configuration Settings chunk, but the visible question does not uniquely require Standard Lighting Mode and the Standard Lighting repair still selected the LumiTrax same-document setting chunk. Source-review the row 7 expected roles and either replace the question with a unique realistic Standard Lighting query whose retrieved/cited chunks support the answer, or add a principled mode-aware fallback rule with clean loaded HTTP evidence.",
-    "answer_grounding_status": "2026-08-30 row 7 diagnostic/partial repair: direct configuration fallback selection now scores setting/configuration questions and prefers leading cited text that binds requested configuration terms to camera/trigger/light anchors. Loaded HTTP run retrieval_eval_20260830_130420 changed the user-visible fallback from broad preparation chunk edcd5d51 to directly answering chunk 73a22558, which states Camera: Trigger - Light Configuration Settings and trigger/light assignment details, but it remains diagnostic/not-clean because that cited chunk is the LumiTrax line-scan section while the hidden expected evidence targets Standard Lighting row chunks ece874eb and 93d11edf. Source-repaired wording run retrieval_eval_20260830_130550 also remained not-clean for the same mode-selection/evidence-citation gap. Current answer failures remain expected_evidence_not_cited: 1; current retrieval failures remain {}.",
+    "next_target": "Continue contextual row 7 as a source-scope answer-evidence target. The mode-aware containment now prevents explicit Standard Lighting Mode queries from being overridden by the LumiTrax configuration chunk: retrieval_eval_20260830_132922 cited Standard Lighting chunk ccd9c7e8 instead of 73a22558. The run remains diagnostic/not-clean because the saved expected-evidence bundle still requires exact procedure/configuration roles ece874eb and 93d11edf. Source-review row 7 and either replace the ambiguous original question with a realistic Standard Lighting question whose expected evidence matches the user-visible claim, or add a principled expected-evidence equivalence rule and rerun clean HTTP evidence.",
+    "answer_grounding_status": "2026-08-30 row 7 mode-aware fallback containment: direct configuration fallback selection now fails closed for explicit mode/scope phrases unless the candidate evidence/title/section carries that same mode. Loaded HTTP original row 7 run retrieval_eval_20260830_132807 still failed answer grounding and, because the visible query omits Standard Lighting Mode, still cited LumiTrax chunk 73a22558; it remains diagnostic/excluded. Loaded HTTP repaired Standard Lighting run retrieval_eval_20260830_132922 no longer cited LumiTrax and instead cited same-document Standard Lighting chunk ccd9c7e8, but it still failed expected_evidence_not_cited because the current expected roles require ece874eb/93d11edf. Current retrieval failures remain {}; current answer failures remain expected_evidence_not_cited: 1.",
     "answer_grounding_rotation": {
-      "scope": "contextual_procedure_row7_direct_configuration_fallback_partial_repair",
-      "classification": "diagnostic_partial_loaded_http_not_clean",
-      "latest_run": "retrieval_eval_20260830_130550",
+      "scope": "contextual_procedure_row7_mode_aware_configuration_fallback_containment",
+      "classification": "guardrail_containment_diagnostic_not_clean",
+      "latest_run": "retrieval_eval_20260830_132922",
       "baseline_run": "retrieval_eval_20260830_063002",
-      "changed_path_run": "retrieval_eval_20260830_130420",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_1305_contextual_row7_standard_lighting_repair.jsonl",
-      "saved_dataset": "test_reports/retrieval_eval_dataset_20260830_130550.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260830_130550.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260830_130550.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260830_130550.json",
-      "retrieval_result": "Both loaded HTTP reruns retrieved expected row 7 evidence at rank 1 with candidate and metadata-document recall 100%.",
-      "answer_result": "retrieval_eval_20260830_130420 and retrieval_eval_20260830_130550 each failed 0/1 answer grounding with expected_evidence_not_cited: 1; answer_source fallback_validation.",
-      "manual_jsonl_inspection": "Inspected both JSONL payloads. 130420 cites 73a22558 and answers with Camera: Trigger - Light Configuration Settings, but it is the LumiTrax Specular Reflection Mode section, not the hidden Standard Lighting expected chunks ece874eb/93d11edf. 130550 adds Standard Lighting Mode to the visible question and source_document_id to expected evidence, but still cites 73a22558; therefore the result remains diagnostic/not-clean.",
-      "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-row7 on http://127.0.0.1:8724 loaded _fallback_evidence_score sha256 904c888836828e4e85bbe9c5e3fc67556a7daba7ae24b3b6cbe313ade881626a, _configuration_requested_candidate sha256 ff268046aa6fc8c08056b21615e34e34bf9390e90acc9e7cbc04f7bdfa477e5e, _fallback_evidence_results sha256 c18a3055150f6df61f31b2a4f5937468d7cd66aa0184fbf50a1d5b48bf4f7852, OLLAMA_URL http://host.docker.internal:11434, OLLAMA_ANSWER_MODEL qwen3.5:9b, OLLAMA_EMBED_MODEL qwen3-embedding:0.6b, HAYSTACK_RERANK_MODEL cross-encoder/ms-marco-MiniLM-L-12-v2.",
-      "validation": [
-        "focused direct/multi-part fallback tests passed: 4 passed, 68 deselected",
-        "answering unit file with fixture mounts passed: 72 passed, 23 warnings",
-        "focused answer/evidence scorer tests passed: 45 passed, 70 deselected"
+      "prior_partial_runs": [
+        "retrieval_eval_20260830_130420",
+        "retrieval_eval_20260830_130550"
       ],
-      "remaining": "Row 7 is not clean. Next run should source-review mode-specific Standard Lighting evidence and add mode-aware fallback selection or replace the ambiguous visible question; preserve row 8 clean deferred evidence and rows 5-6 source-reviewed clean evidence."
+      "changed_path_original_run": "retrieval_eval_20260830_132807",
+      "changed_path_repaired_run": "retrieval_eval_20260830_132922",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_1305_contextual_row7_standard_lighting_repair.jsonl",
+      "saved_datasets": [
+        "test_reports/retrieval_eval_dataset_20260830_132807.jsonl",
+        "test_reports/retrieval_eval_dataset_20260830_132922.jsonl"
+      ],
+      "results": [
+        "test_reports/retrieval_eval_results_20260830_132807.jsonl",
+        "test_reports/retrieval_eval_results_20260830_132922.jsonl"
+      ],
+      "summaries": [
+        "test_reports/retrieval_eval_summary_20260830_132807.json",
+        "test_reports/retrieval_eval_summary_20260830_132922.json"
+      ],
+      "manifests": [
+        "test_reports/retrieval_eval_manifest_20260830_132807.json",
+        "test_reports/retrieval_eval_manifest_20260830_132922.json"
+      ],
+      "retrieval_result": "Both loaded HTTP reruns retrieved expected row 7 evidence at rank 1 with candidate and metadata-document recall 100%.",
+      "answer_result": "Both loaded HTTP reruns failed 0/1 answer grounding with expected_evidence_not_cited: 1 and answer_source fallback_validation.",
+      "manual_jsonl_inspection": "Inspected both JSONL payloads. 132807 original query cites 73a22558, the LumiTrax Specular Reflection Mode Camera: Trigger - Light Configuration chunk, so it remains diagnostic because the visible query is mode-ambiguous versus the hidden Standard Lighting expectation. 132922 repaired Standard Lighting query cites ccd9c7e8, a Standard Lighting Camera: Trigger - Light Configuration chunk, and no longer cites 73a22558; it remains not-clean because the current expected roles still require ece874eb/93d11edf citation support.",
+      "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-row7-contain on http://127.0.0.1:8728 loaded _fallback_evidence_score sha256 1333789d0238ff245650fe6ec645c8092cf04f0c322719928ab0f0123e22f52b, _configuration_requested_candidate sha256 fd144ac3ed510bddadda876f80834d9f729cf9a6808a278e674e6c26862f047a, _explicit_scope_phrase_groups sha256 e89b44e8263552ceb339abab29c995a39118b8db59beb58585dc9f893137e70f, _explicit_scope_phrases_supported sha256 502eea0d95bbfc962b727116ce52cc10d4a77597408bc05226581cda45db885a, _fallback_evidence_results sha256 13e83f833f292114fd25314b9f92d8f0c47608c69a331a25eb06721b9d7373b7; local models OLLAMA_URL http://host.docker.internal:11434, OLLAMA_EMBED_MODEL qwen3-embedding:0.6b, OLLAMA_ANSWER_MODEL qwen3.5:9b, HAYSTACK_RERANK_MODEL cross-encoder/ms-marco-MiniLM-L-12-v2.",
+      "validation": [
+        "focused configuration fallback tests: 3 passed, 71 deselected",
+        "focused fallback regression tests: 6 passed, 68 deselected",
+        "focused answer/evidence tests: 81 passed, 108 deselected",
+        "full Docker unit gate with read-only fixtures: 450 passed, 59 warnings",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py: manifest consistency OK"
+      ],
+      "remaining": "Row 7 is not clean. Next run should source-review the ambiguous original and Standard Lighting repaired expected roles, then gather clean loaded HTTP answer evidence or preserve the case as dataset/equivalence debt."
     },
     "current_retrieval_failure_categories": {},
     "current_answer_failure_categories": {
@@ -1352,6 +1383,16 @@
         "run_id": "retrieval_eval_20260830_130550",
         "scope": "contextual procedure row 7 answer evidence",
         "reason": "diagnostic source-repaired row 7 run; visible query specified Standard Lighting Mode but fallback still cited LumiTrax Camera: Trigger - Light Configuration Settings chunk, so answer evidence remains not clean"
+      },
+      {
+        "run_id": "retrieval_eval_20260830_132807",
+        "scope": "contextual procedure row 7 answer evidence",
+        "reason": "mode-aware containment rerun for original row 7 remains diagnostic/not-clean; visible query omits Standard Lighting and answer cites LumiTrax chunk 73a22558"
+      },
+      {
+        "run_id": "retrieval_eval_20260830_132922",
+        "scope": "contextual procedure row 7 answer evidence",
+        "reason": "mode-aware containment rerun for repaired Standard Lighting row 7 remains diagnostic/not-clean; answer cites Standard Lighting chunk ccd9c7e8 but current expected evidence still fails ece874eb/93d11edf citation support"
       }
     ],
     "unresolved_guardrail_findings": [
@@ -1889,7 +1930,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T13:09:00Z",
+    "updated_at": "2026-08-30T13:36:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -3831,7 +3872,7 @@
       "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
       "updated_at": "2026-08-30T12:08:00Z"
     },
-    "remaining": "Continue contextual row 7 as a source-scope and mode-binding answer target: the patched fallback selector moved the original visible query from broad preparation evidence to a directly answering Camera: Trigger - Light Configuration Settings chunk, but the visible question does not uniquely require Standard Lighting Mode and the Standard Lighting repair still selected the LumiTrax same-document setting chunk. Source-review the row 7 expected roles and either replace the question with a unique realistic Standard Lighting query whose retrieved/cited chunks support the answer, or add a principled mode-aware fallback rule with clean loaded HTTP evidence."
+    "remaining": "Continue contextual row 7 as a source-scope answer-evidence target. The mode-aware containment now prevents explicit Standard Lighting Mode queries from being overridden by the LumiTrax configuration chunk: retrieval_eval_20260830_132922 cited Standard Lighting chunk ccd9c7e8 instead of 73a22558. The run remains diagnostic/not-clean because the saved expected-evidence bundle still requires exact procedure/configuration roles ece874eb and 93d11edf. Source-review row 7 and either replace the ambiguous original question with a realistic Standard Lighting question whose expected evidence matches the user-visible claim, or add a principled expected-evidence equivalence rule and rerun clean HTTP evidence."
   },
   "latest_false_negative_repair": {
     "scope": "live_app_false_negative_question_4_luminance_output_type",
@@ -9779,7 +9820,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Continue contextual row 7 as a source-scope and mode-binding answer target: the patched fallback selector moved the original visible query from broad preparation evidence to a directly answering Camera: Trigger - Light Configuration Settings chunk, but the visible question does not uniquely require Standard Lighting Mode and the Standard Lighting repair still selected the LumiTrax same-document setting chunk. Source-review the row 7 expected roles and either replace the question with a unique realistic Standard Lighting query whose retrieved/cited chunks support the answer, or add a principled mode-aware fallback rule with clean loaded HTTP evidence.",
+  "next_target": "Continue contextual row 7 as a source-scope answer-evidence target. The mode-aware containment now prevents explicit Standard Lighting Mode queries from being overridden by the LumiTrax configuration chunk: retrieval_eval_20260830_132922 cited Standard Lighting chunk ccd9c7e8 instead of 73a22558. The run remains diagnostic/not-clean because the saved expected-evidence bundle still requires exact procedure/configuration roles ece874eb and 93d11edf. Source-review row 7 and either replace the ambiguous original question with a realistic Standard Lighting question whose expected evidence matches the user-visible claim, or add a principled expected-evidence equivalence rule and rerun clean HTTP evidence.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10066,28 +10107,47 @@
   "answer_current_failure_categories": {
     "expected_evidence_not_cited": 1
   },
-  "answer_grounding_status": "2026-08-30 row 7 diagnostic/partial repair: direct configuration fallback selection now scores setting/configuration questions and prefers leading cited text that binds requested configuration terms to camera/trigger/light anchors. Loaded HTTP run retrieval_eval_20260830_130420 changed the user-visible fallback from broad preparation chunk edcd5d51 to directly answering chunk 73a22558, which states Camera: Trigger - Light Configuration Settings and trigger/light assignment details, but it remains diagnostic/not-clean because that cited chunk is the LumiTrax line-scan section while the hidden expected evidence targets Standard Lighting row chunks ece874eb and 93d11edf. Source-repaired wording run retrieval_eval_20260830_130550 also remained not-clean for the same mode-selection/evidence-citation gap. Current answer failures remain expected_evidence_not_cited: 1; current retrieval failures remain {}.",
+  "answer_grounding_status": "2026-08-30 row 7 mode-aware fallback containment: direct configuration fallback selection now fails closed for explicit mode/scope phrases unless the candidate evidence/title/section carries that same mode. Loaded HTTP original row 7 run retrieval_eval_20260830_132807 still failed answer grounding and, because the visible query omits Standard Lighting Mode, still cited LumiTrax chunk 73a22558; it remains diagnostic/excluded. Loaded HTTP repaired Standard Lighting run retrieval_eval_20260830_132922 no longer cited LumiTrax and instead cited same-document Standard Lighting chunk ccd9c7e8, but it still failed expected_evidence_not_cited because the current expected roles require ece874eb/93d11edf. Current retrieval failures remain {}; current answer failures remain expected_evidence_not_cited: 1.",
   "answer_grounding_rotation": {
-    "scope": "contextual_procedure_row7_direct_configuration_fallback_partial_repair",
-    "classification": "diagnostic_partial_loaded_http_not_clean",
-    "latest_run": "retrieval_eval_20260830_130550",
+    "scope": "contextual_procedure_row7_mode_aware_configuration_fallback_containment",
+    "classification": "guardrail_containment_diagnostic_not_clean",
+    "latest_run": "retrieval_eval_20260830_132922",
     "baseline_run": "retrieval_eval_20260830_063002",
-    "changed_path_run": "retrieval_eval_20260830_130420",
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_1305_contextual_row7_standard_lighting_repair.jsonl",
-    "saved_dataset": "test_reports/retrieval_eval_dataset_20260830_130550.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260830_130550.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260830_130550.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260830_130550.json",
-    "retrieval_result": "Both loaded HTTP reruns retrieved expected row 7 evidence at rank 1 with candidate and metadata-document recall 100%.",
-    "answer_result": "retrieval_eval_20260830_130420 and retrieval_eval_20260830_130550 each failed 0/1 answer grounding with expected_evidence_not_cited: 1; answer_source fallback_validation.",
-    "manual_jsonl_inspection": "Inspected both JSONL payloads. 130420 cites 73a22558 and answers with Camera: Trigger - Light Configuration Settings, but it is the LumiTrax Specular Reflection Mode section, not the hidden Standard Lighting expected chunks ece874eb/93d11edf. 130550 adds Standard Lighting Mode to the visible question and source_document_id to expected evidence, but still cites 73a22558; therefore the result remains diagnostic/not-clean.",
-    "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-row7 on http://127.0.0.1:8724 loaded _fallback_evidence_score sha256 904c888836828e4e85bbe9c5e3fc67556a7daba7ae24b3b6cbe313ade881626a, _configuration_requested_candidate sha256 ff268046aa6fc8c08056b21615e34e34bf9390e90acc9e7cbc04f7bdfa477e5e, _fallback_evidence_results sha256 c18a3055150f6df61f31b2a4f5937468d7cd66aa0184fbf50a1d5b48bf4f7852, OLLAMA_URL http://host.docker.internal:11434, OLLAMA_ANSWER_MODEL qwen3.5:9b, OLLAMA_EMBED_MODEL qwen3-embedding:0.6b, HAYSTACK_RERANK_MODEL cross-encoder/ms-marco-MiniLM-L-12-v2.",
-    "validation": [
-      "focused direct/multi-part fallback tests passed: 4 passed, 68 deselected",
-      "answering unit file with fixture mounts passed: 72 passed, 23 warnings",
-      "focused answer/evidence scorer tests passed: 45 passed, 70 deselected"
+    "prior_partial_runs": [
+      "retrieval_eval_20260830_130420",
+      "retrieval_eval_20260830_130550"
     ],
-    "remaining": "Row 7 is not clean. Next run should source-review mode-specific Standard Lighting evidence and add mode-aware fallback selection or replace the ambiguous visible question; preserve row 8 clean deferred evidence and rows 5-6 source-reviewed clean evidence."
+    "changed_path_original_run": "retrieval_eval_20260830_132807",
+    "changed_path_repaired_run": "retrieval_eval_20260830_132922",
+    "dataset": "test_reports/retrieval_eval_dataset_20260830_1305_contextual_row7_standard_lighting_repair.jsonl",
+    "saved_datasets": [
+      "test_reports/retrieval_eval_dataset_20260830_132807.jsonl",
+      "test_reports/retrieval_eval_dataset_20260830_132922.jsonl"
+    ],
+    "results": [
+      "test_reports/retrieval_eval_results_20260830_132807.jsonl",
+      "test_reports/retrieval_eval_results_20260830_132922.jsonl"
+    ],
+    "summaries": [
+      "test_reports/retrieval_eval_summary_20260830_132807.json",
+      "test_reports/retrieval_eval_summary_20260830_132922.json"
+    ],
+    "manifests": [
+      "test_reports/retrieval_eval_manifest_20260830_132807.json",
+      "test_reports/retrieval_eval_manifest_20260830_132922.json"
+    ],
+    "retrieval_result": "Both loaded HTTP reruns retrieved expected row 7 evidence at rank 1 with candidate and metadata-document recall 100%.",
+    "answer_result": "Both loaded HTTP reruns failed 0/1 answer grounding with expected_evidence_not_cited: 1 and answer_source fallback_validation.",
+    "manual_jsonl_inspection": "Inspected both JSONL payloads. 132807 original query cites 73a22558, the LumiTrax Specular Reflection Mode Camera: Trigger - Light Configuration chunk, so it remains diagnostic because the visible query is mode-ambiguous versus the hidden Standard Lighting expectation. 132922 repaired Standard Lighting query cites ccd9c7e8, a Standard Lighting Camera: Trigger - Light Configuration chunk, and no longer cites 73a22558; it remains not-clean because the current expected roles still require ece874eb/93d11edf citation support.",
+    "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-row7-contain on http://127.0.0.1:8728 loaded _fallback_evidence_score sha256 1333789d0238ff245650fe6ec645c8092cf04f0c322719928ab0f0123e22f52b, _configuration_requested_candidate sha256 fd144ac3ed510bddadda876f80834d9f729cf9a6808a278e674e6c26862f047a, _explicit_scope_phrase_groups sha256 e89b44e8263552ceb339abab29c995a39118b8db59beb58585dc9f893137e70f, _explicit_scope_phrases_supported sha256 502eea0d95bbfc962b727116ce52cc10d4a77597408bc05226581cda45db885a, _fallback_evidence_results sha256 13e83f833f292114fd25314b9f92d8f0c47608c69a331a25eb06721b9d7373b7; local models OLLAMA_URL http://host.docker.internal:11434, OLLAMA_EMBED_MODEL qwen3-embedding:0.6b, OLLAMA_ANSWER_MODEL qwen3.5:9b, HAYSTACK_RERANK_MODEL cross-encoder/ms-marco-MiniLM-L-12-v2.",
+    "validation": [
+      "focused configuration fallback tests: 3 passed, 71 deselected",
+      "focused fallback regression tests: 6 passed, 68 deselected",
+      "focused answer/evidence tests: 81 passed, 108 deselected",
+      "full Docker unit gate with read-only fixtures: 450 passed, 59 warnings",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py: manifest consistency OK"
+    ],
+    "remaining": "Row 7 is not clean. Next run should source-review the ambiguous original and Standard Lighting repaired expected roles, then gather clean loaded HTTP answer evidence or preserve the case as dataset/equivalence debt."
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -10760,6 +10820,16 @@
       "run_id": "retrieval_eval_20260830_130550",
       "scope": "contextual procedure row 7 answer evidence",
       "reason": "diagnostic source-repaired row 7 run; visible query specified Standard Lighting Mode but fallback still cited LumiTrax Camera: Trigger - Light Configuration Settings chunk, so answer evidence remains not clean"
+    },
+    {
+      "run_id": "retrieval_eval_20260830_132807",
+      "scope": "contextual procedure row 7 answer evidence",
+      "reason": "mode-aware containment rerun for original row 7 remains diagnostic/not-clean; visible query omits Standard Lighting and answer cites LumiTrax chunk 73a22558"
+    },
+    {
+      "run_id": "retrieval_eval_20260830_132922",
+      "scope": "contextual procedure row 7 answer evidence",
+      "reason": "mode-aware containment rerun for repaired Standard Lighting row 7 remains diagnostic/not-clean; answer cites Standard Lighting chunk ccd9c7e8 but current expected evidence still fails ece874eb/93d11edf citation support"
     }
   ],
   "unresolved_guardrail_findings": [
@@ -13161,5 +13231,5 @@
     "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
     "updated_at": "2026-08-30T12:08:00Z"
   },
-  "remaining": "Continue contextual row 7 as a source-scope and mode-binding answer target: the patched fallback selector moved the original visible query from broad preparation evidence to a directly answering Camera: Trigger - Light Configuration Settings chunk, but the visible question does not uniquely require Standard Lighting Mode and the Standard Lighting repair still selected the LumiTrax same-document setting chunk. Source-review the row 7 expected roles and either replace the question with a unique realistic Standard Lighting query whose retrieved/cited chunks support the answer, or add a principled mode-aware fallback rule with clean loaded HTTP evidence."
+  "remaining": "Continue contextual row 7 as a source-scope answer-evidence target. The mode-aware containment now prevents explicit Standard Lighting Mode queries from being overridden by the LumiTrax configuration chunk: retrieval_eval_20260830_132922 cited Standard Lighting chunk ccd9c7e8 instead of 73a22558. The run remains diagnostic/not-clean because the saved expected-evidence bundle still requires exact procedure/configuration roles ece874eb and 93d11edf. Source-review row 7 and either replace the ambiguous original question with a realistic Standard Lighting question whose expected evidence matches the user-visible claim, or add a principled expected-evidence equivalence rule and rerun clean HTTP evidence."
 }
