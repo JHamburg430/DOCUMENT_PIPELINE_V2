@@ -1201,6 +1201,76 @@ def test_configuration_fallback_returns_no_evidence_for_only_wrong_mode_candidat
     assert selected == []
 
 
+def test_configuration_fallback_rejects_direct_label_without_trigger_light_details():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    results = [
+        SearchResult(
+            chunk_id="label-only",
+            score=0.9,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[981],
+            section_path=["Standard Lighting Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+                "Camera: Trigger - Light Configuration Settings."
+            ),
+            metadata={"chunk_type": "section_window"},
+        )
+    ]
+
+    selected = _fallback_evidence_results(query, results)
+
+    assert selected == []
+
+
+def test_validate_answer_fails_closed_for_direct_label_without_trigger_light_details():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    answer = AnswerResponse(
+        answer=(
+            "Use Camera: Trigger - Light Configuration Settings. The trigger input for each camera "
+            "and illumination control targets can be configured there."
+        ),
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="label-only",
+            score=0.9,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[981],
+            section_path=["Standard Lighting Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+                "Camera: Trigger - Light Configuration Settings."
+            ),
+            metadata={"chunk_type": "section_window"},
+        )
+    ]
+
+    validated = validate_answer(answer, results, query=query)
+
+    assert validated.insufficient_evidence is True
+    assert validated.citations == []
+    assert "trigger input for each camera" not in validated.answer
+    assert "illumination control targets" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_fallback_is_insufficient_for_only_wrong_mode_candidate():
     query = (
         "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
@@ -1239,6 +1309,49 @@ def test_validate_answer_fallback_is_insufficient_for_only_wrong_mode_candidate(
     assert validated.citations == []
     assert "LumiTrax" not in validated.answer
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_keeps_direct_configuration_with_trigger_light_details():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    answer = AnswerResponse(
+        answer=(
+            "Use Camera: Trigger - Light Configuration Settings. The trigger input for each camera "
+            "and illumination control targets can be configured there."
+        ),
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="standard-config",
+            score=0.9,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[981],
+            section_path=["Standard Lighting Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+                "Camera: Trigger - Light Configuration Settings. "
+                "The trigger input for each camera and illumination control targets can be configured together."
+            ),
+            metadata={"chunk_type": "section_window"},
+        )
+    ]
+
+    validated = validate_answer(answer, results, query=query)
+
+    assert validated.insufficient_evidence is False
+    assert [citation["chunk_id"] for citation in validated.citations] == ["standard-config"]
+    assert "trigger input for each camera" in validated.answer
+    assert "illumination control targets" in validated.answer
 
 
 def test_validate_answer_fails_closed_for_broad_same_mode_configuration_context():

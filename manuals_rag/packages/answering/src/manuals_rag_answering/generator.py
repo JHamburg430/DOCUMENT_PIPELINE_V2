@@ -1014,6 +1014,21 @@ def _direct_configuration_label_score(query: str, evidence: str) -> float:
     return 0.0
 
 
+def _direct_configuration_detail_supported(query: str, evidence: str) -> bool:
+    query_terms = _answer_terms(query)
+    if not _requires_direct_configuration_evidence(query):
+        return True
+    if not {"trigger"}.intersection(query_terms) or not {"light", "lighting", "illumination"}.intersection(query_terms):
+        return True
+    normalized_evidence = " ".join(re.findall(r"[a-z0-9]+", evidence.lower()))
+    has_trigger_input = re.search(r"\btrigger\s+inputs?\b", normalized_evidence) is not None
+    has_light_target = (
+        re.search(r"\billumination\s+control\s+targets?\b", normalized_evidence) is not None
+        or re.search(r"\blight\s+control\s+targets?\b", normalized_evidence) is not None
+    )
+    return has_trigger_input and has_light_target
+
+
 def _configuration_requested_candidate(
     query: str, query_terms: set[str], scored: list[tuple[float, int, SearchResult]]
 ) -> SearchResult | None:
@@ -1023,6 +1038,7 @@ def _configuration_requested_candidate(
         (score + _direct_configuration_label_score(query, _fallback_answer_text(result)[:1000]), index, result)
         for score, index, result in scored
         if _explicit_scope_phrases_supported(query, result)
+        if _direct_configuration_detail_supported(query, _fallback_answer_text(result)[:1000])
         if _direct_configuration_binding_score(
             query_terms,
             _answer_terms(_fallback_answer_text(result)[:800]),
