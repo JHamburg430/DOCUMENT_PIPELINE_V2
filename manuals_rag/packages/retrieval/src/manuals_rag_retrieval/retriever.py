@@ -1088,24 +1088,32 @@ def _result_supports_explicit_scope(query: str, result: SearchResult) -> bool:
 
 
 def _capture_type_scope(text: str) -> str | None:
+    scopes = _capture_type_scopes(text)
+    if len(scopes) != 1:
+        return None
+    return next(iter(scopes))
+
+
+def _capture_type_scopes(text: str) -> set[str]:
     normalized = " ".join(re.findall(r"[a-z0-9]+", text.lower()))
+    scopes: set[str] = set()
     if re.search(r"\bline\s+scan(?:\s+cameras?)?\b", normalized) or re.search(
         r"\bline\s+cameras?\b", normalized
     ):
-        return "line_scan"
+        scopes.add("line_scan")
     if re.search(r"\barea\s+cameras?\b", normalized):
-        return "area_camera"
-    return None
+        scopes.add("area_camera")
+    return scopes
 
 
 def _evidence_supports_capture_type_scope(query: str, evidence: str) -> bool:
     query_scope = _capture_type_scope(query)
     if query_scope is None:
         return True
-    evidence_scope = _capture_type_scope(evidence)
-    if evidence_scope is None:
+    evidence_scopes = _capture_type_scopes(evidence)
+    if len(evidence_scopes) != 1:
         return False
-    return evidence_scope == query_scope
+    return query_scope in evidence_scopes
 
 
 def _result_supports_capture_type_scope(query: str, result: SearchResult) -> bool:

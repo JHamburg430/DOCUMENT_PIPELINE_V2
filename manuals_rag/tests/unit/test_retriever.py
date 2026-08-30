@@ -1356,6 +1356,59 @@ def test_direct_configuration_promotion_rejects_same_mode_wrong_capture_type():
     assert "standard-area-camera-trigger-light" not in [result.chunk_id for result in promoted]
 
 
+def test_direct_configuration_promotion_rejects_wrong_capture_type_with_mixed_rerank_context():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    analysis = analyze_query(query)
+    primary = SearchResult(
+        chunk_id="standard-line-setup",
+        score=9.0,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[983],
+        section_path=["Standard Lighting Mode"],
+        content=(
+            "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+            "Change the settings in accordance with the capture environment."
+        ),
+        metadata={"chunk_type": "procedure_record"},
+    )
+    wrong_capture_type = SearchResult(
+        chunk_id="standard-area-camera-trigger-light",
+        score=1.4,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[944],
+        section_path=["Standard Lighting Mode"],
+        content=(
+            "Capture Using Area Cameras (Standard Lighting Mode). "
+            "Camera: Trigger - Light Configuration Settings. The connected cameras and "
+            "illumination expansion units, trigger input for each camera, and illumination "
+            "control targets can be configured together."
+        ),
+        metadata={
+            "chunk_type": "section_window",
+            "local_rerank_context": (
+                "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+                "Change the settings in accordance with the capture environment."
+            ),
+        },
+    )
+
+    promoted = retriever._promote_direct_configuration_candidates(
+        [primary],
+        [wrong_capture_type],
+        analysis,
+        limit=3,
+    )
+
+    assert promoted == [primary]
+
+
 def test_structured_lookup_family_scoring_demotes_table_header_chunks():
     analysis = analyze_query("What address applies to IV4-G120?")
     header = SearchResult(

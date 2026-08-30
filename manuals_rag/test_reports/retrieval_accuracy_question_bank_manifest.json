@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T18:09:00Z",
+  "updated_at": "2026-08-30T18:56:04Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1095,8 +1095,8 @@
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 2
     },
-    "next_target": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_180232 as clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection.",
-    "answer_grounding_status": "2026-08-30 row 7 direct-configuration capture-type scope containment: clean side API manuals-rag-temp-api-39262386-20260830-capture-scope on http://127.0.0.1:8757 loaded patched retrieval/answering code with checked-in local model settings OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Loaded controls rejected same-mode area-camera configuration evidence for a line-scan setup query and selected the correct same-mode line-scan configuration evidence when present. Actual HTTP repaired row-7 run retrieval_eval_20260830_180232 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation; manual JSONL inspection found citations ece874eb and 05d53cc2, whose persisted payload supports line-scan Standard Lighting setup and Camera - Trigger - Light Configuration Settings with trigger-input/illumination-control-target details. Actual HTTP original broad row-7 control retrieval_eval_20260830_180401 passed retrieval but failed answer grounding expected_evidence_not_cited and remains diagnostic/excluded because the visible query omits Standard Lighting Mode and cites LumiTrax line-scan evidence. Current answer failures return to contextual rows 9-10 from retrieval_eval_20260830_172950: expected_evidence_not_cited: 2.",
+    "next_target": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_184709 as fresh clean row-7 mixed capture-scope evidence, preserve retrieval_eval_20260830_180232 as earlier clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection.",
+    "answer_grounding_status": "2026-08-30 row 7 direct-configuration mixed capture-scope containment: clean side API manuals-rag-temp-api-39262386-20260830-mixed-capture on http://127.0.0.1:8763 loaded patched retrieval code from /workspace/manuals_rag with checked-in local model settings OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Loaded controls rejected same-mode area-camera configuration evidence when its local_rerank_context mentioned line-scan setup: wrong_score=0.0, negative promotion returned only standard-line-setup, and positive promotion returned standard-line-camera-trigger-light before standard-line-setup. Actual HTTP repaired row-7 run retrieval_eval_20260830_184709 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation; manual JSONL inspection found the visible answer cites ece874eb and 05d53cc2, whose persisted payload supports Standard Lighting line-scan setup plus Camera - Trigger - Light Configuration Settings with trigger-input/illumination-control-target details. Current answer failures remain contextual rows 9-10 from retrieval_eval_20260830_172950: expected_evidence_not_cited: 2.",
     "answer_grounding_rotation": {
       "scope": "contextual_procedure_rows_9_10_answer_evidence_diagnostic",
       "classification": "diagnostic_not_clean_answer_evidence_gap",
@@ -1130,7 +1130,8 @@
         "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before tracking update",
         "actual HTTP answer-mode run retrieval_eval_20260830_172950: 2/2 retrieval, 0/2 answers",
         "manual JSONL citation inspection completed for both new rows; no clean evidence accepted",
-        "2026-08-30 row-7 guardrail containment completed separately in retrieval_eval_20260830_180232; rows 9-10 remain current expected_evidence_not_cited target."
+        "2026-08-30 row-7 guardrail containment completed separately in retrieval_eval_20260830_180232; rows 9-10 remain current expected_evidence_not_cited target.",
+        "2026-08-30 mixed capture-scope containment completed in retrieval_eval_20260830_184709; rows 9-10 remain current expected_evidence_not_cited target."
       ]
     },
     "current_retrieval_failure_categories": {},
@@ -1450,6 +1451,24 @@
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-30T18:56:04Z",
+        "guardrail_timestamp": "2026-08-30T18:20:01Z",
+        "guardrail_commit": "d9d5af2",
+        "severity": "needs_fix",
+        "finding": "After commit 20541df, a direct-configuration adverse mixed-context control could still promote a same-mode area-camera configuration chunk for a line-scan setup query when aggregated local_rerank_context mentioned line scan.",
+        "status": "addressed_this_run_mixed_capture_scope_containment",
+        "addressed_this_run": "Changed capture-type scope scoring to collect all scope mentions and fail closed when candidate evidence contains conflicting capture scopes, so aggregate line-scan context can no longer override an area-camera candidate.",
+        "evidence": [
+          "Focused retriever test: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k direct_configuration -> 4 passed, 113 deselected.",
+          "Loaded side-API fingerprints from /workspace/manuals_rag: _capture_type_scope c024862a5f7bcbb91a929df6f928ad37eaf051f7af099954f27a77087d8dbe07; _capture_type_scopes 36fa063f3d373f558212d645e4f960cb9002b52e67b17f1eb24b1d275d2f5fa7; _evidence_supports_capture_type_scope 24cc253fd2cee0999647d0ffe9e5eb582f78aa73d7fd701a3c041a1967289e01.",
+          "Loaded adverse control: wrong mixed area-camera candidate score 0.0; negative promotion returned [standard-line-setup]; positive control returned [standard-line-camera-trigger-light, standard-line-setup].",
+          "Actual HTTP repaired row-7 run retrieval_eval_20260830_184709: 1/1 retrieval, 1/1 answer grounding, fallback_validation 1/1.",
+          "Manual JSONL inspection: user-visible answer cited ece874eb and 05d53cc2; persisted cited content states Standard Lighting line-scan setup and Camera - Trigger - Light Configuration Settings with trigger input and illumination control targets.",
+          "Full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 466 passed, 61 warnings."
+        ],
+        "remaining": "Rows 9-10 remain the current answer-evidence gap from retrieval_eval_20260830_172950; this run made no rows 9-10 production change."
+      },
       {
         "timestamp": "2026-08-30T18:09:00Z",
         "guardrail_timestamp": "2026-08-30T17:52:34Z",
@@ -2113,7 +2132,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T18:09:00Z",
+    "updated_at": "2026-08-30T18:56:04Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -4055,7 +4074,7 @@
       "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
       "updated_at": "2026-08-30T12:08:00Z"
     },
-    "remaining": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_180232 as clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection."
+    "remaining": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_184709 as fresh clean row-7 mixed capture-scope evidence, preserve retrieval_eval_20260830_180232 as earlier clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection."
   },
   "latest_false_negative_repair": {
     "scope": "live_app_false_negative_question_4_luminance_output_type",
@@ -10003,7 +10022,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_180232 as clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection.",
+  "next_target": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_184709 as fresh clean row-7 mixed capture-scope evidence, preserve retrieval_eval_20260830_180232 as earlier clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10290,7 +10309,7 @@
   "answer_current_failure_categories": {
     "expected_evidence_not_cited": 2
   },
-  "answer_grounding_status": "2026-08-30 row 7 direct-configuration capture-type scope containment: clean side API manuals-rag-temp-api-39262386-20260830-capture-scope on http://127.0.0.1:8757 loaded patched retrieval/answering code with checked-in local model settings OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Loaded controls rejected same-mode area-camera configuration evidence for a line-scan setup query and selected the correct same-mode line-scan configuration evidence when present. Actual HTTP repaired row-7 run retrieval_eval_20260830_180232 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation; manual JSONL inspection found citations ece874eb and 05d53cc2, whose persisted payload supports line-scan Standard Lighting setup and Camera - Trigger - Light Configuration Settings with trigger-input/illumination-control-target details. Actual HTTP original broad row-7 control retrieval_eval_20260830_180401 passed retrieval but failed answer grounding expected_evidence_not_cited and remains diagnostic/excluded because the visible query omits Standard Lighting Mode and cites LumiTrax line-scan evidence. Current answer failures return to contextual rows 9-10 from retrieval_eval_20260830_172950: expected_evidence_not_cited: 2.",
+  "answer_grounding_status": "2026-08-30 row 7 direct-configuration mixed capture-scope containment: clean side API manuals-rag-temp-api-39262386-20260830-mixed-capture on http://127.0.0.1:8763 loaded patched retrieval code from /workspace/manuals_rag with checked-in local model settings OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Loaded controls rejected same-mode area-camera configuration evidence when its local_rerank_context mentioned line-scan setup: wrong_score=0.0, negative promotion returned only standard-line-setup, and positive promotion returned standard-line-camera-trigger-light before standard-line-setup. Actual HTTP repaired row-7 run retrieval_eval_20260830_184709 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation; manual JSONL inspection found the visible answer cites ece874eb and 05d53cc2, whose persisted payload supports Standard Lighting line-scan setup plus Camera - Trigger - Light Configuration Settings with trigger-input/illumination-control-target details. Current answer failures remain contextual rows 9-10 from retrieval_eval_20260830_172950: expected_evidence_not_cited: 2.",
   "answer_grounding_rotation": {
     "scope": "contextual_procedure_rows_9_10_answer_evidence_diagnostic",
     "classification": "diagnostic_not_clean_answer_evidence_gap",
@@ -10324,7 +10343,8 @@
       "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before tracking update",
       "actual HTTP answer-mode run retrieval_eval_20260830_172950: 2/2 retrieval, 0/2 answers",
       "manual JSONL citation inspection completed for both new rows; no clean evidence accepted",
-      "2026-08-30 row-7 guardrail containment completed separately in retrieval_eval_20260830_180232; rows 9-10 remain current expected_evidence_not_cited target."
+      "2026-08-30 row-7 guardrail containment completed separately in retrieval_eval_20260830_180232; rows 9-10 remain current expected_evidence_not_cited target.",
+      "2026-08-30 mixed capture-scope containment completed in retrieval_eval_20260830_184709; rows 9-10 remain current expected_evidence_not_cited target."
     ]
   },
   "latest_eval_generation_quality": {
@@ -11070,6 +11090,24 @@
     }
   ],
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-30T18:56:04Z",
+      "guardrail_timestamp": "2026-08-30T18:20:01Z",
+      "guardrail_commit": "d9d5af2",
+      "severity": "needs_fix",
+      "finding": "After commit 20541df, a direct-configuration adverse mixed-context control could still promote a same-mode area-camera configuration chunk for a line-scan setup query when aggregated local_rerank_context mentioned line scan.",
+      "status": "addressed_this_run_mixed_capture_scope_containment",
+      "addressed_this_run": "Changed capture-type scope scoring to collect all scope mentions and fail closed when candidate evidence contains conflicting capture scopes, so aggregate line-scan context can no longer override an area-camera candidate.",
+      "evidence": [
+        "Focused retriever test: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k direct_configuration -> 4 passed, 113 deselected.",
+        "Loaded side-API fingerprints from /workspace/manuals_rag: _capture_type_scope c024862a5f7bcbb91a929df6f928ad37eaf051f7af099954f27a77087d8dbe07; _capture_type_scopes 36fa063f3d373f558212d645e4f960cb9002b52e67b17f1eb24b1d275d2f5fa7; _evidence_supports_capture_type_scope 24cc253fd2cee0999647d0ffe9e5eb582f78aa73d7fd701a3c041a1967289e01.",
+        "Loaded adverse control: wrong mixed area-camera candidate score 0.0; negative promotion returned [standard-line-setup]; positive control returned [standard-line-camera-trigger-light, standard-line-setup].",
+        "Actual HTTP repaired row-7 run retrieval_eval_20260830_184709: 1/1 retrieval, 1/1 answer grounding, fallback_validation 1/1.",
+        "Manual JSONL inspection: user-visible answer cited ece874eb and 05d53cc2; persisted cited content states Standard Lighting line-scan setup and Camera - Trigger - Light Configuration Settings with trigger input and illumination control targets.",
+        "Full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 466 passed, 61 warnings."
+      ],
+      "remaining": "Rows 9-10 remain the current answer-evidence gap from retrieval_eval_20260830_172950; this run made no rows 9-10 production change."
+    },
     {
       "timestamp": "2026-08-30T18:09:00Z",
       "guardrail_timestamp": "2026-08-30T17:52:34Z",
@@ -13597,5 +13635,5 @@
     "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
     "updated_at": "2026-08-30T12:08:00Z"
   },
-  "remaining": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_180232 as clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection."
+  "remaining": "Fix contextual procedure rows 9-10 answer evidence selection after actual HTTP run retrieval_eval_20260830_172950: retrieval passed 2/2 at rank 1, but both fallback_validation answers failed expected_evidence_not_cited. Row 9 must cite/use the image-capture-buffer disabled trigger-input permission/prohibition role; row 10 must cite/use the one-camera-or-multiple-cameras sharing the same capture-priority condition role. Preserve retrieval_eval_20260830_184709 as fresh clean row-7 mixed capture-scope evidence, preserve retrieval_eval_20260830_180232 as earlier clean row-7 capture-type scope evidence, preserve retrieval_eval_20260830_180401 as diagnostic broad-query control, and rerun rows 9-10 only after source-backed correction with manual citation-payload inspection."
 }
