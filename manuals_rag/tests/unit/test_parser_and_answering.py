@@ -1241,6 +1241,46 @@ def test_validate_answer_fallback_is_insufficient_for_only_wrong_mode_candidate(
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_fails_closed_for_broad_same_mode_configuration_context():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    answer = AnswerResponse(
+        answer="Use Camera: Trigger - Light Configuration Settings for trigger and light settings.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="broad-standard-mode",
+            score=0.9,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[973],
+            section_path=["Standard Lighting Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+                "Preparation 1: Changing the Camera, Trigger, and Light Settings. "
+                "Configure the following settings when using fixed capture."
+            ),
+            metadata={"chunk_type": "section_window"},
+        )
+    ]
+
+    validated = validate_answer(answer, results, query=query)
+
+    assert validated.insufficient_evidence is True
+    assert validated.citations == []
+    assert "Camera: Trigger - Light Configuration Settings" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_comparison_troubleshooting_fallback_rejects_wrong_sibling_answer():
     query = (
         "Compare the corrective action for unstable gray-binary inspection on CV-X482 "
