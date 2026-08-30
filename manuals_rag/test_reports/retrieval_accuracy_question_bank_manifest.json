@@ -1,5 +1,7 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "expected_evidence_not_cited": 2
+  },
   "answer_grounding_contextual_rows_15_16": {
     "code_change": "Non-exact cited composite chunks must preserve distinctive identifier bindings, polarity/action terms, and source role/value quantity relations before they can satisfy source-reviewed expected evidence. Code-like identifier phrases such as TRG1/CAM 1 are handled as bindings, while prose is not over-read as a quantity relation unless the role is a real measurable/spec role.",
     "controls": [
@@ -84,16 +86,21 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; fallback count 2.",
-    "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_201603.jsonl",
-    "latest_run": "retrieval_eval_20260830_201603",
-    "manifest": "test_reports/retrieval_eval_manifest_20260830_201603.json",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_201603 for both rows. Row 9 cites c2f26c3b with returned content stating Image Capture Buffer: Disabled and trigger input permitted only while stopped/prohibited otherwise. Row 10 cites bc2a9550; its returned content now states the same-capture-priority condition, Image Capture Buffer: Disabled, and trigger-input context. Both answer payloads are user-visible fallback_validation answers with compatible citations.",
+    "answer_result": "0/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {expected_evidence_not_cited: 2}.",
+    "classification": "diagnostic_not_clean_contextual_rows_11_12_expected_evidence_not_cited",
+    "dataset": "test_reports/retrieval_eval_dataset_20260830_213843.jsonl",
+    "latest_run": "retrieval_eval_20260830_213843",
+    "manifest": "test_reports/retrieval_eval_manifest_20260830_213843.json",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_213843 for both rows. Row 11 asks what PLC communication task the LJ-X8000 image-capture-timing setup chapter covers before configuration; row 12 asks how to check whether the sensor is connected to the PLC over EtherNet/IP. Both retrieved expected evidence at rank 1, but the user-visible fallback answer cites only consolidated chunk eba458c3 with null quote_span. The visible answer includes compatible connection/timing text, but the current expected evidence does not declare source-reviewed equivalence for eba458c3, so both rows remain diagnostic/not-clean expected_evidence_not_cited failures.",
     "max_queries": 2,
-    "query_offset": 0,
-    "results": "test_reports/retrieval_eval_results_20260830_201603.jsonl",
-    "retrieval_result": "2/2 passed at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
+    "previous_clean_rotation_preserved": {
+      "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
+      "latest_run": "retrieval_eval_20260830_201603",
+      "summary": "test_reports/retrieval_eval_summary_20260830_201603.json"
+    },
+    "query_offset": 10,
+    "results": "test_reports/retrieval_eval_results_20260830_213843.jsonl",
+    "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
     "runtime_load": {
       "HAYSTACK_RERANK_DEVICE": "cuda:0",
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
@@ -101,26 +108,22 @@
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
       "OLLAMA_URL": "http://host.docker.internal:11434",
-      "_fallback_answer_text_sha256": "c61704c1411ae2a50cb3bd5a2998f269c373a5304059cc25f00054a8f6ffbf20",
       "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-      "_image_capture_buffer_evidence_results_sha256": "a15ff8ecef8f60b6363d57702d4468fa33e47c1b9b952d2661eb139743240c10",
-      "api_base": "http://127.0.0.1:8782",
+      "api_base": "http://127.0.0.1:8786",
+      "api_main_file": "/workspace/manuals_rag/apps/api/main.py",
       "assemble_context_sha256": "274065890032565f385a609051c8bce1f3bbe3b115db45f67cfc30422184b750",
-      "container": "manuals-rag-temp-api-39262386-20260830-row10-parent",
+      "container": "manuals-rag-temp-api-39262386-20260830-rows11-12",
+      "generate_answer_sha256": "e75cfb7b269021a1897654974f4ff287e87ee190c436194d9913c66b376007a8",
+      "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+      "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
+      "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
       "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
     },
-    "scope": "contextual_procedure_rows_9_10_image_capture_buffer_answer_evidence_repair",
-    "source_review": "Row 10 is accepted only because the cited returned content for bc2a9550 directly contains both the one-camera/multiple-cameras same-capture-priority condition and Image Capture Buffer: Disabled with trigger-input context after source-lineage expansion. This supersedes diagnostic retrieval_eval_20260830_194345 row 10 insufficient-evidence and excluded false-clean retrieval_eval_20260830_191713 row 10 metadata-only support.",
-    "summary": "test_reports/retrieval_eval_summary_20260830_201603.json",
-    "validation": [
-      "focused image-buffer answering tests: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'image_capture_buffer' -> 4 passed, 87 deselected, 5 warnings",
-      "focused retrieval assembly tests: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'assemble_context_preserves_parent_source_for_atomic_fragments or assemble_context_uses_nearest_table_row_group' -> 2 passed, 116 deselected",
-      "loaded HTTP answer-mode run retrieval_eval_20260830_201603 -> 2/2 retrieval, 2/2 answers, fallback_validation 2/2",
-      "manual JSONL citation/content inspection completed for both 201603 rows",
-      "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 472 passed, 59 warnings",
-      "2026-08-30T20:45:00Z guardrail tracking repair: corrected answer_grounding_rotation.dataset to retrieval_eval_dataset_20260830_201603.jsonl and added deterministic artifact run-id consistency checks.",
-      "2026-08-30 cron tracking validation: latest guardrail review is ok for retrieval_eval_20260830_201603 / commit 36f6d3d. No new answer rotation was run because the primary checkout remains stale/dirty and surviving side API containers did not match the current recorded clean runtime fingerprints; next rotation must start or verify a clean current side API before producing new clean HTTP evidence."
-    ]
+    "scope": "diagnostic contextual rows 11-12 actual HTTP answer rotation only; no production retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260830_213843.json"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -469,7 +472,7 @@
       "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
     ]
   },
-  "answer_grounding_status": "2026-08-30 row 10 image-capture-buffer repair: clean side API manuals-rag-temp-api-39262386-20260830-row10-parent on http://127.0.0.1:8782 loaded edited retrieval/answering code from /workspace/manuals_rag with checked-in local models. Fingerprints: _fallback_answer_text c61704c1411ae2a50cb3bd5a2998f269c373a5304059cc25f00054a8f6ffbf20; _image_capture_buffer_evidence_results a15ff8ecef8f60b6363d57702d4468fa33e47c1b9b952d2661eb139743240c10; _fallback_evidence_results aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490; validate_answer d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395; assemble_context 274065890032565f385a609051c8bce1f3bbe3b115db45f67cfc30422184b750. Actual HTTP run retrieval_eval_20260830_201603 passed 2/2 retrieval and 2/2 actual answer grounding with fallback_validation 2/2. Manual JSONL inspection confirmed row 9 cites returned content with disabled-buffer trigger-input permission/prohibition text, and row 10 cites bc2a9550 whose returned content now directly contains the same-capture-priority condition plus Image Capture Buffer: Disabled and trigger-input context. Current retrieval failures are {}; current answer failures are {}. Latest cron validation at 2026-08-30T21:20:00Z preserved this state and made no new clean answer claim because no current clean side API fingerprint was available.",
+  "answer_grounding_status": "2026-08-30 contextual rows 11-12 diagnostic: clean side API manuals-rag-temp-api-39262386-20260830-rows11-12 on http://127.0.0.1:8786 loaded current origin/main code from /workspace/manuals_rag with checked-in local models. Actual HTTP run retrieval_eval_20260830_213843 passed 2/2 retrieval at rank 1 but 0/2 answer grounding; both user-visible fallback_validation answers cite only consolidated chunk eba458c3 while expected role chunks remain unsupported by citations. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 2}. Prior clean row 9-10 image-buffer evidence from retrieval_eval_20260830_201603 remains preserved, not replaced as clean evidence.",
   "constraints": {
     "allowed_logic": [
       "retrieval",
@@ -486,7 +489,9 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "expected_evidence_not_cited": 2
+  },
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -8650,7 +8655,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Continue broader source-reviewed contextual answer-grounding coverage after row 10 image-capture-buffer repair, but first start or verify a clean side API loaded from current origin/main before running HTTP answer-mode evidence. Preserve retrieval_eval_20260830_201603 rows 9-10 as clean only under citation-content inspection and corrected dataset provenance.",
+  "next_target": "Source-review contextual rows 11-12 consolidated citation eba458c3 against expected role chunks 7aaa0e2c/82880372 and 7aaa0e2c/e6d1ab33. Either add a principled same-document/source-lineage equivalence policy with deterministic controls and rerun, or adjust answer fallback to cite the role-specific returned chunks directly; do not count retrieval_eval_20260830_213843 as clean.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9403,7 +9408,9 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 2
+    },
     "answer_grounding_contextual_rows_15_16": {
       "code_change": "Non-exact cited composite chunks must preserve distinctive identifier bindings, polarity/action terms, and source role/value quantity relations before they can satisfy source-reviewed expected evidence. Code-like identifier phrases such as TRG1/CAM 1 are handled as bindings, while prose is not over-read as a quantity relation unless the role is a real measurable/spec role.",
       "controls": [
@@ -9470,16 +9477,21 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; fallback count 2.",
-      "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_201603.jsonl",
-      "latest_run": "retrieval_eval_20260830_201603",
-      "manifest": "test_reports/retrieval_eval_manifest_20260830_201603.json",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_201603 for both rows. Row 9 cites c2f26c3b with returned content stating Image Capture Buffer: Disabled and trigger input permitted only while stopped/prohibited otherwise. Row 10 cites bc2a9550; its returned content now states the same-capture-priority condition, Image Capture Buffer: Disabled, and trigger-input context. Both answer payloads are user-visible fallback_validation answers with compatible citations.",
+      "answer_result": "0/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {expected_evidence_not_cited: 2}.",
+      "classification": "diagnostic_not_clean_contextual_rows_11_12_expected_evidence_not_cited",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_213843.jsonl",
+      "latest_run": "retrieval_eval_20260830_213843",
+      "manifest": "test_reports/retrieval_eval_manifest_20260830_213843.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_213843 for both rows. Row 11 asks what PLC communication task the LJ-X8000 image-capture-timing setup chapter covers before configuration; row 12 asks how to check whether the sensor is connected to the PLC over EtherNet/IP. Both retrieved expected evidence at rank 1, but the user-visible fallback answer cites only consolidated chunk eba458c3 with null quote_span. The visible answer includes compatible connection/timing text, but the current expected evidence does not declare source-reviewed equivalence for eba458c3, so both rows remain diagnostic/not-clean expected_evidence_not_cited failures.",
       "max_queries": 2,
-      "query_offset": 0,
-      "results": "test_reports/retrieval_eval_results_20260830_201603.jsonl",
-      "retrieval_result": "2/2 passed at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
+      "previous_clean_rotation_preserved": {
+        "classification": "clean_loaded_http_answer_evidence_rows9_10_after_citation_content_inspection",
+        "latest_run": "retrieval_eval_20260830_201603",
+        "summary": "test_reports/retrieval_eval_summary_20260830_201603.json"
+      },
+      "query_offset": 10,
+      "results": "test_reports/retrieval_eval_results_20260830_213843.jsonl",
+      "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
       "runtime_load": {
         "HAYSTACK_RERANK_DEVICE": "cuda:0",
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
@@ -9487,26 +9499,22 @@
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
         "OLLAMA_URL": "http://host.docker.internal:11434",
-        "_fallback_answer_text_sha256": "c61704c1411ae2a50cb3bd5a2998f269c373a5304059cc25f00054a8f6ffbf20",
         "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-        "_image_capture_buffer_evidence_results_sha256": "a15ff8ecef8f60b6363d57702d4468fa33e47c1b9b952d2661eb139743240c10",
-        "api_base": "http://127.0.0.1:8782",
+        "api_base": "http://127.0.0.1:8786",
+        "api_main_file": "/workspace/manuals_rag/apps/api/main.py",
         "assemble_context_sha256": "274065890032565f385a609051c8bce1f3bbe3b115db45f67cfc30422184b750",
-        "container": "manuals-rag-temp-api-39262386-20260830-row10-parent",
+        "container": "manuals-rag-temp-api-39262386-20260830-rows11-12",
+        "generate_answer_sha256": "e75cfb7b269021a1897654974f4ff287e87ee190c436194d9913c66b376007a8",
+        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+        "retrieve_sha256": "ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3",
+        "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
         "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
       },
-      "scope": "contextual_procedure_rows_9_10_image_capture_buffer_answer_evidence_repair",
-      "source_review": "Row 10 is accepted only because the cited returned content for bc2a9550 directly contains both the one-camera/multiple-cameras same-capture-priority condition and Image Capture Buffer: Disabled with trigger-input context after source-lineage expansion. This supersedes diagnostic retrieval_eval_20260830_194345 row 10 insufficient-evidence and excluded false-clean retrieval_eval_20260830_191713 row 10 metadata-only support.",
-      "summary": "test_reports/retrieval_eval_summary_20260830_201603.json",
-      "validation": [
-        "focused image-buffer answering tests: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'image_capture_buffer' -> 4 passed, 87 deselected, 5 warnings",
-        "focused retrieval assembly tests: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'assemble_context_preserves_parent_source_for_atomic_fragments or assemble_context_uses_nearest_table_row_group' -> 2 passed, 116 deselected",
-        "loaded HTTP answer-mode run retrieval_eval_20260830_201603 -> 2/2 retrieval, 2/2 answers, fallback_validation 2/2",
-        "manual JSONL citation/content inspection completed for both 201603 rows",
-        "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 472 passed, 59 warnings",
-        "2026-08-30T20:45:00Z guardrail tracking repair: corrected answer_grounding_rotation.dataset to retrieval_eval_dataset_20260830_201603.jsonl and added deterministic artifact run-id consistency checks.",
-        "2026-08-30 cron tracking validation: latest guardrail review is ok for retrieval_eval_20260830_201603 / commit 36f6d3d. No new answer rotation was run because the primary checkout remains stale/dirty and surviving side API containers did not match the current recorded clean runtime fingerprints; next rotation must start or verify a clean current side API before producing new clean HTTP evidence."
-      ]
+      "scope": "diagnostic contextual rows 11-12 actual HTTP answer rotation only; no production retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260830_213843.json"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -9644,8 +9652,10 @@
         "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
       ]
     },
-    "answer_grounding_status": "2026-08-30 row 10 image-capture-buffer repair: clean side API manuals-rag-temp-api-39262386-20260830-row10-parent on http://127.0.0.1:8782 loaded edited retrieval/answering code from /workspace/manuals_rag with checked-in local models. Fingerprints: _fallback_answer_text c61704c1411ae2a50cb3bd5a2998f269c373a5304059cc25f00054a8f6ffbf20; _image_capture_buffer_evidence_results a15ff8ecef8f60b6363d57702d4468fa33e47c1b9b952d2661eb139743240c10; _fallback_evidence_results aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490; validate_answer d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395; assemble_context 274065890032565f385a609051c8bce1f3bbe3b115db45f67cfc30422184b750. Actual HTTP run retrieval_eval_20260830_201603 passed 2/2 retrieval and 2/2 actual answer grounding with fallback_validation 2/2. Manual JSONL inspection confirmed row 9 cites returned content with disabled-buffer trigger-input permission/prohibition text, and row 10 cites bc2a9550 whose returned content now directly contains the same-capture-priority condition plus Image Capture Buffer: Disabled and trigger-input context. Current retrieval failures are {}; current answer failures are {}. Latest cron validation at 2026-08-30T21:20:00Z preserved this state and made no new clean answer claim because no current clean side API fingerprint was available.",
-    "current_answer_failure_categories": {},
+    "answer_grounding_status": "2026-08-30 contextual rows 11-12 diagnostic: clean side API manuals-rag-temp-api-39262386-20260830-rows11-12 on http://127.0.0.1:8786 loaded current origin/main code from /workspace/manuals_rag with checked-in local models. Actual HTTP run retrieval_eval_20260830_213843 passed 2/2 retrieval at rank 1 but 0/2 answer grounding; both user-visible fallback_validation answers cite only consolidated chunk eba458c3 while expected role chunks remain unsupported by citations. Current retrieval failures are {}; current answer failures are {expected_evidence_not_cited: 2}. Prior clean row 9-10 image-buffer evidence from retrieval_eval_20260830_201603 remains preserved, not replaced as clean evidence.",
+    "current_answer_failure_categories": {
+      "expected_evidence_not_cited": 2
+    },
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -11778,7 +11788,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed contextual answer-grounding coverage after row 10 image-capture-buffer repair, but first start or verify a clean side API loaded from current origin/main before running HTTP answer-mode evidence. Preserve retrieval_eval_20260830_201603 rows 9-10 as clean only under citation-content inspection and corrected dataset provenance.",
+    "next_target": "Source-review contextual rows 11-12 consolidated citation eba458c3 against expected role chunks 7aaa0e2c/82880372 and 7aaa0e2c/e6d1ab33. Either add a principled same-document/source-lineage equivalence policy with deterministic controls and rerun, or adjust answer fallback to cite the role-specific returned chunks directly; do not count retrieval_eval_20260830_213843 as clean.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -11815,7 +11825,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Start or verify a clean current side API runtime, then run the next small source-reviewed contextual answer-grounding rotation with manual JSONL citation-content inspection. Do not use the stale dirty primary checkout or mismatched surviving side API containers as clean evidence.",
+    "remaining": "Rows 11-12 need source-backed citation/equivalence repair. Preserve retrieval_eval_20260830_213843 as diagnostic/not-clean and preserve prior row 9-10 clean evidence from retrieval_eval_20260830_201603.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12762,9 +12772,9 @@
       },
       "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
     ],
-    "updated_at": "2026-08-30T21:20:00Z"
+    "updated_at": "2026-08-30T21:43:00Z"
   },
-  "remaining": "Start or verify a clean current side API runtime, then run the next small source-reviewed contextual answer-grounding rotation with manual JSONL citation-content inspection. Do not use the stale dirty primary checkout or mismatched surviving side API containers as clean evidence.",
+  "remaining": "Rows 11-12 need source-backed citation/equivalence repair. Preserve retrieval_eval_20260830_213843 as diagnostic/not-clean and preserve prior row 9-10 clean evidence from retrieval_eval_20260830_201603.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -13710,5 +13720,5 @@
     },
     "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
   ],
-  "updated_at": "2026-08-30T21:20:00Z"
+  "updated_at": "2026-08-30T21:43:00Z"
 }
