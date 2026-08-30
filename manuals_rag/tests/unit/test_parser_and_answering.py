@@ -1088,6 +1088,49 @@ def test_configuration_fallback_keeps_same_mode_configuration_evidence():
     assert selected[0].chunk_id == "standard-config"
 
 
+def test_configuration_fallback_prefers_direct_label_over_broad_mode_context():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    results = [
+        SearchResult(
+            chunk_id="broad-standard-mode",
+            score=0.95,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[973],
+            section_path=["Standard Lighting Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+                "Preparation 1: Changing the Camera, Trigger, and Light Settings. "
+                "Configure the following settings when using fixed capture."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+        SearchResult(
+            chunk_id="standard-config",
+            score=0.8,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[981],
+            section_path=["Standard Lighting Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+                "Camera: Trigger - Light Configuration Settings. "
+                "The trigger input for each camera and illumination control targets can be configured together."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+    ]
+
+    selected = _fallback_evidence_results(query, results)
+
+    assert selected[0].chunk_id == "standard-config"
+
+
 def test_configuration_fallback_does_not_promote_wrong_mode_configuration_evidence():
     query = (
         "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
@@ -1127,8 +1170,7 @@ def test_configuration_fallback_does_not_promote_wrong_mode_configuration_eviden
 
     selected = _fallback_evidence_results(query, results)
 
-    assert selected[0].chunk_id == "standard-mode-context"
-    assert "LumiTrax" not in selected[0].content
+    assert selected == []
 
 
 def test_configuration_fallback_returns_no_evidence_for_only_wrong_mode_candidate():

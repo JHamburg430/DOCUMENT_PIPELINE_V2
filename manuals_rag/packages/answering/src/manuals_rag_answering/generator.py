@@ -985,13 +985,42 @@ def _direct_configuration_binding_score(query_terms: set[str], evidence_terms: s
     return min(3.0, 1.0 + float(len(matched_anchors)))
 
 
+def _direct_configuration_label_score(query: str, evidence: str) -> float:
+    query_terms = _answer_terms(query)
+    if "configuration" not in query_terms:
+        return 0.0
+    anchors = {"camera", "trigger", "light", "lighting", "illumination"}.intersection(query_terms)
+    if len(anchors) < 2:
+        return 0.0
+    normalized_evidence = " ".join(re.findall(r"[a-z0-9]+", evidence.lower()))
+    ordered_anchor_sets = (
+        ("camera", "trigger", "light"),
+        ("camera", "trigger", "lighting"),
+        ("camera", "trigger", "illumination"),
+    )
+    for anchor_set in ordered_anchor_sets:
+        if not set(anchor_set).issubset(query_terms):
+            continue
+        phrase = " ".join([*anchor_set, "configuration"])
+        if phrase in normalized_evidence:
+            return 4.0
+        if all(anchor in normalized_evidence for anchor in anchor_set) and re.search(
+            rf"{re.escape(anchor_set[0])}\W+{re.escape(anchor_set[1])}\W+{re.escape(anchor_set[2])}"
+            rf"[\w\s:/().\[\]-]{{0,80}}\bconfiguration\b",
+            evidence,
+            flags=re.IGNORECASE,
+        ):
+            return 3.0
+    return 0.0
+
+
 def _configuration_requested_candidate(
     query: str, query_terms: set[str], scored: list[tuple[float, int, SearchResult]]
 ) -> SearchResult | None:
     if "configuration" not in query_terms:
         return None
     candidates = [
-        (score, index, result)
+        (score + _direct_configuration_label_score(query, _fallback_answer_text(result)[:1000]), index, result)
         for score, index, result in scored
         if _explicit_scope_phrases_supported(query, result)
         if _direct_configuration_binding_score(
@@ -1006,6 +1035,13 @@ def _configuration_requested_candidate(
     if best_score >= 2.0:
         return best_result
     return None
+
+
+def _requires_direct_configuration_evidence(query: str) -> bool:
+    query_terms = _answer_terms(query)
+    if "configuration" not in query_terms:
+        return False
+    return len({"camera", "trigger", "light", "lighting", "illumination"}.intersection(query_terms)) >= 2
 
 
 def _ordered_query_phrase_score(query: str, evidence: str) -> float:
@@ -1139,6 +1175,8 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
                 query_terms = _answer_terms(query)
                 if configuration_result := _configuration_requested_candidate(query, query_terms, scored):
                     return [configuration_result]
+                if _requires_direct_configuration_evidence(query):
+                    return []
                 first_score = scored[0][0]
                 best_score, _best_index, best_result = max(scored, key=lambda item: (item[0], -item[1]))
                 if best_score >= 2.0 and best_score > first_score:
