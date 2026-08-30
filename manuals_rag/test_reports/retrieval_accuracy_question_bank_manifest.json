@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T16:47:30Z",
+  "updated_at": "2026-08-30T17:11:30Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1093,29 +1093,30 @@
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
     "answer_current_failure_categories": {},
-    "next_target": "Continue broader source-reviewed actual HTTP answer-grounding coverage after contextual row 7 direct-configuration repair. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence.",
-    "answer_grounding_status": "2026-08-30 row 7 direct-configuration evidence repair: retrieval now promotes explicit-scope Camera-Trigger-Light configuration evidence only when the candidate directly states the configuration label plus trigger-input and illumination-control-target details, and also carries same-scope setup context when available. Answer fallback now keeps the same-scope setup candidate with the direct configuration evidence instead of dropping it. Loaded side API manuals-rag-temp-api-39262386-20260830-row7-direct-config on http://127.0.0.1:8743 loaded retrieve sha256 ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3, _promote_direct_configuration_candidates sha256 7ef7af4e1f9575782d9de69a2f981d820e3c4158baaeed465d4e7a0d420943d2, _direct_configuration_setup_candidate sha256 d532c45745484a1d1f08f0636ae87f4c0c2381aa0708e0c71823efb5a34256af, validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f, _configuration_requested_candidates sha256 c2ab843d14fc4c818349aae5bc9da84cadac830040ec4ed814011677db7f3af3, and _configuration_setup_candidate sha256 ff13ddc85e3eff109d5e8bf7bdacde9678b1e0f4f2673a5ee8eac2a779cd30e9. Actual HTTP row 7 rerun retrieval_eval_20260830_163816 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation. Manual JSONL inspection confirms the user-visible answer cites ece874eb; its persisted cited payload contains both Procedure step 2/change settings in accordance with the capture environment and the Camera - Trigger - Light Configuration Settings text stating trigger input for each camera and illumination control targets. Current retrieval and answer failure aliases are now {} for this rotation.",
+    "next_target": "Continue broader source-reviewed actual HTTP answer-grounding coverage after explicit-scope conflict containment for contextual row 7. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence.",
+    "answer_grounding_status": "2026-08-30 explicit-scope conflict containment for row 7 direct-configuration evidence: candidates for queries with an explicit mode now fail closed when their evidence contains a different non-matching mode phrase. Loaded side API manuals-rag-temp-api-39262386-20260830-scope-conflict on http://127.0.0.1:8747 loaded retrieve sha256 ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3, _result_supports_explicit_scope sha256 81cf7cb33e8ac2b19d9748f7a31c92de48299b00a121efed043cb7cce2cff5a8, _has_conflicting_explicit_scope_retrieval sha256 f0b96964a4ab838ca8158695de779e79527b924099386a748d33c88a4bac055c, validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _explicit_scope_phrases_supported sha256 ee2e306703bfb76ffb3300149ebcd68f6d0888e51806fb31985dff36e83c1bdf, _has_conflicting_explicit_scope_answering sha256 f0b96964a4ab838ca8158695de779e79527b924099386a748d33c88a4bac055c, and _fallback_evidence_results sha256 44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f. Checked-in model settings were preserved: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Actual HTTP repaired Standard Lighting row 7 run retrieval_eval_20260830_170648 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation; manual JSONL inspection confirms citations ece874eb and 05d53cc2 are same-document Standard Lighting evidence and the prior LumiTrax chunk 73a22558 remains only an un-cited lower-ranked result. Actual HTTP original broad row 7 control retrieval_eval_20260830_170826 remains diagnostic/not-clean and excluded because the visible query does not state Standard Lighting Mode and still cites LumiTrax 73a22558, failing expected_evidence_not_cited. Current retrieval and answer failure aliases remain {} for the source-repaired current rotation.",
     "answer_grounding_rotation": {
-      "scope": "contextual_procedure_row7_direct_configuration_evidence_repair",
-      "classification": "clean_loaded_http_answer_evidence_after_manual_citation_payload_inspection",
-      "baseline_run": "retrieval_eval_20260830_155841",
-      "latest_run": "retrieval_eval_20260830_163816",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_155841.jsonl",
+      "scope": "contextual_procedure_row7_explicit_scope_conflict_containment",
+      "classification": "clean_loaded_http_answer_evidence_for_source_repaired_standard_lighting_question; original_broad_question_diagnostic_excluded",
+      "baseline_run": "retrieval_eval_20260830_130550",
+      "latest_run": "retrieval_eval_20260830_170648",
+      "control_run": "retrieval_eval_20260830_170826",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_1305_contextual_row7_standard_lighting_repair.jsonl",
       "saved_datasets": [
-        "test_reports/retrieval_eval_dataset_20260830_163238.jsonl",
-        "test_reports/retrieval_eval_dataset_20260830_163816.jsonl"
+        "test_reports/retrieval_eval_dataset_20260830_170648.jsonl",
+        "test_reports/retrieval_eval_dataset_20260830_170826.jsonl"
       ],
       "results": [
-        "test_reports/retrieval_eval_results_20260830_163238.jsonl",
-        "test_reports/retrieval_eval_results_20260830_163816.jsonl"
+        "test_reports/retrieval_eval_results_20260830_170648.jsonl",
+        "test_reports/retrieval_eval_results_20260830_170826.jsonl"
       ],
       "summaries": [
-        "test_reports/retrieval_eval_summary_20260830_163238.json",
-        "test_reports/retrieval_eval_summary_20260830_163816.json"
+        "test_reports/retrieval_eval_summary_20260830_170648.json",
+        "test_reports/retrieval_eval_summary_20260830_170826.json"
       ],
       "manifests": [
-        "test_reports/retrieval_eval_manifest_20260830_163238.json",
-        "test_reports/retrieval_eval_manifest_20260830_163816.json"
+        "test_reports/retrieval_eval_manifest_20260830_170648.json",
+        "test_reports/retrieval_eval_manifest_20260830_170826.json"
       ],
       "prior_partial_runs": [
         "retrieval_eval_20260830_130420",
@@ -1128,24 +1129,26 @@
         "retrieval_eval_20260830_145838",
         "retrieval_eval_20260830_153044",
         "retrieval_eval_20260830_155841",
-        "retrieval_eval_20260830_163238"
+        "retrieval_eval_20260830_163238",
+        "retrieval_eval_20260830_163816"
       ],
-      "retrieval_result": "Loaded actual HTTP rerun retrieval_eval_20260830_163816 passed 1/1 retrieval; direct configuration promotion placed same-scope Standard Lighting section_window ccd9c7e8 first and setup procedure ece874eb second in focused retrieval smoke evidence before the HTTP run.",
-      "answer_result": "Loaded actual HTTP rerun retrieval_eval_20260830_163816 passed 1/1 answer grounding with source fallback_validation after manual citation-payload inspection. Earlier same-run retrieval_eval_20260830_163238 is preserved as diagnostic/not-clean because answer grounding failed expected_evidence_not_cited before setup evidence was retained with the direct configuration candidate.",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_163816.jsonl. The user-visible answer cites ece874eb and edcd5d51. The cited persisted payload for ece874eb contains Procedure step 2, the source sentence to change settings in accordance with the capture environment, Camera - Trigger - Light Configuration Settings, and the source sentence that connected cameras/illumination expansion units, trigger input for each camera, and illumination control targets can be configured together. This satisfies expected setup role ece874eb and source-reviewed direct-configuration-equivalent support for 93d11edf; edcd5d51 is an extra broad same-scope preparation citation and is not used to satisfy the direct configuration role.",
+      "retrieval_result": "Source-repaired Standard Lighting run retrieval_eval_20260830_170648 passed retrieval at rank 1 and retrieved expected ece874eb/93d11edf evidence; the Standard Lighting section_window 05d53cc2 was promoted and the conflicting LumiTrax chunk 73a22558 was only a lower-ranked reranked result, not promoted/cited.",
+      "answer_result": "retrieval_eval_20260830_170648 passed answer grounding with fallback_validation. The original broad wording run retrieval_eval_20260830_170826 still cites LumiTrax 73a22558 and fails expected_evidence_not_cited; it is diagnostic evidence that the broad visible query does not uniquely identify Standard Lighting scope.",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_170648.jsonl and retrieval_eval_results_20260830_170826.jsonl. The repaired Standard Lighting answer cites ece874eb and 05d53cc2; ece874eb persisted payload includes the procedure step to change settings in accordance with capture environment and Camera - Trigger - Light Configuration Settings with trigger input and illumination control targets. The original broad query cites 73a22558, whose content is LumiTrax Specular Reflection Mode, so it remains excluded/not-clean.",
       "changed_path_controls": {
-        "focused_retrieval_smoke": "Retriever.retrieve for the repaired Standard Lighting query returned ccd9c7e8 with retrieval_stage direct_configuration_promoted at rank 1 and ece874eb with retrieval_stage direct_configuration_setup_promoted at rank 2.",
-        "actual_http_row7_before_answer_patch": "retrieval_eval_20260830_163238 is diagnostic/not-clean: retrieval passed but answer failed expected_evidence_not_cited after citing only the direct configuration section without the expected setup role.",
-        "actual_http_row7_after_answer_patch": "retrieval_eval_20260830_163816 is clean for this row: answer cites ece874eb persisted payload containing both setup and direct configuration-equivalent evidence."
+        "focused_retriever_negative": "test_direct_configuration_promotion_rejects_wrong_scope_and_label_only_candidates now includes a wrong-mode LumiTrax detail candidate carrying a Standard Lighting metadata hint; promotion returns the primary Standard Lighting result instead of the conflicting candidate.",
+        "focused_answer_negative": "test_validate_answer_fails_closed_for_conflicting_mode_configuration_context verifies a Standard Lighting query with only a LumiTrax evidence chunk plus Standard Lighting metadata hint returns insufficient_evidence with no citations.",
+        "actual_http_positive": "retrieval_eval_20260830_170648 passes and cites Standard Lighting evidence for the source-repaired query.",
+        "actual_http_control": "retrieval_eval_20260830_170826 preserves the old broad row as diagnostic/not-clean because it still lacks explicit Standard Lighting scope and cites LumiTrax evidence."
       },
-      "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-row7-direct-config on http://127.0.0.1:8743 loaded retrieve sha256 ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3, _promote_direct_configuration_candidates sha256 7ef7af4e1f9575782d9de69a2f981d820e3c4158baaeed465d4e7a0d420943d2, _direct_configuration_setup_candidate sha256 d532c45745484a1d1f08f0636ae87f4c0c2381aa0708e0c71823efb5a34256af, _direct_configuration_result_score sha256 0a1615acb41b3ca6af5fa7c54335a7109d66ef6b68bd953ddcda13d83871ba66, validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f, _configuration_requested_candidates sha256 c2ab843d14fc4c818349aae5bc9da84cadac830040ec4ed814011677db7f3af3, and _configuration_setup_candidate sha256 ff13ddc85e3eff109d5e8bf7bdacde9678b1e0f4f2673a5ee8eac2a779cd30e9. Models stayed checked-in: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2.",
+      "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-scope-conflict on http://127.0.0.1:8747 loaded the audited retrieval/answering scope helpers and checked-in local model settings; no API/UI/infra/model/provider changes were made.",
       "validation": [
-        "Focused retriever controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'direct_configuration_promotion or configuration' -> 3 passed, 112 deselected.",
-        "Focused answering controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'configuration_fallback or direct_configuration' -> 8 passed, 75 deselected.",
-        "Full Docker unit gate with read-only fixture mounts passed: 461 passed, 59 warnings.",
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed after tracking update."
-      ],
-      "remaining": "Row 7 direct-configuration evidence gap is repaired for the source-reviewed Standard Lighting question. Continue broader source-reviewed actual HTTP answer-grounding rotations; keep prior row 7 diagnostic exclusions and do not treat retrieval_eval_20260830_163238 as clean."
+        "focused retriever controls: 2 passed, 113 deselected",
+        "focused answering controls: 3 passed, 81 deselected",
+        "full Docker unit gate with read-only fixture mounts: 462 passed, 59 warnings",
+        "actual HTTP answer-mode repaired query: retrieval_eval_20260830_170648 1/1 retrieval and 1/1 answer",
+        "actual HTTP original broad control: retrieval_eval_20260830_170826 retrieval 1/1, answer 0/1 expected_evidence_not_cited diagnostic"
+      ]
     },
     "current_retrieval_failure_categories": {},
     "current_answer_failure_categories": {},
@@ -1442,9 +1445,31 @@
         "scope": "contextual procedure row 7 direct-configuration retrieval promotion pre-answer-retention rerun",
         "reason": "diagnostic/not-clean: retrieval passed but answer failed expected_evidence_not_cited before same-scope setup evidence was retained with direct configuration fallback evidence.",
         "evidence": "Manual inspection showed user-visible answer/citations did not yet cover every expected row 7 evidence role; final clean evidence comes from retrieval_eval_20260830_163816."
+      },
+      {
+        "run_id": "retrieval_eval_20260830_170826",
+        "scope": "contextual row 7 original broad line-scan camera configuration question",
+        "reason": "diagnostic/not-clean broad-query control after explicit-scope containment; visible question does not state Standard Lighting Mode and the API answer still cites LumiTrax Specular Reflection Mode chunk 73a22558, so it must not count as clean Standard Lighting evidence"
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-30T17:11:30Z",
+        "guardrail_timestamp": "2026-08-30T13:20:00Z",
+        "guardrail_commit": "c51fd54",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_explicit_scope_conflict_containment",
+        "finding": "Direct-configuration selector could use a wrong-mode LumiTrax chunk when Standard Lighting scope appeared elsewhere in candidate metadata/context.",
+        "addressed_this_run": "Added conflicting explicit-mode detection for retrieval promotion and answer fallback scope checks; source-repaired Standard Lighting row 7 rerun passed with Standard Lighting citations, while the original broad row remains diagnostic/excluded.",
+        "evidence": [
+          "focused retriever controls: 2 passed, 113 deselected",
+          "focused answering controls: 3 passed, 81 deselected",
+          "full Docker unit gate with read-only fixture mounts: 462 passed, 59 warnings",
+          "actual HTTP answer-mode repaired query: retrieval_eval_20260830_170648 1/1 retrieval and 1/1 answer",
+          "actual HTTP original broad control: retrieval_eval_20260830_170826 retrieval 1/1, answer 0/1 expected_evidence_not_cited diagnostic"
+        ],
+        "remaining": "Original broad row 7 is excluded/not-clean because it does not uniquely state Standard Lighting Mode; continue broader source-reviewed answer-grounding coverage with visible questions that uniquely identify expected evidence roles."
+      },
       {
         "timestamp": "2026-08-30T16:02:05Z",
         "guardrail_timestamp": "2026-08-30T15:49:30Z",
@@ -2073,7 +2098,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T16:47:30Z",
+    "updated_at": "2026-08-30T17:11:30Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -4015,7 +4040,7 @@
       "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
       "updated_at": "2026-08-30T12:08:00Z"
     },
-    "remaining": "Continue broader source-reviewed actual HTTP answer-grounding coverage after contextual row 7 direct-configuration repair. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence."
+    "remaining": "Continue broader source-reviewed actual HTTP answer-grounding coverage after explicit-scope conflict containment for contextual row 7. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence."
   },
   "latest_false_negative_repair": {
     "scope": "live_app_false_negative_question_4_luminance_output_type",
@@ -9963,7 +9988,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Continue broader source-reviewed actual HTTP answer-grounding coverage after contextual row 7 direct-configuration repair. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence.",
+  "next_target": "Continue broader source-reviewed actual HTTP answer-grounding coverage after explicit-scope conflict containment for contextual row 7. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10248,28 +10273,29 @@
     }
   },
   "answer_current_failure_categories": {},
-  "answer_grounding_status": "2026-08-30 row 7 direct-configuration evidence repair: retrieval now promotes explicit-scope Camera-Trigger-Light configuration evidence only when the candidate directly states the configuration label plus trigger-input and illumination-control-target details, and also carries same-scope setup context when available. Answer fallback now keeps the same-scope setup candidate with the direct configuration evidence instead of dropping it. Loaded side API manuals-rag-temp-api-39262386-20260830-row7-direct-config on http://127.0.0.1:8743 loaded retrieve sha256 ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3, _promote_direct_configuration_candidates sha256 7ef7af4e1f9575782d9de69a2f981d820e3c4158baaeed465d4e7a0d420943d2, _direct_configuration_setup_candidate sha256 d532c45745484a1d1f08f0636ae87f4c0c2381aa0708e0c71823efb5a34256af, validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f, _configuration_requested_candidates sha256 c2ab843d14fc4c818349aae5bc9da84cadac830040ec4ed814011677db7f3af3, and _configuration_setup_candidate sha256 ff13ddc85e3eff109d5e8bf7bdacde9678b1e0f4f2673a5ee8eac2a779cd30e9. Actual HTTP row 7 rerun retrieval_eval_20260830_163816 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation. Manual JSONL inspection confirms the user-visible answer cites ece874eb; its persisted cited payload contains both Procedure step 2/change settings in accordance with the capture environment and the Camera - Trigger - Light Configuration Settings text stating trigger input for each camera and illumination control targets. Current retrieval and answer failure aliases are now {} for this rotation.",
+  "answer_grounding_status": "2026-08-30 explicit-scope conflict containment for row 7 direct-configuration evidence: candidates for queries with an explicit mode now fail closed when their evidence contains a different non-matching mode phrase. Loaded side API manuals-rag-temp-api-39262386-20260830-scope-conflict on http://127.0.0.1:8747 loaded retrieve sha256 ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3, _result_supports_explicit_scope sha256 81cf7cb33e8ac2b19d9748f7a31c92de48299b00a121efed043cb7cce2cff5a8, _has_conflicting_explicit_scope_retrieval sha256 f0b96964a4ab838ca8158695de779e79527b924099386a748d33c88a4bac055c, validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _explicit_scope_phrases_supported sha256 ee2e306703bfb76ffb3300149ebcd68f6d0888e51806fb31985dff36e83c1bdf, _has_conflicting_explicit_scope_answering sha256 f0b96964a4ab838ca8158695de779e79527b924099386a748d33c88a4bac055c, and _fallback_evidence_results sha256 44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f. Checked-in model settings were preserved: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Actual HTTP repaired Standard Lighting row 7 run retrieval_eval_20260830_170648 passed 1/1 retrieval and 1/1 answer grounding with fallback_validation; manual JSONL inspection confirms citations ece874eb and 05d53cc2 are same-document Standard Lighting evidence and the prior LumiTrax chunk 73a22558 remains only an un-cited lower-ranked result. Actual HTTP original broad row 7 control retrieval_eval_20260830_170826 remains diagnostic/not-clean and excluded because the visible query does not state Standard Lighting Mode and still cites LumiTrax 73a22558, failing expected_evidence_not_cited. Current retrieval and answer failure aliases remain {} for the source-repaired current rotation.",
   "answer_grounding_rotation": {
-    "scope": "contextual_procedure_row7_direct_configuration_evidence_repair",
-    "classification": "clean_loaded_http_answer_evidence_after_manual_citation_payload_inspection",
-    "baseline_run": "retrieval_eval_20260830_155841",
-    "latest_run": "retrieval_eval_20260830_163816",
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_155841.jsonl",
+    "scope": "contextual_procedure_row7_explicit_scope_conflict_containment",
+    "classification": "clean_loaded_http_answer_evidence_for_source_repaired_standard_lighting_question; original_broad_question_diagnostic_excluded",
+    "baseline_run": "retrieval_eval_20260830_130550",
+    "latest_run": "retrieval_eval_20260830_170648",
+    "control_run": "retrieval_eval_20260830_170826",
+    "dataset": "test_reports/retrieval_eval_dataset_20260830_1305_contextual_row7_standard_lighting_repair.jsonl",
     "saved_datasets": [
-      "test_reports/retrieval_eval_dataset_20260830_163238.jsonl",
-      "test_reports/retrieval_eval_dataset_20260830_163816.jsonl"
+      "test_reports/retrieval_eval_dataset_20260830_170648.jsonl",
+      "test_reports/retrieval_eval_dataset_20260830_170826.jsonl"
     ],
     "results": [
-      "test_reports/retrieval_eval_results_20260830_163238.jsonl",
-      "test_reports/retrieval_eval_results_20260830_163816.jsonl"
+      "test_reports/retrieval_eval_results_20260830_170648.jsonl",
+      "test_reports/retrieval_eval_results_20260830_170826.jsonl"
     ],
     "summaries": [
-      "test_reports/retrieval_eval_summary_20260830_163238.json",
-      "test_reports/retrieval_eval_summary_20260830_163816.json"
+      "test_reports/retrieval_eval_summary_20260830_170648.json",
+      "test_reports/retrieval_eval_summary_20260830_170826.json"
     ],
     "manifests": [
-      "test_reports/retrieval_eval_manifest_20260830_163238.json",
-      "test_reports/retrieval_eval_manifest_20260830_163816.json"
+      "test_reports/retrieval_eval_manifest_20260830_170648.json",
+      "test_reports/retrieval_eval_manifest_20260830_170826.json"
     ],
     "prior_partial_runs": [
       "retrieval_eval_20260830_130420",
@@ -10282,24 +10308,26 @@
       "retrieval_eval_20260830_145838",
       "retrieval_eval_20260830_153044",
       "retrieval_eval_20260830_155841",
-      "retrieval_eval_20260830_163238"
+      "retrieval_eval_20260830_163238",
+      "retrieval_eval_20260830_163816"
     ],
-    "retrieval_result": "Loaded actual HTTP rerun retrieval_eval_20260830_163816 passed 1/1 retrieval; direct configuration promotion placed same-scope Standard Lighting section_window ccd9c7e8 first and setup procedure ece874eb second in focused retrieval smoke evidence before the HTTP run.",
-    "answer_result": "Loaded actual HTTP rerun retrieval_eval_20260830_163816 passed 1/1 answer grounding with source fallback_validation after manual citation-payload inspection. Earlier same-run retrieval_eval_20260830_163238 is preserved as diagnostic/not-clean because answer grounding failed expected_evidence_not_cited before setup evidence was retained with the direct configuration candidate.",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_163816.jsonl. The user-visible answer cites ece874eb and edcd5d51. The cited persisted payload for ece874eb contains Procedure step 2, the source sentence to change settings in accordance with the capture environment, Camera - Trigger - Light Configuration Settings, and the source sentence that connected cameras/illumination expansion units, trigger input for each camera, and illumination control targets can be configured together. This satisfies expected setup role ece874eb and source-reviewed direct-configuration-equivalent support for 93d11edf; edcd5d51 is an extra broad same-scope preparation citation and is not used to satisfy the direct configuration role.",
+    "retrieval_result": "Source-repaired Standard Lighting run retrieval_eval_20260830_170648 passed retrieval at rank 1 and retrieved expected ece874eb/93d11edf evidence; the Standard Lighting section_window 05d53cc2 was promoted and the conflicting LumiTrax chunk 73a22558 was only a lower-ranked reranked result, not promoted/cited.",
+    "answer_result": "retrieval_eval_20260830_170648 passed answer grounding with fallback_validation. The original broad wording run retrieval_eval_20260830_170826 still cites LumiTrax 73a22558 and fails expected_evidence_not_cited; it is diagnostic evidence that the broad visible query does not uniquely identify Standard Lighting scope.",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_170648.jsonl and retrieval_eval_results_20260830_170826.jsonl. The repaired Standard Lighting answer cites ece874eb and 05d53cc2; ece874eb persisted payload includes the procedure step to change settings in accordance with capture environment and Camera - Trigger - Light Configuration Settings with trigger input and illumination control targets. The original broad query cites 73a22558, whose content is LumiTrax Specular Reflection Mode, so it remains excluded/not-clean.",
     "changed_path_controls": {
-      "focused_retrieval_smoke": "Retriever.retrieve for the repaired Standard Lighting query returned ccd9c7e8 with retrieval_stage direct_configuration_promoted at rank 1 and ece874eb with retrieval_stage direct_configuration_setup_promoted at rank 2.",
-      "actual_http_row7_before_answer_patch": "retrieval_eval_20260830_163238 is diagnostic/not-clean: retrieval passed but answer failed expected_evidence_not_cited after citing only the direct configuration section without the expected setup role.",
-      "actual_http_row7_after_answer_patch": "retrieval_eval_20260830_163816 is clean for this row: answer cites ece874eb persisted payload containing both setup and direct configuration-equivalent evidence."
+      "focused_retriever_negative": "test_direct_configuration_promotion_rejects_wrong_scope_and_label_only_candidates now includes a wrong-mode LumiTrax detail candidate carrying a Standard Lighting metadata hint; promotion returns the primary Standard Lighting result instead of the conflicting candidate.",
+      "focused_answer_negative": "test_validate_answer_fails_closed_for_conflicting_mode_configuration_context verifies a Standard Lighting query with only a LumiTrax evidence chunk plus Standard Lighting metadata hint returns insufficient_evidence with no citations.",
+      "actual_http_positive": "retrieval_eval_20260830_170648 passes and cites Standard Lighting evidence for the source-repaired query.",
+      "actual_http_control": "retrieval_eval_20260830_170826 preserves the old broad row as diagnostic/not-clean because it still lacks explicit Standard Lighting scope and cites LumiTrax evidence."
     },
-    "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-row7-direct-config on http://127.0.0.1:8743 loaded retrieve sha256 ba346ca66f11d958eabf9c829a394ee9d231fb93e8cbb5a25c2d1887bb9065e3, _promote_direct_configuration_candidates sha256 7ef7af4e1f9575782d9de69a2f981d820e3c4158baaeed465d4e7a0d420943d2, _direct_configuration_setup_candidate sha256 d532c45745484a1d1f08f0636ae87f4c0c2381aa0708e0c71823efb5a34256af, _direct_configuration_result_score sha256 0a1615acb41b3ca6af5fa7c54335a7109d66ef6b68bd953ddcda13d83871ba66, validate_answer sha256 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b, _fallback_evidence_results sha256 44054a5ba79d5846f84cd1da521fc72645e0acdf26bf532a01ccec7dd6a5616f, _configuration_requested_candidates sha256 c2ab843d14fc4c818349aae5bc9da84cadac830040ec4ed814011677db7f3af3, and _configuration_setup_candidate sha256 ff13ddc85e3eff109d5e8bf7bdacde9678b1e0f4f2673a5ee8eac2a779cd30e9. Models stayed checked-in: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2.",
+    "runtime_load": "Clean side API container manuals-rag-temp-api-39262386-20260830-scope-conflict on http://127.0.0.1:8747 loaded the audited retrieval/answering scope helpers and checked-in local model settings; no API/UI/infra/model/provider changes were made.",
     "validation": [
-      "Focused retriever controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'direct_configuration_promotion or configuration' -> 3 passed, 112 deselected.",
-      "Focused answering controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'configuration_fallback or direct_configuration' -> 8 passed, 75 deselected.",
-      "Full Docker unit gate with read-only fixture mounts passed: 461 passed, 59 warnings.",
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed after tracking update."
-    ],
-    "remaining": "Row 7 direct-configuration evidence gap is repaired for the source-reviewed Standard Lighting question. Continue broader source-reviewed actual HTTP answer-grounding rotations; keep prior row 7 diagnostic exclusions and do not treat retrieval_eval_20260830_163238 as clean."
+      "focused retriever controls: 2 passed, 113 deselected",
+      "focused answering controls: 3 passed, 81 deselected",
+      "full Docker unit gate with read-only fixture mounts: 462 passed, 59 warnings",
+      "actual HTTP answer-mode repaired query: retrieval_eval_20260830_170648 1/1 retrieval and 1/1 answer",
+      "actual HTTP original broad control: retrieval_eval_20260830_170826 retrieval 1/1, answer 0/1 expected_evidence_not_cited diagnostic"
+    ]
   },
   "latest_eval_generation_quality": {
     "status": "diagnostic_samples_only_reclassified_after_guardrail",
@@ -11022,9 +11050,31 @@
       "scope": "contextual procedure row 7 direct-configuration retrieval promotion pre-answer-retention rerun",
       "reason": "diagnostic/not-clean: retrieval passed but answer failed expected_evidence_not_cited before same-scope setup evidence was retained with direct configuration fallback evidence.",
       "evidence": "Manual inspection showed user-visible answer/citations did not yet cover every expected row 7 evidence role; final clean evidence comes from retrieval_eval_20260830_163816."
+    },
+    {
+      "run_id": "retrieval_eval_20260830_170826",
+      "scope": "contextual row 7 original broad line-scan camera configuration question",
+      "reason": "diagnostic/not-clean broad-query control after explicit-scope containment; visible question does not state Standard Lighting Mode and the API answer still cites LumiTrax Specular Reflection Mode chunk 73a22558, so it must not count as clean Standard Lighting evidence"
     }
   ],
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-30T17:11:30Z",
+      "guardrail_timestamp": "2026-08-30T13:20:00Z",
+      "guardrail_commit": "c51fd54",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_explicit_scope_conflict_containment",
+      "finding": "Direct-configuration selector could use a wrong-mode LumiTrax chunk when Standard Lighting scope appeared elsewhere in candidate metadata/context.",
+      "addressed_this_run": "Added conflicting explicit-mode detection for retrieval promotion and answer fallback scope checks; source-repaired Standard Lighting row 7 rerun passed with Standard Lighting citations, while the original broad row remains diagnostic/excluded.",
+      "evidence": [
+        "focused retriever controls: 2 passed, 113 deselected",
+        "focused answering controls: 3 passed, 81 deselected",
+        "full Docker unit gate with read-only fixture mounts: 462 passed, 59 warnings",
+        "actual HTTP answer-mode repaired query: retrieval_eval_20260830_170648 1/1 retrieval and 1/1 answer",
+        "actual HTTP original broad control: retrieval_eval_20260830_170826 retrieval 1/1, answer 0/1 expected_evidence_not_cited diagnostic"
+      ],
+      "remaining": "Original broad row 7 is excluded/not-clean because it does not uniquely state Standard Lighting Mode; continue broader source-reviewed answer-grounding coverage with visible questions that uniquely identify expected evidence roles."
+    },
     {
       "timestamp": "2026-08-30T16:02:05Z",
       "guardrail_timestamp": "2026-08-30T15:49:30Z",
@@ -13517,5 +13567,5 @@
     "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
     "updated_at": "2026-08-30T12:08:00Z"
   },
-  "remaining": "Continue broader source-reviewed actual HTTP answer-grounding coverage after contextual row 7 direct-configuration repair. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence."
+  "remaining": "Continue broader source-reviewed actual HTTP answer-grounding coverage after explicit-scope conflict containment for contextual row 7. Prioritize the next unresolved guardrail/current-state item or validated contextual/cross-document row whose visible question uniquely identifies each expected evidence role; keep manual citation-payload inspection and loaded-runtime proof before accepting clean evidence."
 }

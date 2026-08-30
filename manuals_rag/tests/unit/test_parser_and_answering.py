@@ -1451,6 +1451,48 @@ def test_validate_answer_fails_closed_for_broad_same_mode_configuration_context(
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_fails_closed_for_conflicting_mode_configuration_context():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    answer = AnswerResponse(
+        answer="Use Camera: Trigger - Light Configuration Settings for trigger and light settings.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="lumitrax-config",
+            score=0.9,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[1001],
+            section_path=["LumiTrax Specular Reflection Mode"],
+            content=(
+                "Capture Using Line Scan Cameras (LumiTrax Specular Reflection Mode). "
+                "Camera: Trigger - Light Configuration Settings. The trigger input for each camera "
+                "and illumination control targets can be configured together."
+            ),
+            metadata={
+                "chunk_type": "section_window",
+                "local_rerank_context": "Capture Using Line Scan Cameras (Standard Lighting Mode).",
+            },
+        )
+    ]
+
+    validated = validate_answer(answer, results, query=query)
+
+    assert validated.insufficient_evidence is True
+    assert validated.citations == []
+    assert "Camera: Trigger - Light Configuration Settings" not in validated.answer
+
+
 def test_comparison_troubleshooting_fallback_rejects_wrong_sibling_answer():
     query = (
         "Compare the corrective action for unstable gray-binary inspection on CV-X482 "

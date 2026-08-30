@@ -1273,7 +1273,10 @@ def test_direct_configuration_promotion_rejects_wrong_scope_and_label_only_candi
             "Camera: Trigger - Light Configuration Settings. The trigger input for each camera "
             "and illumination control targets can be configured together."
         ),
-        metadata={"chunk_type": "section_window"},
+        metadata={
+            "chunk_type": "section_window",
+            "local_rerank_context": "Capture Using Line Scan Cameras (Standard Lighting Mode).",
+        },
     )
 
     promoted = retriever._promote_direct_configuration_candidates(

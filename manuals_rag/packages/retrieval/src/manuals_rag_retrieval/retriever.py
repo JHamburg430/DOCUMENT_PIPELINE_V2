@@ -1042,6 +1042,28 @@ def _explicit_scope_phrase_groups(text: str) -> list[set[str]]:
     return phrase_groups
 
 
+def _explicit_scope_phrases(text: str) -> list[str]:
+    phrases: list[str] = []
+    for match in re.finditer(r"\b([A-Za-z0-9][A-Za-z0-9/\- ]{0,60}?\s+mode)\b", text, flags=re.IGNORECASE):
+        phrase = " ".join(re.findall(r"[a-z0-9]+", match.group(1).lower()))
+        if len(phrase.split()) >= 2:
+            phrases.append(phrase)
+    return phrases
+
+
+def _scope_phrase_matches_group(phrase: str, group: set[str]) -> bool:
+    return any(scope in phrase or phrase in scope for scope in group)
+
+
+def _has_conflicting_explicit_scope(query_scope_groups: list[set[str]], evidence: str) -> bool:
+    if not query_scope_groups:
+        return False
+    for phrase in _explicit_scope_phrases(evidence):
+        if not any(_scope_phrase_matches_group(phrase, group) for group in query_scope_groups):
+            return True
+    return False
+
+
 def _result_supports_explicit_scope(query: str, result: SearchResult) -> bool:
     query_scope_groups = _explicit_scope_phrase_groups(query)
     if not query_scope_groups:
@@ -1058,6 +1080,8 @@ def _result_supports_explicit_scope(query: str, result: SearchResult) -> bool:
         if part
     )
     normalized = " ".join(re.findall(r"[a-z0-9]+", evidence.lower()))
+    if _has_conflicting_explicit_scope(query_scope_groups, evidence):
+        return False
     return all(any(scope in normalized for scope in group) for group in query_scope_groups)
 
 
