@@ -1289,6 +1289,73 @@ def test_direct_configuration_promotion_rejects_wrong_scope_and_label_only_candi
     assert promoted == [primary]
 
 
+def test_direct_configuration_promotion_rejects_same_mode_wrong_capture_type():
+    query = (
+        "For XG-X Standard Lighting Mode line-scan setup, which Camera-Trigger-Light "
+        "configuration area is used for trigger and light settings?"
+    )
+    analysis = analyze_query(query)
+    primary = SearchResult(
+        chunk_id="standard-line-setup",
+        score=9.0,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[983],
+        section_path=["Standard Lighting Mode"],
+        content=(
+            "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+            "Change the settings in accordance with the capture environment."
+        ),
+        metadata={"chunk_type": "procedure_record"},
+    )
+    wrong_capture_type = SearchResult(
+        chunk_id="standard-area-camera-trigger-light",
+        score=1.4,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[944],
+        section_path=["Standard Lighting Mode"],
+        content=(
+            "Capture Using Area Cameras (Standard Lighting Mode). "
+            "Camera: Trigger - Light Configuration Settings. The connected cameras and "
+            "illumination expansion units, trigger input for each camera, and illumination "
+            "control targets can be configured together."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    direct_line_scan = SearchResult(
+        chunk_id="standard-line-camera-trigger-light",
+        score=1.2,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[978, 979],
+        section_path=["Standard Lighting Mode"],
+        content=(
+            "Capture Using Line Scan Cameras (Standard Lighting Mode). "
+            "Camera: Trigger - Light Configuration Settings. The connected cameras and "
+            "illumination expansion units, trigger input for each camera, and illumination "
+            "control targets can be configured together."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    promoted = retriever._promote_direct_configuration_candidates(
+        [primary],
+        [wrong_capture_type, direct_line_scan],
+        analysis,
+        limit=3,
+    )
+
+    assert [result.chunk_id for result in promoted[:2]] == [
+        "standard-line-camera-trigger-light",
+        "standard-line-setup",
+    ]
+    assert "standard-area-camera-trigger-light" not in [result.chunk_id for result in promoted]
+
+
 def test_structured_lookup_family_scoring_demotes_table_header_chunks():
     analysis = analyze_query("What address applies to IV4-G120?")
     header = SearchResult(

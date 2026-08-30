@@ -972,7 +972,7 @@ def _has_conflicting_explicit_scope(query_scope_groups: list[set[str]], evidence
 def _explicit_scope_phrases_supported(query: str, result: SearchResult) -> bool:
     query_scope_groups = _explicit_scope_phrase_groups(query)
     if not query_scope_groups:
-        return True
+        return _result_supports_capture_type_scope(query, result)
     evidence_text = " ".join(
         [
             _fallback_answer_text(result),
@@ -983,7 +983,41 @@ def _explicit_scope_phrases_supported(query: str, result: SearchResult) -> bool:
     evidence_normalized = " ".join(re.findall(r"[a-z0-9]+", evidence_text.lower()))
     if _has_conflicting_explicit_scope(query_scope_groups, evidence_text):
         return False
-    return all(any(scope in evidence_normalized for scope in group) for group in query_scope_groups)
+    return all(any(scope in evidence_normalized for scope in group) for group in query_scope_groups) and _evidence_supports_capture_type_scope(
+        query, evidence_text
+    )
+
+
+def _capture_type_scope(text: str) -> str | None:
+    normalized = " ".join(re.findall(r"[a-z0-9]+", text.lower()))
+    if re.search(r"\bline\s+scan(?:\s+cameras?)?\b", normalized) or re.search(
+        r"\bline\s+cameras?\b", normalized
+    ):
+        return "line_scan"
+    if re.search(r"\barea\s+cameras?\b", normalized):
+        return "area_camera"
+    return None
+
+
+def _evidence_supports_capture_type_scope(query: str, evidence: str) -> bool:
+    query_scope = _capture_type_scope(query)
+    if query_scope is None:
+        return True
+    evidence_scope = _capture_type_scope(evidence)
+    if evidence_scope is None:
+        return False
+    return evidence_scope == query_scope
+
+
+def _result_supports_capture_type_scope(query: str, result: SearchResult) -> bool:
+    evidence_text = " ".join(
+        [
+            _fallback_answer_text(result),
+            str(result.title or ""),
+            " ".join(str(part) for part in result.section_path or []),
+        ]
+    )
+    return _evidence_supports_capture_type_scope(query, evidence_text)
 
 
 def _explicit_scope_has_candidate(query: str, results: list[SearchResult]) -> bool:

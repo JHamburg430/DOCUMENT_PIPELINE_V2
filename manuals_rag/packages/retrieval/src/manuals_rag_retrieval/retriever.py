@@ -1067,7 +1067,7 @@ def _has_conflicting_explicit_scope(query_scope_groups: list[set[str]], evidence
 def _result_supports_explicit_scope(query: str, result: SearchResult) -> bool:
     query_scope_groups = _explicit_scope_phrase_groups(query)
     if not query_scope_groups:
-        return True
+        return _result_supports_capture_type_scope(query, result)
     evidence = " ".join(
         str(part)
         for part in [
@@ -1082,7 +1082,45 @@ def _result_supports_explicit_scope(query: str, result: SearchResult) -> bool:
     normalized = " ".join(re.findall(r"[a-z0-9]+", evidence.lower()))
     if _has_conflicting_explicit_scope(query_scope_groups, evidence):
         return False
-    return all(any(scope in normalized for scope in group) for group in query_scope_groups)
+    return all(any(scope in normalized for scope in group) for group in query_scope_groups) and _evidence_supports_capture_type_scope(
+        query, evidence
+    )
+
+
+def _capture_type_scope(text: str) -> str | None:
+    normalized = " ".join(re.findall(r"[a-z0-9]+", text.lower()))
+    if re.search(r"\bline\s+scan(?:\s+cameras?)?\b", normalized) or re.search(
+        r"\bline\s+cameras?\b", normalized
+    ):
+        return "line_scan"
+    if re.search(r"\barea\s+cameras?\b", normalized):
+        return "area_camera"
+    return None
+
+
+def _evidence_supports_capture_type_scope(query: str, evidence: str) -> bool:
+    query_scope = _capture_type_scope(query)
+    if query_scope is None:
+        return True
+    evidence_scope = _capture_type_scope(evidence)
+    if evidence_scope is None:
+        return False
+    return evidence_scope == query_scope
+
+
+def _result_supports_capture_type_scope(query: str, result: SearchResult) -> bool:
+    evidence = " ".join(
+        str(part)
+        for part in [
+            result.content,
+            result.title,
+            " ".join(str(item) for item in result.section_path or []),
+            result.metadata.get("content_for_rerank"),
+            result.metadata.get("local_rerank_context"),
+        ]
+        if part
+    )
+    return _evidence_supports_capture_type_scope(query, evidence)
 
 
 def _direct_configuration_query(query: str, analysis: QueryAnalysis) -> bool:
