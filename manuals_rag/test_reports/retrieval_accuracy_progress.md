@@ -5186,3 +5186,17 @@ Next target:
 Next target:
 
 - Continue broader source-reviewed contextual answer-grounding coverage from the latest guardrail-prioritized target or current eval failures. Preserve `retrieval_eval_20260830_201603` rows 9-10 as clean only with the corrected `201603` dataset provenance and manual citation-content inspection; do not accept metadata-only, sibling-context, or stale-path evidence as clean.
+
+## 2026-08-30 Cron 39262386 Clean Runtime Gate Tracking Validation
+
+- Target: execute the guardrail-first cron loop after the latest visible guardrail review at `2026-08-30T21:02:56Z`, which marked the row 9-10 dataset provenance repair `36f6d3d` as `ok` and required no guardrail containment.
+- Checkout/runtime status: the primary checkout remains behind `origin/main` with broad unrelated dirty UI/retrieval/eval/test/compose/artifact changes. This run used clean detached worktree `/tmp/manuals_rag_cron_39262386/manuals_rag` at `origin/main` `561bc5c` and preserved the primary checkout state. Direct guardrail cron history was unavailable because the cron tool is restricted to the current cron job.
+- Stack check: Docker compose services are running, but the default `compose-api-1` is mounted from the dirty primary checkout. Surviving side API containers were inspected; `manuals-rag-temp-api-39262386-20260830-support-citations` is mounted from an older temp worktree and its loaded `validate_answer`, `_fallback_evidence_results`, and `assemble_context` fingerprints do not match the current row 10 clean-evidence manifest fingerprints. This run therefore did not use those containers for new clean HTTP answer evidence.
+- Tracking/evidence: no new retrieval or answer run was promoted. The manifest continues to preserve `retrieval_eval_20260830_201603` rows 9-10 as the latest clean source-reviewed answer evidence, with corrected `201603` dataset/results/summary/manifest provenance. Current retrieval failures remain `{}` and current answer failures remain `{}`; active coverage remains unchanged.
+- Validation: reran deterministic manifest checks after the tracking update and focused manifest tests before commit. The update records the clean-runtime gate explicitly in both root and `question_bank` copies of `answer_grounding_rotation`, `updated_at`, `next_target`, `remaining`, and `answer_grounding_status`.
+- Scope/provenance: changed only `test_reports/retrieval_accuracy_progress.md` and `test_reports/retrieval_accuracy_question_bank_manifest.json`. No production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed.
+- Generalization check before commit: this tracking outcome is valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it prevents new clean evidence from being attributed to a stale or dirty runtime.
+
+Next target:
+
+- Start or verify a clean current side API runtime, then run the next small source-reviewed contextual answer-grounding rotation with actual HTTP answer payloads and manual JSONL citation-content inspection. Do not use the stale dirty primary checkout or mismatched surviving side API containers as clean evidence.
