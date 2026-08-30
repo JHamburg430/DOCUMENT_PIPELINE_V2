@@ -279,6 +279,48 @@ def test_multi_part_procedure_fallback_expands_heading_to_operation_context():
     assert "single measurement" in validated.answer
 
 
+def test_procedure_fallback_prefers_persisted_citation_context():
+    answer = AnswerResponse(
+        answer="Configure OPC-UA security certificates.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="multi-capture-heading",
+            score=0.91,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-cvx",
+            pages=[114],
+            section_path=["Multi-Capture"],
+            content="Procedure step 2: 2. Typical operations at trigger input (Capture Type: Multi-Capture)",
+            metadata={
+                "chunk_type": "procedure_record",
+                "content": (
+                    "Procedure step 2: 2. Typical operations at trigger input (Capture Type: Multi-Capture)\n\n"
+                    "Timing chart Control/data output via I/O terminals.\n\n"
+                    "Performs multiple image captures at the same location and processes them as a single measurement."
+                ),
+            },
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="For CV-X Multi-Capture trigger input timing, what operation does the section describe and which control/data I/O timing chart should I use?",
+    )
+
+    assert [citation["chunk_id"] for citation in validated.citations] == ["multi-capture-heading"]
+    assert "Control/data output via I/O terminals" in validated.answer
+    assert "Performs multiple image captures" in validated.answer
+
+
 def test_direct_procedure_fallback_still_uses_top_evidence_only():
     results = [
         SearchResult(

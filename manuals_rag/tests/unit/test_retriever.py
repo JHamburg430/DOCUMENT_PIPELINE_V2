@@ -5,7 +5,15 @@ import pytest
 from manuals_rag_retrieval.document_metadata import enrich_document_metadata_with_chunk_signals
 from manuals_rag_retrieval.qdrant_store import QdrantStore
 from manuals_rag_retrieval import retriever
-from manuals_rag_retrieval.retriever import _resolve_rerank_device, fuse_results, rerank_results, run_dense_search, run_sparse_search, run_table_search
+from manuals_rag_retrieval.retriever import (
+    _resolve_rerank_device,
+    assemble_context,
+    fuse_results,
+    rerank_results,
+    run_dense_search,
+    run_sparse_search,
+    run_table_search,
+)
 from manuals_rag_retrieval.query_analysis import QueryAnalysis, analyze_query
 from manuals_rag_schemas.documents import SearchResult
 from qdrant_client.http.exceptions import UnexpectedResponse
@@ -197,6 +205,53 @@ def test_query_analysis_marks_compound_multi_product_specs_as_comparison_lookup(
     assert "comparison" in analysis.query_types
     assert "table_record" in analysis.preferred_chunk_types
     assert analysis.requested_doc_kind == "manual"
+
+
+def test_assemble_context_persists_source_context_for_citation_audit(monkeypatch):
+    result = SearchResult(
+        chunk_id="step-2",
+        score=0.9,
+        title="CV-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Timing chart"],
+        content="Procedure step 2: Typical operations at trigger input.",
+        metadata={"chunk_type": "procedure_record"},
+    )
+
+    def fake_fetch_all(_query, _params):
+        return [
+            {
+                "document_version_id": "ver-1",
+                "section_path_text": "Timing chart",
+                "chunk_type": "section_window",
+                "chunk_level": 2,
+                "page_from": 10,
+                "page_to": 10,
+                "content": "Timing chart Control/data output via I/O terminals.",
+                "metadata_json": {},
+            },
+            {
+                "document_version_id": "ver-1",
+                "section_path_text": "Timing chart",
+                "chunk_type": "parent_section",
+                "chunk_level": 3,
+                "page_from": 10,
+                "page_to": 10,
+                "content": "Performs multiple image captures and processes them as a single measurement.",
+                "metadata_json": {},
+            },
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    assembled = assemble_context([result])
+
+    persisted_content = assembled[0].metadata["content"]
+    assert "Typical operations at trigger input" in persisted_content
+    assert "Control/data output via I/O terminals" in persisted_content
+    assert "multiple image captures" in persisted_content
 
 
 def test_query_analysis_extracts_bare_product_names_in_comparisons():

@@ -476,7 +476,12 @@ def _fallback_answer_text(result: SearchResult) -> str:
         return context
     chunk_type = str(result.metadata.get("chunk_type") or "")
     if chunk_type in {"procedure_record", "warning_record"}:
-        expanded_context = str(result.metadata.get("local_rerank_context") or result.metadata.get("parent_context") or "").strip()
+        expanded_context = str(
+            result.metadata.get("content")
+            or result.metadata.get("local_rerank_context")
+            or result.metadata.get("parent_context")
+            or ""
+        ).strip()
         content_terms = _answer_terms(content)
         context_terms = _answer_terms(expanded_context)
         content_is_represented = bool(content_terms) and len(content_terms.intersection(context_terms)) >= min(3, len(content_terms))
