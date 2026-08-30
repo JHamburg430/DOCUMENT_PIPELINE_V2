@@ -397,6 +397,20 @@ def _answer_addresses_quantity_request(answer: str, query: str, results: list[Se
     return bool(answer_quantities.intersection(candidate_quantities))
 
 
+def _answer_addresses_image_capture_buffer_request(answer: str, query: str, results: list[SearchResult]) -> bool:
+    query_terms = _image_capture_buffer_query_terms(query)
+    if not query_terms:
+        return True
+    answer_terms = _answer_terms(answer)
+    if re.search(r"\bdisabled\b", query, flags=re.IGNORECASE) and "disabled" not in answer_terms:
+        return False
+    if {"camera", "cameras", "multiple", "condition"}.intersection(query_terms):
+        condition_terms = {"one", "camera", "cameras", "multiple", "same", "capture", "priority", "condition"}
+        if len(answer_terms.intersection(condition_terms)) < 4:
+            return False
+    return True
+
+
 ANSWER_CLAIM_SUPPORT_STOPWORDS = {
     "about",
     "after",
@@ -1375,11 +1389,18 @@ def _image_capture_buffer_evidence_results(query: str, ordered_results: list[Sea
             is not None
         )
 
-    if "disabled" in query_terms:
+    query_mentions_disabled = re.search(r"\bdisabled\b", query, flags=re.IGNORECASE) is not None
+
+    if query_mentions_disabled:
         add_best(has_disabled_buffer_state)
 
     if selected:
+        if query_mentions_disabled and not any(has_disabled_buffer_state(result) for result in selected):
+            return []
         return selected[:3]
+
+    if query_mentions_disabled:
+        return []
 
     best_score, _best_index, best_result = max(scored, key=lambda item: (item[0], -item[1]))
     return [best_result] if best_score >= 6.0 else []
@@ -1390,8 +1411,11 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
         query,
         _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results)),
     )
+    image_buffer_query_terms = _image_capture_buffer_query_terms(query)
     if image_buffer_results := _image_capture_buffer_evidence_results(query, ordered_results):
         return image_buffer_results
+    if image_buffer_query_terms and re.search(r"\bdisabled\b", query, flags=re.IGNORECASE):
+        return []
     if not _is_comparison_query(query):
         multi_part_results = _multi_part_fallback_evidence_results(query, ordered_results)
         if multi_part_results:
@@ -1696,6 +1720,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         or not _answer_uses_comparison_troubleshooting_side_rows(answer.answer, query, results)
         or not _comparison_answer_covers_retrieved_model_sides(query, list(answer.citations), results)
         or not _answer_addresses_quantity_request(answer.answer, query, results)
+        or not _answer_addresses_image_capture_buffer_request(answer.answer, query, results)
     ):
         fallback = _fallback_answer(query, results)
         answer = fallback.model_copy(

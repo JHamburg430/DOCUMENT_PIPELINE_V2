@@ -1,7 +1,7 @@
 {
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "created_at": "2026-08-23",
-  "updated_at": "2026-08-30T19:23:00Z",
+  "updated_at": "2026-08-30T19:50:00Z",
   "goal": {
     "target_answer_accuracy": 1,
     "target_question_count": 10000,
@@ -1092,31 +1092,36 @@
     "failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
-    "answer_current_failure_categories": {},
-    "next_target": "Await guardrail audit of retrieval_eval_20260830_191713; if accepted, broaden to the next guardrail-prioritized retrieval or answer-grounding target while preserving loaded-runtime proof and manual citation-payload inspection. The previous contextual rows 9-10 answer-evidence gap is clean in loaded HTTP evidence: row 9 cites section_window 868847f1 with disabled image-capture-buffer and receiving-trigger-input allowed/prohibited text; row 10 cites atomic bc2a9550 with the one-camera/multiple-cameras same-capture-priority condition and persisted disabled-buffer context.",
-    "answer_grounding_status": "2026-08-30 rows 9-10 image-capture-buffer answer-evidence repair: clean side API manuals-rag-temp-api-39262386-20260830-image-buffer on http://127.0.0.1:8774 loaded answering code from /workspace/manuals_rag with OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Fingerprints: _image_capture_buffer_evidence_results e1e5bb0580fea9db0bcbf643eef7037a9b1bc59f3d0a0e2e963ac7186cf80a58; _image_capture_buffer_evidence_score 2147c9ddcddd3a5ae133694813c6c6fa882dbd5e5e3c5de3603c653bdd313474; _fallback_evidence_results 1be46076c8613c9dcd166f5b4cd0ecb4f10543fe4a79d433d4c0f3c200d1e369; validate_answer 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b. Loaded controls selected disabled-trigger-rule over unrelated branch trigger text and same-priority-condition plus disabled-buffer-context over a nearby multi-capture branch. Actual HTTP run retrieval_eval_20260830_191713 passed 2/2 retrieval and 2/2 answer grounding with fallback_validation. Manual JSONL inspection found row 9 cites 868847f1, whose persisted content states Image Capture Buffer: Disabled plus trigger input permitted only while stopped and prohibited otherwise, including receiving-trigger-input allowed/prohibited table text; row 10 cites bc2a9550, whose persisted content states the one-camera/multiple-cameras same-capture-priority condition plus adjacent Image Capture Buffer disabled context. Current retrieval and answer failures are {}.",
+    "answer_current_failure_categories": {
+      "insufficient_evidence": 1,
+      "expected_terms_missing": 1,
+      "expected_evidence_not_cited": 1
+    },
+    "next_target": "Continue contextual row 10 image-capture-buffer answer evidence selection from retrieval_eval_20260830_194345: row 9 remains clean, but row 10 now correctly fails closed with insufficient evidence instead of keeping a same-priority answer that omits the disabled-buffer state. Next safe work should retrieve/cite or visibly state source-backed disabled-buffer evidence together with the one-camera/multiple-cameras same-capture-priority condition, or preserve insufficient-evidence behavior with a source-reviewed replacement/equivalence policy.",
+    "answer_grounding_status": "2026-08-30 guardrail containment for image-capture-buffer row 10: retrieval_eval_20260830_191713 row 10 and the combined rows 9-10 clean claim are diagnostic/not-clean because the visible answer cited only bc2a9550 and omitted the disabled-buffer state while using adjacent metadata for that role. Clean side API manuals-rag-temp-api-39262386-20260830-buffer-containment on http://127.0.0.1:8778 loaded answering code from /workspace/manuals_rag with OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Fingerprints: _image_capture_buffer_evidence_results a15ff8ecef8f60b6363d57702d4468fa33e47c1b9b952d2661eb139743240c10; _image_capture_buffer_evidence_score 2147c9ddcddd3a5ae133694813c6c6fa882dbd5e5e3c5de3603c653bdd313474; _fallback_evidence_results aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490; _answer_addresses_image_capture_buffer_request d8cdf713f4342ee340acb27ed2f85a232d290ec61a1f21e8a0fbf2dd4c682778; validate_answer d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395. Loaded adverse control returns no fallback evidence and insufficient_evidence=True when a same-priority atomic chunk has disabled-buffer text only in metadata and the answer omits disabled. Actual HTTP rerun retrieval_eval_20260830_194345 passed 2/2 retrieval and 1/2 answer grounding: row 9 stays clean citing 868847f1 with disabled-buffer and trigger-input permission/prohibition text; row 10 now fails closed as insufficient_evidence with no citations rather than accepting metadata-only disabled-buffer support. Current retrieval failures are {}; current answer failures are insufficient_evidence: 1, expected_terms_missing: 1, expected_evidence_not_cited: 1.",
     "answer_grounding_rotation": {
-      "scope": "contextual_procedure_rows_9_10_image_capture_buffer_answer_evidence_repair",
-      "classification": "clean_loaded_http_answer_evidence",
+      "scope": "contextual_procedure_rows_9_10_image_capture_buffer_answer_evidence_containment",
+      "classification": "partial_clean_loaded_http_answer_evidence_row9_clean_row10_not_clean",
       "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
       "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260830_172950.jsonl",
-      "latest_run": "retrieval_eval_20260830_191713",
-      "results": "test_reports/retrieval_eval_results_20260830_191713.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260830_191713.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260830_191713.json",
+      "latest_run": "retrieval_eval_20260830_194345",
+      "results": "test_reports/retrieval_eval_results_20260830_194345.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260830_194345.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260830_194345.json",
       "query_offset": 0,
       "max_queries": 2,
       "retrieval_result": "2/2 passed at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-      "answer_result": "2/2 actual HTTP answer grounding; answer source fallback_validation for both; answer failure reasons {}.",
-      "source_review": "Added source_document_id and allow_equivalent_citation to the row 9/10 expected disabled-buffer and trigger-input roles only where same-document cited payload directly states the same material role; expected terms and snippets were preserved.",
-      "manual_jsonl_inspection": "Row 9 user-visible fallback answer cites 868847f1 and its persisted cited content includes Image Capture Buffer: Disabled plus trigger input permitted only while stopped/prohibited otherwise and Receiving trigger input Prohibited/Allowed table text. Row 10 cites bc2a9550 and its persisted cited content includes Using only one camera or multiple cameras that all use the same capture priority condition plus adjacent Image Capture Buffer: Disabled context. Both rows pass evidence_citation_support with no missing evidence.",
+      "answer_result": "1/2 actual HTTP answer grounding; row 9 clean; row 10 fails insufficient_evidence, expected_terms_missing, expected_evidence_not_cited.",
+      "source_review": "Preserved row 9 as clean only because cited returned chunk 868847f1 directly states Image Capture Buffer: Disabled plus trigger-input permitted/prohibited evidence. Row 10 is not clean until the disabled-buffer state is cited or stated together with the same-capture-priority condition; metadata-only adjacent disabled text on bc2a9550 is insufficient.",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_194345. Row 9 user-visible answer cites 868847f1 and the persisted cited content directly supports disabled image-capture-buffer and receiving-trigger-input allowed/prohibited roles. Row 10 user-visible answer is I could not answer from the available evidence, insufficient_evidence=true, citations=[], preserving the missing disabled-buffer plus same-priority combined role as current failed evidence instead of the false-clean 191713 row 10 answer.",
       "runtime_load": {
-        "container": "manuals-rag-temp-api-39262386-20260830-image-buffer",
-        "api_base": "http://127.0.0.1:8774",
-        "_image_capture_buffer_evidence_results_sha256": "e1e5bb0580fea9db0bcbf643eef7037a9b1bc59f3d0a0e2e963ac7186cf80a58",
+        "container": "manuals-rag-temp-api-39262386-20260830-buffer-containment",
+        "api_base": "http://127.0.0.1:8778",
+        "_image_capture_buffer_evidence_results_sha256": "a15ff8ecef8f60b6363d57702d4468fa33e47c1b9b952d2661eb139743240c10",
         "_image_capture_buffer_evidence_score_sha256": "2147c9ddcddd3a5ae133694813c6c6fa882dbd5e5e3c5de3603c653bdd313474",
-        "_fallback_evidence_results_sha256": "1be46076c8613c9dcd166f5b4cd0ecb4f10543fe4a79d433d4c0f3c200d1e369",
-        "validate_answer_sha256": "2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b",
+        "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+        "_answer_addresses_image_capture_buffer_request_sha256": "d8cdf713f4342ee340acb27ed2f85a232d290ec61a1f21e8a0fbf2dd4c682778",
+        "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395",
         "OLLAMA_URL": "http://host.docker.internal:11434",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
@@ -1124,16 +1129,20 @@
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
       },
       "validation": [
-        "focused answer tests: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'image_capture_buffer_fallback or multi_part_procedure_fallback or direct_procedure_fallback' -> 5 passed, 83 deselected, 5 warnings",
-        "direct in-process diagnostic retrieval_eval_20260830_191418 reached 2/2 retrieval and 1/2 answer grounding; preserved as diagnostic and not clean HTTP evidence",
-        "loaded HTTP answer-mode run retrieval_eval_20260830_191713 -> 2/2 retrieval, 2/2 answers, fallback_validation 2/2, failure_categories {}, answer_failure_reasons {}",
-        "manual JSONL citation inspection completed for both 191713 rows and every expected role",
-        "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 468 passed, 59 warnings",
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK after tracking update"
+        "focused answer controls: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'image_capture_buffer_fallback or image_buffer_state' -> 4 passed, 86 deselected, 5 warnings",
+        "focused answering file: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -> 90 passed, 23 warnings",
+        "loaded controls: saved 191713 row10 top_results now select []; metadata-only disabled same-priority adverse select []; validate_answer returns insufficient_evidence=True",
+        "loaded HTTP answer-mode run retrieval_eval_20260830_194345 -> 2/2 retrieval, 1/2 answers, fallback_validation 2/2, row10 failed closed",
+        "manual JSONL citation inspection completed for both 194345 rows and the 191713 row10 false-clean condition",
+        "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 470 passed, 59 warnings"
       ]
     },
     "current_retrieval_failure_categories": {},
-    "current_answer_failure_categories": {},
+    "current_answer_failure_categories": {
+      "insufficient_evidence": 1,
+      "expected_terms_missing": 1,
+      "expected_evidence_not_cited": 1
+    },
     "run_exclusions": [
       {
         "run_id": "retrieval_eval_20260826_142837",
@@ -1449,9 +1458,30 @@
         "run_id": "retrieval_eval_20260830_191418",
         "scope": "contextual procedure rows 9-10 direct in-process diagnostic rerun",
         "reason": "direct search/answer run before loaded HTTP validation; row 10 still failed expected_evidence_not_cited and this run is not user-visible API evidence"
+      },
+      {
+        "run_id": "retrieval_eval_20260830_191713",
+        "scope": "contextual procedure row 10 and combined rows 9-10 clean claim",
+        "reason": "guardrail false-clean: row 10 visible answer cited only bc2a9550 and omitted the disabled image-capture-buffer state while satisfying that role from adjacent metadata context; row 9 remains source-reviewed clean."
       }
     ],
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-30T19:50:00Z",
+        "guardrail_timestamp": "2026-08-30T19:35:00Z",
+        "guardrail_commit": "2cdc001",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_false_clean_containment_row10_still_failing",
+        "finding": "retrieval_eval_20260830_191713 row 10 and the combined rows 9-10 clean claim were false-clean because same-priority atomic chunk bc2a9550 did not directly cite or visibly state the disabled-buffer role.",
+        "addressed_this_run": "Reclassified 191713 row 10/combined claim as diagnostic, added metadata-only disabled-buffer adverse controls, and changed image-capture-buffer fallback/validation to fail closed when a disabled-buffer query would otherwise retain an answer that omits disabled or relies on adjacent metadata only.",
+        "evidence": [
+          "Focused image-buffer tests passed 4/4.",
+          "Full unit gate passed 470 tests.",
+          "Loaded adverse controls returned no fallback evidence and insufficient_evidence=True.",
+          "Actual HTTP rerun retrieval_eval_20260830_194345 kept row 9 clean and row 10 failed closed with insufficient evidence."
+        ],
+        "remaining": "Row 10 still needs a source-backed answer path that cites or states disabled-buffer evidence together with the one-camera/multiple-cameras same-capture-priority condition, or a source-reviewed replacement/equivalence policy; current answer failures are insufficient_evidence, expected_terms_missing, and expected_evidence_not_cited for row 10."
+      },
       {
         "timestamp": "2026-08-30T18:56:04Z",
         "guardrail_timestamp": "2026-08-30T18:20:01Z",
@@ -2133,7 +2163,7 @@
       "notes": "Production answering validation and eval scoring changed. No retrieval, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. The unrelated OLLAMA_URL port drift remains uncommitted and was not touched; this rerun records the active endpoint explicitly.",
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0"
     },
-    "updated_at": "2026-08-30T19:23:00Z",
+    "updated_at": "2026-08-30T19:50:00Z",
     "latest_false_negative_repair": {
       "scope": "live_app_false_negative_question_4_luminance_output_type",
       "original_run": "aa4d2bdc-1f84-4256-8634-ae4f4b105800",
@@ -4075,7 +4105,7 @@
       "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
       "updated_at": "2026-08-30T12:08:00Z"
     },
-    "remaining": "Await guardrail audit of retrieval_eval_20260830_191713; if accepted, broaden to the next guardrail-prioritized retrieval or answer-grounding target while preserving loaded-runtime proof and manual citation-payload inspection. The previous contextual rows 9-10 answer-evidence gap is clean in loaded HTTP evidence: row 9 cites section_window 868847f1 with disabled image-capture-buffer and receiving-trigger-input allowed/prohibited text; row 10 cites atomic bc2a9550 with the one-camera/multiple-cameras same-capture-priority condition and persisted disabled-buffer context."
+    "remaining": "Continue contextual row 10 image-capture-buffer answer evidence selection from retrieval_eval_20260830_194345: row 9 remains clean, but row 10 now correctly fails closed with insufficient evidence instead of keeping a same-priority answer that omits the disabled-buffer state. Next safe work should retrieve/cite or visibly state source-backed disabled-buffer evidence together with the one-camera/multiple-cameras same-capture-priority condition, or preserve insufficient-evidence behavior with a source-reviewed replacement/equivalence policy."
   },
   "latest_false_negative_repair": {
     "scope": "live_app_false_negative_question_4_luminance_output_type",
@@ -10046,7 +10076,7 @@
     },
     "latest_answer_grounding_run": "retrieval_eval_20260827_235942"
   },
-  "next_target": "Await guardrail audit of retrieval_eval_20260830_191713; if accepted, broaden to the next guardrail-prioritized retrieval or answer-grounding target while preserving loaded-runtime proof and manual citation-payload inspection. The previous contextual rows 9-10 answer-evidence gap is clean in loaded HTTP evidence: row 9 cites section_window 868847f1 with disabled image-capture-buffer and receiving-trigger-input allowed/prohibited text; row 10 cites atomic bc2a9550 with the one-camera/multiple-cameras same-capture-priority condition and persisted disabled-buffer context.",
+  "next_target": "Continue contextual row 10 image-capture-buffer answer evidence selection from retrieval_eval_20260830_194345: row 9 remains clean, but row 10 now correctly fails closed with insufficient evidence instead of keeping a same-priority answer that omits the disabled-buffer state. Next safe work should retrieve/cite or visibly state source-backed disabled-buffer evidence together with the one-camera/multiple-cameras same-capture-priority condition, or preserve insufficient-evidence behavior with a source-reviewed replacement/equivalence policy.",
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "current_failure_categories": {},
   "failure_categories": {},
@@ -10330,30 +10360,35 @@
       "remaining": "Fix answer evidence selection/citation generation so row-level troubleshooting answers cite the actual corrective-action row when available and avoid unsupported quote_spans, then rerun rows 15-16; or continue rows 17-20/warning/procedure/curated single-step answer rotations with endpoint and citation-fidelity status recorded."
     }
   },
-  "answer_current_failure_categories": {},
-  "answer_grounding_status": "2026-08-30 rows 9-10 image-capture-buffer answer-evidence repair: clean side API manuals-rag-temp-api-39262386-20260830-image-buffer on http://127.0.0.1:8774 loaded answering code from /workspace/manuals_rag with OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Fingerprints: _image_capture_buffer_evidence_results e1e5bb0580fea9db0bcbf643eef7037a9b1bc59f3d0a0e2e963ac7186cf80a58; _image_capture_buffer_evidence_score 2147c9ddcddd3a5ae133694813c6c6fa882dbd5e5e3c5de3603c653bdd313474; _fallback_evidence_results 1be46076c8613c9dcd166f5b4cd0ecb4f10543fe4a79d433d4c0f3c200d1e369; validate_answer 2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b. Loaded controls selected disabled-trigger-rule over unrelated branch trigger text and same-priority-condition plus disabled-buffer-context over a nearby multi-capture branch. Actual HTTP run retrieval_eval_20260830_191713 passed 2/2 retrieval and 2/2 answer grounding with fallback_validation. Manual JSONL inspection found row 9 cites 868847f1, whose persisted content states Image Capture Buffer: Disabled plus trigger input permitted only while stopped and prohibited otherwise, including receiving-trigger-input allowed/prohibited table text; row 10 cites bc2a9550, whose persisted content states the one-camera/multiple-cameras same-capture-priority condition plus adjacent Image Capture Buffer disabled context. Current retrieval and answer failures are {}.",
+  "answer_current_failure_categories": {
+    "insufficient_evidence": 1,
+    "expected_terms_missing": 1,
+    "expected_evidence_not_cited": 1
+  },
+  "answer_grounding_status": "2026-08-30 guardrail containment for image-capture-buffer row 10: retrieval_eval_20260830_191713 row 10 and the combined rows 9-10 clean claim are diagnostic/not-clean because the visible answer cited only bc2a9550 and omitted the disabled-buffer state while using adjacent metadata for that role. Clean side API manuals-rag-temp-api-39262386-20260830-buffer-containment on http://127.0.0.1:8778 loaded answering code from /workspace/manuals_rag with OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2. Fingerprints: _image_capture_buffer_evidence_results a15ff8ecef8f60b6363d57702d4468fa33e47c1b9b952d2661eb139743240c10; _image_capture_buffer_evidence_score 2147c9ddcddd3a5ae133694813c6c6fa882dbd5e5e3c5de3603c653bdd313474; _fallback_evidence_results aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490; _answer_addresses_image_capture_buffer_request d8cdf713f4342ee340acb27ed2f85a232d290ec61a1f21e8a0fbf2dd4c682778; validate_answer d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395. Loaded adverse control returns no fallback evidence and insufficient_evidence=True when a same-priority atomic chunk has disabled-buffer text only in metadata and the answer omits disabled. Actual HTTP rerun retrieval_eval_20260830_194345 passed 2/2 retrieval and 1/2 answer grounding: row 9 stays clean citing 868847f1 with disabled-buffer and trigger-input permission/prohibition text; row 10 now fails closed as insufficient_evidence with no citations rather than accepting metadata-only disabled-buffer support. Current retrieval failures are {}; current answer failures are insufficient_evidence: 1, expected_terms_missing: 1, expected_evidence_not_cited: 1.",
   "answer_grounding_rotation": {
-    "scope": "contextual_procedure_rows_9_10_image_capture_buffer_answer_evidence_repair",
-    "classification": "clean_loaded_http_answer_evidence",
+    "scope": "contextual_procedure_rows_9_10_image_capture_buffer_answer_evidence_containment",
+    "classification": "partial_clean_loaded_http_answer_evidence_row9_clean_row10_not_clean",
     "dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
     "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260830_172950.jsonl",
-    "latest_run": "retrieval_eval_20260830_191713",
-    "results": "test_reports/retrieval_eval_results_20260830_191713.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260830_191713.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260830_191713.json",
+    "latest_run": "retrieval_eval_20260830_194345",
+    "results": "test_reports/retrieval_eval_results_20260830_194345.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260830_194345.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260830_194345.json",
     "query_offset": 0,
     "max_queries": 2,
     "retrieval_result": "2/2 passed at rank 1; candidate recall 100%; metadata-document recall 100%; failure_categories {}.",
-    "answer_result": "2/2 actual HTTP answer grounding; answer source fallback_validation for both; answer failure reasons {}.",
-    "source_review": "Added source_document_id and allow_equivalent_citation to the row 9/10 expected disabled-buffer and trigger-input roles only where same-document cited payload directly states the same material role; expected terms and snippets were preserved.",
-    "manual_jsonl_inspection": "Row 9 user-visible fallback answer cites 868847f1 and its persisted cited content includes Image Capture Buffer: Disabled plus trigger input permitted only while stopped/prohibited otherwise and Receiving trigger input Prohibited/Allowed table text. Row 10 cites bc2a9550 and its persisted cited content includes Using only one camera or multiple cameras that all use the same capture priority condition plus adjacent Image Capture Buffer: Disabled context. Both rows pass evidence_citation_support with no missing evidence.",
+    "answer_result": "1/2 actual HTTP answer grounding; row 9 clean; row 10 fails insufficient_evidence, expected_terms_missing, expected_evidence_not_cited.",
+    "source_review": "Preserved row 9 as clean only because cited returned chunk 868847f1 directly states Image Capture Buffer: Disabled plus trigger-input permitted/prohibited evidence. Row 10 is not clean until the disabled-buffer state is cited or stated together with the same-capture-priority condition; metadata-only adjacent disabled text on bc2a9550 is insufficient.",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_194345. Row 9 user-visible answer cites 868847f1 and the persisted cited content directly supports disabled image-capture-buffer and receiving-trigger-input allowed/prohibited roles. Row 10 user-visible answer is I could not answer from the available evidence, insufficient_evidence=true, citations=[], preserving the missing disabled-buffer plus same-priority combined role as current failed evidence instead of the false-clean 191713 row 10 answer.",
     "runtime_load": {
-      "container": "manuals-rag-temp-api-39262386-20260830-image-buffer",
-      "api_base": "http://127.0.0.1:8774",
-      "_image_capture_buffer_evidence_results_sha256": "e1e5bb0580fea9db0bcbf643eef7037a9b1bc59f3d0a0e2e963ac7186cf80a58",
+      "container": "manuals-rag-temp-api-39262386-20260830-buffer-containment",
+      "api_base": "http://127.0.0.1:8778",
+      "_image_capture_buffer_evidence_results_sha256": "a15ff8ecef8f60b6363d57702d4468fa33e47c1b9b952d2661eb139743240c10",
       "_image_capture_buffer_evidence_score_sha256": "2147c9ddcddd3a5ae133694813c6c6fa882dbd5e5e3c5de3603c653bdd313474",
-      "_fallback_evidence_results_sha256": "1be46076c8613c9dcd166f5b4cd0ecb4f10543fe4a79d433d4c0f3c200d1e369",
-      "validate_answer_sha256": "2c51e495b1fefe5425f3eed693fde3d66ff809c52d3cf387ff20902b78a1cb0b",
+      "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+      "_answer_addresses_image_capture_buffer_request_sha256": "d8cdf713f4342ee340acb27ed2f85a232d290ec61a1f21e8a0fbf2dd4c682778",
+      "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395",
       "OLLAMA_URL": "http://host.docker.internal:11434",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
@@ -10361,12 +10396,12 @@
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2"
     },
     "validation": [
-      "focused answer tests: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'image_capture_buffer_fallback or multi_part_procedure_fallback or direct_procedure_fallback' -> 5 passed, 83 deselected, 5 warnings",
-      "direct in-process diagnostic retrieval_eval_20260830_191418 reached 2/2 retrieval and 1/2 answer grounding; preserved as diagnostic and not clean HTTP evidence",
-      "loaded HTTP answer-mode run retrieval_eval_20260830_191713 -> 2/2 retrieval, 2/2 answers, fallback_validation 2/2, failure_categories {}, answer_failure_reasons {}",
-      "manual JSONL citation inspection completed for both 191713 rows and every expected role",
-      "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 468 passed, 59 warnings",
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK after tracking update"
+      "focused answer controls: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'image_capture_buffer_fallback or image_buffer_state' -> 4 passed, 86 deselected, 5 warnings",
+      "focused answering file: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -> 90 passed, 23 warnings",
+      "loaded controls: saved 191713 row10 top_results now select []; metadata-only disabled same-priority adverse select []; validate_answer returns insufficient_evidence=True",
+      "loaded HTTP answer-mode run retrieval_eval_20260830_194345 -> 2/2 retrieval, 1/2 answers, fallback_validation 2/2, row10 failed closed",
+      "manual JSONL citation inspection completed for both 194345 rows and the 191713 row10 false-clean condition",
+      "full Docker unit gate after copying ignored tmp_eval_docs fixtures into the clean worktree: 470 passed, 59 warnings"
     ]
   },
   "latest_eval_generation_quality": {
@@ -10796,7 +10831,11 @@
     "notes": "Eval scoring/tests and tracking changed only. No production retrieval, answering, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or docs changed. Do not count retrieval_eval_20260826_142837 row 13 or the combined rows 13-14 result as clean answer evidence."
   },
   "current_retrieval_failure_categories": {},
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "insufficient_evidence": 1,
+    "expected_terms_missing": 1,
+    "expected_evidence_not_cited": 1
+  },
   "run_exclusions": [
     {
       "run_id": "retrieval_eval_20260826_142837",
@@ -11112,9 +11151,30 @@
       "run_id": "retrieval_eval_20260830_191418",
       "scope": "contextual procedure rows 9-10 direct in-process diagnostic rerun",
       "reason": "direct search/answer run before loaded HTTP validation; row 10 still failed expected_evidence_not_cited and this run is not user-visible API evidence"
+    },
+    {
+      "run_id": "retrieval_eval_20260830_191713",
+      "scope": "contextual procedure row 10 and combined rows 9-10 clean claim",
+      "reason": "guardrail false-clean: row 10 visible answer cited only bc2a9550 and omitted the disabled image-capture-buffer state while satisfying that role from adjacent metadata context; row 9 remains source-reviewed clean."
     }
   ],
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-30T19:50:00Z",
+      "guardrail_timestamp": "2026-08-30T19:35:00Z",
+      "guardrail_commit": "2cdc001",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_false_clean_containment_row10_still_failing",
+      "finding": "retrieval_eval_20260830_191713 row 10 and the combined rows 9-10 clean claim were false-clean because same-priority atomic chunk bc2a9550 did not directly cite or visibly state the disabled-buffer role.",
+      "addressed_this_run": "Reclassified 191713 row 10/combined claim as diagnostic, added metadata-only disabled-buffer adverse controls, and changed image-capture-buffer fallback/validation to fail closed when a disabled-buffer query would otherwise retain an answer that omits disabled or relies on adjacent metadata only.",
+      "evidence": [
+        "Focused image-buffer tests passed 4/4.",
+        "Full unit gate passed 470 tests.",
+        "Loaded adverse controls returned no fallback evidence and insufficient_evidence=True.",
+        "Actual HTTP rerun retrieval_eval_20260830_194345 kept row 9 clean and row 10 failed closed with insufficient evidence."
+      ],
+      "remaining": "Row 10 still needs a source-backed answer path that cites or states disabled-buffer evidence together with the one-camera/multiple-cameras same-capture-priority condition, or a source-reviewed replacement/equivalence policy; current answer failures are insufficient_evidence, expected_terms_missing, and expected_evidence_not_cited for row 10."
+    },
     {
       "timestamp": "2026-08-30T18:56:04Z",
       "guardrail_timestamp": "2026-08-30T18:20:01Z",
@@ -13660,5 +13720,5 @@
     "remaining": "No row 5-6 answer failure remains. Continue with contextual row 7 expected_evidence_not_cited from retrieval_eval_20260830_063002.",
     "updated_at": "2026-08-30T12:08:00Z"
   },
-  "remaining": "Await guardrail audit of retrieval_eval_20260830_191713; if accepted, broaden to the next guardrail-prioritized retrieval or answer-grounding target while preserving loaded-runtime proof and manual citation-payload inspection. The previous contextual rows 9-10 answer-evidence gap is clean in loaded HTTP evidence: row 9 cites section_window 868847f1 with disabled image-capture-buffer and receiving-trigger-input allowed/prohibited text; row 10 cites atomic bc2a9550 with the one-camera/multiple-cameras same-capture-priority condition and persisted disabled-buffer context."
+  "remaining": "Continue contextual row 10 image-capture-buffer answer evidence selection from retrieval_eval_20260830_194345: row 9 remains clean, but row 10 now correctly fails closed with insufficient evidence instead of keeping a same-priority answer that omits the disabled-buffer state. Next safe work should retrieve/cite or visibly state source-backed disabled-buffer evidence together with the one-camera/multiple-cameras same-capture-priority condition, or preserve insufficient-evidence behavior with a source-reviewed replacement/equivalence policy."
 }

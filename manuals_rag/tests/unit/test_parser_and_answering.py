@@ -550,6 +550,84 @@ def test_image_capture_buffer_fallback_binds_same_priority_condition():
     ]
 
 
+def test_image_capture_buffer_fallback_rejects_metadata_only_disabled_state():
+    results = [
+        SearchResult(
+            chunk_id="same-priority-condition",
+            score=0.95,
+            title="Controller Manual",
+            document_version_id="v1",
+            source_document_id="doc-x",
+            pages=[597],
+            section_path=["Image Capture Buffer"],
+            content="Using only one camera or multiple cameras that all use the same capture priority condition.",
+            metadata={
+                "chunk_type": "atomic_text",
+                "content": (
+                    "Using only one camera or multiple cameras that all use the same capture priority condition\n\n"
+                    "Step 1: 1. Image Capture Buffer: Disabled"
+                ),
+            },
+        )
+    ]
+
+    selected = _fallback_evidence_results(
+        "With image capture buffer disabled, can it be used with one camera or multiple cameras sharing the same capture-priority condition?",
+        results,
+    )
+
+    assert selected == []
+
+
+def test_validate_answer_falls_back_when_image_buffer_state_is_omitted():
+    query = (
+        "With image capture buffer disabled, can it be used with one camera or multiple "
+        "cameras sharing the same capture-priority condition?"
+    )
+    answer = AnswerResponse(
+        answer="Using only one camera or multiple cameras that all use the same capture priority condition.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "same-priority-condition",
+                "document_id": "doc-x",
+                "pages": [597],
+                "quote_span": None,
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="same-priority-condition",
+            score=0.95,
+            title="Controller Manual",
+            document_version_id="v1",
+            source_document_id="doc-x",
+            pages=[597],
+            section_path=["Image Capture Buffer"],
+            content="Using only one camera or multiple cameras that all use the same capture priority condition.",
+            metadata={
+                "chunk_type": "atomic_text",
+                "content": (
+                    "Using only one camera or multiple cameras that all use the same capture priority condition\n\n"
+                    "Step 1: 1. Image Capture Buffer: Disabled"
+                ),
+            },
+        )
+    ]
+
+    validated = validate_answer(answer, results, query=query)
+
+    assert validated.insufficient_evidence is True
+    assert validated.citations == []
+    assert "disabled" not in validated.answer.lower()
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_falls_back_when_citation_quote_is_not_in_cited_chunk():
     answer = AnswerResponse(
         answer="Change the trigger signal assignment to one that can be used.",
