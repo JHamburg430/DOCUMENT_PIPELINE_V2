@@ -2945,6 +2945,15 @@ def _answer_required_material_terms(case: RetrievalEvalCase, answer: dict[str, A
     action_terms, action_source = _answer_required_action_terms(case)
     query_tokens = _answer_overlap_tokens(case.query)
     if not _is_quantity_answer_query(case.query):
+        source_terms = _answer_required_source_fact_terms(case, query_tokens)
+        if source_terms and action_terms:
+            required_terms: list[str] = []
+            seen: set[str] = set()
+            for term in [*action_terms, *source_terms]:
+                _add_answer_material_term(required_terms, seen, term)
+            return required_terms, "troubleshooting_action_and_source_fact_terms"
+        if source_terms:
+            return source_terms, "source_fact_terms"
         return action_terms, action_source
     required_terms: list[str] = []
     seen: set[str] = set()
@@ -2971,6 +2980,45 @@ def _answer_required_material_terms(case: RetrievalEvalCase, answer: dict[str, A
     if required_terms and action_terms:
         return required_terms, "troubleshooting_action_and_quantity_terms"
     return required_terms, "quantity_evidence_terms" if required_terms else "none"
+
+
+def _answer_required_source_fact_terms(case: RetrievalEvalCase, query_tokens: set[str]) -> list[str]:
+    if case.generation_method == "table_sibling_error_cause_action":
+        return []
+    if not re.search(
+        r"\bwhat\s+(?:operation|behavior|action)\b|\bwhat\b.{0,40}\b(?:section|procedure|step)\b.{0,40}\bdescribe",
+        case.query,
+        flags=re.I,
+    ):
+        return []
+    required_terms: list[str] = []
+    seen: set[str] = set()
+    for item in case.expected_evidence:
+        if not isinstance(item, dict):
+            continue
+        snippet = str(item.get("snippet") or "")
+        source_terms = _answer_overlap_tokens(snippet)
+        if len(source_terms.intersection(query_tokens)) < 2:
+            continue
+        for sentence in re.split(r"[.!?;|]\s*", snippet):
+            sentence_tokens = _answer_overlap_tokens(sentence)
+            novel_terms = [
+                token
+                for token in tokenize(sentence)
+                if token not in query_tokens
+                and token not in STOPWORDS
+                and token not in GENERIC_ANCHORS
+                and token not in ANSWER_SCORING_GENERIC_TERMS
+            ]
+            if not novel_terms:
+                continue
+            if not re.search(r"\b(perform|performs|process|processes|select|set|save|change|execute)\b", sentence, flags=re.I):
+                continue
+            for term in novel_terms:
+                _add_answer_material_term(required_terms, seen, term)
+                if len(required_terms) >= 4:
+                    return required_terms
+    return required_terms
 
 
 def _normalized_quote_text(text: str) -> str:

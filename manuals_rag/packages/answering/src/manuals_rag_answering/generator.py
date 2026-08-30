@@ -474,6 +474,15 @@ def _fallback_answer_text(result: SearchResult) -> str:
     context = str(result.metadata.get("context_window") or "").strip()
     if not content:
         return context
+    chunk_type = str(result.metadata.get("chunk_type") or "")
+    if chunk_type in {"procedure_record", "warning_record"}:
+        expanded_context = str(result.metadata.get("local_rerank_context") or result.metadata.get("parent_context") or "").strip()
+        content_terms = _answer_terms(content)
+        context_terms = _answer_terms(expanded_context)
+        content_is_represented = bool(content_terms) and len(content_terms.intersection(context_terms)) >= min(3, len(content_terms))
+        if expanded_context and (content.lower() in expanded_context.lower() or content_is_represented):
+            if len(context_terms.difference(content_terms)) >= 4:
+                return expanded_context
     if str(result.metadata.get("chunk_type") or "") != "table_record" or not context:
         return content
     if content.lower() in context.lower():

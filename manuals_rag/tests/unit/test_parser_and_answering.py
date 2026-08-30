@@ -210,6 +210,62 @@ def test_multi_part_procedure_fallback_keeps_clause_bound_evidence():
     assert "Control/data output via I/O terminals" in validated.answer
 
 
+def test_multi_part_procedure_fallback_expands_heading_to_operation_context():
+    answer = AnswerResponse(
+        answer="Configure OPC-UA security certificates.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="multi-capture-heading",
+            score=0.91,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-cvx",
+            pages=[114],
+            section_path=["Multi-Capture"],
+            content="Procedure step 2: 2. Typical operations at trigger input (Capture Type: Multi-Capture)",
+            metadata={
+                "chunk_type": "procedure_record",
+                "local_rerank_context": (
+                    "Timing chart Control/data output via I/O terminals. "
+                    "2. Typical operations at trigger input (Capture Type: Multi-Capture). "
+                    "Performs multiple image captures at the same location and processes them as a single measurement."
+                ),
+            },
+        ),
+        SearchResult(
+            chunk_id="timing-chart",
+            score=0.88,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-cvx",
+            pages=[114],
+            section_path=["Timing chart"],
+            content="Timing chart Control/data output via I/O terminals.",
+            metadata={"chunk_type": "procedure_record"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="For CV-X Multi-Capture trigger input timing, what operation does the section describe and which control/data I/O timing chart should I use?",
+    )
+
+    assert [citation["chunk_id"] for citation in validated.citations] == [
+        "multi-capture-heading",
+        "timing-chart",
+    ]
+    assert "Performs multiple image captures" in validated.answer
+    assert "single measurement" in validated.answer
+
+
 def test_direct_procedure_fallback_still_uses_top_evidence_only():
     results = [
         SearchResult(
