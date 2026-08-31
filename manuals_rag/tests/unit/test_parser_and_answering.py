@@ -198,6 +198,94 @@ def test_direct_configuration_fallback_prefers_phrase_bound_evidence():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_insufficient_diagnostic_table_answer_falls_back_to_source_row():
+    answer = AnswerResponse(
+        answer="The provided evidence does not contain the specific definition of error A-14.",
+        confidence="low",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=True,
+    )
+    results = [
+        SearchResult(
+            chunk_id="a14-row",
+            score=0.92,
+            title="IV4 manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[527],
+            section_path=["12-38"],
+            content=(
+                "PWR/ERR indicator light status: A buffer overrun has occurred.; "
+                "Cause: Execute result acquisition completion notification from an external "
+                "device such as a PLC. Disable handshake control for field networks "
+                "(EtherNet/IP, Profinet)."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_model": "MOD-600",
+                "identifier_tokens": ["A-14"],
+            },
+        )
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="On MOD-600, what does error A-14 indicate, and what field-network settings should I check?",
+    )
+
+    assert "buffer overrun" in validated.answer.lower()
+    assert "handshake control" in validated.answer.lower()
+    assert "system error" not in validated.answer.lower()
+    assert validated.insufficient_evidence is False
+    assert [citation["chunk_id"] for citation in validated.citations] == ["a14-row"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_insufficient_diagnostic_table_answer_keeps_wrong_scope_closed():
+    answer = AnswerResponse(
+        answer="The provided evidence does not contain the specific definition of error A-14.",
+        confidence="low",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=True,
+    )
+    results = [
+        SearchResult(
+            chunk_id="a15-other-model",
+            score=0.92,
+            title="IV4 manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[528],
+            section_path=["12-39"],
+            content=(
+                "PWR/ERR indicator light status: A buffer overrun has occurred.; "
+                "Cause: Disable handshake control for field networks (EtherNet/IP, Profinet)."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_model": "MOD-120",
+                "identifier_tokens": ["A-15"],
+            },
+        )
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="On MOD-600, what does error A-14 indicate, and what field-network settings should I check?",
+    )
+
+    assert validated.insufficient_evidence is True
+    assert validated.citations == []
+
+
 def test_validate_answer_fails_closed_when_plausible_answer_has_only_wrong_mode_evidence():
     answer = AnswerResponse(
         answer="Use Camera: Trigger - Light Configuration Settings for trigger and light settings.",

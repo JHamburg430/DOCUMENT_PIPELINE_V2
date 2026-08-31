@@ -1,13 +1,9 @@
 {
-  "answer_current_failure_categories": {
-    "insufficient_evidence": 1,
-    "expected_terms_missing": 1,
-    "expected_evidence_not_cited": 1
-  },
+  "answer_current_failure_categories": {},
   "answer_failure_categories": {
-    "insufficient_evidence": 1,
+    "expected_evidence_not_cited": 1,
     "expected_terms_missing": 1,
-    "expected_evidence_not_cited": 1
+    "insufficient_evidence": 1
   },
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
@@ -190,40 +186,41 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-08-31T05:34:00Z",
-    "status": "row_7_clean_row_8_retrieval_repaired_answer_diagnostic",
+    "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1.",
     "classification": "row_7_clean_row_8_retrieval_clean_answer_not_clean",
-    "latest_run": "retrieval_eval_20260831_053032",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-    "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_053032.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260831_053032.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260831_053032.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_053032.json",
-    "search_mode": "http",
-    "response_mode": "answer_with_citations",
-    "query_offset": 0,
-    "max_queries": 1,
-    "retrieval_result": "1/1 retrieval passed at rank 1 on loaded actual HTTP run; expected table_record chunk ddaee975 is now the first returned result.",
-    "answer_result": "0/1 actual HTTP answer passed; the API returned insufficient evidence with no citations, so answer grounding remains diagnostic/not-clean with insufficient_evidence, expected_terms_missing, and expected_evidence_not_cited.",
-    "source_review": "Persisted source chunk ddaee975 on AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf page 527 states: PWR/ERR indicator light status: A buffer overrun has occurred; Cause: execute result acquisition completion notification from an external device such as a PLC; disable handshake control for field networks EtherNet/IP and Profinet. The old row-8 query asked which PWR/ERR light condition points to A-14, but related PWR/ERR red/blinking footnote chunks belonged to neighboring A-15 context. The active row is repaired to ask what A-14 indicates and what field-network settings to check.",
+    "current_answer_failures": {},
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_060723.jsonl",
+    "latest_run": "retrieval_eval_20260831_060723",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_060723.json",
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_053032.jsonl. Top result is expected table_record ddaee975 with A-14 PWR/ERR buffer-overrun and field-network handshake-control evidence; retrieval passed at rank 1. The user-visible API answer still says the evidence does not contain the A-14 definition or field-network settings, returns no citations, and fails answer grounding; no clean answer evidence is claimed.",
+    "max_queries": 1,
+    "query_offset": 0,
+    "remaining": "Single-step v2 row 8 is clean in retrieval_eval_20260831_060723; continue broad answer-grounding rotation only after preserving this source-backed citation evidence and all prior diagnostics/exclusions.",
+    "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
+    "response_mode": "answer_with_citations",
+    "results": "test_reports/retrieval_eval_results_20260831_060723.jsonl",
+    "retrieval_result": "1/1 retrieval passed at rank 1 on loaded actual HTTP run; expected table_record chunk ddaee975 is now the first returned result.",
     "runtime_load_evidence": {
-      "container": "manuals-rag-temp-api-39262386-20260831-row8-tablecode6",
-      "host_api_base": "http://127.0.0.1:8836",
-      "api_health": "ok at 2026-08-31T05:30:09Z",
-      "_diagnostic_table_code_terms_sha256": "4d64de456ff6f47bf469f88f75e4dd936f634613f439b0dfd8f638c10fb9561a",
-      "_table_lexical_score_sha256": "02a3f1c4c995621426fef42c5ce249a12da74e9df7fb94671caf50cd167f956a",
-      "_promote_diagnostic_table_candidates_sha256": "a619cd2b0c721d1610d5f932dd652619b908f8449c5b05c9c9c28a971372a696",
-      "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "HAYSTACK_RERANK_DEVICE": "cuda:0"
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "_diagnostic_table_code_terms_sha256": "4d64de456ff6f47bf469f88f75e4dd936f634613f439b0dfd8f638c10fb9561a",
+      "_promote_diagnostic_table_candidates_sha256": "a619cd2b0c721d1610d5f932dd652619b908f8449c5b05c9c9c28a971372a696",
+      "_table_lexical_score_sha256": "02a3f1c4c995621426fef42c5ce249a12da74e9df7fb94671caf50cd167f956a",
+      "api_health": "ok at 2026-08-31T05:30:09Z",
+      "container": "manuals-rag-temp-api-39262386-20260831-row8-tablecode6",
+      "host_api_base": "http://127.0.0.1:8836",
+      "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab"
     },
-    "remaining": "Fix repaired single-step v2 row 8 answer generation/validation: with ddaee975 now retrieved at rank 1, the API answer should state the source-backed A-14 buffer-overrun/result-acquisition/handshake-control field-network guidance with compatible citation support instead of reporting insufficient evidence."
+    "search_mode": "http",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+    "source_review": "Persisted source chunk ddaee975 on AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf page 527 states: PWR/ERR indicator light status: A buffer overrun has occurred; Cause: execute result acquisition completion notification from an external device such as a PLC; disable handshake control for field networks EtherNet/IP and Profinet. The old row-8 query asked which PWR/ERR light condition points to A-14, but related PWR/ERR red/blinking footnote chunks belonged to neighboring A-15 context. The active row is repaired to ask what A-14 indicates and what field-network settings to check.",
+    "status": "single_step_v2_row_8_answer_repaired",
+    "summary": "test_reports/retrieval_eval_summary_20260831_060723.json",
+    "timestamp": "2026-08-31T06:12:00Z"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -573,42 +570,46 @@
     ]
   },
   "answer_grounding_single_step_v2_rows_7_8": {
-    "timestamp": "2026-08-31T05:34:00Z",
-    "status": "row_7_clean_row_8_retrieval_repaired_answer_diagnostic",
-    "classification": "row_7_clean_row_8_retrieval_clean_answer_not_clean",
-    "latest_run": "retrieval_eval_20260831_053032",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-    "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_053032.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260831_053032.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260831_053032.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_053032.json",
-    "search_mode": "http",
-    "response_mode": "answer_with_citations",
-    "query_offset": 0,
+    "answer_result": "1/1 actual HTTP answer passed with fallback_validation; the user-visible answer states A-14 as a PWR/ERR buffer overrun and says to execute result-acquisition completion notification from an external PLC/device or disable field-network handshake control for EtherNet/IP/Profinet.",
+    "classification": "row_7_clean_row_8_clean_after_diagnostic_table_answer_repair",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_060723.jsonl",
+    "latest_run": "retrieval_eval_20260831_060723",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_060723.json",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_060723.jsonl. The visible answer is exactly the selected A-14 source row text, cites only ddaee975 with quote_span null, and the cited returned chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles. The earlier intermediate retrieval_eval_20260831_055405/055816 attempts are superseded and not counted as final clean evidence.",
     "max_queries": 1,
-    "retrieval_result": "1/1 retrieval passed at rank 1 on loaded actual HTTP run; expected table_record chunk ddaee975 is now the first returned result.",
-    "answer_result": "0/1 actual HTTP answer passed; the API returned insufficient evidence with no citations, so answer grounding remains diagnostic/not-clean with insufficient_evidence, expected_terms_missing, and expected_evidence_not_cited.",
-    "source_review": "Persisted source chunk ddaee975 on AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf page 527 states: PWR/ERR indicator light status: A buffer overrun has occurred; Cause: execute result acquisition completion notification from an external device such as a PLC; disable handshake control for field networks EtherNet/IP and Profinet. The old row-8 query asked which PWR/ERR light condition points to A-14, but related PWR/ERR red/blinking footnote chunks belonged to neighboring A-15 context. The active row is repaired to ask what A-14 indicates and what field-network settings to check.",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_053032.jsonl. Top result is expected table_record ddaee975 with A-14 PWR/ERR buffer-overrun and field-network handshake-control evidence; retrieval passed at rank 1. The user-visible API answer still says the evidence does not contain the A-14 definition or field-network settings, returns no citations, and fails answer grounding; no clean answer evidence is claimed.",
+    "query_offset": 0,
+    "remaining": "Single-step v2 row 8 is clean in retrieval_eval_20260831_060723; continue broad answer-grounding rotation only after preserving this source-backed citation evidence and all prior diagnostics/exclusions.",
+    "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
+    "response_mode": "answer_with_citations",
+    "results": "test_reports/retrieval_eval_results_20260831_060723.jsonl",
+    "retrieval_result": "1/1 retrieval passed at rank 1; expected table_record chunk ddaee975 remained the first returned result.",
     "runtime_load_evidence": {
-      "container": "manuals-rag-temp-api-39262386-20260831-row8-tablecode6",
-      "host_api_base": "http://127.0.0.1:8836",
-      "api_health": "ok at 2026-08-31T05:30:09Z",
-      "_diagnostic_table_code_terms_sha256": "4d64de456ff6f47bf469f88f75e4dd936f634613f439b0dfd8f638c10fb9561a",
-      "_table_lexical_score_sha256": "02a3f1c4c995621426fef42c5ce249a12da74e9df7fb94671caf50cd167f956a",
-      "_promote_diagnostic_table_candidates_sha256": "a619cd2b0c721d1610d5f932dd652619b908f8449c5b05c9c9c28a971372a696",
-      "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "HAYSTACK_RERANK_DEVICE": "cuda:0"
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "_diagnostic_table_evidence_results_sha256": "fcff76209bcac0a3ee256fccb86cae8f2f1603f97b4bf6a4a159548934669d45",
+      "_fallback_evidence_results_sha256": "5c26bf956c74839d78358b65a8ec4d5f5a3528909f08552f807990834b2c4a0c",
+      "_fallback_evidence_score_sha256": "27e06da7504b39506a1dbbf07cf4095368886c5371600ef6e2121a5dda8688bc",
+      "_focused_diagnostic_table_answer_text_sha256": "8696539821b991e655a8265cfe74c4b2d2989653c38bc5472862a43448648d2c",
+      "_has_strong_insufficient_fallback_sha256": "444f9b3c8d1d2b1c746e4cb73104ed091f0b3fc73f52887c85b578fda0a26e55",
+      "api_health": "ok at 2026-08-31T06:07:11Z",
+      "apps_api_main_py_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+      "container": "manuals-rag-temp-api-39262386-20260831-row8-answer3",
+      "generator_py_sha256": "ea5b21c59a097104d003765a956341055fcca81bc997a66b28fd1eba622c6bd2",
+      "host_api_base": "http://127.0.0.1:8844",
+      "validate_answer_sha256": "79d7d864fd3c317456f097a0bb93fd48265b00eead25c9cdbe3a1a4f48890469"
     },
-    "remaining": "Fix repaired single-step v2 row 8 answer generation/validation: with ddaee975 now retrieved at rank 1, the API answer should state the source-backed A-14 buffer-overrun/result-acquisition/handshake-control field-network guidance with compatible citation support instead of reporting insufficient evidence."
+    "search_mode": "http",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+    "source_review": "Persisted source chunk ddaee975 on AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf page 527 states: PWR/ERR indicator light status: A buffer overrun has occurred; Cause: execute result acquisition completion notification from an external device such as a PLC; disable handshake control for field networks EtherNet/IP and Profinet. The old row-8 query asked which PWR/ERR light condition points to A-14, but related PWR/ERR red/blinking footnote chunks belonged to neighboring A-15 context. The active row is repaired to ask what A-14 indicates and what field-network settings to check.",
+    "status": "row_7_and_repaired_row_8_clean",
+    "summary": "test_reports/retrieval_eval_summary_20260831_060723.json",
+    "timestamp": "2026-08-31T06:12:00Z"
   },
-  "answer_grounding_status": "2026-08-31 single-step v2 row 8 retrieval repaired: loaded HTTP run retrieval_eval_20260831_053032 returns expected A-14 table_record ddaee975 at rank 1. Answer grounding remains diagnostic/not-clean because the API answer still reports insufficient evidence and cites nothing.",
+  "answer_grounding_status": "2026-08-31 single-step v2 row 8 answer repaired: loaded HTTP run retrieval_eval_20260831_060723 returns table_record ddaee975 at rank 1 and the actual user-visible fallback answer cites only ddaee975, stating the A-14 PWR/ERR buffer-overrun and field-network result-acquisition/handshake-control guidance.",
   "constraints": {
     "allowed_logic": [
       "retrieval",
@@ -625,11 +626,7 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {
-    "insufficient_evidence": 1,
-    "expected_terms_missing": 1,
-    "expected_evidence_not_cited": 1
-  },
+  "current_answer_failure_categories": {},
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -8782,7 +8779,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Fix repaired single-step v2 row 8 answer generation/validation: with ddaee975 now retrieved at rank 1, the API answer should state the source-backed A-14 buffer-overrun/result-acquisition/handshake-control field-network guidance with compatible citation support instead of reporting insufficient evidence.",
+  "next_target": "Await guardrail audit of the single-step row 8 diagnostic-code answer repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9535,15 +9532,11 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {
-      "insufficient_evidence": 1,
-      "expected_terms_missing": 1,
-      "expected_evidence_not_cited": 1
-    },
+    "answer_current_failure_categories": {},
     "answer_failure_categories": {
-      "insufficient_evidence": 1,
+      "expected_evidence_not_cited": 1,
       "expected_terms_missing": 1,
-      "expected_evidence_not_cited": 1
+      "insufficient_evidence": 1
     },
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
@@ -9726,40 +9719,41 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-08-31T05:34:00Z",
-      "status": "row_7_clean_row_8_retrieval_repaired_answer_diagnostic",
+      "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1.",
       "classification": "row_7_clean_row_8_retrieval_clean_answer_not_clean",
-      "latest_run": "retrieval_eval_20260831_053032",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-      "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_053032.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260831_053032.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260831_053032.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_053032.json",
-      "search_mode": "http",
-      "response_mode": "answer_with_citations",
-      "query_offset": 0,
-      "max_queries": 1,
-      "retrieval_result": "1/1 retrieval passed at rank 1 on loaded actual HTTP run; expected table_record chunk ddaee975 is now the first returned result.",
-      "answer_result": "0/1 actual HTTP answer passed; the API returned insufficient evidence with no citations, so answer grounding remains diagnostic/not-clean with insufficient_evidence, expected_terms_missing, and expected_evidence_not_cited.",
-      "source_review": "Persisted source chunk ddaee975 on AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf page 527 states: PWR/ERR indicator light status: A buffer overrun has occurred; Cause: execute result acquisition completion notification from an external device such as a PLC; disable handshake control for field networks EtherNet/IP and Profinet. The old row-8 query asked which PWR/ERR light condition points to A-14, but related PWR/ERR red/blinking footnote chunks belonged to neighboring A-15 context. The active row is repaired to ask what A-14 indicates and what field-network settings to check.",
+      "current_answer_failures": {},
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_060723.jsonl",
+      "latest_run": "retrieval_eval_20260831_060723",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_060723.json",
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_053032.jsonl. Top result is expected table_record ddaee975 with A-14 PWR/ERR buffer-overrun and field-network handshake-control evidence; retrieval passed at rank 1. The user-visible API answer still says the evidence does not contain the A-14 definition or field-network settings, returns no citations, and fails answer grounding; no clean answer evidence is claimed.",
+      "max_queries": 1,
+      "query_offset": 0,
+      "remaining": "Single-step v2 row 8 is clean in retrieval_eval_20260831_060723; continue broad answer-grounding rotation only after preserving this source-backed citation evidence and all prior diagnostics/exclusions.",
+      "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
+      "response_mode": "answer_with_citations",
+      "results": "test_reports/retrieval_eval_results_20260831_060723.jsonl",
+      "retrieval_result": "1/1 retrieval passed at rank 1 on loaded actual HTTP run; expected table_record chunk ddaee975 is now the first returned result.",
       "runtime_load_evidence": {
-        "container": "manuals-rag-temp-api-39262386-20260831-row8-tablecode6",
-        "host_api_base": "http://127.0.0.1:8836",
-        "api_health": "ok at 2026-08-31T05:30:09Z",
-        "_diagnostic_table_code_terms_sha256": "4d64de456ff6f47bf469f88f75e4dd936f634613f439b0dfd8f638c10fb9561a",
-        "_table_lexical_score_sha256": "02a3f1c4c995621426fef42c5ce249a12da74e9df7fb94671caf50cd167f956a",
-        "_promote_diagnostic_table_candidates_sha256": "a619cd2b0c721d1610d5f932dd652619b908f8449c5b05c9c9c28a971372a696",
-        "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "HAYSTACK_RERANK_DEVICE": "cuda:0"
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "_diagnostic_table_code_terms_sha256": "4d64de456ff6f47bf469f88f75e4dd936f634613f439b0dfd8f638c10fb9561a",
+        "_promote_diagnostic_table_candidates_sha256": "a619cd2b0c721d1610d5f932dd652619b908f8449c5b05c9c9c28a971372a696",
+        "_table_lexical_score_sha256": "02a3f1c4c995621426fef42c5ce249a12da74e9df7fb94671caf50cd167f956a",
+        "api_health": "ok at 2026-08-31T05:30:09Z",
+        "container": "manuals-rag-temp-api-39262386-20260831-row8-tablecode6",
+        "host_api_base": "http://127.0.0.1:8836",
+        "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab"
       },
-      "remaining": "Fix repaired single-step v2 row 8 answer generation/validation: with ddaee975 now retrieved at rank 1, the API answer should state the source-backed A-14 buffer-overrun/result-acquisition/handshake-control field-network guidance with compatible citation support instead of reporting insufficient evidence."
+      "search_mode": "http",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+      "source_review": "Persisted source chunk ddaee975 on AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf page 527 states: PWR/ERR indicator light status: A buffer overrun has occurred; Cause: execute result acquisition completion notification from an external device such as a PLC; disable handshake control for field networks EtherNet/IP and Profinet. The old row-8 query asked which PWR/ERR light condition points to A-14, but related PWR/ERR red/blinking footnote chunks belonged to neighboring A-15 context. The active row is repaired to ask what A-14 indicates and what field-network settings to check.",
+      "status": "single_step_v2_row_8_answer_repaired",
+      "summary": "test_reports/retrieval_eval_summary_20260831_060723.json",
+      "timestamp": "2026-08-31T06:12:00Z"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -9898,47 +9892,47 @@
       ]
     },
     "answer_grounding_single_step_v2_rows_7_8": {
-      "timestamp": "2026-08-31T05:34:00Z",
-      "status": "row_7_clean_row_8_retrieval_repaired_answer_diagnostic",
-      "classification": "row_7_clean_row_8_retrieval_clean_answer_not_clean",
-      "latest_run": "retrieval_eval_20260831_053032",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-      "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_053032.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260831_053032.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260831_053032.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_053032.json",
-      "search_mode": "http",
-      "response_mode": "answer_with_citations",
-      "query_offset": 0,
+      "answer_result": "1/1 actual HTTP answer passed with fallback_validation; the user-visible answer states A-14 as a PWR/ERR buffer overrun and says to execute result-acquisition completion notification from an external PLC/device or disable field-network handshake control for EtherNet/IP/Profinet.",
+      "classification": "row_7_clean_row_8_clean_after_diagnostic_table_answer_repair",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_060723.jsonl",
+      "latest_run": "retrieval_eval_20260831_060723",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_060723.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_060723.jsonl. The visible answer is exactly the selected A-14 source row text, cites only ddaee975 with quote_span null, and the cited returned chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles. The earlier intermediate retrieval_eval_20260831_055405/055816 attempts are superseded and not counted as final clean evidence.",
       "max_queries": 1,
-      "retrieval_result": "1/1 retrieval passed at rank 1 on loaded actual HTTP run; expected table_record chunk ddaee975 is now the first returned result.",
-      "answer_result": "0/1 actual HTTP answer passed; the API returned insufficient evidence with no citations, so answer grounding remains diagnostic/not-clean with insufficient_evidence, expected_terms_missing, and expected_evidence_not_cited.",
-      "source_review": "Persisted source chunk ddaee975 on AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf page 527 states: PWR/ERR indicator light status: A buffer overrun has occurred; Cause: execute result acquisition completion notification from an external device such as a PLC; disable handshake control for field networks EtherNet/IP and Profinet. The old row-8 query asked which PWR/ERR light condition points to A-14, but related PWR/ERR red/blinking footnote chunks belonged to neighboring A-15 context. The active row is repaired to ask what A-14 indicates and what field-network settings to check.",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_053032.jsonl. Top result is expected table_record ddaee975 with A-14 PWR/ERR buffer-overrun and field-network handshake-control evidence; retrieval passed at rank 1. The user-visible API answer still says the evidence does not contain the A-14 definition or field-network settings, returns no citations, and fails answer grounding; no clean answer evidence is claimed.",
+      "query_offset": 0,
+      "remaining": "Single-step v2 row 8 is clean in retrieval_eval_20260831_060723; continue broad answer-grounding rotation only after preserving this source-backed citation evidence and all prior diagnostics/exclusions.",
+      "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
+      "response_mode": "answer_with_citations",
+      "results": "test_reports/retrieval_eval_results_20260831_060723.jsonl",
+      "retrieval_result": "1/1 retrieval passed at rank 1; expected table_record chunk ddaee975 remained the first returned result.",
       "runtime_load_evidence": {
-        "container": "manuals-rag-temp-api-39262386-20260831-row8-tablecode6",
-        "host_api_base": "http://127.0.0.1:8836",
-        "api_health": "ok at 2026-08-31T05:30:09Z",
-        "_diagnostic_table_code_terms_sha256": "4d64de456ff6f47bf469f88f75e4dd936f634613f439b0dfd8f638c10fb9561a",
-        "_table_lexical_score_sha256": "02a3f1c4c995621426fef42c5ce249a12da74e9df7fb94671caf50cd167f956a",
-        "_promote_diagnostic_table_candidates_sha256": "a619cd2b0c721d1610d5f932dd652619b908f8449c5b05c9c9c28a971372a696",
-        "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "HAYSTACK_RERANK_DEVICE": "cuda:0"
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "_diagnostic_table_evidence_results_sha256": "fcff76209bcac0a3ee256fccb86cae8f2f1603f97b4bf6a4a159548934669d45",
+        "_fallback_evidence_results_sha256": "5c26bf956c74839d78358b65a8ec4d5f5a3528909f08552f807990834b2c4a0c",
+        "_fallback_evidence_score_sha256": "27e06da7504b39506a1dbbf07cf4095368886c5371600ef6e2121a5dda8688bc",
+        "_focused_diagnostic_table_answer_text_sha256": "8696539821b991e655a8265cfe74c4b2d2989653c38bc5472862a43448648d2c",
+        "_has_strong_insufficient_fallback_sha256": "444f9b3c8d1d2b1c746e4cb73104ed091f0b3fc73f52887c85b578fda0a26e55",
+        "api_health": "ok at 2026-08-31T06:07:11Z",
+        "apps_api_main_py_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+        "container": "manuals-rag-temp-api-39262386-20260831-row8-answer3",
+        "generator_py_sha256": "ea5b21c59a097104d003765a956341055fcca81bc997a66b28fd1eba622c6bd2",
+        "host_api_base": "http://127.0.0.1:8844",
+        "validate_answer_sha256": "79d7d864fd3c317456f097a0bb93fd48265b00eead25c9cdbe3a1a4f48890469"
       },
-      "remaining": "Fix repaired single-step v2 row 8 answer generation/validation: with ddaee975 now retrieved at rank 1, the API answer should state the source-backed A-14 buffer-overrun/result-acquisition/handshake-control field-network guidance with compatible citation support instead of reporting insufficient evidence."
+      "search_mode": "http",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+      "source_review": "Persisted source chunk ddaee975 on AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf page 527 states: PWR/ERR indicator light status: A buffer overrun has occurred; Cause: execute result acquisition completion notification from an external device such as a PLC; disable handshake control for field networks EtherNet/IP and Profinet. The old row-8 query asked which PWR/ERR light condition points to A-14, but related PWR/ERR red/blinking footnote chunks belonged to neighboring A-15 context. The active row is repaired to ask what A-14 indicates and what field-network settings to check.",
+      "status": "row_7_and_repaired_row_8_clean",
+      "summary": "test_reports/retrieval_eval_summary_20260831_060723.json",
+      "timestamp": "2026-08-31T06:12:00Z"
     },
-    "answer_grounding_status": "2026-08-31 single-step v2 row 8 retrieval repaired: loaded HTTP run retrieval_eval_20260831_053032 returns expected A-14 table_record ddaee975 at rank 1. Answer grounding remains diagnostic/not-clean because the API answer still reports insufficient evidence and cites nothing.",
-    "current_answer_failure_categories": {
-      "insufficient_evidence": 1,
-      "expected_terms_missing": 1,
-      "expected_evidence_not_cited": 1
-    },
+    "answer_grounding_status": "2026-08-31 single-step v2 row 8 answer repaired: loaded HTTP run retrieval_eval_20260831_060723 returns table_record ddaee975 at rank 1 and the actual user-visible fallback answer cites only ddaee975, stating the A-14 PWR/ERR buffer-overrun and field-network result-acquisition/handshake-control guidance.",
+    "current_answer_failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -12060,7 +12054,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Fix repaired single-step v2 row 8 answer generation/validation: with ddaee975 now retrieved at rank 1, the API answer should state the source-backed A-14 buffer-overrun/result-acquisition/handshake-control field-network guidance with compatible citation support instead of reporting insufficient evidence.",
+    "next_target": "Await guardrail audit of the single-step row 8 diagnostic-code answer repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12097,7 +12091,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Fix repaired single-step v2 row 8 answer generation/validation: with ddaee975 now retrieved at rank 1, the API answer should state the source-backed A-14 buffer-overrun/result-acquisition/handshake-control field-network guidance with compatible citation support instead of reporting insufficient evidence.",
+    "remaining": "Single-step v2 row 8 is clean in retrieval_eval_20260831_060723; continue broad answer-grounding rotation only after preserving this source-backed citation evidence and all prior diagnostics/exclusions.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12467,19 +12461,34 @@
         "scope": "curated single-step v2 row 8 and combined rows 7-8 clean claim"
       },
       {
+        "reason": "diagnostic/not-clean: source-reviewed repaired A-14 row had candidate recall and correct document selection, but final top-k missed table_record ddaee975 and answer fallback cited heading-only A-14 context.",
         "run_id": "retrieval_eval_20260831_044809",
-        "scope": "curated single-step v2 repaired row 8 pre-change HTTP diagnostic",
-        "reason": "diagnostic/not-clean: source-reviewed repaired A-14 row had candidate recall and correct document selection, but final top-k missed table_record ddaee975 and answer fallback cited heading-only A-14 context."
+        "scope": "curated single-step v2 repaired row 8 pre-change HTTP diagnostic"
       },
       {
+        "reason": "diagnostic/not-clean: loaded retriever experiment demoted section/parent heading chunks but actual HTTP answer still cited heading-only A-14 context and missed expected table_record ddaee975; production experiment was not accepted.",
         "run_id": "retrieval_eval_20260831_045220",
-        "scope": "curated single-step v2 repaired row 8 rejected low-signal context experiment",
-        "reason": "diagnostic/not-clean: loaded retriever experiment demoted section/parent heading chunks but actual HTTP answer still cited heading-only A-14 context and missed expected table_record ddaee975; production experiment was not accepted."
+        "scope": "curated single-step v2 repaired row 8 rejected low-signal context experiment"
       },
       {
+        "reason": "diagnostic/not-clean: loaded retriever experiment also covered heading-only atomic_text chunks, but actual HTTP eval still missed expected table_record ddaee975 and answer returned insufficient evidence without expected citation; production experiment was reverted before commit.",
         "run_id": "retrieval_eval_20260831_045539",
-        "scope": "curated single-step v2 repaired row 8 rejected broader low-signal heading experiment",
-        "reason": "diagnostic/not-clean: loaded retriever experiment also covered heading-only atomic_text chunks, but actual HTTP eval still missed expected table_record ddaee975 and answer returned insufficient evidence without expected citation; production experiment was reverted before commit."
+        "scope": "curated single-step v2 repaired row 8 rejected broader low-signal heading experiment"
+      },
+      {
+        "reason": "diagnostic/not-clean: retrieval found ddaee975 at rank 1 but the actual API answer reported insufficient evidence and cited nothing before the diagnostic-table fallback repair.",
+        "run_id": "retrieval_eval_20260831_053032",
+        "scope": "curated single-step v2 repaired row 8 pre-answer-repair diagnostic"
+      },
+      {
+        "reason": "diagnostic/superseded: initial answer repair passed scoring but returned multi-row fallback text and extra citations, so it is not counted as final clean evidence.",
+        "run_id": "retrieval_eval_20260831_055405",
+        "scope": "curated single-step v2 repaired row 8 intermediate noisy fallback"
+      },
+      {
+        "reason": "diagnostic/superseded: citation was narrowed to ddaee975 but visible answer still appended same-page sibling context before the final focused diagnostic-row answer text repair.",
+        "run_id": "retrieval_eval_20260831_055816",
+        "scope": "curated single-step v2 repaired row 8 intermediate contextual fallback"
       }
     ],
     "single_step_questions": 101,
@@ -13156,17 +13165,17 @@
       },
       "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids.",
       {
-        "timestamp": "2026-08-31T04:59:40Z",
-        "source": "cron_39262386_row8_source_review",
-        "severity": "needs_fix",
-        "finding": "Curated single-step v2 row 8 source-review target addressed as dataset-quality repair, but repaired row still exposes final_top_k ranking_or_context_loss from heading-only A-14 chunks over the exact A-14 table_record evidence.",
         "addressed": "The misleading PWR/ERR light-condition question was replaced with a source-backed user-style A-14 buffer-overrun/field-network settings question and rerun through actual HTTP answer mode. No clean answer evidence was claimed.",
-        "remaining": "Make a general retrieval fix that promotes source-bearing table evidence over heading-only shells when candidate recall already contains the exact row; validate through loaded HTTP answer mode before clearing."
+        "finding": "Curated single-step v2 row 8 source-review target addressed as dataset-quality repair, but repaired row still exposes final_top_k ranking_or_context_loss from heading-only A-14 chunks over the exact A-14 table_record evidence.",
+        "remaining": "Make a general retrieval fix that promotes source-bearing table evidence over heading-only shells when candidate recall already contains the exact row; validate through loaded HTTP answer mode before clearing.",
+        "severity": "needs_fix",
+        "source": "cron_39262386_row8_source_review",
+        "timestamp": "2026-08-31T04:59:40Z"
       }
     ],
-    "updated_at": "2026-08-31T05:34:00Z"
+    "updated_at": "2026-08-31T06:12:00Z"
   },
-  "remaining": "Fix repaired single-step v2 row 8 answer generation/validation: with ddaee975 now retrieved at rank 1, the API answer should state the source-backed A-14 buffer-overrun/result-acquisition/handshake-control field-network guidance with compatible citation support instead of reporting insufficient evidence.",
+  "remaining": "Single-step v2 row 8 is clean in retrieval_eval_20260831_060723; continue broad answer-grounding rotation only after preserving this source-backed citation evidence and all prior diagnostics/exclusions.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -13536,19 +13545,34 @@
       "scope": "curated single-step v2 row 8 and combined rows 7-8 clean claim"
     },
     {
+      "reason": "diagnostic/not-clean: source-reviewed repaired A-14 row had candidate recall and correct document selection, but final top-k missed table_record ddaee975 and answer fallback cited heading-only A-14 context.",
       "run_id": "retrieval_eval_20260831_044809",
-      "scope": "curated single-step v2 repaired row 8 pre-change HTTP diagnostic",
-      "reason": "diagnostic/not-clean: source-reviewed repaired A-14 row had candidate recall and correct document selection, but final top-k missed table_record ddaee975 and answer fallback cited heading-only A-14 context."
+      "scope": "curated single-step v2 repaired row 8 pre-change HTTP diagnostic"
     },
     {
+      "reason": "diagnostic/not-clean: loaded retriever experiment demoted section/parent heading chunks but actual HTTP answer still cited heading-only A-14 context and missed expected table_record ddaee975; production experiment was not accepted.",
       "run_id": "retrieval_eval_20260831_045220",
-      "scope": "curated single-step v2 repaired row 8 rejected low-signal context experiment",
-      "reason": "diagnostic/not-clean: loaded retriever experiment demoted section/parent heading chunks but actual HTTP answer still cited heading-only A-14 context and missed expected table_record ddaee975; production experiment was not accepted."
+      "scope": "curated single-step v2 repaired row 8 rejected low-signal context experiment"
     },
     {
+      "reason": "diagnostic/not-clean: loaded retriever experiment also covered heading-only atomic_text chunks, but actual HTTP eval still missed expected table_record ddaee975 and answer returned insufficient evidence without expected citation; production experiment was reverted before commit.",
       "run_id": "retrieval_eval_20260831_045539",
-      "scope": "curated single-step v2 repaired row 8 rejected broader low-signal heading experiment",
-      "reason": "diagnostic/not-clean: loaded retriever experiment also covered heading-only atomic_text chunks, but actual HTTP eval still missed expected table_record ddaee975 and answer returned insufficient evidence without expected citation; production experiment was reverted before commit."
+      "scope": "curated single-step v2 repaired row 8 rejected broader low-signal heading experiment"
+    },
+    {
+      "reason": "diagnostic/not-clean: retrieval found ddaee975 at rank 1 but the actual API answer reported insufficient evidence and cited nothing before the diagnostic-table fallback repair.",
+      "run_id": "retrieval_eval_20260831_053032",
+      "scope": "curated single-step v2 repaired row 8 pre-answer-repair diagnostic"
+    },
+    {
+      "reason": "diagnostic/superseded: initial answer repair passed scoring but returned multi-row fallback text and extra citations, so it is not counted as final clean evidence.",
+      "run_id": "retrieval_eval_20260831_055405",
+      "scope": "curated single-step v2 repaired row 8 intermediate noisy fallback"
+    },
+    {
+      "reason": "diagnostic/superseded: citation was narrowed to ddaee975 but visible answer still appended same-page sibling context before the final focused diagnostic-row answer text repair.",
+      "run_id": "retrieval_eval_20260831_055816",
+      "scope": "curated single-step v2 repaired row 8 intermediate contextual fallback"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -14224,13 +14248,13 @@
     },
     "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids.",
     {
-      "timestamp": "2026-08-31T04:59:40Z",
-      "source": "cron_39262386_row8_source_review",
-      "severity": "needs_fix",
-      "finding": "Curated single-step v2 row 8 source-review target addressed as dataset-quality repair, but repaired row still exposes final_top_k ranking_or_context_loss from heading-only A-14 chunks over the exact A-14 table_record evidence.",
       "addressed": "The misleading PWR/ERR light-condition question was replaced with a source-backed user-style A-14 buffer-overrun/field-network settings question and rerun through actual HTTP answer mode. No clean answer evidence was claimed.",
-      "remaining": "Make a general retrieval fix that promotes source-bearing table evidence over heading-only shells when candidate recall already contains the exact row; validate through loaded HTTP answer mode before clearing."
+      "finding": "Curated single-step v2 row 8 source-review target addressed as dataset-quality repair, but repaired row still exposes final_top_k ranking_or_context_loss from heading-only A-14 chunks over the exact A-14 table_record evidence.",
+      "remaining": "Make a general retrieval fix that promotes source-bearing table evidence over heading-only shells when candidate recall already contains the exact row; validate through loaded HTTP answer mode before clearing.",
+      "severity": "needs_fix",
+      "source": "cron_39262386_row8_source_review",
+      "timestamp": "2026-08-31T04:59:40Z"
     }
   ],
-  "updated_at": "2026-08-31T05:34:00Z"
+  "updated_at": "2026-08-31T06:12:00Z"
 }

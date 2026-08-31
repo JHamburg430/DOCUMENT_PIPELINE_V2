@@ -126,6 +126,16 @@ def _answer_terms(text: str) -> set[str]:
     }
 
 
+def _distinctive_scope_terms(terms: set[str]) -> set[str]:
+    return {
+        term
+        for term in terms
+        if "/" in term
+        or re.search(r"[a-z]+\d|\d+[a-z]+", term, flags=re.IGNORECASE)
+        or re.search(r"\b[a-z]{1,6}-\d", term, flags=re.IGNORECASE)
+    }
+
+
 MODEL_TOKEN_RE = re.compile(r"\b[A-Z0-9]{1,5}-[A-Z0-9]{2,12}[A-Z]?\b(?!-)")
 
 
@@ -206,6 +216,12 @@ def _table_model_scope_conflict(query: str, result: SearchResult) -> bool:
         ]
     )
     content_models = _model_tokens(f"{result.content} {local_identifier_text}")
+    if not content_models:
+        metadata_model_text = " ".join(
+            str(result.metadata.get(key) or "")
+            for key in ("product_model", "product_family", "product_models", "product_families", "devices")
+        )
+        content_models = _model_tokens(metadata_model_text)
     if not content_models:
         return False
     return not any(_model_matches_scope(model, explicit_models, series_prefixes) for model in content_models)
@@ -649,6 +665,19 @@ def _focused_table_record_answer_text(query: str, result: SearchResult) -> str:
     return best_row
 
 
+def _focused_diagnostic_table_answer_text(query: str, result: SearchResult) -> str:
+    if not _is_troubleshooting_query(query):
+        return ""
+    if str(result.metadata.get("chunk_type") or "") != "table_record":
+        return ""
+    content = str(result.content or "").strip()
+    if not content:
+        return ""
+    if not re.search(r"\b(indicator|status|cause|remedy|corrective action|error|alarm|fault)\b", content, flags=re.IGNORECASE):
+        return ""
+    return content
+
+
 def _troubleshooting_context_text(result: SearchResult) -> str:
     parts: list[str] = []
     for text in [
@@ -666,9 +695,7 @@ def _is_troubleshooting_query(query: str) -> bool:
 
 
 def _is_comparison_query(query: str) -> bool:
-    return bool(re.search(r"\b(compare|comparison|differ|differs|difference|different|versus|vs\.?|while|whereas)\b", query, flags=re.IGNORECASE)) or bool(
-        re.search(r"\bwhat\b.+\band what\b", query, flags=re.IGNORECASE)
-    )
+    return bool(re.search(r"\b(compare|comparison|differ|differs|difference|different|versus|vs\.?|while|whereas)\b", query, flags=re.IGNORECASE))
 
 
 def _is_procedure_rule_query(query: str) -> bool:
@@ -975,13 +1002,14 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     if len(fallback_results) == 1:
         answer_text = (
             _matching_troubleshooting_row_text(query, top)
+            or _focused_diagnostic_table_answer_text(query, top)
             or _focused_table_record_answer_text(query, top)
             or _fallback_answer_text(top)
         )
     else:
         answer_text = "Retrieved evidence:\n" + "\n".join(
             f"- {result.title}, page(s) {', '.join(str(page) for page in result.pages) or 'unknown'}: "
-            f"{_focused_table_record_answer_text(query, result) or _fallback_answer_text(result)}"
+            f"{_focused_diagnostic_table_answer_text(query, result) or _focused_table_record_answer_text(query, result) or _fallback_answer_text(result)}"
             for result in fallback_results
         )
     return AnswerResponse(
@@ -1027,6 +1055,7 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
                 evidence,
                 str(result.title or ""),
                 " ".join(str(part) for part in result.section_path or []),
+                _result_model_text(result),
             ]
         )
     )
@@ -1469,6 +1498,17 @@ def _has_strong_insufficient_fallback(query: str, results: list[SearchResult]) -
         return True
     if not fallback_results:
         return False
+    top = fallback_results[0]
+    if _is_troubleshooting_query(query) and str(top.metadata.get("chunk_type") or "") == "table_record":
+        evidence_terms = _answer_terms(_fallback_answer_text(top))
+        query_terms = _answer_terms(query)
+        required_scope_terms = _distinctive_scope_terms(query_terms)
+        result_scope_terms = _answer_terms(_result_model_text(top))
+        if required_scope_terms and not required_scope_terms.issubset(result_scope_terms):
+            return False
+        has_diagnostic_answer = bool(re.search(r"\b(cause|remedy|corrective action|indicator|status)\b", _fallback_answer_text(top), flags=re.IGNORECASE))
+        if has_diagnostic_answer and len(query_terms.intersection(evidence_terms)) >= 3:
+            return True
     if not (
         _should_score_direct_fallback(query)
         or re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE)
@@ -1476,6 +1516,43 @@ def _has_strong_insufficient_fallback(query: str, results: list[SearchResult]) -
     ):
         return False
     return _fallback_evidence_score(query, fallback_results[0]) >= 2.0
+
+
+def _diagnostic_table_evidence_results(query: str, ordered_results: list[SearchResult]) -> list[SearchResult]:
+    if not _is_troubleshooting_query(query):
+        return []
+    if _is_comparison_query(query):
+        return []
+    query_terms = _answer_terms(query)
+    scored: list[tuple[float, int, SearchResult]] = []
+    for index, result in enumerate(ordered_results[:8]):
+        if str(result.metadata.get("chunk_type") or "") != "table_record":
+            continue
+        row_text = str(result.content or "").strip()
+        row_terms = _answer_terms(row_text)
+        if not row_terms:
+            continue
+        score = min(6.0, float(len(query_terms.intersection(row_terms))))
+        score += _ordered_query_phrase_score(query, row_text)
+        if re.search(r"\b(indicator|status|cause|remedy|corrective action)\b", row_text, flags=re.IGNORECASE):
+            score += 3.0
+        if re.search(r"\b(?:error|alarm|fault)\b", query, flags=re.IGNORECASE) and re.search(
+            r"\b(indicator|status|cause)\b", row_text, flags=re.IGNORECASE
+        ):
+            score += 2.0
+        if re.search(r"\bfield[-\s]?network", query, flags=re.IGNORECASE) and re.search(
+            r"\b(?:field[-\s]?network|ethernet/ip|profinet|handshake)\b", row_text, flags=re.IGNORECASE
+        ):
+            score += 3.0
+        required_scope_terms = _distinctive_scope_terms(query_terms)
+        result_scope_terms = _answer_terms(_result_model_text(result))
+        if required_scope_terms and not required_scope_terms.issubset(result_scope_terms):
+            score -= 8.0
+        scored.append((score, index, result))
+    if not scored:
+        return []
+    best_score, _best_index, best_result = max(scored, key=lambda item: (item[0], -item[1]))
+    return [best_result] if best_score >= 5.0 else []
 
 
 def _answer_cites_selected_screen_evidence(answer: AnswerResponse, query: str, results: list[SearchResult]) -> bool:
@@ -1711,6 +1788,8 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
         return image_buffer_results
     if image_buffer_query_terms and re.search(r"\bdisabled\b", query, flags=re.IGNORECASE):
         return []
+    if diagnostic_table_results := _diagnostic_table_evidence_results(query, ordered_results):
+        return diagnostic_table_results
     if not _is_comparison_query(query):
         multi_part_results = _multi_part_fallback_evidence_results(query, ordered_results)
         if multi_part_results:
@@ -1734,6 +1813,8 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
                 best_score, _best_index, best_result = max(scored, key=lambda item: (item[0], -item[1]))
                 if best_score >= 2.0 and best_score > first_score:
                     return [best_result]
+                if _is_troubleshooting_query(query):
+                    return []
         if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
             return ordered_results[:1]
         scored = [
