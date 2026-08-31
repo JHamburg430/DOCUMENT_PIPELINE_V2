@@ -2371,6 +2371,21 @@ def _result_term_overlap(result: dict[str, Any], expected_terms: list[str]) -> i
     return sum(1 for term in expected_terms if _term_matches_evidence(term, evidence_text))
 
 
+def _result_supports_single_step_expected_evidence(case: RetrievalEvalCase, result: dict[str, Any]) -> bool:
+    expected_evidence = case.expected_evidence or []
+    if not expected_evidence:
+        return True
+    result_document_id = str(result.get("source_document_id") or "")
+    cited_text = _result_evidence_text(result)
+    for item in expected_evidence:
+        expected_document_id = str(item.get("source_document_id") or case.source_document_id)
+        if expected_document_id and result_document_id != expected_document_id:
+            continue
+        if _expected_evidence_supported_by_cited_text(item, cited_text):
+            return True
+    return False
+
+
 def _result_column_field(result: dict[str, Any]) -> str:
     metadata = result.get("metadata", {})
     metadata = metadata if isinstance(metadata, dict) else {}
@@ -2702,7 +2717,14 @@ def score_search_results(
                 "metadata_document_selection": document_selection,
             }
         preserves_code_anchors = _result_preserves_expected_code_anchors(case, result)
-        if same_document and same_section and preserves_code_anchors and overlap >= max(2, min(3, len(case.expected_terms))):
+        supports_expected_evidence = _result_supports_single_step_expected_evidence(case, result)
+        if (
+            same_document
+            and same_section
+            and preserves_code_anchors
+            and supports_expected_evidence
+            and overlap >= max(2, min(3, len(case.expected_terms)))
+        ):
             return {
                 "passed": True,
                 "rank": rank,
@@ -2713,7 +2735,7 @@ def score_search_results(
                 "candidate_recall": True,
                 "metadata_document_selection": document_selection,
             }
-        if same_document and preserves_code_anchors and overlap >= max(2, min(3, len(case.expected_terms))):
+        if same_document and preserves_code_anchors and supports_expected_evidence and overlap >= max(2, min(3, len(case.expected_terms))):
             return {
                 "passed": True,
                 "rank": rank,
@@ -2724,7 +2746,7 @@ def score_search_results(
                 "candidate_recall": True,
                 "metadata_document_selection": document_selection,
             }
-        if same_document and preserves_code_anchors and overlap >= 2 and query_overlap >= 2:
+        if same_document and preserves_code_anchors and supports_expected_evidence and overlap >= 2 and query_overlap >= 2:
             return {
                 "passed": True,
                 "rank": rank,

@@ -690,6 +690,123 @@ def test_cross_document_retrieval_scoring_requires_expected_evidence_documents()
     assert scored["missing_evidence"] == [{"chunk_id": "chunk-2", "matched": False, "rank": None, "overlap_terms": 2}]
 
 
+def test_single_step_retrieval_scoring_rejects_same_document_without_expected_evidence():
+    case = RetrievalEvalCase(
+        case_id="external-trigger-polarity",
+        query="In MOD-600 troubleshooting, when an external trigger cannot be input, which polarity checkpoint should I verify?",
+        source_document_id="doc-iv4",
+        document_version_id="ver-iv4",
+        source_chunk_id="polarity-cell",
+        source_title="IV4 Manual",
+        source_filename="iv4.pdf",
+        chunk_type="table_record",
+        section_path="12-38",
+        page_from=526,
+        page_to=526,
+        expected_terms=["polarity", "correctly", "set", "external", "trigger"],
+        expected_snippet=(
+            "Column headers: Check point; Row headers: An external trigger cannot be input.; "
+            "Cell value: Is the Polarity correctly set?; Row: 11; Column: 1"
+        ),
+        generation_method="unit_test",
+        source_metadata={
+            "product_model": "MOD-600",
+            "table_cell": True,
+            "table_row_headers": ["An external trigger cannot be input."],
+            "table_column_headers": ["Check point"],
+        },
+        anchor_terms=["polarity", "correctly", "set", "external", "trigger"],
+        expected_evidence=[
+            {
+                "chunk_id": "polarity-cell",
+                "source_document_id": "doc-iv4",
+                "field": "external_trigger_polarity_checkpoint",
+                "expected_terms": ["polarity", "correctly", "set", "external", "trigger"],
+                "snippet": "An external trigger cannot be input. Check point: Is the Polarity correctly set?",
+            }
+        ],
+    )
+
+    scored = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "internal-trigger-workaround",
+                "source_document_id": "doc-iv4",
+                "title": "IV4 Manual",
+                "section_path": ["Take an OK image and an NG image"],
+                "content": (
+                    "In the following cases, input an external trigger: When [External Trigger] is set in "
+                    "Trigger Options. If a trigger cannot be input, press [Trigger ON] to take an image "
+                    "temporarily using the internal trigger."
+                ),
+                "metadata": {"chunk_type": "section_window", "product_model": "MOD-600"},
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert scored["failure_category"] == "ranking_or_context_loss"
+
+
+def test_single_step_retrieval_scoring_accepts_same_document_supported_expected_evidence():
+    case = RetrievalEvalCase(
+        case_id="external-trigger-polarity",
+        query="In MOD-600 troubleshooting, when an external trigger cannot be input, which polarity checkpoint should I verify?",
+        source_document_id="doc-iv4",
+        document_version_id="ver-iv4",
+        source_chunk_id="polarity-cell",
+        source_title="IV4 Manual",
+        source_filename="iv4.pdf",
+        chunk_type="table_record",
+        section_path="12-38",
+        page_from=526,
+        page_to=526,
+        expected_terms=["polarity", "correctly", "set", "external", "trigger"],
+        expected_snippet=(
+            "Column headers: Check point; Row headers: An external trigger cannot be input.; "
+            "Cell value: Is the Polarity correctly set?; Row: 11; Column: 1"
+        ),
+        generation_method="unit_test",
+        source_metadata={
+            "product_model": "MOD-600",
+            "table_cell": True,
+            "table_row_headers": ["An external trigger cannot be input."],
+            "table_column_headers": ["Check point"],
+        },
+        anchor_terms=["polarity", "correctly", "set", "external", "trigger"],
+        expected_evidence=[
+            {
+                "chunk_id": "polarity-cell",
+                "source_document_id": "doc-iv4",
+                "field": "external_trigger_polarity_checkpoint",
+                "expected_terms": ["polarity", "correctly", "set", "external", "trigger"],
+                "snippet": "An external trigger cannot be input. Check point: Is the Polarity correctly set?",
+            }
+        ],
+    )
+
+    scored = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "same-source-section-window",
+                "source_document_id": "doc-iv4",
+                "title": "IV4 Manual",
+                "section_path": ["12-38"],
+                "content": (
+                    "Troubleshooting table. An external trigger cannot be input. "
+                    "Check point: Is the Polarity correctly set?"
+                ),
+                "metadata": {"chunk_type": "section_window", "product_model": "MOD-600"},
+            }
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert scored["match_reason"] == "same_section_term_overlap"
+
+
 def test_answer_response_scoring_prefers_multi_step_evidence_terms():
     case = RetrievalEvalCase(
         case_id="case-1",
