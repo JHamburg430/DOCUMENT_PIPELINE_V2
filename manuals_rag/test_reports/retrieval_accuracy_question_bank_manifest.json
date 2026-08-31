@@ -1,5 +1,9 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "expected_document_not_cited_or_used": 2,
+    "expected_evidence_not_cited": 2,
+    "retrieval_not_passed": 1
+  },
   "answer_failure_categories": {
     "expected_evidence_not_cited": 1,
     "expected_terms_missing": 1,
@@ -187,47 +191,67 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "Loaded actual HTTP row-13 rerun passed answer grounding 1/1 with fallback_validation and no answer failure reasons.",
-    "classification": "single_step_v2_row_13_clean_source_backed_display_feature_answer",
-    "clean_rows": [
+    "timestamp": "2026-08-31T19:08:00Z",
+    "status": "contextual_rows_13_14_diagnostic_not_clean",
+    "classification": "retrieval_and_answer_evidence_gap_after_loaded_http_rerun",
+    "latest_run": "retrieval_eval_20260831_190034",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_190034.jsonl",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260830_2239_contextual_rows_13_14_source_equivalence.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260831_190034.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260831_190034.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_190034.json",
+    "search_mode": "http",
+    "response_mode": "answer_with_citations",
+    "max_queries": 2,
+    "retrieval_result": "2 contextual multi-step cases: row 13 retrieval passed at rank 2; row 14 failed retrieval with candidate_miss. Candidate recall and metadata-document recall were 0.5.",
+    "answer_result": "0/2 actual HTTP answers passed. Both answers used fallback_validation; answer failure reasons were expected_document_not_cited_or_used: 2, expected_evidence_not_cited: 2, retrieval_not_passed: 1.",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_190034.jsonl for both cases. Row 13 asks when to use discrete I/O for LJ-X8000 high-speed image capture timing; the expected setup-guide chunk 82880372 appeared in top results at rank 3, but the visible fallback answer cited chunk 3b63ac7c from the LJ-X8000 user manual command-input timing section and did not state the source-reviewed high-speed discrete-I/O condition. Row 14 asks what to check when Cyclic Communication Status is Not Connected; retrieval missed the expected setup-guide document and the visible fallback answer cited chunk 87be5492 from a different LJ-X8000 user manual communication overview rather than the setup-guide Not Connected connection-details evidence.",
+    "runtime_load_evidence": {
+      "container": "manuals-rag-temp-api-39262386-20260831-ctx13-14",
+      "host_api_base": "http://127.0.0.1:8938",
+      "in_container_api_base": "http://127.0.0.1:8600",
+      "api_health": "ok at 2026-08-31T19:00:17Z",
+      "generator.py_sha256": "1e3719878b1802c2d845905d6527122f2d83a24502463e4fc65d68b13ed52dba",
+      "retrieval_eval.py_sha256": "ed0a689e75038942734bde5ddd8103ffeac0c7e6a8b725bee6c115d7aa5b272b",
+      "retriever.py_sha256": "ebc058e5929625db83d9f6d123c844e6fc27c5a4ba043d450c356bb715672267",
+      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
+      "_fallback_evidence_results_sha256": "2204873c8271b78e15524a14fc83e7d4f8b82f823edbde7db85c7eb638d2440b",
+      "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+      "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "HAYSTACK_RERANK_DEVICE": "cuda:0"
+    },
+    "diagnostic_rows": [
       {
-        "answer": "Setting item: Display Feature; Settings: Specify the characteristics to be displayed in the screen. Course: Displays course characteristics used by the course search. Fine: Displays fine characteristics used by the fine search.",
-        "cited_chunk": "37d21822-6cf5-59b2-b0a5-2028d801aa5a",
-        "expected_chunk": "547e84f3-1ce9-5ec2-8cc1-6d4f399a3d44",
-        "query": "For LJ-X8000 screen characteristics, what do Course and Fine display?",
         "row": 13,
-        "source_review": "Accepted as source-backed same-page equivalent evidence because the cited chunk itself preserves the Display Feature row and the Course/Fine meanings from the stored expected evidence."
+        "query": "For LJ-X8000 high-speed triggering, when should I use discrete I/O for image capture timing?",
+        "classification": "retrieval_passed_answer_not_clean",
+        "retrieval_rank": 2,
+        "cited_chunk": "3b63ac7c-33f9-513d-bf9a-f2c119b7890b",
+        "expected_chunk": "82880372-1b33-53dc-b501-2975c75379e1",
+        "reason": "Fallback answer cited a command-input timing chunk from a different LJ-X8000 manual and omitted the source-reviewed high-speed discrete-I/O condition."
+      },
+      {
+        "row": 14,
+        "query": "For LJ-X8000 EtherNet/IP setup, what should I check if cyclic communication status shows Not Connected?",
+        "classification": "retrieval_candidate_miss_answer_not_clean",
+        "retrieval_rank": null,
+        "cited_chunk": "87be5492-ace2-5d64-ab36-ef468107c3ec",
+        "expected_chunk": "5e2de0a8-a30b-5e6c-abd2-eca16fdd30b7",
+        "reason": "Final top results came from a different LJ-X8000 user manual; the setup-guide Not Connected connection-details evidence was not retrieved or cited."
       }
     ],
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_183111.jsonl",
-    "latest_run": "retrieval_eval_20260831_183111",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_183111.json",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_183111.jsonl. The user-visible fallback answer states that Course displays course characteristics used by course search and Fine displays fine characteristics used by fine search. It cites chunk 37d21822-6cf5-59b2-b0a5-2028d801aa5a with quote_span null, and the cited content itself contains the Display Feature setting plus both Course and Fine search-characteristics statements.",
-    "max_queries": 1,
-    "next_target": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
-    "preserved_diagnostics": [
-      "Row 11 aggregate Function citation diagnostics remain excluded; clean row 11 evidence is retrieval_eval_20260831_180757 only.",
-      "Row 12 clean same-row checkpoint evidence from retrieval_eval_20260831_160134 remains preserved."
+    "preserved_clean_evidence": [
+      "Row 11 clean evidence from retrieval_eval_20260831_180757 remains preserved.",
+      "Row 12 clean evidence from retrieval_eval_20260831_160134 remains preserved.",
+      "Single-step row 13 clean evidence from retrieval_eval_20260831_183111 remains preserved.",
+      "Contextual rows 15-20 clean/source-reviewed evidence remains preserved."
     ],
-    "query_offset": 12,
-    "response_mode": "answer_with_citations",
-    "results": "test_reports/retrieval_eval_results_20260831_183111.jsonl",
-    "retrieval_result": "Loaded actual HTTP row-13 rerun passed retrieval 1/1 at rank 1; candidate recall and metadata-document recall were both 100%.",
-    "runtime_load_evidence": {
-      "HAYSTACK_RERANK_DEVICE": "cuda:0",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
-      "container": "manuals-rag-temp-api-39262386-20260831-row13",
-      "container_api_base": "http://127.0.0.1:8600",
-      "generator.py_sha256": "1e3719878b1802c2d845905d6527122f2d83a24502463e4fc65d68b13ed52dba",
-      "host_api_base": "http://127.0.0.1:8936",
-      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
-    },
-    "search_mode": "http",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260831_183111.json"
+    "next_target": "Fix or source-review contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide: row 13 retrieved expected setup-guide evidence at rank 2 but the user-visible fallback cited an unrelated LJ-X8000 command-input chunk; row 14 missed the setup-guide Not Connected connection-details evidence and answered from a different LJ-X user manual. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean until a loaded HTTP rerun cites returned chunks that directly support the high-speed discrete-I/O and Not Connected connection-check roles."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -703,12 +727,18 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
-    "current_answer_failures": {},
-    "current_retrieval_failures": {},
-    "latest_run": "retrieval_eval_20260831_183111",
-    "remaining": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
-    "status": "single_step_v2_row_13_clean_source_backed_display_feature_answer",
-    "timestamp": "2026-08-31T18:33:00Z"
+    "timestamp": "2026-08-31T19:08:00Z",
+    "status": "contextual_rows_13_14_diagnostic_not_clean",
+    "latest_run": "retrieval_eval_20260831_190034",
+    "current_retrieval_failures": {
+      "candidate_miss": 1
+    },
+    "current_answer_failures": {
+      "expected_document_not_cited_or_used": 2,
+      "expected_evidence_not_cited": 2,
+      "retrieval_not_passed": 1
+    },
+    "remaining": "Fix or source-review contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide: row 13 retrieved expected setup-guide evidence at rank 2 but the user-visible fallback cited an unrelated LJ-X8000 command-input chunk; row 14 missed the setup-guide Not Connected connection-details evidence and answered from a different LJ-X user manual. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean until a loaded HTTP rerun cites returned chunks that directly support the high-speed discrete-I/O and Not Connected connection-check roles."
   },
   "constraints": {
     "allowed_logic": [
@@ -726,9 +756,17 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
-  "current_failure_categories": {},
-  "current_retrieval_failure_categories": {},
+  "current_answer_failure_categories": {
+    "expected_document_not_cited_or_used": 2,
+    "expected_evidence_not_cited": 2,
+    "retrieval_not_passed": 1
+  },
+  "current_failure_categories": {
+    "candidate_miss": 1
+  },
+  "current_retrieval_failure_categories": {
+    "candidate_miss": 1
+  },
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "diagnostics": [
     {
@@ -927,7 +965,9 @@
       "total_queries": 10
     }
   ],
-  "failure_categories": {},
+  "failure_categories": {
+    "candidate_miss": 1
+  },
   "goal": {
     "components": [
       "single_step_retrieval",
@@ -8879,7 +8919,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
+  "next_target": "Fix or source-review contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide: row 13 retrieved expected setup-guide evidence at rank 2 but the user-visible fallback cited an unrelated LJ-X8000 command-input chunk; row 14 missed the setup-guide Not Connected connection-details evidence and answered from a different LJ-X user manual. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean until a loaded HTTP rerun cites returned chunks that directly support the high-speed discrete-I/O and Not Connected connection-check roles.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9632,7 +9672,11 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "expected_document_not_cited_or_used": 2,
+      "expected_evidence_not_cited": 2,
+      "retrieval_not_passed": 1
+    },
     "answer_failure_categories": {
       "expected_evidence_not_cited": 1,
       "expected_terms_missing": 1,
@@ -9820,47 +9864,67 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "Loaded actual HTTP row-13 rerun passed answer grounding 1/1 with fallback_validation and no answer failure reasons.",
-      "classification": "single_step_v2_row_13_clean_source_backed_display_feature_answer",
-      "clean_rows": [
+      "timestamp": "2026-08-31T19:08:00Z",
+      "status": "contextual_rows_13_14_diagnostic_not_clean",
+      "classification": "retrieval_and_answer_evidence_gap_after_loaded_http_rerun",
+      "latest_run": "retrieval_eval_20260831_190034",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_190034.jsonl",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260830_2239_contextual_rows_13_14_source_equivalence.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260831_190034.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260831_190034.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_190034.json",
+      "search_mode": "http",
+      "response_mode": "answer_with_citations",
+      "max_queries": 2,
+      "retrieval_result": "2 contextual multi-step cases: row 13 retrieval passed at rank 2; row 14 failed retrieval with candidate_miss. Candidate recall and metadata-document recall were 0.5.",
+      "answer_result": "0/2 actual HTTP answers passed. Both answers used fallback_validation; answer failure reasons were expected_document_not_cited_or_used: 2, expected_evidence_not_cited: 2, retrieval_not_passed: 1.",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_190034.jsonl for both cases. Row 13 asks when to use discrete I/O for LJ-X8000 high-speed image capture timing; the expected setup-guide chunk 82880372 appeared in top results at rank 3, but the visible fallback answer cited chunk 3b63ac7c from the LJ-X8000 user manual command-input timing section and did not state the source-reviewed high-speed discrete-I/O condition. Row 14 asks what to check when Cyclic Communication Status is Not Connected; retrieval missed the expected setup-guide document and the visible fallback answer cited chunk 87be5492 from a different LJ-X8000 user manual communication overview rather than the setup-guide Not Connected connection-details evidence.",
+      "runtime_load_evidence": {
+        "container": "manuals-rag-temp-api-39262386-20260831-ctx13-14",
+        "host_api_base": "http://127.0.0.1:8938",
+        "in_container_api_base": "http://127.0.0.1:8600",
+        "api_health": "ok at 2026-08-31T19:00:17Z",
+        "generator.py_sha256": "1e3719878b1802c2d845905d6527122f2d83a24502463e4fc65d68b13ed52dba",
+        "retrieval_eval.py_sha256": "ed0a689e75038942734bde5ddd8103ffeac0c7e6a8b725bee6c115d7aa5b272b",
+        "retriever.py_sha256": "ebc058e5929625db83d9f6d123c844e6fc27c5a4ba043d450c356bb715672267",
+        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
+        "_fallback_evidence_results_sha256": "2204873c8271b78e15524a14fc83e7d4f8b82f823edbde7db85c7eb638d2440b",
+        "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "HAYSTACK_RERANK_DEVICE": "cuda:0"
+      },
+      "diagnostic_rows": [
         {
-          "answer": "Setting item: Display Feature; Settings: Specify the characteristics to be displayed in the screen. Course: Displays course characteristics used by the course search. Fine: Displays fine characteristics used by the fine search.",
-          "cited_chunk": "37d21822-6cf5-59b2-b0a5-2028d801aa5a",
-          "expected_chunk": "547e84f3-1ce9-5ec2-8cc1-6d4f399a3d44",
-          "query": "For LJ-X8000 screen characteristics, what do Course and Fine display?",
           "row": 13,
-          "source_review": "Accepted as source-backed same-page equivalent evidence because the cited chunk itself preserves the Display Feature row and the Course/Fine meanings from the stored expected evidence."
+          "query": "For LJ-X8000 high-speed triggering, when should I use discrete I/O for image capture timing?",
+          "classification": "retrieval_passed_answer_not_clean",
+          "retrieval_rank": 2,
+          "cited_chunk": "3b63ac7c-33f9-513d-bf9a-f2c119b7890b",
+          "expected_chunk": "82880372-1b33-53dc-b501-2975c75379e1",
+          "reason": "Fallback answer cited a command-input timing chunk from a different LJ-X8000 manual and omitted the source-reviewed high-speed discrete-I/O condition."
+        },
+        {
+          "row": 14,
+          "query": "For LJ-X8000 EtherNet/IP setup, what should I check if cyclic communication status shows Not Connected?",
+          "classification": "retrieval_candidate_miss_answer_not_clean",
+          "retrieval_rank": null,
+          "cited_chunk": "87be5492-ace2-5d64-ab36-ef468107c3ec",
+          "expected_chunk": "5e2de0a8-a30b-5e6c-abd2-eca16fdd30b7",
+          "reason": "Final top results came from a different LJ-X8000 user manual; the setup-guide Not Connected connection-details evidence was not retrieved or cited."
         }
       ],
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_183111.jsonl",
-      "latest_run": "retrieval_eval_20260831_183111",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_183111.json",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_183111.jsonl. The user-visible fallback answer states that Course displays course characteristics used by course search and Fine displays fine characteristics used by fine search. It cites chunk 37d21822-6cf5-59b2-b0a5-2028d801aa5a with quote_span null, and the cited content itself contains the Display Feature setting plus both Course and Fine search-characteristics statements.",
-      "max_queries": 1,
-      "next_target": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
-      "preserved_diagnostics": [
-        "Row 11 aggregate Function citation diagnostics remain excluded; clean row 11 evidence is retrieval_eval_20260831_180757 only.",
-        "Row 12 clean same-row checkpoint evidence from retrieval_eval_20260831_160134 remains preserved."
+      "preserved_clean_evidence": [
+        "Row 11 clean evidence from retrieval_eval_20260831_180757 remains preserved.",
+        "Row 12 clean evidence from retrieval_eval_20260831_160134 remains preserved.",
+        "Single-step row 13 clean evidence from retrieval_eval_20260831_183111 remains preserved.",
+        "Contextual rows 15-20 clean/source-reviewed evidence remains preserved."
       ],
-      "query_offset": 12,
-      "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260831_183111.jsonl",
-      "retrieval_result": "Loaded actual HTTP row-13 rerun passed retrieval 1/1 at rank 1; candidate recall and metadata-document recall were both 100%.",
-      "runtime_load_evidence": {
-        "HAYSTACK_RERANK_DEVICE": "cuda:0",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "container": "manuals-rag-temp-api-39262386-20260831-row13",
-        "container_api_base": "http://127.0.0.1:8600",
-        "generator.py_sha256": "1e3719878b1802c2d845905d6527122f2d83a24502463e4fc65d68b13ed52dba",
-        "host_api_base": "http://127.0.0.1:8936",
-        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
-      },
-      "search_mode": "http",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260831_183111.json"
+      "next_target": "Fix or source-review contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide: row 13 retrieved expected setup-guide evidence at rank 2 but the user-visible fallback cited an unrelated LJ-X8000 command-input chunk; row 14 missed the setup-guide Not Connected connection-details evidence and answered from a different LJ-X user manual. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean until a loaded HTTP rerun cites returned chunks that directly support the high-speed discrete-I/O and Not Connected connection-check roles."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10125,16 +10189,30 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
-      "current_answer_failures": {},
-      "current_retrieval_failures": {},
-      "latest_run": "retrieval_eval_20260831_183111",
-      "remaining": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
-      "status": "single_step_v2_row_13_clean_source_backed_display_feature_answer",
-      "timestamp": "2026-08-31T18:33:00Z"
+      "timestamp": "2026-08-31T19:08:00Z",
+      "status": "contextual_rows_13_14_diagnostic_not_clean",
+      "latest_run": "retrieval_eval_20260831_190034",
+      "current_retrieval_failures": {
+        "candidate_miss": 1
+      },
+      "current_answer_failures": {
+        "expected_document_not_cited_or_used": 2,
+        "expected_evidence_not_cited": 2,
+        "retrieval_not_passed": 1
+      },
+      "remaining": "Fix or source-review contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide: row 13 retrieved expected setup-guide evidence at rank 2 but the user-visible fallback cited an unrelated LJ-X8000 command-input chunk; row 14 missed the setup-guide Not Connected connection-details evidence and answered from a different LJ-X user manual. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean until a loaded HTTP rerun cites returned chunks that directly support the high-speed discrete-I/O and Not Connected connection-check roles."
     },
-    "current_answer_failure_categories": {},
-    "current_failure_categories": {},
-    "current_retrieval_failure_categories": {},
+    "current_answer_failure_categories": {
+      "expected_document_not_cited_or_used": 2,
+      "expected_evidence_not_cited": 2,
+      "retrieval_not_passed": 1
+    },
+    "current_failure_categories": {
+      "candidate_miss": 1
+    },
+    "current_retrieval_failure_categories": {
+      "candidate_miss": 1
+    },
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
     "datasets": [
       {
@@ -10480,7 +10558,9 @@
       }
     ],
     "exploratory_questions": 208,
-    "failure_categories": {},
+    "failure_categories": {
+      "candidate_miss": 1
+    },
     "latest_comparison_setting_side_binding_containment": {
       "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
       "actual_http_evidence": {
@@ -12254,7 +12334,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
+    "next_target": "Fix or source-review contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide: row 13 retrieved expected setup-guide evidence at rank 2 but the user-visible fallback cited an unrelated LJ-X8000 command-input chunk; row 14 missed the setup-guide Not Connected connection-details evidence and answered from a different LJ-X user manual. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean until a loaded HTTP rerun cites returned chunks that directly support the high-speed discrete-I/O and Not Connected connection-check roles.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12291,8 +12371,10 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
-    "retrieval_current_failure_categories": {},
+    "remaining": "Fix or source-review contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide: row 13 retrieved expected setup-guide evidence at rank 2 but the user-visible fallback cited an unrelated LJ-X8000 command-input chunk; row 14 missed the setup-guide Not Connected connection-details evidence and answered from a different LJ-X user manual. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean until a loaded HTTP rerun cites returned chunks that directly support the high-speed discrete-I/O and Not Connected connection-check roles.",
+    "retrieval_current_failure_categories": {
+      "candidate_miss": 1
+    },
     "run_exclusions": [
       {
         "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -12804,6 +12886,11 @@
         "reason": "diagnostic/not-clean after containment: retrieval passed but answer failed expected_table_cell_binding_missing with aggregate Function citation a268fb25",
         "run_id": "retrieval_eval_20260831_173656",
         "scope": "curated single-step v2 row 11 containment rerun"
+      },
+      {
+        "run_id": "retrieval_eval_20260831_190034",
+        "scope": "contextual procedure rows 13-14 source-equivalence answer-grounding rotation",
+        "reason": "diagnostic/not-clean: row 13 retrieved expected setup-guide evidence at rank 2 but cited an unrelated command-input chunk and omitted the high-speed discrete-I/O condition; row 14 missed expected setup-guide Not Connected evidence and cited a different LJ-X user manual overview."
       }
     ],
     "single_step_questions": 101,
@@ -13723,10 +13810,12 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-08-31T18:33:00Z"
+    "updated_at": "2026-08-31T19:08:00Z"
   },
-  "remaining": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
-  "retrieval_current_failure_categories": {},
+  "remaining": "Fix or source-review contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide: row 13 retrieved expected setup-guide evidence at rank 2 but the user-visible fallback cited an unrelated LJ-X8000 command-input chunk; row 14 missed the setup-guide Not Connected connection-details evidence and answered from a different LJ-X user manual. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean until a loaded HTTP rerun cites returned chunks that directly support the high-speed discrete-I/O and Not Connected connection-check roles.",
+  "retrieval_current_failure_categories": {
+    "candidate_miss": 1
+  },
   "run_exclusions": [
     {
       "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -14238,6 +14327,11 @@
       "reason": "diagnostic/not-clean after containment: retrieval passed but answer failed expected_table_cell_binding_missing with aggregate Function citation a268fb25",
       "run_id": "retrieval_eval_20260831_173656",
       "scope": "curated single-step v2 row 11 containment rerun"
+    },
+    {
+      "run_id": "retrieval_eval_20260831_190034",
+      "scope": "contextual procedure rows 13-14 source-equivalence answer-grounding rotation",
+      "reason": "diagnostic/not-clean: row 13 retrieved expected setup-guide evidence at rank 2 but cited an unrelated command-input chunk and omitted the high-speed discrete-I/O condition; row 14 missed expected setup-guide Not Connected evidence and cited a different LJ-X user manual overview."
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -15156,5 +15250,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-08-31T18:33:00Z"
+  "updated_at": "2026-08-31T19:08:00Z"
 }
