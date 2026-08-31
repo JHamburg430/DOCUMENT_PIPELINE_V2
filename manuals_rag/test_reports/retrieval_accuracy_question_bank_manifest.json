@@ -1,5 +1,8 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "expected_evidence_not_cited": 1,
+    "expected_table_cell_binding_missing": 1
+  },
   "answer_failure_categories": {
     "expected_evidence_not_cited": 1,
     "expected_terms_missing": 1,
@@ -187,35 +190,42 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-08-31T14:00:00Z",
-    "status": "single_step_v2_rows_9_10_clean_loaded_http_answer_grounding",
-    "classification": "source_equivalence_clean_after_loaded_side_api_rerun",
-    "latest_run": "retrieval_eval_20260831_135639",
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_135639.jsonl",
-    "source_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260831_0923_single_step_row9_source_equivalence.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260831_135639.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260831_135639.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_135639.json",
+    "timestamp": "2026-08-31T14:37:00Z",
+    "status": "single_step_v2_rows_11_12_partial_loaded_http_answer_grounding",
+    "classification": "row_11_clean_row_12_diagnostic_not_clean_after_source_review_rephrase",
+    "latest_run": "retrieval_eval_20260831_143131",
+    "diagnostic_original_run": "retrieval_eval_20260831_142715",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_143131.jsonl",
+    "source_repair_dataset": "test_reports/retrieval_eval_dataset_20260831_1435_single_step_rows11_12_source_repair.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260831_143131.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260831_143131.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_143131.json",
     "search_mode": "http",
     "response_mode": "answer_with_citations",
     "query_offset": 0,
     "max_queries": 2,
-    "retrieval_result": "2/2 retrieval passed at rank 1. Row 9 surfaced source-bearing PID 428 / 0016 0017 0018 / Total count evidence as rank-1 chunk a6580df7; row 10 preserved rank-1 VS Program Setting Protection evidence.",
-    "answer_result": "2/2 actual HTTP API answers passed after loaded clean side-API rerun; both answers used validation fallback with source-supported citations.",
+    "retrieval_result": "2/2 single-step retrieval passed at rank 1 for curated v2 rows 11-12 after the row-12 source-review rephrase.",
+    "answer_result": "1/2 actual HTTP API answers passed. Row 11 is clean fallback-validation evidence; row 12 remains diagnostic/not-clean with expected_evidence_not_cited and expected_table_cell_binding_missing.",
     "current_retrieval_failures": {},
-    "current_answer_failures": {},
+    "current_answer_failures": {
+      "expected_evidence_not_cited": 1,
+      "expected_table_cell_binding_missing": 1
+    },
     "runtime_load_evidence": {
-      "container": "manuals-rag-temp-api-39262386-20260831-row9-rerun",
-      "host_api_base": "http://127.0.0.1:8878",
+      "container": "manuals-rag-temp-api-39262386-20260831-rows11-12b",
+      "host_api_base": "http://127.0.0.1:8884",
       "in_container_api_base": "http://127.0.0.1:8600",
-      "api_health": "ok at 2026-08-31T13:55:20Z",
+      "api_health": "ok at 2026-08-31T14:27:00Z",
       "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-      "_focused_table_like_answer_text_sha256": "7de59339b49afd88664f716e8a5703c33941dc08bcfd0ae9ca38bf33d88b37d3",
-      "_fallback_evidence_score_sha256": "27e06da7504b39506a1dbbf07cf4095368886c5371600ef6e2121a5dda8688bc",
+      "generator_file_sha256": "3f00b4db912284d47c6221b153e7f499f8d826b4dc99ff66d2c074ed236f935e",
+      "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+      "retrieval_eval_file_sha256": "a2a1a3e26cbf17fc34000c5619e025eef5ff26a933804dcf7d4e05570184dacc",
+      "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+      "retriever_file_sha256": "223bce7fd84f0ad965c7b29c5d7bfa24977fc6a82bbcb0410349ec4603224e64",
       "_fallback_evidence_results_sha256": "2204873c8271b78e15524a14fc83e7d4f8b82f823edbde7db85c7eb638d2440b",
       "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
       "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
-      "score_search_results_sha256": "eb83f90a3c3955d12783613e1c99585f8c15d7197679a97a1851c900c60257aa",
+      "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
       "OLLAMA_URL": "http://host.docker.internal:11434",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
@@ -225,41 +235,49 @@
     },
     "resolved_rows": [
       {
-        "row": 9,
-        "run": "retrieval_eval_20260831_135639",
-        "query": "In the CV-X482 cyclic communication allocation table, what is PID 428 at address bytes 0016-0018 named?",
-        "classification": "clean_source_equivalent_loaded_http_answer_grounding",
+        "row": 11,
+        "run": "retrieval_eval_20260831_143131",
+        "query": "Which CV-X482 output line corresponds to data output bit 10?",
+        "classification": "clean_loaded_http_fallback_validation",
         "cited_chunks": [
           {
-            "chunk_id": "a6580df7-2807-5bf8-9ec7-15b2481e55de",
+            "chunk_id": "a268fb25-a15d-5854-b28f-40dc68f3ec30",
             "quote_span": null,
             "pages": [
-              920
+              803
             ]
           }
         ],
-        "evidence": "Manual JSONL inspection confirmed the visible answer cites only chunk a6580df7 and states the Error code/Reserved/Measurement count/Command output table rows, including Measurement count area | 0016 0017 0018 | PID 428 | Total count. The cited returned chunk itself contains that row and the Measurement count area / Total Count / Displays the measurement count description required by the source-equivalence policy."
-      },
-      {
-        "row": 10,
-        "run": "retrieval_eval_20260831_135639",
-        "query": "How do I limit a saved VS program setting so only selected cameras can use it?",
-        "classification": "clean_loaded_http_answer_grounding_preserved",
-        "cited_chunks": [
-          {
-            "chunk_id": "432e2684-c6b3-5718-9826-966110b8f1eb",
-            "quote_span": null,
-            "pages": [
-              220
-            ]
-          }
-        ],
-        "evidence": "Manual JSONL inspection confirmed the visible answer cites only chunk 432e2684 and states Program Setting Protection restricts VS cameras by setting a password and camera MAC addresses; the cited returned chunk directly supports those roles."
+        "evidence": "Manual JSONL inspection confirmed the visible fallback answer cites chunk a268fb25 and states OUT_DATA10 / Data output bit 10; the cited returned content contains the OUT_DATA0-OUT_DATA15 table row group including OUT_DATA10 and Data output bit 10."
       }
     ],
-    "manual_jsonl_inspection": "Inspected every case in test_reports/retrieval_eval_results_20260831_135639.jsonl. Row 9 answer/citations satisfy the source-reviewed equivalent-citation policy because cited chunk a6580df7 directly contains the PID 428 / 0016-0018 / Total count allocation row and Measurement count area description; no generated quote_span was used. Row 10 remains clean with direct password/MAC-address Program Setting Protection support.",
-    "prior_diagnostic_preserved": "retrieval_eval_20260831_132635 remains excluded/diagnostic because it used the existing primary API and row 9 returned insufficient evidence without the source-bearing PID 428 row.",
-    "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints."
+    "diagnostic_rows": [
+      {
+        "row": 12,
+        "original_run": "retrieval_eval_20260831_142715",
+        "repaired_run": "retrieval_eval_20260831_143131",
+        "original_query": "On IV4-G600CA, what should I check if an external trigger will not input?",
+        "repaired_query": "In IV4-G600CA troubleshooting, when an external trigger cannot be input, which polarity checkpoint should I verify?",
+        "classification": "diagnostic_not_clean_answer_evidence_selection_failure_after_dataset_rephrase",
+        "failure_reasons": [
+          "expected_evidence_not_cited",
+          "expected_table_cell_binding_missing"
+        ],
+        "cited_chunks": [
+          {
+            "chunk_id": "f58dc0db-f390-5935-afa1-dfd937a98331",
+            "quote_span": null,
+            "pages": [
+              149
+            ]
+          }
+        ],
+        "evidence": "The user-visible fallback answer cites the page-149 internal-trigger workaround and says to press Trigger ON. The expected source-reviewed troubleshooting row is page 526 chunk 6469ea5d: An external trigger cannot be input / Check point: Is the Polarity correctly set? The cited chunk does not support the expected Polarity checkpoint, so the run remains diagnostic/not-clean."
+      }
+    ],
+    "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260831_142715 and retrieval_eval_results_20260831_143131. Row 11 is clean. Row 12 remains failed after rephrase because the visible answer/citation still use the internal-trigger workaround rather than the source-reviewed troubleshooting Polarity checkpoint.",
+    "prior_diagnostic_preserved": "retrieval_eval_20260831_142715 is preserved as diagnostic because the original row-12 question was broad enough to admit the internal-trigger workaround; the source-repaired row-12 query in retrieval_eval_20260831_143131 still failed answer citation/use and is not clean.",
+    "next_target": "Source-review and repair single-step v2 row 12 answer/citation grounding: retrieval passes at rank 1, but both the original and repaired external-trigger questions return a fallback answer from the internal-trigger workaround instead of citing the troubleshooting Polarity checkpoint. Preserve row 11 clean evidence, retrieval_eval_20260831_142715 and retrieval_eval_20260831_143131 as diagnostic/not-clean for row 12, and continue only with source-backed question or answer-evidence correction."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -735,42 +753,15 @@
     "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints."
   },
   "answer_grounding_status": {
-    "status": "single_step_v2_rows_9_10_clean_loaded_http_answer_grounding",
-    "current_run": "retrieval_eval_20260831_135639",
+    "timestamp": "2026-08-31T14:37:00Z",
+    "status": "single_step_v2_rows_11_12_partial_loaded_http_answer_grounding",
     "current_retrieval_failures": {},
-    "current_answer_failures": {},
-    "remaining": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints.",
-    "latest_source_equivalence_review": {
-      "timestamp": "2026-08-31T14:00:00Z",
-      "classification": "source_equivalent_citation_clean_after_loaded_rerun",
-      "source_reviewed_run": "retrieval_eval_20260831_123253",
-      "diagnostic_rerun": "retrieval_eval_20260831_132635",
-      "clean_loaded_rerun": "retrieval_eval_20260831_135639",
-      "source_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260831_0923_single_step_row9_source_equivalence.jsonl",
-      "expected_chunk_id": "57948971-aafc-57dc-87b4-a0986ac3363a",
-      "equivalent_chunk_id": "a6580df7-2807-5bf8-9ec7-15b2481e55de",
-      "policy": "Same-source citation may satisfy row 9 only when the cited returned chunk text directly contains the PID 428 / 0016-0018 / Total count allocation row and the Measurement count area / Total Count / Displays the measurement count description; cross-document, sibling-code, missing-row, or generated-quote support remains diagnostic/not-clean.",
-      "clean_evidence": "retrieval_eval_20260831_135639 used a freshly loaded clean side API and passed 2/2 retrieval plus 2/2 actual HTTP answer grounding. Manual JSONL inspection confirmed row 9 cites a6580df7 with null quote_span and the cited chunk directly supports the required PID 428/name evidence; row 10 remained clean.",
-      "runtime_load_evidence": {
-        "container": "manuals-rag-temp-api-39262386-20260831-row9-rerun",
-        "host_api_base": "http://127.0.0.1:8878",
-        "in_container_api_base": "http://127.0.0.1:8600",
-        "api_health": "ok at 2026-08-31T13:55:20Z",
-        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-        "_focused_table_like_answer_text_sha256": "7de59339b49afd88664f716e8a5703c33941dc08bcfd0ae9ca38bf33d88b37d3",
-        "_fallback_evidence_score_sha256": "27e06da7504b39506a1dbbf07cf4095368886c5371600ef6e2121a5dda8688bc",
-        "_fallback_evidence_results_sha256": "2204873c8271b78e15524a14fc83e7d4f8b82f823edbde7db85c7eb638d2440b",
-        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-        "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
-        "score_search_results_sha256": "eb83f90a3c3955d12783613e1c99585f8c15d7197679a97a1851c900c60257aa",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "HAYSTACK_RERANK_DEVICE": "cuda:0"
-      }
-    }
+    "current_answer_failures": {
+      "expected_evidence_not_cited": 1,
+      "expected_table_cell_binding_missing": 1
+    },
+    "latest_run": "retrieval_eval_20260831_143131",
+    "remaining": "Source-review and repair single-step v2 row 12 answer/citation grounding: retrieval passes at rank 1, but both the original and repaired external-trigger questions return a fallback answer from the internal-trigger workaround instead of citing the troubleshooting Polarity checkpoint. Preserve row 11 clean evidence, retrieval_eval_20260831_142715 and retrieval_eval_20260831_143131 as diagnostic/not-clean for row 12, and continue only with source-backed question or answer-evidence correction."
   },
   "constraints": {
     "allowed_logic": [
@@ -788,7 +779,10 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "expected_evidence_not_cited": 1,
+    "expected_table_cell_binding_missing": 1
+  },
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -8941,7 +8935,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints.",
+  "next_target": "Source-review and repair single-step v2 row 12 answer/citation grounding: retrieval passes at rank 1, but both the original and repaired external-trigger questions return a fallback answer from the internal-trigger workaround instead of citing the troubleshooting Polarity checkpoint. Preserve row 11 clean evidence, retrieval_eval_20260831_142715 and retrieval_eval_20260831_143131 as diagnostic/not-clean for row 12, and continue only with source-backed question or answer-evidence correction.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9694,7 +9688,10 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 1,
+      "expected_table_cell_binding_missing": 1
+    },
     "answer_failure_categories": {
       "expected_evidence_not_cited": 1,
       "expected_terms_missing": 1,
@@ -9882,35 +9879,42 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-08-31T14:00:00Z",
-      "status": "single_step_v2_rows_9_10_clean_loaded_http_answer_grounding",
-      "classification": "source_equivalence_clean_after_loaded_side_api_rerun",
-      "latest_run": "retrieval_eval_20260831_135639",
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_135639.jsonl",
-      "source_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260831_0923_single_step_row9_source_equivalence.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260831_135639.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260831_135639.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_135639.json",
+      "timestamp": "2026-08-31T14:37:00Z",
+      "status": "single_step_v2_rows_11_12_partial_loaded_http_answer_grounding",
+      "classification": "row_11_clean_row_12_diagnostic_not_clean_after_source_review_rephrase",
+      "latest_run": "retrieval_eval_20260831_143131",
+      "diagnostic_original_run": "retrieval_eval_20260831_142715",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_143131.jsonl",
+      "source_repair_dataset": "test_reports/retrieval_eval_dataset_20260831_1435_single_step_rows11_12_source_repair.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260831_143131.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260831_143131.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_143131.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "query_offset": 0,
       "max_queries": 2,
-      "retrieval_result": "2/2 retrieval passed at rank 1. Row 9 surfaced source-bearing PID 428 / 0016 0017 0018 / Total count evidence as rank-1 chunk a6580df7; row 10 preserved rank-1 VS Program Setting Protection evidence.",
-      "answer_result": "2/2 actual HTTP API answers passed after loaded clean side-API rerun; both answers used validation fallback with source-supported citations.",
+      "retrieval_result": "2/2 single-step retrieval passed at rank 1 for curated v2 rows 11-12 after the row-12 source-review rephrase.",
+      "answer_result": "1/2 actual HTTP API answers passed. Row 11 is clean fallback-validation evidence; row 12 remains diagnostic/not-clean with expected_evidence_not_cited and expected_table_cell_binding_missing.",
       "current_retrieval_failures": {},
-      "current_answer_failures": {},
+      "current_answer_failures": {
+        "expected_evidence_not_cited": 1,
+        "expected_table_cell_binding_missing": 1
+      },
       "runtime_load_evidence": {
-        "container": "manuals-rag-temp-api-39262386-20260831-row9-rerun",
-        "host_api_base": "http://127.0.0.1:8878",
+        "container": "manuals-rag-temp-api-39262386-20260831-rows11-12b",
+        "host_api_base": "http://127.0.0.1:8884",
         "in_container_api_base": "http://127.0.0.1:8600",
-        "api_health": "ok at 2026-08-31T13:55:20Z",
+        "api_health": "ok at 2026-08-31T14:27:00Z",
         "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-        "_focused_table_like_answer_text_sha256": "7de59339b49afd88664f716e8a5703c33941dc08bcfd0ae9ca38bf33d88b37d3",
-        "_fallback_evidence_score_sha256": "27e06da7504b39506a1dbbf07cf4095368886c5371600ef6e2121a5dda8688bc",
+        "generator_file_sha256": "3f00b4db912284d47c6221b153e7f499f8d826b4dc99ff66d2c074ed236f935e",
+        "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+        "retrieval_eval_file_sha256": "a2a1a3e26cbf17fc34000c5619e025eef5ff26a933804dcf7d4e05570184dacc",
+        "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+        "retriever_file_sha256": "223bce7fd84f0ad965c7b29c5d7bfa24977fc6a82bbcb0410349ec4603224e64",
         "_fallback_evidence_results_sha256": "2204873c8271b78e15524a14fc83e7d4f8b82f823edbde7db85c7eb638d2440b",
         "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
         "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
-        "score_search_results_sha256": "eb83f90a3c3955d12783613e1c99585f8c15d7197679a97a1851c900c60257aa",
+        "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
         "OLLAMA_URL": "http://host.docker.internal:11434",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
@@ -9920,41 +9924,49 @@
       },
       "resolved_rows": [
         {
-          "row": 9,
-          "run": "retrieval_eval_20260831_135639",
-          "query": "In the CV-X482 cyclic communication allocation table, what is PID 428 at address bytes 0016-0018 named?",
-          "classification": "clean_source_equivalent_loaded_http_answer_grounding",
+          "row": 11,
+          "run": "retrieval_eval_20260831_143131",
+          "query": "Which CV-X482 output line corresponds to data output bit 10?",
+          "classification": "clean_loaded_http_fallback_validation",
           "cited_chunks": [
             {
-              "chunk_id": "a6580df7-2807-5bf8-9ec7-15b2481e55de",
+              "chunk_id": "a268fb25-a15d-5854-b28f-40dc68f3ec30",
               "quote_span": null,
               "pages": [
-                920
+                803
               ]
             }
           ],
-          "evidence": "Manual JSONL inspection confirmed the visible answer cites only chunk a6580df7 and states the Error code/Reserved/Measurement count/Command output table rows, including Measurement count area | 0016 0017 0018 | PID 428 | Total count. The cited returned chunk itself contains that row and the Measurement count area / Total Count / Displays the measurement count description required by the source-equivalence policy."
-        },
-        {
-          "row": 10,
-          "run": "retrieval_eval_20260831_135639",
-          "query": "How do I limit a saved VS program setting so only selected cameras can use it?",
-          "classification": "clean_loaded_http_answer_grounding_preserved",
-          "cited_chunks": [
-            {
-              "chunk_id": "432e2684-c6b3-5718-9826-966110b8f1eb",
-              "quote_span": null,
-              "pages": [
-                220
-              ]
-            }
-          ],
-          "evidence": "Manual JSONL inspection confirmed the visible answer cites only chunk 432e2684 and states Program Setting Protection restricts VS cameras by setting a password and camera MAC addresses; the cited returned chunk directly supports those roles."
+          "evidence": "Manual JSONL inspection confirmed the visible fallback answer cites chunk a268fb25 and states OUT_DATA10 / Data output bit 10; the cited returned content contains the OUT_DATA0-OUT_DATA15 table row group including OUT_DATA10 and Data output bit 10."
         }
       ],
-      "manual_jsonl_inspection": "Inspected every case in test_reports/retrieval_eval_results_20260831_135639.jsonl. Row 9 answer/citations satisfy the source-reviewed equivalent-citation policy because cited chunk a6580df7 directly contains the PID 428 / 0016-0018 / Total count allocation row and Measurement count area description; no generated quote_span was used. Row 10 remains clean with direct password/MAC-address Program Setting Protection support.",
-      "prior_diagnostic_preserved": "retrieval_eval_20260831_132635 remains excluded/diagnostic because it used the existing primary API and row 9 returned insufficient evidence without the source-bearing PID 428 row.",
-      "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints."
+      "diagnostic_rows": [
+        {
+          "row": 12,
+          "original_run": "retrieval_eval_20260831_142715",
+          "repaired_run": "retrieval_eval_20260831_143131",
+          "original_query": "On IV4-G600CA, what should I check if an external trigger will not input?",
+          "repaired_query": "In IV4-G600CA troubleshooting, when an external trigger cannot be input, which polarity checkpoint should I verify?",
+          "classification": "diagnostic_not_clean_answer_evidence_selection_failure_after_dataset_rephrase",
+          "failure_reasons": [
+            "expected_evidence_not_cited",
+            "expected_table_cell_binding_missing"
+          ],
+          "cited_chunks": [
+            {
+              "chunk_id": "f58dc0db-f390-5935-afa1-dfd937a98331",
+              "quote_span": null,
+              "pages": [
+                149
+              ]
+            }
+          ],
+          "evidence": "The user-visible fallback answer cites the page-149 internal-trigger workaround and says to press Trigger ON. The expected source-reviewed troubleshooting row is page 526 chunk 6469ea5d: An external trigger cannot be input / Check point: Is the Polarity correctly set? The cited chunk does not support the expected Polarity checkpoint, so the run remains diagnostic/not-clean."
+        }
+      ],
+      "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260831_142715 and retrieval_eval_results_20260831_143131. Row 11 is clean. Row 12 remains failed after rephrase because the visible answer/citation still use the internal-trigger workaround rather than the source-reviewed troubleshooting Polarity checkpoint.",
+      "prior_diagnostic_preserved": "retrieval_eval_20260831_142715 is preserved as diagnostic because the original row-12 question was broad enough to admit the internal-trigger workaround; the source-repaired row-12 query in retrieval_eval_20260831_143131 still failed answer citation/use and is not clean.",
+      "next_target": "Source-review and repair single-step v2 row 12 answer/citation grounding: retrieval passes at rank 1, but both the original and repaired external-trigger questions return a fallback answer from the internal-trigger workaround instead of citing the troubleshooting Polarity checkpoint. Preserve row 11 clean evidence, retrieval_eval_20260831_142715 and retrieval_eval_20260831_143131 as diagnostic/not-clean for row 12, and continue only with source-backed question or answer-evidence correction."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10219,44 +10231,20 @@
       "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints."
     },
     "answer_grounding_status": {
-      "status": "single_step_v2_rows_9_10_clean_loaded_http_answer_grounding",
-      "current_run": "retrieval_eval_20260831_135639",
+      "timestamp": "2026-08-31T14:37:00Z",
+      "status": "single_step_v2_rows_11_12_partial_loaded_http_answer_grounding",
       "current_retrieval_failures": {},
-      "current_answer_failures": {},
-      "remaining": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints.",
-      "latest_source_equivalence_review": {
-        "timestamp": "2026-08-31T14:00:00Z",
-        "classification": "source_equivalent_citation_clean_after_loaded_rerun",
-        "source_reviewed_run": "retrieval_eval_20260831_123253",
-        "diagnostic_rerun": "retrieval_eval_20260831_132635",
-        "clean_loaded_rerun": "retrieval_eval_20260831_135639",
-        "source_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260831_0923_single_step_row9_source_equivalence.jsonl",
-        "expected_chunk_id": "57948971-aafc-57dc-87b4-a0986ac3363a",
-        "equivalent_chunk_id": "a6580df7-2807-5bf8-9ec7-15b2481e55de",
-        "policy": "Same-source citation may satisfy row 9 only when the cited returned chunk text directly contains the PID 428 / 0016-0018 / Total count allocation row and the Measurement count area / Total Count / Displays the measurement count description; cross-document, sibling-code, missing-row, or generated-quote support remains diagnostic/not-clean.",
-        "clean_evidence": "retrieval_eval_20260831_135639 used a freshly loaded clean side API and passed 2/2 retrieval plus 2/2 actual HTTP answer grounding. Manual JSONL inspection confirmed row 9 cites a6580df7 with null quote_span and the cited chunk directly supports the required PID 428/name evidence; row 10 remained clean.",
-        "runtime_load_evidence": {
-          "container": "manuals-rag-temp-api-39262386-20260831-row9-rerun",
-          "host_api_base": "http://127.0.0.1:8878",
-          "in_container_api_base": "http://127.0.0.1:8600",
-          "api_health": "ok at 2026-08-31T13:55:20Z",
-          "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-          "_focused_table_like_answer_text_sha256": "7de59339b49afd88664f716e8a5703c33941dc08bcfd0ae9ca38bf33d88b37d3",
-          "_fallback_evidence_score_sha256": "27e06da7504b39506a1dbbf07cf4095368886c5371600ef6e2121a5dda8688bc",
-          "_fallback_evidence_results_sha256": "2204873c8271b78e15524a14fc83e7d4f8b82f823edbde7db85c7eb638d2440b",
-          "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-          "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
-          "score_search_results_sha256": "eb83f90a3c3955d12783613e1c99585f8c15d7197679a97a1851c900c60257aa",
-          "OLLAMA_URL": "http://host.docker.internal:11434",
-          "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-          "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-          "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-          "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-          "HAYSTACK_RERANK_DEVICE": "cuda:0"
-        }
-      }
+      "current_answer_failures": {
+        "expected_evidence_not_cited": 1,
+        "expected_table_cell_binding_missing": 1
+      },
+      "latest_run": "retrieval_eval_20260831_143131",
+      "remaining": "Source-review and repair single-step v2 row 12 answer/citation grounding: retrieval passes at rank 1, but both the original and repaired external-trigger questions return a fallback answer from the internal-trigger workaround instead of citing the troubleshooting Polarity checkpoint. Preserve row 11 clean evidence, retrieval_eval_20260831_142715 and retrieval_eval_20260831_143131 as diagnostic/not-clean for row 12, and continue only with source-backed question or answer-evidence correction."
     },
-    "current_answer_failure_categories": {},
+    "current_answer_failure_categories": {
+      "expected_evidence_not_cited": 1,
+      "expected_table_cell_binding_missing": 1
+    },
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -12378,7 +12366,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints.",
+    "next_target": "Source-review and repair single-step v2 row 12 answer/citation grounding: retrieval passes at rank 1, but both the original and repaired external-trigger questions return a fallback answer from the internal-trigger workaround instead of citing the troubleshooting Polarity checkpoint. Preserve row 11 clean evidence, retrieval_eval_20260831_142715 and retrieval_eval_20260831_143131 as diagnostic/not-clean for row 12, and continue only with source-backed question or answer-evidence correction.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12415,7 +12403,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints.",
+    "remaining": "Source-review and repair single-step v2 row 12 answer/citation grounding: retrieval passes at rank 1, but both the original and repaired external-trigger questions return a fallback answer from the internal-trigger workaround instead of citing the troubleshooting Polarity checkpoint. Preserve row 11 clean evidence, retrieval_eval_20260831_142715 and retrieval_eval_20260831_143131 as diagnostic/not-clean for row 12, and continue only with source-backed question or answer-evidence correction.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12868,6 +12856,16 @@
         "run_id": "retrieval_eval_20260831_132635",
         "scope": "single-step v2 row 9 source-equivalence existing-primary-API diagnostic plus row 10 control",
         "reason": "diagnostic/not-clean: run used the existing primary API rather than a freshly loaded clean side API; row 9 returned insufficient evidence and did not retrieve/cite the source-bearing PID 428 allocation chunk, while row 10 remained clean control evidence."
+      },
+      {
+        "run_id": "retrieval_eval_20260831_142715",
+        "scope": "single-step v2 row 12 and combined rows 11-12 answer claim",
+        "reason": "diagnostic original row-12 question allowed an internal-trigger workaround answer; not clean row-12 answer evidence"
+      },
+      {
+        "run_id": "retrieval_eval_20260831_143131",
+        "scope": "single-step v2 row 12 and combined rows 11-12 clean claim",
+        "reason": "diagnostic source-repaired row-12 query still cites internal-trigger workaround instead of troubleshooting Polarity checkpoint; row 11 remains clean within the run"
       }
     ],
     "single_step_questions": 101,
@@ -13660,9 +13658,9 @@
         "status": "addressed_this_run_pending_guardrail_audit"
       }
     ],
-    "updated_at": "2026-08-31T14:00:00Z"
+    "updated_at": "2026-08-31T14:37:00Z"
   },
-  "remaining": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints.",
+  "remaining": "Source-review and repair single-step v2 row 12 answer/citation grounding: retrieval passes at rank 1, but both the original and repaired external-trigger questions return a fallback answer from the internal-trigger workaround instead of citing the troubleshooting Polarity checkpoint. Preserve row 11 clean evidence, retrieval_eval_20260831_142715 and retrieval_eval_20260831_143131 as diagnostic/not-clean for row 12, and continue only with source-backed question or answer-evidence correction.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14115,6 +14113,16 @@
       "run_id": "retrieval_eval_20260831_132635",
       "scope": "single-step v2 row 9 source-equivalence existing-primary-API diagnostic plus row 10 control",
       "reason": "diagnostic/not-clean: run used the existing primary API rather than a freshly loaded clean side API; row 9 returned insufficient evidence and did not retrieve/cite the source-bearing PID 428 allocation chunk, while row 10 remained clean control evidence."
+    },
+    {
+      "run_id": "retrieval_eval_20260831_142715",
+      "scope": "single-step v2 row 12 and combined rows 11-12 answer claim",
+      "reason": "diagnostic original row-12 question allowed an internal-trigger workaround answer; not clean row-12 answer evidence"
+    },
+    {
+      "run_id": "retrieval_eval_20260831_143131",
+      "scope": "single-step v2 row 12 and combined rows 11-12 clean claim",
+      "reason": "diagnostic source-repaired row-12 query still cites internal-trigger workaround instead of troubleshooting Polarity checkpoint; row 11 remains clean within the run"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -14906,5 +14914,5 @@
       "status": "addressed_this_run_pending_guardrail_audit"
     }
   ],
-  "updated_at": "2026-08-31T14:00:00Z"
+  "updated_at": "2026-08-31T14:37:00Z"
 }
