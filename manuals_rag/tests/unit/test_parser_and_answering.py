@@ -4189,7 +4189,7 @@ def test_validation_support_checks_table_cell_before_context(monkeypatch):
     assert trace["final_answer"]["used_fallback"] is False
 
 
-def test_fallback_focuses_table_like_section_window_for_direct_address_question(monkeypatch):
+def test_fallback_fails_closed_for_sibling_table_allocation_rows(monkeypatch):
     results = [
         SearchResult(
             chunk_id="section-window",
@@ -4240,11 +4240,66 @@ def test_fallback_focuses_table_like_section_window_for_direct_address_question(
         results,
     )
 
-    assert answer.answer.startswith("Relevant retrieved table rows:")
-    assert "0016 0017 0018" in answer.answer
-    assert "PID 428" in answer.answer
+    assert answer.answer == "I could not answer from the available evidence."
+    assert answer.insufficient_evidence is True
+    assert answer.citations == []
+    assert trace["final_answer"]["answer_source"] == "fallback_validation"
+
+
+def test_fallback_focuses_table_like_section_window_when_allocation_binding_is_same_row(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="section-window",
+            score=0.9,
+            title="CV-X manual",
+            document_version_id="v1",
+            source_document_id="cvx",
+            pages=[920],
+            section_path=["6-180"],
+            content=(
+                "Setting | Address (byte) | Item | Allocation\n"
+                "status Bit area | 0004 | PIB256 bit No. 7 | Allocation possible\n"
+                "status Bit area | 0016 | PID 428 command | Allocation possible\n"
+                "Mea- surement count area | 0016 0017 0018 | PID 428 | Total count\n"
+                + "\n".join(f"filler table row {index} | Reserved | Reserved" for index in range(80))
+            ),
+            metadata={"chunk_type": "section_window", "product_model": "CV-X482"},
+        )
+    ]
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "final_answer":
+            return (
+                {
+                    "answer": "Unsupported generated answer",
+                    "confidence": "medium",
+                    "used_documents": [],
+                    "citations": [],
+                    "warnings": [],
+                    "followup_questions": [],
+                    "insufficient_evidence": False,
+                },
+                '{"answer":"Unsupported generated answer","confidence":"medium",'
+                '"used_documents":[],"citations":[],"warnings":[],'
+                '"followup_questions":[],"insufficient_evidence":false}',
+            )
+        return (
+            {"items": [{"chunk_id": "section-window", "verdict": "relevant", "reason": "Direct table match."}]},
+            '{"items":[{"chunk_id":"section-window","verdict":"relevant","reason":"Direct table match."}]}',
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fake_chat_json)
+
+    answer, trace = generate_answer_with_trace(
+        "Can CV-X482 allocate command 0016 PID 428 in the status bit area?",
+        results,
+    )
+
+    assert answer.answer.startswith("Relevant retrieved table row:")
+    assert "status Bit area | 0016 | PID 428 command | Allocation possible" in answer.answer
+    assert "PIB256" not in answer.answer
+    assert "Total count" not in answer.answer
     assert "filler table row 79" not in answer.answer
-    assert len(answer.answer) < 900
     assert trace["final_answer"]["answer_source"] == "fallback_validation"
 
 

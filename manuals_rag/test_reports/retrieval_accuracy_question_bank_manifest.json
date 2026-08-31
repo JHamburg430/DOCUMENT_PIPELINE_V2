@@ -1,5 +1,9 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "expected_table_cell_binding_missing": 1,
+    "expected_terms_missing": 1,
+    "insufficient_evidence": 1
+  },
   "answer_failure_categories": {
     "expected_evidence_not_cited": 1,
     "expected_terms_missing": 1,
@@ -186,19 +190,41 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "2/2 actual HTTP API answer grounding passed with fallback_validation 2/2 and no answer failure reasons.",
-    "classification": "clean_loaded_http_answer_evidence_after_manual_jsonl_inspection",
-    "current_answer_failures": {},
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_091856.jsonl",
-    "latest_run": "retrieval_eval_20260831_091856",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_091856.json",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_091856. Row 9 visible fallback answer is concise and includes PID 428 plus Allocation possible evidence from cited CV-X chunk 2cd1e40d; row 10 visible fallback answer cites only VS chunk 432e2684 and states that Program Setting Protection restricts selected VS cameras by setting a password and MAC addresses. Citation quote_spans are null, cited returned chunks directly support the expected roles, and no unrelated XG-X/CV-X citations or multiple-document-version warning remain.",
+    "answer_result": "1/2 actual HTTP API answer grounding passed. Row 9 now fails closed with insufficient_evidence, expected_terms_missing, and expected_table_cell_binding_missing; row 10 remains clean fallback_validation evidence.",
+    "classification": "partial_loaded_http_answer_evidence_after_manual_jsonl_inspection",
+    "current_answer_failures": {
+      "expected_table_cell_binding_missing": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
+    },
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_100528.jsonl",
+    "latest_run": "retrieval_eval_20260831_100528",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_100528.json",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_100528. Row 9 query asks whether CV-X482 can allocate command 0016 PID 428 in the status bit area; retrieval returns CV-X chunk 2cd1e40d at rank 1, but the payload correctly answers insufficient evidence with no citations because no retained row segment binds 0016/PID 428/status Bit area to Allocation possible. The answer_evaluation.table_cell_binding check requires [0016, pid, 428, status, area, allocation, possible] in one answer segment and fails row 9 with row_header_and_cell_value_not_bound_in_answer_segment. Row 10 cites VS chunk 432e2684 only and states Program Setting Protection restricts selected VS cameras by password and MAC addresses; the cited chunk directly supports that answer.",
     "max_queries": 2,
     "query_offset": 8,
-    "remaining": "Await guardrail audit of the single-step v2 rows 9-10 answer-quality repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+    "remaining": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
+    "resolved_rows": [
+      {
+        "cited_chunks": [
+          {
+            "chunk_id": "432e2684-c6b3-5718-9826-966110b8f1eb",
+            "pages": [
+              220
+            ],
+            "quote_span": null
+          }
+        ],
+        "classification": "clean_loaded_http_answer_grounding",
+        "evidence": "Cited VS chunk states Program Setting Protection restricts VS cameras that can use the program setting by setting a password and allowed camera MAC addresses.",
+        "query": "How do I limit a saved VS program setting so only selected cameras can use it?",
+        "row": 10,
+        "run": "retrieval_eval_20260831_100528"
+      }
+    ],
     "response_mode": "answer_with_citations",
-    "results": "test_reports/retrieval_eval_results_20260831_091856.jsonl",
-    "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall and metadata-document recall 100%.",
+    "results": "test_reports/retrieval_eval_results_20260831_100528.jsonl",
+    "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall 100%; metadata-document recall 100%.",
     "runtime_load_evidence": {
       "HAYSTACK_RERANK_DEVICE": "cuda:0",
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
@@ -206,29 +232,42 @@
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
       "OLLAMA_URL": "http://host.docker.internal:11434",
-      "_fallback_evidence_results_sha256": "2204873c8271b78e15524a14fc83e7d4f8b82f823edbde7db85c7eb638d2440b",
-      "_focused_table_like_answer_text_sha256": "5fe9da710d62112773c58981a839b3e8ef10de94416fa7cc35772c1c45b287ef",
-      "_is_comparison_query_sha256": "ab7e8571df85ac469570e4ae19cb9fe55c6cf39e2f7f6a6a651234f9d5d6c7f0",
-      "_program_setting_protection_results_sha256": "335a08cba08624f74f0079b3b28ec6908d946788170d5ecfe6154481e976ba03",
-      "api_health": "ok at 2026-08-31T09:18:47Z",
-      "container": "manuals-rag-temp-api-39262386-20260831-rows9-10-fix",
+      "_answer_preserves_expected_table_cell_binding_sha256": "054a510ac256caa6d6e396ac9a2564e9e1f117fa38b73a91327feeb39d5d27ec",
+      "_fallback_answer_sha256": "5e5694134a738af2413fba4f254810363f3ff99c0b649dae101818ce80abe5b4",
+      "_focused_allocation_table_binding_answer_text_sha256": "40d1a1f3a3c8bf64b4037913a406546621fb1735fc8bdb8ce1aed483a0935d88",
+      "_focused_table_like_answer_text_sha256": "7de59339b49afd88664f716e8a5703c33941dc08bcfd0ae9ca38bf33d88b37d3",
+      "api_health": "ok at 2026-08-31T10:04:47Z",
+      "container": "manuals-rag-temp-api-39262386-20260831-tablebinding",
       "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-      "host_api_base": "http://127.0.0.1:8870",
+      "host_api_base": "http://127.0.0.1:8881",
+      "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
       "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
     },
     "search_mode": "http",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-    "status": "single_step_v2_rows_9_10_clean_after_answer_quality_repair",
-    "summary": "test_reports/retrieval_eval_summary_20260831_091856.json",
-    "timestamp": "2026-08-31T09:25:00Z",
+    "status": "single_step_v2_rows_9_10_partial_after_table_binding_containment",
+    "summary": "test_reports/retrieval_eval_summary_20260831_100528.json",
+    "timestamp": "2026-08-31T10:17:00Z",
+    "unresolved_rows": [
+      {
+        "classification": "diagnostic_not_clean_table_cell_binding_missing",
+        "evidence": "Rank-1 CV-X table window contains 0016/PID 428 Total count and separate Allocation possible sibling rows, but no cited/user-visible row binds status Bit area plus 0016 PID 428 to Allocation possible.",
+        "failure_reasons": [
+          "insufficient_evidence",
+          "expected_terms_missing",
+          "expected_table_cell_binding_missing"
+        ],
+        "query": "Can CV-X482 allocate command 0016 PID 428 in the status bit area?",
+        "row": 9,
+        "run": "retrieval_eval_20260831_100528"
+      }
+    ],
     "validation": [
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'validate_answer_adds_conflict_warning_and_citation or table_like_section_window or vs_product_question' -> 3 passed, 101 deselected, 5 warnings.",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'table_like_section_window or vs_product_question' -> 2 passed, 102 deselected, 5 warnings after final allocation-line scoring adjustment.",
-      "Full Docker unit gate passed after copying ignored tmp_eval_docs* fixtures into the clean worktree: 492 passed, 59 warnings.",
-      "Loaded side API on http://127.0.0.1:8870 from clean origin/main worktree; fingerprints and local model settings recorded.",
-      "retrieval_eval_20260831_091114 remains diagnostic because row 10 selected the broader VS settings overview and failed expected_terms_missing.",
-      "retrieval_eval_20260831_091609 remains diagnostic because manual JSONL inspection found row 9 still omitted Allocation possible even though the automated scorer was green.",
-      "Final actual HTTP rerun retrieval_eval_20260831_091856 passed 2/2 retrieval and 2/2 answer grounding; manual JSONL inspection accepted both rows as clean."
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q -k 'sibling_table_allocation_rows or allocation_binding_is_same_row or sibling_table_cell_bindings or same_row_table_cell_binding' -> 4 passed, 220 deselected, 5 warnings.",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> failed only on missing tmp_eval_docs* fixtures in clean worktree: 5 failed, 490 passed, 23 warnings.",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 495 passed, 59 warnings.",
+      "Loaded side API on http://127.0.0.1:8881 from clean origin/main worktree; fingerprints and unchanged local model settings recorded.",
+      "Actual HTTP answer-mode rerun retrieval_eval_20260831_100528: retrieval 2/2, answer 1/2; row 9 fails expected_table_cell_binding_missing and row 10 passes."
     ]
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -630,19 +669,41 @@
     ]
   },
   "answer_grounding_single_step_v2_rows_9_10": {
-    "answer_result": "2/2 actual HTTP API answer grounding passed with fallback_validation 2/2 and no answer failure reasons.",
-    "classification": "clean_loaded_http_answer_evidence_after_manual_jsonl_inspection",
-    "current_answer_failures": {},
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_091856.jsonl",
-    "latest_run": "retrieval_eval_20260831_091856",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_091856.json",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_091856. Row 9 visible fallback answer is concise and includes PID 428 plus Allocation possible evidence from cited CV-X chunk 2cd1e40d; row 10 visible fallback answer cites only VS chunk 432e2684 and states that Program Setting Protection restricts selected VS cameras by setting a password and MAC addresses. Citation quote_spans are null, cited returned chunks directly support the expected roles, and no unrelated XG-X/CV-X citations or multiple-document-version warning remain.",
+    "answer_result": "1/2 actual HTTP API answer grounding passed. Row 9 now fails closed with insufficient_evidence, expected_terms_missing, and expected_table_cell_binding_missing; row 10 remains clean fallback_validation evidence.",
+    "classification": "partial_loaded_http_answer_evidence_after_manual_jsonl_inspection",
+    "current_answer_failures": {
+      "expected_table_cell_binding_missing": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
+    },
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_100528.jsonl",
+    "latest_run": "retrieval_eval_20260831_100528",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_100528.json",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_100528. Row 9 query asks whether CV-X482 can allocate command 0016 PID 428 in the status bit area; retrieval returns CV-X chunk 2cd1e40d at rank 1, but the payload correctly answers insufficient evidence with no citations because no retained row segment binds 0016/PID 428/status Bit area to Allocation possible. The answer_evaluation.table_cell_binding check requires [0016, pid, 428, status, area, allocation, possible] in one answer segment and fails row 9 with row_header_and_cell_value_not_bound_in_answer_segment. Row 10 cites VS chunk 432e2684 only and states Program Setting Protection restricts selected VS cameras by password and MAC addresses; the cited chunk directly supports that answer.",
     "max_queries": 2,
     "query_offset": 8,
-    "remaining": "Await guardrail audit of the single-step v2 rows 9-10 answer-quality repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+    "remaining": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
+    "resolved_rows": [
+      {
+        "cited_chunks": [
+          {
+            "chunk_id": "432e2684-c6b3-5718-9826-966110b8f1eb",
+            "pages": [
+              220
+            ],
+            "quote_span": null
+          }
+        ],
+        "classification": "clean_loaded_http_answer_grounding",
+        "evidence": "Cited VS chunk states Program Setting Protection restricts VS cameras that can use the program setting by setting a password and allowed camera MAC addresses.",
+        "query": "How do I limit a saved VS program setting so only selected cameras can use it?",
+        "row": 10,
+        "run": "retrieval_eval_20260831_100528"
+      }
+    ],
     "response_mode": "answer_with_citations",
-    "results": "test_reports/retrieval_eval_results_20260831_091856.jsonl",
-    "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall and metadata-document recall 100%.",
+    "results": "test_reports/retrieval_eval_results_20260831_100528.jsonl",
+    "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall 100%; metadata-document recall 100%.",
     "runtime_load_evidence": {
       "HAYSTACK_RERANK_DEVICE": "cuda:0",
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
@@ -650,37 +711,54 @@
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
       "OLLAMA_URL": "http://host.docker.internal:11434",
-      "_fallback_evidence_results_sha256": "2204873c8271b78e15524a14fc83e7d4f8b82f823edbde7db85c7eb638d2440b",
-      "_focused_table_like_answer_text_sha256": "5fe9da710d62112773c58981a839b3e8ef10de94416fa7cc35772c1c45b287ef",
-      "_is_comparison_query_sha256": "ab7e8571df85ac469570e4ae19cb9fe55c6cf39e2f7f6a6a651234f9d5d6c7f0",
-      "_program_setting_protection_results_sha256": "335a08cba08624f74f0079b3b28ec6908d946788170d5ecfe6154481e976ba03",
-      "api_health": "ok at 2026-08-31T09:18:47Z",
-      "container": "manuals-rag-temp-api-39262386-20260831-rows9-10-fix",
+      "_answer_preserves_expected_table_cell_binding_sha256": "054a510ac256caa6d6e396ac9a2564e9e1f117fa38b73a91327feeb39d5d27ec",
+      "_fallback_answer_sha256": "5e5694134a738af2413fba4f254810363f3ff99c0b649dae101818ce80abe5b4",
+      "_focused_allocation_table_binding_answer_text_sha256": "40d1a1f3a3c8bf64b4037913a406546621fb1735fc8bdb8ce1aed483a0935d88",
+      "_focused_table_like_answer_text_sha256": "7de59339b49afd88664f716e8a5703c33941dc08bcfd0ae9ca38bf33d88b37d3",
+      "api_health": "ok at 2026-08-31T10:04:47Z",
+      "container": "manuals-rag-temp-api-39262386-20260831-tablebinding",
       "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-      "host_api_base": "http://127.0.0.1:8870",
+      "host_api_base": "http://127.0.0.1:8881",
+      "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
       "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
     },
     "search_mode": "http",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-    "status": "single_step_v2_rows_9_10_clean_after_answer_quality_repair",
-    "summary": "test_reports/retrieval_eval_summary_20260831_091856.json",
-    "timestamp": "2026-08-31T09:25:00Z",
+    "status": "single_step_v2_rows_9_10_partial_after_table_binding_containment",
+    "summary": "test_reports/retrieval_eval_summary_20260831_100528.json",
+    "timestamp": "2026-08-31T10:17:00Z",
+    "unresolved_rows": [
+      {
+        "classification": "diagnostic_not_clean_table_cell_binding_missing",
+        "evidence": "Rank-1 CV-X table window contains 0016/PID 428 Total count and separate Allocation possible sibling rows, but no cited/user-visible row binds status Bit area plus 0016 PID 428 to Allocation possible.",
+        "failure_reasons": [
+          "insufficient_evidence",
+          "expected_terms_missing",
+          "expected_table_cell_binding_missing"
+        ],
+        "query": "Can CV-X482 allocate command 0016 PID 428 in the status bit area?",
+        "row": 9,
+        "run": "retrieval_eval_20260831_100528"
+      }
+    ],
     "validation": [
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'validate_answer_adds_conflict_warning_and_citation or table_like_section_window or vs_product_question' -> 3 passed, 101 deselected, 5 warnings.",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'table_like_section_window or vs_product_question' -> 2 passed, 102 deselected, 5 warnings after final allocation-line scoring adjustment.",
-      "Full Docker unit gate passed after copying ignored tmp_eval_docs* fixtures into the clean worktree: 492 passed, 59 warnings.",
-      "Loaded side API on http://127.0.0.1:8870 from clean origin/main worktree; fingerprints and local model settings recorded.",
-      "retrieval_eval_20260831_091114 remains diagnostic because row 10 selected the broader VS settings overview and failed expected_terms_missing.",
-      "retrieval_eval_20260831_091609 remains diagnostic because manual JSONL inspection found row 9 still omitted Allocation possible even though the automated scorer was green.",
-      "Final actual HTTP rerun retrieval_eval_20260831_091856 passed 2/2 retrieval and 2/2 answer grounding; manual JSONL inspection accepted both rows as clean."
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q -k 'sibling_table_allocation_rows or allocation_binding_is_same_row or sibling_table_cell_bindings or same_row_table_cell_binding' -> 4 passed, 220 deselected, 5 warnings.",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> failed only on missing tmp_eval_docs* fixtures in clean worktree: 5 failed, 490 passed, 23 warnings.",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 495 passed, 59 warnings.",
+      "Loaded side API on http://127.0.0.1:8881 from clean origin/main worktree; fingerprints and unchanged local model settings recorded.",
+      "Actual HTTP answer-mode rerun retrieval_eval_20260831_100528: retrieval 2/2, answer 1/2; row 9 fails expected_table_cell_binding_missing and row 10 passes."
     ]
   },
   "answer_grounding_status": {
-    "current_answer_failures": {},
+    "current_answer_failures": {
+      "expected_table_cell_binding_missing": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
+    },
     "current_retrieval_failures": {},
-    "current_run": "retrieval_eval_20260831_091856",
-    "remaining": "Await guardrail audit of the single-step v2 rows 9-10 answer-quality repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
-    "status": "single_step_v2_rows_9_10_clean_after_answer_quality_repair"
+    "current_run": "retrieval_eval_20260831_100528",
+    "remaining": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
+    "status": "single_step_v2_rows_9_10_partial_after_table_binding_containment"
   },
   "constraints": {
     "allowed_logic": [
@@ -698,7 +776,11 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "expected_table_cell_binding_missing": 1,
+    "expected_terms_missing": 1,
+    "insufficient_evidence": 1
+  },
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -8851,7 +8933,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Await guardrail audit of the single-step v2 rows 9-10 answer-quality repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+  "next_target": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9604,7 +9686,11 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "expected_table_cell_binding_missing": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
+    },
     "answer_failure_categories": {
       "expected_evidence_not_cited": 1,
       "expected_terms_missing": 1,
@@ -9791,19 +9877,41 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "2/2 actual HTTP API answer grounding passed with fallback_validation 2/2 and no answer failure reasons.",
-      "classification": "clean_loaded_http_answer_evidence_after_manual_jsonl_inspection",
-      "current_answer_failures": {},
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_091856.jsonl",
-      "latest_run": "retrieval_eval_20260831_091856",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_091856.json",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_091856. Row 9 visible fallback answer is concise and includes PID 428 plus Allocation possible evidence from cited CV-X chunk 2cd1e40d; row 10 visible fallback answer cites only VS chunk 432e2684 and states that Program Setting Protection restricts selected VS cameras by setting a password and MAC addresses. Citation quote_spans are null, cited returned chunks directly support the expected roles, and no unrelated XG-X/CV-X citations or multiple-document-version warning remain.",
+      "answer_result": "1/2 actual HTTP API answer grounding passed. Row 9 now fails closed with insufficient_evidence, expected_terms_missing, and expected_table_cell_binding_missing; row 10 remains clean fallback_validation evidence.",
+      "classification": "partial_loaded_http_answer_evidence_after_manual_jsonl_inspection",
+      "current_answer_failures": {
+        "expected_table_cell_binding_missing": 1,
+        "expected_terms_missing": 1,
+        "insufficient_evidence": 1
+      },
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_100528.jsonl",
+      "latest_run": "retrieval_eval_20260831_100528",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_100528.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_100528. Row 9 query asks whether CV-X482 can allocate command 0016 PID 428 in the status bit area; retrieval returns CV-X chunk 2cd1e40d at rank 1, but the payload correctly answers insufficient evidence with no citations because no retained row segment binds 0016/PID 428/status Bit area to Allocation possible. The answer_evaluation.table_cell_binding check requires [0016, pid, 428, status, area, allocation, possible] in one answer segment and fails row 9 with row_header_and_cell_value_not_bound_in_answer_segment. Row 10 cites VS chunk 432e2684 only and states Program Setting Protection restricts selected VS cameras by password and MAC addresses; the cited chunk directly supports that answer.",
       "max_queries": 2,
       "query_offset": 8,
-      "remaining": "Await guardrail audit of the single-step v2 rows 9-10 answer-quality repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+      "remaining": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
+      "resolved_rows": [
+        {
+          "cited_chunks": [
+            {
+              "chunk_id": "432e2684-c6b3-5718-9826-966110b8f1eb",
+              "pages": [
+                220
+              ],
+              "quote_span": null
+            }
+          ],
+          "classification": "clean_loaded_http_answer_grounding",
+          "evidence": "Cited VS chunk states Program Setting Protection restricts VS cameras that can use the program setting by setting a password and allowed camera MAC addresses.",
+          "query": "How do I limit a saved VS program setting so only selected cameras can use it?",
+          "row": 10,
+          "run": "retrieval_eval_20260831_100528"
+        }
+      ],
       "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260831_091856.jsonl",
-      "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall and metadata-document recall 100%.",
+      "results": "test_reports/retrieval_eval_results_20260831_100528.jsonl",
+      "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall 100%; metadata-document recall 100%.",
       "runtime_load_evidence": {
         "HAYSTACK_RERANK_DEVICE": "cuda:0",
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
@@ -9811,29 +9919,42 @@
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
         "OLLAMA_URL": "http://host.docker.internal:11434",
-        "_fallback_evidence_results_sha256": "2204873c8271b78e15524a14fc83e7d4f8b82f823edbde7db85c7eb638d2440b",
-        "_focused_table_like_answer_text_sha256": "5fe9da710d62112773c58981a839b3e8ef10de94416fa7cc35772c1c45b287ef",
-        "_is_comparison_query_sha256": "ab7e8571df85ac469570e4ae19cb9fe55c6cf39e2f7f6a6a651234f9d5d6c7f0",
-        "_program_setting_protection_results_sha256": "335a08cba08624f74f0079b3b28ec6908d946788170d5ecfe6154481e976ba03",
-        "api_health": "ok at 2026-08-31T09:18:47Z",
-        "container": "manuals-rag-temp-api-39262386-20260831-rows9-10-fix",
+        "_answer_preserves_expected_table_cell_binding_sha256": "054a510ac256caa6d6e396ac9a2564e9e1f117fa38b73a91327feeb39d5d27ec",
+        "_fallback_answer_sha256": "5e5694134a738af2413fba4f254810363f3ff99c0b649dae101818ce80abe5b4",
+        "_focused_allocation_table_binding_answer_text_sha256": "40d1a1f3a3c8bf64b4037913a406546621fb1735fc8bdb8ce1aed483a0935d88",
+        "_focused_table_like_answer_text_sha256": "7de59339b49afd88664f716e8a5703c33941dc08bcfd0ae9ca38bf33d88b37d3",
+        "api_health": "ok at 2026-08-31T10:04:47Z",
+        "container": "manuals-rag-temp-api-39262386-20260831-tablebinding",
         "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-        "host_api_base": "http://127.0.0.1:8870",
+        "host_api_base": "http://127.0.0.1:8881",
+        "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
         "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
       },
       "search_mode": "http",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-      "status": "single_step_v2_rows_9_10_clean_after_answer_quality_repair",
-      "summary": "test_reports/retrieval_eval_summary_20260831_091856.json",
-      "timestamp": "2026-08-31T09:25:00Z",
+      "status": "single_step_v2_rows_9_10_partial_after_table_binding_containment",
+      "summary": "test_reports/retrieval_eval_summary_20260831_100528.json",
+      "timestamp": "2026-08-31T10:17:00Z",
+      "unresolved_rows": [
+        {
+          "classification": "diagnostic_not_clean_table_cell_binding_missing",
+          "evidence": "Rank-1 CV-X table window contains 0016/PID 428 Total count and separate Allocation possible sibling rows, but no cited/user-visible row binds status Bit area plus 0016 PID 428 to Allocation possible.",
+          "failure_reasons": [
+            "insufficient_evidence",
+            "expected_terms_missing",
+            "expected_table_cell_binding_missing"
+          ],
+          "query": "Can CV-X482 allocate command 0016 PID 428 in the status bit area?",
+          "row": 9,
+          "run": "retrieval_eval_20260831_100528"
+        }
+      ],
       "validation": [
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'validate_answer_adds_conflict_warning_and_citation or table_like_section_window or vs_product_question' -> 3 passed, 101 deselected, 5 warnings.",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'table_like_section_window or vs_product_question' -> 2 passed, 102 deselected, 5 warnings after final allocation-line scoring adjustment.",
-        "Full Docker unit gate passed after copying ignored tmp_eval_docs* fixtures into the clean worktree: 492 passed, 59 warnings.",
-        "Loaded side API on http://127.0.0.1:8870 from clean origin/main worktree; fingerprints and local model settings recorded.",
-        "retrieval_eval_20260831_091114 remains diagnostic because row 10 selected the broader VS settings overview and failed expected_terms_missing.",
-        "retrieval_eval_20260831_091609 remains diagnostic because manual JSONL inspection found row 9 still omitted Allocation possible even though the automated scorer was green.",
-        "Final actual HTTP rerun retrieval_eval_20260831_091856 passed 2/2 retrieval and 2/2 answer grounding; manual JSONL inspection accepted both rows as clean."
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q -k 'sibling_table_allocation_rows or allocation_binding_is_same_row or sibling_table_cell_bindings or same_row_table_cell_binding' -> 4 passed, 220 deselected, 5 warnings.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> failed only on missing tmp_eval_docs* fixtures in clean worktree: 5 failed, 490 passed, 23 warnings.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 495 passed, 59 warnings.",
+        "Loaded side API on http://127.0.0.1:8881 from clean origin/main worktree; fingerprints and unchanged local model settings recorded.",
+        "Actual HTTP answer-mode rerun retrieval_eval_20260831_100528: retrieval 2/2, answer 1/2; row 9 fails expected_table_cell_binding_missing and row 10 passes."
       ]
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10024,19 +10145,41 @@
       ]
     },
     "answer_grounding_single_step_v2_rows_9_10": {
-      "answer_result": "2/2 actual HTTP API answer grounding passed with fallback_validation 2/2 and no answer failure reasons.",
-      "classification": "clean_loaded_http_answer_evidence_after_manual_jsonl_inspection",
-      "current_answer_failures": {},
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_091856.jsonl",
-      "latest_run": "retrieval_eval_20260831_091856",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_091856.json",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_091856. Row 9 visible fallback answer is concise and includes PID 428 plus Allocation possible evidence from cited CV-X chunk 2cd1e40d; row 10 visible fallback answer cites only VS chunk 432e2684 and states that Program Setting Protection restricts selected VS cameras by setting a password and MAC addresses. Citation quote_spans are null, cited returned chunks directly support the expected roles, and no unrelated XG-X/CV-X citations or multiple-document-version warning remain.",
+      "answer_result": "1/2 actual HTTP API answer grounding passed. Row 9 now fails closed with insufficient_evidence, expected_terms_missing, and expected_table_cell_binding_missing; row 10 remains clean fallback_validation evidence.",
+      "classification": "partial_loaded_http_answer_evidence_after_manual_jsonl_inspection",
+      "current_answer_failures": {
+        "expected_table_cell_binding_missing": 1,
+        "expected_terms_missing": 1,
+        "insufficient_evidence": 1
+      },
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_100528.jsonl",
+      "latest_run": "retrieval_eval_20260831_100528",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_100528.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_100528. Row 9 query asks whether CV-X482 can allocate command 0016 PID 428 in the status bit area; retrieval returns CV-X chunk 2cd1e40d at rank 1, but the payload correctly answers insufficient evidence with no citations because no retained row segment binds 0016/PID 428/status Bit area to Allocation possible. The answer_evaluation.table_cell_binding check requires [0016, pid, 428, status, area, allocation, possible] in one answer segment and fails row 9 with row_header_and_cell_value_not_bound_in_answer_segment. Row 10 cites VS chunk 432e2684 only and states Program Setting Protection restricts selected VS cameras by password and MAC addresses; the cited chunk directly supports that answer.",
       "max_queries": 2,
       "query_offset": 8,
-      "remaining": "Await guardrail audit of the single-step v2 rows 9-10 answer-quality repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+      "remaining": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
+      "resolved_rows": [
+        {
+          "cited_chunks": [
+            {
+              "chunk_id": "432e2684-c6b3-5718-9826-966110b8f1eb",
+              "pages": [
+                220
+              ],
+              "quote_span": null
+            }
+          ],
+          "classification": "clean_loaded_http_answer_grounding",
+          "evidence": "Cited VS chunk states Program Setting Protection restricts VS cameras that can use the program setting by setting a password and allowed camera MAC addresses.",
+          "query": "How do I limit a saved VS program setting so only selected cameras can use it?",
+          "row": 10,
+          "run": "retrieval_eval_20260831_100528"
+        }
+      ],
       "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260831_091856.jsonl",
-      "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall and metadata-document recall 100%.",
+      "results": "test_reports/retrieval_eval_results_20260831_100528.jsonl",
+      "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall 100%; metadata-document recall 100%.",
       "runtime_load_evidence": {
         "HAYSTACK_RERANK_DEVICE": "cuda:0",
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
@@ -10044,39 +10187,60 @@
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
         "OLLAMA_URL": "http://host.docker.internal:11434",
-        "_fallback_evidence_results_sha256": "2204873c8271b78e15524a14fc83e7d4f8b82f823edbde7db85c7eb638d2440b",
-        "_focused_table_like_answer_text_sha256": "5fe9da710d62112773c58981a839b3e8ef10de94416fa7cc35772c1c45b287ef",
-        "_is_comparison_query_sha256": "ab7e8571df85ac469570e4ae19cb9fe55c6cf39e2f7f6a6a651234f9d5d6c7f0",
-        "_program_setting_protection_results_sha256": "335a08cba08624f74f0079b3b28ec6908d946788170d5ecfe6154481e976ba03",
-        "api_health": "ok at 2026-08-31T09:18:47Z",
-        "container": "manuals-rag-temp-api-39262386-20260831-rows9-10-fix",
+        "_answer_preserves_expected_table_cell_binding_sha256": "054a510ac256caa6d6e396ac9a2564e9e1f117fa38b73a91327feeb39d5d27ec",
+        "_fallback_answer_sha256": "5e5694134a738af2413fba4f254810363f3ff99c0b649dae101818ce80abe5b4",
+        "_focused_allocation_table_binding_answer_text_sha256": "40d1a1f3a3c8bf64b4037913a406546621fb1735fc8bdb8ce1aed483a0935d88",
+        "_focused_table_like_answer_text_sha256": "7de59339b49afd88664f716e8a5703c33941dc08bcfd0ae9ca38bf33d88b37d3",
+        "api_health": "ok at 2026-08-31T10:04:47Z",
+        "container": "manuals-rag-temp-api-39262386-20260831-tablebinding",
         "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-        "host_api_base": "http://127.0.0.1:8870",
+        "host_api_base": "http://127.0.0.1:8881",
+        "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
         "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
       },
       "search_mode": "http",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-      "status": "single_step_v2_rows_9_10_clean_after_answer_quality_repair",
-      "summary": "test_reports/retrieval_eval_summary_20260831_091856.json",
-      "timestamp": "2026-08-31T09:25:00Z",
+      "status": "single_step_v2_rows_9_10_partial_after_table_binding_containment",
+      "summary": "test_reports/retrieval_eval_summary_20260831_100528.json",
+      "timestamp": "2026-08-31T10:17:00Z",
+      "unresolved_rows": [
+        {
+          "classification": "diagnostic_not_clean_table_cell_binding_missing",
+          "evidence": "Rank-1 CV-X table window contains 0016/PID 428 Total count and separate Allocation possible sibling rows, but no cited/user-visible row binds status Bit area plus 0016 PID 428 to Allocation possible.",
+          "failure_reasons": [
+            "insufficient_evidence",
+            "expected_terms_missing",
+            "expected_table_cell_binding_missing"
+          ],
+          "query": "Can CV-X482 allocate command 0016 PID 428 in the status bit area?",
+          "row": 9,
+          "run": "retrieval_eval_20260831_100528"
+        }
+      ],
       "validation": [
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'validate_answer_adds_conflict_warning_and_citation or table_like_section_window or vs_product_question' -> 3 passed, 101 deselected, 5 warnings.",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'table_like_section_window or vs_product_question' -> 2 passed, 102 deselected, 5 warnings after final allocation-line scoring adjustment.",
-        "Full Docker unit gate passed after copying ignored tmp_eval_docs* fixtures into the clean worktree: 492 passed, 59 warnings.",
-        "Loaded side API on http://127.0.0.1:8870 from clean origin/main worktree; fingerprints and local model settings recorded.",
-        "retrieval_eval_20260831_091114 remains diagnostic because row 10 selected the broader VS settings overview and failed expected_terms_missing.",
-        "retrieval_eval_20260831_091609 remains diagnostic because manual JSONL inspection found row 9 still omitted Allocation possible even though the automated scorer was green.",
-        "Final actual HTTP rerun retrieval_eval_20260831_091856 passed 2/2 retrieval and 2/2 answer grounding; manual JSONL inspection accepted both rows as clean."
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q -k 'sibling_table_allocation_rows or allocation_binding_is_same_row or sibling_table_cell_bindings or same_row_table_cell_binding' -> 4 passed, 220 deselected, 5 warnings.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> failed only on missing tmp_eval_docs* fixtures in clean worktree: 5 failed, 490 passed, 23 warnings.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only api python -m pytest tests/unit -q -> 495 passed, 59 warnings.",
+        "Loaded side API on http://127.0.0.1:8881 from clean origin/main worktree; fingerprints and unchanged local model settings recorded.",
+        "Actual HTTP answer-mode rerun retrieval_eval_20260831_100528: retrieval 2/2, answer 1/2; row 9 fails expected_table_cell_binding_missing and row 10 passes."
       ]
     },
     "answer_grounding_status": {
-      "current_answer_failures": {},
+      "current_answer_failures": {
+        "expected_table_cell_binding_missing": 1,
+        "expected_terms_missing": 1,
+        "insufficient_evidence": 1
+      },
       "current_retrieval_failures": {},
-      "current_run": "retrieval_eval_20260831_091856",
-      "remaining": "Await guardrail audit of the single-step v2 rows 9-10 answer-quality repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
-      "status": "single_step_v2_rows_9_10_clean_after_answer_quality_repair"
+      "current_run": "retrieval_eval_20260831_100528",
+      "remaining": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
+      "status": "single_step_v2_rows_9_10_partial_after_table_binding_containment"
     },
-    "current_answer_failure_categories": {},
+    "current_answer_failure_categories": {
+      "expected_table_cell_binding_missing": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
+    },
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -12198,7 +12362,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Await guardrail audit of the single-step v2 rows 9-10 answer-quality repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+    "next_target": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12235,7 +12399,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await guardrail audit of the single-step v2 rows 9-10 answer-quality repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+    "remaining": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12648,6 +12812,16 @@
         "reason": "diagnostic intermediate run before final allocation-line scoring; row 9 automated score was green but the visible answer omitted Allocation possible.",
         "run_id": "retrieval_eval_20260831_091609",
         "scope": "curated single-step v2 rows 9-10"
+      },
+      {
+        "reason": "guardrail 2026-08-31T09:35:14Z false positive: row 9 answer combined 0016/PID 428 Total count with separate Allocation possible sibling rows instead of preserving row/cell binding.",
+        "run_id": "retrieval_eval_20260831_091856",
+        "scope": "curated single-step v2 row 9 and combined rows 9-10 clean answer claim"
+      },
+      {
+        "reason": "post-containment rerun correctly fails row 9 as expected_table_cell_binding_missing/insufficient_evidence while preserving row 10 clean; do not count the combined two-row batch as clean.",
+        "run_id": "retrieval_eval_20260831_100528",
+        "scope": "curated single-step v2 row 9 and combined rows 9-10 clean answer claim only; row 10 remains source-reviewed clean evidence"
       }
     ],
     "single_step_questions": 101,
@@ -13347,11 +13521,25 @@
         "severity": "needs_fix",
         "source": "cron_39262386_row8_source_review",
         "timestamp": "2026-08-31T04:59:40Z"
+      },
+      {
+        "evidence": [
+          "Added production fallback guard so allocation table questions require one retained row segment that binds row identifiers and Allocation possible; otherwise fallback returns insufficient evidence.",
+          "Added eval scorer table-cell binding check derived from Row headers and Cell value expected snippets; sibling-row term aggregation now fails expected_table_cell_binding_missing.",
+          "Focused controls passed for sibling-row adverse and same-row positive cases in production answering and eval scoring.",
+          "Full unit gate passed with tmp_eval_docs* fixtures mounted read-only: 495 passed, 59 warnings.",
+          "Loaded actual HTTP rerun retrieval_eval_20260831_100528 passed retrieval 2/2 and answer 1/2; row 9 now fails closed with expected_table_cell_binding_missing and row 10 remains clean."
+        ],
+        "finding": "Guardrail found retrieval_eval_20260831_091856 row 9 was a false clean claim because the answer aggregated terms from sibling table rows instead of preserving the requested CV-X482 0016 PID 428 status-bit Allocation possible row/cell binding.",
+        "required_next_action": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
+        "severity": "needs_fix",
+        "status": "partially_addressed_this_run_table_cell_binding_containment",
+        "timestamp": "2026-08-31T09:35:14Z"
       }
     ],
-    "updated_at": "2026-08-31T09:25:00Z"
+    "updated_at": "2026-08-31T10:17:00Z"
   },
-  "remaining": "Await guardrail audit of the single-step v2 rows 9-10 answer-quality repair, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+  "remaining": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -13764,6 +13952,16 @@
       "reason": "diagnostic intermediate run before final allocation-line scoring; row 9 automated score was green but the visible answer omitted Allocation possible.",
       "run_id": "retrieval_eval_20260831_091609",
       "scope": "curated single-step v2 rows 9-10"
+    },
+    {
+      "reason": "guardrail 2026-08-31T09:35:14Z false positive: row 9 answer combined 0016/PID 428 Total count with separate Allocation possible sibling rows instead of preserving row/cell binding.",
+      "run_id": "retrieval_eval_20260831_091856",
+      "scope": "curated single-step v2 row 9 and combined rows 9-10 clean answer claim"
+    },
+    {
+      "reason": "post-containment rerun correctly fails row 9 as expected_table_cell_binding_missing/insufficient_evidence while preserving row 10 clean; do not count the combined two-row batch as clean.",
+      "run_id": "retrieval_eval_20260831_100528",
+      "scope": "curated single-step v2 row 9 and combined rows 9-10 clean answer claim only; row 10 remains source-reviewed clean evidence"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -14462,7 +14660,21 @@
       "severity": "needs_fix",
       "source": "cron_39262386_row8_source_review",
       "timestamp": "2026-08-31T04:59:40Z"
+    },
+    {
+      "evidence": [
+        "Added production fallback guard so allocation table questions require one retained row segment that binds row identifiers and Allocation possible; otherwise fallback returns insufficient evidence.",
+        "Added eval scorer table-cell binding check derived from Row headers and Cell value expected snippets; sibling-row term aggregation now fails expected_table_cell_binding_missing.",
+        "Focused controls passed for sibling-row adverse and same-row positive cases in production answering and eval scoring.",
+        "Full unit gate passed with tmp_eval_docs* fixtures mounted read-only: 495 passed, 59 warnings.",
+        "Loaded actual HTTP rerun retrieval_eval_20260831_100528 passed retrieval 2/2 and answer 1/2; row 9 now fails closed with expected_table_cell_binding_missing and row 10 remains clean."
+      ],
+      "finding": "Guardrail found retrieval_eval_20260831_091856 row 9 was a false clean claim because the answer aggregated terms from sibling table rows instead of preserving the requested CV-X482 0016 PID 428 status-bit Allocation possible row/cell binding.",
+      "required_next_action": "Repair curated single-step v2 row 9 table-cell answer evidence: retrieval finds the CV-X table window at rank 1, but no cited/user-visible row currently binds status Bit area, 0016 PID 428, and Allocation possible. Preserve row 10 clean evidence from retrieval_eval_20260831_100528.",
+      "severity": "needs_fix",
+      "status": "partially_addressed_this_run_table_cell_binding_containment",
+      "timestamp": "2026-08-31T09:35:14Z"
     }
   ],
-  "updated_at": "2026-08-31T09:25:00Z"
+  "updated_at": "2026-08-31T10:17:00Z"
 }

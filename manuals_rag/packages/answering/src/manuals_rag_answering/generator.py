@@ -665,7 +665,51 @@ def _focused_table_record_answer_text(query: str, result: SearchResult) -> str:
     return best_row
 
 
+def _requires_allocation_table_binding(query: str) -> bool:
+    answer_terms = _answer_terms(query)
+    query_terms = _material_claim_terms(query)
+    if not {"allocate", "allocation"}.intersection(query_terms):
+        return False
+    if not ({"can", "could", "possible"}.intersection(answer_terms) or "possible" in query_terms):
+        return False
+    binding_terms = {
+        term
+        for term in query_terms
+        if term.isdigit() or term in {"status", "area", "pid", "command"}
+    }
+    return len(binding_terms) >= 2
+
+
+def _focused_allocation_table_binding_answer_text(query: str, result: SearchResult) -> str:
+    if not _requires_allocation_table_binding(query):
+        return ""
+    evidence = _fallback_answer_text(result)
+    if len(evidence) < 1200 or "|" not in evidence:
+        return ""
+    query_terms = _material_claim_terms(query)
+    query_binding_terms = {
+        term
+        for term in query_terms
+        if term.isdigit() or term in {"status", "area", "pid", "command"}
+    }
+    required_binding_terms = query_binding_terms | {"allocation", "possible"}
+    for raw_line in evidence.splitlines():
+        if "|" not in raw_line:
+            continue
+        line = raw_line.strip(" |")
+        line_terms = _material_claim_terms(line)
+        if required_binding_terms.issubset(line_terms):
+            return "Relevant retrieved table row:\n- " + line
+    return ""
+
+
 def _focused_table_like_answer_text(query: str, result: SearchResult) -> str:
+    allocation_binding_answer = _focused_allocation_table_binding_answer_text(query, result)
+    if allocation_binding_answer:
+        return allocation_binding_answer
+    if _requires_allocation_table_binding(query):
+        return ""
+
     evidence = _fallback_answer_text(result)
     if len(evidence) < 1200 or "|" not in evidence:
         return ""
@@ -1084,6 +1128,18 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             insufficient_evidence=True,
         )
     top = fallback_results[0]
+    if _requires_allocation_table_binding(query) and not any(
+        _focused_allocation_table_binding_answer_text(query, result) for result in fallback_results
+    ):
+        return AnswerResponse(
+            answer="I could not answer from the available evidence.",
+            confidence="low",
+            used_documents=[],
+            citations=[],
+            warnings=["No retrieved evidence preserved the requested table row/cell binding."],
+            followup_questions=[],
+            insufficient_evidence=True,
+        )
     if len(fallback_results) == 1:
         answer_text = (
             _matching_troubleshooting_row_text(query, top)

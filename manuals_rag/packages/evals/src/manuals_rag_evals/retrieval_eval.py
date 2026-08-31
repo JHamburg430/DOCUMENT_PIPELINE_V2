@@ -2744,6 +2744,57 @@ def _answer_contains_expected_terms(
     }
 
 
+def _answer_preserves_expected_table_cell_binding(case: RetrievalEvalCase, answer: dict[str, Any]) -> dict[str, Any]:
+    snippet = str(case.expected_snippet or "")
+    if "Cell value:" not in snippet or "Row headers:" not in snippet:
+        return {"checked": False, "passed": True, "missing_bindings": []}
+    cell_match = re.search(r"Cell value:\s*([^;]+)", snippet, flags=re.I)
+    row_match = re.search(r"Row headers:\s*([^;]+)", snippet, flags=re.I)
+    if not cell_match or not row_match:
+        return {"checked": False, "passed": True, "missing_bindings": []}
+    row_terms = [
+        term
+        for term in tokenize(row_match.group(1))
+        if term.isdigit() or term in {"status", "area", "pid", "command"}
+    ]
+    cell_terms = [
+        term
+        for term in tokenize(cell_match.group(1))
+        if term not in STOPWORDS and term not in ANSWER_SCORING_GENERIC_TERMS
+    ]
+    required_terms = []
+    seen: set[str] = set()
+    for term in [*row_terms, *cell_terms]:
+        if term not in seen:
+            seen.add(term)
+            required_terms.append(term)
+    if len(required_terms) < 3:
+        return {"checked": False, "passed": True, "missing_bindings": []}
+    answer_text = str(answer.get("answer") or "")
+    segments = [
+        segment
+        for segment in re.split(r"\n+|(?<=;)\s+|(?<=\.)\s+", answer_text)
+        if segment.strip()
+    ]
+    for segment in segments:
+        segment_lower = segment.lower()
+        segment_tokens = set(tokenize(segment_lower))
+        if all(_expected_term_matches_text(term, segment_lower, segment_tokens) for term in required_terms):
+            return {"checked": True, "passed": True, "required_terms": required_terms, "missing_bindings": []}
+    return {
+        "checked": True,
+        "passed": False,
+        "required_terms": required_terms,
+        "missing_bindings": [
+            {
+                "row_terms": row_terms,
+                "cell_terms": cell_terms,
+                "reason": "row_header_and_cell_value_not_bound_in_answer_segment",
+            }
+        ],
+    }
+
+
 def _answer_scoring_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
     if not case.expected_evidence:
         specific_terms = _scorable_answer_terms(case.expected_terms, case.expected_snippet)
@@ -3583,6 +3634,7 @@ def score_answer_response(
             llm_required_info = {"checked": False, "error": f"{exc.__class__.__name__}: {exc}"}
     citation_fidelity = _answer_citation_fidelity(answer, retrieved_results)
     evidence_citation_support = _expected_evidence_citation_support(case, answer, retrieved_results)
+    table_cell_binding = _answer_preserves_expected_table_cell_binding(case, answer)
     answer_text = str(answer.get("answer") or "").strip()
     passed = bool(
         answer_text
@@ -3591,6 +3643,7 @@ def score_answer_response(
         and terms["passed"]
         and citation_fidelity["passed"]
         and evidence_citation_support["passed"]
+        and table_cell_binding["passed"]
     )
     failure_reasons: list[str] = []
     if not answer_text:
@@ -3605,6 +3658,8 @@ def score_answer_response(
         failure_reasons.append("unsupported_citation_quote")
     if not evidence_citation_support["passed"]:
         failure_reasons.append("expected_evidence_not_cited")
+    if not table_cell_binding["passed"]:
+        failure_reasons.append("expected_table_cell_binding_missing")
     if retrieval_evaluation and not retrieval_evaluation.get("passed"):
         failure_reasons.append("retrieval_not_passed")
     return {
@@ -3618,5 +3673,6 @@ def score_answer_response(
         "term_check": terms,
         "citation_fidelity": citation_fidelity,
         "evidence_citation_support": evidence_citation_support,
+        "table_cell_binding": table_cell_binding,
         "llm_required_information": llm_required_info,
     }
