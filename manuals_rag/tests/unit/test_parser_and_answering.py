@@ -2727,6 +2727,10 @@ def _validate_quantity_answer(answer_text: str, results: list[SearchResult]) -> 
     )
 
 
+def _validate_quantity_answer_for_query(answer_text: str, results: list[SearchResult], query: str) -> AnswerResponse:
+    return validate_answer(_quantity_answer(answer_text), results, query=query)
+
+
 def test_validate_answer_falls_back_for_wrong_quantity_role_values():
     results = [
         _quantity_result(
@@ -2848,6 +2852,76 @@ def test_validate_answer_binds_quantity_role_alias_values():
     assert any("not sufficiently supported" in warning for warning in swapped.warnings)
     assert "23 lines and two overlap" not in total_as_line.answer
     assert any("not sufficiently supported" in warning for warning in total_as_line.warnings)
+
+
+def test_validate_answer_selects_query_scoped_quantity_group_when_wrong_sibling_first():
+    results = [
+        _quantity_result(
+            content=(
+                "Other model settings Line Count 12 Overlap Count four. "
+                "Current model uses Line Count 10 Overlap Count two."
+            ),
+        ),
+    ]
+
+    correct = _validate_quantity_answer_for_query(
+        "The current model uses 10 lines and two overlap lines.",
+        results,
+        "For the current model, what line count and overlap count does the timing description use?",
+    )
+    wrong_sibling = _validate_quantity_answer_for_query(
+        "The current model uses 12 lines and four overlap lines.",
+        results,
+        "For the current model, what line count and overlap count does the timing description use?",
+    )
+
+    assert correct.answer == "The current model uses 10 lines and two overlap lines."
+    assert not any("not sufficiently supported" in warning for warning in correct.warnings)
+    assert "Current model uses Line Count 10" in wrong_sibling.answer
+    assert "12 lines and four overlap" not in wrong_sibling.answer
+    assert any("not sufficiently supported" in warning for warning in wrong_sibling.warnings)
+
+
+def test_validate_answer_rejects_wrong_sibling_quantity_group_when_wrong_sibling_second():
+    results = [
+        _quantity_result(
+            content=(
+                "Current model uses Line Count 10 Overlap Count two. "
+                "Other model settings Line Count 12 Overlap Count four."
+            ),
+        ),
+    ]
+
+    validated = _validate_quantity_answer_for_query(
+        "The current model uses 12 lines and four overlap lines.",
+        results,
+        "For the current model, what line count and overlap count does the timing description use?",
+    )
+
+    assert "Current model uses Line Count 10" in validated.answer
+    assert "12 lines and four overlap" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_validate_answer_falls_back_for_ambiguous_sibling_quantity_groups():
+    results = [
+        _quantity_result(
+            content=(
+                "Other model settings Line Count 12 Overlap Count four. "
+                "Current model uses Line Count 10 Overlap Count two."
+            ),
+        ),
+    ]
+
+    validated = _validate_quantity_answer_for_query(
+        "The example uses 12 lines and four overlap lines.",
+        results,
+        "What line count and overlap count does the timing description use?",
+    )
+
+    assert validated.insufficient_evidence is False
+    assert "12 lines and four overlap" not in validated.answer
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
 def test_validate_answer_falls_back_for_quantity_cross_clause_role_mixing():

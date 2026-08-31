@@ -330,14 +330,18 @@ def _add_quantity_role_value(role_values: dict[str, set[str]], role: str, value:
 
 def _quantity_role_values(text: str) -> dict[str, set[str]]:
     role_values: dict[str, set[str]] = {}
-    for clause_values in _quantity_role_value_groups(text):
+    for clause_values, _clause in _quantity_role_value_group_records(text):
         for role, values in clause_values.items():
             role_values.setdefault(role, set()).update(values)
     return role_values
 
 
 def _quantity_role_value_groups(text: str) -> list[dict[str, set[str]]]:
-    groups: list[dict[str, set[str]]] = []
+    return [role_values for role_values, _clause in _quantity_role_value_group_records(text)]
+
+
+def _quantity_role_value_group_records(text: str) -> list[tuple[dict[str, set[str]], str]]:
+    groups: list[tuple[dict[str, set[str]], str]] = []
     quantity_value_pattern = _quantity_value_pattern()
     for clause in _quantity_relation_clauses(text):
         role_values: dict[str, set[str]] = {}
@@ -362,8 +366,37 @@ def _quantity_role_value_groups(text: str) -> list[dict[str, set[str]]]:
                     continue
                 _add_quantity_role_value(role_values, role, match.group(1))
         if role_values:
-            groups.append(role_values)
+            groups.append((role_values, clause))
     return groups
+
+
+QUANTITY_SCOPE_STOP_TERMS = {
+    "and",
+    "count",
+    "counts",
+    "does",
+    "example",
+    "for",
+    "head",
+    "how",
+    "line",
+    "lines",
+    "many",
+    "mode",
+    "number",
+    "of",
+    "overlap",
+    "overlapping",
+    "the",
+    "use",
+    "uses",
+    "what",
+    "with",
+}
+
+
+def _quantity_scope_terms(text: str) -> set[str]:
+    return _answer_terms(text).difference(QUANTITY_SCOPE_STOP_TERMS)
 
 
 def _quantity_role_value_match_crosses_role(clause: str, match: re.Match[str], role: str) -> bool:
@@ -418,31 +451,49 @@ def _answer_addresses_quantity_request(answer: str, query: str, results: list[Se
     if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
         return True
     query_terms = _answer_terms(query)
+    query_scope_terms = _quantity_scope_terms(query)
     requested_roles = _requested_quantity_roles(query)
     answer_role_values = _quantity_role_values(answer)
-    candidate_role_values: list[dict[str, set[str]]] = []
+    candidate_role_values: list[tuple[dict[str, set[str]], int]] = []
     saw_partial_requested_role_evidence = False
     answer_quantities = _contextual_quantity_terms(answer)
     candidate_quantities: set[str] = set()
     for result in results[:8]:
         evidence = _fallback_answer_text(result)
         quantities = _contextual_quantity_terms(evidence)
-        evidence_role_values = _quantity_role_values(evidence)
-        evidence_role_value_groups = _quantity_role_value_groups(evidence)
-        if not quantities and not evidence_role_values:
+        evidence_role_value_groups = _quantity_role_value_group_records(evidence)
+        if not quantities and not evidence_role_value_groups:
             continue
         overlap = len(query_terms.intersection(_answer_terms(evidence)))
         if requested_roles:
-            for group in evidence_role_value_groups:
+            for group, clause in evidence_role_value_groups:
                 role_values = {role: values for role, values in group.items() if role in requested_roles and values}
                 if role_values:
                     saw_partial_requested_role_evidence = True
                 if requested_roles.issubset(role_values):
-                    candidate_role_values.append(role_values)
+                    scope_score = len(query_scope_terms.intersection(_quantity_scope_terms(clause)))
+                    candidate_role_values.append((role_values, scope_score))
         if overlap >= 3:
             candidate_quantities.update(quantities)
     if candidate_role_values:
-        role_values = candidate_role_values[0]
+        distinct_value_sets = {
+            tuple((role, tuple(sorted(values))) for role, values in sorted(role_values.items()))
+            for role_values, _scope_score in candidate_role_values
+        }
+        if len(distinct_value_sets) > 1:
+            best_scope_score = max(scope_score for _role_values, scope_score in candidate_role_values)
+            best_candidates = [
+                role_values for role_values, scope_score in candidate_role_values if scope_score == best_scope_score
+            ]
+            best_value_sets = {
+                tuple((role, tuple(sorted(values))) for role, values in sorted(role_values.items()))
+                for role_values in best_candidates
+            }
+            if best_scope_score == 0 or len(best_value_sets) > 1:
+                return False
+            role_values = best_candidates[0]
+        else:
+            role_values = candidate_role_values[0][0]
         return all(answer_role_values.get(role, set()).intersection(values) for role, values in role_values.items())
     if requested_roles and saw_partial_requested_role_evidence:
         return False
