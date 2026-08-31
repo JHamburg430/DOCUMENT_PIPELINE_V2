@@ -464,6 +464,18 @@ def test_table_lexical_content_terms_ignore_generic_value_and_keep_only_strong_f
     assert "mdata9" in symbol_terms
 
 
+def test_table_lexical_terms_include_diagnostic_codes_for_troubleshooting_tables():
+    query = "On MOD-600, what does error A-14 indicate, and what field-network settings should I check?"
+    analysis = analyze_query(query)
+
+    assert retriever._should_run_table_lexical_search(analysis) is True
+    terms = retriever._lexical_table_terms(query, analysis)
+
+    assert "a14" in terms
+    assert "fieldnetwork" in terms
+    assert "mod600" in terms
+
+
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():
     analysis = analyze_query("What does LJ-X8000 say about trigger timing?")
     first = SearchResult(
@@ -1209,6 +1221,67 @@ def test_select_family_candidates_prefers_table_family_for_structured_lookup():
 
     assert chosen[0].chunk_id == "table"
     assert "prose" not in [item.chunk_id for item in chosen]
+
+
+def test_select_family_candidates_keeps_tables_for_diagnostic_code_questions():
+    analysis = analyze_query("On MOD-600, what does error A-14 indicate, and what field-network settings should I check?")
+    heading = SearchResult(
+        chunk_id="heading",
+        score=0.9,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[5],
+        section_path=["Errors"],
+        content="A-14",
+        metadata={"chunk_type": "section_window", "family_bucket": "context"},
+    )
+    table = SearchResult(
+        chunk_id="table",
+        score=0.7,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[6],
+        section_path=["Errors"],
+        content="PWR/ERR indicator status: A buffer overrun occurred. Cause: Disable handshake control for field networks.",
+        metadata={"chunk_type": "table_record", "family_bucket": "table"},
+    )
+
+    chosen = retriever._select_family_candidates([heading, table], analysis, limit=4)
+
+    assert chosen[0].chunk_id == "table"
+
+
+def test_diagnostic_table_promotion_keeps_source_bearing_rows_before_headings():
+    analysis = analyze_query("On MOD-600, what does error A-14 indicate, and what field-network settings should I check?")
+    heading = SearchResult(
+        chunk_id="heading",
+        score=4.0,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[5],
+        section_path=["Errors"],
+        content="A-14",
+        metadata={"chunk_type": "section_window"},
+    )
+    table = SearchResult(
+        chunk_id="table",
+        score=1.0,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[6],
+        section_path=["Errors"],
+        content="PWR/ERR indicator status: A buffer overrun occurred. Cause: Disable handshake control for field networks.",
+        metadata={"chunk_type": "table_record", "table_key_value": True},
+    )
+
+    promoted = retriever._promote_diagnostic_table_candidates([heading], [table], analysis, limit=4)
+
+    assert promoted[0].chunk_id == "table"
+    assert promoted[0].metadata["retrieval_stage"] == "diagnostic_table_promoted"
 
 
 def test_direct_configuration_promotion_prefers_scoped_detail_candidate():
