@@ -62,6 +62,7 @@ def _minimal_manifest():
         "answer_grounding_contextual_rows_19_20": {"status": "diagnostic"},
         "answer_grounding_sibling_rows_15_16": {"status": "diagnostic"},
         "answer_grounding_single_step_v2_rows_5_6": {"status": "diagnostic"},
+        "answer_grounding_single_step_v2_rows_7_8": {"status": "diagnostic"},
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
         "failure_categories": retrieval_failures,
@@ -428,6 +429,7 @@ def test_manifest_checker_rejects_missing_or_unequal_late_current_state_pairs():
         "answer_grounding_contextual_rows_19_20",
         "answer_grounding_sibling_rows_15_16",
         "answer_grounding_single_step_v2_rows_5_6",
+        "answer_grounding_single_step_v2_rows_7_8",
         "updated_at",
     ]
 

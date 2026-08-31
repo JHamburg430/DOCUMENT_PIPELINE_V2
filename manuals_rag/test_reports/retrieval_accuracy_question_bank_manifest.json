@@ -1,5 +1,7 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "insufficient_evidence": 1
+  },
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
@@ -182,16 +184,17 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "contextual row 20 source-reviewed repair: retrieval 1/1 at rank 1, answer 1/1, fallback_validation 1, no answer failures; row 19 remains clean from retrieval_eval_20260831_024624.",
-    "classification": "clean_source_reviewed_contextual_rows_19_20_complete",
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_0351_contextual_row20_source_equivalence.jsonl",
-    "latest_run": "retrieval_eval_20260831_035453",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_035453.json",
-    "next_target": "Continue the broader source-reviewed contextual answer-grounding rotation with the next validated slice, preserving the row 20 procedure-membership repair and existing quantity/citation/comparison guardrail controls.",
-    "results": "test_reports/retrieval_eval_results_20260831_035453.jsonl",
-    "run_dataset": "test_reports/retrieval_eval_dataset_20260831_035453.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260831_035453.json",
-    "timestamp": "2026-08-31T04:02:48Z"
+    "answer_result": "1/2 actual HTTP answers passed. Row 7 passed via fallback_validation; row 8 failed insufficient_evidence with API answer and no citations.",
+    "classification": "diagnostic_mixed_single_step_v2_rows_7_8",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_041716.jsonl",
+    "latest_run": "retrieval_eval_20260831_041716",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_041716.json",
+    "next_target": "Source-review and repair curated single-step v2 row 8 answer evidence: verify the A-14 PWR/ERR/status-indicator source relationship, then rerun a corrected user-style row or make a general answer-evidence fix only if the source review proves the current question is valid.",
+    "results": "test_reports/retrieval_eval_results_20260831_041716.jsonl",
+    "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall 100% and metadata-document recall 100%.",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260831_041716.json",
+    "timestamp": "2026-08-31T04:20:28Z"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -540,7 +543,46 @@
       "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
     ]
   },
-  "answer_grounding_status": "2026-08-31 contextual rows 19-20 are source-reviewed clean: row 19 remains accepted from retrieval_eval_20260831_024624 via same-source composite citation 683408b9, and row 20 is repaired by retrieval_eval_20260831_035453 using a source-reviewed direct procedure-membership dataset and cited chunk bcd2f24e.",
+  "answer_grounding_single_step_v2_rows_7_8": {
+    "answer_result": "1/2 actual HTTP answers passed. Row 7 passed via fallback_validation; row 8 failed insufficient_evidence with API answer and no citations.",
+    "classification": "row_7_clean_row_8_diagnostic_insufficient_evidence",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_041716.jsonl",
+    "latest_run": "retrieval_eval_20260831_041716",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_041716.json",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_041716. Row 7 user-visible fallback answer cites parent_section chunk c0e08b45 with quote_span null; persisted cited content states that when Internal Trigger Control/AI Trigger Control is enabled and a trigger cannot be input, press Trigger ON to take an image temporarily using the internal trigger. Row 8 asks for the IV4-G600CA PWR/ERR condition for A-14; retrieval was scored green through same-section term overlap, but top returned/cited answer evidence focused on A-15 indicator-light footnotes and the API answer said only A-15 evidence was available, with no citations. Treat row 8 as diagnostic/not-clean pending source review of the expected A-14 row and whether the question should ask for the error/status condition rather than a light condition.",
+    "max_queries": 2,
+    "query_offset": 6,
+    "remaining": "Source-review curated single-step v2 row 8 before production tuning. Verify the A-14 source row, the PWR/ERR/status-indicator footnote relationship, and whether the user-visible query uniquely asks for answerable evidence. Then either repair the user-style question/expected evidence or fix general answer evidence selection so A-14 status evidence is cited and stated.",
+    "response_mode": "answer_with_citations",
+    "results": "test_reports/retrieval_eval_results_20260831_041716.jsonl",
+    "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall 100% and metadata-document recall 100%.",
+    "runtime_load_evidence": {
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+      "_fallback_evidence_results_sha256": "2d7c829204a1c43731a54e4bf409c7ccbe170530858bfe70738b0c3b6ba32acf",
+      "api_health": "ok at 2026-08-31T04:16:21.462643",
+      "api_main_file_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+      "container": "manuals-rag-temp-api-39262386-20260831-single-v2-7-8",
+      "container_id": "342eb68debf45d53a47017aecbe707fd07d48112d36548b4cdb7b2c4e5177814",
+      "generator_file_sha256": "c230387f2b2a57a986beef12daeea67e06fc3ce88a8682232cc24b1202d2e8ad",
+      "host_api_base": "http://127.0.0.1:8810",
+      "retrieval_eval_file_sha256": "0d887091d730da7492214460968e8c42eecf270e29b31fa2cb62420eb80b1bc1",
+      "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
+      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+      "validate_answer_sha256": "79d7d864fd3c317456f097a0bb93fd48265b00eead25c9cdbe3a1a4f48890469"
+    },
+    "search_mode": "http",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+    "status": "diagnostic_mixed_single_step_v2_rows_7_8",
+    "summary": "test_reports/retrieval_eval_summary_20260831_041716.json",
+    "timestamp": "2026-08-31T04:20:28Z"
+  },
+  "answer_grounding_status": "2026-08-31 single-step v2 rows 7-8 diagnostic rotation: row 7 is clean fallback_validation trigger-control evidence from retrieval_eval_20260831_041716; row 8 remains insufficient_evidence/source-review-pending for the IV4-G600CA A-14 PWR/ERR condition.",
   "constraints": {
     "allowed_logic": [
       "retrieval",
@@ -557,7 +599,9 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "insufficient_evidence": 1
+  },
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -8710,7 +8754,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Continue the broader source-reviewed contextual answer-grounding rotation with the next validated slice, preserving the row 20 procedure-membership repair and existing quantity/citation/comparison guardrail controls.",
+  "next_target": "Source-review and repair curated single-step v2 row 8 answer evidence: verify the A-14 PWR/ERR/status-indicator source relationship, then rerun a corrected user-style row or make a general answer-evidence fix only if the source review proves the current question is valid.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9463,7 +9507,9 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "insufficient_evidence": 1
+    },
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
@@ -9646,16 +9692,17 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "contextual row 20 source-reviewed repair: retrieval 1/1 at rank 1, answer 1/1, fallback_validation 1, no answer failures; row 19 remains clean from retrieval_eval_20260831_024624.",
-      "classification": "clean_source_reviewed_contextual_rows_19_20_complete",
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_0351_contextual_row20_source_equivalence.jsonl",
-      "latest_run": "retrieval_eval_20260831_035453",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_035453.json",
-      "next_target": "Continue the broader source-reviewed contextual answer-grounding rotation with the next validated slice, preserving the row 20 procedure-membership repair and existing quantity/citation/comparison guardrail controls.",
-      "results": "test_reports/retrieval_eval_results_20260831_035453.jsonl",
-      "run_dataset": "test_reports/retrieval_eval_dataset_20260831_035453.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260831_035453.json",
-      "timestamp": "2026-08-31T04:02:48Z"
+      "answer_result": "1/2 actual HTTP answers passed. Row 7 passed via fallback_validation; row 8 failed insufficient_evidence with API answer and no citations.",
+      "classification": "diagnostic_mixed_single_step_v2_rows_7_8",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_041716.jsonl",
+      "latest_run": "retrieval_eval_20260831_041716",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_041716.json",
+      "next_target": "Source-review and repair curated single-step v2 row 8 answer evidence: verify the A-14 PWR/ERR/status-indicator source relationship, then rerun a corrected user-style row or make a general answer-evidence fix only if the source review proves the current question is valid.",
+      "results": "test_reports/retrieval_eval_results_20260831_041716.jsonl",
+      "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall 100% and metadata-document recall 100%.",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260831_041716.json",
+      "timestamp": "2026-08-31T04:20:28Z"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -9793,8 +9840,49 @@
         "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
       ]
     },
-    "answer_grounding_status": "2026-08-31 contextual rows 19-20 are source-reviewed clean: row 19 remains accepted from retrieval_eval_20260831_024624 via same-source composite citation 683408b9, and row 20 is repaired by retrieval_eval_20260831_035453 using a source-reviewed direct procedure-membership dataset and cited chunk bcd2f24e.",
-    "current_answer_failure_categories": {},
+    "answer_grounding_single_step_v2_rows_7_8": {
+      "answer_result": "1/2 actual HTTP answers passed. Row 7 passed via fallback_validation; row 8 failed insufficient_evidence with API answer and no citations.",
+      "classification": "row_7_clean_row_8_diagnostic_insufficient_evidence",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_041716.jsonl",
+      "latest_run": "retrieval_eval_20260831_041716",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_041716.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_041716. Row 7 user-visible fallback answer cites parent_section chunk c0e08b45 with quote_span null; persisted cited content states that when Internal Trigger Control/AI Trigger Control is enabled and a trigger cannot be input, press Trigger ON to take an image temporarily using the internal trigger. Row 8 asks for the IV4-G600CA PWR/ERR condition for A-14; retrieval was scored green through same-section term overlap, but top returned/cited answer evidence focused on A-15 indicator-light footnotes and the API answer said only A-15 evidence was available, with no citations. Treat row 8 as diagnostic/not-clean pending source review of the expected A-14 row and whether the question should ask for the error/status condition rather than a light condition.",
+      "max_queries": 2,
+      "query_offset": 6,
+      "remaining": "Source-review curated single-step v2 row 8 before production tuning. Verify the A-14 source row, the PWR/ERR/status-indicator footnote relationship, and whether the user-visible query uniquely asks for answerable evidence. Then either repair the user-style question/expected evidence or fix general answer evidence selection so A-14 status evidence is cited and stated.",
+      "response_mode": "answer_with_citations",
+      "results": "test_reports/retrieval_eval_results_20260831_041716.jsonl",
+      "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall 100% and metadata-document recall 100%.",
+      "runtime_load_evidence": {
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+        "_fallback_evidence_results_sha256": "2d7c829204a1c43731a54e4bf409c7ccbe170530858bfe70738b0c3b6ba32acf",
+        "api_health": "ok at 2026-08-31T04:16:21.462643",
+        "api_main_file_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+        "container": "manuals-rag-temp-api-39262386-20260831-single-v2-7-8",
+        "container_id": "342eb68debf45d53a47017aecbe707fd07d48112d36548b4cdb7b2c4e5177814",
+        "generator_file_sha256": "c230387f2b2a57a986beef12daeea67e06fc3ce88a8682232cc24b1202d2e8ad",
+        "host_api_base": "http://127.0.0.1:8810",
+        "retrieval_eval_file_sha256": "0d887091d730da7492214460968e8c42eecf270e29b31fa2cb62420eb80b1bc1",
+        "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
+        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+        "validate_answer_sha256": "79d7d864fd3c317456f097a0bb93fd48265b00eead25c9cdbe3a1a4f48890469"
+      },
+      "search_mode": "http",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+      "status": "diagnostic_mixed_single_step_v2_rows_7_8",
+      "summary": "test_reports/retrieval_eval_summary_20260831_041716.json",
+      "timestamp": "2026-08-31T04:20:28Z"
+    },
+    "answer_grounding_status": "2026-08-31 single-step v2 rows 7-8 diagnostic rotation: row 7 is clean fallback_validation trigger-control evidence from retrieval_eval_20260831_041716; row 8 remains insufficient_evidence/source-review-pending for the IV4-G600CA A-14 PWR/ERR condition.",
+    "current_answer_failure_categories": {
+      "insufficient_evidence": 1
+    },
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -11916,7 +12004,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Continue the broader source-reviewed contextual answer-grounding rotation with the next validated slice, preserving the row 20 procedure-membership repair and existing quantity/citation/comparison guardrail controls.",
+    "next_target": "Source-review and repair curated single-step v2 row 8 answer evidence: verify the A-14 PWR/ERR/status-indicator source relationship, then rerun a corrected user-style row or make a general answer-evidence fix only if the source review proves the current question is valid.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -11953,7 +12041,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "The contextual procedure slice is now source-reviewed clean via retrieval_eval_20260831_035453. Continue expanding validated contextual/final-answer coverage without weakening expected evidence or treating diagnostic runs as clean.",
+    "remaining": "Source-review curated single-step v2 row 8 before production tuning. Verify the A-14 source row, the PWR/ERR/status-indicator footnote relationship, and whether the user-visible query uniquely asks for answerable evidence. Then either repair the user-style question/expected evidence or fix general answer evidence selection so A-14 status evidence is cited and stated.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12316,6 +12404,11 @@
         "reason": "diagnostic/not-clean: loaded procedure-membership fallback selected the direct bcd2f24e procedure chunk, but the first dataset still used older split expected evidence, so source review created a direct procedure-membership expected evidence case before counting clean evidence.",
         "run_id": "retrieval_eval_20260831_035209",
         "scope": "contextual procedure row 20 source-equivalence transition"
+      },
+      {
+        "reason": "diagnostic mixed answer run; row 8 API answer returned insufficient evidence/no citations after retrieval matched same-section A-15 indicator context, so source review is required before counting it clean",
+        "run_id": "retrieval_eval_20260831_041716",
+        "scope": "curated single-step v2 row 8 and combined rows 7-8 clean claim"
       }
     ],
     "single_step_questions": 101,
@@ -12992,9 +13085,9 @@
       },
       "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
     ],
-    "updated_at": "2026-08-31T04:02:48Z"
+    "updated_at": "2026-08-31T04:20:28Z"
   },
-  "remaining": "The contextual procedure slice is now source-reviewed clean via retrieval_eval_20260831_035453. Continue expanding validated contextual/final-answer coverage without weakening expected evidence or treating diagnostic runs as clean.",
+  "remaining": "Source-review curated single-step v2 row 8 before production tuning. Verify the A-14 source row, the PWR/ERR/status-indicator footnote relationship, and whether the user-visible query uniquely asks for answerable evidence. Then either repair the user-style question/expected evidence or fix general answer evidence selection so A-14 status evidence is cited and stated.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -13357,6 +13450,11 @@
       "reason": "diagnostic/not-clean: loaded procedure-membership fallback selected the direct bcd2f24e procedure chunk, but the first dataset still used older split expected evidence, so source review created a direct procedure-membership expected evidence case before counting clean evidence.",
       "run_id": "retrieval_eval_20260831_035209",
       "scope": "contextual procedure row 20 source-equivalence transition"
+    },
+    {
+      "reason": "diagnostic mixed answer run; row 8 API answer returned insufficient evidence/no citations after retrieval matched same-section A-15 indicator context, so source review is required before counting it clean",
+      "run_id": "retrieval_eval_20260831_041716",
+      "scope": "curated single-step v2 row 8 and combined rows 7-8 clean claim"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -14032,5 +14130,5 @@
     },
     "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
   ],
-  "updated_at": "2026-08-31T04:02:48Z"
+  "updated_at": "2026-08-31T04:20:28Z"
 }

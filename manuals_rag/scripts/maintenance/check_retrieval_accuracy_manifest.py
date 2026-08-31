@@ -40,6 +40,7 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "answer_grounding_contextual_rows_19_20",
     "answer_grounding_sibling_rows_15_16",
     "answer_grounding_single_step_v2_rows_5_6",
+    "answer_grounding_single_step_v2_rows_7_8",
     "partial_claim_citation_pruning_containment",
     "llm_answer_judge_policy",
     "updated_at",
