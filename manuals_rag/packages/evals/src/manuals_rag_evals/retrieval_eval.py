@@ -2561,11 +2561,59 @@ def _expected_code_anchor_terms(terms: list[str]) -> list[str]:
     return anchors
 
 
+def _expected_compound_code_anchors(case: RetrievalEvalCase) -> list[tuple[str, str]]:
+    expected_tokens = set(tokenize(" ".join(str(term) for term in case.expected_terms)))
+    non_code_labels = {
+        "address",
+        "addresses",
+        "area",
+        "bytes",
+        "count",
+        "line",
+        "lines",
+        "total",
+        "voltage",
+    }
+    source_text = " ".join(
+        str(part or "")
+        for part in [
+            case.query,
+            case.expected_snippet,
+            " ".join(str(term) for term in case.expected_terms),
+        ]
+    )
+    tokens = tokenize(source_text)
+    anchors: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for left, right in zip(tokens, tokens[1:]):
+        if not left.isalpha() or len(left) > 4 or left in non_code_labels or not re.fullmatch(r"\d{2,}", right):
+            continue
+        if left not in expected_tokens or right not in expected_tokens:
+            continue
+        if left in STOPWORDS or left in GENERIC_ANCHORS:
+            continue
+        key = (left, right)
+        if key in seen:
+            continue
+        anchors.append(key)
+        seen.add(key)
+    return anchors
+
+
+def _evidence_has_compound_code_anchor(evidence_text: str, prefix: str, value: str) -> bool:
+    # Preserve code prefix/value binding. A sibling token such as PQD428 must not satisfy PID 428.
+    pattern = rf"(?<![a-z0-9]){re.escape(prefix)}[\s:./#_-]*{re.escape(value)}(?![a-z0-9])"
+    return re.search(pattern, evidence_text, flags=re.IGNORECASE) is not None
+
+
 def _result_preserves_expected_code_anchors(case: RetrievalEvalCase, result: dict[str, Any]) -> bool:
     anchors = _expected_code_anchor_terms(case.expected_terms)
     if len(anchors) < 2:
         return True
     evidence_text = _result_evidence_text(result)
+    for prefix, value in _expected_compound_code_anchors(case):
+        if not _evidence_has_compound_code_anchor(evidence_text, prefix, value):
+            return False
     return all(_term_matches_evidence(anchor, evidence_text) for anchor in anchors)
 
 

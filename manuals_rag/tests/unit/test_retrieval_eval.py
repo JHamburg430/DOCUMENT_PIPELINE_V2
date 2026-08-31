@@ -5217,6 +5217,71 @@ def test_score_search_results_requires_code_anchors_for_same_document_overlap():
     assert correct["match_reason"] == "same_section_term_overlap"
 
 
+def test_score_search_results_requires_compound_code_prefix_binding():
+    case = RetrievalEvalCase(
+        case_id="c-code-prefix-binding",
+        query="In the CV-X482 cyclic communication allocation table, what is PID 428 at address bytes 0016-0018 named?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="expected-pid-row",
+        source_title="CV-X Manual",
+        source_filename="cv-x.pdf",
+        chunk_type="atomic_text",
+        section_path="Cyclic communication",
+        page_from=919,
+        page_to=919,
+        expected_terms=["pid", "428", "0016", "0018", "total", "count"],
+        expected_snippet="Measurement count area | 0016 0017 0018 | PID 428 | Total count",
+        generation_method="manual_guardrail_curated_single_step_replacement",
+        source_metadata={"product_model": "CV-X482"},
+    )
+
+    adverse_results = [
+        (
+            "wrong-prefix",
+            "Measurement count area | 0016 0017 0018 | PQD428 | Total count.",
+        ),
+        (
+            "missing-prefix",
+            "Measurement count area | 0016 0017 0018 | 428 | Total count.",
+        ),
+        (
+            "wrong-number",
+            "Measurement count area | 0016 0017 0018 | PID 429 | Total count.",
+        ),
+    ]
+
+    for chunk_id, content in adverse_results:
+        scored = score_search_results(
+            case,
+            [
+                {
+                    "chunk_id": chunk_id,
+                    "source_document_id": "doc-cvx",
+                    "section_path": ["Cyclic communication"],
+                    "content": content,
+                }
+            ],
+        )
+        assert scored["passed"] is False
+        assert scored["failure_category"] == "ranking_or_context_loss"
+        assert scored["match_reason"] == "no_match"
+
+    correct = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "correct-prefix",
+                "source_document_id": "doc-cvx",
+                "section_path": ["Cyclic communication"],
+                "content": "Measurement count area | 0016 0017 0018 | PID 428 | Total count.",
+            }
+        ],
+    )
+    assert correct["passed"] is True
+    assert correct["match_reason"] == "same_section_term_overlap"
+
+
 def test_score_search_results_rejects_same_page_without_source_terms():
     case = RetrievalEvalCase(
         case_id="c-page",
