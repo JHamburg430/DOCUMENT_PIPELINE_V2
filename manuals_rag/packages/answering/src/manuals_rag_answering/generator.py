@@ -698,9 +698,31 @@ def _focused_allocation_table_binding_answer_text(query: str, result: SearchResu
             continue
         line = raw_line.strip(" |")
         line_terms = _material_claim_terms(line)
-        if required_binding_terms.issubset(line_terms):
+        if required_binding_terms.issubset(line_terms) and _line_preserves_allocation_possible_cell(line):
             return "Relevant retrieved table row:\n- " + line
     return ""
+
+
+def _line_preserves_allocation_possible_cell(line: str) -> bool:
+    normalized = re.sub(r"\s+", " ", line.strip().lower())
+    if not normalized:
+        return False
+    allocation_possible_pattern = r"\ballocation\s*(?:is|:)?\s+possible\b"
+    if re.search(r"\ballocation\s*(?:is|:)?\s+(?:not\s+)?possible\b", normalized):
+        return bool(re.search(allocation_possible_pattern, normalized))
+    if "allocation" not in normalized or "possible" not in normalized:
+        return False
+    negated_patterns = [
+        r"\ballocation\s+not\b",
+        r"\bnot\s+possible\b",
+        r"\bnot\s+allocat",
+        r"\bno\s+allocation\b",
+        r"\bunavailable\b",
+        r"\bdisabled\b",
+        r"\bprohibited\b",
+        r"\bnot\s+allowed\b",
+    ]
+    return not any(re.search(pattern, normalized) for pattern in negated_patterns)
 
 
 def _focused_table_like_answer_text(query: str, result: SearchResult) -> str:

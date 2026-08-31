@@ -593,6 +593,37 @@ def test_answer_response_scoring_accepts_same_row_table_cell_binding():
     assert scored["table_cell_binding"]["passed"] is True
 
 
+def test_answer_response_scoring_rejects_negated_table_cell_binding():
+    case = RetrievalEvalCase(
+        case_id="case-table-binding",
+        query="Can CV-X482 allocate command 0016 PID 428 in the status bit area?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="chunk-table",
+        source_title="CV-X Manual",
+        source_filename="cvx.pdf",
+        chunk_type="table_record",
+        section_path="6-180",
+        page_from=920,
+        page_to=920,
+        expected_terms=["allocation", "possible", "0016", "428"],
+        expected_snippet="Row headers: 0016 PID 428 > status Bit area; Cell value: Allocation possible; Row: 10; Column: 14",
+        generation_method="unit_test",
+        source_metadata={"product_model": "CV-X482", "table_cell": True},
+    )
+    answer = {
+        "answer": "status Bit area | 0016 | PID 428 command | Allocation not possible",
+        "citations": [{"document_id": "doc-cvx", "chunk_id": "chunk-table", "pages": [920]}],
+        "used_documents": [],
+        "insufficient_evidence": False,
+    }
+
+    scored = score_answer_response(case, answer, {"passed": True})
+
+    assert scored["passed"] is False
+    assert "expected_table_cell_binding_missing" in scored["failure_reasons"]
+
+
 def test_cross_document_retrieval_scoring_requires_expected_evidence_documents():
     case = RetrievalEvalCase(
         case_id="case-1",

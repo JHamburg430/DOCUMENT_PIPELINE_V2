@@ -2762,6 +2762,7 @@ def _answer_preserves_expected_table_cell_binding(case: RetrievalEvalCase, answe
         for term in tokenize(cell_match.group(1))
         if term not in STOPWORDS and term not in ANSWER_SCORING_GENERIC_TERMS
     ]
+    cell_value = cell_match.group(1).strip()
     required_terms = []
     seen: set[str] = set()
     for term in [*row_terms, *cell_terms]:
@@ -2779,7 +2780,7 @@ def _answer_preserves_expected_table_cell_binding(case: RetrievalEvalCase, answe
     for segment in segments:
         segment_lower = segment.lower()
         segment_tokens = set(tokenize(segment_lower))
-        if all(_expected_term_matches_text(term, segment_lower, segment_tokens) for term in required_terms):
+        if all(_expected_term_matches_text(term, segment_lower, segment_tokens) for term in required_terms) and _table_cell_value_supported(cell_value, segment):
             return {"checked": True, "passed": True, "required_terms": required_terms, "missing_bindings": []}
     return {
         "checked": True,
@@ -2793,6 +2794,29 @@ def _answer_preserves_expected_table_cell_binding(case: RetrievalEvalCase, answe
             }
         ],
     }
+
+
+def _table_cell_value_supported(expected_cell_value: str, answer_segment: str) -> bool:
+    expected = re.sub(r"\s+", " ", expected_cell_value.strip().lower())
+    segment = re.sub(r"\s+", " ", answer_segment.strip().lower())
+    if not expected or not segment:
+        return True
+    if "allocation" in expected and "possible" in expected:
+        if not re.search(r"\ballocation\s*(?:is|:)?\s+possible\b", segment):
+            return False
+        adverse_patterns = [
+            r"\ballocation\s+not\s+possible\b",
+            r"\bnot\s+allocation\s+possible\b",
+            r"\bnot\s+possible\b",
+            r"\bnot\s+allocat",
+            r"\bno\s+allocation\b",
+            r"\bunavailable\b",
+            r"\bdisabled\b",
+            r"\bprohibited\b",
+            r"\bnot\s+allowed\b",
+        ]
+        return not any(re.search(pattern, segment) for pattern in adverse_patterns)
+    return True
 
 
 def _answer_scoring_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:

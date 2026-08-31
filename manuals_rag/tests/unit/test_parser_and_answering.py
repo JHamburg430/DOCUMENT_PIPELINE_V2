@@ -4303,6 +4303,60 @@ def test_fallback_focuses_table_like_section_window_when_allocation_binding_is_s
     assert trace["final_answer"]["answer_source"] == "fallback_validation"
 
 
+def test_fallback_fails_closed_for_negated_table_allocation_cell(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="section-window",
+            score=0.9,
+            title="CV-X manual",
+            document_version_id="v1",
+            source_document_id="cvx",
+            pages=[920],
+            section_path=["6-180"],
+            content=(
+                "Setting | Address (byte) | Item | Allocation\n"
+                "status Bit area | 0016 | PID 428 command | Allocation not possible\n"
+                "status Bit area | 0017 | PID 429 command | Allocation possible\n"
+                + "\n".join(f"filler table row {index} | Reserved | Reserved" for index in range(80))
+            ),
+            metadata={"chunk_type": "section_window", "product_model": "CV-X482"},
+        )
+    ]
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "final_answer":
+            return (
+                {
+                    "answer": "Unsupported generated answer",
+                    "confidence": "medium",
+                    "used_documents": [],
+                    "citations": [],
+                    "warnings": [],
+                    "followup_questions": [],
+                    "insufficient_evidence": False,
+                },
+                '{"answer":"Unsupported generated answer","confidence":"medium",'
+                '"used_documents":[],"citations":[],"warnings":[],'
+                '"followup_questions":[],"insufficient_evidence":false}',
+            )
+        return (
+            {"items": [{"chunk_id": "section-window", "verdict": "relevant", "reason": "Direct table match."}]},
+            '{"items":[{"chunk_id":"section-window","verdict":"relevant","reason":"Direct table match."}]}',
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fake_chat_json)
+
+    answer, trace = generate_answer_with_trace(
+        "Can CV-X482 allocate command 0016 PID 428 in the status bit area?",
+        results,
+    )
+
+    assert answer.answer == "I could not answer from the available evidence."
+    assert answer.insufficient_evidence is True
+    assert answer.citations == []
+    assert trace["final_answer"]["answer_source"] == "fallback_validation"
+
+
 def test_vs_product_question_does_not_trigger_comparison_fallback_or_version_warning(monkeypatch):
     assert _is_comparison_query("How do I limit a saved VS program setting so only selected cameras can use it?") is False
     assert _is_comparison_query("Compare model A vs model B program settings.") is True
