@@ -593,6 +593,79 @@ def test_answer_response_scoring_accepts_same_row_table_cell_binding():
     assert scored["table_cell_binding"]["passed"] is True
 
 
+def test_answer_response_scoring_rejects_sibling_quantity_table_row():
+    case = RetrievalEvalCase(
+        case_id="case-quantity-binding",
+        query=(
+            "On IV4-G120, when ON equals Set value, Count value is 9, Output status is "
+            "One-Shot output, and the current count is 0, how many objects are counted at one time?"
+        ),
+        source_document_id="doc-iv4",
+        document_version_id="ver-iv4",
+        source_chunk_id="quantity-row",
+        source_title="IV4 Manual",
+        source_filename="iv4.pdf",
+        chunk_type="table_record",
+        section_path="4-78",
+        page_from=168,
+        page_to=168,
+        expected_terms=["set", "count", "quantity", "counted", "3", "one-shot", "0"],
+        expected_snippet=(
+            "Status output settings | Previous count value (Display value) | Quantity counted at one time | "
+            "Current count value (Display value) | Output status; "
+            "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output"
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_model": "IV4-G120", "table_cell": True},
+        expected_evidence=[
+            {
+                "chunk_id": "quantity-row",
+                "source_document_id": "doc-iv4",
+                "expected_terms": [
+                    "on",
+                    "set",
+                    "value",
+                    "count",
+                    "9",
+                    "quantity",
+                    "counted",
+                    "one",
+                    "time",
+                    "3",
+                    "current",
+                    "0",
+                    "one-shot",
+                    "output",
+                ],
+                "snippet": (
+                    "Status output settings | Previous count value (Display value) | "
+                    "Quantity counted at one time | Current count value (Display value) | Output status; "
+                    "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output"
+                ),
+            }
+        ],
+    )
+    answer = {
+        "answer": "ON when = Set value | Count value= 9 | 7 | 2 | 9 | Latching output",
+        "citations": [{"document_id": "doc-iv4", "chunk_id": "sibling-row", "pages": [168]}],
+        "used_documents": [],
+        "insufficient_evidence": False,
+    }
+    retrieved_results = [
+        {
+            "chunk_id": "sibling-row",
+            "source_document_id": "doc-iv4",
+            "content": "ON when = Set value | Count value= 9 | 7 | 2 | 9 | Latching output",
+        }
+    ]
+
+    scored = score_answer_response(case, answer, {"passed": True}, retrieved_results)
+
+    assert scored["passed"] is False
+    assert "expected_terms_missing" in scored["failure_reasons"]
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+
+
 def test_answer_response_scoring_accepts_structured_table_cell_fallback_line():
     case = RetrievalEvalCase(
         case_id="case-command-result",

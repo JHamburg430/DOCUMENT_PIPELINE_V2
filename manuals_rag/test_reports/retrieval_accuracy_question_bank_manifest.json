@@ -1,6 +1,10 @@
 {
-  "answer_current_failure_categories": {},
-  "answer_failure_categories": {},
+  "answer_current_failure_categories": {
+    "expected_evidence_not_cited": 1
+  },
+  "answer_failure_categories": {
+    "expected_evidence_not_cited": 1
+  },
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
       "jq empty passed for the new source-equivalence dataset and rerun artifacts.",
@@ -182,55 +186,47 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-08-31T20:57:00Z",
-    "status": "single_step_v2_rows_1_2_clean_after_general_table_cell_repair",
-    "classification": "clean_loaded_http_table_cell_evidence",
-    "latest_run": "retrieval_eval_20260831_204556",
-    "previous_diagnostic_runs": [
-      {
-        "run": "retrieval_eval_20260831_200037",
-        "reason": "diagnostic false positive before source-reviewed expected_evidence refresh; row 2 cited one-shot output evidence and omitted table-cell value 3."
-      },
-      {
-        "run": "retrieval_eval_20260831_200419",
-        "reason": "diagnostic/not-clean after expected_evidence refresh; row 1 failed table-cell binding and row 2 missed the expected count-table cell."
-      }
+    "answer_result": "Actual HTTP answer grounding passed 1/2: row 1 clean, row 2 failed expected_evidence_not_cited after manual payload inspection.",
+    "classification": "partial_clean_row1_only_row2_diagnostic_replacement_retrieval_clean_answer_not_clean",
+    "datasets": [
+      "test_reports/retrieval_eval_dataset_20260831_2145_single_step_row2_one_shot_quantity_repair.jsonl",
+      "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl"
     ],
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_204556.jsonl",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260831_200419.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260831_204556.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260831_204556.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_204556.json",
-    "search_mode": "http",
+    "latest_run": "retrieval_eval_20260831_214528",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_214528.jsonl. Row 1 remains clean: user-visible answer cites exact CV-X command-result table cell a7ed6202. Repaired row 2 retrieval passes at rank 3 against source-reviewed output-status chunk c589846f, but answer grounding fails expected_evidence_not_cited: the visible fallback cites shifted key-value chunk 0b84d8d8, says Quantity counted at one time: 7 / Current count: 3 / Output status: 0, and does not cite/support the One-Shot output row for previous count 7, quantity 3, current count 0. Earlier retrieval_eval_20260831_214209 is diagnostic/not-clean: the quantity repair query found the right document but selected a >= sibling/shifted key-value chunk and failed retrieval_not_passed plus expected_evidence_not_cited.",
+    "next_target": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
+    "previous_clean_claim_reclassified": {
+      "reason": "Guardrail 2026-08-31T21:03:00Z found the visible row-2 question ambiguous because Count value=9 and ON equals Set value match both Quantity counted at one time 2 / Latching output and 3 / One-Shot output rows.",
+      "rows": "row 2 and combined rows 1-2 clean claim",
+      "run": "retrieval_eval_20260831_204556"
+    },
     "response_mode": "answer_with_citations",
-    "max_queries": 2,
-    "retrieval_result": "Actual loaded HTTP retrieval passed 2/2 at rank 1 with both top results from structured_table_promoted.",
-    "answer_result": "Actual user-visible HTTP answer grounding passed 2/2 with fallback_validation for both precise table-cell answers; failure categories are empty.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_204556.jsonl for both new cases. Row 1 user-visible answer is the exact CV-X 0028/65.0 Command output area -> Command Result table-cell line and cites chunk a7ed6202-8a02-566c-a845-55acfe8c07bb on page 952. Row 2 user-visible answer is the exact IV4-G120 ON when = Set value / Count value=9 -> Quantity counted at one time cell value 3 line and cites chunk 349bdece-a37e-58b0-8cf5-d2f37d527982 on page 168. Both cited chunks directly contain/support the retained answers; quote_span is null for both and no broad Context line remains.",
+    "results": "test_reports/retrieval_eval_results_20260831_214528.jsonl",
+    "retrieval_result": "Final repaired output-status dataset passed retrieval 2/2, with row 1 rank 1 and row 2 rank 3; candidate recall and metadata-document recall were 1.0.",
     "runtime_load_evidence": {
-      "container": "manuals-rag-temp-api-39262386-20260831-rows1-2-repair",
-      "host_api_base": "http://127.0.0.1:8956",
-      "in_container_api_base": "http://127.0.0.1:8600",
-      "api_health": "ok at 2026-08-31T20:45:38Z",
-      "retriever.py_sha256": "3b054b5a7d4662c400df375497220d07085b4485d6e831a6fabb465e0421394c",
-      "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
-      "generator.py_sha256": "c2e15e1b3b3bc811e9eb2133807af51ea3cc716b6c8d441d8a0e2dc225c49516",
-      "_lexical_table_terms_sha256": "99c0e23dffe2c797420f0c226c6709cecad3786be241bad8c62d966a590b9af6",
-      "_table_cell_value_binding_score_sha256": "8e9db9727e628bd025625ea758c7e8cbb8e0c2f7ad034456db1a5e72eeacde04",
-      "_promote_structured_table_candidates_sha256": "6428c9db84933285a1bc5be51d91992887bf59e339582cfcedce0575e9e77118",
-      "_fallback_answer_text_sha256": "297dce64727ed240c22b25b398605a9b6f3957e3ca78873b7b16b86f84853c37",
-      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-      "_answer_preserves_expected_table_cell_binding_sha256": "0f8ae2e274e716b2cbe556024932c2eb5d2b00d375e4184c8fe27e90b0ba6ba2",
-      "_answer_claim_segments_sha256": "143c0028575bbc0b9dc2155a8a64d6c0c649b264526294e4016d8b2d79c18e89",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "HAYSTACK_RERANK_DEVICE": "cuda:0"
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "_answer_preserves_expected_table_cell_binding_sha256": "0f8ae2e274e716b2cbe556024932c2eb5d2b00d375e4184c8fe27e90b0ba6ba2",
+      "_table_cell_value_binding_score_sha256": "8e9db9727e628bd025625ea758c7e8cbb8e0c2f7ad034456db1a5e72eeacde04",
+      "api_health": "ok at 2026-08-31T21:41:26Z",
+      "container": "manuals-rag-temp-api-39262386-20260831-row2-repair",
+      "generator.py_sha256": "c2e15e1b3b3bc811e9eb2133807af51ea3cc716b6c8d441d8a0e2dc225c49516",
+      "host_api_base": "http://127.0.0.1:8962",
+      "in_container_api_base": "http://127.0.0.1:8600",
+      "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
+      "retriever.py_sha256": "3b054b5a7d4662c400df375497220d07085b4485d6e831a6fabb465e0421394c",
+      "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
     },
-    "production_change": "General natural quantity table lookup lexical/promotion support, relation-preserving row/column table-cell scoring for unknown quantity questions, precise table-cell fallback answer formatting, and eval table-cell claim segmentation. No document-specific routing, filename heuristics, vendor shortcuts, inferred filters, model/provider changes, ingestion/parser/UI/API/schema/infrastructure changes, or benchmark transport changes.",
-    "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence."
+    "scorer_control": "Added test_answer_response_scoring_rejects_sibling_quantity_table_row so a Latching output / value 2 sibling citation cannot satisfy the source-reviewed One-Shot output / value 3 quantity question.",
+    "search_mode": "http",
+    "status": "row1_clean_row2_reclassified_and_repaired_question_answer_open",
+    "summary": "test_reports/retrieval_eval_summary_20260831_214528.json",
+    "timestamp": "2026-08-31T21:59:00Z"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -706,13 +702,15 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
-    "timestamp": "2026-08-31T20:57:00Z",
-    "status": "single_step_v2_rows_1_2_clean_after_table_cell_retrieval_and_answer_repair",
-    "latest_run": "retrieval_eval_20260831_204556",
+    "current_answer_failures": {
+      "expected_evidence_not_cited": 1
+    },
     "current_retrieval_failures": {},
-    "current_answer_failures": {},
-    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence.",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_204556.jsonl for both new cases. Row 1 user-visible answer is the exact CV-X 0028/65.0 Command output area -> Command Result table-cell line and cites chunk a7ed6202-8a02-566c-a845-55acfe8c07bb on page 952. Row 2 user-visible answer is the exact IV4-G120 ON when = Set value / Count value=9 -> Quantity counted at one time cell value 3 line and cites chunk 349bdece-a37e-58b0-8cf5-d2f37d527982 on page 168. Both cited chunks directly contain/support the retained answers; quote_span is null for both and no broad Context line remains."
+    "latest_run": "retrieval_eval_20260831_214528",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_214528.jsonl. Row 1 remains clean: user-visible answer cites exact CV-X command-result table cell a7ed6202. Repaired row 2 retrieval passes at rank 3 against source-reviewed output-status chunk c589846f, but answer grounding fails expected_evidence_not_cited: the visible fallback cites shifted key-value chunk 0b84d8d8, says Quantity counted at one time: 7 / Current count: 3 / Output status: 0, and does not cite/support the One-Shot output row for previous count 7, quantity 3, current count 0. Earlier retrieval_eval_20260831_214209 is diagnostic/not-clean: the quantity repair query found the right document but selected a >= sibling/shifted key-value chunk and failed retrieval_not_passed plus expected_evidence_not_cited.",
+    "remaining": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
+    "status": "single_step_v2_row2_guardrail_reclassified_replacement_retrieval_clean_answer_open",
+    "timestamp": "2026-08-31T21:59:00Z"
   },
   "constraints": {
     "allowed_logic": [
@@ -730,7 +728,9 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "expected_evidence_not_cited": 1
+  },
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -8883,7 +8883,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence.",
+  "next_target": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9636,8 +9636,12 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
-    "answer_failure_categories": {},
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 1
+    },
+    "answer_failure_categories": {
+      "expected_evidence_not_cited": 1
+    },
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
         "jq empty passed for the new source-equivalence dataset and rerun artifacts.",
@@ -9819,55 +9823,47 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-08-31T20:57:00Z",
-      "status": "single_step_v2_rows_1_2_clean_after_general_table_cell_repair",
-      "classification": "clean_loaded_http_table_cell_evidence",
-      "latest_run": "retrieval_eval_20260831_204556",
-      "previous_diagnostic_runs": [
-        {
-          "run": "retrieval_eval_20260831_200037",
-          "reason": "diagnostic false positive before source-reviewed expected_evidence refresh; row 2 cited one-shot output evidence and omitted table-cell value 3."
-        },
-        {
-          "run": "retrieval_eval_20260831_200419",
-          "reason": "diagnostic/not-clean after expected_evidence refresh; row 1 failed table-cell binding and row 2 missed the expected count-table cell."
-        }
+      "answer_result": "Actual HTTP answer grounding passed 1/2: row 1 clean, row 2 failed expected_evidence_not_cited after manual payload inspection.",
+      "classification": "partial_clean_row1_only_row2_diagnostic_replacement_retrieval_clean_answer_not_clean",
+      "datasets": [
+        "test_reports/retrieval_eval_dataset_20260831_2145_single_step_row2_one_shot_quantity_repair.jsonl",
+        "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl"
       ],
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_204556.jsonl",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260831_200419.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260831_204556.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260831_204556.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_204556.json",
-      "search_mode": "http",
+      "latest_run": "retrieval_eval_20260831_214528",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_214528.jsonl. Row 1 remains clean: user-visible answer cites exact CV-X command-result table cell a7ed6202. Repaired row 2 retrieval passes at rank 3 against source-reviewed output-status chunk c589846f, but answer grounding fails expected_evidence_not_cited: the visible fallback cites shifted key-value chunk 0b84d8d8, says Quantity counted at one time: 7 / Current count: 3 / Output status: 0, and does not cite/support the One-Shot output row for previous count 7, quantity 3, current count 0. Earlier retrieval_eval_20260831_214209 is diagnostic/not-clean: the quantity repair query found the right document but selected a >= sibling/shifted key-value chunk and failed retrieval_not_passed plus expected_evidence_not_cited.",
+      "next_target": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
+      "previous_clean_claim_reclassified": {
+        "reason": "Guardrail 2026-08-31T21:03:00Z found the visible row-2 question ambiguous because Count value=9 and ON equals Set value match both Quantity counted at one time 2 / Latching output and 3 / One-Shot output rows.",
+        "rows": "row 2 and combined rows 1-2 clean claim",
+        "run": "retrieval_eval_20260831_204556"
+      },
       "response_mode": "answer_with_citations",
-      "max_queries": 2,
-      "retrieval_result": "Actual loaded HTTP retrieval passed 2/2 at rank 1 with both top results from structured_table_promoted.",
-      "answer_result": "Actual user-visible HTTP answer grounding passed 2/2 with fallback_validation for both precise table-cell answers; failure categories are empty.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_204556.jsonl for both new cases. Row 1 user-visible answer is the exact CV-X 0028/65.0 Command output area -> Command Result table-cell line and cites chunk a7ed6202-8a02-566c-a845-55acfe8c07bb on page 952. Row 2 user-visible answer is the exact IV4-G120 ON when = Set value / Count value=9 -> Quantity counted at one time cell value 3 line and cites chunk 349bdece-a37e-58b0-8cf5-d2f37d527982 on page 168. Both cited chunks directly contain/support the retained answers; quote_span is null for both and no broad Context line remains.",
+      "results": "test_reports/retrieval_eval_results_20260831_214528.jsonl",
+      "retrieval_result": "Final repaired output-status dataset passed retrieval 2/2, with row 1 rank 1 and row 2 rank 3; candidate recall and metadata-document recall were 1.0.",
       "runtime_load_evidence": {
-        "container": "manuals-rag-temp-api-39262386-20260831-rows1-2-repair",
-        "host_api_base": "http://127.0.0.1:8956",
-        "in_container_api_base": "http://127.0.0.1:8600",
-        "api_health": "ok at 2026-08-31T20:45:38Z",
-        "retriever.py_sha256": "3b054b5a7d4662c400df375497220d07085b4485d6e831a6fabb465e0421394c",
-        "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
-        "generator.py_sha256": "c2e15e1b3b3bc811e9eb2133807af51ea3cc716b6c8d441d8a0e2dc225c49516",
-        "_lexical_table_terms_sha256": "99c0e23dffe2c797420f0c226c6709cecad3786be241bad8c62d966a590b9af6",
-        "_table_cell_value_binding_score_sha256": "8e9db9727e628bd025625ea758c7e8cbb8e0c2f7ad034456db1a5e72eeacde04",
-        "_promote_structured_table_candidates_sha256": "6428c9db84933285a1bc5be51d91992887bf59e339582cfcedce0575e9e77118",
-        "_fallback_answer_text_sha256": "297dce64727ed240c22b25b398605a9b6f3957e3ca78873b7b16b86f84853c37",
-        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-        "_answer_preserves_expected_table_cell_binding_sha256": "0f8ae2e274e716b2cbe556024932c2eb5d2b00d375e4184c8fe27e90b0ba6ba2",
-        "_answer_claim_segments_sha256": "143c0028575bbc0b9dc2155a8a64d6c0c649b264526294e4016d8b2d79c18e89",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "HAYSTACK_RERANK_DEVICE": "cuda:0"
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "_answer_preserves_expected_table_cell_binding_sha256": "0f8ae2e274e716b2cbe556024932c2eb5d2b00d375e4184c8fe27e90b0ba6ba2",
+        "_table_cell_value_binding_score_sha256": "8e9db9727e628bd025625ea758c7e8cbb8e0c2f7ad034456db1a5e72eeacde04",
+        "api_health": "ok at 2026-08-31T21:41:26Z",
+        "container": "manuals-rag-temp-api-39262386-20260831-row2-repair",
+        "generator.py_sha256": "c2e15e1b3b3bc811e9eb2133807af51ea3cc716b6c8d441d8a0e2dc225c49516",
+        "host_api_base": "http://127.0.0.1:8962",
+        "in_container_api_base": "http://127.0.0.1:8600",
+        "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
+        "retriever.py_sha256": "3b054b5a7d4662c400df375497220d07085b4485d6e831a6fabb465e0421394c",
+        "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
       },
-      "production_change": "General natural quantity table lookup lexical/promotion support, relation-preserving row/column table-cell scoring for unknown quantity questions, precise table-cell fallback answer formatting, and eval table-cell claim segmentation. No document-specific routing, filename heuristics, vendor shortcuts, inferred filters, model/provider changes, ingestion/parser/UI/API/schema/infrastructure changes, or benchmark transport changes.",
-      "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence."
+      "scorer_control": "Added test_answer_response_scoring_rejects_sibling_quantity_table_row so a Latching output / value 2 sibling citation cannot satisfy the source-reviewed One-Shot output / value 3 quantity question.",
+      "search_mode": "http",
+      "status": "row1_clean_row2_reclassified_and_repaired_question_answer_open",
+      "summary": "test_reports/retrieval_eval_summary_20260831_214528.json",
+      "timestamp": "2026-08-31T21:59:00Z"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10132,15 +10128,19 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
-      "timestamp": "2026-08-31T20:57:00Z",
-      "status": "single_step_v2_rows_1_2_clean_after_table_cell_retrieval_and_answer_repair",
-      "latest_run": "retrieval_eval_20260831_204556",
+      "current_answer_failures": {
+        "expected_evidence_not_cited": 1
+      },
       "current_retrieval_failures": {},
-      "current_answer_failures": {},
-      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence.",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_204556.jsonl for both new cases. Row 1 user-visible answer is the exact CV-X 0028/65.0 Command output area -> Command Result table-cell line and cites chunk a7ed6202-8a02-566c-a845-55acfe8c07bb on page 952. Row 2 user-visible answer is the exact IV4-G120 ON when = Set value / Count value=9 -> Quantity counted at one time cell value 3 line and cites chunk 349bdece-a37e-58b0-8cf5-d2f37d527982 on page 168. Both cited chunks directly contain/support the retained answers; quote_span is null for both and no broad Context line remains."
+      "latest_run": "retrieval_eval_20260831_214528",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_214528.jsonl. Row 1 remains clean: user-visible answer cites exact CV-X command-result table cell a7ed6202. Repaired row 2 retrieval passes at rank 3 against source-reviewed output-status chunk c589846f, but answer grounding fails expected_evidence_not_cited: the visible fallback cites shifted key-value chunk 0b84d8d8, says Quantity counted at one time: 7 / Current count: 3 / Output status: 0, and does not cite/support the One-Shot output row for previous count 7, quantity 3, current count 0. Earlier retrieval_eval_20260831_214209 is diagnostic/not-clean: the quantity repair query found the right document but selected a >= sibling/shifted key-value chunk and failed retrieval_not_passed plus expected_evidence_not_cited.",
+      "remaining": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
+      "status": "single_step_v2_row2_guardrail_reclassified_replacement_retrieval_clean_answer_open",
+      "timestamp": "2026-08-31T21:59:00Z"
     },
-    "current_answer_failure_categories": {},
+    "current_answer_failure_categories": {
+      "expected_evidence_not_cited": 1
+    },
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -12262,7 +12262,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence.",
+    "next_target": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12299,7 +12299,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence.",
+    "remaining": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12814,35 +12814,59 @@
         "scope": "curated single-step v2 row 11 containment rerun"
       },
       {
+        "reason": "diagnostic/not-clean: row 13 retrieved expected setup-guide evidence at rank 2 but cited an unrelated command-input chunk and omitted the high-speed discrete-I/O condition; row 14 missed expected setup-guide Not Connected evidence and cited a different LJ-X user manual overview.",
         "run_id": "retrieval_eval_20260831_190034",
-        "scope": "contextual procedure rows 13-14 source-equivalence answer-grounding rotation",
-        "reason": "diagnostic/not-clean: row 13 retrieved expected setup-guide evidence at rank 2 but cited an unrelated command-input chunk and omitted the high-speed discrete-I/O condition; row 14 missed expected setup-guide Not Connected evidence and cited a different LJ-X user manual overview."
+        "scope": "contextual procedure rows 13-14 source-equivalence answer-grounding rotation"
       },
       {
+        "reason": "diagnostic false positive before source-reviewed expected_evidence refresh; row 2 answer cited one-shot output chunk 21122868 and omitted expected Quantity counted at one time cell value 3.",
         "run_id": "retrieval_eval_20260831_200037",
-        "scope": "curated single-step v2 row 2 and combined rows 1-2 clean claim",
-        "reason": "diagnostic false positive before source-reviewed expected_evidence refresh; row 2 answer cited one-shot output chunk 21122868 and omitted expected Quantity counted at one time cell value 3."
+        "scope": "curated single-step v2 row 2 and combined rows 1-2 clean claim"
       },
       {
+        "reason": "diagnostic/not-clean after expected_evidence refresh; row 1 failed table-cell binding and row 2 failed expected evidence citation plus retrieval context.",
         "run_id": "retrieval_eval_20260831_200419",
-        "scope": "curated single-step v2 rows 1-2 clean claim",
-        "reason": "diagnostic/not-clean after expected_evidence refresh; row 1 failed table-cell binding and row 2 failed expected evidence citation plus retrieval context."
+        "scope": "curated single-step v2 rows 1-2 clean claim"
       },
       {
+        "reason": "diagnostic/superseded by retrieval_eval_20260831_204556 because row 1 still appended broad Context text before the table-cell fallback formatter fix; not counted as final clean answer evidence.",
         "run_id": "retrieval_eval_20260831_204200",
-        "scope": "curated single-step v2 rows 1-2 post-repair pre-format HTTP evidence",
-        "reason": "diagnostic/superseded by retrieval_eval_20260831_204556 because row 1 still appended broad Context text before the table-cell fallback formatter fix; not counted as final clean answer evidence."
+        "scope": "curated single-step v2 rows 1-2 post-repair pre-format HTTP evidence"
+      },
+      {
+        "reason": "guardrail 2026-08-31T21:03:00Z reclassified row 2 as ambiguous because the visible question did not distinguish Quantity counted at one time 2 / Latching output from 3 / One-Shot output rows; row 1 remains clean.",
+        "run_id": "retrieval_eval_20260831_204556",
+        "scope": "curated single-step v2 row 2 and combined rows 1-2 clean claim"
+      },
+      {
+        "reason": "diagnostic/not-clean: source-backed query added One-Shot/current-count scope, but actual HTTP retrieval selected >= sibling/shifted key-value evidence and answer failed expected_evidence_not_cited plus retrieval_not_passed.",
+        "run_id": "retrieval_eval_20260831_214209",
+        "scope": "single-step row 2 one-shot quantity repair attempt"
+      },
+      {
+        "reason": "diagnostic/not-clean for answer grounding: retrieval passed at rank 3, but user-visible fallback cited shifted key-value chunk 0b84d8d8 and failed expected_evidence_not_cited; row 1 within the run remains clean.",
+        "run_id": "retrieval_eval_20260831_214528",
+        "scope": "single-step row 2 output-status replacement answer claim"
       }
     ],
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
       {
-        "timestamp": "2026-08-31T20:08:00Z",
-        "guardrail_commit": "d2175ff",
-        "severity": "ok",
-        "finding": "Latest guardrail accepted contextual setup-scope rows 13-14 and required broader source-reviewed answer-grounding coverage.",
-        "status": "addressed_this_run_table_cell_retrieval_answer_repair_pending_guardrail_audit",
+        "addressed_this_run": "Reclassified row 2/combined clean claim as diagnostic, added source-backed repaired row-2 questions, added a deterministic adverse sibling-row answer scorer control, and reran through loaded HTTP.",
+        "evidence": [
+          "Focused scorer test passed: sibling_quantity_table_row / structured_table_cell_fallback_line / sibling_table_cell_bindings -> 3 passed.",
+          "retrieval_eval_20260831_214209 preserved failed quantity repair as diagnostic: retrieval_not_passed plus expected_evidence_not_cited.",
+          "retrieval_eval_20260831_214528 preserved row 1 clean and showed repaired row 2 retrieval passes at rank 3 but answer grounding remains expected_evidence_not_cited after manual JSONL inspection."
+        ],
+        "finding": "Guardrail found retrieval_eval_20260831_204556 row 2 and the combined rows 1-2 clean claim were premature because the visible row-2 quantity question did not distinguish sibling Count value=9 rows.",
+        "guardrail_commit": "155411a",
+        "remaining": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_reclassified_row2_and_added_source_backed_replacement_answer_open",
+        "timestamp": "2026-08-31T21:03:00Z"
+      },
+      {
         "addressed_this_run": "Repaired the general table-cell retrieval/answering/scoring path and reran rows 1-2 through a freshly loaded side API.",
         "evidence": [
           "retrieval_eval_20260831_204556 passed retrieval 2/2 at rank 1 and actual HTTP answer grounding 2/2.",
@@ -12850,21 +12874,26 @@
           "Focused retrieval, answering, and eval-scorer tests passed; full unit gate passed 514 tests.",
           "retrieval_eval_20260831_200037, retrieval_eval_20260831_200419, and pre-format retrieval_eval_20260831_204200 remain diagnostic/excluded as applicable."
         ],
-        "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence."
+        "finding": "Latest guardrail accepted contextual setup-scope rows 13-14 and required broader source-reviewed answer-grounding coverage.",
+        "guardrail_commit": "d2175ff",
+        "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence.",
+        "severity": "ok",
+        "status": "addressed_this_run_table_cell_retrieval_answer_repair_pending_guardrail_audit",
+        "timestamp": "2026-08-31T20:08:00Z"
       },
       {
-        "timestamp": "2026-08-31T19:22:36Z",
-        "guardrail_commit": "11e7c6c",
-        "severity": "ok",
-        "finding": "Guardrail accepted retrieval_eval_20260831_190034 as diagnostic/not-clean and required fixing or source-reviewing contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide before counting clean evidence.",
-        "status": "addressed_this_run_with_source_reviewed_setup_scope_repair",
         "addressed_this_run": "Created a realistic setup-procedure scoped replacement dataset for rows 13-14 and reran it through a freshly loaded clean side API.",
         "evidence": [
           "retrieval_eval_20260831_193102 passed retrieval 2/2 at rank 1 and actual HTTP answer grounding 2/2.",
           "Manual JSONL inspection confirmed cited returned chunk eba458c3 directly supports the high-speed discrete-I/O role and the Not Connected setup-details/exact-values role.",
           "The older retrieval_eval_20260831_190034 run remains excluded as diagnostic/not-clean."
         ],
-        "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean, and preserve the repaired contextual rows 13-14 setup-scope evidence from retrieval_eval_20260831_193102 only for questions that explicitly ask from the LJ-X8000 EtherNet/IP setup procedure."
+        "finding": "Guardrail accepted retrieval_eval_20260831_190034 as diagnostic/not-clean and required fixing or source-reviewing contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide before counting clean evidence.",
+        "guardrail_commit": "11e7c6c",
+        "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean, and preserve the repaired contextual rows 13-14 setup-scope evidence from retrieval_eval_20260831_193102 only for questions that explicitly ask from the LJ-X8000 EtherNet/IP setup procedure.",
+        "severity": "ok",
+        "status": "addressed_this_run_with_source_reviewed_setup_scope_repair",
+        "timestamp": "2026-08-31T19:22:36Z"
       },
       {
         "addressed_this_run": "Broadened coverage with curated single-step v2 row 13 through a loaded side API and manually inspected the actual user-visible answer and cited chunk content.",
@@ -13780,9 +13809,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-08-31T20:57:00Z"
+    "updated_at": "2026-08-31T21:59:00Z"
   },
-  "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence.",
+  "remaining": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14297,34 +14326,58 @@
       "scope": "curated single-step v2 row 11 containment rerun"
     },
     {
+      "reason": "diagnostic/not-clean: row 13 retrieved expected setup-guide evidence at rank 2 but cited an unrelated command-input chunk and omitted the high-speed discrete-I/O condition; row 14 missed expected setup-guide Not Connected evidence and cited a different LJ-X user manual overview.",
       "run_id": "retrieval_eval_20260831_190034",
-      "scope": "contextual procedure rows 13-14 source-equivalence answer-grounding rotation",
-      "reason": "diagnostic/not-clean: row 13 retrieved expected setup-guide evidence at rank 2 but cited an unrelated command-input chunk and omitted the high-speed discrete-I/O condition; row 14 missed expected setup-guide Not Connected evidence and cited a different LJ-X user manual overview."
+      "scope": "contextual procedure rows 13-14 source-equivalence answer-grounding rotation"
     },
     {
+      "reason": "diagnostic false positive before source-reviewed expected_evidence refresh; row 2 answer cited one-shot output chunk 21122868 and omitted expected Quantity counted at one time cell value 3.",
       "run_id": "retrieval_eval_20260831_200037",
-      "scope": "curated single-step v2 row 2 and combined rows 1-2 clean claim",
-      "reason": "diagnostic false positive before source-reviewed expected_evidence refresh; row 2 answer cited one-shot output chunk 21122868 and omitted expected Quantity counted at one time cell value 3."
+      "scope": "curated single-step v2 row 2 and combined rows 1-2 clean claim"
     },
     {
+      "reason": "diagnostic/not-clean after expected_evidence refresh; row 1 failed table-cell binding and row 2 failed expected evidence citation plus retrieval context.",
       "run_id": "retrieval_eval_20260831_200419",
-      "scope": "curated single-step v2 rows 1-2 clean claim",
-      "reason": "diagnostic/not-clean after expected_evidence refresh; row 1 failed table-cell binding and row 2 failed expected evidence citation plus retrieval context."
+      "scope": "curated single-step v2 rows 1-2 clean claim"
     },
     {
+      "reason": "diagnostic/superseded by retrieval_eval_20260831_204556 because row 1 still appended broad Context text before the table-cell fallback formatter fix; not counted as final clean answer evidence.",
       "run_id": "retrieval_eval_20260831_204200",
-      "scope": "curated single-step v2 rows 1-2 post-repair pre-format HTTP evidence",
-      "reason": "diagnostic/superseded by retrieval_eval_20260831_204556 because row 1 still appended broad Context text before the table-cell fallback formatter fix; not counted as final clean answer evidence."
+      "scope": "curated single-step v2 rows 1-2 post-repair pre-format HTTP evidence"
+    },
+    {
+      "reason": "guardrail 2026-08-31T21:03:00Z reclassified row 2 as ambiguous because the visible question did not distinguish Quantity counted at one time 2 / Latching output from 3 / One-Shot output rows; row 1 remains clean.",
+      "run_id": "retrieval_eval_20260831_204556",
+      "scope": "curated single-step v2 row 2 and combined rows 1-2 clean claim"
+    },
+    {
+      "reason": "diagnostic/not-clean: source-backed query added One-Shot/current-count scope, but actual HTTP retrieval selected >= sibling/shifted key-value evidence and answer failed expected_evidence_not_cited plus retrieval_not_passed.",
+      "run_id": "retrieval_eval_20260831_214209",
+      "scope": "single-step row 2 one-shot quantity repair attempt"
+    },
+    {
+      "reason": "diagnostic/not-clean for answer grounding: retrieval passed at rank 3, but user-visible fallback cited shifted key-value chunk 0b84d8d8 and failed expected_evidence_not_cited; row 1 within the run remains clean.",
+      "run_id": "retrieval_eval_20260831_214528",
+      "scope": "single-step row 2 output-status replacement answer claim"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
     {
-      "timestamp": "2026-08-31T20:08:00Z",
-      "guardrail_commit": "d2175ff",
-      "severity": "ok",
-      "finding": "Latest guardrail accepted contextual setup-scope rows 13-14 and required broader source-reviewed answer-grounding coverage.",
-      "status": "addressed_this_run_table_cell_retrieval_answer_repair_pending_guardrail_audit",
+      "addressed_this_run": "Reclassified row 2/combined clean claim as diagnostic, added source-backed repaired row-2 questions, added a deterministic adverse sibling-row answer scorer control, and reran through loaded HTTP.",
+      "evidence": [
+        "Focused scorer test passed: sibling_quantity_table_row / structured_table_cell_fallback_line / sibling_table_cell_bindings -> 3 passed.",
+        "retrieval_eval_20260831_214209 preserved failed quantity repair as diagnostic: retrieval_not_passed plus expected_evidence_not_cited.",
+        "retrieval_eval_20260831_214528 preserved row 1 clean and showed repaired row 2 retrieval passes at rank 3 but answer grounding remains expected_evidence_not_cited after manual JSONL inspection."
+      ],
+      "finding": "Guardrail found retrieval_eval_20260831_204556 row 2 and the combined rows 1-2 clean claim were premature because the visible row-2 quantity question did not distinguish sibling Count value=9 rows.",
+      "guardrail_commit": "155411a",
+      "remaining": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_reclassified_row2_and_added_source_backed_replacement_answer_open",
+      "timestamp": "2026-08-31T21:03:00Z"
+    },
+    {
       "addressed_this_run": "Repaired the general table-cell retrieval/answering/scoring path and reran rows 1-2 through a freshly loaded side API.",
       "evidence": [
         "retrieval_eval_20260831_204556 passed retrieval 2/2 at rank 1 and actual HTTP answer grounding 2/2.",
@@ -14332,21 +14385,26 @@
         "Focused retrieval, answering, and eval-scorer tests passed; full unit gate passed 514 tests.",
         "retrieval_eval_20260831_200037, retrieval_eval_20260831_200419, and pre-format retrieval_eval_20260831_204200 remain diagnostic/excluded as applicable."
       ],
-      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence."
+      "finding": "Latest guardrail accepted contextual setup-scope rows 13-14 and required broader source-reviewed answer-grounding coverage.",
+      "guardrail_commit": "d2175ff",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_204556 rows 1-2 as clean table-cell evidence and retrieval_eval_20260831_200037 / retrieval_eval_20260831_200419 as diagnostic pre-repair evidence.",
+      "severity": "ok",
+      "status": "addressed_this_run_table_cell_retrieval_answer_repair_pending_guardrail_audit",
+      "timestamp": "2026-08-31T20:08:00Z"
     },
     {
-      "timestamp": "2026-08-31T19:22:36Z",
-      "guardrail_commit": "11e7c6c",
-      "severity": "ok",
-      "finding": "Guardrail accepted retrieval_eval_20260831_190034 as diagnostic/not-clean and required fixing or source-reviewing contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide before counting clean evidence.",
-      "status": "addressed_this_run_with_source_reviewed_setup_scope_repair",
       "addressed_this_run": "Created a realistic setup-procedure scoped replacement dataset for rows 13-14 and reran it through a freshly loaded clean side API.",
       "evidence": [
         "retrieval_eval_20260831_193102 passed retrieval 2/2 at rank 1 and actual HTTP answer grounding 2/2.",
         "Manual JSONL inspection confirmed cited returned chunk eba458c3 directly supports the high-speed discrete-I/O role and the Not Connected setup-details/exact-values role.",
         "The older retrieval_eval_20260831_190034 run remains excluded as diagnostic/not-clean."
       ],
-      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean, and preserve the repaired contextual rows 13-14 setup-scope evidence from retrieval_eval_20260831_193102 only for questions that explicitly ask from the LJ-X8000 EtherNet/IP setup procedure."
+      "finding": "Guardrail accepted retrieval_eval_20260831_190034 as diagnostic/not-clean and required fixing or source-reviewing contextual rows 13-14 from the LJ-X8000 EtherNet/IP setup guide before counting clean evidence.",
+      "guardrail_commit": "11e7c6c",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve retrieval_eval_20260831_190034 as diagnostic/not-clean, and preserve the repaired contextual rows 13-14 setup-scope evidence from retrieval_eval_20260831_193102 only for questions that explicitly ask from the LJ-X8000 EtherNet/IP setup procedure.",
+      "severity": "ok",
+      "status": "addressed_this_run_with_source_reviewed_setup_scope_repair",
+      "timestamp": "2026-08-31T19:22:36Z"
     },
     {
       "addressed_this_run": "Broadened coverage with curated single-step v2 row 13 through a loaded side API and manually inspected the actual user-visible answer and cited chunk content.",
@@ -15262,5 +15320,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-08-31T20:57:00Z"
+  "updated_at": "2026-08-31T21:59:00Z"
 }
