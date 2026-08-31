@@ -53,6 +53,13 @@ LEXICAL_TABLE_STOPWORDS = {
     "settings",
     "should",
     "system",
+    "and",
+    "for",
+    "in",
+    "is",
+    "named",
+    "the",
+    "at",
     "temporarily",
     "there",
     "using",
@@ -310,16 +317,31 @@ def _compact_identifier(text: str) -> str:
 
 
 def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
+    table_lookup = "structured_lookup" in analysis.query_types or "table_record" in analysis.preferred_chunk_types
     if (
-        "structured_lookup" not in analysis.query_types
+        not table_lookup
         and not ("comparison" in analysis.query_types and analysis.product_identifiers)
         and not _query_has_diagnostic_table_code(query, analysis)
     ):
         return []
     terms: list[str] = []
-    for term in tokenize(query):
+    query_tokens = tokenize(query)
+    compact_tokens = [re.sub(r"[^a-z0-9]+", "", term.lower()) for term in query_tokens]
+    for index, term in enumerate(query_tokens):
         normalized = re.sub(r"[^a-z0-9]+", "", term.lower())
-        if (len(normalized) < 4 and not any(char.isdigit() for char in normalized)) or normalized in LEXICAL_TABLE_STOPWORDS:
+        if re.search(r"\d\s*[-–]\s*\d", term) and normalized.isdigit():
+            continue
+        nearby_numeric = any(
+            any(char.isdigit() for char in compact_tokens[neighbor_index])
+            for neighbor_index in (index - 1, index + 1)
+            if 0 <= neighbor_index < len(compact_tokens)
+        )
+        short_code_label = normalized in {"id", "pid", "pib", "plc", "ch"} and nearby_numeric
+        if (
+            len(normalized) < 4
+            and not any(char.isdigit() for char in normalized)
+            and not short_code_label
+        ) or normalized in LEXICAL_TABLE_STOPWORDS:
             continue
         if normalized not in terms:
             terms.append(normalized)
@@ -332,6 +354,16 @@ def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
                     and piece not in terms
                 ):
                     terms.append(piece)
+    for start, end in re.findall(r"\b(\d{2,6})\s*[-–]\s*(\d{2,6})\b", query):
+        range_terms = [start, end]
+        if len(start) == len(end):
+            start_int = int(start)
+            end_int = int(end)
+            if 0 < end_int - start_int <= 20:
+                range_terms = [f"{value:0{len(start)}d}" for value in range(start_int, end_int + 1)]
+        for term in range_terms:
+            if term not in terms:
+                terms.append(term)
     return terms[:16]
 
 
@@ -517,6 +549,16 @@ def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase
     score = overlap * 0.12
     content_overlap = sum(1 for term in terms if term in compact_content)
     score += min(0.48, content_overlap * 0.12)
+    numeric_anchor_terms = [term for term in terms if term.isdigit() and 2 <= len(term) <= 6]
+    numeric_content_overlap = sum(1 for term in numeric_anchor_terms if term in compact_content)
+    score += min(1.2, numeric_content_overlap * 0.25)
+    if numeric_anchor_terms and numeric_content_overlap == len(numeric_anchor_terms):
+        score += 0.6
+    code_label_terms = [term for term in terms if term in {"id", "pid", "pib", "piw", "plc", "ch"}]
+    if code_label_terms and numeric_anchor_terms:
+        code_label_overlap = sum(1 for term in code_label_terms if term in compact_content)
+        if code_label_overlap:
+            score += min(0.4, code_label_overlap * 0.2)
     symbol_terms = _lexical_table_symbol_terms(terms)
     symbol_overlap = sum(1 for term in symbol_terms if term in compact_haystack)
     score += min(0.9, symbol_overlap * 0.22)
@@ -2215,7 +2257,8 @@ def _promote_structured_table_candidates(
     *,
     limit: int = 12,
 ) -> list[SearchResult]:
-    if "structured_lookup" not in analysis.query_types or "comparison" in analysis.query_types or not supplemental_results:
+    table_lookup = "structured_lookup" in analysis.query_types or "table_record" in analysis.preferred_chunk_types
+    if not table_lookup or "comparison" in analysis.query_types or not supplemental_results:
         return primary_results
     candidates = [
         result

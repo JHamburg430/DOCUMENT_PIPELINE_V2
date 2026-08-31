@@ -476,6 +476,53 @@ def test_table_lexical_terms_include_diagnostic_codes_for_troubleshooting_tables
     assert "mod600" in terms
 
 
+def test_table_lexical_terms_include_table_preferred_code_anchors():
+    query = (
+        "In the MOD-600 cyclic communication allocation table, what is PID 428 "
+        "at address bytes 0016-0018 named?"
+    )
+    analysis = analyze_query(query)
+
+    terms = retriever._lexical_table_terms(query, analysis)
+
+    assert "pid" in terms
+    assert "428" in terms
+    assert "0016" in terms
+    assert "0017" in terms
+    assert "0018" in terms
+
+
+def test_table_lexical_score_prefers_complete_address_range_row():
+    query = (
+        "In the MOD-600 cyclic communication allocation table, what is PID 428 "
+        "at address bytes 0016-0018 named?"
+    )
+    analysis = analyze_query(query)
+    terms = retriever._lexical_table_terms(query, analysis)
+    expected_row = {
+        "content": "Measurement count area | 0016 0017 0018 | PID 428 | Total count",
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_row_group": True,
+            "product_model": "MOD-600",
+        },
+        "priority_score": 10.0,
+    }
+    sibling_bit_row = {
+        "content": "Column headers: 4bit; Row headers: 0016 PID 428 > status Bit area; Cell value: Allocation possible",
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_row_headers": ["0016 PID 428", "status Bit area"],
+            "table_column_headers": ["4bit"],
+            "product_model": "MOD-600",
+        },
+        "priority_score": 12.0,
+    }
+
+    assert retriever._table_lexical_score(expected_row, terms) > retriever._table_lexical_score(sibling_bit_row, terms)
+
+
 def test_dedupe_results_keeps_distinct_chunks_in_same_section():
     analysis = analyze_query("What does LJ-X8000 say about trigger timing?")
     first = SearchResult(
@@ -2948,6 +2995,45 @@ def test_structured_table_promotion_preserves_top_lexical_cell_after_rerank():
     assert promoted[0].chunk_id == "expected-cell"
     assert promoted[0].metadata["retrieval_stage"] == "structured_table_promoted"
     assert promoted[1].chunk_id == "wrong-cell"
+
+
+def test_table_preferred_lookup_promotion_preserves_top_lexical_row_after_rerank():
+    analysis = analyze_query(
+        "In the MOD-600 cyclic communication allocation table, what is PID 428 "
+        "at address bytes 0016-0018 named?"
+    )
+    reranked = [
+        SearchResult(
+            chunk_id="broad-cyclic-details",
+            score=0.9,
+            title="Manual",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[904],
+            section_path=["Cyclic communication"],
+            content="Displays the results data. The amount specified in cyclic communication allocations can be acquired.",
+            metadata={"chunk_type": "table_record", "table_cell": True},
+        )
+    ]
+    lexical = [
+        SearchResult(
+            chunk_id="pid-428-total-count",
+            score=5.0,
+            title="Manual",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[920],
+            section_path=["Cyclic communication allocation"],
+            content="Measurement count area | 0016 0017 0018 | PID 428 | Total count",
+            metadata={"chunk_type": "table_record", "table_row_group": True},
+        )
+    ]
+
+    promoted = retriever._promote_structured_table_candidates(reranked, lexical, analysis, limit=12)
+
+    assert promoted[0].chunk_id == "pid-428-total-count"
+    assert promoted[0].metadata["retrieval_stage"] == "structured_table_promoted"
+    assert promoted[1].chunk_id == "broad-cyclic-details"
 
 
 def test_comparison_table_lexical_adds_bounded_row_key_supplement(monkeypatch):
