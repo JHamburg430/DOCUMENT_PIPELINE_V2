@@ -2825,6 +2825,31 @@ def test_validate_answer_binds_table_style_line_and_overlap_values():
     assert any("not sufficiently supported" in warning for warning in wrong_overlap.warnings)
 
 
+def test_validate_answer_binds_quantity_role_alias_values():
+    results = [
+        _quantity_result(
+            content=(
+                "Camera settings Line Count 10 "
+                "Overlap Count two "
+                "Total Number of Lines 23 lines."
+            ),
+        ),
+    ]
+
+    correct = _validate_quantity_answer("The example uses 10 lines and two overlap lines.", results)
+    swapped = _validate_quantity_answer("The example uses two lines and 10 overlap lines.", results)
+    total_as_line = _validate_quantity_answer("The example uses 23 lines and two overlap lines.", results)
+
+    assert correct.answer == "The example uses 10 lines and two overlap lines."
+    assert not any("not sufficiently supported" in warning for warning in correct.warnings)
+    assert "Line Count 10" in swapped.answer
+    assert "Overlap Count two" in swapped.answer
+    assert "two lines and 10 overlap" not in swapped.answer
+    assert any("not sufficiently supported" in warning for warning in swapped.warnings)
+    assert "23 lines and two overlap" not in total_as_line.answer
+    assert any("not sufficiently supported" in warning for warning in total_as_line.warnings)
+
+
 def test_validate_answer_falls_back_for_quantity_cross_clause_role_mixing():
     results = [
         _quantity_result(

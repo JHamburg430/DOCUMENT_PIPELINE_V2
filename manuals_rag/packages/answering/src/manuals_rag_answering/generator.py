@@ -402,6 +402,11 @@ def _quantity_value_role_match_is_unit_only(clause: str, match: re.Match[str], r
 def _quantity_value_role_match_crosses_prior_role(clause: str, match: re.Match[str], role: str) -> bool:
     left_context = clause[: match.start(1)]
     local_context = re.split(r"[\n.;:|]+|\b(?:and|while|but|whereas)\b", left_context, flags=re.IGNORECASE)[-1]
+    for other_role, other_pattern in QUANTITY_ROLE_PATTERNS.items():
+        if other_role == role:
+            continue
+        if other_pattern.search(local_context):
+            return True
     if role == "overlap" and re.search(r"\b(?:number\s+of\s+)?lines?\s*$", local_context, flags=re.IGNORECASE):
         return True
     if role == "line" and re.search(r"\boverlap(?:ping)?\s+lines?\s*$", local_context, flags=re.IGNORECASE):
