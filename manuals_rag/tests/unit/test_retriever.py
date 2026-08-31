@@ -492,6 +492,63 @@ def test_table_lexical_terms_include_table_preferred_code_anchors():
     assert "0018" in terms
 
 
+def test_troubleshooting_checkpoint_queries_use_table_lexical_terms():
+    query = (
+        "In MOD-600 troubleshooting, when an external trigger cannot be input, "
+        "which polarity checkpoint should I verify?"
+    )
+    analysis = analyze_query(query)
+
+    terms = retriever._lexical_table_terms(query, analysis)
+
+    assert "table_record" in analysis.preferred_chunk_types
+    assert retriever._should_run_table_lexical_search(analysis) is True
+    assert "polarity" in terms
+    assert retriever._lexical_table_content_terms(terms) == ["polarity"]
+
+
+def test_checkpoint_table_score_prefers_requested_polarity_row_over_trigger_workaround():
+    query = (
+        "In MOD-600 troubleshooting, when an external trigger cannot be input, "
+        "which polarity checkpoint should I verify?"
+    )
+    analysis = analyze_query(query)
+    terms = retriever._lexical_table_terms(query, analysis)
+    polarity_row = {
+        "content": (
+            "Column headers: Check point; Row headers: An external trigger cannot be input.; "
+            "Cell value: Is the Polarity correctly set?"
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_column_headers": ["Check point"],
+            "table_row_headers": ["An external trigger cannot be input."],
+            "product_model": "MOD-600",
+        },
+        "priority_score": 10.0,
+    }
+    trigger_workaround = {
+        "content": (
+            "In the following cases, input an external trigger. When Internal Trigger Control "
+            "is enabled, press Trigger ON to take an image temporarily using the internal trigger."
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_column_headers": ["Procedure"],
+            "table_row_headers": ["External trigger input"],
+            "product_model": "MOD-600",
+        },
+        "priority_score": 14.0,
+    }
+
+    assert retriever._table_lexical_score(polarity_row, terms) > retriever._table_lexical_score(
+        trigger_workaround,
+        terms,
+    )
+
+
 def test_table_lexical_score_prefers_complete_address_range_row():
     query = (
         "In the MOD-600 cyclic communication allocation table, what is PID 428 "

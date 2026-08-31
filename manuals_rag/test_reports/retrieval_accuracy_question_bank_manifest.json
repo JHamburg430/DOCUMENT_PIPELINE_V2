@@ -1,8 +1,6 @@
 {
   "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 1,
-    "expected_table_cell_binding_missing": 1,
-    "retrieval_not_passed": 1
+    "expected_evidence_not_cited": 1
   },
   "answer_failure_categories": {
     "expected_evidence_not_cited": 1,
@@ -191,38 +189,36 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-08-31T15:16:00Z",
-    "status": "single_step_v2_rows_11_12_corrected_retrieval_scoring_diagnostic",
-    "classification": "row_11_clean_row_12_retrieval_context_loss_after_source_review_rephrase",
-    "latest_run": "retrieval_eval_20260831_151001",
-    "diagnostic_original_run": "retrieval_eval_20260831_142715",
-    "diagnostic_pre_scorer_run": "retrieval_eval_20260831_143131",
-    "diagnostic_answer_experiment_run": "retrieval_eval_20260831_150457",
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_151001.jsonl",
-    "source_repair_dataset": "test_reports/retrieval_eval_dataset_20260831_1435_single_step_rows11_12_source_repair.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260831_151001.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260831_151001.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_151001.json",
+    "timestamp": "2026-08-31T15:41:00Z",
+    "status": "single_step_v2_row_12_retrieval_context_repaired_answer_citation_pending",
+    "classification": "row_11_clean_row_12_retrieval_repaired_answer_exact_citation_pending",
+    "latest_run": "retrieval_eval_20260831_153415",
+    "diagnostic_retrieval_only_run": "retrieval_eval_20260831_153159",
+    "previous_diagnostic_run": "retrieval_eval_20260831_151001",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_153415.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260831_153415.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260831_153415.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_153415.json",
     "search_mode": "http",
     "response_mode": "answer_with_citations",
     "query_offset": 0,
     "max_queries": 2,
-    "retrieval_result": "1/2 single-step retrieval passed after source-only expected-evidence scoring; row 12 now fails no_match/ranking_or_context_loss because final top-k omits chunk 6469ea5d despite broad same-document overlap.",
-    "answer_result": "1/2 actual HTTP API answers passed. Row 11 remains clean fallback-validation evidence; row 12 remains diagnostic/not-clean with expected_evidence_not_cited, expected_table_cell_binding_missing, and retrieval_not_passed.",
-    "current_retrieval_failures": {
-      "ranking_or_context_loss": 1
-    },
+    "retrieval_result": "2/2 single-step retrieval passed at rank 1 after troubleshooting checkpoint queries became table-aware; row 12 final top-k now includes expected polarity checkpoint chunk 6469ea5d at rank 2 behind same-page remedy chunk c9ac881b.",
+    "answer_result": "1/2 actual HTTP API answers passed. Row 11 remains clean. Row 12 answer text is materially correct and cites page-526 same-row remedy chunk c9ac881b, but exact expected-evidence citation scoring still fails because expected checkpoint chunk 6469ea5d is not cited; preserved as diagnostic/not-clean pending source review or citation-selection repair.",
+    "current_retrieval_failures": {},
     "current_answer_failures": {
-      "expected_evidence_not_cited": 1,
-      "expected_table_cell_binding_missing": 1,
-      "retrieval_not_passed": 1
+      "expected_evidence_not_cited": 1
     },
     "runtime_load_evidence": {
-      "container": "manuals-rag-temp-api-39262386-20260831-row12-checkpoint-v2",
-      "host_api_base": "http://127.0.0.1:8887",
+      "container": "manuals-rag-temp-api-39262386-20260831-row12",
+      "host_api_base": "http://127.0.0.1:8912",
       "in_container_api_base": "http://127.0.0.1:8600",
-      "api_health": "ok at 2026-08-31T15:03:29Z",
-      "retrieval_eval_change": "score_search_results now requires non-exact same-document single-step matches with expected_evidence to support the expected evidence text itself before passing.",
+      "api_health": "ok at 2026-08-31T15:33:14Z",
+      "retriever_py_sha256": "fa52e0cb563638d95523069e1bc73f33b591eaa33f5e240c08f41d5d17cd1abf",
+      "analyze_query_sha256": "0eaaeeed308b31f3c7972c6d318ff836af80df33ce1d0f81c6190de123d8d07a",
+      "_lexical_table_terms_sha256": "85abd5eea896e6dee281ee48c2507432697506821328f93a8bcae8882e9c0e68",
+      "_lexical_table_content_terms_sha256": "f1258d60aff3b5a38602f91a11a79e7f4349755d90e1790f20355f60f06a9231",
+      "_table_lexical_score_sha256": "870abe4174f0aa4240a65aee417a4c9234569bd07bf62153765f817745574758",
       "OLLAMA_URL": "http://host.docker.internal:11434",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
@@ -230,10 +226,15 @@
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
       "HAYSTACK_RERANK_DEVICE": "cuda:0"
     },
+    "changed_path_evidence": {
+      "query_analysis": "Row 12 query analyzes as troubleshooting with preferred_chunk_types ['table_record']; lexical table content terms reduce to ['polarity'].",
+      "direct_retrieval_run": "retrieval_eval_20260831_153159 passed 2/2 retrieval at rank 1 with row 12 fixed.",
+      "http_answer_run": "retrieval_eval_20260831_153415 passed 2/2 retrieval and 1/2 answer grounding through the loaded side API."
+    },
     "resolved_rows": [
       {
         "row": 11,
-        "run": "retrieval_eval_20260831_151001",
+        "run": "retrieval_eval_20260831_153415",
         "query": "Which CV-X482 output line corresponds to data output bit 10?",
         "classification": "clean_loaded_http_fallback_validation",
         "cited_chunks": [
@@ -245,46 +246,49 @@
             ]
           }
         ],
-        "evidence": "Manual JSONL inspection confirmed the visible fallback answer cites chunk a268fb25 and states OUT_DATA10 / Data output bit 10; the cited returned content contains the OUT_DATA0-OUT_DATA15 table row group including OUT_DATA10 and Data output bit 10."
+        "evidence": "Manual JSONL inspection confirmed the visible fallback answer cites chunk a268fb25 and states OUT_DATA10 / Data output bit 10; the cited returned content contains OUT_DATA10 and Data output bit 10."
       }
     ],
     "diagnostic_rows": [
       {
         "row": 12,
-        "run": "retrieval_eval_20260831_151001",
-        "original_run": "retrieval_eval_20260831_142715",
-        "pre_scorer_run": "retrieval_eval_20260831_143131",
+        "run": "retrieval_eval_20260831_153415",
+        "previous_run": "retrieval_eval_20260831_151001",
         "repaired_query": "In IV4-G600CA troubleshooting, when an external trigger cannot be input, which polarity checkpoint should I verify?",
-        "classification": "diagnostic_not_clean_retrieval_context_loss_after_expected_evidence_scorer_repair",
+        "classification": "diagnostic_not_clean_exact_expected_citation_pending_after_retrieval_repair",
         "failure_reasons": [
-          "ranking_or_context_loss",
-          "expected_evidence_not_cited",
-          "expected_table_cell_binding_missing",
-          "retrieval_not_passed"
+          "expected_evidence_not_cited"
         ],
         "expected_chunk_id": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
         "cited_chunks": [
           {
-            "chunk_id": "23b3e712-2e74-5cc3-8d04-b54b2c4e5f13",
-            "quote_span": null,
+            "chunk_id": "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
+            "quote_span": "Is the Polarity correctly set?; Cell value: When NPN is selected in the Polarity, the circuit becomes a non-voltage input circuit. When PNP is selected in the Polarity, the circuit becomes a voltage input circuit. Check the cables.",
             "pages": [
-              152
+              526
             ]
           }
         ],
         "top_result_chunk_ids": [
-          "0d95585d-ed23-5de2-bb6d-d874e2de8083",
-          "17ac2147-5b61-513a-b7ae-0c9e9559e798",
-          "23b3e712-2e74-5cc3-8d04-b54b2c4e5f13",
-          "ac3ca6b0-a283-53f6-a596-d74894407a62",
-          "dbe096c8-1c88-573d-8ae5-ee213b20fe26"
+          "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
+          "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
+          "71426967-76ed-5e42-9489-68ddcf97223b",
+          "efe38bf4-cf29-5a85-8d43-31ac788af277",
+          "473a9dc1-e36e-5ab4-8f0c-1b60c32b4235"
         ],
-        "evidence": "Manual JSONL inspection of retrieval_eval_results_20260831_151001 confirmed the final top-k and citation contain internal-trigger/workaround chunks, not the page-526 troubleshooting table cell: An external trigger cannot be input / Check point: Is the Polarity correctly set?"
+        "evidence": "Manual JSONL inspection confirmed final top-k now includes expected checkpoint chunk 6469ea5d and the visible answer correctly says to verify whether Polarity is correctly set. It remains not-clean because the citation is adjacent same-page remedy chunk c9ac881b rather than the stored expected checkpoint chunk, pending source-reviewed equivalent-citation policy or exact citation repair."
       }
     ],
-    "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260831_151001. Row 11 is clean. Row 12 final top-k omits expected chunk 6469ea5d, cites 23b3e712 internal-trigger/workaround context, and is correctly failed as retrieval_not_passed plus expected evidence/table-cell binding missing.",
-    "rejected_answer_experiment": "A synthetic production-answering experiment made checkpoint wording select a table row when that row was present, but actual HTTP row 12 still lacked the polarity chunk in final top-k. The production answering change was reverted and is not claimed or committed.",
-    "next_target": "Fix single-step v2 row 12 retrieval/context selection: the repaired IV4-G600CA troubleshooting query is source-backed, but final top-k omits the page-526 polarity checkpoint chunk 6469ea5d and instead returns internal-trigger workaround chunks. Preserve row 11 clean evidence, retrieval_eval_20260831_151001 as the corrected scorer diagnostic, and do not tune answer selection until retrieval surfaces the Polarity checkpoint in the answer candidate set."
+    "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260831_153415. Row 11 remains clean. Row 12 retrieval is repaired and answer content is correct, but exact expected-evidence citation support still fails because the user-visible answer cites c9ac881b rather than expected chunk 6469ea5d.",
+    "next_target": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
+    "source_repair_dataset": "test_reports/retrieval_eval_dataset_20260831_151001.jsonl",
+    "validation": {
+      "manifest_checker": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+      "json_validation": "python3 -m json.tool passed for question-bank manifest and new eval summary/manifest artifacts",
+      "focused_retriever_tests": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'checkpoint or table_lexical_terms_include_table_preferred_code_anchors or complete_address_range' -> 4 passed, 122 deselected",
+      "focused_manifest_tests": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 31 passed",
+      "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 507 passed, 60 warnings"
+    }
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -760,18 +764,14 @@
     "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints."
   },
   "answer_grounding_status": {
-    "timestamp": "2026-08-31T15:16:00Z",
-    "status": "single_step_v2_rows_11_12_corrected_retrieval_scoring_diagnostic",
-    "current_retrieval_failures": {
-      "ranking_or_context_loss": 1
-    },
+    "timestamp": "2026-08-31T15:41:00Z",
+    "status": "single_step_v2_row_12_retrieval_context_repaired_answer_citation_pending",
+    "current_retrieval_failures": {},
     "current_answer_failures": {
-      "expected_evidence_not_cited": 1,
-      "expected_table_cell_binding_missing": 1,
-      "retrieval_not_passed": 1
+      "expected_evidence_not_cited": 1
     },
-    "latest_run": "retrieval_eval_20260831_151001",
-    "remaining": "Fix single-step v2 row 12 retrieval/context selection: the repaired IV4-G600CA troubleshooting query is source-backed, but final top-k omits the page-526 polarity checkpoint chunk 6469ea5d and instead returns internal-trigger workaround chunks. Preserve row 11 clean evidence, retrieval_eval_20260831_151001 as the corrected scorer diagnostic, and do not tune answer selection until retrieval surfaces the Polarity checkpoint in the answer candidate set."
+    "latest_run": "retrieval_eval_20260831_153415",
+    "remaining": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations."
   },
   "constraints": {
     "allowed_logic": [
@@ -790,16 +790,10 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 1,
-    "expected_table_cell_binding_missing": 1,
-    "retrieval_not_passed": 1
+    "expected_evidence_not_cited": 1
   },
-  "current_failure_categories": {
-    "ranking_or_context_loss": 1
-  },
-  "current_retrieval_failure_categories": {
-    "ranking_or_context_loss": 1
-  },
+  "current_failure_categories": {},
+  "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "diagnostics": [
     {
@@ -998,9 +992,7 @@
       "total_queries": 10
     }
   ],
-  "failure_categories": {
-    "ranking_or_context_loss": 1
-  },
+  "failure_categories": {},
   "goal": {
     "components": [
       "single_step_retrieval",
@@ -8952,7 +8944,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Fix single-step v2 row 12 retrieval/context selection: the repaired IV4-G600CA troubleshooting query is source-backed, but final top-k omits the page-526 polarity checkpoint chunk 6469ea5d and instead returns internal-trigger workaround chunks. Preserve row 11 clean evidence, retrieval_eval_20260831_151001 as the corrected scorer diagnostic, and do not tune answer selection until retrieval surfaces the Polarity checkpoint in the answer candidate set.",
+  "next_target": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9706,9 +9698,7 @@
   },
   "question_bank": {
     "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 1,
-      "expected_table_cell_binding_missing": 1,
-      "retrieval_not_passed": 1
+      "expected_evidence_not_cited": 1
     },
     "answer_failure_categories": {
       "expected_evidence_not_cited": 1,
@@ -9897,38 +9887,36 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-08-31T15:16:00Z",
-      "status": "single_step_v2_rows_11_12_corrected_retrieval_scoring_diagnostic",
-      "classification": "row_11_clean_row_12_retrieval_context_loss_after_source_review_rephrase",
-      "latest_run": "retrieval_eval_20260831_151001",
-      "diagnostic_original_run": "retrieval_eval_20260831_142715",
-      "diagnostic_pre_scorer_run": "retrieval_eval_20260831_143131",
-      "diagnostic_answer_experiment_run": "retrieval_eval_20260831_150457",
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_151001.jsonl",
-      "source_repair_dataset": "test_reports/retrieval_eval_dataset_20260831_1435_single_step_rows11_12_source_repair.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260831_151001.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260831_151001.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_151001.json",
+      "timestamp": "2026-08-31T15:41:00Z",
+      "status": "single_step_v2_row_12_retrieval_context_repaired_answer_citation_pending",
+      "classification": "row_11_clean_row_12_retrieval_repaired_answer_exact_citation_pending",
+      "latest_run": "retrieval_eval_20260831_153415",
+      "diagnostic_retrieval_only_run": "retrieval_eval_20260831_153159",
+      "previous_diagnostic_run": "retrieval_eval_20260831_151001",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_153415.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260831_153415.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260831_153415.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_153415.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "query_offset": 0,
       "max_queries": 2,
-      "retrieval_result": "1/2 single-step retrieval passed after source-only expected-evidence scoring; row 12 now fails no_match/ranking_or_context_loss because final top-k omits chunk 6469ea5d despite broad same-document overlap.",
-      "answer_result": "1/2 actual HTTP API answers passed. Row 11 remains clean fallback-validation evidence; row 12 remains diagnostic/not-clean with expected_evidence_not_cited, expected_table_cell_binding_missing, and retrieval_not_passed.",
-      "current_retrieval_failures": {
-        "ranking_or_context_loss": 1
-      },
+      "retrieval_result": "2/2 single-step retrieval passed at rank 1 after troubleshooting checkpoint queries became table-aware; row 12 final top-k now includes expected polarity checkpoint chunk 6469ea5d at rank 2 behind same-page remedy chunk c9ac881b.",
+      "answer_result": "1/2 actual HTTP API answers passed. Row 11 remains clean. Row 12 answer text is materially correct and cites page-526 same-row remedy chunk c9ac881b, but exact expected-evidence citation scoring still fails because expected checkpoint chunk 6469ea5d is not cited; preserved as diagnostic/not-clean pending source review or citation-selection repair.",
+      "current_retrieval_failures": {},
       "current_answer_failures": {
-        "expected_evidence_not_cited": 1,
-        "expected_table_cell_binding_missing": 1,
-        "retrieval_not_passed": 1
+        "expected_evidence_not_cited": 1
       },
       "runtime_load_evidence": {
-        "container": "manuals-rag-temp-api-39262386-20260831-row12-checkpoint-v2",
-        "host_api_base": "http://127.0.0.1:8887",
+        "container": "manuals-rag-temp-api-39262386-20260831-row12",
+        "host_api_base": "http://127.0.0.1:8912",
         "in_container_api_base": "http://127.0.0.1:8600",
-        "api_health": "ok at 2026-08-31T15:03:29Z",
-        "retrieval_eval_change": "score_search_results now requires non-exact same-document single-step matches with expected_evidence to support the expected evidence text itself before passing.",
+        "api_health": "ok at 2026-08-31T15:33:14Z",
+        "retriever_py_sha256": "fa52e0cb563638d95523069e1bc73f33b591eaa33f5e240c08f41d5d17cd1abf",
+        "analyze_query_sha256": "0eaaeeed308b31f3c7972c6d318ff836af80df33ce1d0f81c6190de123d8d07a",
+        "_lexical_table_terms_sha256": "85abd5eea896e6dee281ee48c2507432697506821328f93a8bcae8882e9c0e68",
+        "_lexical_table_content_terms_sha256": "f1258d60aff3b5a38602f91a11a79e7f4349755d90e1790f20355f60f06a9231",
+        "_table_lexical_score_sha256": "870abe4174f0aa4240a65aee417a4c9234569bd07bf62153765f817745574758",
         "OLLAMA_URL": "http://host.docker.internal:11434",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
@@ -9936,10 +9924,15 @@
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
         "HAYSTACK_RERANK_DEVICE": "cuda:0"
       },
+      "changed_path_evidence": {
+        "query_analysis": "Row 12 query analyzes as troubleshooting with preferred_chunk_types ['table_record']; lexical table content terms reduce to ['polarity'].",
+        "direct_retrieval_run": "retrieval_eval_20260831_153159 passed 2/2 retrieval at rank 1 with row 12 fixed.",
+        "http_answer_run": "retrieval_eval_20260831_153415 passed 2/2 retrieval and 1/2 answer grounding through the loaded side API."
+      },
       "resolved_rows": [
         {
           "row": 11,
-          "run": "retrieval_eval_20260831_151001",
+          "run": "retrieval_eval_20260831_153415",
           "query": "Which CV-X482 output line corresponds to data output bit 10?",
           "classification": "clean_loaded_http_fallback_validation",
           "cited_chunks": [
@@ -9951,46 +9944,49 @@
               ]
             }
           ],
-          "evidence": "Manual JSONL inspection confirmed the visible fallback answer cites chunk a268fb25 and states OUT_DATA10 / Data output bit 10; the cited returned content contains the OUT_DATA0-OUT_DATA15 table row group including OUT_DATA10 and Data output bit 10."
+          "evidence": "Manual JSONL inspection confirmed the visible fallback answer cites chunk a268fb25 and states OUT_DATA10 / Data output bit 10; the cited returned content contains OUT_DATA10 and Data output bit 10."
         }
       ],
       "diagnostic_rows": [
         {
           "row": 12,
-          "run": "retrieval_eval_20260831_151001",
-          "original_run": "retrieval_eval_20260831_142715",
-          "pre_scorer_run": "retrieval_eval_20260831_143131",
+          "run": "retrieval_eval_20260831_153415",
+          "previous_run": "retrieval_eval_20260831_151001",
           "repaired_query": "In IV4-G600CA troubleshooting, when an external trigger cannot be input, which polarity checkpoint should I verify?",
-          "classification": "diagnostic_not_clean_retrieval_context_loss_after_expected_evidence_scorer_repair",
+          "classification": "diagnostic_not_clean_exact_expected_citation_pending_after_retrieval_repair",
           "failure_reasons": [
-            "ranking_or_context_loss",
-            "expected_evidence_not_cited",
-            "expected_table_cell_binding_missing",
-            "retrieval_not_passed"
+            "expected_evidence_not_cited"
           ],
           "expected_chunk_id": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
           "cited_chunks": [
             {
-              "chunk_id": "23b3e712-2e74-5cc3-8d04-b54b2c4e5f13",
-              "quote_span": null,
+              "chunk_id": "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
+              "quote_span": "Is the Polarity correctly set?; Cell value: When NPN is selected in the Polarity, the circuit becomes a non-voltage input circuit. When PNP is selected in the Polarity, the circuit becomes a voltage input circuit. Check the cables.",
               "pages": [
-                152
+                526
               ]
             }
           ],
           "top_result_chunk_ids": [
-            "0d95585d-ed23-5de2-bb6d-d874e2de8083",
-            "17ac2147-5b61-513a-b7ae-0c9e9559e798",
-            "23b3e712-2e74-5cc3-8d04-b54b2c4e5f13",
-            "ac3ca6b0-a283-53f6-a596-d74894407a62",
-            "dbe096c8-1c88-573d-8ae5-ee213b20fe26"
+            "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
+            "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
+            "71426967-76ed-5e42-9489-68ddcf97223b",
+            "efe38bf4-cf29-5a85-8d43-31ac788af277",
+            "473a9dc1-e36e-5ab4-8f0c-1b60c32b4235"
           ],
-          "evidence": "Manual JSONL inspection of retrieval_eval_results_20260831_151001 confirmed the final top-k and citation contain internal-trigger/workaround chunks, not the page-526 troubleshooting table cell: An external trigger cannot be input / Check point: Is the Polarity correctly set?"
+          "evidence": "Manual JSONL inspection confirmed final top-k now includes expected checkpoint chunk 6469ea5d and the visible answer correctly says to verify whether Polarity is correctly set. It remains not-clean because the citation is adjacent same-page remedy chunk c9ac881b rather than the stored expected checkpoint chunk, pending source-reviewed equivalent-citation policy or exact citation repair."
         }
       ],
-      "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260831_151001. Row 11 is clean. Row 12 final top-k omits expected chunk 6469ea5d, cites 23b3e712 internal-trigger/workaround context, and is correctly failed as retrieval_not_passed plus expected evidence/table-cell binding missing.",
-      "rejected_answer_experiment": "A synthetic production-answering experiment made checkpoint wording select a table row when that row was present, but actual HTTP row 12 still lacked the polarity chunk in final top-k. The production answering change was reverted and is not claimed or committed.",
-      "next_target": "Fix single-step v2 row 12 retrieval/context selection: the repaired IV4-G600CA troubleshooting query is source-backed, but final top-k omits the page-526 polarity checkpoint chunk 6469ea5d and instead returns internal-trigger workaround chunks. Preserve row 11 clean evidence, retrieval_eval_20260831_151001 as the corrected scorer diagnostic, and do not tune answer selection until retrieval surfaces the Polarity checkpoint in the answer candidate set."
+      "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260831_153415. Row 11 remains clean. Row 12 retrieval is repaired and answer content is correct, but exact expected-evidence citation support still fails because the user-visible answer cites c9ac881b rather than expected chunk 6469ea5d.",
+      "next_target": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
+      "source_repair_dataset": "test_reports/retrieval_eval_dataset_20260831_151001.jsonl",
+      "validation": {
+        "manifest_checker": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+        "json_validation": "python3 -m json.tool passed for question-bank manifest and new eval summary/manifest artifacts",
+        "focused_retriever_tests": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'checkpoint or table_lexical_terms_include_table_preferred_code_anchors or complete_address_range' -> 4 passed, 122 deselected",
+        "focused_manifest_tests": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 31 passed",
+        "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 507 passed, 60 warnings"
+      }
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10255,30 +10251,20 @@
       "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints."
     },
     "answer_grounding_status": {
-      "timestamp": "2026-08-31T15:16:00Z",
-      "status": "single_step_v2_rows_11_12_corrected_retrieval_scoring_diagnostic",
-      "current_retrieval_failures": {
-        "ranking_or_context_loss": 1
-      },
+      "timestamp": "2026-08-31T15:41:00Z",
+      "status": "single_step_v2_row_12_retrieval_context_repaired_answer_citation_pending",
+      "current_retrieval_failures": {},
       "current_answer_failures": {
-        "expected_evidence_not_cited": 1,
-        "expected_table_cell_binding_missing": 1,
-        "retrieval_not_passed": 1
+        "expected_evidence_not_cited": 1
       },
-      "latest_run": "retrieval_eval_20260831_151001",
-      "remaining": "Fix single-step v2 row 12 retrieval/context selection: the repaired IV4-G600CA troubleshooting query is source-backed, but final top-k omits the page-526 polarity checkpoint chunk 6469ea5d and instead returns internal-trigger workaround chunks. Preserve row 11 clean evidence, retrieval_eval_20260831_151001 as the corrected scorer diagnostic, and do not tune answer selection until retrieval surfaces the Polarity checkpoint in the answer candidate set."
+      "latest_run": "retrieval_eval_20260831_153415",
+      "remaining": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations."
     },
     "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 1,
-      "expected_table_cell_binding_missing": 1,
-      "retrieval_not_passed": 1
+      "expected_evidence_not_cited": 1
     },
-    "current_failure_categories": {
-      "ranking_or_context_loss": 1
-    },
-    "current_retrieval_failure_categories": {
-      "ranking_or_context_loss": 1
-    },
+    "current_failure_categories": {},
+    "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
     "datasets": [
       {
@@ -10624,9 +10610,7 @@
       }
     ],
     "exploratory_questions": 208,
-    "failure_categories": {
-      "ranking_or_context_loss": 1
-    },
+    "failure_categories": {},
     "latest_comparison_setting_side_binding_containment": {
       "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
       "actual_http_evidence": {
@@ -12400,7 +12384,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Fix single-step v2 row 12 retrieval/context selection: the repaired IV4-G600CA troubleshooting query is source-backed, but final top-k omits the page-526 polarity checkpoint chunk 6469ea5d and instead returns internal-trigger workaround chunks. Preserve row 11 clean evidence, retrieval_eval_20260831_151001 as the corrected scorer diagnostic, and do not tune answer selection until retrieval surfaces the Polarity checkpoint in the answer candidate set.",
+    "next_target": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12437,10 +12421,8 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Fix single-step v2 row 12 retrieval/context selection: the repaired IV4-G600CA troubleshooting query is source-backed, but final top-k omits the page-526 polarity checkpoint chunk 6469ea5d and instead returns internal-trigger workaround chunks. Preserve row 11 clean evidence, retrieval_eval_20260831_151001 as the corrected scorer diagnostic, and do not tune answer selection until retrieval surfaces the Polarity checkpoint in the answer candidate set.",
-    "retrieval_current_failure_categories": {
-      "ranking_or_context_loss": 1
-    },
+    "remaining": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
+    "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
         "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -12912,11 +12894,35 @@
         "run_id": "retrieval_eval_20260831_151001",
         "scope": "single-step v2 row 12 and combined rows 11-12 clean claim",
         "reason": "diagnostic/not-clean after source-only expected-evidence retrieval scoring: row 12 final top-k omits polarity checkpoint chunk 6469ea5d, fails ranking_or_context_loss, and answer cites internal-trigger workaround context. Row 11 remains clean within the run."
+      },
+      {
+        "run_id": "retrieval_eval_20260831_153415",
+        "scope": "single-step v2 row 12 and combined rows 11-12 clean answer claim",
+        "reason": "diagnostic/not-clean for row 12 answer grounding: retrieval is repaired and answer is materially correct, but exact expected checkpoint chunk 6469ea5d is not cited; row 11 remains clean within the run."
       }
     ],
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-31T15:41:00Z",
+        "guardrail_timestamp": "2026-08-31T15:27:29Z",
+        "guardrail_commit": "de8728c",
+        "severity": "ok",
+        "finding": "Guardrail accepted b8f07c1 scorer containment and left row 12 retrieval/context selection as the current target because final top-k omitted polarity checkpoint chunk 6469ea5d.",
+        "addressed_this_run": "Made troubleshooting checkpoint/check point questions table-aware and gated table lexical content on source-bearing terms such as polarity instead of workflow words. Loaded side-API rerun retrieval_eval_20260831_153415 now retrieves row 12 expected chunk 6469ea5d in final top-k and passes retrieval 2/2.",
+        "evidence": [
+          "focused retriever checkpoint controls: 4 passed",
+          "direct retrieval_eval_20260831_153159: 2/2 retrieval",
+          "actual HTTP retrieval_eval_20260831_153415: 2/2 retrieval, 1/2 answer",
+          "manual JSONL inspection of retrieval_eval_results_20260831_153415",
+          "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+          "focused manifest tests: 31 passed",
+          "full Docker unit gate: 507 passed, 60 warnings"
+        ],
+        "remaining": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
+        "status": "addressed_this_run_retrieval_repaired_answer_citation_pending"
+      },
       {
         "timestamp": "2026-08-31T15:16:00Z",
         "severity": "ok",
@@ -13717,12 +13723,10 @@
         "status": "addressed_this_run_pending_guardrail_audit"
       }
     ],
-    "updated_at": "2026-08-31T15:16:00Z"
+    "updated_at": "2026-08-31T15:41:00Z"
   },
-  "remaining": "Fix single-step v2 row 12 retrieval/context selection: the repaired IV4-G600CA troubleshooting query is source-backed, but final top-k omits the page-526 polarity checkpoint chunk 6469ea5d and instead returns internal-trigger workaround chunks. Preserve row 11 clean evidence, retrieval_eval_20260831_151001 as the corrected scorer diagnostic, and do not tune answer selection until retrieval surfaces the Polarity checkpoint in the answer candidate set.",
-  "retrieval_current_failure_categories": {
-    "ranking_or_context_loss": 1
-  },
+  "remaining": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
+  "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
       "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -14194,10 +14198,34 @@
       "run_id": "retrieval_eval_20260831_151001",
       "scope": "single-step v2 row 12 and combined rows 11-12 clean claim",
       "reason": "diagnostic/not-clean after source-only expected-evidence retrieval scoring: row 12 final top-k omits polarity checkpoint chunk 6469ea5d, fails ranking_or_context_loss, and answer cites internal-trigger workaround context. Row 11 remains clean within the run."
+    },
+    {
+      "run_id": "retrieval_eval_20260831_153415",
+      "scope": "single-step v2 row 12 and combined rows 11-12 clean answer claim",
+      "reason": "diagnostic/not-clean for row 12 answer grounding: retrieval is repaired and answer is materially correct, but exact expected checkpoint chunk 6469ea5d is not cited; row 11 remains clean within the run."
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-31T15:41:00Z",
+      "guardrail_timestamp": "2026-08-31T15:27:29Z",
+      "guardrail_commit": "de8728c",
+      "severity": "ok",
+      "finding": "Guardrail accepted b8f07c1 scorer containment and left row 12 retrieval/context selection as the current target because final top-k omitted polarity checkpoint chunk 6469ea5d.",
+      "addressed_this_run": "Made troubleshooting checkpoint/check point questions table-aware and gated table lexical content on source-bearing terms such as polarity instead of workflow words. Loaded side-API rerun retrieval_eval_20260831_153415 now retrieves row 12 expected chunk 6469ea5d in final top-k and passes retrieval 2/2.",
+      "evidence": [
+        "focused retriever checkpoint controls: 4 passed",
+        "direct retrieval_eval_20260831_153159: 2/2 retrieval",
+        "actual HTTP retrieval_eval_20260831_153415: 2/2 retrieval, 1/2 answer",
+        "manual JSONL inspection of retrieval_eval_results_20260831_153415",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+        "focused manifest tests: 31 passed",
+        "full Docker unit gate: 507 passed, 60 warnings"
+      ],
+      "remaining": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
+      "status": "addressed_this_run_retrieval_repaired_answer_citation_pending"
+    },
     {
       "timestamp": "2026-08-31T15:16:00Z",
       "severity": "ok",
@@ -14998,5 +15026,5 @@
       "status": "addressed_this_run_pending_guardrail_audit"
     }
   ],
-  "updated_at": "2026-08-31T15:16:00Z"
+  "updated_at": "2026-08-31T15:41:00Z"
 }

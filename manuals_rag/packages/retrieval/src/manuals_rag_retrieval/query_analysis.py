@@ -120,6 +120,8 @@ def analyze_query(query: str) -> QueryAnalysis:
         preferred_chunk_types.extend(["datasheet_record", "spec_record", "table_record"])
     if any(word in lowered for word in ["error", "alarm", "troubleshoot", "fault"]):
         types.append("troubleshooting")
+    if "troubleshooting" in types and re.search(r"\bcheck\s*points?\b|\bcheckpoints?\b", lowered):
+        preferred_chunk_types.append("table_record")
     if re.search(r"\bwhat\s+causes?\b", lowered) and re.search(r"\b(correct(?:ed|ive|ion)?|check(?:ed)?|remed(?:y|ied)|fix(?:ed)?)\b", lowered):
         types.append("troubleshooting")
         types.append("structured_lookup")

@@ -423,7 +423,7 @@ def _lexical_table_content_terms(terms: list[str]) -> list[str]:
         term
         for term in terms
         if not any(char.isdigit() for char in term)
-        and term not in {"corrective", "corrected", "remedy", "cause"}
+        and term not in {"corrective", "corrected", "remedy", "cause", "checkpoint", "troubleshooting", "verify"}
     ]
     return sorted(content_terms, key=lambda term: (len(term), term), reverse=True)[:1]
 
