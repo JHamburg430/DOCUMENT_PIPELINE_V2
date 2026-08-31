@@ -1,5 +1,8 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "overbroad_fallback_answer": 2,
+    "irrelevant_fallback_citations": 1
+  },
   "answer_failure_categories": {
     "expected_evidence_not_cited": 1,
     "expected_terms_missing": 1,
@@ -186,55 +189,51 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-08-31T07:05:00Z",
-    "status": "single_step_v2_row_8_clean_after_stale_warning_cleanup",
-    "classification": "row_8_clean_guardrail_stale_warning_containment_applied",
-    "guardrail_containment": "Addressed guardrail review 2026-08-31T06:50:00Z by clearing discarded generated-answer warnings whenever validate_answer replaces output with retrieval-grounded fallback. The validated fallback retains only fallback-owned warnings plus the generic validation-fallback notice.",
+    "timestamp": "2026-08-31T07:31:00Z",
+    "status": "single_step_v2_rows_9_10_diagnostic_overbroad_fallback",
+    "classification": "diagnostic_not_clean_answer_quality_despite_green_scorer",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-    "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_070150.jsonl",
-    "latest_run": "retrieval_eval_20260831_070150",
-    "results": "test_reports/retrieval_eval_results_20260831_070150.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260831_070150.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_070150.json",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_072657.jsonl",
+    "latest_run": "retrieval_eval_20260831_072657",
+    "results": "test_reports/retrieval_eval_results_20260831_072657.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260831_072657.json",
     "search_mode": "http",
     "response_mode": "answer_with_citations",
-    "max_queries": 1,
-    "query_offset": 0,
-    "retrieval_result": "1/1 retrieval passed at rank 1; expected table_record chunk ddaee975 remained the first returned result.",
-    "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1; warnings contain only the validation-fallback notice.",
-    "current_answer_failures": {},
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_070150.jsonl. The user-visible answer states the A-14 PWR/ERR buffer-overrun row and the result-acquisition/field-network handshake-control actions; it cites only chunk ddaee975 with quote_span null, and that cited returned chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles. The answer warnings are now only Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback. The stale generated-answer warnings that claimed only an A-14 section title and missing field-network instructions are absent. _eval_trace and summary both report fallback_validation/used_fallback=true.",
+    "max_queries": 2,
+    "query_offset": 8,
+    "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall and metadata-document recall 100%.",
+    "answer_result": "Automated answer scoring reported 2/2 with fallback_validation 2/2, but manual JSONL inspection rejected both as production-clean answer evidence.",
+    "current_answer_failures": {
+      "overbroad_fallback_answer": 2,
+      "irrelevant_fallback_citations": 1
+    },
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_072657. Row 9 cites same-document chunk 2cd1e40d and contains the expected 0016 PID 428 allocation-possible evidence, but the user-visible answer is a large table dump rather than a focused answer. Row 10 cites correct VS chunk 432e2684, which supports setting a password and MAC addresses for selected cameras, but the fallback also cites unrelated XG-X and CV-X chunks and emits a multiple-document-versions warning. Both are diagnostic answer-quality evidence, not clean production answer grounding.",
     "runtime_load_evidence": {
-      "container": "manuals-rag-temp-api-39262386-20260831-warning-cleanup",
-      "host_api_base": "http://127.0.0.1:8852",
-      "api_health": "ok at 2026-08-31T07:00:56Z",
+      "container": "manuals-rag-temp-api-39262386-20260831-rows9-10",
+      "host_api_base": "http://127.0.0.1:8864",
+      "api_health": "ok at 2026-08-31T07:26:06Z",
       "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
       "generator_py_sha256": "ec503760e99a5330c497a178e595cd5df03bd9cf08484062d9dd63d870404757",
       "validate_answer_sha256": "9e383d436ffba1011f84857835169ed6433fc62f1037a9ed7bc368dded90a640",
+      "_fallback_evidence_results_sha256": "5c26bf956c74839d78358b65a8ec4d5f5a3528909f08552f807990834b2c4a0c",
+      "_focused_table_record_answer_text_sha256": "2bbddbd4f8bd6b67cf735e089de0d031c2c254bd4a994728a891e57c1e362660",
       "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
-      "_diagnostic_table_requested_facets_supported_sha256": "3dc05ed723761184dfe85d6c980af74473e7cea8a4a2135ce3f6159b45bb33e9",
+      "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
+      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
       "OLLAMA_URL": "http://host.docker.internal:11434",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
       "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "HAYSTACK_RERANK_DEVICE": "cuda:0",
-      "loaded_controls": {
-        "focused_unit_positive": "overcautious diagnostic-table answer falls back to complete A-14 row and drops stale generated-answer insufficient-evidence warnings",
-        "focused_unit_negative": "partial A-14 row missing requested field-network/remedy facet remains insufficient_evidence",
-        "actual_http_positive": "retrieval_eval_20260831_070150 row 8 returns grounded fallback with only the validation-fallback warning",
-        "actual_http_control": "retrieval_eval_20260831_070150 summary and _eval_trace agree answer_source=fallback_validation and used_fallback=true"
-      }
+      "HAYSTACK_RERANK_DEVICE": "cuda:0"
     },
     "validation": [
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'diagnostic_table_answer' -> 3 passed, 99 deselected, 5 warnings",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs fixture mounts api python -m pytest tests/unit -q -> 490 passed, 59 warnings",
-      "Loaded side API health/fingerprints captured from manuals-rag-temp-api-39262386-20260831-warning-cleanup on http://127.0.0.1:8852 with unchanged local model/reranker settings.",
-      "API_BASE=http://host.docker.internal:8852 docker compose run benchmark on repaired row-8 dataset -> retrieval 1/1 and answer 1/1 in retrieval_eval_20260831_070150.",
-      "Manual JSONL inspection verified answer text, warning cleanup, citation chunk support, citation_fidelity, evidence_citation_support, trace, and summary telemetry."
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before the run.",
+      "Loaded side API on http://127.0.0.1:8864 from clean origin/main worktree; fingerprints and local model settings recorded.",
+      "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-rows9-10 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 8 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260831_072657.",
+      "Manual JSONL inspection compared user-visible answers, warnings, citations, cited chunks, _eval_trace, and summary telemetry; both rows are diagnostic/not-clean for answer-quality reasons."
     ],
-    "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence."
+    "remaining": "retrieval_eval_20260831_072657 is diagnostic/not-clean despite automated green scoring: row 9 returns an overbroad table dump, and row 10 includes unrelated XG-X/CV-X citations plus a multi-version warning while the VS chunk alone supports the expected password/MAC-address program-protection answer."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -634,7 +633,16 @@
     ],
     "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence."
   },
-  "answer_grounding_status": "2026-08-31 guardrail containment repaired stale contradictory warnings after validation fallback: retrieval_eval_20260831_070150 row 8 keeps the source-backed A-14 answer clean and the user-visible warnings no longer claim the cited evidence is missing.",
+  "answer_grounding_status": {
+    "status": "diagnostic_answer_quality_gap",
+    "current_run": "retrieval_eval_20260831_072657",
+    "current_answer_failures": {
+      "overbroad_fallback_answer": 2,
+      "irrelevant_fallback_citations": 1
+    },
+    "current_retrieval_failures": {},
+    "remaining": "retrieval_eval_20260831_072657 is diagnostic/not-clean despite automated green scoring: row 9 returns an overbroad table dump, and row 10 includes unrelated XG-X/CV-X citations plus a multi-version warning while the VS chunk alone supports the expected password/MAC-address program-protection answer."
+  },
   "constraints": {
     "allowed_logic": [
       "retrieval",
@@ -651,7 +659,10 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "overbroad_fallback_answer": 2,
+    "irrelevant_fallback_citations": 1
+  },
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -8804,7 +8815,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Await guardrail audit of the diagnostic-table stale-warning containment, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+  "next_target": "Fix curated single-step v2 rows 9-10 fallback answer quality: row 9 should answer the requested CV-X482 0016 PID 428 allocation without dumping an entire table, and row 10 should cite only source-scoped VS program-protection evidence instead of mixing unrelated XG-X/CV-X chunks.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9557,7 +9568,10 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "overbroad_fallback_answer": 2,
+      "irrelevant_fallback_citations": 1
+    },
     "answer_failure_categories": {
       "expected_evidence_not_cited": 1,
       "expected_terms_missing": 1,
@@ -9744,55 +9758,51 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-08-31T07:05:00Z",
-      "status": "single_step_v2_row_8_clean_after_stale_warning_cleanup",
-      "classification": "row_8_clean_guardrail_stale_warning_containment_applied",
-      "guardrail_containment": "Addressed guardrail review 2026-08-31T06:50:00Z by clearing discarded generated-answer warnings whenever validate_answer replaces output with retrieval-grounded fallback. The validated fallback retains only fallback-owned warnings plus the generic validation-fallback notice.",
+      "timestamp": "2026-08-31T07:31:00Z",
+      "status": "single_step_v2_rows_9_10_diagnostic_overbroad_fallback",
+      "classification": "diagnostic_not_clean_answer_quality_despite_green_scorer",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-      "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_070150.jsonl",
-      "latest_run": "retrieval_eval_20260831_070150",
-      "results": "test_reports/retrieval_eval_results_20260831_070150.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260831_070150.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_070150.json",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_072657.jsonl",
+      "latest_run": "retrieval_eval_20260831_072657",
+      "results": "test_reports/retrieval_eval_results_20260831_072657.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260831_072657.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
-      "max_queries": 1,
-      "query_offset": 0,
-      "retrieval_result": "1/1 retrieval passed at rank 1; expected table_record chunk ddaee975 remained the first returned result.",
-      "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1; warnings contain only the validation-fallback notice.",
-      "current_answer_failures": {},
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_070150.jsonl. The user-visible answer states the A-14 PWR/ERR buffer-overrun row and the result-acquisition/field-network handshake-control actions; it cites only chunk ddaee975 with quote_span null, and that cited returned chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles. The answer warnings are now only Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback. The stale generated-answer warnings that claimed only an A-14 section title and missing field-network instructions are absent. _eval_trace and summary both report fallback_validation/used_fallback=true.",
+      "max_queries": 2,
+      "query_offset": 8,
+      "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall and metadata-document recall 100%.",
+      "answer_result": "Automated answer scoring reported 2/2 with fallback_validation 2/2, but manual JSONL inspection rejected both as production-clean answer evidence.",
+      "current_answer_failures": {
+        "overbroad_fallback_answer": 2,
+        "irrelevant_fallback_citations": 1
+      },
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_072657. Row 9 cites same-document chunk 2cd1e40d and contains the expected 0016 PID 428 allocation-possible evidence, but the user-visible answer is a large table dump rather than a focused answer. Row 10 cites correct VS chunk 432e2684, which supports setting a password and MAC addresses for selected cameras, but the fallback also cites unrelated XG-X and CV-X chunks and emits a multiple-document-versions warning. Both are diagnostic answer-quality evidence, not clean production answer grounding.",
       "runtime_load_evidence": {
-        "container": "manuals-rag-temp-api-39262386-20260831-warning-cleanup",
-        "host_api_base": "http://127.0.0.1:8852",
-        "api_health": "ok at 2026-08-31T07:00:56Z",
+        "container": "manuals-rag-temp-api-39262386-20260831-rows9-10",
+        "host_api_base": "http://127.0.0.1:8864",
+        "api_health": "ok at 2026-08-31T07:26:06Z",
         "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
         "generator_py_sha256": "ec503760e99a5330c497a178e595cd5df03bd9cf08484062d9dd63d870404757",
         "validate_answer_sha256": "9e383d436ffba1011f84857835169ed6433fc62f1037a9ed7bc368dded90a640",
+        "_fallback_evidence_results_sha256": "5c26bf956c74839d78358b65a8ec4d5f5a3528909f08552f807990834b2c4a0c",
+        "_focused_table_record_answer_text_sha256": "2bbddbd4f8bd6b67cf735e089de0d031c2c254bd4a994728a891e57c1e362660",
         "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
-        "_diagnostic_table_requested_facets_supported_sha256": "3dc05ed723761184dfe85d6c980af74473e7cea8a4a2135ce3f6159b45bb33e9",
+        "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
+        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
         "OLLAMA_URL": "http://host.docker.internal:11434",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
         "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "HAYSTACK_RERANK_DEVICE": "cuda:0",
-        "loaded_controls": {
-          "focused_unit_positive": "overcautious diagnostic-table answer falls back to complete A-14 row and drops stale generated-answer insufficient-evidence warnings",
-          "focused_unit_negative": "partial A-14 row missing requested field-network/remedy facet remains insufficient_evidence",
-          "actual_http_positive": "retrieval_eval_20260831_070150 row 8 returns grounded fallback with only the validation-fallback warning",
-          "actual_http_control": "retrieval_eval_20260831_070150 summary and _eval_trace agree answer_source=fallback_validation and used_fallback=true"
-        }
+        "HAYSTACK_RERANK_DEVICE": "cuda:0"
       },
       "validation": [
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'diagnostic_table_answer' -> 3 passed, 99 deselected, 5 warnings",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs fixture mounts api python -m pytest tests/unit -q -> 490 passed, 59 warnings",
-        "Loaded side API health/fingerprints captured from manuals-rag-temp-api-39262386-20260831-warning-cleanup on http://127.0.0.1:8852 with unchanged local model/reranker settings.",
-        "API_BASE=http://host.docker.internal:8852 docker compose run benchmark on repaired row-8 dataset -> retrieval 1/1 and answer 1/1 in retrieval_eval_20260831_070150.",
-        "Manual JSONL inspection verified answer text, warning cleanup, citation chunk support, citation_fidelity, evidence_citation_support, trace, and summary telemetry."
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before the run.",
+        "Loaded side API on http://127.0.0.1:8864 from clean origin/main worktree; fingerprints and local model settings recorded.",
+        "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-rows9-10 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 8 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260831_072657.",
+        "Manual JSONL inspection compared user-visible answers, warnings, citations, cited chunks, _eval_trace, and summary telemetry; both rows are diagnostic/not-clean for answer-quality reasons."
       ],
-      "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence."
+      "remaining": "retrieval_eval_20260831_072657 is diagnostic/not-clean despite automated green scoring: row 9 returns an overbroad table dump, and row 10 includes unrelated XG-X/CV-X citations plus a multi-version warning while the VS chunk alone supports the expected password/MAC-address program-protection answer."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -9981,8 +9991,20 @@
       ],
       "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence."
     },
-    "answer_grounding_status": "2026-08-31 guardrail containment repaired stale contradictory warnings after validation fallback: retrieval_eval_20260831_070150 row 8 keeps the source-backed A-14 answer clean and the user-visible warnings no longer claim the cited evidence is missing.",
-    "current_answer_failure_categories": {},
+    "answer_grounding_status": {
+      "status": "diagnostic_answer_quality_gap",
+      "current_run": "retrieval_eval_20260831_072657",
+      "current_answer_failures": {
+        "overbroad_fallback_answer": 2,
+        "irrelevant_fallback_citations": 1
+      },
+      "current_retrieval_failures": {},
+      "remaining": "retrieval_eval_20260831_072657 is diagnostic/not-clean despite automated green scoring: row 9 returns an overbroad table dump, and row 10 includes unrelated XG-X/CV-X citations plus a multi-version warning while the VS chunk alone supports the expected password/MAC-address program-protection answer."
+    },
+    "current_answer_failure_categories": {
+      "overbroad_fallback_answer": 2,
+      "irrelevant_fallback_citations": 1
+    },
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -12104,7 +12126,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Await guardrail audit of the diagnostic-table stale-warning containment, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+    "next_target": "Fix curated single-step v2 rows 9-10 fallback answer quality: row 9 should answer the requested CV-X482 0016 PID 428 allocation without dumping an entire table, and row 10 should cite only source-scoped VS program-protection evidence instead of mixing unrelated XG-X/CV-X chunks.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12141,7 +12163,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence.",
+    "remaining": "retrieval_eval_20260831_072657 is diagnostic/not-clean despite automated green scoring: row 9 returns an overbroad table dump, and row 10 includes unrelated XG-X/CV-X citations plus a multi-version warning while the VS chunk alone supports the expected password/MAC-address program-protection answer.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12539,6 +12561,11 @@
         "reason": "diagnostic/superseded: citation was narrowed to ddaee975 but visible answer still appended same-page sibling context before the final focused diagnostic-row answer text repair.",
         "run_id": "retrieval_eval_20260831_055816",
         "scope": "curated single-step v2 repaired row 8 intermediate contextual fallback"
+      },
+      {
+        "run_id": "retrieval_eval_20260831_072657",
+        "scope": "curated single-step v2 rows 9-10 clean answer claim",
+        "reason": "diagnostic/not-clean after manual JSONL inspection: row 9 overbroad table dump; row 10 unrelated fallback citations and multiple-document warning despite correct VS evidence."
       }
     ],
     "single_step_questions": 101,
@@ -13240,9 +13267,56 @@
         "timestamp": "2026-08-31T04:59:40Z"
       }
     ],
-    "updated_at": "2026-08-31T07:05:00Z"
+    "updated_at": "2026-08-31T07:31:00Z",
+    "answer_grounding_single_step_v2_rows_9_10": {
+      "timestamp": "2026-08-31T07:31:00Z",
+      "status": "single_step_v2_rows_9_10_diagnostic_overbroad_fallback",
+      "classification": "diagnostic_not_clean_answer_quality_despite_green_scorer",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_072657.jsonl",
+      "latest_run": "retrieval_eval_20260831_072657",
+      "results": "test_reports/retrieval_eval_results_20260831_072657.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260831_072657.json",
+      "search_mode": "http",
+      "response_mode": "answer_with_citations",
+      "max_queries": 2,
+      "query_offset": 8,
+      "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall and metadata-document recall 100%.",
+      "answer_result": "Automated answer scoring reported 2/2 with fallback_validation 2/2, but manual JSONL inspection rejected both as production-clean answer evidence.",
+      "current_answer_failures": {
+        "overbroad_fallback_answer": 2,
+        "irrelevant_fallback_citations": 1
+      },
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_072657. Row 9 cites same-document chunk 2cd1e40d and contains the expected 0016 PID 428 allocation-possible evidence, but the user-visible answer is a large table dump rather than a focused answer. Row 10 cites correct VS chunk 432e2684, which supports setting a password and MAC addresses for selected cameras, but the fallback also cites unrelated XG-X and CV-X chunks and emits a multiple-document-versions warning. Both are diagnostic answer-quality evidence, not clean production answer grounding.",
+      "runtime_load_evidence": {
+        "container": "manuals-rag-temp-api-39262386-20260831-rows9-10",
+        "host_api_base": "http://127.0.0.1:8864",
+        "api_health": "ok at 2026-08-31T07:26:06Z",
+        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "generator_py_sha256": "ec503760e99a5330c497a178e595cd5df03bd9cf08484062d9dd63d870404757",
+        "validate_answer_sha256": "9e383d436ffba1011f84857835169ed6433fc62f1037a9ed7bc368dded90a640",
+        "_fallback_evidence_results_sha256": "5c26bf956c74839d78358b65a8ec4d5f5a3528909f08552f807990834b2c4a0c",
+        "_focused_table_record_answer_text_sha256": "2bbddbd4f8bd6b67cf735e089de0d031c2c254bd4a994728a891e57c1e362660",
+        "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
+        "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
+        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "HAYSTACK_RERANK_DEVICE": "cuda:0"
+      },
+      "validation": [
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before the run.",
+        "Loaded side API on http://127.0.0.1:8864 from clean origin/main worktree; fingerprints and local model settings recorded.",
+        "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-rows9-10 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 8 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260831_072657.",
+        "Manual JSONL inspection compared user-visible answers, warnings, citations, cited chunks, _eval_trace, and summary telemetry; both rows are diagnostic/not-clean for answer-quality reasons."
+      ],
+      "remaining": "retrieval_eval_20260831_072657 is diagnostic/not-clean despite automated green scoring: row 9 returns an overbroad table dump, and row 10 includes unrelated XG-X/CV-X citations plus a multi-version warning while the VS chunk alone supports the expected password/MAC-address program-protection answer."
+    }
   },
-  "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence.",
+  "remaining": "retrieval_eval_20260831_072657 is diagnostic/not-clean despite automated green scoring: row 9 returns an overbroad table dump, and row 10 includes unrelated XG-X/CV-X citations plus a multi-version warning while the VS chunk alone supports the expected password/MAC-address program-protection answer.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -13640,6 +13714,11 @@
       "reason": "diagnostic/superseded: citation was narrowed to ddaee975 but visible answer still appended same-page sibling context before the final focused diagnostic-row answer text repair.",
       "run_id": "retrieval_eval_20260831_055816",
       "scope": "curated single-step v2 repaired row 8 intermediate contextual fallback"
+    },
+    {
+      "run_id": "retrieval_eval_20260831_072657",
+      "scope": "curated single-step v2 rows 9-10 clean answer claim",
+      "reason": "diagnostic/not-clean after manual JSONL inspection: row 9 overbroad table dump; row 10 unrelated fallback citations and multiple-document warning despite correct VS evidence."
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -14340,5 +14419,52 @@
       "timestamp": "2026-08-31T04:59:40Z"
     }
   ],
-  "updated_at": "2026-08-31T07:05:00Z"
+  "updated_at": "2026-08-31T07:31:00Z",
+  "answer_grounding_single_step_v2_rows_9_10": {
+    "timestamp": "2026-08-31T07:31:00Z",
+    "status": "single_step_v2_rows_9_10_diagnostic_overbroad_fallback",
+    "classification": "diagnostic_not_clean_answer_quality_despite_green_scorer",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_072657.jsonl",
+    "latest_run": "retrieval_eval_20260831_072657",
+    "results": "test_reports/retrieval_eval_results_20260831_072657.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260831_072657.json",
+    "search_mode": "http",
+    "response_mode": "answer_with_citations",
+    "max_queries": 2,
+    "query_offset": 8,
+    "retrieval_result": "2/2 retrieval passed at rank 1 with candidate recall and metadata-document recall 100%.",
+    "answer_result": "Automated answer scoring reported 2/2 with fallback_validation 2/2, but manual JSONL inspection rejected both as production-clean answer evidence.",
+    "current_answer_failures": {
+      "overbroad_fallback_answer": 2,
+      "irrelevant_fallback_citations": 1
+    },
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_072657. Row 9 cites same-document chunk 2cd1e40d and contains the expected 0016 PID 428 allocation-possible evidence, but the user-visible answer is a large table dump rather than a focused answer. Row 10 cites correct VS chunk 432e2684, which supports setting a password and MAC addresses for selected cameras, but the fallback also cites unrelated XG-X and CV-X chunks and emits a multiple-document-versions warning. Both are diagnostic answer-quality evidence, not clean production answer grounding.",
+    "runtime_load_evidence": {
+      "container": "manuals-rag-temp-api-39262386-20260831-rows9-10",
+      "host_api_base": "http://127.0.0.1:8864",
+      "api_health": "ok at 2026-08-31T07:26:06Z",
+      "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "generator_py_sha256": "ec503760e99a5330c497a178e595cd5df03bd9cf08484062d9dd63d870404757",
+      "validate_answer_sha256": "9e383d436ffba1011f84857835169ed6433fc62f1037a9ed7bc368dded90a640",
+      "_fallback_evidence_results_sha256": "5c26bf956c74839d78358b65a8ec4d5f5a3528909f08552f807990834b2c4a0c",
+      "_focused_table_record_answer_text_sha256": "2bbddbd4f8bd6b67cf735e089de0d031c2c254bd4a994728a891e57c1e362660",
+      "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
+      "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
+      "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "HAYSTACK_RERANK_DEVICE": "cuda:0"
+    },
+    "validation": [
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before the run.",
+      "Loaded side API on http://127.0.0.1:8864 from clean origin/main worktree; fingerprints and local model settings recorded.",
+      "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-rows9-10 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 8 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260831_072657.",
+      "Manual JSONL inspection compared user-visible answers, warnings, citations, cited chunks, _eval_trace, and summary telemetry; both rows are diagnostic/not-clean for answer-quality reasons."
+    ],
+    "remaining": "retrieval_eval_20260831_072657 is diagnostic/not-clean despite automated green scoring: row 9 returns an overbroad table dump, and row 10 includes unrelated XG-X/CV-X citations plus a multi-version warning while the VS chunk alone supports the expected password/MAC-address program-protection answer."
+  }
 }
