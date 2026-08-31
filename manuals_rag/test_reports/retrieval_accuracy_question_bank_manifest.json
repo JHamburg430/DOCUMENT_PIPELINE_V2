@@ -1,7 +1,5 @@
 {
-  "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 1
-  },
+  "answer_current_failure_categories": {},
   "answer_failure_categories": {
     "expected_evidence_not_cited": 1,
     "expected_terms_missing": 1,
@@ -189,36 +187,35 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-08-31T15:41:00Z",
-    "status": "single_step_v2_row_12_retrieval_context_repaired_answer_citation_pending",
-    "classification": "row_11_clean_row_12_retrieval_repaired_answer_exact_citation_pending",
-    "latest_run": "retrieval_eval_20260831_153415",
-    "diagnostic_retrieval_only_run": "retrieval_eval_20260831_153159",
-    "previous_diagnostic_run": "retrieval_eval_20260831_151001",
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_153415.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260831_153415.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260831_153415.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_153415.json",
+    "timestamp": "2026-08-31T16:06:00Z",
+    "status": "single_step_v2_rows_11_12_clean_after_source_equivalence_rerun",
+    "classification": "row_11_clean_row_12_clean_source_reviewed_same_row_equivalent_citation",
+    "latest_run": "retrieval_eval_20260831_160134",
+    "previous_diagnostic_run": "retrieval_eval_20260831_153415",
+    "source_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_160134.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260831_160134.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260831_160134.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_160134.json",
     "search_mode": "http",
     "response_mode": "answer_with_citations",
     "query_offset": 0,
     "max_queries": 2,
-    "retrieval_result": "2/2 single-step retrieval passed at rank 1 after troubleshooting checkpoint queries became table-aware; row 12 final top-k now includes expected polarity checkpoint chunk 6469ea5d at rank 2 behind same-page remedy chunk c9ac881b.",
-    "answer_result": "1/2 actual HTTP API answers passed. Row 11 remains clean. Row 12 answer text is materially correct and cites page-526 same-row remedy chunk c9ac881b, but exact expected-evidence citation scoring still fails because expected checkpoint chunk 6469ea5d is not cited; preserved as diagnostic/not-clean pending source review or citation-selection repair.",
+    "retrieval_result": "2/2 single-step retrieval passed at rank 1; failure_categories {}.",
+    "answer_result": "2/2 actual HTTP API answers passed after row 12 expected evidence explicitly allowed same-source same-row equivalent citation; answer_sources {\"fallback_validation\": 1, \"api\": 1}; answer_fallback_count 1.",
     "current_retrieval_failures": {},
-    "current_answer_failures": {
-      "expected_evidence_not_cited": 1
-    },
+    "current_answer_failures": {},
     "runtime_load_evidence": {
-      "container": "manuals-rag-temp-api-39262386-20260831-row12",
-      "host_api_base": "http://127.0.0.1:8912",
+      "container": "manuals-rag-temp-api-39262386-20260831-row12-equiv",
+      "host_api_base": "http://127.0.0.1:8916",
       "in_container_api_base": "http://127.0.0.1:8600",
-      "api_health": "ok at 2026-08-31T15:33:14Z",
+      "api_health": "ok at 2026-08-31T16:00Z",
+      "generator_py_sha256": "3f00b4db912284d47c6221b153e7f499f8d826b4dc99ff66d2c074ed236f935e",
+      "retrieval_eval_py_sha256": "2e5a590e31025c8424d503a812b353cedeb83d3a571f0271515b82ab40e109e0",
       "retriever_py_sha256": "fa52e0cb563638d95523069e1bc73f33b591eaa33f5e240c08f41d5d17cd1abf",
-      "analyze_query_sha256": "0eaaeeed308b31f3c7972c6d318ff836af80df33ce1d0f81c6190de123d8d07a",
-      "_lexical_table_terms_sha256": "85abd5eea896e6dee281ee48c2507432697506821328f93a8bcae8882e9c0e68",
-      "_lexical_table_content_terms_sha256": "f1258d60aff3b5a38602f91a11a79e7f4349755d90e1790f20355f60f06a9231",
-      "_table_lexical_score_sha256": "870abe4174f0aa4240a65aee417a4c9234569bd07bf62153765f817745574758",
+      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
+      "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+      "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
       "OLLAMA_URL": "http://host.docker.internal:11434",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
@@ -226,17 +223,21 @@
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
       "HAYSTACK_RERANK_DEVICE": "cuda:0"
     },
-    "changed_path_evidence": {
-      "query_analysis": "Row 12 query analyzes as troubleshooting with preferred_chunk_types ['table_record']; lexical table content terms reduce to ['polarity'].",
-      "direct_retrieval_run": "retrieval_eval_20260831_153159 passed 2/2 retrieval at rank 1 with row 12 fixed.",
-      "http_answer_run": "retrieval_eval_20260831_153415 passed 2/2 retrieval and 1/2 answer grounding through the loaded side API."
-    },
+    "source_review": [
+      {
+        "row": 12,
+        "expected_chunk": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
+        "cited_chunk": "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
+        "source_document_id": "857c0518-4b3a-42e2-97c9-211ab24163b6",
+        "support": "The cited page-526 remedy chunk content and quote_span directly include row headers \"An external trigger cannot be input. > Is the Polarity correctly set?\" and the NPN/PNP polarity remedy text, so it supports the requested checkpoint without sibling-row or metadata-only support.",
+        "equivalence_rule": "Same-source row-level remedy citations are acceptable for a checkpoint expected chunk only when the cited returned chunk itself includes the symptom row header and checkpoint text and the quote_span is present in the cited chunk."
+      }
+    ],
     "resolved_rows": [
       {
         "row": 11,
-        "run": "retrieval_eval_20260831_153415",
-        "query": "Which CV-X482 output line corresponds to data output bit 10?",
-        "classification": "clean_loaded_http_fallback_validation",
+        "run": "retrieval_eval_20260831_160134",
+        "classification": "clean_loaded_http_fallback_validation_preserved",
         "cited_chunks": [
           {
             "chunk_id": "a268fb25-a15d-5854-b28f-40dc68f3ec30",
@@ -246,20 +247,13 @@
             ]
           }
         ],
-        "evidence": "Manual JSONL inspection confirmed the visible fallback answer cites chunk a268fb25 and states OUT_DATA10 / Data output bit 10; the cited returned content contains OUT_DATA10 and Data output bit 10."
-      }
-    ],
-    "diagnostic_rows": [
+        "evidence": "Manual JSONL inspection confirmed the cited returned content contains OUT_DATA10 and Data output bit 10."
+      },
       {
         "row": 12,
-        "run": "retrieval_eval_20260831_153415",
-        "previous_run": "retrieval_eval_20260831_151001",
-        "repaired_query": "In IV4-G600CA troubleshooting, when an external trigger cannot be input, which polarity checkpoint should I verify?",
-        "classification": "diagnostic_not_clean_exact_expected_citation_pending_after_retrieval_repair",
-        "failure_reasons": [
-          "expected_evidence_not_cited"
-        ],
-        "expected_chunk_id": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
+        "run": "retrieval_eval_20260831_160134",
+        "classification": "clean_source_reviewed_same_row_equivalent_citation",
+        "expected_chunk": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
         "cited_chunks": [
           {
             "chunk_id": "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
@@ -269,26 +263,16 @@
             ]
           }
         ],
-        "top_result_chunk_ids": [
-          "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
-          "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
-          "71426967-76ed-5e42-9489-68ddcf97223b",
-          "efe38bf4-cf29-5a85-8d43-31ac788af277",
-          "473a9dc1-e36e-5ab4-8f0c-1b60c32b4235"
-        ],
-        "evidence": "Manual JSONL inspection confirmed final top-k now includes expected checkpoint chunk 6469ea5d and the visible answer correctly says to verify whether Polarity is correctly set. It remains not-clean because the citation is adjacent same-page remedy chunk c9ac881b rather than the stored expected checkpoint chunk, pending source-reviewed equivalent-citation policy or exact citation repair."
+        "evidence": "Manual JSONL inspection confirmed the user-visible API answer says to verify whether Polarity is correctly set and cites returned chunk c9ac881b; its cited content and quote span directly include the external-trigger symptom row header plus the Polarity checkpoint."
       }
     ],
-    "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260831_153415. Row 11 remains clean. Row 12 retrieval is repaired and answer content is correct, but exact expected-evidence citation support still fails because the user-visible answer cites c9ac881b rather than expected chunk 6469ea5d.",
-    "next_target": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
-    "source_repair_dataset": "test_reports/retrieval_eval_dataset_20260831_151001.jsonl",
+    "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260831_160134. Row 11 remains clean. Row 12 is clean under the source-reviewed same-row equivalent-citation dataset: the API answer cites c9ac881b, the quote_span is present in the cited chunk, and the cited chunk itself includes the external-trigger row header plus the Polarity checkpoint and NPN/PNP remedy text.",
     "validation": {
-      "manifest_checker": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
-      "json_validation": "python3 -m json.tool passed for question-bank manifest and new eval summary/manifest artifacts",
-      "focused_retriever_tests": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'checkpoint or table_lexical_terms_include_table_preferred_code_anchors or complete_address_range' -> 4 passed, 122 deselected",
-      "focused_manifest_tests": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 31 passed",
-      "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 507 passed, 60 warnings"
-    }
+      "jsonl_validation": "Per-line JSON parser passed for test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl.",
+      "http_eval": "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-row12-equiv python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260831_160134",
+      "summary": "2/2 retrieval and 2/2 actual HTTP API answer grounding; failure_categories {}; answer_failure_reasons {}."
+    },
+    "next_target": "Broaden source-reviewed answer-grounding coverage to the next unresolved validated slice after guardrail audit, preserving single-step v2 rows 11-12 clean evidence from retrieval_eval_20260831_160134 and all prior diagnostic exclusions."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -764,14 +748,12 @@
     "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints."
   },
   "answer_grounding_status": {
-    "timestamp": "2026-08-31T15:41:00Z",
-    "status": "single_step_v2_row_12_retrieval_context_repaired_answer_citation_pending",
+    "timestamp": "2026-08-31T16:06:00Z",
+    "status": "single_step_v2_rows_11_12_clean_after_source_equivalence_rerun",
     "current_retrieval_failures": {},
-    "current_answer_failures": {
-      "expected_evidence_not_cited": 1
-    },
-    "latest_run": "retrieval_eval_20260831_153415",
-    "remaining": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations."
+    "current_answer_failures": {},
+    "latest_run": "retrieval_eval_20260831_160134",
+    "remaining": "Broaden source-reviewed answer-grounding coverage to the next unresolved validated slice after guardrail audit, preserving single-step v2 rows 11-12 clean evidence from retrieval_eval_20260831_160134 and all prior diagnostic exclusions."
   },
   "constraints": {
     "allowed_logic": [
@@ -789,9 +771,7 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 1
-  },
+  "current_answer_failure_categories": {},
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -8944,7 +8924,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
+  "next_target": "Broaden source-reviewed answer-grounding coverage to the next unresolved validated slice after guardrail audit, preserving single-step v2 rows 11-12 clean evidence from retrieval_eval_20260831_160134 and all prior diagnostic exclusions.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9697,9 +9677,7 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 1
-    },
+    "answer_current_failure_categories": {},
     "answer_failure_categories": {
       "expected_evidence_not_cited": 1,
       "expected_terms_missing": 1,
@@ -9887,36 +9865,35 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-08-31T15:41:00Z",
-      "status": "single_step_v2_row_12_retrieval_context_repaired_answer_citation_pending",
-      "classification": "row_11_clean_row_12_retrieval_repaired_answer_exact_citation_pending",
-      "latest_run": "retrieval_eval_20260831_153415",
-      "diagnostic_retrieval_only_run": "retrieval_eval_20260831_153159",
-      "previous_diagnostic_run": "retrieval_eval_20260831_151001",
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_153415.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260831_153415.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260831_153415.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_153415.json",
+      "timestamp": "2026-08-31T16:06:00Z",
+      "status": "single_step_v2_rows_11_12_clean_after_source_equivalence_rerun",
+      "classification": "row_11_clean_row_12_clean_source_reviewed_same_row_equivalent_citation",
+      "latest_run": "retrieval_eval_20260831_160134",
+      "previous_diagnostic_run": "retrieval_eval_20260831_153415",
+      "source_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_160134.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260831_160134.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260831_160134.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_160134.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "query_offset": 0,
       "max_queries": 2,
-      "retrieval_result": "2/2 single-step retrieval passed at rank 1 after troubleshooting checkpoint queries became table-aware; row 12 final top-k now includes expected polarity checkpoint chunk 6469ea5d at rank 2 behind same-page remedy chunk c9ac881b.",
-      "answer_result": "1/2 actual HTTP API answers passed. Row 11 remains clean. Row 12 answer text is materially correct and cites page-526 same-row remedy chunk c9ac881b, but exact expected-evidence citation scoring still fails because expected checkpoint chunk 6469ea5d is not cited; preserved as diagnostic/not-clean pending source review or citation-selection repair.",
+      "retrieval_result": "2/2 single-step retrieval passed at rank 1; failure_categories {}.",
+      "answer_result": "2/2 actual HTTP API answers passed after row 12 expected evidence explicitly allowed same-source same-row equivalent citation; answer_sources {\"fallback_validation\": 1, \"api\": 1}; answer_fallback_count 1.",
       "current_retrieval_failures": {},
-      "current_answer_failures": {
-        "expected_evidence_not_cited": 1
-      },
+      "current_answer_failures": {},
       "runtime_load_evidence": {
-        "container": "manuals-rag-temp-api-39262386-20260831-row12",
-        "host_api_base": "http://127.0.0.1:8912",
+        "container": "manuals-rag-temp-api-39262386-20260831-row12-equiv",
+        "host_api_base": "http://127.0.0.1:8916",
         "in_container_api_base": "http://127.0.0.1:8600",
-        "api_health": "ok at 2026-08-31T15:33:14Z",
+        "api_health": "ok at 2026-08-31T16:00Z",
+        "generator_py_sha256": "3f00b4db912284d47c6221b153e7f499f8d826b4dc99ff66d2c074ed236f935e",
+        "retrieval_eval_py_sha256": "2e5a590e31025c8424d503a812b353cedeb83d3a571f0271515b82ab40e109e0",
         "retriever_py_sha256": "fa52e0cb563638d95523069e1bc73f33b591eaa33f5e240c08f41d5d17cd1abf",
-        "analyze_query_sha256": "0eaaeeed308b31f3c7972c6d318ff836af80df33ce1d0f81c6190de123d8d07a",
-        "_lexical_table_terms_sha256": "85abd5eea896e6dee281ee48c2507432697506821328f93a8bcae8882e9c0e68",
-        "_lexical_table_content_terms_sha256": "f1258d60aff3b5a38602f91a11a79e7f4349755d90e1790f20355f60f06a9231",
-        "_table_lexical_score_sha256": "870abe4174f0aa4240a65aee417a4c9234569bd07bf62153765f817745574758",
+        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
+        "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
         "OLLAMA_URL": "http://host.docker.internal:11434",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
@@ -9924,17 +9901,21 @@
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
         "HAYSTACK_RERANK_DEVICE": "cuda:0"
       },
-      "changed_path_evidence": {
-        "query_analysis": "Row 12 query analyzes as troubleshooting with preferred_chunk_types ['table_record']; lexical table content terms reduce to ['polarity'].",
-        "direct_retrieval_run": "retrieval_eval_20260831_153159 passed 2/2 retrieval at rank 1 with row 12 fixed.",
-        "http_answer_run": "retrieval_eval_20260831_153415 passed 2/2 retrieval and 1/2 answer grounding through the loaded side API."
-      },
+      "source_review": [
+        {
+          "row": 12,
+          "expected_chunk": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
+          "cited_chunk": "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
+          "source_document_id": "857c0518-4b3a-42e2-97c9-211ab24163b6",
+          "support": "The cited page-526 remedy chunk content and quote_span directly include row headers \"An external trigger cannot be input. > Is the Polarity correctly set?\" and the NPN/PNP polarity remedy text, so it supports the requested checkpoint without sibling-row or metadata-only support.",
+          "equivalence_rule": "Same-source row-level remedy citations are acceptable for a checkpoint expected chunk only when the cited returned chunk itself includes the symptom row header and checkpoint text and the quote_span is present in the cited chunk."
+        }
+      ],
       "resolved_rows": [
         {
           "row": 11,
-          "run": "retrieval_eval_20260831_153415",
-          "query": "Which CV-X482 output line corresponds to data output bit 10?",
-          "classification": "clean_loaded_http_fallback_validation",
+          "run": "retrieval_eval_20260831_160134",
+          "classification": "clean_loaded_http_fallback_validation_preserved",
           "cited_chunks": [
             {
               "chunk_id": "a268fb25-a15d-5854-b28f-40dc68f3ec30",
@@ -9944,20 +9925,13 @@
               ]
             }
           ],
-          "evidence": "Manual JSONL inspection confirmed the visible fallback answer cites chunk a268fb25 and states OUT_DATA10 / Data output bit 10; the cited returned content contains OUT_DATA10 and Data output bit 10."
-        }
-      ],
-      "diagnostic_rows": [
+          "evidence": "Manual JSONL inspection confirmed the cited returned content contains OUT_DATA10 and Data output bit 10."
+        },
         {
           "row": 12,
-          "run": "retrieval_eval_20260831_153415",
-          "previous_run": "retrieval_eval_20260831_151001",
-          "repaired_query": "In IV4-G600CA troubleshooting, when an external trigger cannot be input, which polarity checkpoint should I verify?",
-          "classification": "diagnostic_not_clean_exact_expected_citation_pending_after_retrieval_repair",
-          "failure_reasons": [
-            "expected_evidence_not_cited"
-          ],
-          "expected_chunk_id": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
+          "run": "retrieval_eval_20260831_160134",
+          "classification": "clean_source_reviewed_same_row_equivalent_citation",
+          "expected_chunk": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
           "cited_chunks": [
             {
               "chunk_id": "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
@@ -9967,26 +9941,16 @@
               ]
             }
           ],
-          "top_result_chunk_ids": [
-            "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
-            "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
-            "71426967-76ed-5e42-9489-68ddcf97223b",
-            "efe38bf4-cf29-5a85-8d43-31ac788af277",
-            "473a9dc1-e36e-5ab4-8f0c-1b60c32b4235"
-          ],
-          "evidence": "Manual JSONL inspection confirmed final top-k now includes expected checkpoint chunk 6469ea5d and the visible answer correctly says to verify whether Polarity is correctly set. It remains not-clean because the citation is adjacent same-page remedy chunk c9ac881b rather than the stored expected checkpoint chunk, pending source-reviewed equivalent-citation policy or exact citation repair."
+          "evidence": "Manual JSONL inspection confirmed the user-visible API answer says to verify whether Polarity is correctly set and cites returned chunk c9ac881b; its cited content and quote span directly include the external-trigger symptom row header plus the Polarity checkpoint."
         }
       ],
-      "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260831_153415. Row 11 remains clean. Row 12 retrieval is repaired and answer content is correct, but exact expected-evidence citation support still fails because the user-visible answer cites c9ac881b rather than expected chunk 6469ea5d.",
-      "next_target": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
-      "source_repair_dataset": "test_reports/retrieval_eval_dataset_20260831_151001.jsonl",
+      "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260831_160134. Row 11 remains clean. Row 12 is clean under the source-reviewed same-row equivalent-citation dataset: the API answer cites c9ac881b, the quote_span is present in the cited chunk, and the cited chunk itself includes the external-trigger row header plus the Polarity checkpoint and NPN/PNP remedy text.",
       "validation": {
-        "manifest_checker": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
-        "json_validation": "python3 -m json.tool passed for question-bank manifest and new eval summary/manifest artifacts",
-        "focused_retriever_tests": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'checkpoint or table_lexical_terms_include_table_preferred_code_anchors or complete_address_range' -> 4 passed, 122 deselected",
-        "focused_manifest_tests": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 31 passed",
-        "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 507 passed, 60 warnings"
-      }
+        "jsonl_validation": "Per-line JSON parser passed for test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl.",
+        "http_eval": "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-row12-equiv python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260831_160134",
+        "summary": "2/2 retrieval and 2/2 actual HTTP API answer grounding; failure_categories {}; answer_failure_reasons {}."
+      },
+      "next_target": "Broaden source-reviewed answer-grounding coverage to the next unresolved validated slice after guardrail audit, preserving single-step v2 rows 11-12 clean evidence from retrieval_eval_20260831_160134 and all prior diagnostic exclusions."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10251,18 +10215,14 @@
       "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints."
     },
     "answer_grounding_status": {
-      "timestamp": "2026-08-31T15:41:00Z",
-      "status": "single_step_v2_row_12_retrieval_context_repaired_answer_citation_pending",
+      "timestamp": "2026-08-31T16:06:00Z",
+      "status": "single_step_v2_rows_11_12_clean_after_source_equivalence_rerun",
       "current_retrieval_failures": {},
-      "current_answer_failures": {
-        "expected_evidence_not_cited": 1
-      },
-      "latest_run": "retrieval_eval_20260831_153415",
-      "remaining": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations."
+      "current_answer_failures": {},
+      "latest_run": "retrieval_eval_20260831_160134",
+      "remaining": "Broaden source-reviewed answer-grounding coverage to the next unresolved validated slice after guardrail audit, preserving single-step v2 rows 11-12 clean evidence from retrieval_eval_20260831_160134 and all prior diagnostic exclusions."
     },
-    "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 1
-    },
+    "current_answer_failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -12384,7 +12344,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
+    "next_target": "Broaden source-reviewed answer-grounding coverage to the next unresolved validated slice after guardrail audit, preserving single-step v2 rows 11-12 clean evidence from retrieval_eval_20260831_160134 and all prior diagnostic exclusions.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12421,7 +12381,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
+    "remaining": "Broaden source-reviewed answer-grounding coverage to the next unresolved validated slice after guardrail audit, preserving single-step v2 rows 11-12 clean evidence from retrieval_eval_20260831_160134 and all prior diagnostic exclusions.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12904,6 +12864,22 @@
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-31T16:06:00Z",
+        "guardrail_timestamp": "2026-08-31T15:51:38Z",
+        "guardrail_commit": "67f3fdb",
+        "severity": "ok",
+        "finding": "Guardrail accepted row 12 retrieval repair and required source-review or citation repair before counting row 12 answer grounding clean.",
+        "addressed_this_run": "Created a source-reviewed same-row equivalent-citation dataset for row 12 and reran rows 11-12 through a freshly loaded clean side API; row 12 passed only because the cited returned remedy chunk itself contains the external-trigger row header and Polarity checkpoint text.",
+        "evidence": [
+          "test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl adds allow_equivalent_citation to row 12 expected evidence with a source-review note.",
+          "retrieval_eval_20260831_160134: 2/2 retrieval at rank 1 and 2/2 actual HTTP API answer grounding.",
+          "Manual JSONL inspection verified row 12 citation c9ac881b quote_span is present and cited content supports the external-trigger polarity checkpoint plus NPN/PNP remedy text.",
+          "No production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, Docker, schema, model/provider, embedding, or reranker code changed."
+        ],
+        "remaining": "Broaden source-reviewed answer-grounding coverage to the next unresolved validated slice after guardrail audit, preserving single-step v2 rows 11-12 clean evidence from retrieval_eval_20260831_160134 and all prior diagnostic exclusions.",
+        "status": "addressed_this_run_clean_source_equivalence_rerun"
+      },
       {
         "timestamp": "2026-08-31T15:41:00Z",
         "guardrail_timestamp": "2026-08-31T15:27:29Z",
@@ -13723,9 +13699,9 @@
         "status": "addressed_this_run_pending_guardrail_audit"
       }
     ],
-    "updated_at": "2026-08-31T15:41:00Z"
+    "updated_at": "2026-08-31T16:06:00Z"
   },
-  "remaining": "Source-review or repair single-step v2 row 12 answer/citation grounding: retrieval now surfaces the page-526 polarity checkpoint chunk 6469ea5d at rank 1, and the actual answer cites same-page remedy chunk c9ac881b whose returned content includes the expected checkpoint as a row header. Before counting row 12 clean, either create a source-reviewed equivalent-citation dataset/policy for same-row checkpoint/remedy citations or tighten answer citation selection to cite the exact checkpoint chunk, then rerun through a loaded clean side API and inspect JSONL citations.",
+  "remaining": "Broaden source-reviewed answer-grounding coverage to the next unresolved validated slice after guardrail audit, preserving single-step v2 rows 11-12 clean evidence from retrieval_eval_20260831_160134 and all prior diagnostic exclusions.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14207,6 +14183,22 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-31T16:06:00Z",
+      "guardrail_timestamp": "2026-08-31T15:51:38Z",
+      "guardrail_commit": "67f3fdb",
+      "severity": "ok",
+      "finding": "Guardrail accepted row 12 retrieval repair and required source-review or citation repair before counting row 12 answer grounding clean.",
+      "addressed_this_run": "Created a source-reviewed same-row equivalent-citation dataset for row 12 and reran rows 11-12 through a freshly loaded clean side API; row 12 passed only because the cited returned remedy chunk itself contains the external-trigger row header and Polarity checkpoint text.",
+      "evidence": [
+        "test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl adds allow_equivalent_citation to row 12 expected evidence with a source-review note.",
+        "retrieval_eval_20260831_160134: 2/2 retrieval at rank 1 and 2/2 actual HTTP API answer grounding.",
+        "Manual JSONL inspection verified row 12 citation c9ac881b quote_span is present and cited content supports the external-trigger polarity checkpoint plus NPN/PNP remedy text.",
+        "No production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, Docker, schema, model/provider, embedding, or reranker code changed."
+      ],
+      "remaining": "Broaden source-reviewed answer-grounding coverage to the next unresolved validated slice after guardrail audit, preserving single-step v2 rows 11-12 clean evidence from retrieval_eval_20260831_160134 and all prior diagnostic exclusions.",
+      "status": "addressed_this_run_clean_source_equivalence_rerun"
+    },
     {
       "timestamp": "2026-08-31T15:41:00Z",
       "guardrail_timestamp": "2026-08-31T15:27:29Z",
@@ -15026,5 +15018,5 @@
       "status": "addressed_this_run_pending_guardrail_audit"
     }
   ],
-  "updated_at": "2026-08-31T15:41:00Z"
+  "updated_at": "2026-08-31T16:06:00Z"
 }
