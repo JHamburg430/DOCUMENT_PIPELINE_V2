@@ -1,5 +1,9 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "expected_evidence_not_cited": 2,
+    "expected_terms_missing": 1,
+    "insufficient_evidence": 1
+  },
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
@@ -59,13 +63,16 @@
     "timestamp": "2026-08-30T23:49:00Z"
   },
   "answer_grounding_contextual_rows_17_18": {
-    "dataset": "test_reports/retrieval_eval_dataset_20260826_085824.jsonl",
-    "manifest": "test_reports/retrieval_eval_manifest_20260826_085824.json",
-    "result": "2/2 retrieval and 2/2 actual API answers passed at rank 1; answer_sources api:2; fallback 0; mean answer latency 41.752s.",
-    "results": "test_reports/retrieval_eval_results_20260826_085824.jsonl",
-    "scope": "repaired_contextual_procedure_cases_17_18",
-    "status": "actual_http_api_answer_rotation_passed",
-    "summary": "test_reports/retrieval_eval_summary_20260826_085824.json"
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_000911.jsonl",
+    "latest_run": "retrieval_eval_20260831_000911",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_000911.json",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_000911. Row 17 user-visible answer was insufficient_evidence with no citations even though expected chunks 18961d4d and 0ae083ce were retrieved via section-window d1e49181. Row 18 user-visible fallback cited table chunk 3fb4ee82, which describes Camera-Trigger-Light menu entries, while expected Step 2/3 Trigger Settings screen evidence b1b02544/b5c56332 was present in top result f3a776d8 but not cited.",
+    "next": "Fix or source-review contextual rows 17-18 answer evidence selection. Row 17 needs a fallback/citation path that can state Number of Lines 10 and Line Scan Interval Specify Encoder 1 pulse/line Sampling mode from the retrieved sheet-fed LJ-V timing section, or return a source-reviewed diagnostic reason. Row 18 needs the Line Camera Setting Navigation Step 2/3 Trigger Settings screen evidence, not only a sibling Camera-Trigger-Light settings table. Preserve retrieval_eval_20260831_000911 as diagnostic/not-clean.",
+    "result": "2/2 retrieval passed; 0/2 actual HTTP answers passed; row 17 insufficient_evidence/expected_terms_missing/expected_evidence_not_cited; row 18 expected_evidence_not_cited.",
+    "results": "test_reports/retrieval_eval_results_20260831_000911.jsonl",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+    "status": "diagnostic_not_clean_actual_http_answer_rotation",
+    "summary": "test_reports/retrieval_eval_summary_20260831_000911.json"
   },
   "answer_grounding_contextual_rows_19_20": {
     "dataset": "test_reports/retrieval_eval_dataset_20260826_092358.jsonl",
@@ -108,37 +115,77 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-    "classification": "clean_same_source_contextual_rows_15_16_equivalence_refresh_preserving_pre_repair_diagnostic",
-    "dataset": "test_reports/retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl",
-    "latest_run": "retrieval_eval_20260830_234218",
-    "manifest": "test_reports/retrieval_eval_manifest_20260830_234218.json",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_234218 and the diagnostic pre-repair retrieval_eval_results_20260830_233933. Row 15 user-visible fallback answer cites consolidated same-source chunk 02767534 with null quote_span; returned metadata.content/context_window directly contains the LJ-V Continuous/Total Number of Lines procedure, Camera settings Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines Enabled 23 lines, and explanatory sentence binding lines=10 and overlap lines=two. Row 16 cites consolidated same-source chunk 450fca55 with null quote_span; returned content directly contains the Asynchronous Trigger procedure plus TRG1 for CAM 1 capture and measurement processing of only that camera as one measurement.",
+    "answer_result": "0/2 actual HTTP answer grounding; answer_failure_reasons {insufficient_evidence: 1, expected_terms_missing: 1, expected_evidence_not_cited: 2}; answer_sources {fallback_validation: 2}.",
+    "classification": "diagnostic_not_clean_contextual_rows_17_18_answer_evidence_gap",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_000911.jsonl",
+    "latest_run": "retrieval_eval_20260831_000911",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_000911.json",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_000911. Row 17 user-visible answer was insufficient_evidence with no citations even though expected chunks 18961d4d and 0ae083ce were retrieved via section-window d1e49181. Row 18 user-visible fallback cited table chunk 3fb4ee82, which describes Camera-Trigger-Light menu entries, while expected Step 2/3 Trigger Settings screen evidence b1b02544/b5c56332 was present in top result f3a776d8 but not cited.",
     "max_queries": 2,
     "previous_clean_rotation_preserved": {
       "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-      "classification": "clean_source_scoped_contextual_rows_13_14_repair_preserving_original_diagnostic",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_2310_contextual_rows_13_14_source_scope_repair.jsonl",
-      "latest_run": "retrieval_eval_20260830_231038",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_231038 for both rows. Both user-visible fallback_validation answers cite setup-guide section-window chunk eba458c3 from document 7927e7fc with null quote_span. The returned cited content itself contains the EtherNet/IP memory-monitor Not Connected failure and 1.1 Connecting Devices recheck guidance, the 2. Controlling the Image Capture Timing chapter context, and the high-speed short-trigger-interval instruction to use discrete I/O on the terminal block instead of EtherNet/IP. This supports expected role chunks 7aaa0e2c/f4bbc0fe and 7aaa0e2c/5e2de0a8 under the same-source returned-content equivalence policy.",
-      "results": "test_reports/retrieval_eval_results_20260830_231038.jsonl",
-      "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100% with setup-guide source document 7927e7fc selected rank 1 for row 13 and rank 2 for row 14.",
-      "summary": "test_reports/retrieval_eval_summary_20260830_231038.json"
-    },
-    "previous_diagnostic_preserved": {
-      "answer_result": "0/2 actual HTTP answer grounding; expected_evidence_not_cited: 2 because same-source consolidated citation equivalence had not yet been source-reviewed for rows 15-16.",
-      "classification": "diagnostic_not_clean_contextual_rows_15_16_before_same_source_equivalence_review",
-      "latest_run": "retrieval_eval_20260830_233933",
-      "results": "test_reports/retrieval_eval_results_20260830_233933.jsonl",
-      "retrieval_result": "2/2 contextual multi-step retrieval passed.",
-      "run_dataset": "test_reports/retrieval_eval_dataset_20260830_233933.jsonl",
+      "classification": "clean_same_source_contextual_rows_15_16_equivalence_refresh_preserving_pre_repair_diagnostic",
+      "dataset": "test_reports/retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl",
+      "latest_run": "retrieval_eval_20260830_234218",
+      "manifest": "test_reports/retrieval_eval_manifest_20260830_234218.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_234218 and the diagnostic pre-repair retrieval_eval_results_20260830_233933. Row 15 user-visible fallback answer cites consolidated same-source chunk 02767534 with null quote_span; returned metadata.content/context_window directly contains the LJ-V Continuous/Total Number of Lines procedure, Camera settings Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines Enabled 23 lines, and explanatory sentence binding lines=10 and overlap lines=two. Row 16 cites consolidated same-source chunk 450fca55 with null quote_span; returned content directly contains the Asynchronous Trigger procedure plus TRG1 for CAM 1 capture and measurement processing of only that camera as one measurement.",
+      "max_queries": 2,
+      "previous_clean_rotation_preserved": {
+        "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+        "classification": "clean_source_scoped_contextual_rows_13_14_repair_preserving_original_diagnostic",
+        "dataset": "test_reports/retrieval_eval_dataset_20260830_2310_contextual_rows_13_14_source_scope_repair.jsonl",
+        "latest_run": "retrieval_eval_20260830_231038",
+        "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_231038 for both rows. Both user-visible fallback_validation answers cite setup-guide section-window chunk eba458c3 from document 7927e7fc with null quote_span. The returned cited content itself contains the EtherNet/IP memory-monitor Not Connected failure and 1.1 Connecting Devices recheck guidance, the 2. Controlling the Image Capture Timing chapter context, and the high-speed short-trigger-interval instruction to use discrete I/O on the terminal block instead of EtherNet/IP. This supports expected role chunks 7aaa0e2c/f4bbc0fe and 7aaa0e2c/5e2de0a8 under the same-source returned-content equivalence policy.",
+        "results": "test_reports/retrieval_eval_results_20260830_231038.jsonl",
+        "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100% with setup-guide source document 7927e7fc selected rank 1 for row 13 and rank 2 for row 14.",
+        "summary": "test_reports/retrieval_eval_summary_20260830_231038.json"
+      },
+      "previous_diagnostic_preserved": {
+        "answer_result": "0/2 actual HTTP answer grounding; expected_evidence_not_cited: 2 because same-source consolidated citation equivalence had not yet been source-reviewed for rows 15-16.",
+        "classification": "diagnostic_not_clean_contextual_rows_15_16_before_same_source_equivalence_review",
+        "latest_run": "retrieval_eval_20260830_233933",
+        "results": "test_reports/retrieval_eval_results_20260830_233933.jsonl",
+        "retrieval_result": "2/2 contextual multi-step retrieval passed.",
+        "run_dataset": "test_reports/retrieval_eval_dataset_20260830_233933.jsonl",
+        "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+        "summary": "test_reports/retrieval_eval_summary_20260830_233933.json"
+      },
+      "query_offset": 0,
+      "results": "test_reports/retrieval_eval_results_20260830_234218.jsonl",
+      "retrieval_result": "2/2 contextual multi-step retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
+      "run_dataset": "test_reports/retrieval_eval_dataset_20260830_234218.jsonl",
+      "runtime_load": {
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+        "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+        "api_base": "http://127.0.0.1:8796 host / http://127.0.0.1:8600 inside container",
+        "container": "manuals-rag-temp-api-39262386-20260830-rows15-16",
+        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
+        "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+        "retrieval_eval_file_sha256": "11731953c287b11053767e59c7bb303ef272abe778c3ca2d0253b3488637c6e0",
+        "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+        "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
+        "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+        "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
+      },
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260830_233933.json"
+      "source_review": {
+        "diagnostic_reason": "The unrepaired dataset lacked allow_equivalent_citation for consolidated same-source chunks, so both otherwise source-supported fallback answers failed expected_evidence_not_cited. This is a dataset/source-equivalence refresh, not a production answering change.",
+        "original_diagnostic_run": "retrieval_eval_20260830_233933",
+        "repair_policy": "Allow same-source consolidated citation only when cited returned content directly contains each expected evidence role and preserves distinctive quantity, identifier, action, polarity, and value bindings; do not accept answer-text-only support, metadata-only sibling support, cross-document support, or loose token overlap."
+      },
+      "summary": "test_reports/retrieval_eval_summary_20260830_234218.json"
     },
-    "query_offset": 0,
-    "results": "test_reports/retrieval_eval_results_20260830_234218.jsonl",
-    "retrieval_result": "2/2 contextual multi-step retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
-    "run_dataset": "test_reports/retrieval_eval_dataset_20260830_234218.jsonl",
+    "query_offset": 16,
+    "results": "test_reports/retrieval_eval_results_20260831_000911.jsonl",
+    "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100%.",
+    "run_dataset": "test_reports/retrieval_eval_dataset_20260831_000911.jsonl",
     "runtime_load": {
       "HAYSTACK_RERANK_DEVICE": "cuda:0",
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
@@ -148,8 +195,8 @@
       "OLLAMA_URL": "http://host.docker.internal:11434",
       "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
       "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-      "api_base": "http://127.0.0.1:8796 host / http://127.0.0.1:8600 inside container",
-      "container": "manuals-rag-temp-api-39262386-20260830-rows15-16",
+      "api_base": "http://127.0.0.1:8798 host / http://127.0.0.1:8600 inside container",
+      "container": "manuals-rag-temp-api-39262386-20260830-rows17-18",
       "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
       "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
       "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
@@ -160,12 +207,7 @@
       "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
     },
     "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-    "source_review": {
-      "diagnostic_reason": "The unrepaired dataset lacked allow_equivalent_citation for consolidated same-source chunks, so both otherwise source-supported fallback answers failed expected_evidence_not_cited. This is a dataset/source-equivalence refresh, not a production answering change.",
-      "original_diagnostic_run": "retrieval_eval_20260830_233933",
-      "repair_policy": "Allow same-source consolidated citation only when cited returned content directly contains each expected evidence role and preserves distinctive quantity, identifier, action, polarity, and value bindings; do not accept answer-text-only support, metadata-only sibling support, cross-document support, or loose token overlap."
-    },
-    "summary": "test_reports/retrieval_eval_summary_20260830_234218.json"
+    "summary": "test_reports/retrieval_eval_summary_20260831_000911.json"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -514,7 +556,7 @@
       "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
     ]
   },
-  "answer_grounding_status": "2026-08-30 contextual rows 15-16 source-equivalence refresh: original current-runtime run retrieval_eval_20260830_233933 passed 2/2 retrieval but failed 0/2 answer grounding because the answers cited consolidated same-source chunks rather than exact expected atomic chunks. Source-reviewed dataset retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl declares equivalent citation only when the same-source returned content directly supports every expected role and preserves value bindings. Loaded HTTP run retrieval_eval_20260830_234218 passed 2/2 retrieval and 2/2 answer grounding; manual JSONL inspection confirmed row 15 cites chunk 02767534 whose metadata content binds Number of Lines to 10 and Number of Overlapping Lines to two, and row 16 cites chunk 450fca55 whose content binds TRG1 to CAM 1 capture/measurement processing as one measurement.",
+  "answer_grounding_status": "2026-08-31 contextual rows 17-18 diagnostic: loaded actual HTTP run retrieval_eval_20260831_000911 passed 2/2 retrieval with candidate and metadata-document recall 100%, but answer grounding failed 0/2. Row 17 returned insufficient evidence despite retrieved sheet-fed LJ-V line settings; row 18 answered from a Camera-Trigger-Light settings table and did not cite the expected Step 2/3 Trigger Settings screen evidence. No clean answer evidence is claimed.",
   "constraints": {
     "allowed_logic": [
       "retrieval",
@@ -531,7 +573,11 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
+  "current_answer_failure_categories": {
+    "expected_evidence_not_cited": 2,
+    "expected_terms_missing": 1,
+    "insufficient_evidence": 1
+  },
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -8684,7 +8730,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
+  "next_target": "Fix or source-review contextual rows 17-18 answer evidence selection. Row 17 needs a fallback/citation path that can state Number of Lines 10 and Line Scan Interval Specify Encoder 1 pulse/line Sampling mode from the retrieved sheet-fed LJ-V timing section, or return a source-reviewed diagnostic reason. Row 18 needs the Line Camera Setting Navigation Step 2/3 Trigger Settings screen evidence, not only a sibling Camera-Trigger-Light settings table. Preserve retrieval_eval_20260831_000911 as diagnostic/not-clean.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9437,7 +9483,11 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 2,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
+    },
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
@@ -9496,6 +9546,18 @@
       "status": "contextual_rows_15_16_clean_after_current_same_source_consolidated_citation_review",
       "timestamp": "2026-08-30T23:49:00Z"
     },
+    "answer_grounding_contextual_rows_17_18": {
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_000911.jsonl",
+      "latest_run": "retrieval_eval_20260831_000911",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_000911.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_000911. Row 17 user-visible answer was insufficient_evidence with no citations even though expected chunks 18961d4d and 0ae083ce were retrieved via section-window d1e49181. Row 18 user-visible fallback cited table chunk 3fb4ee82, which describes Camera-Trigger-Light menu entries, while expected Step 2/3 Trigger Settings screen evidence b1b02544/b5c56332 was present in top result f3a776d8 but not cited.",
+      "next": "Fix or source-review contextual rows 17-18 answer evidence selection. Row 17 needs a fallback/citation path that can state Number of Lines 10 and Line Scan Interval Specify Encoder 1 pulse/line Sampling mode from the retrieved sheet-fed LJ-V timing section, or return a source-reviewed diagnostic reason. Row 18 needs the Line Camera Setting Navigation Step 2/3 Trigger Settings screen evidence, not only a sibling Camera-Trigger-Light settings table. Preserve retrieval_eval_20260831_000911 as diagnostic/not-clean.",
+      "result": "2/2 retrieval passed; 0/2 actual HTTP answers passed; row 17 insufficient_evidence/expected_terms_missing/expected_evidence_not_cited; row 18 expected_evidence_not_cited.",
+      "results": "test_reports/retrieval_eval_results_20260831_000911.jsonl",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "status": "diagnostic_not_clean_actual_http_answer_rotation",
+      "summary": "test_reports/retrieval_eval_summary_20260831_000911.json"
+    },
     "answer_grounding_cross_document_rows_6_7": {
       "answer_result": "Row 6 passed 1/1 actual HTTP API answer grounding as direct api/no-fallback evidence; row 7 passed 1/1 as fallback_validation content/citation-clean control. Current answer failures {}.",
       "diagnostic_false_green_run": "retrieval_eval_20260827_225720",
@@ -9528,37 +9590,77 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-      "classification": "clean_same_source_contextual_rows_15_16_equivalence_refresh_preserving_pre_repair_diagnostic",
-      "dataset": "test_reports/retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl",
-      "latest_run": "retrieval_eval_20260830_234218",
-      "manifest": "test_reports/retrieval_eval_manifest_20260830_234218.json",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_234218 and the diagnostic pre-repair retrieval_eval_results_20260830_233933. Row 15 user-visible fallback answer cites consolidated same-source chunk 02767534 with null quote_span; returned metadata.content/context_window directly contains the LJ-V Continuous/Total Number of Lines procedure, Camera settings Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines Enabled 23 lines, and explanatory sentence binding lines=10 and overlap lines=two. Row 16 cites consolidated same-source chunk 450fca55 with null quote_span; returned content directly contains the Asynchronous Trigger procedure plus TRG1 for CAM 1 capture and measurement processing of only that camera as one measurement.",
+      "answer_result": "0/2 actual HTTP answer grounding; answer_failure_reasons {insufficient_evidence: 1, expected_terms_missing: 1, expected_evidence_not_cited: 2}; answer_sources {fallback_validation: 2}.",
+      "classification": "diagnostic_not_clean_contextual_rows_17_18_answer_evidence_gap",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_000911.jsonl",
+      "latest_run": "retrieval_eval_20260831_000911",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_000911.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_000911. Row 17 user-visible answer was insufficient_evidence with no citations even though expected chunks 18961d4d and 0ae083ce were retrieved via section-window d1e49181. Row 18 user-visible fallback cited table chunk 3fb4ee82, which describes Camera-Trigger-Light menu entries, while expected Step 2/3 Trigger Settings screen evidence b1b02544/b5c56332 was present in top result f3a776d8 but not cited.",
       "max_queries": 2,
       "previous_clean_rotation_preserved": {
         "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
-        "classification": "clean_source_scoped_contextual_rows_13_14_repair_preserving_original_diagnostic",
-        "dataset": "test_reports/retrieval_eval_dataset_20260830_2310_contextual_rows_13_14_source_scope_repair.jsonl",
-        "latest_run": "retrieval_eval_20260830_231038",
-        "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_231038 for both rows. Both user-visible fallback_validation answers cite setup-guide section-window chunk eba458c3 from document 7927e7fc with null quote_span. The returned cited content itself contains the EtherNet/IP memory-monitor Not Connected failure and 1.1 Connecting Devices recheck guidance, the 2. Controlling the Image Capture Timing chapter context, and the high-speed short-trigger-interval instruction to use discrete I/O on the terminal block instead of EtherNet/IP. This supports expected role chunks 7aaa0e2c/f4bbc0fe and 7aaa0e2c/5e2de0a8 under the same-source returned-content equivalence policy.",
-        "results": "test_reports/retrieval_eval_results_20260830_231038.jsonl",
-        "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100% with setup-guide source document 7927e7fc selected rank 1 for row 13 and rank 2 for row 14.",
-        "summary": "test_reports/retrieval_eval_summary_20260830_231038.json"
-      },
-      "previous_diagnostic_preserved": {
-        "answer_result": "0/2 actual HTTP answer grounding; expected_evidence_not_cited: 2 because same-source consolidated citation equivalence had not yet been source-reviewed for rows 15-16.",
-        "classification": "diagnostic_not_clean_contextual_rows_15_16_before_same_source_equivalence_review",
-        "latest_run": "retrieval_eval_20260830_233933",
-        "results": "test_reports/retrieval_eval_results_20260830_233933.jsonl",
-        "retrieval_result": "2/2 contextual multi-step retrieval passed.",
-        "run_dataset": "test_reports/retrieval_eval_dataset_20260830_233933.jsonl",
+        "classification": "clean_same_source_contextual_rows_15_16_equivalence_refresh_preserving_pre_repair_diagnostic",
+        "dataset": "test_reports/retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl",
+        "latest_run": "retrieval_eval_20260830_234218",
+        "manifest": "test_reports/retrieval_eval_manifest_20260830_234218.json",
+        "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_234218 and the diagnostic pre-repair retrieval_eval_results_20260830_233933. Row 15 user-visible fallback answer cites consolidated same-source chunk 02767534 with null quote_span; returned metadata.content/context_window directly contains the LJ-V Continuous/Total Number of Lines procedure, Camera settings Number of Lines 10, Number of Overlapping Lines Two lines, Total Number of Lines Enabled 23 lines, and explanatory sentence binding lines=10 and overlap lines=two. Row 16 cites consolidated same-source chunk 450fca55 with null quote_span; returned content directly contains the Asynchronous Trigger procedure plus TRG1 for CAM 1 capture and measurement processing of only that camera as one measurement.",
+        "max_queries": 2,
+        "previous_clean_rotation_preserved": {
+          "answer_result": "2/2 actual HTTP answer grounding passed; answer_sources {fallback_validation: 2}; answer_fallback_count 2; answer_failure_reasons {}.",
+          "classification": "clean_source_scoped_contextual_rows_13_14_repair_preserving_original_diagnostic",
+          "dataset": "test_reports/retrieval_eval_dataset_20260830_2310_contextual_rows_13_14_source_scope_repair.jsonl",
+          "latest_run": "retrieval_eval_20260830_231038",
+          "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260830_231038 for both rows. Both user-visible fallback_validation answers cite setup-guide section-window chunk eba458c3 from document 7927e7fc with null quote_span. The returned cited content itself contains the EtherNet/IP memory-monitor Not Connected failure and 1.1 Connecting Devices recheck guidance, the 2. Controlling the Image Capture Timing chapter context, and the high-speed short-trigger-interval instruction to use discrete I/O on the terminal block instead of EtherNet/IP. This supports expected role chunks 7aaa0e2c/f4bbc0fe and 7aaa0e2c/5e2de0a8 under the same-source returned-content equivalence policy.",
+          "results": "test_reports/retrieval_eval_results_20260830_231038.jsonl",
+          "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100% with setup-guide source document 7927e7fc selected rank 1 for row 13 and rank 2 for row 14.",
+          "summary": "test_reports/retrieval_eval_summary_20260830_231038.json"
+        },
+        "previous_diagnostic_preserved": {
+          "answer_result": "0/2 actual HTTP answer grounding; expected_evidence_not_cited: 2 because same-source consolidated citation equivalence had not yet been source-reviewed for rows 15-16.",
+          "classification": "diagnostic_not_clean_contextual_rows_15_16_before_same_source_equivalence_review",
+          "latest_run": "retrieval_eval_20260830_233933",
+          "results": "test_reports/retrieval_eval_results_20260830_233933.jsonl",
+          "retrieval_result": "2/2 contextual multi-step retrieval passed.",
+          "run_dataset": "test_reports/retrieval_eval_dataset_20260830_233933.jsonl",
+          "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+          "summary": "test_reports/retrieval_eval_summary_20260830_233933.json"
+        },
+        "query_offset": 0,
+        "results": "test_reports/retrieval_eval_results_20260830_234218.jsonl",
+        "retrieval_result": "2/2 contextual multi-step retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
+        "run_dataset": "test_reports/retrieval_eval_dataset_20260830_234218.jsonl",
+        "runtime_load": {
+          "HAYSTACK_RERANK_DEVICE": "cuda:0",
+          "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+          "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+          "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+          "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+          "OLLAMA_URL": "http://host.docker.internal:11434",
+          "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+          "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
+          "api_base": "http://127.0.0.1:8796 host / http://127.0.0.1:8600 inside container",
+          "container": "manuals-rag-temp-api-39262386-20260830-rows15-16",
+          "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+          "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
+          "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
+          "retrieval_eval_file_sha256": "11731953c287b11053767e59c7bb303ef272abe778c3ca2d0253b3488637c6e0",
+          "retriever_file": "/workspace/manuals_rag/packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+          "retriever_file_sha256": "595f61c94056dc3015e117d4a0b1539a033d9802f7a9f8703050509c51037f26",
+          "score_answer_response_sha256": "155308555cdbea2c0089580956e48e84bc050f599e4ea20a46cb94843b46da16",
+          "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
+        },
         "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-        "summary": "test_reports/retrieval_eval_summary_20260830_233933.json"
+        "source_review": {
+          "diagnostic_reason": "The unrepaired dataset lacked allow_equivalent_citation for consolidated same-source chunks, so both otherwise source-supported fallback answers failed expected_evidence_not_cited. This is a dataset/source-equivalence refresh, not a production answering change.",
+          "original_diagnostic_run": "retrieval_eval_20260830_233933",
+          "repair_policy": "Allow same-source consolidated citation only when cited returned content directly contains each expected evidence role and preserves distinctive quantity, identifier, action, polarity, and value bindings; do not accept answer-text-only support, metadata-only sibling support, cross-document support, or loose token overlap."
+        },
+        "summary": "test_reports/retrieval_eval_summary_20260830_234218.json"
       },
-      "query_offset": 0,
-      "results": "test_reports/retrieval_eval_results_20260830_234218.jsonl",
-      "retrieval_result": "2/2 contextual multi-step retrieval passed; pass@1 1/2, pass@3/pass@5 2/2; candidate recall 100%; metadata-document recall 100%.",
-      "run_dataset": "test_reports/retrieval_eval_dataset_20260830_234218.jsonl",
+      "query_offset": 16,
+      "results": "test_reports/retrieval_eval_results_20260831_000911.jsonl",
+      "retrieval_result": "2/2 contextual multi-step retrieval passed at rank 1; candidate recall 100%; metadata-document recall 100%.",
+      "run_dataset": "test_reports/retrieval_eval_dataset_20260831_000911.jsonl",
       "runtime_load": {
         "HAYSTACK_RERANK_DEVICE": "cuda:0",
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
@@ -9568,8 +9670,8 @@
         "OLLAMA_URL": "http://host.docker.internal:11434",
         "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
         "_fallback_evidence_results_sha256": "aa5d07054b022ba4b038308bbcb454dbc1318aea355560b16be17c161fe93490",
-        "api_base": "http://127.0.0.1:8796 host / http://127.0.0.1:8600 inside container",
-        "container": "manuals-rag-temp-api-39262386-20260830-rows15-16",
+        "api_base": "http://127.0.0.1:8798 host / http://127.0.0.1:8600 inside container",
+        "container": "manuals-rag-temp-api-39262386-20260830-rows17-18",
         "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
         "generator_file_sha256": "93d210dff2f466dfe5978cdb1bdf282d8455d64d850f71dc994d13dc955b63eb",
         "retrieval_eval_file": "/workspace/manuals_rag/packages/evals/src/manuals_rag_evals/retrieval_eval.py",
@@ -9580,12 +9682,7 @@
         "validate_answer_sha256": "d485146a4f1c0c7c8e065a7fbffbec59e0cf3ad3c51d6f72eea148ceb3324395"
       },
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "source_review": {
-        "diagnostic_reason": "The unrepaired dataset lacked allow_equivalent_citation for consolidated same-source chunks, so both otherwise source-supported fallback answers failed expected_evidence_not_cited. This is a dataset/source-equivalence refresh, not a production answering change.",
-        "original_diagnostic_run": "retrieval_eval_20260830_233933",
-        "repair_policy": "Allow same-source consolidated citation only when cited returned content directly contains each expected evidence role and preserves distinctive quantity, identifier, action, polarity, and value bindings; do not accept answer-text-only support, metadata-only sibling support, cross-document support, or loose token overlap."
-      },
-      "summary": "test_reports/retrieval_eval_summary_20260830_234218.json"
+      "summary": "test_reports/retrieval_eval_summary_20260831_000911.json"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -9723,8 +9820,12 @@
         "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
       ]
     },
-    "answer_grounding_status": "2026-08-30 contextual rows 15-16 source-equivalence refresh: original current-runtime run retrieval_eval_20260830_233933 passed 2/2 retrieval but failed 0/2 answer grounding because the answers cited consolidated same-source chunks rather than exact expected atomic chunks. Source-reviewed dataset retrieval_eval_dataset_20260830_2344_contextual_rows_15_16_source_equivalence.jsonl declares equivalent citation only when the same-source returned content directly supports every expected role and preserves value bindings. Loaded HTTP run retrieval_eval_20260830_234218 passed 2/2 retrieval and 2/2 answer grounding; manual JSONL inspection confirmed row 15 cites chunk 02767534 whose metadata content binds Number of Lines to 10 and Number of Overlapping Lines to two, and row 16 cites chunk 450fca55 whose content binds TRG1 to CAM 1 capture/measurement processing as one measurement.",
-    "current_answer_failure_categories": {},
+    "answer_grounding_status": "2026-08-31 contextual rows 17-18 diagnostic: loaded actual HTTP run retrieval_eval_20260831_000911 passed 2/2 retrieval with candidate and metadata-document recall 100%, but answer grounding failed 0/2. Row 17 returned insufficient evidence despite retrieved sheet-fed LJ-V line settings; row 18 answered from a Camera-Trigger-Light settings table and did not cite the expected Step 2/3 Trigger Settings screen evidence. No clean answer evidence is claimed.",
+    "current_answer_failure_categories": {
+      "expected_evidence_not_cited": 2,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
+    },
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -11846,7 +11947,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
+    "next_target": "Fix or source-review contextual rows 17-18 answer evidence selection. Row 17 needs a fallback/citation path that can state Number of Lines 10 and Line Scan Interval Specify Encoder 1 pulse/line Sampling mode from the retrieved sheet-fed LJ-V timing section, or return a source-reviewed diagnostic reason. Row 18 needs the Line Camera Setting Navigation Step 2/3 Trigger Settings screen evidence, not only a sibling Camera-Trigger-Light settings table. Preserve retrieval_eval_20260831_000911 as diagnostic/not-clean.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -11883,7 +11984,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
+    "remaining": "Fix or source-review contextual rows 17-18 answer evidence selection. Row 17 needs a fallback/citation path that can state Number of Lines 10 and Line Scan Interval Specify Encoder 1 pulse/line Sampling mode from the retrieved sheet-fed LJ-V timing section, or return a source-reviewed diagnostic reason. Row 18 needs the Line Camera Setting Navigation Step 2/3 Trigger Settings screen evidence, not only a sibling Camera-Trigger-Light settings table. Preserve retrieval_eval_20260831_000911 as diagnostic/not-clean.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12220,6 +12321,11 @@
         "reason": "diagnostic/not-clean current-runtime run: retrieval passed 2/2 but actual API answer grounding failed expected_evidence_not_cited: 2 because consolidated same-source cited chunks had not yet been source-reviewed for equivalent citation support.",
         "run_id": "retrieval_eval_20260830_233933",
         "scope": "contextual rows 15-16 before same-source consolidated citation review"
+      },
+      {
+        "reason": "diagnostic/not-clean actual HTTP answer run; retrieval passed but answer grounding failed 0/2 after manual JSONL inspection",
+        "run_id": "retrieval_eval_20260831_000911",
+        "scope": "contextual procedure rows 17-18 original rotation"
       }
     ],
     "single_step_questions": 101,
@@ -12845,9 +12951,9 @@
       },
       "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
     ],
-    "updated_at": "2026-08-30T23:49:00Z"
+    "updated_at": "2026-08-31T00:12:00Z"
   },
-  "remaining": "Continue broader contextual answer-grounding coverage with source-reviewed rows 17-18 or another unresolved validated target. Preserve retrieval_eval_20260830_233933 as diagnostic/not-clean; rows 15-16 are clean only under same-source consolidated-citation review in retrieval_eval_20260830_234218, where cited returned metadata content directly supports each expected role and preserves row-15 quantity bindings.",
+  "remaining": "Fix or source-review contextual rows 17-18 answer evidence selection. Row 17 needs a fallback/citation path that can state Number of Lines 10 and Line Scan Interval Specify Encoder 1 pulse/line Sampling mode from the retrieved sheet-fed LJ-V timing section, or return a source-reviewed diagnostic reason. Row 18 needs the Line Camera Setting Navigation Step 2/3 Trigger Settings screen evidence, not only a sibling Camera-Trigger-Light settings table. Preserve retrieval_eval_20260831_000911 as diagnostic/not-clean.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -13184,6 +13290,11 @@
       "reason": "diagnostic/not-clean current-runtime run: retrieval passed 2/2 but actual API answer grounding failed expected_evidence_not_cited: 2 because consolidated same-source cited chunks had not yet been source-reviewed for equivalent citation support.",
       "run_id": "retrieval_eval_20260830_233933",
       "scope": "contextual rows 15-16 before same-source consolidated citation review"
+    },
+    {
+      "reason": "diagnostic/not-clean actual HTTP answer run; retrieval passed but answer grounding failed 0/2 after manual JSONL inspection",
+      "run_id": "retrieval_eval_20260831_000911",
+      "scope": "contextual procedure rows 17-18 original rotation"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -13808,5 +13919,5 @@
     },
     "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
   ],
-  "updated_at": "2026-08-30T23:49:00Z"
+  "updated_at": "2026-08-31T00:12:00Z"
 }

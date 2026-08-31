@@ -58,6 +58,7 @@ def _minimal_manifest():
         },
         "answer_grounding_cross_document_rows_6_7": {"status": "row_6_failed_row_7_clean"},
         "answer_grounding_contextual_rows_15_16": {"status": "diagnostic"},
+        "answer_grounding_contextual_rows_17_18": {"status": "diagnostic"},
         "answer_grounding_sibling_rows_15_16": {"status": "diagnostic"},
         "answer_grounding_single_step_v2_rows_5_6": {"status": "diagnostic"},
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
@@ -422,6 +423,7 @@ def test_manifest_checker_rejects_missing_or_unequal_late_current_state_pairs():
     fields = [
         "latest_cross_document_probe",
         "answer_grounding_contextual_rows_15_16",
+        "answer_grounding_contextual_rows_17_18",
         "answer_grounding_sibling_rows_15_16",
         "answer_grounding_single_step_v2_rows_5_6",
         "updated_at",

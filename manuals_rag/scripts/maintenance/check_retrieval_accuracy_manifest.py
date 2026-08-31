@@ -36,6 +36,7 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "latest_contextual_procedure_rows_5_6_answer_evidence_failure",
     "answer_grounding_cross_document_rows_6_7",
     "answer_grounding_contextual_rows_15_16",
+    "answer_grounding_contextual_rows_17_18",
     "answer_grounding_sibling_rows_15_16",
     "answer_grounding_single_step_v2_rows_5_6",
     "partial_claim_citation_pruning_containment",
