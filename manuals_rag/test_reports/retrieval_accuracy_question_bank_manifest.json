@@ -13140,6 +13140,22 @@
     "total_questions": 208,
     "unresolved_guardrail_findings": [
       {
+        "addressed_this_run": "Registered latest_status_output_row2_diagnostic_experiment as a required root/question_bank manifest pair and added deterministic equal, missing-root, missing-question_bank, and unequal controls.",
+        "evidence": [
+          "scripts/maintenance/check_retrieval_accuracy_manifest.py now includes latest_status_output_row2_diagnostic_experiment in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+          "tests/unit/test_manifest_check.py includes latest_status_output_row2_diagnostic_experiment in the late-current-state required-pair controls.",
+          "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+          "Copied-real-manifest controls: equal passed; missing root latest_status_output_row2_diagnostic_experiment failed; missing question_bank.latest_status_output_row2_diagnostic_experiment failed; unequal nested status failed.",
+          "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -k 'late_current_state_pairs or equal_required_pairs' -> 2 passed, 29 deselected."
+        ],
+        "finding": "latest_status_output_row2_diagnostic_experiment was duplicated at manifest root and question_bank but was not registered in the deterministic required-pair checker, so missing or unequal copies could pass.",
+        "guardrail_commit": "94c2132",
+        "remaining": "Continue repaired curated single-step v2 row 2 answer grounding only after preserving the diagnostic exclusions and proving exact source-bearing chunk c589846f supports any accepted answer.",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_manifest_pair_enforced",
+        "timestamp": "2026-08-31T23:20:26Z"
+      },
+      {
         "addressed_this_run": "Ran a bounded loaded status-output priority/retrieval experiment, manually inspected actual JSONL payloads, and reverted production/test edits because row 2 still lacked source-bearing citation evidence.",
         "evidence": [
           "Focused scorer test passed: sibling_quantity_table_row / structured_table_cell_fallback_line / sibling_table_cell_bindings -> 3 passed.",
@@ -14103,7 +14119,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-08-31T23:16:00Z"
+    "updated_at": "2026-08-31T23:25:30Z"
   },
   "remaining": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy. The source-reviewed output-status question remains realistic, but the latest bounded status-output priority experiment did not make source-bearing table-cell chunk c589846f survive into the returned/cited answer context: loaded HTTP answer runs retrieval_eval_20260831_225848 and retrieval_eval_20260831_230445 both fell back to insufficient evidence with no citations, and retrieval-only run retrieval_eval_20260831_230951 still ranked noisy status-result chunks ahead of shifted key-value rows while omitting c589846f from the inspected top results. The attempted production/test edits were reverted before commit. Next work should inspect the retrieval pipeline path that drops or downranks the exact table-cell chunk before answer synthesis, or document the smallest schedule/timeout adjustment needed for a source-backed loaded rerun.",
   "retrieval_current_failure_categories": {},
@@ -14692,6 +14708,22 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "addressed_this_run": "Registered latest_status_output_row2_diagnostic_experiment as a required root/question_bank manifest pair and added deterministic equal, missing-root, missing-question_bank, and unequal controls.",
+      "evidence": [
+        "scripts/maintenance/check_retrieval_accuracy_manifest.py now includes latest_status_output_row2_diagnostic_experiment in REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS.",
+        "tests/unit/test_manifest_check.py includes latest_status_output_row2_diagnostic_experiment in the late-current-state required-pair controls.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK.",
+        "Copied-real-manifest controls: equal passed; missing root latest_status_output_row2_diagnostic_experiment failed; missing question_bank.latest_status_output_row2_diagnostic_experiment failed; unequal nested status failed.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -k 'late_current_state_pairs or equal_required_pairs' -> 2 passed, 29 deselected."
+      ],
+      "finding": "latest_status_output_row2_diagnostic_experiment was duplicated at manifest root and question_bank but was not registered in the deterministic required-pair checker, so missing or unequal copies could pass.",
+      "guardrail_commit": "94c2132",
+      "remaining": "Continue repaired curated single-step v2 row 2 answer grounding only after preserving the diagnostic exclusions and proving exact source-bearing chunk c589846f supports any accepted answer.",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_manifest_pair_enforced",
+      "timestamp": "2026-08-31T23:20:26Z"
+    },
     {
       "addressed_this_run": "Ran a bounded loaded status-output priority/retrieval experiment, manually inspected actual JSONL payloads, and reverted production/test edits because row 2 still lacked source-bearing citation evidence.",
       "evidence": [
@@ -15656,5 +15688,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-08-31T23:16:00Z"
+  "updated_at": "2026-08-31T23:25:30Z"
 }
