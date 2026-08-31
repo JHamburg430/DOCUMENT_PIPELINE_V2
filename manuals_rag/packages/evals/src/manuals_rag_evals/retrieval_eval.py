@@ -2924,16 +2924,6 @@ def _table_cell_binding_segment_supported(row_header: str, cell_value: str, answ
         return True
     if re.search(rf"{cell_pattern}.{{0,100}}{row_pattern}", segment, flags=re.IGNORECASE):
         return True
-    compact_segment = re.sub(r"\s+", " ", segment.lower())
-    cell_match = re.search(cell_pattern, compact_segment, flags=re.IGNORECASE)
-    for row_token in row_tokens:
-        if not re.search(r"\d", row_token):
-            continue
-        row_index = compact_segment.find(row_token.lower())
-        if row_index < 0:
-            continue
-        if cell_match is not None and abs(cell_match.start() - row_index) <= 100:
-            return True
     return False
 
 

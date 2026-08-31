@@ -4077,7 +4077,7 @@ def test_validation_fallback_preserves_focused_table_cell_before_context(monkeyp
     assert trace["final_answer"]["answer_source"] == "fallback_validation"
 
 
-def test_validation_fallback_answers_signal_description_mapping(monkeypatch):
+def test_validation_fallback_rejects_aggregate_signal_description_inference(monkeypatch):
     results = [
         SearchResult(
             chunk_id="aggregate-signal-table",
@@ -4131,9 +4131,10 @@ def test_validation_fallback_answers_signal_description_mapping(monkeypatch):
         results,
     )
 
-    assert answer.answer == "OUT_DATA10 corresponds to Data output bit 10."
-    assert answer.citations[0]["chunk_id"] == "aggregate-signal-table"
+    assert answer.answer != "OUT_DATA10 corresponds to Data output bit 10."
+    assert "OUT_DATA10 corresponds" not in answer.answer
     assert trace["final_answer"]["answer_source"] == "fallback_validation"
+    assert any("not sufficiently supported" in warning for warning in answer.warnings)
 
 
 def test_validation_fallback_omits_unrequested_neighbor_setting_context(monkeypatch):
