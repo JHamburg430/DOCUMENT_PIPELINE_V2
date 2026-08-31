@@ -4077,6 +4077,65 @@ def test_validation_fallback_preserves_focused_table_cell_before_context(monkeyp
     assert trace["final_answer"]["answer_source"] == "fallback_validation"
 
 
+def test_validation_fallback_answers_signal_description_mapping(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="aggregate-signal-table",
+            score=0.9,
+            title="CV-X manual",
+            document_version_id="v1",
+            source_document_id="cvx",
+            pages=[819],
+            section_path=["6-78"],
+            content=(
+                "Column headers: Function; Row headers: OUT_DATA0 > OUT_DATA1 > OUT_DATA2 > "
+                "OUT_DATA3 > OUT_DATA4 > OUT_DATA5 > OUT_DATA6 > OUT_DATA7 > OUT_DATA8 > "
+                "OUT_DATA9 > OUT_DATA10 > OUT_DATA11 > OUT_DATA12 > OUT_DATA13 > OUT_DATA14 > "
+                "OUT_DATA15 > Data output bit 0 (LSB) > Data output bit 1 > Data output bit 2 > "
+                "Data output bit 3 > Data output bit 4 > Data output bit 5 > Data output bit 6 > "
+                "Data output bit 7 > Data output bit 8 > Data output bit 9 > Data output bit 10 > "
+                "Data output bit 11 > Data output bit 12 > Data output bit 13 > Data output bit 14 > "
+                "Data output bit 15 (MSB); Cell value: Any of tool judgment, partial judgment, "
+                "CAM judgment, or group judgment of measurement results is output according to the "
+                "output settings."
+            ),
+            metadata={"chunk_type": "table_record"},
+        )
+    ]
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "final_answer":
+            return (
+                {
+                    "answer": "Unsupported generated answer",
+                    "confidence": "medium",
+                    "used_documents": [],
+                    "citations": [],
+                    "warnings": [],
+                    "followup_questions": [],
+                    "insufficient_evidence": False,
+                },
+                '{"answer":"Unsupported generated answer","confidence":"medium",'
+                '"used_documents":[],"citations":[],"warnings":[],'
+                '"followup_questions":[],"insufficient_evidence":false}',
+            )
+        return (
+            {"items": [{"chunk_id": "aggregate-signal-table", "verdict": "relevant", "reason": "Direct table match."}]},
+            '{"items":[{"chunk_id":"aggregate-signal-table","verdict":"relevant","reason":"Direct table match."}]}',
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fake_chat_json)
+
+    answer, trace = generate_answer_with_trace(
+        "Which controller output line corresponds to data output bit 10?",
+        results,
+    )
+
+    assert answer.answer == "OUT_DATA10 corresponds to Data output bit 10."
+    assert answer.citations[0]["chunk_id"] == "aggregate-signal-table"
+    assert trace["final_answer"]["answer_source"] == "fallback_validation"
+
+
 def test_validation_fallback_omits_unrequested_neighbor_setting_context(monkeypatch):
     results = [
         SearchResult(

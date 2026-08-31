@@ -593,6 +593,75 @@ def test_answer_response_scoring_accepts_same_row_table_cell_binding():
     assert scored["table_cell_binding"]["passed"] is True
 
 
+def test_answer_response_scoring_rejects_scattered_signal_description_binding():
+    case = RetrievalEvalCase(
+        case_id="case-signal-binding",
+        query="Which CV-X482 output line corresponds to data output bit 10?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="signal-row",
+        source_title="CV-X Manual",
+        source_filename="cvx.pdf",
+        chunk_type="table_record",
+        section_path="6-78",
+        page_from=819,
+        page_to=819,
+        expected_terms=["out_data10", "data", "output", "bit"],
+        expected_snippet="Column headers: Signal Description; Row headers: OUT_DATA10; Cell value: Data output bit 10; Row: 11; Column: 1",
+        generation_method="unit_test",
+        source_metadata={"product_model": "CV-X482", "table_cell": True},
+    )
+    answer = {
+        "answer": (
+            "Column headers: Function; Row headers: OUT_DATA0 > OUT_DATA1 > OUT_DATA2 > OUT_DATA3 > "
+            "OUT_DATA4 > OUT_DATA5 > OUT_DATA6 > OUT_DATA7 > OUT_DATA8 > OUT_DATA9 > OUT_DATA10 > "
+            "OUT_DATA11 > OUT_DATA12 > OUT_DATA13 > OUT_DATA14 > OUT_DATA15 > Data output bit 0 > "
+            "Data output bit 1 > Data output bit 2 > Data output bit 3 > Data output bit 4 > "
+            "Data output bit 5 > Data output bit 6 > Data output bit 7 > Data output bit 8 > "
+            "Data output bit 9 > Data output bit 10."
+        ),
+        "citations": [{"document_id": "doc-cvx", "chunk_id": "aggregate-table", "pages": [803]}],
+        "used_documents": [],
+        "insufficient_evidence": False,
+    }
+
+    scored = score_answer_response(case, answer, {"passed": True})
+
+    assert scored["passed"] is False
+    assert "expected_table_cell_binding_missing" in scored["failure_reasons"]
+
+
+def test_answer_response_scoring_accepts_direct_signal_description_binding():
+    case = RetrievalEvalCase(
+        case_id="case-signal-binding",
+        query="Which CV-X482 output line corresponds to data output bit 10?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="signal-row",
+        source_title="CV-X Manual",
+        source_filename="cvx.pdf",
+        chunk_type="table_record",
+        section_path="6-78",
+        page_from=819,
+        page_to=819,
+        expected_terms=["out_data10", "data", "output", "bit"],
+        expected_snippet="Column headers: Signal Description; Row headers: OUT_DATA10; Cell value: Data output bit 10; Row: 11; Column: 1",
+        generation_method="unit_test",
+        source_metadata={"product_model": "CV-X482", "table_cell": True},
+    )
+    answer = {
+        "answer": "OUT_DATA10 corresponds to Data output bit 10.",
+        "citations": [{"document_id": "doc-cvx", "chunk_id": "signal-row", "pages": [819]}],
+        "used_documents": [],
+        "insufficient_evidence": False,
+    }
+
+    scored = score_answer_response(case, answer, {"passed": True})
+
+    assert scored["passed"] is True
+    assert scored["table_cell_binding"]["passed"] is True
+
+
 def test_answer_response_scoring_rejects_negated_table_cell_binding():
     case = RetrievalEvalCase(
         case_id="case-table-binding",

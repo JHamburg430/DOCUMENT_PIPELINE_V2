@@ -1,6 +1,6 @@
 {
   "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 1
+    "expected_table_cell_binding_missing": 1
   },
   "answer_failure_categories": {
     "expected_evidence_not_cited": 1,
@@ -189,97 +189,78 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-08-31T16:39:00Z",
-    "status": "single_step_v2_row_11_reclassified_diagnostic_row_12_preserved_clean",
-    "classification": "row_11_diagnostic_not_clean_row_12_clean_source_reviewed_same_row_equivalent_citation",
-    "latest_run": "retrieval_eval_20260831_160134",
-    "previous_diagnostic_run": "retrieval_eval_20260831_153415",
-    "source_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_160134.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260831_160134.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260831_160134.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_160134.json",
-    "search_mode": "http",
+    "timestamp": "2026-08-31T17:16:00Z",
+    "status": "single_step_v2_row_11_clean_row_12_fallback_diagnostic",
+    "classification": "row_11_clean_source_reviewed_equivalent_citation_row_12_diagnostic_not_clean",
+    "latest_run": "retrieval_eval_20260831_171012",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_171012.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260831_171012.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260831_171012.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_171012.json",
     "response_mode": "answer_with_citations",
-    "query_offset": 0,
-    "max_queries": 2,
-    "retrieval_result": "2/2 single-step retrieval passed at rank 1; failure_categories {}.",
-    "answer_result": "1/2 actual HTTP API answers accepted after guardrail correction: row 12 remains source-reviewed clean; row 11 is diagnostic/not-clean for missing row-level OUT_DATA10/Data output bit 10 citation binding.",
+    "search_mode": "http",
+    "max_queries": 1,
     "current_retrieval_failures": {},
     "current_answer_failures": {
-      "expected_evidence_not_cited": 1
+      "expected_table_cell_binding_missing": 1
     },
-    "runtime_load_evidence": {
-      "container": "manuals-rag-temp-api-39262386-20260831-row12-equiv",
-      "host_api_base": "http://127.0.0.1:8916",
-      "in_container_api_base": "http://127.0.0.1:8600",
-      "api_health": "ok at 2026-08-31T16:00Z",
-      "generator_py_sha256": "3f00b4db912284d47c6221b153e7f499f8d826b4dc99ff66d2c074ed236f935e",
-      "retrieval_eval_py_sha256": "2e5a590e31025c8424d503a812b353cedeb83d3a571f0271515b82ab40e109e0",
-      "retriever_py_sha256": "fa52e0cb563638d95523069e1bc73f33b591eaa33f5e240c08f41d5d17cd1abf",
-      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-      "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
-      "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
-      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "HAYSTACK_RERANK_DEVICE": "cuda:0"
-    },
-    "source_review": [
-      {
-        "row": 12,
-        "expected_chunk": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
-        "cited_chunk": "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
-        "source_document_id": "857c0518-4b3a-42e2-97c9-211ab24163b6",
-        "support": "The cited page-526 remedy chunk content and quote_span directly include row headers \"An external trigger cannot be input. > Is the Polarity correctly set?\" and the NPN/PNP polarity remedy text, so it supports the requested checkpoint without sibling-row or metadata-only support.",
-        "equivalence_rule": "Same-source row-level remedy citations are acceptable for a checkpoint expected chunk only when the cited returned chunk itself includes the symptom row header and checkpoint text and the quote_span is present in the cited chunk."
-      }
-    ],
+    "retrieval_result": "Row 11-only actual HTTP run passed retrieval 1/1 at rank 1; combined diagnostic reruns 170457 and 170735 passed retrieval 2/2.",
+    "answer_result": "Row 11-only actual HTTP run passed answer grounding 1/1 with fallback_validation. Combined reruns are diagnostic/not-clean for row 12, so no combined rows 11-12 clean claim is made.",
     "resolved_rows": [
       {
-        "row": 12,
-        "run": "retrieval_eval_20260831_160134",
-        "classification": "clean_source_reviewed_same_row_equivalent_citation",
-        "expected_chunk": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
-        "cited_chunks": [
-          {
-            "chunk_id": "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
-            "quote_span": "Is the Polarity correctly set?; Cell value: When NPN is selected in the Polarity, the circuit becomes a non-voltage input circuit. When PNP is selected in the Polarity, the circuit becomes a voltage input circuit. Check the cables.",
-            "pages": [
-              526
-            ]
-          }
-        ],
-        "evidence": "Manual JSONL inspection confirmed the user-visible API answer says to verify whether Polarity is correctly set and cites returned chunk c9ac881b; its cited content and quote span directly include the external-trigger symptom row header plus the Polarity checkpoint."
-      }
-    ],
-    "manual_jsonl_inspection": "Reinspected retrieval_eval_results_20260831_160134. Row 11 is diagnostic/not-clean: the fallback answer cites aggregate chunk a268fb25 with null quote_span, lists aggregate OUT_DATA/Data output bit headers and context only through OUT_DATA3, and does not directly state that OUT_DATA10 corresponds to Data output bit 10 or cite row-level binding chunk 6941c28c. Row 12 remains clean under the source-reviewed same-row equivalent-citation policy because c9ac881b contains the external-trigger row header, Polarity checkpoint, and NPN/PNP remedy text with a present quote_span.",
-    "validation": {
-      "jsonl_validation": "Per-line JSON parser passed for test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl.",
-      "http_eval": "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-row12-equiv python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260831_160134",
-      "summary": "2/2 retrieval and 2/2 actual HTTP API answer grounding; failure_categories {}; answer_failure_reasons {}."
-    },
-    "next_target": "Rerun or repair curated single-step v2 row 11 answer/citation grounding: preserve row 12 as source-reviewed clean from retrieval_eval_20260831_160134, but row 11 and the combined rows 11-12 clean claim remain diagnostic/not-clean until the user-visible answer states the OUT_DATA10 to Data output bit 10 mapping and cites row-level or source-reviewed equivalent evidence that preserves that binding.",
-    "diagnostic_rows": [
-      {
         "row": 11,
-        "run": "retrieval_eval_20260831_160134",
-        "classification": "diagnostic_not_clean_expected_row_level_binding_not_cited",
+        "run": "retrieval_eval_20260831_171012",
+        "classification": "clean_source_reviewed_equivalent_citation",
+        "expected_chunk": "6941c28c-9179-5c4c-beac-e465228e6dcd",
         "cited_chunks": [
           {
             "chunk_id": "a268fb25-a15d-5854-b28f-40dc68f3ec30",
-            "quote_span": null,
             "pages": [
               803
-            ]
+            ],
+            "quote_span": null
           }
         ],
-        "evidence": "Guardrail/manual JSONL inspection found the cited aggregate chunk a268fb25 and visible fallback answer do not preserve the OUT_DATA10 / Data output bit 10 row-level binding; do not count row 11 clean until rerun or source-reviewed equivalent citation directly supports that mapping.",
-        "expected_chunk": "6941c28c"
+        "evidence": "Manual JSONL inspection confirmed the visible fallback answer states \"OUT_DATA10 corresponds to Data output bit 10.\" The cited aggregate table chunk contains OUT_DATA10 and Data output bit 10 in the same ordered output-signal table evidence, satisfying the source-reviewed equivalent binding policy for this row."
       }
-    ]
+    ],
+    "diagnostic_rows": [
+      {
+        "row": 12,
+        "runs": [
+          "retrieval_eval_20260831_170457",
+          "retrieval_eval_20260831_170735"
+        ],
+        "classification": "diagnostic_not_clean_expected_table_cell_binding_missing",
+        "expected_chunk": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
+        "evidence": "Manual JSONL inspection of 170735 showed the visible fallback answer cited generic page-149 Trigger ON/internal-trigger evidence rather than the page-526 Polarity checkpoint; answer scoring failed expected_table_cell_binding_missing. Preserve earlier source-reviewed clean row 12 evidence from retrieval_eval_20260831_160134, but do not count these combined reruns clean."
+      }
+    ],
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_171012 and retrieval_eval_results_20260831_170735. Row 11 answer payload is focused and states the OUT_DATA10/Data output bit 10 mapping; citation a268fb25 has quote_span null but returned chunk content contains both terms in ordered table evidence. Row 12 in the combined rerun cites generic Trigger ON evidence and is diagnostic/not-clean.",
+    "runtime_load_evidence": {
+      "container": "manuals-rag-temp-api-39262386-20260831-row11-binding",
+      "host_api_base": "http://127.0.0.1:8916",
+      "in_container_api_base": "http://127.0.0.1:8600",
+      "api_health": "ok at 2026-08-31T17:04:40Z",
+      "OLLAMA_URL": "http://host.docker.internal:11437",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
+      "generator_py_sha256": "78890ba46e3251abbbeeb0654c8c6377403e27fe6ab75aed0b74338d7026d315",
+      "retrieval_eval_py_sha256": "facc702d7a7ce256e4f80fae05048fe222900d3d1b52ee4dff03bf12c7efc73d",
+      "_focused_signal_description_answer_text_sha256": "1759177b626918426b967e82afce3dba7785cfe403f7fabbcd8e85c1be2cf508",
+      "_table_cell_binding_segment_supported_sha256": "8c2a4d57702bd20fc51a15c907c938352bb838e7b28b07d428d90bcc36599cc7",
+      "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
+    },
+    "validation": {
+      "focused_tests": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q -k signal_description_mapping... -> 7 passed, 226 deselected, 5 warnings",
+      "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs mounts api python -m pytest tests/unit -q -> 510 passed, 59 warnings",
+      "manifest_checker": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before tracking update; rerun after update before commit",
+      "manifest_controls": "equal manifest passed; missing root run_exclusions failed; missing question_bank.run_exclusions failed; answer failure alias mismatch failed"
+    },
+    "next_target": "Fix curated single-step v2 row 12 fallback answer/citation stability after the row 11 repair: row 11 is clean in retrieval_eval_20260831_171012, but combined reruns retrieval_eval_20260831_170457 and retrieval_eval_20260831_170735 are diagnostic/not-clean for row 12 because the visible fallback answer used generic Trigger ON evidence instead of the Polarity checkpoint."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -755,14 +736,14 @@
     "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints."
   },
   "answer_grounding_status": {
-    "timestamp": "2026-08-31T16:39:00Z",
-    "status": "single_step_v2_row_11_diagnostic_row_12_clean_after_guardrail_correction",
+    "timestamp": "2026-08-31T17:16:00Z",
+    "status": "single_step_v2_row_11_clean_row_12_diagnostic",
+    "latest_run": "retrieval_eval_20260831_171012",
     "current_retrieval_failures": {},
     "current_answer_failures": {
-      "expected_evidence_not_cited": 1
+      "expected_table_cell_binding_missing": 1
     },
-    "latest_run": "retrieval_eval_20260831_160134",
-    "remaining": "Rerun or repair curated single-step v2 row 11 answer/citation grounding: preserve row 12 as source-reviewed clean from retrieval_eval_20260831_160134, but row 11 and the combined rows 11-12 clean claim remain diagnostic/not-clean until the user-visible answer states the OUT_DATA10 to Data output bit 10 mapping and cites row-level or source-reviewed equivalent evidence that preserves that binding."
+    "remaining": "Fix curated single-step v2 row 12 fallback answer/citation stability after the row 11 repair: row 11 is clean in retrieval_eval_20260831_171012, but combined reruns retrieval_eval_20260831_170457 and retrieval_eval_20260831_170735 are diagnostic/not-clean for row 12 because the visible fallback answer used generic Trigger ON evidence instead of the Polarity checkpoint."
   },
   "constraints": {
     "allowed_logic": [
@@ -781,7 +762,7 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 1
+    "expected_table_cell_binding_missing": 1
   },
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
@@ -8935,7 +8916,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Rerun or repair curated single-step v2 row 11 answer/citation grounding: preserve row 12 as source-reviewed clean from retrieval_eval_20260831_160134, but row 11 and the combined rows 11-12 clean claim remain diagnostic/not-clean until the user-visible answer states the OUT_DATA10 to Data output bit 10 mapping and cites row-level or source-reviewed equivalent evidence that preserves that binding.",
+  "next_target": "Fix curated single-step v2 row 12 fallback answer/citation stability after the row 11 repair: row 11 is clean in retrieval_eval_20260831_171012, but combined reruns retrieval_eval_20260831_170457 and retrieval_eval_20260831_170735 are diagnostic/not-clean for row 12 because the visible fallback answer used generic Trigger ON evidence instead of the Polarity checkpoint.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9689,7 +9670,7 @@
   },
   "question_bank": {
     "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 1
+      "expected_table_cell_binding_missing": 1
     },
     "answer_failure_categories": {
       "expected_evidence_not_cited": 1,
@@ -9878,97 +9859,78 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-08-31T16:39:00Z",
-      "status": "single_step_v2_row_11_reclassified_diagnostic_row_12_preserved_clean",
-      "classification": "row_11_diagnostic_not_clean_row_12_clean_source_reviewed_same_row_equivalent_citation",
-      "latest_run": "retrieval_eval_20260831_160134",
-      "previous_diagnostic_run": "retrieval_eval_20260831_153415",
-      "source_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_160134.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260831_160134.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260831_160134.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_160134.json",
-      "search_mode": "http",
+      "timestamp": "2026-08-31T17:16:00Z",
+      "status": "single_step_v2_row_11_clean_row_12_fallback_diagnostic",
+      "classification": "row_11_clean_source_reviewed_equivalent_citation_row_12_diagnostic_not_clean",
+      "latest_run": "retrieval_eval_20260831_171012",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_171012.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260831_171012.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260831_171012.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_171012.json",
       "response_mode": "answer_with_citations",
-      "query_offset": 0,
-      "max_queries": 2,
-      "retrieval_result": "2/2 single-step retrieval passed at rank 1; failure_categories {}.",
-      "answer_result": "1/2 actual HTTP API answers accepted after guardrail correction: row 12 remains source-reviewed clean; row 11 is diagnostic/not-clean for missing row-level OUT_DATA10/Data output bit 10 citation binding.",
+      "search_mode": "http",
+      "max_queries": 1,
       "current_retrieval_failures": {},
       "current_answer_failures": {
-        "expected_evidence_not_cited": 1
+        "expected_table_cell_binding_missing": 1
       },
-      "runtime_load_evidence": {
-        "container": "manuals-rag-temp-api-39262386-20260831-row12-equiv",
-        "host_api_base": "http://127.0.0.1:8916",
-        "in_container_api_base": "http://127.0.0.1:8600",
-        "api_health": "ok at 2026-08-31T16:00Z",
-        "generator_py_sha256": "3f00b4db912284d47c6221b153e7f499f8d826b4dc99ff66d2c074ed236f935e",
-        "retrieval_eval_py_sha256": "2e5a590e31025c8424d503a812b353cedeb83d3a571f0271515b82ab40e109e0",
-        "retriever_py_sha256": "fa52e0cb563638d95523069e1bc73f33b591eaa33f5e240c08f41d5d17cd1abf",
-        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-        "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
-        "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "HAYSTACK_RERANK_DEVICE": "cuda:0"
-      },
-      "source_review": [
-        {
-          "row": 12,
-          "expected_chunk": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
-          "cited_chunk": "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
-          "source_document_id": "857c0518-4b3a-42e2-97c9-211ab24163b6",
-          "support": "The cited page-526 remedy chunk content and quote_span directly include row headers \"An external trigger cannot be input. > Is the Polarity correctly set?\" and the NPN/PNP polarity remedy text, so it supports the requested checkpoint without sibling-row or metadata-only support.",
-          "equivalence_rule": "Same-source row-level remedy citations are acceptable for a checkpoint expected chunk only when the cited returned chunk itself includes the symptom row header and checkpoint text and the quote_span is present in the cited chunk."
-        }
-      ],
+      "retrieval_result": "Row 11-only actual HTTP run passed retrieval 1/1 at rank 1; combined diagnostic reruns 170457 and 170735 passed retrieval 2/2.",
+      "answer_result": "Row 11-only actual HTTP run passed answer grounding 1/1 with fallback_validation. Combined reruns are diagnostic/not-clean for row 12, so no combined rows 11-12 clean claim is made.",
       "resolved_rows": [
         {
-          "row": 12,
-          "run": "retrieval_eval_20260831_160134",
-          "classification": "clean_source_reviewed_same_row_equivalent_citation",
-          "expected_chunk": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
-          "cited_chunks": [
-            {
-              "chunk_id": "c9ac881b-e208-50b7-b085-423aaa5cc8c8",
-              "quote_span": "Is the Polarity correctly set?; Cell value: When NPN is selected in the Polarity, the circuit becomes a non-voltage input circuit. When PNP is selected in the Polarity, the circuit becomes a voltage input circuit. Check the cables.",
-              "pages": [
-                526
-              ]
-            }
-          ],
-          "evidence": "Manual JSONL inspection confirmed the user-visible API answer says to verify whether Polarity is correctly set and cites returned chunk c9ac881b; its cited content and quote span directly include the external-trigger symptom row header plus the Polarity checkpoint."
-        }
-      ],
-      "manual_jsonl_inspection": "Reinspected retrieval_eval_results_20260831_160134. Row 11 is diagnostic/not-clean: the fallback answer cites aggregate chunk a268fb25 with null quote_span, lists aggregate OUT_DATA/Data output bit headers and context only through OUT_DATA3, and does not directly state that OUT_DATA10 corresponds to Data output bit 10 or cite row-level binding chunk 6941c28c. Row 12 remains clean under the source-reviewed same-row equivalent-citation policy because c9ac881b contains the external-trigger row header, Polarity checkpoint, and NPN/PNP remedy text with a present quote_span.",
-      "validation": {
-        "jsonl_validation": "Per-line JSON parser passed for test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl.",
-        "http_eval": "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-row12-equiv python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260831_1603_single_step_row12_polarity_equivalence.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260831_160134",
-        "summary": "2/2 retrieval and 2/2 actual HTTP API answer grounding; failure_categories {}; answer_failure_reasons {}."
-      },
-      "next_target": "Rerun or repair curated single-step v2 row 11 answer/citation grounding: preserve row 12 as source-reviewed clean from retrieval_eval_20260831_160134, but row 11 and the combined rows 11-12 clean claim remain diagnostic/not-clean until the user-visible answer states the OUT_DATA10 to Data output bit 10 mapping and cites row-level or source-reviewed equivalent evidence that preserves that binding.",
-      "diagnostic_rows": [
-        {
           "row": 11,
-          "run": "retrieval_eval_20260831_160134",
-          "classification": "diagnostic_not_clean_expected_row_level_binding_not_cited",
+          "run": "retrieval_eval_20260831_171012",
+          "classification": "clean_source_reviewed_equivalent_citation",
+          "expected_chunk": "6941c28c-9179-5c4c-beac-e465228e6dcd",
           "cited_chunks": [
             {
               "chunk_id": "a268fb25-a15d-5854-b28f-40dc68f3ec30",
-              "quote_span": null,
               "pages": [
                 803
-              ]
+              ],
+              "quote_span": null
             }
           ],
-          "evidence": "Guardrail/manual JSONL inspection found the cited aggregate chunk a268fb25 and visible fallback answer do not preserve the OUT_DATA10 / Data output bit 10 row-level binding; do not count row 11 clean until rerun or source-reviewed equivalent citation directly supports that mapping.",
-          "expected_chunk": "6941c28c"
+          "evidence": "Manual JSONL inspection confirmed the visible fallback answer states \"OUT_DATA10 corresponds to Data output bit 10.\" The cited aggregate table chunk contains OUT_DATA10 and Data output bit 10 in the same ordered output-signal table evidence, satisfying the source-reviewed equivalent binding policy for this row."
         }
-      ]
+      ],
+      "diagnostic_rows": [
+        {
+          "row": 12,
+          "runs": [
+            "retrieval_eval_20260831_170457",
+            "retrieval_eval_20260831_170735"
+          ],
+          "classification": "diagnostic_not_clean_expected_table_cell_binding_missing",
+          "expected_chunk": "6469ea5d-e186-5d8a-9d53-bdc80289e23a",
+          "evidence": "Manual JSONL inspection of 170735 showed the visible fallback answer cited generic page-149 Trigger ON/internal-trigger evidence rather than the page-526 Polarity checkpoint; answer scoring failed expected_table_cell_binding_missing. Preserve earlier source-reviewed clean row 12 evidence from retrieval_eval_20260831_160134, but do not count these combined reruns clean."
+        }
+      ],
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_171012 and retrieval_eval_results_20260831_170735. Row 11 answer payload is focused and states the OUT_DATA10/Data output bit 10 mapping; citation a268fb25 has quote_span null but returned chunk content contains both terms in ordered table evidence. Row 12 in the combined rerun cites generic Trigger ON evidence and is diagnostic/not-clean.",
+      "runtime_load_evidence": {
+        "container": "manuals-rag-temp-api-39262386-20260831-row11-binding",
+        "host_api_base": "http://127.0.0.1:8916",
+        "in_container_api_base": "http://127.0.0.1:8600",
+        "api_health": "ok at 2026-08-31T17:04:40Z",
+        "OLLAMA_URL": "http://host.docker.internal:11437",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "generator_py_sha256": "78890ba46e3251abbbeeb0654c8c6377403e27fe6ab75aed0b74338d7026d315",
+        "retrieval_eval_py_sha256": "facc702d7a7ce256e4f80fae05048fe222900d3d1b52ee4dff03bf12c7efc73d",
+        "_focused_signal_description_answer_text_sha256": "1759177b626918426b967e82afce3dba7785cfe403f7fabbcd8e85c1be2cf508",
+        "_table_cell_binding_segment_supported_sha256": "8c2a4d57702bd20fc51a15c907c938352bb838e7b28b07d428d90bcc36599cc7",
+        "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
+      },
+      "validation": {
+        "focused_tests": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q -k signal_description_mapping... -> 7 passed, 226 deselected, 5 warnings",
+        "full_unit_gate": "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs mounts api python -m pytest tests/unit -q -> 510 passed, 59 warnings",
+        "manifest_checker": "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before tracking update; rerun after update before commit",
+        "manifest_controls": "equal manifest passed; missing root run_exclusions failed; missing question_bank.run_exclusions failed; answer failure alias mismatch failed"
+      },
+      "next_target": "Fix curated single-step v2 row 12 fallback answer/citation stability after the row 11 repair: row 11 is clean in retrieval_eval_20260831_171012, but combined reruns retrieval_eval_20260831_170457 and retrieval_eval_20260831_170735 are diagnostic/not-clean for row 12 because the visible fallback answer used generic Trigger ON evidence instead of the Polarity checkpoint."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10233,17 +10195,17 @@
       "next_target": "Await guardrail audit of retrieval_eval_20260831_135639 row 9 source-equivalence clean evidence, then continue broader source-reviewed answer-grounding coverage on the next validated unresolved slice. Preserve row 9/10 clean evidence, the older retrieval_eval_20260831_132635 diagnostic exclusion, and all false-green/source-equivalence constraints."
     },
     "answer_grounding_status": {
-      "timestamp": "2026-08-31T16:39:00Z",
-      "status": "single_step_v2_row_11_diagnostic_row_12_clean_after_guardrail_correction",
+      "timestamp": "2026-08-31T17:16:00Z",
+      "status": "single_step_v2_row_11_clean_row_12_diagnostic",
+      "latest_run": "retrieval_eval_20260831_171012",
       "current_retrieval_failures": {},
       "current_answer_failures": {
-        "expected_evidence_not_cited": 1
+        "expected_table_cell_binding_missing": 1
       },
-      "latest_run": "retrieval_eval_20260831_160134",
-      "remaining": "Rerun or repair curated single-step v2 row 11 answer/citation grounding: preserve row 12 as source-reviewed clean from retrieval_eval_20260831_160134, but row 11 and the combined rows 11-12 clean claim remain diagnostic/not-clean until the user-visible answer states the OUT_DATA10 to Data output bit 10 mapping and cites row-level or source-reviewed equivalent evidence that preserves that binding."
+      "remaining": "Fix curated single-step v2 row 12 fallback answer/citation stability after the row 11 repair: row 11 is clean in retrieval_eval_20260831_171012, but combined reruns retrieval_eval_20260831_170457 and retrieval_eval_20260831_170735 are diagnostic/not-clean for row 12 because the visible fallback answer used generic Trigger ON evidence instead of the Polarity checkpoint."
     },
     "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 1
+      "expected_table_cell_binding_missing": 1
     },
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
@@ -12366,7 +12328,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Rerun or repair curated single-step v2 row 11 answer/citation grounding: preserve row 12 as source-reviewed clean from retrieval_eval_20260831_160134, but row 11 and the combined rows 11-12 clean claim remain diagnostic/not-clean until the user-visible answer states the OUT_DATA10 to Data output bit 10 mapping and cites row-level or source-reviewed equivalent evidence that preserves that binding.",
+    "next_target": "Fix curated single-step v2 row 12 fallback answer/citation stability after the row 11 repair: row 11 is clean in retrieval_eval_20260831_171012, but combined reruns retrieval_eval_20260831_170457 and retrieval_eval_20260831_170735 are diagnostic/not-clean for row 12 because the visible fallback answer used generic Trigger ON evidence instead of the Polarity checkpoint.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12403,7 +12365,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Rerun or repair curated single-step v2 row 11 answer/citation grounding: preserve row 12 as source-reviewed clean from retrieval_eval_20260831_160134, but row 11 and the combined rows 11-12 clean claim remain diagnostic/not-clean until the user-visible answer states the OUT_DATA10 to Data output bit 10 mapping and cites row-level or source-reviewed equivalent evidence that preserves that binding.",
+    "remaining": "Fix curated single-step v2 row 12 fallback answer/citation stability after the row 11 repair: row 11 is clean in retrieval_eval_20260831_171012, but combined reruns retrieval_eval_20260831_170457 and retrieval_eval_20260831_170735 are diagnostic/not-clean for row 12 because the visible fallback answer used generic Trigger ON evidence instead of the Polarity checkpoint.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12886,11 +12848,38 @@
         "run_id": "retrieval_eval_20260831_160134",
         "scope": "single-step v2 row 11 and combined rows 11-12 clean answer claim",
         "reason": "diagnostic/not-clean for row 11 answer grounding: user-visible fallback answer cites aggregate chunk a268fb25 with null quote_span, does not directly state OUT_DATA10 corresponds to Data output bit 10, and does not cite row-level chunk 6941c28c or source-reviewed equivalent binding evidence. Row 12 from the same run remains source-reviewed clean."
+      },
+      {
+        "run_id": "retrieval_eval_20260831_170457",
+        "scope": "single-step v2 row 12 and combined rows 11-12 clean claim",
+        "reason": "diagnostic rerun after signal-description repair; row 11 passed but row 12 visible fallback answer used generic Trigger ON/internal-trigger evidence and failed expected_table_cell_binding_missing instead of citing the Polarity checkpoint."
+      },
+      {
+        "run_id": "retrieval_eval_20260831_170735",
+        "scope": "single-step v2 row 12 and combined rows 11-12 clean claim",
+        "reason": "diagnostic rerun with corrected scorer; row 11 passed but row 12 visible fallback answer still used generic Trigger ON/internal-trigger evidence and failed expected_table_cell_binding_missing instead of citing the Polarity checkpoint."
       }
     ],
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-31T17:16:00Z",
+        "severity": "ok",
+        "status": "addressed_this_run_row_11_clean_row_12_followup_open",
+        "guardrail_timestamp": "2026-08-31T16:57:00Z",
+        "guardrail_commit": "fd6a778",
+        "finding": "Guardrail accepted row 11 reclassification and required rerun or repair so the visible answer states OUT_DATA10 to Data output bit 10 with row-level or source-reviewed equivalent binding evidence.",
+        "addressed_this_run": "Added generic signal-description fallback answer extraction and stricter table-cell binding scoring; loaded side-API row 11-only run retrieval_eval_20260831_171012 passed answer grounding after manual JSONL inspection. Combined reruns 170457/170735 are preserved as diagnostic for row 12.",
+        "evidence": [
+          "Focused signal-description/table-cell tests passed: 7 passed, 226 deselected.",
+          "Full Docker unit gate with fixture mounts passed: 510 passed, 59 warnings.",
+          "Loaded side API fingerprints recorded for generator.py, retrieval_eval.py, _focused_signal_description_answer_text, _table_cell_binding_segment_supported, score_answer_response, and validate_answer.",
+          "Manual JSONL inspection of retrieval_eval_results_20260831_171012 confirmed the visible answer states OUT_DATA10 corresponds to Data output bit 10 and cites same-document ordered table evidence.",
+          "Manual JSONL inspection of retrieval_eval_results_20260831_170735 confirmed row 12 is diagnostic/not-clean with generic Trigger ON evidence."
+        ],
+        "remaining": "Fix curated single-step v2 row 12 fallback answer/citation stability after the row 11 repair: row 11 is clean in retrieval_eval_20260831_171012, but combined reruns retrieval_eval_20260831_170457 and retrieval_eval_20260831_170735 are diagnostic/not-clean for row 12 because the visible fallback answer used generic Trigger ON evidence instead of the Polarity checkpoint."
+      },
       {
         "timestamp": "2026-08-31T16:39:00Z",
         "guardrail_timestamp": "2026-08-31T16:29:00Z",
@@ -13741,9 +13730,9 @@
         "status": "addressed_this_run_pending_guardrail_audit"
       }
     ],
-    "updated_at": "2026-08-31T16:39:00Z"
+    "updated_at": "2026-08-31T17:16:00Z"
   },
-  "remaining": "Rerun or repair curated single-step v2 row 11 answer/citation grounding: preserve row 12 as source-reviewed clean from retrieval_eval_20260831_160134, but row 11 and the combined rows 11-12 clean claim remain diagnostic/not-clean until the user-visible answer states the OUT_DATA10 to Data output bit 10 mapping and cites row-level or source-reviewed equivalent evidence that preserves that binding.",
+  "remaining": "Fix curated single-step v2 row 12 fallback answer/citation stability after the row 11 repair: row 11 is clean in retrieval_eval_20260831_171012, but combined reruns retrieval_eval_20260831_170457 and retrieval_eval_20260831_170735 are diagnostic/not-clean for row 12 because the visible fallback answer used generic Trigger ON evidence instead of the Polarity checkpoint.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14226,10 +14215,37 @@
       "run_id": "retrieval_eval_20260831_160134",
       "scope": "single-step v2 row 11 and combined rows 11-12 clean answer claim",
       "reason": "diagnostic/not-clean for row 11 answer grounding: user-visible fallback answer cites aggregate chunk a268fb25 with null quote_span, does not directly state OUT_DATA10 corresponds to Data output bit 10, and does not cite row-level chunk 6941c28c or source-reviewed equivalent binding evidence. Row 12 from the same run remains source-reviewed clean."
+    },
+    {
+      "run_id": "retrieval_eval_20260831_170457",
+      "scope": "single-step v2 row 12 and combined rows 11-12 clean claim",
+      "reason": "diagnostic rerun after signal-description repair; row 11 passed but row 12 visible fallback answer used generic Trigger ON/internal-trigger evidence and failed expected_table_cell_binding_missing instead of citing the Polarity checkpoint."
+    },
+    {
+      "run_id": "retrieval_eval_20260831_170735",
+      "scope": "single-step v2 row 12 and combined rows 11-12 clean claim",
+      "reason": "diagnostic rerun with corrected scorer; row 11 passed but row 12 visible fallback answer still used generic Trigger ON/internal-trigger evidence and failed expected_table_cell_binding_missing instead of citing the Polarity checkpoint."
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-31T17:16:00Z",
+      "severity": "ok",
+      "status": "addressed_this_run_row_11_clean_row_12_followup_open",
+      "guardrail_timestamp": "2026-08-31T16:57:00Z",
+      "guardrail_commit": "fd6a778",
+      "finding": "Guardrail accepted row 11 reclassification and required rerun or repair so the visible answer states OUT_DATA10 to Data output bit 10 with row-level or source-reviewed equivalent binding evidence.",
+      "addressed_this_run": "Added generic signal-description fallback answer extraction and stricter table-cell binding scoring; loaded side-API row 11-only run retrieval_eval_20260831_171012 passed answer grounding after manual JSONL inspection. Combined reruns 170457/170735 are preserved as diagnostic for row 12.",
+      "evidence": [
+        "Focused signal-description/table-cell tests passed: 7 passed, 226 deselected.",
+        "Full Docker unit gate with fixture mounts passed: 510 passed, 59 warnings.",
+        "Loaded side API fingerprints recorded for generator.py, retrieval_eval.py, _focused_signal_description_answer_text, _table_cell_binding_segment_supported, score_answer_response, and validate_answer.",
+        "Manual JSONL inspection of retrieval_eval_results_20260831_171012 confirmed the visible answer states OUT_DATA10 corresponds to Data output bit 10 and cites same-document ordered table evidence.",
+        "Manual JSONL inspection of retrieval_eval_results_20260831_170735 confirmed row 12 is diagnostic/not-clean with generic Trigger ON evidence."
+      ],
+      "remaining": "Fix curated single-step v2 row 12 fallback answer/citation stability after the row 11 repair: row 11 is clean in retrieval_eval_20260831_171012, but combined reruns retrieval_eval_20260831_170457 and retrieval_eval_20260831_170735 are diagnostic/not-clean for row 12 because the visible fallback answer used generic Trigger ON evidence instead of the Polarity checkpoint."
+    },
     {
       "timestamp": "2026-08-31T16:39:00Z",
       "guardrail_timestamp": "2026-08-31T16:29:00Z",
@@ -15080,5 +15096,5 @@
       "status": "addressed_this_run_pending_guardrail_audit"
     }
   ],
-  "updated_at": "2026-08-31T16:39:00Z"
+  "updated_at": "2026-08-31T17:16:00Z"
 }

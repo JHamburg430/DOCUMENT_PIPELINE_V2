@@ -726,6 +726,10 @@ def _line_preserves_allocation_possible_cell(line: str) -> bool:
 
 
 def _focused_table_like_answer_text(query: str, result: SearchResult) -> str:
+    signal_description_answer = _focused_signal_description_answer_text(query, result)
+    if signal_description_answer:
+        return signal_description_answer
+
     allocation_binding_answer = _focused_allocation_table_binding_answer_text(query, result)
     if allocation_binding_answer:
         return allocation_binding_answer
@@ -774,6 +778,55 @@ def _focused_table_like_answer_text(query: str, result: SearchResult) -> str:
     if not selected:
         return ""
     return "Relevant retrieved table rows:\n" + "\n".join(f"- {line}" for line in selected)
+
+
+def _focused_signal_description_answer_text(query: str, result: SearchResult) -> str:
+    evidence = _fallback_answer_text(result)
+    if not evidence:
+        return ""
+    normalized_query = " ".join(re.findall(r"[a-z0-9_/-]+", query.lower()))
+    requested_signals = [
+        token.upper()
+        for token in re.findall(r"\b[A-Za-z]+_[A-Za-z]+\d+\b", query)
+    ]
+    requested_bit_numbers = {
+        match.group(1).lstrip("0") or "0"
+        for match in re.finditer(r"\bdata\s+output\s+bit\s+0*(\d+)\b", query, flags=re.IGNORECASE)
+    }
+    if not requested_signals and not requested_bit_numbers:
+        return ""
+    normalized_evidence = " ".join(re.findall(r"[a-z0-9_/-]+", evidence.lower()))
+    if "signal description" not in normalized_evidence and "data output bit" not in normalized_evidence:
+        return ""
+
+    evidence_signals = requested_signals or [
+        match.group(0).upper()
+        for match in re.finditer(r"\b[A-Za-z]+_[A-Za-z]+\d+\b", evidence)
+        if (suffix := re.search(r"(\d+)$", match.group(0)))
+        and (suffix.group(1).lstrip("0") or "0") in requested_bit_numbers
+    ]
+    for signal in evidence_signals:
+        suffix_match = re.search(r"(\d+)$", signal)
+        if not suffix_match:
+            continue
+        bit_number = suffix_match.group(1)
+        description_pattern = re.compile(
+            rf"\bdata\s+output\s+bit\s+0*{re.escape(bit_number)}\b(?:\s*\([^)]+\))?",
+            flags=re.IGNORECASE,
+        )
+        if signal.lower() not in normalized_evidence or not description_pattern.search(evidence):
+            continue
+        if not (
+            signal.lower() in normalized_query
+            or f"bit {int(bit_number)}" in normalized_query
+            or f"bit {bit_number}" in normalized_query
+        ):
+            continue
+        description = description_pattern.search(evidence)
+        if description is None:
+            continue
+        return f"{signal} corresponds to {description.group(0)}."
+    return ""
 
 
 def _focused_program_setting_protection_answer_text(query: str, result: SearchResult) -> str:

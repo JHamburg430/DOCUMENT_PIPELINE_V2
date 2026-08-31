@@ -2855,7 +2855,9 @@ def _answer_preserves_expected_table_cell_binding(case: RetrievalEvalCase, answe
     row_terms = [
         term
         for term in tokenize(row_match.group(1))
-        if term.isdigit() or term in {"status", "area", "pid", "command"}
+        if term.isdigit()
+        or re.search(r"\d", term)
+        or term in {"status", "area", "pid", "command"}
     ]
     cell_terms = [
         term
@@ -2880,7 +2882,11 @@ def _answer_preserves_expected_table_cell_binding(case: RetrievalEvalCase, answe
     for segment in segments:
         segment_lower = segment.lower()
         segment_tokens = set(tokenize(segment_lower))
-        if all(_expected_term_matches_text(term, segment_lower, segment_tokens) for term in required_terms) and _table_cell_value_supported(cell_value, segment):
+        if (
+            all(_expected_term_matches_text(term, segment_lower, segment_tokens) for term in required_terms)
+            and _table_cell_value_supported(cell_value, segment)
+            and _table_cell_binding_segment_supported(row_match.group(1), cell_value, segment, case.query)
+        ):
             return {"checked": True, "passed": True, "required_terms": required_terms, "missing_bindings": []}
     return {
         "checked": True,
@@ -2894,6 +2900,41 @@ def _answer_preserves_expected_table_cell_binding(case: RetrievalEvalCase, answe
             }
         ],
     }
+
+
+def _table_cell_binding_segment_supported(row_header: str, cell_value: str, answer_segment: str, query: str = "") -> bool:
+    row_header = re.sub(r"\s+", " ", row_header.strip())
+    cell_value = re.sub(r"\s+", " ", cell_value.strip())
+    segment = re.sub(r"\s+", " ", answer_segment.strip())
+    if not row_header or not cell_value or not segment:
+        return True
+    row_tokens = tokenize(row_header)
+    cell_tokens = tokenize(cell_value)
+    has_row_identifier = any(re.search(r"\d", token) for token in row_tokens)
+    has_cell_quantity = any(re.search(r"\d", token) for token in cell_tokens)
+    if not (has_row_identifier and has_cell_quantity):
+        return True
+    row_pattern = re.escape(row_header).replace(r"\ ", r"\s+")
+    cell_pattern = re.escape(cell_value).replace(r"\ ", r"\s+")
+    query_segment = re.sub(r"\s+", " ", query.strip())
+    query_tokens = set(tokenize(query_segment))
+    if query_segment and all(token in query_tokens for token in row_tokens):
+        return re.search(cell_pattern, segment, flags=re.IGNORECASE) is not None
+    if re.search(rf"{row_pattern}.{{0,100}}{cell_pattern}", segment, flags=re.IGNORECASE):
+        return True
+    if re.search(rf"{cell_pattern}.{{0,100}}{row_pattern}", segment, flags=re.IGNORECASE):
+        return True
+    compact_segment = re.sub(r"\s+", " ", segment.lower())
+    cell_match = re.search(cell_pattern, compact_segment, flags=re.IGNORECASE)
+    for row_token in row_tokens:
+        if not re.search(r"\d", row_token):
+            continue
+        row_index = compact_segment.find(row_token.lower())
+        if row_index < 0:
+            continue
+        if cell_match is not None and abs(cell_match.start() - row_index) <= 100:
+            return True
+    return False
 
 
 def _table_cell_value_supported(expected_cell_value: str, answer_segment: str) -> bool:
