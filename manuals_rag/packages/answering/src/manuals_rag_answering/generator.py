@@ -1356,6 +1356,113 @@ def _screen_request_score(query: str, evidence: str) -> float:
     return score
 
 
+def _procedure_membership_score(query: str, result: SearchResult) -> float:
+    query_terms = _answer_terms(query)
+    if not {"procedure", "section", "step", "preparation"}.intersection(query_terms):
+        return 0.0
+    normalized_query = " ".join(re.findall(r"[a-z0-9]+", query.lower()))
+    asks_membership = bool(
+        re.search(
+            r"\bwhat\s+(?:procedure|section|step|preparation)\b|\bpart\s+of\b|\bincluded\s+in\b|\bbelongs\s+to\b",
+            normalized_query,
+        )
+    )
+    if not asks_membership:
+        return 0.0
+
+    evidence = _fallback_answer_text(result)
+    evidence_terms = _answer_terms(evidence)
+    if not evidence_terms:
+        return 0.0
+    normalized_evidence = " ".join(re.findall(r"[a-z0-9]+", evidence.lower()))
+    has_procedure_context = bool(
+        re.search(r"\b(preparation|preparing|procedure|navigation|step\s+\d+)\b", normalized_evidence)
+    )
+    if not has_procedure_context:
+        return 0.0
+
+    generic_membership_terms = {
+        "what",
+        "which",
+        "where",
+        "when",
+        "how",
+        "for",
+        "the",
+        "and",
+        "that",
+        "this",
+        "procedure",
+        "section",
+        "step",
+        "preparation",
+        "part",
+        "included",
+        "belongs",
+        "setup",
+        "used",
+        "use",
+        "line",
+        "camera",
+        "cameras",
+    }
+    ordered_query_subject_tokens = [
+        token
+        for token in re.findall(r"[a-z0-9]+", query.lower())
+        if len(token) >= 3 and token not in generic_membership_terms
+    ]
+    query_subject_tokens = set(ordered_query_subject_tokens)
+    evidence_tokens = set(re.findall(r"[a-z0-9]+", evidence.lower()))
+    expanded_evidence_tokens = set(evidence_tokens)
+    for token in evidence_tokens:
+        if token.endswith("ing") and len(token) > 5:
+            expanded_evidence_tokens.add(token[:-3])
+        if token.endswith("ment") and len(token) > 6:
+            expanded_evidence_tokens.add(token[:-4])
+        if token.endswith("ed") and len(token) > 4:
+            expanded_evidence_tokens.add(token[:-2])
+        if token.endswith("s") and len(token) > 3:
+            expanded_evidence_tokens.add(token[:-1])
+    subject_matches = query_subject_tokens.intersection(expanded_evidence_tokens)
+    query_subject_bigrams = [
+        " ".join(ordered_query_subject_tokens[index : index + 2])
+        for index in range(0, len(ordered_query_subject_tokens) - 1)
+    ]
+    if query_subject_bigrams and not any(bigram in normalized_evidence for bigram in query_subject_bigrams):
+        return 0.0
+    if query_subject_tokens and len(subject_matches) < min(2, len(query_subject_tokens)):
+        return 0.0
+    subject_terms = query_terms.difference(generic_membership_terms)
+    answer_term_matches = subject_terms.intersection(evidence_terms)
+    subject_match_count = max(len(subject_matches), len(answer_term_matches))
+    if len(subject_matches) < min(2, len(subject_terms)):
+        return 0.0
+
+    score = 2.0 + min(4.0, float(subject_match_count))
+    if re.search(r"\bpreparation\s+\d+\b", normalized_evidence):
+        score += 2.0
+    if re.search(r"\b(?:adjust|change|set|select)\b.{0,80}\b(?:ratio|settings?|screen|navigation)\b", normalized_evidence):
+        score += 1.0
+    if "navigation" in query_terms and "navigation" in evidence_terms:
+        score += 1.0
+    return score
+
+
+def _procedure_membership_results(query: str, ordered_results: list[SearchResult]) -> list[SearchResult]:
+    scored = [
+        (_procedure_membership_score(query, result), index, result)
+        for index, result in enumerate(ordered_results[:8])
+    ]
+    scored = [item for item in scored if item[0] >= 4.0]
+    if not scored:
+        return []
+    best_score, _best_index, best_result = max(scored, key=lambda item: (item[0], -item[1]))
+    first_score = _procedure_membership_score(query, ordered_results[0]) if ordered_results else 0.0
+    if best_result.chunk_id != ordered_results[0].chunk_id or best_score > first_score:
+        return [best_result]
+    return []
+
+
 def _has_strong_insufficient_fallback(query: str, results: list[SearchResult]) -> bool:
     fallback_results = _fallback_evidence_results(query, results)
     if len(fallback_results) > 1:
@@ -1608,6 +1715,8 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
         multi_part_results = _multi_part_fallback_evidence_results(query, ordered_results)
         if multi_part_results:
             return multi_part_results
+        if procedure_membership_results := _procedure_membership_results(query, ordered_results):
+            return procedure_membership_results
         if _should_score_direct_fallback(query):
             scored = [
                 (_fallback_evidence_score(query, result) + _screen_request_score(query, _fallback_answer_text(result)), index, result)

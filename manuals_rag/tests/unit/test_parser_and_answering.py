@@ -544,6 +544,50 @@ def test_screen_request_fallback_prefers_actual_trigger_settings_screen():
     assert "Step 2/3 Trigger Settings screen" in validated.answer
 
 
+def test_procedure_membership_fallback_prefers_step_bound_preparation():
+    results = [
+        SearchResult(
+            chunk_id="broad-line-camera-navigation",
+            score=0.95,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-xgx",
+            pages=[205],
+            section_path=["Line Camera Settings"],
+            content=(
+                "Line Camera Setting Navigation. Change the capture options in accordance with "
+                "the onscreen instructions so that the workpiece can be correctly captured. "
+                "For more details, refer to Preparation 2: Changing the Settings to Capture "
+                "the Workpiece Correctly."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+        SearchResult(
+            chunk_id="preparation-image-ratio-step",
+            score=0.89,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-xgx",
+            pages=[198, 201],
+            section_path=["Preparing a Line Scan Camera"],
+            content=(
+                "Preparation 2: Changing the Settings to Capture the Workpiece Correctly "
+                "(Line Camera Setting Navigation). Use the Line Camera Setting Navigation to "
+                "change the capture settings such that the workpiece can be captured correctly. "
+                "4. Adjust the image ratio: Change the settings so that the image aspect ratio is 1:1."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+    ]
+
+    selected = _fallback_evidence_results(
+        "For XG-X line camera setup, what procedure is the image-ratio adjustment part of?",
+        results,
+    )
+
+    assert [result.chunk_id for result in selected] == ["preparation-image-ratio-step"]
+
+
 def test_image_capture_buffer_fallback_prefers_disabled_trigger_rule():
     results = [
         SearchResult(
