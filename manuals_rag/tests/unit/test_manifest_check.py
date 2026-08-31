@@ -26,7 +26,10 @@ def _minimal_manifest():
         "updated_at": "2026-08-29T13:23:00Z",
         "next_target": "continue source-first evidence selection",
         "remaining": "continue source-first evidence selection",
-        "answer_grounding_status": {"rows": "diagnostic"},
+        "answer_grounding_status": {
+            "remaining": "continue source-first evidence selection",
+            "rows": "diagnostic",
+        },
         "answer_grounding_rotation": {
             "latest_run": "retrieval_eval_20260830_201603",
             "dataset": "test_reports/retrieval_eval_dataset_20260830_201603.jsonl",
@@ -186,6 +189,27 @@ def test_manifest_checker_rejects_stale_remaining_row_target():
     manifest["remaining"] = manifest["question_bank"][
         "remaining"
     ] = "Fix contextual procedure row 5 Multi-Capture answer evidence selection."
+
+    errors = module.check_manifest(manifest)
+
+    assert any("current_target_alias mismatch" in error for error in errors)
+
+
+def test_manifest_checker_rejects_stale_remaining_text_even_when_rows_match():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    current_target = (
+        "Fix row 9 answer/citation grounding after retrieval_eval_20260831_123253 "
+        "retrieved PID 428 evidence."
+    )
+    stale_remaining = (
+        "Fix row 9 production retrieval/context selection after retrieval_eval_20260831_120437 "
+        "missed PID 428 evidence."
+    )
+    manifest["next_target"] = manifest["question_bank"]["next_target"] = current_target
+    manifest["answer_grounding_status"]["remaining"] = current_target
+    manifest["question_bank"]["answer_grounding_status"]["remaining"] = current_target
+    manifest["remaining"] = manifest["question_bank"]["remaining"] = stale_remaining
 
     errors = module.check_manifest(manifest)
 

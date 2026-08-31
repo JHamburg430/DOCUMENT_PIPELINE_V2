@@ -227,6 +227,17 @@ def check_manifest(data: dict[str, Any]) -> list[str]:
             "current_target_alias mismatch: "
             f"next_target rows={sorted(target_rows)!r} but remaining rows={sorted(remaining_rows)!r}"
         )
+    status_remaining = _get_path(data, "answer_grounding_status.remaining")
+    if status_remaining is not _MISSING:
+        _same(
+            "current_target_alias",
+            {
+                "next_target": _get_path(data, "next_target"),
+                "remaining": _get_path(data, "remaining"),
+                "answer_grounding_status.remaining": status_remaining,
+            },
+            errors,
+        )
 
     root_counts = {
         "total_questions": data.get("total_questions"),

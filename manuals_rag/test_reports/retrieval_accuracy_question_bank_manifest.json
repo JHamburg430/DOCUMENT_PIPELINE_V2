@@ -12445,7 +12445,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Fix repaired curated single-step v2 row 9 production retrieval/context selection: the stricter source-anchor scorer now rejects wrong code prefixes and retrieval_eval_20260831_120437 still fails row 9 as ranking_or_context_loss because final top-k chunks do not contain PID 428 / 0016-0018 / Total count evidence. Production retrieval/context selection still needs to surface expected chunk 57948971-aafc-57dc-87b4-a0986ac3363a or equivalent source-bearing evidence; preserve row 10 clean evidence.",
+    "remaining": "Fix repaired curated single-step v2 row 9 answer/citation grounding: retrieval_eval_20260831_123253 now surfaces source-bearing PID 428 / 0016-0018 / Total count evidence at rank 1, but the user-visible fallback answer cites aggregate chunk a6580df7 rather than stored expected chunk 57948971 and still fails expected_evidence_not_cited. Source-review whether the aggregate row is an acceptable equivalent citation or tighten answer/citation selection to cite the expected row-level evidence directly; preserve row 10 clean evidence.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12898,6 +12898,23 @@
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-08-31T12:58:00Z",
+        "guardrail_timestamp": "2026-08-31T12:50:00Z",
+        "guardrail_commit": "59bc0e9",
+        "severity": "needs_fix",
+        "finding": "The duplicated remaining field was equal at root and question_bank but stale relative to next_target and answer_grounding_status.remaining after retrieval_eval_20260831_123253 repaired row 9 retrieval/context selection.",
+        "addressed_this_run": "Reconciled root and question_bank remaining to the current row 9 answer/citation grounding target and added a deterministic checker control so stale same-row remaining text fails when it disagrees with answer_grounding_status.remaining.",
+        "evidence": [
+          "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+          "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -k 'remaining or current_target_alias' -> 3 passed, 28 deselected",
+          "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 31 passed",
+          "Copied-real-manifest negative control with stale row-9 remaining text failed with current_target_alias mismatch",
+          "python3 -m json.tool test_reports/retrieval_accuracy_question_bank_manifest.json -> passed"
+        ],
+        "remaining": "Row 9 answer/citation grounding remains unresolved; retrieval_eval_20260831_123253 is retrieval-clean but answer-not-clean until source-equivalent citation support is reviewed or citation selection is tightened and rerun.",
+        "status": "addressed_this_run_validated"
+      },
       {
         "addressed_this_run": "Added compound code-prefix extraction for source-reviewed expected/query evidence and require exact prefix/value binding in same-document overlap scoring; focused tests reject PQD428, missing prefix, and wrong number while accepting PID 428.",
         "audit_evidence": "Guardrail commit 96a5d9d marked compound code-prefix scoring ok; this run continued with production retrieval/context selection and retrieval_eval_20260831_123253 now retrieves source-bearing row 9 evidence at rank 1.",
@@ -13652,9 +13669,9 @@
         "timestamp": "2026-08-31T10:46:00Z"
       }
     ],
-    "updated_at": "2026-08-31T12:35:00Z"
+    "updated_at": "2026-08-31T12:58:00Z"
   },
-  "remaining": "Fix repaired curated single-step v2 row 9 production retrieval/context selection: the stricter source-anchor scorer now rejects wrong code prefixes and retrieval_eval_20260831_120437 still fails row 9 as ranking_or_context_loss because final top-k chunks do not contain PID 428 / 0016-0018 / Total count evidence. Production retrieval/context selection still needs to surface expected chunk 57948971-aafc-57dc-87b4-a0986ac3363a or equivalent source-bearing evidence; preserve row 10 clean evidence.",
+  "remaining": "Fix repaired curated single-step v2 row 9 answer/citation grounding: retrieval_eval_20260831_123253 now surfaces source-bearing PID 428 / 0016-0018 / Total count evidence at rank 1, but the user-visible fallback answer cites aggregate chunk a6580df7 rather than stored expected chunk 57948971 and still fails expected_evidence_not_cited. Source-review whether the aggregate row is an acceptable equivalent citation or tighten answer/citation selection to cite the expected row-level evidence directly; preserve row 10 clean evidence.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14106,6 +14123,23 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-08-31T12:58:00Z",
+      "guardrail_timestamp": "2026-08-31T12:50:00Z",
+      "guardrail_commit": "59bc0e9",
+      "severity": "needs_fix",
+      "finding": "The duplicated remaining field was equal at root and question_bank but stale relative to next_target and answer_grounding_status.remaining after retrieval_eval_20260831_123253 repaired row 9 retrieval/context selection.",
+      "addressed_this_run": "Reconciled root and question_bank remaining to the current row 9 answer/citation grounding target and added a deterministic checker control so stale same-row remaining text fails when it disagrees with answer_grounding_status.remaining.",
+      "evidence": [
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -k 'remaining or current_target_alias' -> 3 passed, 28 deselected",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 31 passed",
+        "Copied-real-manifest negative control with stale row-9 remaining text failed with current_target_alias mismatch",
+        "python3 -m json.tool test_reports/retrieval_accuracy_question_bank_manifest.json -> passed"
+      ],
+      "remaining": "Row 9 answer/citation grounding remains unresolved; retrieval_eval_20260831_123253 is retrieval-clean but answer-not-clean until source-equivalent citation support is reviewed or citation selection is tightened and rerun.",
+      "status": "addressed_this_run_validated"
+    },
     {
       "addressed_this_run": "Added compound code-prefix extraction for source-reviewed expected/query evidence and require exact prefix/value binding in same-document overlap scoring; focused tests reject PQD428, missing prefix, and wrong number while accepting PID 428.",
       "audit_evidence": "Guardrail commit 96a5d9d marked compound code-prefix scoring ok; this run continued with production retrieval/context selection and retrieval_eval_20260831_123253 now retrieves source-bearing row 9 evidence at rank 1.",
@@ -14860,5 +14894,5 @@
       "timestamp": "2026-08-31T10:46:00Z"
     }
   ],
-  "updated_at": "2026-08-31T12:35:00Z"
+  "updated_at": "2026-08-31T12:58:00Z"
 }
