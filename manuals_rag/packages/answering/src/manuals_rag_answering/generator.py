@@ -2122,12 +2122,13 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         or not _answer_cites_selected_screen_evidence(answer, query, results)
     ):
         fallback = _fallback_answer(query, results)
+        fallback_warnings = list(fallback.warnings)
+        fallback_warnings.append(
+            "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback."
+        )
         answer = fallback.model_copy(
             update={
-                "warnings": [
-                    *answer.warnings,
-                    "Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback.",
-                ]
+                "warnings": fallback_warnings,
             }
         )
 

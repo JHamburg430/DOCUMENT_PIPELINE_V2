@@ -186,52 +186,55 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1.",
-    "classification": "row_7_clean_row_8_clean_guardrail_facet_containment_applied",
-    "current_answer_failures": {},
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_063211.jsonl",
-    "guardrail_containment": "Addressed guardrail review 2026-08-31T06:17:34Z by requiring diagnostic-table fallback candidates to directly support requested facets. Loaded controls accepted a complete row and rejected a partial A-14 row missing field-network settings, wrong-code row, and wrong-model row.",
-    "latest_run": "retrieval_eval_20260831_063211",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_063211.json",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_063211.jsonl. The visible fallback answer states the A-14 PWR/ERR buffer-overrun row and the result-acquisition/field-network handshake-control actions; it cites only returned chunk ddaee975 with quote_span null, and that chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles.",
+    "timestamp": "2026-08-31T07:05:00Z",
+    "status": "single_step_v2_row_8_clean_after_stale_warning_cleanup",
+    "classification": "row_8_clean_guardrail_stale_warning_containment_applied",
+    "guardrail_containment": "Addressed guardrail review 2026-08-31T06:50:00Z by clearing discarded generated-answer warnings whenever validate_answer replaces output with retrieval-grounded fallback. The validated fallback retains only fallback-owned warnings plus the generic validation-fallback notice.",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+    "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_070150.jsonl",
+    "latest_run": "retrieval_eval_20260831_070150",
+    "results": "test_reports/retrieval_eval_results_20260831_070150.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260831_070150.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_070150.json",
+    "search_mode": "http",
+    "response_mode": "answer_with_citations",
     "max_queries": 1,
     "query_offset": 0,
-    "remaining": "Diagnostic-table fallback now requires requested troubleshooting facets such as field-network settings/remedies to be present in the selected cited row; repaired single-step v2 row 8 remains clean in retrieval_eval_20260831_063211.",
-    "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
-    "response_mode": "answer_with_citations",
-    "results": "test_reports/retrieval_eval_results_20260831_063211.jsonl",
     "retrieval_result": "1/1 retrieval passed at rank 1; expected table_record chunk ddaee975 remained the first returned result.",
+    "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1; warnings contain only the validation-fallback notice.",
+    "current_answer_failures": {},
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_070150.jsonl. The user-visible answer states the A-14 PWR/ERR buffer-overrun row and the result-acquisition/field-network handshake-control actions; it cites only chunk ddaee975 with quote_span null, and that cited returned chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles. The answer warnings are now only Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback. The stale generated-answer warnings that claimed only an A-14 section title and missing field-network instructions are absent. _eval_trace and summary both report fallback_validation/used_fallback=true.",
     "runtime_load_evidence": {
-      "HAYSTACK_RERANK_DEVICE": "cuda:0",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "container": "manuals-rag-temp-api-39262386-20260831-warning-cleanup",
+      "host_api_base": "http://127.0.0.1:8852",
+      "api_health": "ok at 2026-08-31T07:00:56Z",
+      "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "generator_py_sha256": "ec503760e99a5330c497a178e595cd5df03bd9cf08484062d9dd63d870404757",
+      "validate_answer_sha256": "9e383d436ffba1011f84857835169ed6433fc62f1037a9ed7bc368dded90a640",
+      "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
+      "_diagnostic_table_requested_facets_supported_sha256": "3dc05ed723761184dfe85d6c980af74473e7cea8a4a2135ce3f6159b45bb33e9",
+      "OLLAMA_URL": "http://host.docker.internal:11434",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
-      "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
-      "api_health": "ok at 2026-08-31T06:31:18Z",
-      "container": "manuals-rag-temp-api-39262386-20260831-diagnostic-facets",
-      "generator_py_sha256": "7541b347b6aacf992b355cb51496d6e9c19541c6583b740e9fc11a1d71d26980",
-      "host_api_base": "http://127.0.0.1:8848",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
       "loaded_controls": {
-        "complete_row_selected": [
-          "complete"
-        ],
-        "complete_validate_insufficient_evidence": false,
-        "partial_missing_field_network_selected": [],
-        "partial_validate_insufficient_evidence": true,
-        "wrong_code_selected": [],
-        "wrong_code_validate_insufficient_evidence": true,
-        "wrong_model_selected": [],
-        "wrong_model_validate_insufficient_evidence": true
-      },
-      "validate_answer_sha256": "79d7d864fd3c317456f097a0bb93fd48265b00eead25c9cdbe3a1a4f48890469"
+        "focused_unit_positive": "overcautious diagnostic-table answer falls back to complete A-14 row and drops stale generated-answer insufficient-evidence warnings",
+        "focused_unit_negative": "partial A-14 row missing requested field-network/remedy facet remains insufficient_evidence",
+        "actual_http_positive": "retrieval_eval_20260831_070150 row 8 returns grounded fallback with only the validation-fallback warning",
+        "actual_http_control": "retrieval_eval_20260831_070150 summary and _eval_trace agree answer_source=fallback_validation and used_fallback=true"
+      }
     },
-    "search_mode": "http",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-    "status": "single_step_v2_row_8_clean_after_requested_facet_containment",
-    "summary": "test_reports/retrieval_eval_summary_20260831_063211.json",
-    "timestamp": "2026-08-31T06:33:38Z"
+    "validation": [
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'diagnostic_table_answer' -> 3 passed, 99 deselected, 5 warnings",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs fixture mounts api python -m pytest tests/unit -q -> 490 passed, 59 warnings",
+      "Loaded side API health/fingerprints captured from manuals-rag-temp-api-39262386-20260831-warning-cleanup on http://127.0.0.1:8852 with unchanged local model/reranker settings.",
+      "API_BASE=http://host.docker.internal:8852 docker compose run benchmark on repaired row-8 dataset -> retrieval 1/1 and answer 1/1 in retrieval_eval_20260831_070150.",
+      "Manual JSONL inspection verified answer text, warning cleanup, citation chunk support, citation_fidelity, evidence_citation_support, trace, and summary telemetry."
+    ],
+    "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -581,54 +584,57 @@
     ]
   },
   "answer_grounding_single_step_v2_rows_7_8": {
-    "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1.",
-    "classification": "row_7_clean_row_8_clean_guardrail_facet_containment_applied",
-    "current_answer_failures": {},
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_063211.jsonl",
-    "guardrail_containment": "Addressed guardrail review 2026-08-31T06:17:34Z by requiring diagnostic-table fallback candidates to directly support requested facets. Loaded controls accepted a complete row and rejected a partial A-14 row missing field-network settings, wrong-code row, and wrong-model row.",
-    "latest_run": "retrieval_eval_20260831_063211",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_063211.json",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_063211.jsonl. The visible fallback answer states the A-14 PWR/ERR buffer-overrun row and the result-acquisition/field-network handshake-control actions; it cites only returned chunk ddaee975 with quote_span null, and that chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles.",
+    "timestamp": "2026-08-31T07:05:00Z",
+    "status": "single_step_v2_row_8_clean_after_stale_warning_cleanup",
+    "classification": "row_8_clean_guardrail_stale_warning_containment_applied",
+    "guardrail_containment": "Addressed guardrail review 2026-08-31T06:50:00Z by clearing discarded generated-answer warnings whenever validate_answer replaces output with retrieval-grounded fallback. The validated fallback retains only fallback-owned warnings plus the generic validation-fallback notice.",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+    "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_070150.jsonl",
+    "latest_run": "retrieval_eval_20260831_070150",
+    "results": "test_reports/retrieval_eval_results_20260831_070150.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260831_070150.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_070150.json",
+    "search_mode": "http",
+    "response_mode": "answer_with_citations",
     "max_queries": 1,
     "query_offset": 0,
-    "remaining": "Diagnostic-table fallback now requires requested troubleshooting facets such as field-network settings/remedies to be present in the selected cited row; repaired single-step v2 row 8 remains clean in retrieval_eval_20260831_063211.",
-    "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
-    "response_mode": "answer_with_citations",
-    "results": "test_reports/retrieval_eval_results_20260831_063211.jsonl",
     "retrieval_result": "1/1 retrieval passed at rank 1; expected table_record chunk ddaee975 remained the first returned result.",
+    "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1; warnings contain only the validation-fallback notice.",
+    "current_answer_failures": {},
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_070150.jsonl. The user-visible answer states the A-14 PWR/ERR buffer-overrun row and the result-acquisition/field-network handshake-control actions; it cites only chunk ddaee975 with quote_span null, and that cited returned chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles. The answer warnings are now only Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback. The stale generated-answer warnings that claimed only an A-14 section title and missing field-network instructions are absent. _eval_trace and summary both report fallback_validation/used_fallback=true.",
     "runtime_load_evidence": {
-      "HAYSTACK_RERANK_DEVICE": "cuda:0",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "container": "manuals-rag-temp-api-39262386-20260831-warning-cleanup",
+      "host_api_base": "http://127.0.0.1:8852",
+      "api_health": "ok at 2026-08-31T07:00:56Z",
+      "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "generator_py_sha256": "ec503760e99a5330c497a178e595cd5df03bd9cf08484062d9dd63d870404757",
+      "validate_answer_sha256": "9e383d436ffba1011f84857835169ed6433fc62f1037a9ed7bc368dded90a640",
+      "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
+      "_diagnostic_table_requested_facets_supported_sha256": "3dc05ed723761184dfe85d6c980af74473e7cea8a4a2135ce3f6159b45bb33e9",
+      "OLLAMA_URL": "http://host.docker.internal:11434",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
-      "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
-      "api_health": "ok at 2026-08-31T06:31:18Z",
-      "container": "manuals-rag-temp-api-39262386-20260831-diagnostic-facets",
-      "generator_py_sha256": "7541b347b6aacf992b355cb51496d6e9c19541c6583b740e9fc11a1d71d26980",
-      "host_api_base": "http://127.0.0.1:8848",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
       "loaded_controls": {
-        "complete_row_selected": [
-          "complete"
-        ],
-        "complete_validate_insufficient_evidence": false,
-        "partial_missing_field_network_selected": [],
-        "partial_validate_insufficient_evidence": true,
-        "wrong_code_selected": [],
-        "wrong_code_validate_insufficient_evidence": true,
-        "wrong_model_selected": [],
-        "wrong_model_validate_insufficient_evidence": true
-      },
-      "validate_answer_sha256": "79d7d864fd3c317456f097a0bb93fd48265b00eead25c9cdbe3a1a4f48890469"
+        "focused_unit_positive": "overcautious diagnostic-table answer falls back to complete A-14 row and drops stale generated-answer insufficient-evidence warnings",
+        "focused_unit_negative": "partial A-14 row missing requested field-network/remedy facet remains insufficient_evidence",
+        "actual_http_positive": "retrieval_eval_20260831_070150 row 8 returns grounded fallback with only the validation-fallback warning",
+        "actual_http_control": "retrieval_eval_20260831_070150 summary and _eval_trace agree answer_source=fallback_validation and used_fallback=true"
+      }
     },
-    "search_mode": "http",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-    "status": "single_step_v2_row_8_clean_after_requested_facet_containment",
-    "summary": "test_reports/retrieval_eval_summary_20260831_063211.json",
-    "timestamp": "2026-08-31T06:33:38Z"
+    "validation": [
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'diagnostic_table_answer' -> 3 passed, 99 deselected, 5 warnings",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs fixture mounts api python -m pytest tests/unit -q -> 490 passed, 59 warnings",
+      "Loaded side API health/fingerprints captured from manuals-rag-temp-api-39262386-20260831-warning-cleanup on http://127.0.0.1:8852 with unchanged local model/reranker settings.",
+      "API_BASE=http://host.docker.internal:8852 docker compose run benchmark on repaired row-8 dataset -> retrieval 1/1 and answer 1/1 in retrieval_eval_20260831_070150.",
+      "Manual JSONL inspection verified answer text, warning cleanup, citation chunk support, citation_fidelity, evidence_citation_support, trace, and summary telemetry."
+    ],
+    "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence."
   },
-  "answer_grounding_status": "2026-08-31 guardrail containment repaired diagnostic-table fallback false-positive risk: partial same-scope A-14 rows that omit requested field-network settings now fail closed, while loaded HTTP run retrieval_eval_20260831_063211 keeps the source-backed row-8 A-14 answer clean with citation ddaee975.",
+  "answer_grounding_status": "2026-08-31 guardrail containment repaired stale contradictory warnings after validation fallback: retrieval_eval_20260831_070150 row 8 keeps the source-backed A-14 answer clean and the user-visible warnings no longer claim the cited evidence is missing.",
   "constraints": {
     "allowed_logic": [
       "retrieval",
@@ -8798,7 +8804,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Await guardrail audit of the diagnostic-table requested-facet containment, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+  "next_target": "Await guardrail audit of the diagnostic-table stale-warning containment, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9738,52 +9744,55 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1.",
-      "classification": "row_7_clean_row_8_clean_guardrail_facet_containment_applied",
-      "current_answer_failures": {},
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_063211.jsonl",
-      "guardrail_containment": "Addressed guardrail review 2026-08-31T06:17:34Z by requiring diagnostic-table fallback candidates to directly support requested facets. Loaded controls accepted a complete row and rejected a partial A-14 row missing field-network settings, wrong-code row, and wrong-model row.",
-      "latest_run": "retrieval_eval_20260831_063211",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_063211.json",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_063211.jsonl. The visible fallback answer states the A-14 PWR/ERR buffer-overrun row and the result-acquisition/field-network handshake-control actions; it cites only returned chunk ddaee975 with quote_span null, and that chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles.",
+      "timestamp": "2026-08-31T07:05:00Z",
+      "status": "single_step_v2_row_8_clean_after_stale_warning_cleanup",
+      "classification": "row_8_clean_guardrail_stale_warning_containment_applied",
+      "guardrail_containment": "Addressed guardrail review 2026-08-31T06:50:00Z by clearing discarded generated-answer warnings whenever validate_answer replaces output with retrieval-grounded fallback. The validated fallback retains only fallback-owned warnings plus the generic validation-fallback notice.",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+      "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_070150.jsonl",
+      "latest_run": "retrieval_eval_20260831_070150",
+      "results": "test_reports/retrieval_eval_results_20260831_070150.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260831_070150.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_070150.json",
+      "search_mode": "http",
+      "response_mode": "answer_with_citations",
       "max_queries": 1,
       "query_offset": 0,
-      "remaining": "Diagnostic-table fallback now requires requested troubleshooting facets such as field-network settings/remedies to be present in the selected cited row; repaired single-step v2 row 8 remains clean in retrieval_eval_20260831_063211.",
-      "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
-      "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260831_063211.jsonl",
       "retrieval_result": "1/1 retrieval passed at rank 1; expected table_record chunk ddaee975 remained the first returned result.",
+      "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1; warnings contain only the validation-fallback notice.",
+      "current_answer_failures": {},
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_070150.jsonl. The user-visible answer states the A-14 PWR/ERR buffer-overrun row and the result-acquisition/field-network handshake-control actions; it cites only chunk ddaee975 with quote_span null, and that cited returned chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles. The answer warnings are now only Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback. The stale generated-answer warnings that claimed only an A-14 section title and missing field-network instructions are absent. _eval_trace and summary both report fallback_validation/used_fallback=true.",
       "runtime_load_evidence": {
-        "HAYSTACK_RERANK_DEVICE": "cuda:0",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "container": "manuals-rag-temp-api-39262386-20260831-warning-cleanup",
+        "host_api_base": "http://127.0.0.1:8852",
+        "api_health": "ok at 2026-08-31T07:00:56Z",
+        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "generator_py_sha256": "ec503760e99a5330c497a178e595cd5df03bd9cf08484062d9dd63d870404757",
+        "validate_answer_sha256": "9e383d436ffba1011f84857835169ed6433fc62f1037a9ed7bc368dded90a640",
+        "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
+        "_diagnostic_table_requested_facets_supported_sha256": "3dc05ed723761184dfe85d6c980af74473e7cea8a4a2135ce3f6159b45bb33e9",
+        "OLLAMA_URL": "http://host.docker.internal:11434",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
-        "api_health": "ok at 2026-08-31T06:31:18Z",
-        "container": "manuals-rag-temp-api-39262386-20260831-diagnostic-facets",
-        "generator_py_sha256": "7541b347b6aacf992b355cb51496d6e9c19541c6583b740e9fc11a1d71d26980",
-        "host_api_base": "http://127.0.0.1:8848",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
         "loaded_controls": {
-          "complete_row_selected": [
-            "complete"
-          ],
-          "complete_validate_insufficient_evidence": false,
-          "partial_missing_field_network_selected": [],
-          "partial_validate_insufficient_evidence": true,
-          "wrong_code_selected": [],
-          "wrong_code_validate_insufficient_evidence": true,
-          "wrong_model_selected": [],
-          "wrong_model_validate_insufficient_evidence": true
-        },
-        "validate_answer_sha256": "79d7d864fd3c317456f097a0bb93fd48265b00eead25c9cdbe3a1a4f48890469"
+          "focused_unit_positive": "overcautious diagnostic-table answer falls back to complete A-14 row and drops stale generated-answer insufficient-evidence warnings",
+          "focused_unit_negative": "partial A-14 row missing requested field-network/remedy facet remains insufficient_evidence",
+          "actual_http_positive": "retrieval_eval_20260831_070150 row 8 returns grounded fallback with only the validation-fallback warning",
+          "actual_http_control": "retrieval_eval_20260831_070150 summary and _eval_trace agree answer_source=fallback_validation and used_fallback=true"
+        }
       },
-      "search_mode": "http",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-      "status": "single_step_v2_row_8_clean_after_requested_facet_containment",
-      "summary": "test_reports/retrieval_eval_summary_20260831_063211.json",
-      "timestamp": "2026-08-31T06:33:38Z"
+      "validation": [
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'diagnostic_table_answer' -> 3 passed, 99 deselected, 5 warnings",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs fixture mounts api python -m pytest tests/unit -q -> 490 passed, 59 warnings",
+        "Loaded side API health/fingerprints captured from manuals-rag-temp-api-39262386-20260831-warning-cleanup on http://127.0.0.1:8852 with unchanged local model/reranker settings.",
+        "API_BASE=http://host.docker.internal:8852 docker compose run benchmark on repaired row-8 dataset -> retrieval 1/1 and answer 1/1 in retrieval_eval_20260831_070150.",
+        "Manual JSONL inspection verified answer text, warning cleanup, citation chunk support, citation_fidelity, evidence_citation_support, trace, and summary telemetry."
+      ],
+      "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -9922,54 +9931,57 @@
       ]
     },
     "answer_grounding_single_step_v2_rows_7_8": {
-      "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1.",
-      "classification": "row_7_clean_row_8_clean_guardrail_facet_containment_applied",
-      "current_answer_failures": {},
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_063211.jsonl",
-      "guardrail_containment": "Addressed guardrail review 2026-08-31T06:17:34Z by requiring diagnostic-table fallback candidates to directly support requested facets. Loaded controls accepted a complete row and rejected a partial A-14 row missing field-network settings, wrong-code row, and wrong-model row.",
-      "latest_run": "retrieval_eval_20260831_063211",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_063211.json",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_063211.jsonl. The visible fallback answer states the A-14 PWR/ERR buffer-overrun row and the result-acquisition/field-network handshake-control actions; it cites only returned chunk ddaee975 with quote_span null, and that chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles.",
+      "timestamp": "2026-08-31T07:05:00Z",
+      "status": "single_step_v2_row_8_clean_after_stale_warning_cleanup",
+      "classification": "row_8_clean_guardrail_stale_warning_containment_applied",
+      "guardrail_containment": "Addressed guardrail review 2026-08-31T06:50:00Z by clearing discarded generated-answer warnings whenever validate_answer replaces output with retrieval-grounded fallback. The validated fallback retains only fallback-owned warnings plus the generic validation-fallback notice.",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+      "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_070150.jsonl",
+      "latest_run": "retrieval_eval_20260831_070150",
+      "results": "test_reports/retrieval_eval_results_20260831_070150.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260831_070150.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_070150.json",
+      "search_mode": "http",
+      "response_mode": "answer_with_citations",
       "max_queries": 1,
       "query_offset": 0,
-      "remaining": "Diagnostic-table fallback now requires requested troubleshooting facets such as field-network settings/remedies to be present in the selected cited row; repaired single-step v2 row 8 remains clean in retrieval_eval_20260831_063211.",
-      "repair_dataset": "test_reports/retrieval_eval_dataset_20260831_0448_single_step_row8_a14_repair.jsonl",
-      "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260831_063211.jsonl",
       "retrieval_result": "1/1 retrieval passed at rank 1; expected table_record chunk ddaee975 remained the first returned result.",
+      "answer_result": "1/1 actual HTTP API answer grounding passed; answer_sources {fallback_validation: 1}; fallback count 1; warnings contain only the validation-fallback notice.",
+      "current_answer_failures": {},
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_070150.jsonl. The user-visible answer states the A-14 PWR/ERR buffer-overrun row and the result-acquisition/field-network handshake-control actions; it cites only chunk ddaee975 with quote_span null, and that cited returned chunk directly supports buffer overrun, result acquisition, handshake control, EtherNet/IP, and Profinet expected roles. The answer warnings are now only Generated answer was not sufficiently supported by retrieved evidence; using retrieval-grounded fallback. The stale generated-answer warnings that claimed only an A-14 section title and missing field-network instructions are absent. _eval_trace and summary both report fallback_validation/used_fallback=true.",
       "runtime_load_evidence": {
-        "HAYSTACK_RERANK_DEVICE": "cuda:0",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "container": "manuals-rag-temp-api-39262386-20260831-warning-cleanup",
+        "host_api_base": "http://127.0.0.1:8852",
+        "api_health": "ok at 2026-08-31T07:00:56Z",
+        "generator_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "generator_py_sha256": "ec503760e99a5330c497a178e595cd5df03bd9cf08484062d9dd63d870404757",
+        "validate_answer_sha256": "9e383d436ffba1011f84857835169ed6433fc62f1037a9ed7bc368dded90a640",
+        "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
+        "_diagnostic_table_requested_facets_supported_sha256": "3dc05ed723761184dfe85d6c980af74473e7cea8a4a2135ce3f6159b45bb33e9",
+        "OLLAMA_URL": "http://host.docker.internal:11434",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "_diagnostic_table_evidence_results_sha256": "44d9a59569439756e7d60ba77f65e715df1c9cb6db66892a09647cd94560730f",
-        "api_health": "ok at 2026-08-31T06:31:18Z",
-        "container": "manuals-rag-temp-api-39262386-20260831-diagnostic-facets",
-        "generator_py_sha256": "7541b347b6aacf992b355cb51496d6e9c19541c6583b740e9fc11a1d71d26980",
-        "host_api_base": "http://127.0.0.1:8848",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
         "loaded_controls": {
-          "complete_row_selected": [
-            "complete"
-          ],
-          "complete_validate_insufficient_evidence": false,
-          "partial_missing_field_network_selected": [],
-          "partial_validate_insufficient_evidence": true,
-          "wrong_code_selected": [],
-          "wrong_code_validate_insufficient_evidence": true,
-          "wrong_model_selected": [],
-          "wrong_model_validate_insufficient_evidence": true
-        },
-        "validate_answer_sha256": "79d7d864fd3c317456f097a0bb93fd48265b00eead25c9cdbe3a1a4f48890469"
+          "focused_unit_positive": "overcautious diagnostic-table answer falls back to complete A-14 row and drops stale generated-answer insufficient-evidence warnings",
+          "focused_unit_negative": "partial A-14 row missing requested field-network/remedy facet remains insufficient_evidence",
+          "actual_http_positive": "retrieval_eval_20260831_070150 row 8 returns grounded fallback with only the validation-fallback warning",
+          "actual_http_control": "retrieval_eval_20260831_070150 summary and _eval_trace agree answer_source=fallback_validation and used_fallback=true"
+        }
       },
-      "search_mode": "http",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-      "status": "single_step_v2_row_8_clean_after_requested_facet_containment",
-      "summary": "test_reports/retrieval_eval_summary_20260831_063211.json",
-      "timestamp": "2026-08-31T06:33:38Z"
+      "validation": [
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'diagnostic_table_answer' -> 3 passed, 99 deselected, 5 warnings",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs fixture mounts api python -m pytest tests/unit -q -> 490 passed, 59 warnings",
+        "Loaded side API health/fingerprints captured from manuals-rag-temp-api-39262386-20260831-warning-cleanup on http://127.0.0.1:8852 with unchanged local model/reranker settings.",
+        "API_BASE=http://host.docker.internal:8852 docker compose run benchmark on repaired row-8 dataset -> retrieval 1/1 and answer 1/1 in retrieval_eval_20260831_070150.",
+        "Manual JSONL inspection verified answer text, warning cleanup, citation chunk support, citation_fidelity, evidence_citation_support, trace, and summary telemetry."
+      ],
+      "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence."
     },
-    "answer_grounding_status": "2026-08-31 guardrail containment repaired diagnostic-table fallback false-positive risk: partial same-scope A-14 rows that omit requested field-network settings now fail closed, while loaded HTTP run retrieval_eval_20260831_063211 keeps the source-backed row-8 A-14 answer clean with citation ddaee975.",
+    "answer_grounding_status": "2026-08-31 guardrail containment repaired stale contradictory warnings after validation fallback: retrieval_eval_20260831_070150 row 8 keeps the source-backed A-14 answer clean and the user-visible warnings no longer claim the cited evidence is missing.",
     "current_answer_failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
@@ -12092,7 +12104,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Await guardrail audit of the diagnostic-table requested-facet containment, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
+    "next_target": "Await guardrail audit of the diagnostic-table stale-warning containment, then continue broader source-reviewed answer-grounding coverage on the next validated retrieval-clean slice with loaded HTTP runtime proof and manual JSONL citation inspection.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12129,7 +12141,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Diagnostic-table fallback now requires requested troubleshooting facets such as field-network settings/remedies to be present in the selected cited row; repaired single-step v2 row 8 remains clean in retrieval_eval_20260831_063211.",
+    "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13228,9 +13240,9 @@
         "timestamp": "2026-08-31T04:59:40Z"
       }
     ],
-    "updated_at": "2026-08-31T06:33:38Z"
+    "updated_at": "2026-08-31T07:05:00Z"
   },
-  "remaining": "Diagnostic-table fallback now requires requested troubleshooting facets such as field-network settings/remedies to be present in the selected cited row; repaired single-step v2 row 8 remains clean in retrieval_eval_20260831_063211.",
+  "remaining": "Guardrail stale-warning containment is repaired for diagnostic-table fallback replacement. Continue broader source-reviewed answer-grounding coverage from the next validated retrieval-clean slice after guardrail audit, preserving loaded-runtime proof and manual JSONL citation inspection before accepting clean evidence.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14328,5 +14340,5 @@
       "timestamp": "2026-08-31T04:59:40Z"
     }
   ],
-  "updated_at": "2026-08-31T06:33:38Z"
+  "updated_at": "2026-08-31T07:05:00Z"
 }

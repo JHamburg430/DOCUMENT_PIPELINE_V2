@@ -204,7 +204,10 @@ def test_insufficient_diagnostic_table_answer_falls_back_to_source_row():
         confidence="low",
         used_documents=[],
         citations=[],
-        warnings=[],
+        warnings=[
+            "The retrieved text only confirms an A-14 section title.",
+            "The provided evidence does not contain field-network instructions.",
+        ],
         followup_questions=[],
         insufficient_evidence=True,
     )
@@ -243,6 +246,8 @@ def test_insufficient_diagnostic_table_answer_falls_back_to_source_row():
     assert validated.insufficient_evidence is False
     assert [citation["chunk_id"] for citation in validated.citations] == ["a14-row"]
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
+    assert not any("section title" in warning for warning in validated.warnings)
+    assert not any("does not contain field-network" in warning for warning in validated.warnings)
 
 
 def test_insufficient_diagnostic_table_answer_requires_requested_remedy_facet():
