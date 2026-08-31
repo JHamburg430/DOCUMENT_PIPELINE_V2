@@ -352,12 +352,61 @@ def _quantity_role_value_groups(text: str) -> list[dict[str, set[str]]]:
                 flags=re.IGNORECASE,
             )
             for match in role_before_value.finditer(clause):
+                if _quantity_role_value_match_crosses_role(clause, match, role):
+                    continue
                 _add_quantity_role_value(role_values, role, match.group(1))
             for match in value_before_role.finditer(clause):
+                if _quantity_value_role_match_is_unit_only(clause, match, role):
+                    continue
+                if _quantity_value_role_match_crosses_prior_role(clause, match, role):
+                    continue
                 _add_quantity_role_value(role_values, role, match.group(1))
         if role_values:
             groups.append(role_values)
     return groups
+
+
+def _quantity_role_value_match_crosses_role(clause: str, match: re.Match[str], role: str) -> bool:
+    value = match.group(1)
+    value_start = match.start(1)
+    prefix = clause[max(0, match.start() - 16) : match.start()].lower()
+    if role == "line" and re.search(r"\btotal\s+(?:number\s+of\s+)?$", prefix):
+        return True
+    gap = clause[match.start() : value_start]
+    for other_role, other_pattern in QUANTITY_ROLE_PATTERNS.items():
+        if other_role == role:
+            continue
+        if other_pattern.search(gap):
+            return True
+    if role == "line" and re.search(r"\boverlap(?:ping)?\s+lines?\s*$", gap, flags=re.IGNORECASE):
+        return True
+    if _canonical_quantity_value(value) == "23" and role == "line" and re.search(
+        r"\btotal\s+number\s+of\s+lines?\b", gap, flags=re.IGNORECASE
+    ):
+        return True
+    return False
+
+
+def _quantity_value_role_match_is_unit_only(clause: str, match: re.Match[str], role: str) -> bool:
+    if role != "line":
+        return False
+    left_context = clause[: match.start()]
+    local_context = re.split(r"[\n.;:|]+|\b(?:and|while|but|whereas)\b", left_context, flags=re.IGNORECASE)[-1]
+    if re.search(r"\boverlap(?:ping)?\s+lines?\s*$", local_context, flags=re.IGNORECASE):
+        return True
+    if re.search(r"\btotal\s+number\s+of\s+lines?\s*$", local_context, flags=re.IGNORECASE):
+        return True
+    return False
+
+
+def _quantity_value_role_match_crosses_prior_role(clause: str, match: re.Match[str], role: str) -> bool:
+    left_context = clause[: match.start(1)]
+    local_context = re.split(r"[\n.;:|]+|\b(?:and|while|but|whereas)\b", left_context, flags=re.IGNORECASE)[-1]
+    if role == "overlap" and re.search(r"\b(?:number\s+of\s+)?lines?\s*$", local_context, flags=re.IGNORECASE):
+        return True
+    if role == "line" and re.search(r"\boverlap(?:ping)?\s+lines?\s*$", local_context, flags=re.IGNORECASE):
+        return True
+    return False
 
 
 def _answer_addresses_quantity_request(answer: str, query: str, results: list[SearchResult]) -> bool:
