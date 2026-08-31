@@ -334,6 +334,127 @@ def test_insufficient_diagnostic_table_answer_keeps_wrong_scope_closed():
     assert validated.citations == []
 
 
+def test_status_output_fallback_prefers_exact_row_cell_binding():
+    answer = AnswerResponse(
+        answer="The provided evidence does not contain the requested output status.",
+        confidence="low",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=True,
+    )
+    query = (
+        "For MOD-120 status output settings, when ON equals Set value, Count value is 9, "
+        "previous count is 7, quantity counted at one time is 3, and current count is 0, "
+        "what output status is listed?"
+    )
+    results = [
+        SearchResult(
+            chunk_id="shifted-key-values",
+            score=0.95,
+            title="Controller manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[168],
+            section_path=["Status output settings"],
+            content=(
+                "Status output settings: ON when = Set value; Previous count value "
+                "(Display value): Count value= 9; Quantity counted at one time: 7; "
+                "Current count value (Display value): 3; Output status: 0"
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_key_value": True,
+                "context_window": (
+                    "ON when = Set value | Count value= 10 | 7 | 3 | 0 | One-Shot output\n"
+                    "ON when = Set value | Count value= 11 | 7 | 3 | 0 | Does not output"
+                ),
+            },
+        ),
+        SearchResult(
+            chunk_id="status-output-cell",
+            score=0.88,
+            title="Controller manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[168],
+            section_path=["Status output settings"],
+            content=(
+                "Column headers: Output status; Row headers: ON when = Set value > "
+                "Count value= 9; Cell value: One-Shot output; Row: 4; Column: 5"
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_cell": True,
+                "table_column_headers": ["Output status"],
+                "table_row_headers": ["ON when = Set value", "Count value= 9"],
+                "context_window": (
+                    "ON when = Set value | Count value= 9 | 7 | 2 | 9 | Latching output\n"
+                    "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output"
+                ),
+            },
+        ),
+    ]
+
+    validated = validate_answer(answer, results, query=query)
+
+    assert validated.insufficient_evidence is False
+    assert "One-Shot output" in validated.answer
+    assert "Current count value (Display value): 3" not in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["status-output-cell"]
+
+
+def test_status_output_fallback_fails_closed_without_exact_row_cell_binding():
+    answer = AnswerResponse(
+        answer="The provided evidence does not contain the requested output status.",
+        confidence="low",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=True,
+    )
+    results = [
+        SearchResult(
+            chunk_id="shifted-key-values",
+            score=0.95,
+            title="Controller manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[168],
+            section_path=["Status output settings"],
+            content=(
+                "Status output settings: ON when = Set value; Previous count value "
+                "(Display value): Count value= 9; Quantity counted at one time: 7; "
+                "Current count value (Display value): 3; Output status: 0"
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_key_value": True,
+                "context_window": (
+                    "ON when = Set value | Count value= 10 | 7 | 3 | 0 | One-Shot output\n"
+                    "ON when = Set value | Count value= 11 | 7 | 3 | 0 | Does not output"
+                ),
+            },
+        )
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "For MOD-120 status output settings, when ON equals Set value, Count value is 9, "
+            "previous count is 7, quantity counted at one time is 3, and current count is 0, "
+            "what output status is listed?"
+        ),
+    )
+
+    assert validated.insufficient_evidence is True
+    assert validated.citations == []
+    assert "Current count value (Display value): 3" not in validated.answer
+
+
 def test_validate_answer_fails_closed_when_plausible_answer_has_only_wrong_mode_evidence():
     answer = AnswerResponse(
         answer="Use Camera: Trigger - Light Configuration Settings for trigger and light settings.",

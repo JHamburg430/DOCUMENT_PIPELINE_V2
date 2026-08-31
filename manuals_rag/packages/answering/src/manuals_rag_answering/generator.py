@@ -822,6 +822,120 @@ def _focused_signal_description_answer_text(query: str, result: SearchResult) ->
     return f"{row_header} corresponds to {cell_value}."
 
 
+def _is_status_output_table_query(query: str) -> bool:
+    query_terms = _answer_terms(query)
+    if not {"output", "status"}.issubset(query_terms):
+        return False
+    return bool({"count", "quantity", "current", "previous", "when", "listed"}.intersection(query_terms))
+
+
+def _normalized_table_binding_text(text: str) -> str:
+    normalized = text.lower().replace("≥", ">=").replace("=", " = ")
+    normalized = re.sub(r"\bequals\b|\bis\b", " = ", normalized)
+    normalized = re.sub(r"[^a-z0-9>=]+", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _query_requires_exact_set_value(query: str) -> bool:
+    return bool(re.search(r"\b(?:on\s+(?:equals|=)|on\s+when\s*=\s*set\s+value)\b", query, flags=re.IGNORECASE))
+
+
+def _query_numeric_bindings(query: str) -> set[str]:
+    query_without_models = MODEL_TOKEN_RE.sub(" ", query)
+    return set(re.findall(r"\b\d+(?:\.\d+)?\b", query_without_models))
+
+
+def _status_output_row_lines(result: SearchResult) -> list[str]:
+    texts = [
+        str(result.content or ""),
+        str(result.metadata.get("context_window") or ""),
+        str(result.metadata.get("table_row_group_context") or ""),
+        str(result.metadata.get("parent_context") or ""),
+        str(result.metadata.get("content") or ""),
+    ]
+    lines: list[str] = []
+    seen: set[str] = set()
+    for text in texts:
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if "|" not in line:
+                continue
+            normalized = _normalized_table_binding_text(line)
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            lines.append(line)
+    return lines
+
+
+def _status_output_result_score(query: str, result: SearchResult) -> float:
+    if not _is_status_output_table_query(query):
+        return 0.0
+    if str(result.metadata.get("chunk_type") or "") != "table_record":
+        return 0.0
+    content = str(result.content or "")
+    metadata_text = " ".join(str(item) for item in result.metadata.get("table_column_headers") or [])
+    if "output status" not in f"{content} {metadata_text}".lower():
+        return 0.0
+    if "Cell value:" not in content:
+        return 0.0
+
+    normalized_content = _normalized_table_binding_text(content)
+    if _query_requires_exact_set_value(query) and "on when >= set value" in normalized_content:
+        return 0.0
+
+    required_numbers = _query_numeric_bindings(query)
+    query_terms = _answer_terms(query)
+    row_scores: list[float] = []
+    for row in _status_output_row_lines(result):
+        normalized_row = _normalized_table_binding_text(row)
+        if _query_requires_exact_set_value(query) and "on when >= set value" in normalized_row:
+            continue
+        if "output status" in normalized_row:
+            continue
+        row_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", row))
+        if required_numbers and not required_numbers.issubset(row_numbers):
+            continue
+        row_terms = _answer_terms(row)
+        if "set" in query_terms and "set" not in row_terms:
+            continue
+        if "count" in query_terms and "count" not in row_terms and "count" not in normalized_row:
+            continue
+        score = 8.0 + len(required_numbers) + min(4.0, float(len(query_terms.intersection(row_terms))))
+        if "one-shot" in row.lower() or "one shot" in row.lower():
+            score += 1.0
+        row_scores.append(score)
+    if not row_scores:
+        return 0.0
+    if "Cell value:" in content and "Row headers:" in content:
+        return max(row_scores) + 4.0
+    return max(row_scores)
+
+
+def _status_output_table_results(query: str, ordered_results: list[SearchResult]) -> list[SearchResult]:
+    if not _is_status_output_table_query(query):
+        return []
+    scored = [
+        (_status_output_result_score(query, result), index, result)
+        for index, result in enumerate(ordered_results[:8])
+    ]
+    scored = [item for item in scored if item[0] >= 8.0]
+    if not scored:
+        return []
+    _score, _index, result = max(scored, key=lambda item: (item[0], -item[1]))
+    return [result]
+
+
+def _status_output_table_evidence_seen(query: str, ordered_results: list[SearchResult]) -> bool:
+    if not _is_status_output_table_query(query):
+        return False
+    return any(
+        str(result.metadata.get("chunk_type") or "") == "table_record"
+        and "output status" in f"{result.content} {' '.join(str(item) for item in result.metadata.get('table_column_headers') or [])}".lower()
+        for result in ordered_results[:8]
+    )
+
+
 def _focused_program_setting_protection_answer_text(query: str, result: SearchResult) -> str:
     query_terms = _answer_terms(query)
     if not {"program", "setting"}.issubset(query_terms):
@@ -2050,6 +2164,10 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
     if diagnostic_table_results := _diagnostic_table_evidence_results(query, ordered_results):
         return diagnostic_table_results
     if not _is_comparison_query(query):
+        if status_output_results := _status_output_table_results(query, ordered_results):
+            return status_output_results
+        if _status_output_table_evidence_seen(query, ordered_results):
+            return []
         if program_setting_results := _program_setting_protection_results(query, ordered_results):
             return program_setting_results
         multi_part_results = _multi_part_fallback_evidence_results(query, ordered_results)

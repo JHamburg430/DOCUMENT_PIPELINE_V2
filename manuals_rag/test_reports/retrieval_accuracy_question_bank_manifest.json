@@ -1,6 +1,8 @@
 {
   "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 1
+    "expected_evidence_not_cited": 1,
+    "expected_terms_missing": 1,
+    "insufficient_evidence": 1
   },
   "answer_failure_categories": {
     "expected_evidence_not_cited": 1
@@ -702,15 +704,44 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
+    "checks": [
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'status_output_fallback' -> 2 passed",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q -k 'status_output_fallback or sibling_quantity_table_row' -> 3 passed",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q -k 'status_output or sibling_quantity_table_row or table_cell_binding' -> 6 passed",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 517 passed, 59 warnings after copying ignored tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium fixtures into the clean worktree",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK"
+    ],
     "current_answer_failures": {
-      "expected_evidence_not_cited": 1
+      "expected_evidence_not_cited": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
     },
     "current_retrieval_failures": {},
-    "latest_run": "retrieval_eval_20260831_214528",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_214528.jsonl. Row 1 remains clean: user-visible answer cites exact CV-X command-result table cell a7ed6202. Repaired row 2 retrieval passes at rank 3 against source-reviewed output-status chunk c589846f, but answer grounding fails expected_evidence_not_cited: the visible fallback cites shifted key-value chunk 0b84d8d8, says Quantity counted at one time: 7 / Current count: 3 / Output status: 0, and does not cite/support the One-Shot output row for previous count 7, quantity 3, current count 0. Earlier retrieval_eval_20260831_214209 is diagnostic/not-clean: the quantity repair query found the right document but selected a >= sibling/shifted key-value chunk and failed retrieval_not_passed plus expected_evidence_not_cited.",
-    "remaining": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
-    "status": "single_step_v2_row2_guardrail_reclassified_replacement_retrieval_clean_answer_open",
-    "timestamp": "2026-08-31T21:59:00Z"
+    "latest_run": "retrieval_eval_20260831_220127",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_220127.jsonl. Row 1 remains clean with exact CV-X Command Result table-cell citation a7ed6202. Row 2 retrieval still passes at rank 3 via applicable equivalent source-reviewed evidence, but the user-visible fallback now returns insufficient evidence with no citations instead of citing shifted key-value chunk 0b84d8d8. The exact Output status / One-Shot output table-cell chunk c589846f is still not cited, so the run remains diagnostic/not-clean.",
+    "remaining": "Finish repaired curated single-step v2 row 2 answer grounding: retrieval still finds the source-reviewed Output status table-cell evidence at rank 3, and the new status-output fallback now fails closed instead of citing the shifted key-value sibling row, but the API answer still does not cite the exact One-Shot output row. Next repair should make row-wise table answer selection use the source-bearing table-cell chunk c589846f when it is present in retrieved results, then rerun loaded HTTP and inspect JSONL citations.",
+    "runtime_load_evidence": {
+      "api_base": "http://127.0.0.1:8970",
+      "fingerprints": {
+        "_fallback_evidence_results": "0771ef92b9a9e075601f28ad77303d5faebbda6bdcebb67df9996289bb5b6cad",
+        "_status_output_result_score": "cdc9b190140cc5f2e5f0c11bbbcaf19a5224574b55d0a89d75a31cbe8b6cba94",
+        "_status_output_table_evidence_seen": "fc029d4e1b0a681ec7e12328403d553303ceb8ebf09b855f62a39b2c1266ef14",
+        "_status_output_table_results": "cc852a368b6afeba192771960e027f027f25122ec0947146a5ca5e9efe4ecfa2",
+        "validate_answer": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
+      },
+      "models": {
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_URL": "http://host.docker.internal:11434"
+      },
+      "module": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+      "side_api": "manuals-rag-temp-api-39262386-20260831-row2-status-b"
+    },
+    "status": "single_step_v2_row2_shifted_row_contained_answer_open",
+    "timestamp": "2026-08-31T22:09:20Z"
   },
   "constraints": {
     "allowed_logic": [
@@ -729,7 +760,9 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 1
+    "expected_evidence_not_cited": 1,
+    "expected_terms_missing": 1,
+    "insufficient_evidence": 1
   },
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
@@ -8883,7 +8916,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
+  "next_target": "Finish repaired curated single-step v2 row 2 answer grounding: retrieval still finds the source-reviewed Output status table-cell evidence at rank 3, and the new status-output fallback now fails closed instead of citing the shifted key-value sibling row, but the API answer still does not cite the exact One-Shot output row. Next repair should make row-wise table answer selection use the source-bearing table-cell chunk c589846f when it is present in retrieved results, then rerun loaded HTTP and inspect JSONL citations.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9637,7 +9670,9 @@
   },
   "question_bank": {
     "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 1
+      "expected_evidence_not_cited": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
     },
     "answer_failure_categories": {
       "expected_evidence_not_cited": 1
@@ -10128,18 +10163,49 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
+      "checks": [
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'status_output_fallback' -> 2 passed",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q -k 'status_output_fallback or sibling_quantity_table_row' -> 3 passed",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py tests/unit/test_retrieval_eval.py -q -k 'status_output or sibling_quantity_table_row or table_cell_binding' -> 6 passed",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 517 passed, 59 warnings after copying ignored tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium fixtures into the clean worktree",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK"
+      ],
       "current_answer_failures": {
-        "expected_evidence_not_cited": 1
+        "expected_evidence_not_cited": 1,
+        "expected_terms_missing": 1,
+        "insufficient_evidence": 1
       },
       "current_retrieval_failures": {},
-      "latest_run": "retrieval_eval_20260831_214528",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_214528.jsonl. Row 1 remains clean: user-visible answer cites exact CV-X command-result table cell a7ed6202. Repaired row 2 retrieval passes at rank 3 against source-reviewed output-status chunk c589846f, but answer grounding fails expected_evidence_not_cited: the visible fallback cites shifted key-value chunk 0b84d8d8, says Quantity counted at one time: 7 / Current count: 3 / Output status: 0, and does not cite/support the One-Shot output row for previous count 7, quantity 3, current count 0. Earlier retrieval_eval_20260831_214209 is diagnostic/not-clean: the quantity repair query found the right document but selected a >= sibling/shifted key-value chunk and failed retrieval_not_passed plus expected_evidence_not_cited.",
-      "remaining": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
-      "status": "single_step_v2_row2_guardrail_reclassified_replacement_retrieval_clean_answer_open",
-      "timestamp": "2026-08-31T21:59:00Z"
+      "latest_run": "retrieval_eval_20260831_220127",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_220127.jsonl. Row 1 remains clean with exact CV-X Command Result table-cell citation a7ed6202. Row 2 retrieval still passes at rank 3 via applicable equivalent source-reviewed evidence, but the user-visible fallback now returns insufficient evidence with no citations instead of citing shifted key-value chunk 0b84d8d8. The exact Output status / One-Shot output table-cell chunk c589846f is still not cited, so the run remains diagnostic/not-clean.",
+      "remaining": "Finish repaired curated single-step v2 row 2 answer grounding: retrieval still finds the source-reviewed Output status table-cell evidence at rank 3, and the new status-output fallback now fails closed instead of citing the shifted key-value sibling row, but the API answer still does not cite the exact One-Shot output row. Next repair should make row-wise table answer selection use the source-bearing table-cell chunk c589846f when it is present in retrieved results, then rerun loaded HTTP and inspect JSONL citations.",
+      "runtime_load_evidence": {
+        "api_base": "http://127.0.0.1:8970",
+        "fingerprints": {
+          "_fallback_evidence_results": "0771ef92b9a9e075601f28ad77303d5faebbda6bdcebb67df9996289bb5b6cad",
+          "_status_output_result_score": "cdc9b190140cc5f2e5f0c11bbbcaf19a5224574b55d0a89d75a31cbe8b6cba94",
+          "_status_output_table_evidence_seen": "fc029d4e1b0a681ec7e12328403d553303ceb8ebf09b855f62a39b2c1266ef14",
+          "_status_output_table_results": "cc852a368b6afeba192771960e027f027f25122ec0947146a5ca5e9efe4ecfa2",
+          "validate_answer": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
+        },
+        "models": {
+          "HAYSTACK_RERANK_DEVICE": "cuda:0",
+          "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+          "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+          "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+          "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+          "OLLAMA_URL": "http://host.docker.internal:11434"
+        },
+        "module": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
+        "side_api": "manuals-rag-temp-api-39262386-20260831-row2-status-b"
+      },
+      "status": "single_step_v2_row2_shifted_row_contained_answer_open",
+      "timestamp": "2026-08-31T22:09:20Z"
     },
     "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 1
+      "expected_evidence_not_cited": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
     },
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
@@ -12262,7 +12328,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
+    "next_target": "Finish repaired curated single-step v2 row 2 answer grounding: retrieval still finds the source-reviewed Output status table-cell evidence at rank 3, and the new status-output fallback now fails closed instead of citing the shifted key-value sibling row, but the API answer still does not cite the exact One-Shot output row. Next repair should make row-wise table answer selection use the source-bearing table-cell chunk c589846f when it is present in retrieved results, then rerun loaded HTTP and inspect JSONL citations.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12299,7 +12365,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
+    "remaining": "Finish repaired curated single-step v2 row 2 answer grounding: retrieval still finds the source-reviewed Output status table-cell evidence at rank 3, and the new status-output fallback now fails closed instead of citing the shifted key-value sibling row, but the API answer still does not cite the exact One-Shot output row. Next repair should make row-wise table answer selection use the source-bearing table-cell chunk c589846f when it is present in retrieved results, then rerun loaded HTTP and inspect JSONL citations.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12847,6 +12913,11 @@
         "reason": "diagnostic/not-clean for answer grounding: retrieval passed at rank 3, but user-visible fallback cited shifted key-value chunk 0b84d8d8 and failed expected_evidence_not_cited; row 1 within the run remains clean.",
         "run_id": "retrieval_eval_20260831_214528",
         "scope": "single-step row 2 output-status replacement answer claim"
+      },
+      {
+        "reason": "diagnostic containment run: row 1 remains clean, but row 2 still fails answer grounding; the status-output fallback now fails closed instead of citing shifted key-value sibling chunk 0b84d8d8, and exact One-Shot output chunk c589846f is not cited.",
+        "run_id": "retrieval_eval_20260831_220127",
+        "scope": "curated single-step v2 row 2 and combined rows 1-2 clean claim"
       }
     ],
     "single_step_questions": 101,
@@ -13809,9 +13880,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-08-31T21:59:00Z"
+    "updated_at": "2026-08-31T22:09:20Z"
   },
-  "remaining": "Repair curated single-step v2 row 2 answer grounding after source-backed replacement: the repaired output-status question retrieves the right IV4 status table evidence, but the actual API fallback still cites shifted key-value chunk 0b84d8d8 and omits/cannot cite the source-reviewed One-Shot output row. Add a general row-wise table fallback/citation path that preserves previous count, quantity, current count, and output status bindings, then rerun through loaded HTTP and inspect JSONL citations.",
+  "remaining": "Finish repaired curated single-step v2 row 2 answer grounding: retrieval still finds the source-reviewed Output status table-cell evidence at rank 3, and the new status-output fallback now fails closed instead of citing the shifted key-value sibling row, but the API answer still does not cite the exact One-Shot output row. Next repair should make row-wise table answer selection use the source-bearing table-cell chunk c589846f when it is present in retrieved results, then rerun loaded HTTP and inspect JSONL citations.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14359,6 +14430,11 @@
       "reason": "diagnostic/not-clean for answer grounding: retrieval passed at rank 3, but user-visible fallback cited shifted key-value chunk 0b84d8d8 and failed expected_evidence_not_cited; row 1 within the run remains clean.",
       "run_id": "retrieval_eval_20260831_214528",
       "scope": "single-step row 2 output-status replacement answer claim"
+    },
+    {
+      "reason": "diagnostic containment run: row 1 remains clean, but row 2 still fails answer grounding; the status-output fallback now fails closed instead of citing shifted key-value sibling chunk 0b84d8d8, and exact One-Shot output chunk c589846f is not cited.",
+      "run_id": "retrieval_eval_20260831_220127",
+      "scope": "curated single-step v2 row 2 and combined rows 1-2 clean claim"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -15320,5 +15396,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-08-31T21:59:00Z"
+  "updated_at": "2026-08-31T22:09:20Z"
 }
