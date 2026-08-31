@@ -3005,6 +3005,69 @@ def test_table_score_prefers_listed_value_exact_table_path():
     )
 
 
+def test_table_cell_value_binding_score_prefers_row_column_and_value_match():
+    query = (
+        "On IV4-G120, how many objects are counted at one time when the count value is 9 "
+        "and ON equals the set value?"
+    )
+    analysis = analyze_query(query)
+    terms = retriever._lexical_table_terms(query, analysis)
+    expected_cell = {
+        "content": (
+            "Column headers: Quantity counted at one time; "
+            "Row headers: ON when = Set value > Count value= 9; Cell value: 3; Row: 4; Column: 3"
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_column_headers": ["Quantity counted at one time"],
+            "table_row_headers": ["ON when = Set value", "Count value= 9"],
+            "product_model": "IV4-G120",
+        },
+        "priority_score": 10.0,
+    }
+    wrong_row_same_column = {
+        "content": (
+            "Column headers: Quantity counted at one time; "
+            "Row headers: ON when = Set value > Count value= 8; Cell value: 3; Row: 2; Column: 3"
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_column_headers": ["Quantity counted at one time"],
+            "table_row_headers": ["ON when = Set value", "Count value= 8"],
+            "product_model": "IV4-G120",
+        },
+        "priority_score": 10.0,
+    }
+    same_row_wrong_column = {
+        "content": (
+            "Column headers: Output status; "
+            "Row headers: ON when = Set value > Count value= 9; Cell value: One-Shot output; Row: 4; Column: 5"
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_column_headers": ["Output status"],
+            "table_row_headers": ["ON when = Set value", "Count value= 9"],
+            "product_model": "IV4-G120",
+        },
+        "priority_score": 10.0,
+    }
+
+    assert terms
+    assert "9" in terms
+    assert "counted" in terms
+    assert retriever._table_lexical_score(expected_cell, terms) > retriever._table_lexical_score(
+        wrong_row_same_column,
+        terms,
+    )
+    assert retriever._table_lexical_score(expected_cell, terms) > retriever._table_lexical_score(
+        same_row_wrong_column,
+        terms,
+    )
+
+
 def test_structured_table_promotion_preserves_top_lexical_cell_after_rerank():
     analysis = analyze_query(
         "What value is listed for LumiTrax Capture Settings Track Moving Object: "

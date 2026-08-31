@@ -631,6 +631,13 @@ def _fallback_answer_text(result: SearchResult) -> str:
         if parent_context and (content.lower() in parent_context.lower() or content_is_represented):
             if len(parent_terms.difference(content_terms)) >= 4:
                 return parent_context
+    if (
+        str(result.metadata.get("chunk_type") or "") == "table_record"
+        and result.metadata.get("table_cell")
+        and "Cell value:" in content
+        and "Row headers:" in content
+    ):
+        return content
     if str(result.metadata.get("chunk_type") or "") != "table_record" or not context:
         return content
     if content.lower() in context.lower():

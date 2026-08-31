@@ -593,6 +593,45 @@ def test_answer_response_scoring_accepts_same_row_table_cell_binding():
     assert scored["table_cell_binding"]["passed"] is True
 
 
+def test_answer_response_scoring_accepts_structured_table_cell_fallback_line():
+    case = RetrievalEvalCase(
+        case_id="case-command-result",
+        query="On CV-X482, what does command 0028 / 65.0 map to in the 6-bit command output area?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="chunk-command-result",
+        source_title="CV-X Manual",
+        source_filename="cvx.pdf",
+        chunk_type="table_record",
+        section_path="6-210",
+        page_from=952,
+        page_to=952,
+        expected_terms=["command", "result", "0028", "65.0"],
+        expected_snippet=(
+            "Column headers: 6bit > 5bit > 4bit > 3bit > 2bit > 1bit > 0bit; "
+            "Row headers: 0028 65.0 > Command output area; Cell value: Command Result; "
+            "Row: 15; Column: 3"
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_model": "CV-X482", "table_cell": True},
+    )
+    answer = {
+        "answer": (
+            "Column headers: 6bit > 5bit > 4bit > 3bit > 2bit > 1bit > 0bit; "
+            "Row headers: 0028 65.0 > Command output area; Cell value: Command Result; "
+            "Row: 15; Column: 3\n\nContext: broad neighboring status output text"
+        ),
+        "citations": [{"document_id": "doc-cvx", "chunk_id": "chunk-command-result", "pages": [952]}],
+        "used_documents": [],
+        "insufficient_evidence": False,
+    }
+
+    scored = score_answer_response(case, answer, {"passed": True})
+
+    assert scored["passed"] is True
+    assert scored["table_cell_binding"]["passed"] is True
+
+
 def test_answer_response_scoring_rejects_scattered_signal_description_binding():
     case = RetrievalEvalCase(
         case_id="case-signal-binding",

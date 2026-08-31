@@ -4027,10 +4027,11 @@ def test_validation_fallback_preserves_focused_table_cell_before_context(monkeyp
                 "Column headers: 6bit > 5bit; Row headers: 0028 65.0 > "
                 "Command output area; Cell value: Command Result"
             ),
-            metadata={
-                "chunk_type": "table_record",
-                "context_window": "status Bit area | 0000 | Result Ready | Cmd Ready",
-            },
+                metadata={
+                    "chunk_type": "table_record",
+                    "table_cell": True,
+                    "context_window": "status Bit area | 0000 | Result Ready | Cmd Ready",
+                },
         )
     ]
 
@@ -4073,7 +4074,7 @@ def test_validation_fallback_preserves_focused_table_cell_before_context(monkeyp
 
     assert answer.answer.startswith("Column headers: 6bit > 5bit")
     assert "Cell value: Command Result" in answer.answer
-    assert "Context: status Bit area" in answer.answer
+    assert "Context: status Bit area" not in answer.answer
     assert trace["final_answer"]["answer_source"] == "fallback_validation"
 
 

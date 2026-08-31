@@ -2874,11 +2874,7 @@ def _answer_preserves_expected_table_cell_binding(case: RetrievalEvalCase, answe
     if len(required_terms) < 3:
         return {"checked": False, "passed": True, "missing_bindings": []}
     answer_text = str(answer.get("answer") or "")
-    segments = [
-        segment
-        for segment in re.split(r"\n+|(?<=;)\s+|(?<=\.)\s+", answer_text)
-        if segment.strip()
-    ]
+    segments = [segment for segment in _answer_claim_segments(answer_text) if segment.strip()]
     for segment in segments:
         segment_lower = segment.lower()
         segment_tokens = set(tokenize(segment_lower))
@@ -2925,6 +2921,26 @@ def _table_cell_binding_segment_supported(row_header: str, cell_value: str, answ
     if re.search(rf"{cell_pattern}.{{0,100}}{row_pattern}", segment, flags=re.IGNORECASE):
         return True
     return False
+
+
+def _answer_claim_segments(answer_text: str) -> list[str]:
+    segments: list[str] = []
+    for line in str(answer_text or "").splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if re.search(r"\bRow headers?:", stripped, flags=re.IGNORECASE) and re.search(
+            r"\bCell value:", stripped,
+            flags=re.IGNORECASE,
+        ):
+            segments.append(stripped)
+            continue
+        segments.extend(
+            segment.strip()
+            for segment in re.split(r"(?<=;)\s+|(?<=\.)\s+", stripped)
+            if segment.strip()
+        )
+    return segments
 
 
 def _table_cell_value_supported(expected_cell_value: str, answer_segment: str) -> bool:

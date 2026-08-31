@@ -320,7 +320,11 @@ def _compact_identifier(text: str) -> str:
 
 
 def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
-    table_lookup = "structured_lookup" in analysis.query_types or "table_record" in analysis.preferred_chunk_types
+    table_lookup = (
+        "structured_lookup" in analysis.query_types
+        or "table_record" in analysis.preferred_chunk_types
+        or _is_natural_quantity_table_lookup(query, analysis)
+    )
     if (
         not table_lookup
         and not ("comparison" in analysis.query_types and analysis.product_identifiers)
@@ -368,6 +372,18 @@ def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
             if term not in terms:
                 terms.append(term)
     return terms[:16]
+
+
+def _is_natural_quantity_table_lookup(query: str, analysis: QueryAnalysis) -> bool:
+    lowered = query.lower()
+    if "how many" not in lowered and not re.search(r"\bhow\s+much\b", lowered):
+        return False
+    if not {"how_to", "structured_lookup", "spec_lookup"}.intersection(analysis.query_types):
+        return False
+    return bool(
+        re.search(r"\bcount(?:ed|s|ing)?\b", lowered)
+        and re.search(r"\b(?:value|quantity|number|total|objects?|items?|lines?)\b", lowered)
+    )
 
 
 def _query_has_diagnostic_table_code(query: str, analysis: QueryAnalysis) -> bool:
@@ -662,12 +678,29 @@ def _table_cell_value_binding_score(content: str, metadata: dict[str, object], t
         return 0.0
 
     score = 0.0
+    row_terms = _text_terms(" ".join(str(item) for item in metadata.get("table_row_headers") or []))
+    column_terms = _text_terms(" ".join(str(item) for item in metadata.get("table_column_headers") or []))
+    row_overlap = term_set.intersection(row_terms)
+    column_overlap = term_set.intersection(column_terms)
+    cell_overlap = term_set.intersection(cell_terms)
+    distinctive_row_overlap = {
+        term for term in row_overlap if term.isdigit() or any(char.isdigit() for char in term) or len(term) >= 5
+    }
+    if distinctive_row_overlap and column_overlap and cell_overlap:
+        score += 0.9
+        score += min(0.45, 0.15 * len(distinctive_row_overlap))
+        score += min(0.45, 0.15 * len(column_overlap))
+        score += min(0.3, 0.15 * len(cell_overlap))
+    elif distinctive_row_overlap and column_overlap and _terms_ask_for_unknown_quantity(term_set):
+        score += 1.1
+        score += min(0.45, 0.15 * len(distinctive_row_overlap))
+        score += min(0.45, 0.15 * len(column_overlap))
+    elif distinctive_row_overlap and column_overlap and numeric_terms.intersection(cell_terms):
+        score += 0.55
     if {"data", "output"}.issubset(term_set) and {"data", "output", "bit"}.issubset(cell_terms):
         matched_numbers = numeric_terms.intersection(cell_terms)
         if matched_numbers:
             score += 1.8 + min(0.6, 0.2 * len(matched_numbers))
-            column_terms = _text_terms(" ".join(str(item) for item in metadata.get("table_column_headers") or []))
-            row_terms = _text_terms(" ".join(str(item) for item in metadata.get("table_row_headers") or []))
             if {"signal", "description"}.issubset(column_terms):
                 score += 1.0
             if any(number in "".join(row_terms) for number in matched_numbers) and any(
@@ -675,6 +708,13 @@ def _table_cell_value_binding_score(content: str, metadata: dict[str, object], t
             ):
                 score += 0.45
     return score
+
+
+def _terms_ask_for_unknown_quantity(terms: set[str]) -> bool:
+    return bool(
+        {"count", "counted", "quantity", "number", "total"}.intersection(terms)
+        and {"many", "much", "how", "objects", "items", "lines", "time"}.intersection(terms)
+    )
 
 
 def _comparison_setting_phrases(query: str) -> list[str]:
@@ -2290,7 +2330,11 @@ def _promote_structured_table_candidates(
     *,
     limit: int = 12,
 ) -> list[SearchResult]:
-    table_lookup = "structured_lookup" in analysis.query_types or "table_record" in analysis.preferred_chunk_types
+    table_lookup = (
+        "structured_lookup" in analysis.query_types
+        or "table_record" in analysis.preferred_chunk_types
+        or _is_natural_quantity_table_lookup(analysis.raw_query, analysis)
+    )
     if not table_lookup or "comparison" in analysis.query_types or not supplemental_results:
         return primary_results
     candidates = [
