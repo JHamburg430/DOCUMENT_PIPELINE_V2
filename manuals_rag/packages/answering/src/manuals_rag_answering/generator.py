@@ -1532,6 +1532,8 @@ def _diagnostic_table_evidence_results(query: str, ordered_results: list[SearchR
         row_terms = _answer_terms(row_text)
         if not row_terms:
             continue
+        if not _diagnostic_table_requested_facets_supported(query, row_text):
+            continue
         score = min(6.0, float(len(query_terms.intersection(row_terms))))
         score += _ordered_query_phrase_score(query, row_text)
         if re.search(r"\b(indicator|status|cause|remedy|corrective action)\b", row_text, flags=re.IGNORECASE):
@@ -1553,6 +1555,24 @@ def _diagnostic_table_evidence_results(query: str, ordered_results: list[SearchR
         return []
     best_score, _best_index, best_result = max(scored, key=lambda item: (item[0], -item[1]))
     return [best_result] if best_score >= 5.0 else []
+
+
+def _diagnostic_table_requested_facets_supported(query: str, row_text: str) -> bool:
+    query_lc = query.lower()
+    row_lc = row_text.lower()
+    if re.search(r"\bfield[-\s]?network", query_lc):
+        if not re.search(r"\b(?:field[-\s]?network|ethernet/ip|profinet|handshake)\b", row_lc):
+            return False
+    if re.search(r"\b(?:setting|settings|check|checks|correct|corrective|remedy|action|fix)\b", query_lc):
+        if not re.search(
+            r"\b(?:disable|enable|execute|set|select|change|check|connect|replace|notify|notification|remedy|corrective action)\b",
+            row_lc,
+        ):
+            return False
+    if re.search(r"\b(?:indicate|status|symptom)\b", query_lc):
+        if not re.search(r"\b(?:indicator|status|occurred|occurs|condition|symptom|cause)\b", row_lc):
+            return False
+    return True
 
 
 def _answer_cites_selected_screen_evidence(answer: AnswerResponse, query: str, results: list[SearchResult]) -> bool:

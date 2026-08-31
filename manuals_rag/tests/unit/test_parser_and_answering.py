@@ -245,6 +245,48 @@ def test_insufficient_diagnostic_table_answer_falls_back_to_source_row():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_insufficient_diagnostic_table_answer_requires_requested_remedy_facet():
+    answer = AnswerResponse(
+        answer="The provided evidence does not contain the specific definition of error A-14.",
+        confidence="low",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=True,
+    )
+    results = [
+        SearchResult(
+            chunk_id="partial-a14-row",
+            score=0.92,
+            title="IV4 manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[527],
+            section_path=["12-38"],
+            content=(
+                "PWR/ERR indicator light status: A buffer overrun has occurred.; "
+                "Cause: The result output buffer is full."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_model": "MOD-600",
+                "identifier_tokens": ["A-14"],
+            },
+        )
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="On MOD-600, what does error A-14 indicate, and what field-network settings should I check?",
+    )
+
+    assert validated.insufficient_evidence is True
+    assert validated.citations == []
+    assert "field-network" not in validated.answer.lower()
+
+
 def test_insufficient_diagnostic_table_answer_keeps_wrong_scope_closed():
     answer = AnswerResponse(
         answer="The provided evidence does not contain the specific definition of error A-14.",
