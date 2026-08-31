@@ -453,6 +453,97 @@ def test_direct_procedure_fallback_still_uses_top_evidence_only():
     assert [result.chunk_id for result in selected] == ["top-procedure"]
 
 
+def test_insufficient_quantity_answer_falls_back_when_mode_state_is_set():
+    answer = AnswerResponse(
+        answer="I could not answer from the available evidence.",
+        confidence="low",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=True,
+    )
+    results = [
+        SearchResult(
+            chunk_id="sheet-fed-settings",
+            score=0.91,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-cvx",
+            pages=[123],
+            section_path=["Timing chart"],
+            content=(
+                "Control/data output via I/O terminals Timing chart. "
+                "Typical operations at trigger input when the LJ-V series head is used and [Sheet-fed] is set. "
+                "Camera settings Number of Lines 10 Line Scan Interval Specify Encoder 1 pulse/line Sampling mode x1."
+            ),
+            metadata={"chunk_type": "section_window"},
+        )
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="For CV-X with an LJ-V head in sheet-fed mode, what camera line settings are shown for line count and line scan interval?",
+    )
+
+    assert validated.insufficient_evidence is False
+    assert [citation["chunk_id"] for citation in validated.citations] == ["sheet-fed-settings"]
+    assert "Number of Lines 10" in validated.answer
+    assert "Line Scan Interval Specify Encoder 1 pulse/line" in validated.answer
+
+
+def test_screen_request_fallback_prefers_actual_trigger_settings_screen():
+    answer = AnswerResponse(
+        answer="Use the general camera-trigger-light menu.",
+        confidence="medium",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="camera-trigger-light-menu",
+            score=0.95,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-xgx",
+            pages=[228],
+            section_path=["Camera - Trigger - Light Configuration Settings"],
+            content=(
+                "Camera - Trigger - Light Configuration Settings: Line Camera Setting Navigation. "
+                "The connected cameras, trigger input for each camera, and illumination control targets can be configured together."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="trigger-settings-screen",
+            score=0.89,
+            title="XG-X Manual",
+            document_version_id="v1",
+            source_document_id="doc-xgx",
+            pages=[199],
+            section_path=["Preparing a Line Scan Camera"],
+            content=(
+                "Select Next. The Step 2/3 Trigger Settings screen of the Line Camera Setting Navigation appears. "
+                "Change the settings in accordance with the triggers that will be input into the controller."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query="For XG-X line camera setup, which screen is used to change trigger settings?",
+    )
+
+    assert [citation["chunk_id"] for citation in validated.citations] == ["trigger-settings-screen"]
+    assert "Step 2/3 Trigger Settings screen" in validated.answer
+
+
 def test_image_capture_buffer_fallback_prefers_disabled_trigger_rule():
     results = [
         SearchResult(

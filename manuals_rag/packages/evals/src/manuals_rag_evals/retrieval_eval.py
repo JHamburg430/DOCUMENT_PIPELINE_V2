@@ -3288,6 +3288,17 @@ def _role_value_relations(text: str) -> list[tuple[str, str]]:
                 for token in tokenize(role)
                 if token not in STOPWORDS and token not in GENERIC_ANCHORS and token not in ANSWER_SCORING_GENERIC_TERMS
             ]
+            if "number" in role_tokens:
+                number_index = role_tokens.index("number")
+                narrowed_role_tokens = [token for token in role_tokens[number_index + 1 :] if token != "of"]
+                if narrowed_role_tokens:
+                    role_tokens = narrowed_role_tokens
+            if "of" in role_tokens:
+                of_index = role_tokens.index("of")
+                narrowed_role_tokens = role_tokens[of_index + 1 :]
+                if narrowed_role_tokens:
+                    role_tokens = narrowed_role_tokens
+            role_tokens = [token for token in role_tokens if token != "of"]
             if not role_tokens or not value:
                 continue
             if any(any(char.isdigit() for char in token) for token in role_tokens):

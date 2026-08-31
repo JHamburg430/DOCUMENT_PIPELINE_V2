@@ -2529,6 +2529,60 @@ def test_answer_response_scoring_accepts_composite_chunk_with_correct_numeric_bi
     assert scored["evidence_citation_support"]["passed"] is True
 
 
+def test_answer_response_scoring_binds_number_of_lines_relation():
+    case = RetrievalEvalCase(
+        case_id="answer-composite-number-of-lines",
+        query="What camera line settings are shown for line count and line scan interval?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="line-settings",
+        source_title="Timing chart",
+        source_filename="Manual.pdf",
+        chunk_type="procedure_record",
+        section_path="Timing chart",
+        page_from=123,
+        page_to=123,
+        expected_terms=["camera", "lines", "interval", "specify"],
+        expected_snippet="Camera settings Number of Lines 10 Line Scan Interval Specify Encoder 1 pulse/line Sampling mode",
+        generation_method="unit_test",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "line-settings",
+                "source_document_id": "doc-cvx",
+                "allow_equivalent_citation": True,
+                "expected_terms": ["camera", "lines", "interval", "specify"],
+                "snippet": "Camera settings Number of Lines 10 Line Scan Interval Specify Encoder 1 pulse/line Sampling mode",
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Number of Lines is 10, and Line Scan Interval is Specify Encoder 1 pulse/line.",
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "section-window", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-cvx"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "section-window",
+                "source_document_id": "doc-cvx",
+                "content": (
+                    "When the LJ-V series head is used and Sheet-fed is set. "
+                    "Camera settings Number of Lines 10 Line Scan Interval Specify Encoder 1 pulse/line Sampling mode."
+                ),
+            }
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert scored["evidence_citation_support"]["passed"] is True
+
+
 def test_answer_response_scoring_rejects_composite_chunk_with_polarity_inversion():
     case = RetrievalEvalCase(
         case_id="answer-composite-polarity",

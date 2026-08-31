@@ -982,13 +982,41 @@ def _scope_phrase_matches_group(phrase: str, group: set[str]) -> bool:
     return any(scope in phrase or phrase in scope for scope in group)
 
 
+def _exclusive_scope_phrase(phrase: str) -> bool:
+    phrase_terms = _answer_terms(phrase)
+    return bool(
+        {"standard", "lighting", "lumitrax", "multispectrum", "capture", "asynchronous", "continuous", "sheet-fed", "sheet", "fed"}.intersection(
+            phrase_terms
+        )
+    )
+
+
 def _has_conflicting_explicit_scope(query_scope_groups: list[set[str]], evidence: str) -> bool:
     if not query_scope_groups:
         return False
     for phrase in _explicit_scope_phrases(evidence):
+        if not _exclusive_scope_phrase(phrase):
+            continue
         if not any(_scope_phrase_matches_group(phrase, group) for group in query_scope_groups):
             return True
     return False
+
+
+def _mode_scope_state_supported(scope: str, evidence_normalized: str) -> bool:
+    if not scope.endswith(" mode"):
+        return False
+    base_scope = scope.removesuffix(" mode").strip()
+    if len(base_scope.split()) < 2:
+        return False
+    base_pattern = re.escape(base_scope).replace(r"\ ", r"\s+")
+    return bool(
+        re.search(
+            rf"\b{base_pattern}\b(?:\s+(?:is|was|has\s+been))?\s+(?:set|selected|enabled)\b"
+            rf"|\b(?:set|select|selected|enable|enabled)\b[\w\s\[\]-]{{0,30}}\b{base_pattern}\b",
+            evidence_normalized,
+            flags=re.IGNORECASE,
+        )
+    )
 
 
 def _explicit_scope_phrases_supported(query: str, result: SearchResult) -> bool:
@@ -1005,7 +1033,10 @@ def _explicit_scope_phrases_supported(query: str, result: SearchResult) -> bool:
     evidence_normalized = " ".join(re.findall(r"[a-z0-9]+", evidence_text.lower()))
     if _has_conflicting_explicit_scope(query_scope_groups, evidence_text):
         return False
-    return all(any(scope in evidence_normalized for scope in group) for group in query_scope_groups) and _evidence_supports_capture_type_scope(
+    return all(
+        any(scope in evidence_normalized or _mode_scope_state_supported(scope, evidence_normalized) for scope in group)
+        for group in query_scope_groups
+    ) and _evidence_supports_capture_type_scope(
         query, evidence_text
     )
 
@@ -1200,6 +1231,50 @@ def _ordered_query_phrase_score(query: str, evidence: str) -> float:
                 if score >= 3.0:
                     return 3.0
     return min(score, 3.0)
+
+
+def _screen_request_score(query: str, evidence: str) -> float:
+    query_terms = _answer_terms(query)
+    if "screen" not in query_terms:
+        return 0.0
+    evidence_terms = _answer_terms(evidence)
+    if "screen" not in evidence_terms:
+        return 0.0
+    score = 2.0
+    normalized_evidence = " ".join(re.findall(r"[a-z0-9]+", evidence.lower()))
+    important_terms = query_terms.intersection({"trigger", "settings", "setting", "camera", "line", "navigation", "change"})
+    score += min(3.0, float(len(important_terms.intersection(evidence_terms))) * 0.75)
+    if re.search(r"\bstep\s+\d+(?:\s+\d+)?\s+trigger\s+settings\s+screen\b", normalized_evidence):
+        score += 2.0
+    if re.search(r"\btrigger\s+settings\s+screen\b", normalized_evidence):
+        score += 1.0
+    return score
+
+
+def _has_strong_insufficient_fallback(query: str, results: list[SearchResult]) -> bool:
+    fallback_results = _fallback_evidence_results(query, results)
+    if len(fallback_results) > 1:
+        return True
+    if not fallback_results:
+        return False
+    if not (
+        _should_score_direct_fallback(query)
+        or re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE)
+        or _image_capture_buffer_query_terms(query)
+    ):
+        return False
+    return _fallback_evidence_score(query, fallback_results[0]) >= 2.0
+
+
+def _answer_cites_selected_screen_evidence(answer: AnswerResponse, query: str, results: list[SearchResult]) -> bool:
+    if "screen" not in _answer_terms(query):
+        return True
+    selected = _fallback_evidence_results(query, results)
+    if not selected:
+        return True
+    selected_chunk_ids = {result.chunk_id for result in selected}
+    cited_chunk_ids = {str(citation.get("chunk_id") or "") for citation in answer.citations}
+    return bool(selected_chunk_ids.intersection(cited_chunk_ids))
 
 
 def _should_score_direct_fallback(query: str) -> bool:
@@ -1430,7 +1505,7 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
             return multi_part_results
         if _should_score_direct_fallback(query):
             scored = [
-                (_fallback_evidence_score(query, result), index, result)
+                (_fallback_evidence_score(query, result) + _screen_request_score(query, _fallback_answer_text(result)), index, result)
                 for index, result in enumerate(ordered_results[:8])
             ]
             if scored:
@@ -1714,7 +1789,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
     if results and (
         not _answer_supported_by_results(answer.answer, results)
         or _structured_answer_is_too_terse(answer.answer, results)
-        or (answer.insufficient_evidence and len(_fallback_evidence_results(query, results)) > 1)
+        or (answer.insufficient_evidence and _has_strong_insufficient_fallback(query, results))
         or (_should_score_direct_fallback(query) and not _explicit_scope_has_candidate(query, results))
         or (
             _should_score_direct_fallback(query)
@@ -1729,6 +1804,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         or not _comparison_answer_covers_retrieved_model_sides(query, list(answer.citations), results)
         or not _answer_addresses_quantity_request(answer.answer, query, results)
         or not _answer_addresses_image_capture_buffer_request(answer.answer, query, results)
+        or not _answer_cites_selected_screen_evidence(answer, query, results)
     ):
         fallback = _fallback_answer(query, results)
         answer = fallback.model_copy(
