@@ -1,6 +1,6 @@
 {
   "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 2
+    "expected_evidence_not_cited": 1
   },
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
@@ -99,24 +99,48 @@
     ]
   },
   "answer_grounding_contextual_rows_19_20": {
-    "answer_result": "2/2 retrieval passed at rank 1, but 0/2 actual HTTP answer grounding passed; answer_sources fallback_validation:2; answer failure reasons expected_evidence_not_cited:2.",
-    "classification": "diagnostic_not_clean_contextual_rows_19_20_answer_grounding",
+    "answer_result": "2/2 retrieval passed at rank 1. Source review accepts row 19 as clean same-source composite-citation evidence; row 20 remains not clean with expected_evidence_not_cited:1. Original automated run summary remains 0/2 and is preserved as diagnostic for row 20/combined claims.",
+    "classification": "partial_clean_row_19_row_20_current_answer_evidence_selection_failure_not_clean",
     "dataset": "test_reports/retrieval_eval_dataset_20260831_024624.jsonl",
     "latest_run": "retrieval_eval_20260831_024624",
     "manifest": "test_reports/retrieval_eval_manifest_20260831_024624.json",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_024624. Row 19 visible fallback answer states the Step 3/3 X:Y Ratio Adjustment screen and image X:Y ratio 1:1, citing composite chunk 683408b9 with null quote_span; the cited content directly contains the procedure and screen text but does not match stored expected chunk ids, so it remains diagnostic/source-equivalence-review-pending rather than clean. Row 20 cites 6f482fea with null quote_span and returns broader Capture Using Line Scan Cameras / Line Camera Setting Navigation content; it does not cite the stored image-ratio procedure chunk 09e5b601 or Preparing a Line Scan Camera support chunk 679269a7, so it remains expected_evidence_not_cited.",
-    "remaining": "Source-review row 19 composite citation equivalence and fix or source-review row 20 answer evidence selection before accepting rows 19-20 as clean answer-grounding evidence.",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_024624. Row 19 visible fallback answer states the Step 3/3 X:Y Ratio Adjustment screen and image X:Y ratio 1:1, citing composite chunk 683408b9 with null quote_span; cited persisted content directly contains Preparing a Line Scan Camera / Capture Using Line Scan Cameras (Standard Lighting Mode), 4. Adjust the image ratio, and the Step 3/3 X:Y Ratio Adjustment instruction, so it source-equivalently satisfies stored chunks 09e5b601 and e1acf656. Row 20 cites broader chunk 6f482fea and returns Line Camera Setting Navigation overview text; although a top result contains Preparation 2 and image-ratio context, the cited/user-visible answer does not directly answer the procedure relationship, so row 20 remains expected_evidence_not_cited.",
+    "remaining": "Fix or source-review contextual row 20 answer evidence selection: row 20 needs a citation/answer tied to Preparation 2: Changing the Settings to Capture the Workpiece Correctly / Line Camera Setting Navigation plus the Adjust the image ratio step, or a source-backed dataset correction. Preserve row 19 as source-reviewed clean from retrieval_eval_20260831_024624.",
     "results": "test_reports/retrieval_eval_results_20260831_024624.jsonl",
     "run_dataset": "test_reports/retrieval_eval_dataset_20260831_024624.jsonl",
     "runtime_load": "Started side API container manuals-rag-temp-api-39262386-20260831-rows19-20 on http://127.0.0.1:8812 from clean worktree /tmp/manuals_rag_accuracy_20260831_0242/manuals_rag at origin/main 2c33faf. /health returned ok. Loaded from /workspace/manuals_rag with checked-in model env OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-    "status": "diagnostic_not_clean",
+    "status": "partial_clean_row_19_row_20_not_clean",
     "summary": "test_reports/retrieval_eval_summary_20260831_024624.json",
-    "timestamp": "2026-08-31T02:56:00Z",
+    "timestamp": "2026-08-31T03:22:00Z",
+    "source_review": [
+      {
+        "row": 19,
+        "classification": "clean_source_reviewed_same_document_composite_citation",
+        "cited_chunk": "683408b9-715e-5a14-a609-1c4c020ec6af",
+        "equivalent_expected_chunks": [
+          "09e5b601-a5d1-5368-b4fd-5cb78c1da211",
+          "e1acf656-997c-5336-b657-47bad8566277"
+        ],
+        "source_document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+        "support": "The cited persisted content itself contains the procedure heading, Adjust the image ratio step, and Step 3/3 X:Y Ratio Adjustment screen instruction to make the image X:Y ratio 1:1."
+      },
+      {
+        "row": 20,
+        "classification": "expected_evidence_not_cited_current_failure",
+        "cited_chunk": "6f482fea-c0d0-5e3a-81db-6e5895de9d51",
+        "missing_expected_chunks": [
+          "09e5b601-a5d1-5368-b4fd-5cb78c1da211",
+          "679269a7-4dfc-5151-b972-e318df26a196"
+        ],
+        "support_gap": "The cited chunk says Line Camera Setting Navigation changes capture options and references Preparation 2, but the answer does not cite/use the image-ratio step or directly state the procedure relationship requested by the question."
+      }
+    ],
     "validation": [
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before tracking update.",
-      "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-rows19-20 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 18 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval 2/2, answer 0/2.",
-      "Manual JSONL inspection compared user-visible answers and citations against expected evidence roles before classification."
+      "Read latest guardrail findings and cron summaries: latest guardrail status ok for accuracy commit 7d8e368 / guardrail commit 4cb14a2; no unresolved containment superseded rows 19-20.",
+      "Manual JSONL inspection of retrieval_eval_results_20260831_024624 compared the user-visible answers and citations against each expected evidence role.",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK after stale remaining alias correction.",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 30 passed."
     ]
   },
   "answer_grounding_cross_document_rows_6_7": {
@@ -151,24 +175,25 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "2/2 retrieval passed at rank 1, but 0/2 actual HTTP answer grounding passed; answer_sources fallback_validation:2; answer failure reasons expected_evidence_not_cited:2.",
-    "classification": "diagnostic_not_clean_contextual_rows_19_20_answer_grounding",
+    "answer_result": "2/2 retrieval passed at rank 1. Source review accepts row 19 as clean same-source composite-citation evidence; row 20 remains not clean with expected_evidence_not_cited:1. Original automated run summary remains 0/2 and is preserved as diagnostic for row 20/combined claims.",
+    "classification": "partial_clean_row_19_row_20_current_answer_evidence_selection_failure_not_clean",
     "dataset": "test_reports/retrieval_eval_dataset_20260831_024624.jsonl",
     "latest_run": "retrieval_eval_20260831_024624",
     "manifest": "test_reports/retrieval_eval_manifest_20260831_024624.json",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_024624. Row 19 visible fallback answer states the Step 3/3 X:Y Ratio Adjustment screen and image X:Y ratio 1:1, citing composite chunk 683408b9 with null quote_span; the cited content directly contains the procedure and screen text but does not match stored expected chunk ids, so it remains diagnostic/source-equivalence-review-pending rather than clean. Row 20 cites 6f482fea with null quote_span and returns broader Capture Using Line Scan Cameras / Line Camera Setting Navigation content; it does not cite the stored image-ratio procedure chunk 09e5b601 or Preparing a Line Scan Camera support chunk 679269a7, so it remains expected_evidence_not_cited.",
-    "remaining": "Source-review row 19 composite citation equivalence and fix or source-review row 20 answer evidence selection before accepting rows 19-20 as clean answer-grounding evidence.",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_024624. Row 19 visible fallback answer states the Step 3/3 X:Y Ratio Adjustment screen and image X:Y ratio 1:1, citing composite chunk 683408b9 with null quote_span; cited persisted content directly contains Preparing a Line Scan Camera / Capture Using Line Scan Cameras (Standard Lighting Mode), 4. Adjust the image ratio, and the Step 3/3 X:Y Ratio Adjustment instruction, so it source-equivalently satisfies stored chunks 09e5b601 and e1acf656. Row 20 cites broader chunk 6f482fea and returns Line Camera Setting Navigation overview text; although a top result contains Preparation 2 and image-ratio context, the cited/user-visible answer does not directly answer the procedure relationship, so row 20 remains expected_evidence_not_cited.",
+    "remaining": "Fix or source-review contextual row 20 answer evidence selection: row 20 needs a citation/answer tied to Preparation 2: Changing the Settings to Capture the Workpiece Correctly / Line Camera Setting Navigation plus the Adjust the image ratio step, or a source-backed dataset correction. Preserve row 19 as source-reviewed clean from retrieval_eval_20260831_024624.",
     "results": "test_reports/retrieval_eval_results_20260831_024624.jsonl",
     "run_dataset": "test_reports/retrieval_eval_dataset_20260831_024624.jsonl",
     "runtime_load": "Started side API container manuals-rag-temp-api-39262386-20260831-rows19-20 on http://127.0.0.1:8812 from clean worktree /tmp/manuals_rag_accuracy_20260831_0242/manuals_rag at origin/main 2c33faf. /health returned ok. Loaded from /workspace/manuals_rag with checked-in model env OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-    "status": "diagnostic_not_clean",
+    "status": "partial_clean_row_19_row_20_not_clean",
     "summary": "test_reports/retrieval_eval_summary_20260831_024624.json",
-    "timestamp": "2026-08-31T02:56:00Z",
+    "timestamp": "2026-08-31T03:22:00Z",
     "validation": [
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before tracking update.",
-      "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-rows19-20 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 18 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval 2/2, answer 0/2.",
-      "Manual JSONL inspection compared user-visible answers and citations against expected evidence roles before classification."
+      "Read latest guardrail findings and cron summaries: latest guardrail status ok for accuracy commit 7d8e368 / guardrail commit 4cb14a2; no unresolved containment superseded rows 19-20.",
+      "Manual JSONL inspection of retrieval_eval_results_20260831_024624 compared the user-visible answers and citations against each expected evidence role.",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK after stale remaining alias correction.",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 30 passed."
     ]
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -518,7 +543,7 @@
       "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
     ]
   },
-  "answer_grounding_status": "2026-08-31 contextual rows 19-20 actual HTTP run retrieval_eval_20260831_024624 is diagnostic/not-clean: retrieval passed 2/2 at rank 1, but answer grounding failed 0/2 with expected_evidence_not_cited:2 after manual citation inspection. Row 19 is composite-citation source-equivalence review pending; row 20 is an answer evidence-selection miss.",
+  "answer_grounding_status": "2026-08-31 contextual rows 19-20 actual HTTP run retrieval_eval_20260831_024624 is now partially source-reviewed: row 19 is clean under same-source composite-citation equivalence because cited chunk 683408b9 contains the image-ratio procedure and Step 3/3 X:Y Ratio Adjustment screen text; row 20 remains expected_evidence_not_cited because the visible answer cites broader navigation content and omits the specific procedure relationship.",
   "constraints": {
     "allowed_logic": [
       "retrieval",
@@ -536,7 +561,7 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 2
+    "expected_evidence_not_cited": 1
   },
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
@@ -8690,7 +8715,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Source-review contextual row 19 composite citation equivalence and fix contextual row 20 answer evidence selection: row 19 may be clean only if the composite cited chunk is accepted as source-equivalent to the stored image-ratio procedure/screen evidence; row 20 must cite/use the image-ratio procedure and Preparing a Line Scan Camera support evidence or be reclassified with a source-backed dataset correction.",
+  "next_target": "Fix or source-review contextual row 20 answer evidence selection: the answer should state that image-ratio adjustment is part of Preparation 2 / Line Camera Setting Navigation for capturing the workpiece correctly, and cite source-compatible image-ratio procedure plus Preparing a Line Scan Camera support evidence; preserve row 19 as source-reviewed clean from retrieval_eval_20260831_024624.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9444,7 +9469,7 @@
   },
   "question_bank": {
     "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 2
+      "expected_evidence_not_cited": 1
     },
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
@@ -9543,24 +9568,48 @@
       ]
     },
     "answer_grounding_contextual_rows_19_20": {
-      "answer_result": "2/2 retrieval passed at rank 1, but 0/2 actual HTTP answer grounding passed; answer_sources fallback_validation:2; answer failure reasons expected_evidence_not_cited:2.",
-      "classification": "diagnostic_not_clean_contextual_rows_19_20_answer_grounding",
+      "answer_result": "2/2 retrieval passed at rank 1. Source review accepts row 19 as clean same-source composite-citation evidence; row 20 remains not clean with expected_evidence_not_cited:1. Original automated run summary remains 0/2 and is preserved as diagnostic for row 20/combined claims.",
+      "classification": "partial_clean_row_19_row_20_current_answer_evidence_selection_failure_not_clean",
       "dataset": "test_reports/retrieval_eval_dataset_20260831_024624.jsonl",
       "latest_run": "retrieval_eval_20260831_024624",
       "manifest": "test_reports/retrieval_eval_manifest_20260831_024624.json",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_024624. Row 19 visible fallback answer states the Step 3/3 X:Y Ratio Adjustment screen and image X:Y ratio 1:1, citing composite chunk 683408b9 with null quote_span; the cited content directly contains the procedure and screen text but does not match stored expected chunk ids, so it remains diagnostic/source-equivalence-review-pending rather than clean. Row 20 cites 6f482fea with null quote_span and returns broader Capture Using Line Scan Cameras / Line Camera Setting Navigation content; it does not cite the stored image-ratio procedure chunk 09e5b601 or Preparing a Line Scan Camera support chunk 679269a7, so it remains expected_evidence_not_cited.",
-      "remaining": "Source-review row 19 composite citation equivalence and fix or source-review row 20 answer evidence selection before accepting rows 19-20 as clean answer-grounding evidence.",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_024624. Row 19 visible fallback answer states the Step 3/3 X:Y Ratio Adjustment screen and image X:Y ratio 1:1, citing composite chunk 683408b9 with null quote_span; cited persisted content directly contains Preparing a Line Scan Camera / Capture Using Line Scan Cameras (Standard Lighting Mode), 4. Adjust the image ratio, and the Step 3/3 X:Y Ratio Adjustment instruction, so it source-equivalently satisfies stored chunks 09e5b601 and e1acf656. Row 20 cites broader chunk 6f482fea and returns Line Camera Setting Navigation overview text; although a top result contains Preparation 2 and image-ratio context, the cited/user-visible answer does not directly answer the procedure relationship, so row 20 remains expected_evidence_not_cited.",
+      "remaining": "Fix or source-review contextual row 20 answer evidence selection: row 20 needs a citation/answer tied to Preparation 2: Changing the Settings to Capture the Workpiece Correctly / Line Camera Setting Navigation plus the Adjust the image ratio step, or a source-backed dataset correction. Preserve row 19 as source-reviewed clean from retrieval_eval_20260831_024624.",
       "results": "test_reports/retrieval_eval_results_20260831_024624.jsonl",
       "run_dataset": "test_reports/retrieval_eval_dataset_20260831_024624.jsonl",
       "runtime_load": "Started side API container manuals-rag-temp-api-39262386-20260831-rows19-20 on http://127.0.0.1:8812 from clean worktree /tmp/manuals_rag_accuracy_20260831_0242/manuals_rag at origin/main 2c33faf. /health returned ok. Loaded from /workspace/manuals_rag with checked-in model env OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "status": "diagnostic_not_clean",
+      "status": "partial_clean_row_19_row_20_not_clean",
       "summary": "test_reports/retrieval_eval_summary_20260831_024624.json",
-      "timestamp": "2026-08-31T02:56:00Z",
+      "timestamp": "2026-08-31T03:22:00Z",
+      "source_review": [
+        {
+          "row": 19,
+          "classification": "clean_source_reviewed_same_document_composite_citation",
+          "cited_chunk": "683408b9-715e-5a14-a609-1c4c020ec6af",
+          "equivalent_expected_chunks": [
+            "09e5b601-a5d1-5368-b4fd-5cb78c1da211",
+            "e1acf656-997c-5336-b657-47bad8566277"
+          ],
+          "source_document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+          "support": "The cited persisted content itself contains the procedure heading, Adjust the image ratio step, and Step 3/3 X:Y Ratio Adjustment screen instruction to make the image X:Y ratio 1:1."
+        },
+        {
+          "row": 20,
+          "classification": "expected_evidence_not_cited_current_failure",
+          "cited_chunk": "6f482fea-c0d0-5e3a-81db-6e5895de9d51",
+          "missing_expected_chunks": [
+            "09e5b601-a5d1-5368-b4fd-5cb78c1da211",
+            "679269a7-4dfc-5151-b972-e318df26a196"
+          ],
+          "support_gap": "The cited chunk says Line Camera Setting Navigation changes capture options and references Preparation 2, but the answer does not cite/use the image-ratio step or directly state the procedure relationship requested by the question."
+        }
+      ],
       "validation": [
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before tracking update.",
-        "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-rows19-20 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 18 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval 2/2, answer 0/2.",
-        "Manual JSONL inspection compared user-visible answers and citations against expected evidence roles before classification."
+        "Read latest guardrail findings and cron summaries: latest guardrail status ok for accuracy commit 7d8e368 / guardrail commit 4cb14a2; no unresolved containment superseded rows 19-20.",
+        "Manual JSONL inspection of retrieval_eval_results_20260831_024624 compared the user-visible answers and citations against each expected evidence role.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK after stale remaining alias correction.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 30 passed."
       ]
     },
     "answer_grounding_cross_document_rows_6_7": {
@@ -9595,24 +9644,25 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "2/2 retrieval passed at rank 1, but 0/2 actual HTTP answer grounding passed; answer_sources fallback_validation:2; answer failure reasons expected_evidence_not_cited:2.",
-      "classification": "diagnostic_not_clean_contextual_rows_19_20_answer_grounding",
+      "answer_result": "2/2 retrieval passed at rank 1. Source review accepts row 19 as clean same-source composite-citation evidence; row 20 remains not clean with expected_evidence_not_cited:1. Original automated run summary remains 0/2 and is preserved as diagnostic for row 20/combined claims.",
+      "classification": "partial_clean_row_19_row_20_current_answer_evidence_selection_failure_not_clean",
       "dataset": "test_reports/retrieval_eval_dataset_20260831_024624.jsonl",
       "latest_run": "retrieval_eval_20260831_024624",
       "manifest": "test_reports/retrieval_eval_manifest_20260831_024624.json",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_024624. Row 19 visible fallback answer states the Step 3/3 X:Y Ratio Adjustment screen and image X:Y ratio 1:1, citing composite chunk 683408b9 with null quote_span; the cited content directly contains the procedure and screen text but does not match stored expected chunk ids, so it remains diagnostic/source-equivalence-review-pending rather than clean. Row 20 cites 6f482fea with null quote_span and returns broader Capture Using Line Scan Cameras / Line Camera Setting Navigation content; it does not cite the stored image-ratio procedure chunk 09e5b601 or Preparing a Line Scan Camera support chunk 679269a7, so it remains expected_evidence_not_cited.",
-      "remaining": "Source-review row 19 composite citation equivalence and fix or source-review row 20 answer evidence selection before accepting rows 19-20 as clean answer-grounding evidence.",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_024624. Row 19 visible fallback answer states the Step 3/3 X:Y Ratio Adjustment screen and image X:Y ratio 1:1, citing composite chunk 683408b9 with null quote_span; cited persisted content directly contains Preparing a Line Scan Camera / Capture Using Line Scan Cameras (Standard Lighting Mode), 4. Adjust the image ratio, and the Step 3/3 X:Y Ratio Adjustment instruction, so it source-equivalently satisfies stored chunks 09e5b601 and e1acf656. Row 20 cites broader chunk 6f482fea and returns Line Camera Setting Navigation overview text; although a top result contains Preparation 2 and image-ratio context, the cited/user-visible answer does not directly answer the procedure relationship, so row 20 remains expected_evidence_not_cited.",
+      "remaining": "Fix or source-review contextual row 20 answer evidence selection: row 20 needs a citation/answer tied to Preparation 2: Changing the Settings to Capture the Workpiece Correctly / Line Camera Setting Navigation plus the Adjust the image ratio step, or a source-backed dataset correction. Preserve row 19 as source-reviewed clean from retrieval_eval_20260831_024624.",
       "results": "test_reports/retrieval_eval_results_20260831_024624.jsonl",
       "run_dataset": "test_reports/retrieval_eval_dataset_20260831_024624.jsonl",
       "runtime_load": "Started side API container manuals-rag-temp-api-39262386-20260831-rows19-20 on http://127.0.0.1:8812 from clean worktree /tmp/manuals_rag_accuracy_20260831_0242/manuals_rag at origin/main 2c33faf. /health returned ok. Loaded from /workspace/manuals_rag with checked-in model env OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "status": "diagnostic_not_clean",
+      "status": "partial_clean_row_19_row_20_not_clean",
       "summary": "test_reports/retrieval_eval_summary_20260831_024624.json",
-      "timestamp": "2026-08-31T02:56:00Z",
+      "timestamp": "2026-08-31T03:22:00Z",
       "validation": [
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before tracking update.",
-        "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-rows19-20 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260824_080232.jsonl --query-offset 18 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval 2/2, answer 0/2.",
-        "Manual JSONL inspection compared user-visible answers and citations against expected evidence roles before classification."
+        "Read latest guardrail findings and cron summaries: latest guardrail status ok for accuracy commit 7d8e368 / guardrail commit 4cb14a2; no unresolved containment superseded rows 19-20.",
+        "Manual JSONL inspection of retrieval_eval_results_20260831_024624 compared the user-visible answers and citations against each expected evidence role.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK after stale remaining alias correction.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 30 passed."
       ]
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -9751,9 +9801,9 @@
         "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
       ]
     },
-    "answer_grounding_status": "2026-08-31 contextual rows 19-20 actual HTTP run retrieval_eval_20260831_024624 is diagnostic/not-clean: retrieval passed 2/2 at rank 1, but answer grounding failed 0/2 with expected_evidence_not_cited:2 after manual citation inspection. Row 19 is composite-citation source-equivalence review pending; row 20 is an answer evidence-selection miss.",
+    "answer_grounding_status": "2026-08-31 contextual rows 19-20 actual HTTP run retrieval_eval_20260831_024624 is now partially source-reviewed: row 19 is clean under same-source composite-citation equivalence because cited chunk 683408b9 contains the image-ratio procedure and Step 3/3 X:Y Ratio Adjustment screen text; row 20 remains expected_evidence_not_cited because the visible answer cites broader navigation content and omits the specific procedure relationship.",
     "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 2
+      "expected_evidence_not_cited": 1
     },
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
@@ -11876,7 +11926,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Source-review contextual row 19 composite citation equivalence and fix contextual row 20 answer evidence selection: row 19 may be clean only if the composite cited chunk is accepted as source-equivalent to the stored image-ratio procedure/screen evidence; row 20 must cite/use the image-ratio procedure and Preparing a Line Scan Camera support evidence or be reclassified with a source-backed dataset correction.",
+    "next_target": "Fix or source-review contextual row 20 answer evidence selection: the answer should state that image-ratio adjustment is part of Preparation 2 / Line Camera Setting Navigation for capturing the workpiece correctly, and cite source-compatible image-ratio procedure plus Preparing a Line Scan Camera support evidence; preserve row 19 as source-reviewed clean from retrieval_eval_20260831_024624.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -11913,7 +11963,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Source-review contextual row 19 composite citation equivalence and fix contextual row 20 answer evidence selection: row 19 may be clean only if the composite cited chunk is accepted as source-equivalent to the stored image-ratio procedure/screen evidence; row 20 must cite/use the image-ratio procedure and Preparing a Line Scan Camera support evidence or be reclassified with a source-backed dataset correction.",
+    "remaining": "Fix or source-review contextual row 20 answer evidence selection: row 20 needs a citation/answer tied to Preparation 2: Changing the Settings to Capture the Workpiece Correctly / Line Camera Setting Navigation plus the Adjust the image ratio step, or a source-backed dataset correction. Preserve row 19 as source-reviewed clean from retrieval_eval_20260831_024624.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12267,9 +12317,10 @@
         "scope": "contextual rows 17-18 answer-grounding repair diagnostics"
       },
       {
-        "reason": "diagnostic actual HTTP answer run: retrieval passed 2/2 but answer grounding failed expected_evidence_not_cited for both rows; row 19 requires source-equivalence review and row 20 missed expected image-ratio/preparing evidence.",
+        "reason": "diagnostic/not-clean for row 20 and the combined rows 19-20 claim: row 19 is source-reviewed clean via cited composite chunk 683408b9, but row 20 still cites broader navigation content and misses the image-ratio procedure/Preparing a Line Scan Camera relationship.",
         "run_id": "retrieval_eval_20260831_024624",
-        "scope": "contextual procedure rows 19-20"
+        "scope": "contextual procedure row 20 and combined rows 19-20 clean claim",
+        "row_19_source_review": "accepted_clean_same_source_composite_citation"
       }
     ],
     "single_step_questions": 101,
@@ -12946,9 +12997,9 @@
       },
       "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
     ],
-    "updated_at": "2026-08-31T02:56:00Z"
+    "updated_at": "2026-08-31T03:22:00Z"
   },
-  "remaining": "Source-review contextual row 19 composite citation equivalence and fix contextual row 20 answer evidence selection: row 19 may be clean only if the composite cited chunk is accepted as source-equivalent to the stored image-ratio procedure/screen evidence; row 20 must cite/use the image-ratio procedure and Preparing a Line Scan Camera support evidence or be reclassified with a source-backed dataset correction.",
+  "remaining": "Fix or source-review contextual row 20 answer evidence selection: row 20 needs a citation/answer tied to Preparation 2: Changing the Settings to Capture the Workpiece Correctly / Line Camera Setting Navigation plus the Adjust the image ratio step, or a source-backed dataset correction. Preserve row 19 as source-reviewed clean from retrieval_eval_20260831_024624.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -13302,9 +13353,10 @@
       "scope": "contextual rows 17-18 answer-grounding repair diagnostics"
     },
     {
-      "reason": "diagnostic actual HTTP answer run: retrieval passed 2/2 but answer grounding failed expected_evidence_not_cited for both rows; row 19 requires source-equivalence review and row 20 missed expected image-ratio/preparing evidence.",
+      "reason": "diagnostic/not-clean for row 20 and the combined rows 19-20 claim: row 19 is source-reviewed clean via cited composite chunk 683408b9, but row 20 still cites broader navigation content and misses the image-ratio procedure/Preparing a Line Scan Camera relationship.",
       "run_id": "retrieval_eval_20260831_024624",
-      "scope": "contextual procedure rows 19-20"
+      "scope": "contextual procedure row 20 and combined rows 19-20 clean claim",
+      "row_19_source_review": "accepted_clean_same_source_composite_citation"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -13980,5 +14032,5 @@
     },
     "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids."
   ],
-  "updated_at": "2026-08-31T02:56:00Z"
+  "updated_at": "2026-08-31T03:22:00Z"
 }
