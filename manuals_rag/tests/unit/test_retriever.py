@@ -3093,6 +3093,49 @@ def test_table_preferred_lookup_promotion_preserves_top_lexical_row_after_rerank
     assert promoted[1].chunk_id == "broad-cyclic-details"
 
 
+def test_table_score_prefers_single_signal_description_cell_over_aggregate_function_row():
+    analysis = retriever.analyze_query("Which CV-X482 output line corresponds to data output bit 10?")
+    terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
+
+    exact_cell = {
+        "content": (
+            "Column headers: Signal Description; Row headers: OUT_DATA10; "
+            "Cell value: Data output bit 10; Row: 11; Column: 1"
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_column_headers": ["Signal Description"],
+            "table_row_headers": ["OUT_DATA10"],
+            "product_model": "CV-X482",
+        },
+        "priority_score": 99.0,
+    }
+    aggregate_function = {
+        "content": (
+            "Column headers: Function; Row headers: OUT_DATA0 > OUT_DATA1 > OUT_DATA2 > OUT_DATA3 > "
+            "OUT_DATA4 > OUT_DATA5 > OUT_DATA6 > OUT_DATA7 > OUT_DATA8 > OUT_DATA9 > OUT_DATA10 > "
+            "OUT_DATA11 > OUT_DATA12 > OUT_DATA13 > OUT_DATA14 > OUT_DATA15 > Data output bit 0 (LSB) > "
+            "Data output bit 1 > Data output bit 2 > Data output bit 3 > Data output bit 4 > "
+            "Data output bit 5 > Data output bit 6 > Data output bit 7 > Data output bit 8 > "
+            "Data output bit 9 > Data output bit 10 > Data output bit 11 > Data output bit 12 > "
+            "Data output bit 13 > Data output bit 14 > Data output bit 15 (MSB); "
+            "Cell value: Measurement results are output according to the output settings.; Row: 1; Column: 2"
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_column_headers": ["Function"],
+            "table_row_headers": ["OUT_DATA0", "OUT_DATA1", "OUT_DATA10", "Data output bit 10"],
+            "product_model": "CV-X482",
+        },
+        "priority_score": 99.0,
+    }
+
+    assert "corresponds" not in terms
+    assert retriever._table_lexical_score(exact_cell, terms) > retriever._table_lexical_score(aggregate_function, terms)
+
+
 def test_comparison_table_lexical_adds_bounded_row_key_supplement(monkeypatch):
     calls: list[tuple[str, tuple[object, ...]]] = []
 

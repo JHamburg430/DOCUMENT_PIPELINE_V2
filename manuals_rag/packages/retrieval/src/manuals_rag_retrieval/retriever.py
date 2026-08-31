@@ -40,6 +40,8 @@ LEXICAL_TABLE_STOPWORDS = {
     "check",
     "checked",
     "confirm",
+    "correspond",
+    "corresponds",
     "corrected",
     "correction",
     "could",
@@ -66,6 +68,7 @@ LEXICAL_TABLE_STOPWORDS = {
     "value",
     "what",
     "when",
+    "which",
     "vision",
     "with",
 }
@@ -633,6 +636,7 @@ def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase
         score += 0.12
     if metadata.get("table_cell"):
         score += 0.06
+        score += _table_cell_value_binding_score(content, metadata, terms)
     if metadata.get("table_key_value") and re.search(r"\b(?:status|cause|remedy|error|alarm)\b", content, flags=re.IGNORECASE):
         score += 0.18
     if metadata.get("table_header") and not (
@@ -642,6 +646,35 @@ def _table_lexical_score(row: dict[str, object], terms: list[str], prompt_phrase
     if re.search(r"\b(?:cause|remedy|corrective action|error messages?|symptom)\b", content, flags=re.IGNORECASE):
         score += 0.16
     return score + float(row.get("priority_score") or 0.0) / 100.0
+
+
+def _table_cell_value_binding_score(content: str, metadata: dict[str, object], terms: list[str]) -> float:
+    if not metadata.get("table_cell"):
+        return 0.0
+    cell_match = re.search(r"\bCell value:\s*([^;\n]+)", content, flags=re.IGNORECASE)
+    if not cell_match:
+        return 0.0
+    cell_value = cell_match.group(1).strip()
+    cell_terms = _text_terms(cell_value)
+    term_set = set(terms)
+    numeric_terms = {term for term in term_set if term.isdigit()}
+    if not numeric_terms:
+        return 0.0
+
+    score = 0.0
+    if {"data", "output"}.issubset(term_set) and {"data", "output", "bit"}.issubset(cell_terms):
+        matched_numbers = numeric_terms.intersection(cell_terms)
+        if matched_numbers:
+            score += 1.8 + min(0.6, 0.2 * len(matched_numbers))
+            column_terms = _text_terms(" ".join(str(item) for item in metadata.get("table_column_headers") or []))
+            row_terms = _text_terms(" ".join(str(item) for item in metadata.get("table_row_headers") or []))
+            if {"signal", "description"}.issubset(column_terms):
+                score += 1.0
+            if any(number in "".join(row_terms) for number in matched_numbers) and any(
+                term.startswith(("out", "data", "signal")) for term in row_terms
+            ):
+                score += 0.45
+    return score
 
 
 def _comparison_setting_phrases(query: str) -> list[str]:

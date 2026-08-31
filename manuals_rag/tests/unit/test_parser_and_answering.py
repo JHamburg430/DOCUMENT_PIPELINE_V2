@@ -4137,6 +4137,63 @@ def test_validation_fallback_rejects_aggregate_signal_description_inference(monk
     assert any("not sufficiently supported" in warning for warning in answer.warnings)
 
 
+def test_validation_fallback_accepts_single_signal_description_cell(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="signal-description-cell",
+            score=0.9,
+            title="CV-X manual",
+            document_version_id="v1",
+            source_document_id="cvx",
+            pages=[819],
+            section_path=["6-78"],
+            content=(
+                "Column headers: Signal Description; Row headers: OUT_DATA10; "
+                "Cell value: Data output bit 10; Row: 11; Column: 1"
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_cell": True,
+                "table_column_headers": ["Signal Description"],
+                "table_row_headers": ["OUT_DATA10"],
+            },
+        )
+    ]
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "final_answer":
+            return (
+                {
+                    "answer": "Unsupported generated answer",
+                    "confidence": "medium",
+                    "used_documents": [],
+                    "citations": [],
+                    "warnings": [],
+                    "followup_questions": [],
+                    "insufficient_evidence": False,
+                },
+                '{"answer":"Unsupported generated answer","confidence":"medium",'
+                '"used_documents":[],"citations":[],"warnings":[],'
+                '"followup_questions":[],"insufficient_evidence":false}',
+            )
+        return (
+            {"items": [{"chunk_id": "signal-description-cell", "verdict": "relevant", "reason": "Direct table match."}]},
+            '{"items":[{"chunk_id":"signal-description-cell","verdict":"relevant","reason":"Direct table match."}]}',
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fake_chat_json)
+
+    answer, trace = generate_answer_with_trace(
+        "Which controller output line corresponds to data output bit 10?",
+        results,
+    )
+
+    assert answer.answer == "OUT_DATA10 corresponds to Data output bit 10."
+    assert [citation["chunk_id"] for citation in answer.citations] == ["signal-description-cell"]
+    assert trace["final_answer"]["answer_source"] == "fallback_validation"
+    assert any("not sufficiently supported" in warning for warning in answer.warnings)
+
+
 def test_validation_fallback_omits_unrequested_neighbor_setting_context(monkeypatch):
     results = [
         SearchResult(

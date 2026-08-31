@@ -776,6 +776,45 @@ def _focused_table_like_answer_text(query: str, result: SearchResult) -> str:
     return "Relevant retrieved table rows:\n" + "\n".join(f"- {line}" for line in selected)
 
 
+def _focused_signal_description_answer_text(query: str, result: SearchResult) -> str:
+    if str(result.metadata.get("chunk_type") or "") != "table_record":
+        return ""
+    query_terms = _answer_terms(query)
+    if not {"data", "output"}.issubset(query_terms):
+        return ""
+    numeric_terms = set(re.findall(r"\b\d{1,6}\b", query))
+    if not numeric_terms:
+        return ""
+    column_terms = _answer_terms(" ".join(str(item) for item in result.metadata.get("table_column_headers") or []))
+    if not {"signal", "description"}.issubset(column_terms):
+        return ""
+    content = str(result.content or "")
+    row_match = re.search(r"\bRow headers:\s*([^;\n]+)", content, flags=re.IGNORECASE)
+    cell_match = re.search(r"\bCell value:\s*([^;\n]+)", content, flags=re.IGNORECASE)
+    if not row_match or not cell_match:
+        return ""
+    row_header = re.sub(r"\s+", " ", row_match.group(1).strip())
+    cell_value = re.sub(r"\s+", " ", cell_match.group(1).strip())
+    if ">" in row_header or ">" in cell_value:
+        return ""
+    cell_terms = _answer_terms(cell_value)
+    if not {"data", "output", "bit"}.issubset(cell_terms):
+        return ""
+    matched_numbers = {
+        number
+        for number in numeric_terms
+        if re.search(rf"(?<!\d){re.escape(number)}(?!\d)", cell_value)
+    }
+    if not matched_numbers:
+        return ""
+    row_terms = _answer_terms(row_header)
+    if not any(number in "".join(row_terms) for number in matched_numbers):
+        return ""
+    if not any(term.startswith(("out", "data", "signal")) for term in row_terms):
+        return ""
+    return f"{row_header} corresponds to {cell_value}."
+
+
 def _focused_program_setting_protection_answer_text(query: str, result: SearchResult) -> str:
     query_terms = _answer_terms(query)
     if not {"program", "setting"}.issubset(query_terms):
@@ -1166,6 +1205,7 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
         answer_text = (
             _matching_troubleshooting_row_text(query, top)
             or _focused_diagnostic_table_answer_text(query, top)
+            or _focused_signal_description_answer_text(query, top)
             or _focused_table_record_answer_text(query, top)
             or _focused_table_like_answer_text(query, top)
             or _focused_program_setting_protection_answer_text(query, top)
@@ -1174,7 +1214,7 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     else:
         answer_text = "Retrieved evidence:\n" + "\n".join(
             f"- {result.title}, page(s) {', '.join(str(page) for page in result.pages) or 'unknown'}: "
-            f"{_focused_diagnostic_table_answer_text(query, result) or _focused_table_record_answer_text(query, result) or _focused_table_like_answer_text(query, result) or _focused_program_setting_protection_answer_text(query, result) or _fallback_answer_text(result)}"
+            f"{_focused_diagnostic_table_answer_text(query, result) or _focused_signal_description_answer_text(query, result) or _focused_table_record_answer_text(query, result) or _focused_table_like_answer_text(query, result) or _focused_program_setting_protection_answer_text(query, result) or _fallback_answer_text(result)}"
             for result in fallback_results
         )
     return AnswerResponse(
