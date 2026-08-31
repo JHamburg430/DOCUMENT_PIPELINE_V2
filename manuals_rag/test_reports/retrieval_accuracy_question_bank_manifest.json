@@ -187,53 +187,47 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "Loaded actual HTTP row-11 rerun passed answer grounding 1/1 with fallback_validation and no answer failure reasons.",
-    "classification": "single_step_v2_row_11_clean_source_backed_signal_description_binding",
+    "answer_result": "Loaded actual HTTP row-13 rerun passed answer grounding 1/1 with fallback_validation and no answer failure reasons.",
+    "classification": "single_step_v2_row_13_clean_source_backed_display_feature_answer",
     "clean_rows": [
       {
-        "answer": "OUT_DATA10 corresponds to Data output bit 10.",
-        "cited_chunk": "4ae86489-c824-566e-8deb-4cd9f6098b17",
-        "expected_chunk": "6941c28c-9179-5c4c-beac-e465228e6dcd",
-        "query": "Which CV-X482 output line corresponds to data output bit 10?",
-        "row": 11,
-        "source_review": "Accepted as source-backed equivalent row-level Signal Description evidence because the cited chunk itself preserves the same OUT_DATA10/Data output bit 10 row-cell binding as the stored expected chunk."
+        "answer": "Setting item: Display Feature; Settings: Specify the characteristics to be displayed in the screen. Course: Displays course characteristics used by the course search. Fine: Displays fine characteristics used by the fine search.",
+        "cited_chunk": "37d21822-6cf5-59b2-b0a5-2028d801aa5a",
+        "expected_chunk": "547e84f3-1ce9-5ec2-8cc1-6d4f399a3d44",
+        "query": "For LJ-X8000 screen characteristics, what do Course and Fine display?",
+        "row": 13,
+        "source_review": "Accepted as source-backed same-page equivalent evidence because the cited chunk itself preserves the Display Feature row and the Course/Fine meanings from the stored expected evidence."
       }
     ],
-    "current_answer_failures": {},
-    "current_retrieval_failures": {},
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_180757.jsonl",
-    "latest_run": "retrieval_eval_20260831_180757",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_180757.json",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_180757.jsonl. The user-visible API answer is `OUT_DATA10 corresponds to Data output bit 10.`, cites row-level Signal Description chunk `4ae86489-c824-566e-8deb-4cd9f6098b17` with quote_span null, and the cited chunk content is exactly `Column headers: Signal Description; Row headers: OUT_DATA10; Cell value: Data output bit 10; Row: 11; Column: 1`. The prior aggregate Function chunks a268fb25 and 4713648d remain lower retrieved results only and are not cited.",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_183111.jsonl",
+    "latest_run": "retrieval_eval_20260831_183111",
+    "manifest": "test_reports/retrieval_eval_manifest_20260831_183111.json",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_183111.jsonl. The user-visible fallback answer states that Course displays course characteristics used by course search and Fine displays fine characteristics used by fine search. It cites chunk 37d21822-6cf5-59b2-b0a5-2028d801aa5a with quote_span null, and the cited content itself contains the Display Feature setting plus both Course and Fine search-characteristics statements.",
     "max_queries": 1,
-    "next_target": "Await guardrail audit of retrieval_eval_20260831_180757 row 11 signal-description repair; if accepted, broaden to the next source-reviewed retrieval or answer-grounding target with loaded HTTP validation and manual citation-payload inspection.",
+    "next_target": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
     "preserved_diagnostics": [
-      "retrieval_eval_20260831_173656 remains diagnostic/not-clean for aggregate Function citation a268fb25.",
-      "retrieval_eval_20260831_171012 and row-11 portions of 170457/170735 remain excluded because guardrail rejected the aggregate numeric-suffix inference path.",
-      "Row 12 clean evidence from retrieval_eval_20260831_160134 remains preserved; no new row-12 claim was made."
+      "Row 11 aggregate Function citation diagnostics remain excluded; clean row 11 evidence is retrieval_eval_20260831_180757 only.",
+      "Row 12 clean same-row checkpoint evidence from retrieval_eval_20260831_160134 remains preserved."
     ],
+    "query_offset": 12,
     "response_mode": "answer_with_citations",
-    "results": "test_reports/retrieval_eval_results_20260831_180757.jsonl",
-    "retrieval_result": "Loaded actual HTTP row-11 rerun passed retrieval 1/1 at rank 1 with candidate recall and metadata-document recall at 100%.",
+    "results": "test_reports/retrieval_eval_results_20260831_183111.jsonl",
+    "retrieval_result": "Loaded actual HTTP row-13 rerun passed retrieval 1/1 at rank 1; candidate recall and metadata-document recall were both 100%.",
     "runtime_load_evidence": {
       "HAYSTACK_RERANK_DEVICE": "cuda:0",
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
       "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_URL": "http://host.docker.internal:11434",
-      "_focused_signal_description_answer_text_sha256": "4c0bd18685c9ac33314c3d511bc3455b7277cf7c81e530c0d552915819e2b7df",
-      "_lexical_table_terms_sha256": "85abd5eea896e6dee281ee48c2507432697506821328f93a8bcae8882e9c0e68",
-      "_table_cell_value_binding_score_sha256": "fa670065be9a1f8ae33783b3805341bc2f17183311424ce4a9e9952aa7e48db9",
-      "_table_lexical_score_sha256": "706584c74fb6f2bfd95c878dc2ed876f4cff7193b8b1c29294bed9c91d3ccfbd",
-      "api_health": "ok at 2026-08-31T18:07:05Z",
-      "container": "manuals-rag-temp-api-39262386-20260831-row11-signal",
-      "generator_py_sha256": "1e3719878b1802c2d845905d6527122f2d83a24502463e4fc65d68b13ed52dba",
-      "host_api_base": "http://127.0.0.1:8924",
-      "in_container_api_base": "http://127.0.0.1:8600",
-      "retriever_py_sha256": "ebc058e5929625db83d9f6d123c844e6fc27c5a4ba043d450c356bb715672267",
+      "container": "manuals-rag-temp-api-39262386-20260831-row13",
+      "container_api_base": "http://127.0.0.1:8600",
+      "generator.py_sha256": "1e3719878b1802c2d845905d6527122f2d83a24502463e4fc65d68b13ed52dba",
+      "host_api_base": "http://127.0.0.1:8936",
       "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
     },
-    "summary": "test_reports/retrieval_eval_summary_20260831_180757.json"
+    "search_mode": "http",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260831_183111.json"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -711,10 +705,10 @@
   "answer_grounding_status": {
     "current_answer_failures": {},
     "current_retrieval_failures": {},
-    "latest_run": "retrieval_eval_20260831_180757",
-    "remaining": "Await guardrail audit of retrieval_eval_20260831_180757 row 11 signal-description repair; if accepted, broaden to the next source-reviewed retrieval or answer-grounding target with loaded HTTP validation and manual citation-payload inspection.",
-    "status": "single_step_v2_row_11_clean_source_backed_signal_description_binding",
-    "timestamp": "2026-08-31T18:17:00Z"
+    "latest_run": "retrieval_eval_20260831_183111",
+    "remaining": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
+    "status": "single_step_v2_row_13_clean_source_backed_display_feature_answer",
+    "timestamp": "2026-08-31T18:33:00Z"
   },
   "constraints": {
     "allowed_logic": [
@@ -8885,7 +8879,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Await guardrail audit of retrieval_eval_20260831_180757 row 11 signal-description repair; if accepted, broaden to the next source-reviewed retrieval or answer-grounding target with loaded HTTP validation and manual citation-payload inspection.",
+  "next_target": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9826,53 +9820,47 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "Loaded actual HTTP row-11 rerun passed answer grounding 1/1 with fallback_validation and no answer failure reasons.",
-      "classification": "single_step_v2_row_11_clean_source_backed_signal_description_binding",
+      "answer_result": "Loaded actual HTTP row-13 rerun passed answer grounding 1/1 with fallback_validation and no answer failure reasons.",
+      "classification": "single_step_v2_row_13_clean_source_backed_display_feature_answer",
       "clean_rows": [
         {
-          "answer": "OUT_DATA10 corresponds to Data output bit 10.",
-          "cited_chunk": "4ae86489-c824-566e-8deb-4cd9f6098b17",
-          "expected_chunk": "6941c28c-9179-5c4c-beac-e465228e6dcd",
-          "query": "Which CV-X482 output line corresponds to data output bit 10?",
-          "row": 11,
-          "source_review": "Accepted as source-backed equivalent row-level Signal Description evidence because the cited chunk itself preserves the same OUT_DATA10/Data output bit 10 row-cell binding as the stored expected chunk."
+          "answer": "Setting item: Display Feature; Settings: Specify the characteristics to be displayed in the screen. Course: Displays course characteristics used by the course search. Fine: Displays fine characteristics used by the fine search.",
+          "cited_chunk": "37d21822-6cf5-59b2-b0a5-2028d801aa5a",
+          "expected_chunk": "547e84f3-1ce9-5ec2-8cc1-6d4f399a3d44",
+          "query": "For LJ-X8000 screen characteristics, what do Course and Fine display?",
+          "row": 13,
+          "source_review": "Accepted as source-backed same-page equivalent evidence because the cited chunk itself preserves the Display Feature row and the Course/Fine meanings from the stored expected evidence."
         }
       ],
-      "current_answer_failures": {},
-      "current_retrieval_failures": {},
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_180757.jsonl",
-      "latest_run": "retrieval_eval_20260831_180757",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_180757.json",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_180757.jsonl. The user-visible API answer is `OUT_DATA10 corresponds to Data output bit 10.`, cites row-level Signal Description chunk `4ae86489-c824-566e-8deb-4cd9f6098b17` with quote_span null, and the cited chunk content is exactly `Column headers: Signal Description; Row headers: OUT_DATA10; Cell value: Data output bit 10; Row: 11; Column: 1`. The prior aggregate Function chunks a268fb25 and 4713648d remain lower retrieved results only and are not cited.",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_183111.jsonl",
+      "latest_run": "retrieval_eval_20260831_183111",
+      "manifest": "test_reports/retrieval_eval_manifest_20260831_183111.json",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260831_183111.jsonl. The user-visible fallback answer states that Course displays course characteristics used by course search and Fine displays fine characteristics used by fine search. It cites chunk 37d21822-6cf5-59b2-b0a5-2028d801aa5a with quote_span null, and the cited content itself contains the Display Feature setting plus both Course and Fine search-characteristics statements.",
       "max_queries": 1,
-      "next_target": "Await guardrail audit of retrieval_eval_20260831_180757 row 11 signal-description repair; if accepted, broaden to the next source-reviewed retrieval or answer-grounding target with loaded HTTP validation and manual citation-payload inspection.",
+      "next_target": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
       "preserved_diagnostics": [
-        "retrieval_eval_20260831_173656 remains diagnostic/not-clean for aggregate Function citation a268fb25.",
-        "retrieval_eval_20260831_171012 and row-11 portions of 170457/170735 remain excluded because guardrail rejected the aggregate numeric-suffix inference path.",
-        "Row 12 clean evidence from retrieval_eval_20260831_160134 remains preserved; no new row-12 claim was made."
+        "Row 11 aggregate Function citation diagnostics remain excluded; clean row 11 evidence is retrieval_eval_20260831_180757 only.",
+        "Row 12 clean same-row checkpoint evidence from retrieval_eval_20260831_160134 remains preserved."
       ],
+      "query_offset": 12,
       "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260831_180757.jsonl",
-      "retrieval_result": "Loaded actual HTTP row-11 rerun passed retrieval 1/1 at rank 1 with candidate recall and metadata-document recall at 100%.",
+      "results": "test_reports/retrieval_eval_results_20260831_183111.jsonl",
+      "retrieval_result": "Loaded actual HTTP row-13 rerun passed retrieval 1/1 at rank 1; candidate recall and metadata-document recall were both 100%.",
       "runtime_load_evidence": {
         "HAYSTACK_RERANK_DEVICE": "cuda:0",
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
         "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_URL": "http://host.docker.internal:11434",
-        "_focused_signal_description_answer_text_sha256": "4c0bd18685c9ac33314c3d511bc3455b7277cf7c81e530c0d552915819e2b7df",
-        "_lexical_table_terms_sha256": "85abd5eea896e6dee281ee48c2507432697506821328f93a8bcae8882e9c0e68",
-        "_table_cell_value_binding_score_sha256": "fa670065be9a1f8ae33783b3805341bc2f17183311424ce4a9e9952aa7e48db9",
-        "_table_lexical_score_sha256": "706584c74fb6f2bfd95c878dc2ed876f4cff7193b8b1c29294bed9c91d3ccfbd",
-        "api_health": "ok at 2026-08-31T18:07:05Z",
-        "container": "manuals-rag-temp-api-39262386-20260831-row11-signal",
-        "generator_py_sha256": "1e3719878b1802c2d845905d6527122f2d83a24502463e4fc65d68b13ed52dba",
-        "host_api_base": "http://127.0.0.1:8924",
-        "in_container_api_base": "http://127.0.0.1:8600",
-        "retriever_py_sha256": "ebc058e5929625db83d9f6d123c844e6fc27c5a4ba043d450c356bb715672267",
+        "container": "manuals-rag-temp-api-39262386-20260831-row13",
+        "container_api_base": "http://127.0.0.1:8600",
+        "generator.py_sha256": "1e3719878b1802c2d845905d6527122f2d83a24502463e4fc65d68b13ed52dba",
+        "host_api_base": "http://127.0.0.1:8936",
         "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
       },
-      "summary": "test_reports/retrieval_eval_summary_20260831_180757.json"
+      "search_mode": "http",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260831_183111.json"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10139,10 +10127,10 @@
     "answer_grounding_status": {
       "current_answer_failures": {},
       "current_retrieval_failures": {},
-      "latest_run": "retrieval_eval_20260831_180757",
-      "remaining": "Await guardrail audit of retrieval_eval_20260831_180757 row 11 signal-description repair; if accepted, broaden to the next source-reviewed retrieval or answer-grounding target with loaded HTTP validation and manual citation-payload inspection.",
-      "status": "single_step_v2_row_11_clean_source_backed_signal_description_binding",
-      "timestamp": "2026-08-31T18:17:00Z"
+      "latest_run": "retrieval_eval_20260831_183111",
+      "remaining": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
+      "status": "single_step_v2_row_13_clean_source_backed_display_feature_answer",
+      "timestamp": "2026-08-31T18:33:00Z"
     },
     "current_answer_failure_categories": {},
     "current_failure_categories": {},
@@ -12266,7 +12254,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Await guardrail audit of retrieval_eval_20260831_180757 row 11 signal-description repair; if accepted, broaden to the next source-reviewed retrieval or answer-grounding target with loaded HTTP validation and manual citation-payload inspection.",
+    "next_target": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12303,7 +12291,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await guardrail audit of retrieval_eval_20260831_180757 row 11 signal-description repair; if accepted, broaden to the next source-reviewed retrieval or answer-grounding target with loaded HTTP validation and manual citation-payload inspection.",
+    "remaining": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -12821,6 +12809,20 @@
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "addressed_this_run": "Broadened coverage with curated single-step v2 row 13 through a loaded side API and manually inspected the actual user-visible answer and cited chunk content.",
+        "evidence": [
+          "Actual HTTP rerun retrieval_eval_20260831_183111 passed retrieval 1/1 at rank 1 and answer grounding 1/1.",
+          "Manual JSONL inspection confirmed the cited chunk directly states the Display Feature Course/Fine search-characteristics meanings.",
+          "Manifest consistency check passed after atomic root/question_bank update."
+        ],
+        "finding": "Guardrail accepted retrieval_eval_20260831_180757 row 11 signal-description repair and required broader source-reviewed answer-grounding coverage.",
+        "guardrail_commit": "f298b02",
+        "remaining": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
+        "severity": "ok",
+        "status": "followed_up_this_run_clean_row_13_source_backed_answer_grounding",
+        "timestamp": "2026-08-31T18:33:00Z"
+      },
       {
         "addressed_this_run": "Promoted exact Signal Description table-cell evidence for data-output-bit lookup and added a single-cell-only fallback answer extractor; kept aggregate Function inference rejected.",
         "evidence": [
@@ -13721,9 +13723,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-08-31T18:17:00Z"
+    "updated_at": "2026-08-31T18:33:00Z"
   },
-  "remaining": "Await guardrail audit of retrieval_eval_20260831_180757 row 11 signal-description repair; if accepted, broaden to the next source-reviewed retrieval or answer-grounding target with loaded HTTP validation and manual citation-payload inspection.",
+  "remaining": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14240,6 +14242,20 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "addressed_this_run": "Broadened coverage with curated single-step v2 row 13 through a loaded side API and manually inspected the actual user-visible answer and cited chunk content.",
+      "evidence": [
+        "Actual HTTP rerun retrieval_eval_20260831_183111 passed retrieval 1/1 at rank 1 and answer grounding 1/1.",
+        "Manual JSONL inspection confirmed the cited chunk directly states the Display Feature Course/Fine search-characteristics meanings.",
+        "Manifest consistency check passed after atomic root/question_bank update."
+      ],
+      "finding": "Guardrail accepted retrieval_eval_20260831_180757 row 11 signal-description repair and required broader source-reviewed answer-grounding coverage.",
+      "guardrail_commit": "f298b02",
+      "remaining": "Continue source-reviewed answer-grounding coverage on the next validated unresolved single-step or multi-step slice with loaded HTTP validation and manual citation-payload inspection. Preserve row 11 clean evidence from retrieval_eval_20260831_180757, row 12 clean evidence from retrieval_eval_20260831_160134, row 13 clean evidence from retrieval_eval_20260831_183111, and all diagnostic exclusions.",
+      "severity": "ok",
+      "status": "followed_up_this_run_clean_row_13_source_backed_answer_grounding",
+      "timestamp": "2026-08-31T18:33:00Z"
+    },
     {
       "addressed_this_run": "Promoted exact Signal Description table-cell evidence for data-output-bit lookup and added a single-cell-only fallback answer extractor; kept aggregate Function inference rejected.",
       "evidence": [
@@ -15140,5 +15156,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-08-31T18:17:00Z"
+  "updated_at": "2026-08-31T18:33:00Z"
 }
