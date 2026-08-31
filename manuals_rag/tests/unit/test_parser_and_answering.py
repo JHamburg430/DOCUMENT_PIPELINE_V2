@@ -5,6 +5,7 @@ import fitz
 from manuals_rag_answering.generator import (
     _comparison_answer_covers_retrieved_model_sides,
     _fallback_evidence_results,
+    _is_comparison_query,
     _parse_relevance_response,
     generate_answer,
     generate_answer_with_trace,
@@ -4186,6 +4187,153 @@ def test_validation_support_checks_table_cell_before_context(monkeypatch):
 
     assert answer.answer == 'The part number is 19.69" OP-42284.'
     assert trace["final_answer"]["used_fallback"] is False
+
+
+def test_fallback_focuses_table_like_section_window_for_direct_address_question(monkeypatch):
+    results = [
+        SearchResult(
+            chunk_id="section-window",
+            score=0.9,
+            title="CV-X manual",
+            document_version_id="v1",
+            source_document_id="cvx",
+            pages=[920],
+            section_path=["6-180"],
+            content=(
+                "Setting | Address (byte) | 7bit | 6bit | 5bit | 4bit | 3bit | 2bit | 1bit | 0bit\n"
+                "status Bit area | 0000 | I0.7 | Reserved | I0.6 | Reserved | I0.5 | Reserved\n"
+                " | 0004 | PIB256 bit No. 7 | Allocation possible | PIB256 bit No. 6 | Allocation possible\n"
+                " | 0010 | PIB262 bit No. 7 | Allocation possible | PIB262 bit No. 6 | Allocation possible\n"
+                "Mea- surement count area | 0016 0017 0018 | PID 428 | Total count\n"
+                "Command output area | 0019 0020 0021 0022 | PID 432 | Command Result\n"
+                + "\n".join(f"filler table row {index} | Reserved | Reserved" for index in range(80))
+            ),
+            metadata={"chunk_type": "section_window", "product_model": "CV-X482"},
+        )
+    ]
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "final_answer":
+            return (
+                {
+                    "answer": "Unsupported generated answer",
+                    "confidence": "medium",
+                    "used_documents": [],
+                    "citations": [],
+                    "warnings": [],
+                    "followup_questions": [],
+                    "insufficient_evidence": False,
+                },
+                '{"answer":"Unsupported generated answer","confidence":"medium",'
+                '"used_documents":[],"citations":[],"warnings":[],'
+                '"followup_questions":[],"insufficient_evidence":false}',
+            )
+        return (
+            {"items": [{"chunk_id": "section-window", "verdict": "relevant", "reason": "Direct table match."}]},
+            '{"items":[{"chunk_id":"section-window","verdict":"relevant","reason":"Direct table match."}]}',
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fake_chat_json)
+
+    answer, trace = generate_answer_with_trace(
+        "Can CV-X482 allocate command 0016 PID 428 in the status bit area?",
+        results,
+    )
+
+    assert answer.answer.startswith("Relevant retrieved table rows:")
+    assert "0016 0017 0018" in answer.answer
+    assert "PID 428" in answer.answer
+    assert "filler table row 79" not in answer.answer
+    assert len(answer.answer) < 900
+    assert trace["final_answer"]["answer_source"] == "fallback_validation"
+
+
+def test_vs_product_question_does_not_trigger_comparison_fallback_or_version_warning(monkeypatch):
+    assert _is_comparison_query("How do I limit a saved VS program setting so only selected cameras can use it?") is False
+    assert _is_comparison_query("Compare model A vs model B program settings.") is True
+
+    results = [
+        SearchResult(
+            chunk_id="vs-settings-overview",
+            score=0.95,
+            title="VS manual",
+            document_version_id="vs-v1",
+            source_document_id="vs-doc",
+            pages=[218],
+            section_path=["4-94"],
+            content=(
+                "Settings Protection: Set to restrict edits to be made for the tools and the Vision Dashboard, "
+                "and allow only a restricted set of VS cameras to use the program setting."
+            ),
+            metadata={"chunk_type": "section_window", "product_family": "VS Series"},
+        ),
+        SearchResult(
+            chunk_id="vs-program-protection",
+            score=0.9,
+            title="VS manual",
+            document_version_id="vs-v1",
+            source_document_id="vs-doc",
+            pages=[220],
+            section_path=["4-104"],
+            content=(
+                "Program Setting Protection: Restrict the VS cameras that can use the program setting by setting a "
+                "password and the MAC addresses of the cameras to allow."
+            ),
+            metadata={"chunk_type": "section_window", "product_family": "VS Series"},
+        ),
+        SearchResult(
+            chunk_id="xg-save",
+            score=0.7,
+            title="XG-X manual",
+            document_version_id="xg-v1",
+            source_document_id="xg-doc",
+            pages=[88],
+            section_path=["2-41"],
+            content="Save the current settings to the program file in SD Card 1 or SD Card 2.",
+            metadata={"chunk_type": "section_window"},
+        ),
+    ]
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "final_answer":
+            return (
+                {
+                    "answer": "Unsupported generated answer",
+                    "confidence": "medium",
+                    "used_documents": [],
+                    "citations": [],
+                    "warnings": [],
+                    "followup_questions": [],
+                    "insufficient_evidence": False,
+                },
+            '{"answer":"Unsupported generated answer","confidence":"medium",'
+            '"used_documents":[],"citations":[],"warnings":[],'
+            '"followup_questions":[],"insufficient_evidence":false}',
+        )
+        return (
+            {
+                "items": [
+                    {"chunk_id": "vs-settings-overview", "verdict": "relevant", "reason": "Overview match."},
+                    {"chunk_id": "vs-program-protection", "verdict": "relevant", "reason": "Direct scope match."},
+                ]
+            },
+            '{"items":[{"chunk_id":"vs-settings-overview","verdict":"relevant","reason":"Overview match."},'
+            '{"chunk_id":"vs-program-protection","verdict":"relevant","reason":"Direct scope match."}]}',
+        )
+
+    monkeypatch.setattr("manuals_rag_answering.generator.chat_json", fake_chat_json)
+
+    answer, trace = generate_answer_with_trace(
+        "How do I limit a saved VS program setting so only selected cameras can use it?",
+        results,
+    )
+
+    assert "password" in answer.answer
+    assert "MAC addresses" in answer.answer
+    assert "SD Card" not in answer.answer
+    assert [citation["chunk_id"] for citation in answer.citations] == ["vs-program-protection"]
+    assert not any("multiple document versions" in warning for warning in answer.warnings)
+    assert trace["final_answer"]["answer_source"] == "fallback_validation"
 
 
 def test_docling_page_batches_cover_full_document():
