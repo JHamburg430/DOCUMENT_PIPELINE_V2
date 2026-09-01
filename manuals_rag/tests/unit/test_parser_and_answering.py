@@ -3616,6 +3616,74 @@ def test_validate_answer_rejects_quote_from_context_window_under_cited_chunk():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_rejects_quote_from_hidden_metadata_content():
+    answer = AnswerResponse(
+        answer="The 10109 light-controller error is corrected by setting FLASH output time to 0.1 msec.",
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {
+                "chunk_id": "sibling-cell",
+                "document_id": "d1",
+                "pages": [10],
+                "quote_span": "Set the FLASH output time to 0.1 msec.",
+            }
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="sibling-cell",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content="Error Number: 10101; Error Messages: Light controller is disconnected.",
+            metadata={
+                "chunk_type": "table_record",
+                "content": (
+                    "Error Number: 10109; Error Messages: An error occurred in the communication with the light controller. "
+                    "Cause: The next FLASH was input while the light was being emitted. "
+                    "Remedy: Set the FLASH output time to 0.1 msec."
+                ),
+            },
+        ),
+        SearchResult(
+            chunk_id="visible-row-group",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Number: 10109; Error Messages: An error occurred in the communication with the light controller. "
+                "Cause: The next FLASH was input while the light was being emitted. "
+                "Remedy: Set the FLASH output time to 0.1 msec."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "What causes An error occurred in the communication with the light controller, "
+            "and how should it be corrected?"
+        ),
+    )
+
+    assert validated.answer.startswith("Error Number: 10109; Error Messages:")
+    assert [citation["chunk_id"] for citation in validated.citations] == ["visible-row-group"]
+    assert validated.citations[0]["quote_span"] is None
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_fallback_when_troubleshooting_answer_uses_wrong_error_anchor():
     answer = AnswerResponse(
         answer=(

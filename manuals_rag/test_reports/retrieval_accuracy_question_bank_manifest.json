@@ -1,6 +1,5 @@
 {
   "answer_current_failure_categories": {
-    "unsupported_citation_quote": 1,
     "expected_evidence_not_cited": 1
   },
   "answer_failure_categories": {},
@@ -185,33 +184,41 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-09-01T21:58:00Z",
-    "classification": "sibling_row17_diagnostic_not_clean_answer_citation_failure",
-    "latest_run": "retrieval_eval_20260901_215602",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260901_215602.jsonl",
-    "manifest": "test_reports/retrieval_eval_manifest_20260901_215602.json",
-    "results": "test_reports/retrieval_eval_results_20260901_215602.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260901_215602.json",
-    "query_offset": 16,
+    "answer_result": "0/1 actual HTTP/API answer grounding after production citation-visible quote validation; unsupported_citation_quote is cleared, but expected_evidence_not_cited remains because the answer cites source-visible row-group chunk c7b00dfb rather than exact expected atomic chunks 966d7f14, f31cc259, and 1f183cd9.",
+    "classification": "diagnostic_partial_answer_citation_repair_not_clean",
+    "dataset": "test_reports/retrieval_eval_dataset_20260901_223159.jsonl",
+    "latest_run": "retrieval_eval_20260901_223159",
+    "manifest": "test_reports/retrieval_eval_manifest_20260901_223159.json",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_223159.jsonl. The user-visible API answer now cites only chunk c7b00dfb with a quote_span that is present in the cited returned content and directly states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH output timing remedies. Citation fidelity passes and the prior unrelated 10101/10106 guidance is gone. The run remains diagnostic/not-clean because the active expected evidence still requires exact atomic cause/remedy chunks or a source-reviewed equivalent-citation policy.",
     "max_queries": 1,
-    "search_mode": "http",
+    "production_change": "Production answer validation now verifies citation quote spans against the user-visible returned chunk content only, not hidden metadata.content. This is general citation-fidelity behavior and not document/vendor/query-specific.",
+    "query_offset": 0,
+    "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
     "response_mode": "answer_with_citations",
+    "results": "test_reports/retrieval_eval_results_20260901_223159.jsonl",
     "retrieval_result": "1/1 retrieval passed at rank 4; candidate recall 1.0; metadata document-selection recall 1.0; no retrieval failure categories.",
-    "answer_result": "0/1 actual HTTP/API answer grounding; failure reasons unsupported_citation_quote and expected_evidence_not_cited; answer_source api and used_fallback false.",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_215602.jsonl. The visible answer states the expected CV-X482 Error 10109 cause and remedy, but it also adds unrelated related communication-error guidance. Citation c7b00dfb visibly contains the 10109 error, next-FLASH-while-light-emitted cause, and 0.1 msec FLASH-output remedy. However citation 966d7f14 carries a quote_span for sibling Error 10101 that is absent from that cited chunk, and the exact expected cause/remedy chunks f31cc259 and 1f183cd9 are not cited. The run is diagnostic/not-clean.",
     "runtime_load": {
-      "container": "manuals-rag-temp-api-39262386-20260901-row9-xdoc",
-      "host_url": "http://127.0.0.1:9102",
-      "health": "GET /health returned ok at 2026-09-01T21:55:51Z.",
-      "models": "Existing clean side API model/reranker settings from prior loaded-runtime run were preserved; this run made no production code or model/config changes."
+      "container": "manuals-rag-temp-api-39262386-20260901-row17-visible-citation",
+      "fingerprints": {
+        "_citation_evidence_text": "3445028e6c9c0cf537179099d55a4fa4a6a144f1b7531dcfa5a4e898a5787b28",
+        "_citation_quotes_are_supported": "7914e2d1daa7d063ecb371ac20f640becad8f921e248a457a4633fea24dd4b82",
+        "generator.py": "f82d0869d87e012dce4cb97fcc52949671fc548aa203b4c98032401b6406b7bb",
+        "validate_answer": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
+      },
+      "health": "GET /health returned ok at 2026-09-01T22:31:37Z.",
+      "host_url": "http://127.0.0.1:9132",
+      "loaded_adverse_control": "metadata_only_quote_supported False for a quote present only in hidden metadata.content.",
+      "models": "OLLAMA_URL=http://host.docker.internal:11434; answer qwen3.5:9b; embedding qwen3-embedding:0.6b; reranker cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0."
     },
-    "production_change": "None. This run added a diagnostic eval artifact and progress/manifest tracking only; no retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed.",
-    "remaining": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence.",
+    "search_mode": "http",
+    "summary": "test_reports/retrieval_eval_summary_20260901_223159.json",
+    "timestamp": "2026-09-01T22:35:00Z",
     "validation": [
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before the row-17 run.",
-      "Actual HTTP/API row-17 run retrieval_eval_20260901_215602 completed in 38.611 seconds with retrieval 1/1 and answer 0/1.",
-      "Manual JSONL inspection compared the user-visible answer and citation quote_spans against the error, cause, and remedy expected evidence roles before preserving the run as diagnostic/not-clean."
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'hidden_metadata_content or context_window_under_cited_chunk or matching_error_anchor' -> 3 passed, 111 deselected.",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> failed only because clean temp worktree lacked ignored tmp_eval_docs* fixtures: 5 fixture FileNotFound failures, 540 passed.",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only -> 545 passed, 59 warnings.",
+      "Loaded side API fingerprint/adverse control confirmed hidden metadata-only quote support is rejected.",
+      "Actual HTTP/API row-17 rerun retrieval_eval_20260901_223159 completed in 39.53 seconds with retrieval 1/1 and answer 0/1 expected_evidence_not_cited only."
     ]
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -691,7 +698,7 @@
       "retrieval_eval_20260901_205536 cross-document row 9 source-reviewed visible equivalent citations",
       "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations"
     ],
-    "answer_grounding_status": "Cross-document rows 1-10 remain accepted clean. Sibling troubleshooting row 17 retrieval passed but actual HTTP/API answer grounding is diagnostic/not-clean because citation fidelity and expected evidence citation support failed.",
+    "answer_grounding_status": "Cross-document rows 1-10 remain accepted clean. Sibling troubleshooting row 17 has a partial production citation-fidelity repair: unsupported sibling quote guidance is cleared, but exact expected evidence citation support remains not clean.",
     "artifacts": {
       "row10_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_212610.jsonl",
       "row10_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_212610.json",
@@ -708,11 +715,15 @@
       "row9_timeout_dataset": "test_reports/retrieval_eval_dataset_20260901_203649.jsonl",
       "row9_timeout_results": "test_reports/retrieval_eval_results_20260901_203649.jsonl",
       "row9_timeout_summary": "test_reports/retrieval_eval_summary_20260901_203649.json",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
       "sibling_row17_diagnostic_dataset": "test_reports/retrieval_eval_dataset_20260901_215602.jsonl",
       "sibling_row17_diagnostic_manifest": "test_reports/retrieval_eval_manifest_20260901_215602.json",
       "sibling_row17_diagnostic_results": "test_reports/retrieval_eval_results_20260901_215602.jsonl",
-      "sibling_row17_diagnostic_summary": "test_reports/retrieval_eval_summary_20260901_215602.json"
+      "sibling_row17_diagnostic_summary": "test_reports/retrieval_eval_summary_20260901_215602.json",
+      "sibling_row17_partial_repair_dataset": "test_reports/retrieval_eval_dataset_20260901_223159.jsonl",
+      "sibling_row17_partial_repair_manifest": "test_reports/retrieval_eval_manifest_20260901_223159.json",
+      "sibling_row17_partial_repair_results": "test_reports/retrieval_eval_results_20260901_223159.jsonl",
+      "sibling_row17_partial_repair_summary": "test_reports/retrieval_eval_summary_20260901_223159.json",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl"
     },
     "checks": [
       "Actual HTTP/API exact row-9 run retrieval_eval_20260901_203350 remains diagnostic/not-clean: candidate recall and metadata document-selection recall passed, but final top-k missed exact expected chunks and answer scoring failed expected_evidence_not_cited, expected_table_cell_binding_missing, and retrieval_not_passed.",
@@ -721,19 +732,19 @@
       "Manual JSONL inspection confirmed the visible fallback answer cites chunk 1063a1fe for XG-X SD Card 2 unsupported-card guarantee text and chunk 7e7adc82 for the CV-X row group containing The edge detection point ends halfway in the region and Increase the Max. Segments; both quote_spans are null and both cited returned content fields directly support the accepted source-reviewed equivalent roles.",
       "Actual HTTP/API row-10 run retrieval_eval_20260901_212610 completed under a 180s per-query cap in 67.462s and passed retrieval 1/1 at rank 1 plus answer grounding 1/1 with fallback_validation.",
       "Manual JSONL inspection confirmed the visible fallback answer cites chunk aa013e96 for SV2 symptom-monitoring supported data types and chunk aacb725c for LJ-S8000 Index UINT receiving-side Fixed byte data area and CommandParam area; both quote_spans are null and cited returned content directly supports the accepted roles.",
-      "retrieval_eval_20260901_215602 sibling troubleshooting row 17 passed retrieval 1/1 at rank 4 but failed actual HTTP/API answer grounding with unsupported_citation_quote and expected_evidence_not_cited; manual inspection found a sibling Error 10101 quote_span attached to the 10109 error-message chunk and exact cause/remedy expected chunks uncited."
+      "retrieval_eval_20260901_215602 sibling troubleshooting row 17 passed retrieval 1/1 at rank 4 but failed actual HTTP/API answer grounding with unsupported_citation_quote and expected_evidence_not_cited; manual inspection found a sibling Error 10101 quote_span attached to the 10109 error-message chunk and exact cause/remedy expected chunks uncited.",
+      "retrieval_eval_20260901_223159 sibling troubleshooting row 17 passed retrieval 1/1 and cleared unsupported_citation_quote, but remains diagnostic/not-clean with expected_evidence_not_cited pending exact atomic citations or source-reviewed row-group equivalence."
     ],
     "classification": "cross_document_rows_1_10_clean_source_reviewed_visible_citation_content",
     "current_answer_failures": {
-      "unsupported_citation_quote": 1,
       "expected_evidence_not_cited": 1
     },
     "current_retrieval_failures": {},
-    "current_status": "sibling_row17_diagnostic_not_clean_answer_citation_failure_after_cross_document_rows_1_10_clean",
+    "current_status": "sibling_row17_diagnostic_partial_citation_repair_expected_evidence_not_cited",
     "latest_clean_run": "retrieval_eval_20260901_212610",
+    "latest_diagnostic_run": "retrieval_eval_20260901_223159",
     "latest_manual_inspection": "Inspected retrieval_eval_results_20260901_212610.jsonl. The user-visible fallback answer cites SV2 chunk aa013e96 on page 37, whose returned content directly states Symptom monitoring (word) > Supported data types as UINT, INT, UDINT, DINT, and LJ-S8000 chunk aacb725c on page 347, whose returned content directly states Index > UINT with Direction 0 receiving side mapped to Bit area, Fixed byte data area, and CommandParam area. Additional LJ-S8000 context citations 35cb3b67 and 1fe3bd33 have null quote_spans and do not conflict with the required roles. Citation fidelity, evidence citation support, and table-cell binding all passed; no expected role was satisfied from hidden metadata or generated quote text.",
-    "remaining": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence.",
-    "latest_diagnostic_run": "retrieval_eval_20260901_215602"
+    "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence."
   },
   "constraints": {
     "allowed_logic": [
@@ -752,13 +763,12 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {
-    "unsupported_citation_quote": 1,
     "expected_evidence_not_cited": 1
   },
-  "current_answer_failure_source": "retrieval_eval_20260901_215602 sibling troubleshooting row 17 failed answer grounding with unsupported_citation_quote and expected_evidence_not_cited.",
+  "current_answer_failure_source": "retrieval_eval_20260901_223159 sibling troubleshooting row 17 cleared unsupported_citation_quote but still failed expected_evidence_not_cited.",
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "retrieval_eval_20260901_215602 retrieval passed 1/1 at rank 4; no current retrieval failure.",
+  "current_retrieval_failure_source": "retrieval_eval_20260901_223159 retrieval passed at rank 4 with candidate/document recall; no current retrieval failure.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -9057,7 +9067,7 @@
       "type": "accepted_clean_run_artifact_presence_guard"
     }
   ],
-  "next_target": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence.",
+  "next_target": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9811,7 +9821,6 @@
   },
   "question_bank": {
     "answer_current_failure_categories": {
-      "unsupported_citation_quote": 1,
       "expected_evidence_not_cited": 1
     },
     "answer_failure_categories": {},
@@ -9996,33 +10005,41 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-09-01T21:58:00Z",
-      "classification": "sibling_row17_diagnostic_not_clean_answer_citation_failure",
-      "latest_run": "retrieval_eval_20260901_215602",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260824_062714.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260901_215602.jsonl",
-      "manifest": "test_reports/retrieval_eval_manifest_20260901_215602.json",
-      "results": "test_reports/retrieval_eval_results_20260901_215602.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260901_215602.json",
-      "query_offset": 16,
+      "answer_result": "0/1 actual HTTP/API answer grounding after production citation-visible quote validation; unsupported_citation_quote is cleared, but expected_evidence_not_cited remains because the answer cites source-visible row-group chunk c7b00dfb rather than exact expected atomic chunks 966d7f14, f31cc259, and 1f183cd9.",
+      "classification": "diagnostic_partial_answer_citation_repair_not_clean",
+      "dataset": "test_reports/retrieval_eval_dataset_20260901_223159.jsonl",
+      "latest_run": "retrieval_eval_20260901_223159",
+      "manifest": "test_reports/retrieval_eval_manifest_20260901_223159.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_223159.jsonl. The user-visible API answer now cites only chunk c7b00dfb with a quote_span that is present in the cited returned content and directly states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH output timing remedies. Citation fidelity passes and the prior unrelated 10101/10106 guidance is gone. The run remains diagnostic/not-clean because the active expected evidence still requires exact atomic cause/remedy chunks or a source-reviewed equivalent-citation policy.",
       "max_queries": 1,
-      "search_mode": "http",
+      "production_change": "Production answer validation now verifies citation quote spans against the user-visible returned chunk content only, not hidden metadata.content. This is general citation-fidelity behavior and not document/vendor/query-specific.",
+      "query_offset": 0,
+      "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
       "response_mode": "answer_with_citations",
+      "results": "test_reports/retrieval_eval_results_20260901_223159.jsonl",
       "retrieval_result": "1/1 retrieval passed at rank 4; candidate recall 1.0; metadata document-selection recall 1.0; no retrieval failure categories.",
-      "answer_result": "0/1 actual HTTP/API answer grounding; failure reasons unsupported_citation_quote and expected_evidence_not_cited; answer_source api and used_fallback false.",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_215602.jsonl. The visible answer states the expected CV-X482 Error 10109 cause and remedy, but it also adds unrelated related communication-error guidance. Citation c7b00dfb visibly contains the 10109 error, next-FLASH-while-light-emitted cause, and 0.1 msec FLASH-output remedy. However citation 966d7f14 carries a quote_span for sibling Error 10101 that is absent from that cited chunk, and the exact expected cause/remedy chunks f31cc259 and 1f183cd9 are not cited. The run is diagnostic/not-clean.",
       "runtime_load": {
-        "container": "manuals-rag-temp-api-39262386-20260901-row9-xdoc",
-        "host_url": "http://127.0.0.1:9102",
-        "health": "GET /health returned ok at 2026-09-01T21:55:51Z.",
-        "models": "Existing clean side API model/reranker settings from prior loaded-runtime run were preserved; this run made no production code or model/config changes."
+        "container": "manuals-rag-temp-api-39262386-20260901-row17-visible-citation",
+        "fingerprints": {
+          "_citation_evidence_text": "3445028e6c9c0cf537179099d55a4fa4a6a144f1b7531dcfa5a4e898a5787b28",
+          "_citation_quotes_are_supported": "7914e2d1daa7d063ecb371ac20f640becad8f921e248a457a4633fea24dd4b82",
+          "generator.py": "f82d0869d87e012dce4cb97fcc52949671fc548aa203b4c98032401b6406b7bb",
+          "validate_answer": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
+        },
+        "health": "GET /health returned ok at 2026-09-01T22:31:37Z.",
+        "host_url": "http://127.0.0.1:9132",
+        "loaded_adverse_control": "metadata_only_quote_supported False for a quote present only in hidden metadata.content.",
+        "models": "OLLAMA_URL=http://host.docker.internal:11434; answer qwen3.5:9b; embedding qwen3-embedding:0.6b; reranker cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0."
       },
-      "production_change": "None. This run added a diagnostic eval artifact and progress/manifest tracking only; no retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed.",
-      "remaining": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence.",
+      "search_mode": "http",
+      "summary": "test_reports/retrieval_eval_summary_20260901_223159.json",
+      "timestamp": "2026-09-01T22:35:00Z",
       "validation": [
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before the row-17 run.",
-        "Actual HTTP/API row-17 run retrieval_eval_20260901_215602 completed in 38.611 seconds with retrieval 1/1 and answer 0/1.",
-        "Manual JSONL inspection compared the user-visible answer and citation quote_spans against the error, cause, and remedy expected evidence roles before preserving the run as diagnostic/not-clean."
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'hidden_metadata_content or context_window_under_cited_chunk or matching_error_anchor' -> 3 passed, 111 deselected.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> failed only because clean temp worktree lacked ignored tmp_eval_docs* fixtures: 5 fixture FileNotFound failures, 540 passed.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only -> 545 passed, 59 warnings.",
+        "Loaded side API fingerprint/adverse control confirmed hidden metadata-only quote support is rejected.",
+        "Actual HTTP/API row-17 rerun retrieval_eval_20260901_223159 completed in 39.53 seconds with retrieval 1/1 and answer 0/1 expected_evidence_not_cited only."
       ]
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10291,7 +10308,7 @@
         "retrieval_eval_20260901_205536 cross-document row 9 source-reviewed visible equivalent citations",
         "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations"
       ],
-      "answer_grounding_status": "Cross-document rows 1-10 remain accepted clean. Sibling troubleshooting row 17 retrieval passed but actual HTTP/API answer grounding is diagnostic/not-clean because citation fidelity and expected evidence citation support failed.",
+      "answer_grounding_status": "Cross-document rows 1-10 remain accepted clean. Sibling troubleshooting row 17 has a partial production citation-fidelity repair: unsupported sibling quote guidance is cleared, but exact expected evidence citation support remains not clean.",
       "artifacts": {
         "row10_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_212610.jsonl",
         "row10_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_212610.json",
@@ -10308,11 +10325,15 @@
         "row9_timeout_dataset": "test_reports/retrieval_eval_dataset_20260901_203649.jsonl",
         "row9_timeout_results": "test_reports/retrieval_eval_results_20260901_203649.jsonl",
         "row9_timeout_summary": "test_reports/retrieval_eval_summary_20260901_203649.json",
-        "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
         "sibling_row17_diagnostic_dataset": "test_reports/retrieval_eval_dataset_20260901_215602.jsonl",
         "sibling_row17_diagnostic_manifest": "test_reports/retrieval_eval_manifest_20260901_215602.json",
         "sibling_row17_diagnostic_results": "test_reports/retrieval_eval_results_20260901_215602.jsonl",
-        "sibling_row17_diagnostic_summary": "test_reports/retrieval_eval_summary_20260901_215602.json"
+        "sibling_row17_diagnostic_summary": "test_reports/retrieval_eval_summary_20260901_215602.json",
+        "sibling_row17_partial_repair_dataset": "test_reports/retrieval_eval_dataset_20260901_223159.jsonl",
+        "sibling_row17_partial_repair_manifest": "test_reports/retrieval_eval_manifest_20260901_223159.json",
+        "sibling_row17_partial_repair_results": "test_reports/retrieval_eval_results_20260901_223159.jsonl",
+        "sibling_row17_partial_repair_summary": "test_reports/retrieval_eval_summary_20260901_223159.json",
+        "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl"
       },
       "checks": [
         "Actual HTTP/API exact row-9 run retrieval_eval_20260901_203350 remains diagnostic/not-clean: candidate recall and metadata document-selection recall passed, but final top-k missed exact expected chunks and answer scoring failed expected_evidence_not_cited, expected_table_cell_binding_missing, and retrieval_not_passed.",
@@ -10321,28 +10342,27 @@
         "Manual JSONL inspection confirmed the visible fallback answer cites chunk 1063a1fe for XG-X SD Card 2 unsupported-card guarantee text and chunk 7e7adc82 for the CV-X row group containing The edge detection point ends halfway in the region and Increase the Max. Segments; both quote_spans are null and both cited returned content fields directly support the accepted source-reviewed equivalent roles.",
         "Actual HTTP/API row-10 run retrieval_eval_20260901_212610 completed under a 180s per-query cap in 67.462s and passed retrieval 1/1 at rank 1 plus answer grounding 1/1 with fallback_validation.",
         "Manual JSONL inspection confirmed the visible fallback answer cites chunk aa013e96 for SV2 symptom-monitoring supported data types and chunk aacb725c for LJ-S8000 Index UINT receiving-side Fixed byte data area and CommandParam area; both quote_spans are null and cited returned content directly supports the accepted roles.",
-        "retrieval_eval_20260901_215602 sibling troubleshooting row 17 passed retrieval 1/1 at rank 4 but failed actual HTTP/API answer grounding with unsupported_citation_quote and expected_evidence_not_cited; manual inspection found a sibling Error 10101 quote_span attached to the 10109 error-message chunk and exact cause/remedy expected chunks uncited."
+        "retrieval_eval_20260901_215602 sibling troubleshooting row 17 passed retrieval 1/1 at rank 4 but failed actual HTTP/API answer grounding with unsupported_citation_quote and expected_evidence_not_cited; manual inspection found a sibling Error 10101 quote_span attached to the 10109 error-message chunk and exact cause/remedy expected chunks uncited.",
+        "retrieval_eval_20260901_223159 sibling troubleshooting row 17 passed retrieval 1/1 and cleared unsupported_citation_quote, but remains diagnostic/not-clean with expected_evidence_not_cited pending exact atomic citations or source-reviewed row-group equivalence."
       ],
       "classification": "cross_document_rows_1_10_clean_source_reviewed_visible_citation_content",
       "current_answer_failures": {
-        "unsupported_citation_quote": 1,
         "expected_evidence_not_cited": 1
       },
       "current_retrieval_failures": {},
-      "current_status": "sibling_row17_diagnostic_not_clean_answer_citation_failure_after_cross_document_rows_1_10_clean",
+      "current_status": "sibling_row17_diagnostic_partial_citation_repair_expected_evidence_not_cited",
       "latest_clean_run": "retrieval_eval_20260901_212610",
+      "latest_diagnostic_run": "retrieval_eval_20260901_223159",
       "latest_manual_inspection": "Inspected retrieval_eval_results_20260901_212610.jsonl. The user-visible fallback answer cites SV2 chunk aa013e96 on page 37, whose returned content directly states Symptom monitoring (word) > Supported data types as UINT, INT, UDINT, DINT, and LJ-S8000 chunk aacb725c on page 347, whose returned content directly states Index > UINT with Direction 0 receiving side mapped to Bit area, Fixed byte data area, and CommandParam area. Additional LJ-S8000 context citations 35cb3b67 and 1fe3bd33 have null quote_spans and do not conflict with the required roles. Citation fidelity, evidence citation support, and table-cell binding all passed; no expected role was satisfied from hidden metadata or generated quote text.",
-      "remaining": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence.",
-      "latest_diagnostic_run": "retrieval_eval_20260901_215602"
+      "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence."
     },
     "current_answer_failure_categories": {
-      "unsupported_citation_quote": 1,
       "expected_evidence_not_cited": 1
     },
-    "current_answer_failure_source": "retrieval_eval_20260901_215602 sibling troubleshooting row 17 failed answer grounding with unsupported_citation_quote and expected_evidence_not_cited.",
+    "current_answer_failure_source": "retrieval_eval_20260901_223159 sibling troubleshooting row 17 cleared unsupported_citation_quote but still failed expected_evidence_not_cited.",
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "retrieval_eval_20260901_215602 retrieval passed 1/1 at rank 4; no current retrieval failure.",
+    "current_retrieval_failure_source": "retrieval_eval_20260901_223159 retrieval passed at rank 4 with candidate/document recall; no current retrieval failure.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12603,7 +12623,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence.",
+    "next_target": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12640,7 +12660,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence.",
+    "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13382,26 +13402,45 @@
         "run_id": "retrieval_eval_20260901_203649"
       },
       {
+        "reason": "diagnostic/not-clean: retrieval passed at rank 4, but the generated API answer included an unsupported sibling-row citation quote and failed expected cause/remedy citation support for exact expected chunks.",
         "run_id": "retrieval_eval_20260901_215602",
-        "scope": "sibling troubleshooting row 17 actual HTTP/API answer grounding",
-        "reason": "diagnostic/not-clean: retrieval passed at rank 4, but the generated API answer included an unsupported sibling-row citation quote and failed expected cause/remedy citation support for exact expected chunks."
+        "scope": "sibling troubleshooting row 17 actual HTTP/API answer grounding"
+      },
+      {
+        "reason": "diagnostic/not-clean: unsupported_citation_quote cleared and answer/citation text is source-visible, but exact atomic expected evidence is still not cited or source-reviewed as equivalent.",
+        "recorded_at": "2026-09-01T22:35:00Z",
+        "run_id": "retrieval_eval_20260901_223159",
+        "scope": "sibling troubleshooting row 17 partial citation-fidelity repair"
       }
     ],
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
       {
-        "timestamp": "2026-09-01T21:58:00Z",
+        "evidence": [
+          "Production _citation_evidence_text now returns only result.content for quote support.",
+          "Focused hidden-metadata quote regression passed and loaded adverse control returned metadata_only_quote_supported False.",
+          "retrieval_eval_20260901_223159 cites only source-visible c7b00dfb and no longer includes unrelated 10101/10106 guidance.",
+          "Answer scoring still fails expected_evidence_not_cited because exact atomic cause/remedy chunks are not cited."
+        ],
+        "finding": "Row 17 direct API answer previously kept an unsupported sibling quote and unrelated communication-error guidance. Production citation validation now rejects metadata-only quote support; fresh loaded HTTP rerun cleared unsupported_citation_quote but still needs exact atomic citation or source-reviewed row-group equivalence.",
+        "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
         "severity": "watch",
-        "finding": "The recorded cross-document row 11 target is stale because curated cross-document v2 contains 10 rows; the run pivoted to the next documented unresolved sibling troubleshooting answer rotation, row 17.",
+        "status": "partially_addressed_this_run_not_clean",
+        "timestamp": "2026-09-01T22:35:00Z"
+      },
+      {
         "addressed_this_run": "Ran sibling troubleshooting row 17 through actual HTTP/API answer mode and preserved the failed answer as diagnostic/not-clean after manual JSONL inspection.",
         "evidence": [
           "retrieval_eval_20260901_215602 retrieved the expected evidence at rank 4 with candidate recall 1.0.",
           "Answer grounding failed 0/1 with unsupported_citation_quote and expected_evidence_not_cited.",
           "Manual inspection found citation c7b00dfb supports Error 10109, but citation 966d7f14 has an unsupported sibling Error 10101 quote_span and exact expected cause/remedy chunks f31cc259 and 1f183cd9 are uncited."
         ],
+        "finding": "The recorded cross-document row 11 target is stale because curated cross-document v2 contains 10 rows; the run pivoted to the next documented unresolved sibling troubleshooting answer rotation, row 17.",
+        "remaining": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence.",
+        "severity": "watch",
         "status": "diagnostic_not_clean_tracking_updated",
-        "remaining": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence."
+        "timestamp": "2026-09-01T21:58:00Z"
       },
       {
         "addressed_this_run": "Ran row 10 through a clean loaded side API, accepted only returned visible citation content, and manually inspected the saved JSONL answer/citations before marking it clean.",
@@ -14646,9 +14685,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T21:58:00Z"
+    "updated_at": "2026-09-01T22:35:00Z"
   },
-  "remaining": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence.",
+  "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -15390,25 +15429,44 @@
       "run_id": "retrieval_eval_20260901_203649"
     },
     {
+      "reason": "diagnostic/not-clean: retrieval passed at rank 4, but the generated API answer included an unsupported sibling-row citation quote and failed expected cause/remedy citation support for exact expected chunks.",
       "run_id": "retrieval_eval_20260901_215602",
-      "scope": "sibling troubleshooting row 17 actual HTTP/API answer grounding",
-      "reason": "diagnostic/not-clean: retrieval passed at rank 4, but the generated API answer included an unsupported sibling-row citation quote and failed expected cause/remedy citation support for exact expected chunks."
+      "scope": "sibling troubleshooting row 17 actual HTTP/API answer grounding"
+    },
+    {
+      "reason": "diagnostic/not-clean: unsupported_citation_quote cleared and answer/citation text is source-visible, but exact atomic expected evidence is still not cited or source-reviewed as equivalent.",
+      "recorded_at": "2026-09-01T22:35:00Z",
+      "run_id": "retrieval_eval_20260901_223159",
+      "scope": "sibling troubleshooting row 17 partial citation-fidelity repair"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
     {
-      "timestamp": "2026-09-01T21:58:00Z",
+      "evidence": [
+        "Production _citation_evidence_text now returns only result.content for quote support.",
+        "Focused hidden-metadata quote regression passed and loaded adverse control returned metadata_only_quote_supported False.",
+        "retrieval_eval_20260901_223159 cites only source-visible c7b00dfb and no longer includes unrelated 10101/10106 guidance.",
+        "Answer scoring still fails expected_evidence_not_cited because exact atomic cause/remedy chunks are not cited."
+      ],
+      "finding": "Row 17 direct API answer previously kept an unsupported sibling quote and unrelated communication-error guidance. Production citation validation now rejects metadata-only quote support; fresh loaded HTTP rerun cleared unsupported_citation_quote but still needs exact atomic citation or source-reviewed row-group equivalence.",
+      "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
       "severity": "watch",
-      "finding": "The recorded cross-document row 11 target is stale because curated cross-document v2 contains 10 rows; the run pivoted to the next documented unresolved sibling troubleshooting answer rotation, row 17.",
+      "status": "partially_addressed_this_run_not_clean",
+      "timestamp": "2026-09-01T22:35:00Z"
+    },
+    {
       "addressed_this_run": "Ran sibling troubleshooting row 17 through actual HTTP/API answer mode and preserved the failed answer as diagnostic/not-clean after manual JSONL inspection.",
       "evidence": [
         "retrieval_eval_20260901_215602 retrieved the expected evidence at rank 4 with candidate recall 1.0.",
         "Answer grounding failed 0/1 with unsupported_citation_quote and expected_evidence_not_cited.",
         "Manual inspection found citation c7b00dfb supports Error 10109, but citation 966d7f14 has an unsupported sibling Error 10101 quote_span and exact expected cause/remedy chunks f31cc259 and 1f183cd9 are uncited."
       ],
+      "finding": "The recorded cross-document row 11 target is stale because curated cross-document v2 contains 10 rows; the run pivoted to the next documented unresolved sibling troubleshooting answer rotation, row 17.",
+      "remaining": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence.",
+      "severity": "watch",
       "status": "diagnostic_not_clean_tracking_updated",
-      "remaining": "Fix sibling troubleshooting row 17 answer citation selection so the API answer cites returned content that directly supports the CV-X482 light-controller 10109 error message, next-FLASH-while-emitting cause, and FLASH-output timing remedy, without unsupported sibling-row quote_spans or unrelated extra communication-error claims; then rerun actual HTTP/API answer mode and manually inspect the saved JSONL before accepting clean evidence."
+      "timestamp": "2026-09-01T21:58:00Z"
     },
     {
       "addressed_this_run": "Ran row 10 through a clean loaded side API, accepted only returned visible citation content, and manually inspected the saved JSONL answer/citations before marking it clean.",
@@ -16653,5 +16711,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T21:58:00Z"
+  "updated_at": "2026-09-01T22:35:00Z"
 }

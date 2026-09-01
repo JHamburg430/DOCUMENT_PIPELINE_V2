@@ -2540,11 +2540,7 @@ def _normalized_citation_text(text: str) -> str:
 
 
 def _citation_evidence_text(result: SearchResult) -> str:
-    content = str(result.content or "").strip()
-    metadata_content = str(result.metadata.get("content") or "").strip()
-    if metadata_content and metadata_content != content:
-        return f"{content}\n{metadata_content}" if content else metadata_content
-    return content
+    return str(result.content or "").strip()
 
 
 def _troubleshooting_anchor_terms(query: str) -> set[str]:
