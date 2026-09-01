@@ -1,7 +1,9 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "eval_timeout": 2
+  },
   "answer_failure_categories": {
-    "expected_evidence_not_cited": 1
+    "eval_timeout": 2
   },
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
@@ -184,62 +186,53 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "2/2 actual HTTP API answers passed via fallback_validation",
-    "classification": "source_reviewed_loaded_http_clean_evidence",
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
-    "datasets": [
-      "test_reports/retrieval_eval_dataset_20260831_2145_single_step_row2_one_shot_quantity_repair.jsonl",
-      "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl"
+    "answer_result": "0/2 actual HTTP API answer grounding; both cases timed out at the 120-second per-query limit before returning retrieved results or API answers.",
+    "checks": [
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before source-evidence update.",
+      "Actual HTTP answer run: docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260901-single-v2-3-4 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 2 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260901_022901, 0/2 retrieval and 0/2 answers due eval_timeout.",
+      "Manual JSONL inspection confirmed no answer/citation payload exists for either timeout row."
     ],
-    "diagnostic_attempts": [
-      {
-        "result": "two-case loaded HTTP run timed out on row 2 at 120s; row 1 remained clean; diagnostic only.",
-        "run_id": "retrieval_eval_20260831_222803",
-        "summary": "test_reports/retrieval_eval_summary_20260831_222803.json"
-      },
-      {
-        "result": "row-context fallback selected the correct visible row text but cited shifted key-value chunk 0b84d8d8, so answer scoring still failed expected_evidence_not_cited.",
-        "results": "test_reports/retrieval_eval_results_20260831_223124.jsonl",
-        "run_id": "retrieval_eval_20260831_223124",
-        "summary": "test_reports/retrieval_eval_summary_20260831_223124.json"
-      },
-      {
-        "result": "source-cell retrieval boost rerun timed out at 240s before producing row payload; diagnostic only.",
-        "results": "test_reports/retrieval_eval_results_20260831_223703.jsonl",
-        "run_id": "retrieval_eval_20260831_223703",
-        "summary": "test_reports/retrieval_eval_summary_20260831_223703.json"
-      }
-    ],
-    "latest_run": "retrieval_eval_20260901_004116",
-    "manifest": "test_reports/retrieval_eval_manifest_20260901_004116.json",
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_004116.jsonl for both rows. Row 1 user-visible fallback answer cites exact chunk a7ed6202-8a02-566c-a845-55acfe8c07bb and states the 0028/65.0 Command output area -> Command Result table cell. Row 2 user-visible fallback answer cites exact chunk c589846f-8d37-5045-87d3-c46fff60c43c and states Column headers: Output status; Row headers: ON when = Set value > Count value= 9; Cell value: One-Shot output, with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. The latching sibling chunks 4512a657/3a534b05 remained below the source-bearing One-Shot chunks in top results. No quote_span text was generated or accepted.",
-    "next_target": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
-    "previous_clean_claim_reclassified": {
-      "reason": "Guardrail 2026-08-31T21:03:00Z found the visible row-2 question ambiguous because Count value=9 and ON equals Set value match both Quantity counted at one time 2 / Latching output and 3 / One-Shot output rows.",
-      "rows": "row 2 and combined rows 1-2 clean claim",
-      "run": "retrieval_eval_20260831_204556"
+    "classification": "diagnostic_timeout_no_answer_payload",
+    "current_answer_failures": {
+      "eval_timeout": 2
     },
+    "current_retrieval_failures": {
+      "eval_timeout": 2
+    },
+    "dataset": "test_reports/retrieval_eval_dataset_20260901_022901.jsonl",
+    "latest_run": "retrieval_eval_20260901_022901",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_022901.jsonl. Both rows contain only timeout evaluations with retrieved_results null and api_answer null; there is no user-visible answer, citation, quote_span, or retrieved chunk payload to count as clean evidence. Row 3 expected the Contrast/no-NG Quality Match corrective action; row 4 expected the OP-42284 to CA-DRx9 applicable-light relation.",
+    "max_queries": 2,
+    "preserved_evidence": [
+      "retrieval_eval_20260901_004116 remains limited clean row-1/row-2 source-reviewed evidence after comparator containment.",
+      "All previous diagnostic exclusions and guardrail containments remain preserved."
+    ],
+    "query_offset": 2,
+    "remaining": "Investigate timeout-limited single-step v2 rows 3-4 answer-mode evaluation before broader coverage: source-reviewed expected evidence is now present, but retrieval_eval_20260901_022901 timed out both cases at 120s with no retrieved results or API answer payload. Rerun with a documented schedule/timeout adjustment or isolate the retrieval latency bottleneck before counting rows 3-4 clean.",
     "response_mode": "answer_with_citations",
-    "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
-    "retrieval_result": "2/2 retrieval passed at rank 1",
+    "results": "test_reports/retrieval_eval_results_20260901_022901.jsonl",
+    "retrieval_result": "0/2 retrieval scored because both cases timed out before returned results were available.",
     "runtime_load_evidence": {
-      "_status_output_matching_row_context_sha256": "2faa43945fe5c8b6c44cd178e1364a9436db39f81906c660540a469f6906a81b",
       "api_base_container": "http://127.0.0.1:8600",
-      "api_base_host": "http://127.0.0.1:8984",
-      "health": "ok at 2026-09-01T00:40:49Z",
+      "api_base_host": "http://127.0.0.1:8998",
+      "apps_api_main.py_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+      "generator.py_sha256": "86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90",
+      "health": "ok at 2026-09-01T02:28:41Z",
+      "launch_note": "First side-API launch omitted host-gateway and produced a /search 500 resolving host.docker.internal; the rerun used --add-host host.docker.internal:host-gateway and reached the configured local Ollama endpoint.",
       "ollama_answer_model": "qwen3.5:9b",
       "ollama_embed_model": "qwen3-embedding:0.6b",
       "ollama_url": "http://host.docker.internal:11434",
       "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
-      "retriever.py_sha256": "5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193",
-      "run_table_lexical_search_sha256": "7fd3a245c536e1903d640789298dc7d82d01f09a3a1c5f82f92570d9d051dcd2",
-      "side_api": "manuals-rag-temp-api-39262386-20260831-status-output-rowctx2"
+      "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
+      "retriever.py_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22",
+      "side_api": "manuals-rag-temp-api-39262386-20260901-single-v2-3-4"
     },
-    "scorer_control": "Added test_answer_response_scoring_rejects_sibling_quantity_table_row so a Latching output / value 2 sibling citation cannot satisfy the source-reviewed One-Shot output / value 3 quantity question.",
     "search_mode": "http",
-    "status": "single_step_v2_rows1_2_clean_after_status_output_row_context_binding",
-    "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
-    "timestamp": "2026-09-01T00:55:00Z"
+    "source_dataset_updated": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl rows 3-4 now have explicit expected_source_chunk_ids and expected_evidence roles.",
+    "status": "source_reviewed_rows_3_4_timeout_diagnostic_not_clean",
+    "summary": "test_reports/retrieval_eval_summary_20260901_022901.json",
+    "target": "Broaden source-reviewed single-step answer-grounding coverage to curated single-step v2 rows 3-4.",
+    "timestamp": "2026-09-01T02:37:00Z"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -715,49 +708,46 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
-    "timestamp": "2026-09-01T01:34:00Z",
-    "status": "status_output_exact_comparator_containment_addressed",
-    "target": "Fix guardrail 2026-09-01T00:58:00Z status-output comparator preservation bug.",
-    "latest_run": "retrieval_eval_20260901_004116",
-    "classification": "source_reviewed_loaded_http_clean_evidence_with_comparator_guardrail_contained",
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
-    "runtime_load_evidence": {
-      "side_api": "manuals-rag-temp-api-39262386-20260901-comparator",
-      "api_base_host": "http://127.0.0.1:8996",
-      "api_base_container": "http://127.0.0.1:8600",
-      "health": "ok at 2026-09-01T01:32:31Z",
-      "retriever.py_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22",
-      "_status_output_line_uses_range_set_value_sha256": "dbd6b7837030631a9ff8cf3fc38f4106c6888d65f8164da0457e55ef161f767e",
-      "_status_output_matching_row_context_sha256": "3694194bb1d6f03db7d99f2bdaf89506206c7160bae137f28bd5f8a9b12fd397",
-      "ollama_url": "http://host.docker.internal:11434",
-      "ollama_embed_model": "qwen3-embedding:0.6b",
-      "ollama_answer_model": "qwen3.5:9b",
-      "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
-      "compose_note": "Starting the clean side API recreated the compose Postgres container from the checked-in compose file; no compose/config file was edited."
-    },
     "checks": [
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'status_output_row_context or table_cell_value_binding_score_prefers_row_column_and_value_match or structured_table_promotion_preserves_top_lexical_cell' -> 4 passed, 126 deselected.",
-      "Loaded helper controls in side API: exact ON when = Set value row accepted; ASCII ON when >= Set value row rejected; Unicode ON when >= Set value row rejected.",
-      "Actual side-API /search check for the exact row-2 query ranked c589846f first and c90f4dfb second with Source row context; latching sibling 4512a657 and key-value siblings including Unicode >= bd99442c were not promoted with Source row context.",
-      "Actual side-API /query check returned a fallback answer citing c589846f and stating the exact ON when = Set value / Count value=9 / 7 / 3 / 0 / One-Shot output row context.",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q initially failed only because ignored tmp_eval_docs* fixtures were missing from the clean worktree; after copying fixtures, rerun passed 519 passed, 59 warnings.",
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before and after tracking update.",
-      "git diff --check HEAD -> passed before tracking update."
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before source-evidence update.",
+      "Actual HTTP answer run: docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260901-single-v2-3-4 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 2 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260901_022901, 0/2 retrieval and 0/2 answers due eval_timeout.",
+      "Manual JSONL inspection confirmed no answer/citation payload exists for either timeout row."
     ],
-    "manual_jsonl_inspection": "Preserved prior manual inspection of test_reports/retrieval_eval_results_20260901_004116.jsonl: row 1 cites exact chunk a7ed6202 for the CV-X command-result table cell, and row 2 cites exact chunk c589846f with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. No quote_span text was generated or accepted.",
-    "guardrail_followup": {
-      "timestamp": "2026-09-01T00:58:00Z",
-      "guardrail_commit": "fc36f79",
-      "severity": "needs_fix",
-      "finding": "Exact-equality status-output row context could accept ON when >= Set value after normalization stripped comparator punctuation.",
-      "addressed_this_run": "Preserved comparator semantics before normalized punctuation stripping and added loaded adverse controls for ASCII >= and Unicode >= rows.",
-      "remaining": "No active comparator containment remains; continue broader source-reviewed coverage without treating row 2 as proof for unrelated answer-grounding paths."
+    "classification": "diagnostic_timeout_no_answer_payload",
+    "current_answer_failures": {
+      "eval_timeout": 2
     },
-    "current_retrieval_failures": {},
-    "current_answer_failures": {},
-    "remaining": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries."
+    "current_retrieval_failures": {
+      "eval_timeout": 2
+    },
+    "dataset": "test_reports/retrieval_eval_dataset_20260901_022901.jsonl",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_022901.jsonl. Both rows contain only timeout evaluations with retrieved_results null and api_answer null; there is no user-visible answer, citation, quote_span, or retrieved chunk payload to count as clean evidence. Row 3 expected the Contrast/no-NG Quality Match corrective action; row 4 expected the OP-42284 to CA-DRx9 applicable-light relation.",
+    "preserved_evidence": [
+      "retrieval_eval_20260901_004116 remains limited clean row-1/row-2 source-reviewed evidence after comparator containment.",
+      "All previous diagnostic exclusions and guardrail containments remain preserved."
+    ],
+    "remaining": "Investigate timeout-limited single-step v2 rows 3-4 answer-mode evaluation before broader coverage: source-reviewed expected evidence is now present, but retrieval_eval_20260901_022901 timed out both cases at 120s with no retrieved results or API answer payload. Rerun with a documented schedule/timeout adjustment or isolate the retrieval latency bottleneck before counting rows 3-4 clean.",
+    "results": "test_reports/retrieval_eval_results_20260901_022901.jsonl",
+    "runtime_load_evidence": {
+      "api_base_container": "http://127.0.0.1:8600",
+      "api_base_host": "http://127.0.0.1:8998",
+      "apps_api_main.py_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+      "generator.py_sha256": "86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90",
+      "health": "ok at 2026-09-01T02:28:41Z",
+      "launch_note": "First side-API launch omitted host-gateway and produced a /search 500 resolving host.docker.internal; the rerun used --add-host host.docker.internal:host-gateway and reached the configured local Ollama endpoint.",
+      "ollama_answer_model": "qwen3.5:9b",
+      "ollama_embed_model": "qwen3-embedding:0.6b",
+      "ollama_url": "http://host.docker.internal:11434",
+      "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
+      "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
+      "retriever.py_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22",
+      "side_api": "manuals-rag-temp-api-39262386-20260901-single-v2-3-4"
+    },
+    "source_dataset_updated": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl rows 3-4 now have explicit expected_source_chunk_ids and expected_evidence roles.",
+    "status": "source_reviewed_rows_3_4_timeout_diagnostic_not_clean",
+    "summary": "test_reports/retrieval_eval_summary_20260901_022901.json",
+    "target": "Broaden source-reviewed single-step answer-grounding coverage to curated single-step v2 rows 3-4.",
+    "timestamp": "2026-09-01T02:37:00Z"
   },
   "constraints": {
     "allowed_logic": [
@@ -775,9 +765,15 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
-  "current_failure_categories": {},
-  "current_retrieval_failure_categories": {},
+  "current_answer_failure_categories": {
+    "eval_timeout": 2
+  },
+  "current_failure_categories": {
+    "eval_timeout": 2
+  },
+  "current_retrieval_failure_categories": {
+    "eval_timeout": 2
+  },
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
   "diagnostics": [
     {
@@ -976,7 +972,9 @@
       "total_queries": 10
     }
   ],
-  "failure_categories": {},
+  "failure_categories": {
+    "eval_timeout": 2
+  },
   "goal": {
     "components": [
       "single_step_retrieval",
@@ -2921,24 +2919,24 @@
     "timestamp": "2026-08-27T18:03:52-04:00"
   },
   "latest_no_change_validation": {
-    "timestamp": "2026-09-01T02:05:00Z",
-    "status": "guardrail_manifest_state_preserved_no_production_change",
-    "target": "Cron-safe start-of-run guardrail and manifest review from clean origin/main after primary checkout divergence.",
+    "coverage": {
+      "active_total": 208,
+      "multi_step": 107,
+      "replacement_debt": 0,
+      "single_step": 101
+    },
     "guardrail_review": "Checked-in guardrail findings include 2026-09-01T01:48:00Z ok audit for status-output comparator repair; direct guardrail cron history was restricted to the current job.",
     "manifest_status": "Root and question_bank copies agree for current duplicated state; current retrieval and answer failure aliases are empty for the limited row-1/row-2 source-reviewed slice.",
+    "next_target": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries.",
+    "primary_checkout": "Preserved stale/dirty primary checkout main...origin/main [ahead 1, behind 158], local stale commit bb2ce10, unrelated dirty files, compose endpoint drift, and mass eval-artifact deletions without accepting, reverting, merging, or pushing them.",
+    "scope": "Tracking-only: no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, reranker, or eval artifact changes.",
+    "status": "guardrail_manifest_state_preserved_no_production_change",
+    "target": "Cron-safe start-of-run guardrail and manifest review from clean origin/main after primary checkout divergence.",
+    "timestamp": "2026-09-01T02:05:00Z",
     "validation": [
       "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before tracking update.",
       "docker compose -f infra/compose/docker-compose.yml ps --format json showed the local stack running, including API/UI on 8600/8601."
-    ],
-    "scope": "Tracking-only: no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, reranker, or eval artifact changes.",
-    "primary_checkout": "Preserved stale/dirty primary checkout main...origin/main [ahead 1, behind 158], local stale commit bb2ce10, unrelated dirty files, compose endpoint drift, and mass eval-artifact deletions without accepting, reverting, merging, or pushing them.",
-    "coverage": {
-      "active_total": 208,
-      "single_step": 101,
-      "multi_step": 107,
-      "replacement_debt": 0
-    },
-    "next_target": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries."
+    ]
   },
   "latest_rejected_experiment": {
     "baseline": "retrieval_eval_20260825_072839",
@@ -8929,28 +8927,6 @@
     ]
   },
   "latest_status_output_row2_diagnostic_experiment": {
-    "timestamp": "2026-09-01T01:34:00Z",
-    "status": "status_output_exact_comparator_containment_addressed",
-    "target": "Fix guardrail 2026-09-01T00:58:00Z status-output comparator preservation bug.",
-    "latest_run": "retrieval_eval_20260901_004116",
-    "classification": "source_reviewed_loaded_http_clean_evidence_with_comparator_guardrail_contained",
-    "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
-    "runtime_load_evidence": {
-      "side_api": "manuals-rag-temp-api-39262386-20260901-comparator",
-      "api_base_host": "http://127.0.0.1:8996",
-      "api_base_container": "http://127.0.0.1:8600",
-      "health": "ok at 2026-09-01T01:32:31Z",
-      "retriever.py_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22",
-      "_status_output_line_uses_range_set_value_sha256": "dbd6b7837030631a9ff8cf3fc38f4106c6888d65f8164da0457e55ef161f767e",
-      "_status_output_matching_row_context_sha256": "3694194bb1d6f03db7d99f2bdaf89506206c7160bae137f28bd5f8a9b12fd397",
-      "ollama_url": "http://host.docker.internal:11434",
-      "ollama_embed_model": "qwen3-embedding:0.6b",
-      "ollama_answer_model": "qwen3.5:9b",
-      "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
-      "compose_note": "Starting the clean side API recreated the compose Postgres container from the checked-in compose file; no compose/config file was edited."
-    },
     "checks": [
       "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'status_output_row_context or table_cell_value_binding_score_prefers_row_column_and_value_match or structured_table_promotion_preserves_top_lexical_cell' -> 4 passed, 126 deselected.",
       "Loaded helper controls in side API: exact ON when = Set value row accepted; ASCII ON when >= Set value row rejected; Unicode ON when >= Set value row rejected.",
@@ -8960,18 +8936,40 @@
       "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before and after tracking update.",
       "git diff --check HEAD -> passed before tracking update."
     ],
-    "manual_jsonl_inspection": "Preserved prior manual inspection of test_reports/retrieval_eval_results_20260901_004116.jsonl: row 1 cites exact chunk a7ed6202 for the CV-X command-result table cell, and row 2 cites exact chunk c589846f with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. No quote_span text was generated or accepted.",
-    "guardrail_followup": {
-      "timestamp": "2026-09-01T00:58:00Z",
-      "guardrail_commit": "fc36f79",
-      "severity": "needs_fix",
-      "finding": "Exact-equality status-output row context could accept ON when >= Set value after normalization stripped comparator punctuation.",
-      "addressed_this_run": "Preserved comparator semantics before normalized punctuation stripping and added loaded adverse controls for ASCII >= and Unicode >= rows.",
-      "remaining": "No active comparator containment remains; continue broader source-reviewed coverage without treating row 2 as proof for unrelated answer-grounding paths."
-    },
-    "current_retrieval_failures": {},
+    "classification": "source_reviewed_loaded_http_clean_evidence_with_comparator_guardrail_contained",
     "current_answer_failures": {},
-    "remaining": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries."
+    "current_retrieval_failures": {},
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
+    "guardrail_followup": {
+      "addressed_this_run": "Preserved comparator semantics before normalized punctuation stripping and added loaded adverse controls for ASCII >= and Unicode >= rows.",
+      "finding": "Exact-equality status-output row context could accept ON when >= Set value after normalization stripped comparator punctuation.",
+      "guardrail_commit": "fc36f79",
+      "remaining": "No active comparator containment remains; continue broader source-reviewed coverage without treating row 2 as proof for unrelated answer-grounding paths.",
+      "severity": "needs_fix",
+      "timestamp": "2026-09-01T00:58:00Z"
+    },
+    "latest_run": "retrieval_eval_20260901_004116",
+    "manual_jsonl_inspection": "Preserved prior manual inspection of test_reports/retrieval_eval_results_20260901_004116.jsonl: row 1 cites exact chunk a7ed6202 for the CV-X command-result table cell, and row 2 cites exact chunk c589846f with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. No quote_span text was generated or accepted.",
+    "remaining": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries.",
+    "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
+    "runtime_load_evidence": {
+      "_status_output_line_uses_range_set_value_sha256": "dbd6b7837030631a9ff8cf3fc38f4106c6888d65f8164da0457e55ef161f767e",
+      "_status_output_matching_row_context_sha256": "3694194bb1d6f03db7d99f2bdaf89506206c7160bae137f28bd5f8a9b12fd397",
+      "api_base_container": "http://127.0.0.1:8600",
+      "api_base_host": "http://127.0.0.1:8996",
+      "compose_note": "Starting the clean side API recreated the compose Postgres container from the checked-in compose file; no compose/config file was edited.",
+      "health": "ok at 2026-09-01T01:32:31Z",
+      "ollama_answer_model": "qwen3.5:9b",
+      "ollama_embed_model": "qwen3-embedding:0.6b",
+      "ollama_url": "http://host.docker.internal:11434",
+      "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
+      "retriever.py_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22",
+      "side_api": "manuals-rag-temp-api-39262386-20260901-comparator"
+    },
+    "status": "status_output_exact_comparator_containment_addressed",
+    "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
+    "target": "Fix guardrail 2026-09-01T00:58:00Z status-output comparator preservation bug.",
+    "timestamp": "2026-09-01T01:34:00Z"
   },
   "llm_answer_judge_policy": {
     "guardrail_timestamp": "2026-08-27T02:12:42Z / 2026-08-27T02:41:22Z",
@@ -8980,7 +8978,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries.",
+  "next_target": "Investigate timeout-limited single-step v2 rows 3-4 answer-mode evaluation before broader coverage: source-reviewed expected evidence is now present, but retrieval_eval_20260901_022901 timed out both cases at 120s with no retrieved results or API answer payload. Rerun with a documented schedule/timeout adjustment or isolate the retrieval latency bottleneck before counting rows 3-4 clean.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9733,9 +9731,11 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "eval_timeout": 2
+    },
     "answer_failure_categories": {
-      "expected_evidence_not_cited": 1
+      "eval_timeout": 2
     },
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
@@ -9918,62 +9918,53 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "2/2 actual HTTP API answers passed via fallback_validation",
-      "classification": "source_reviewed_loaded_http_clean_evidence",
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
-      "datasets": [
-        "test_reports/retrieval_eval_dataset_20260831_2145_single_step_row2_one_shot_quantity_repair.jsonl",
-        "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl"
+      "answer_result": "0/2 actual HTTP API answer grounding; both cases timed out at the 120-second per-query limit before returning retrieved results or API answers.",
+      "checks": [
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before source-evidence update.",
+        "Actual HTTP answer run: docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260901-single-v2-3-4 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 2 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260901_022901, 0/2 retrieval and 0/2 answers due eval_timeout.",
+        "Manual JSONL inspection confirmed no answer/citation payload exists for either timeout row."
       ],
-      "diagnostic_attempts": [
-        {
-          "result": "two-case loaded HTTP run timed out on row 2 at 120s; row 1 remained clean; diagnostic only.",
-          "run_id": "retrieval_eval_20260831_222803",
-          "summary": "test_reports/retrieval_eval_summary_20260831_222803.json"
-        },
-        {
-          "result": "row-context fallback selected the correct visible row text but cited shifted key-value chunk 0b84d8d8, so answer scoring still failed expected_evidence_not_cited.",
-          "results": "test_reports/retrieval_eval_results_20260831_223124.jsonl",
-          "run_id": "retrieval_eval_20260831_223124",
-          "summary": "test_reports/retrieval_eval_summary_20260831_223124.json"
-        },
-        {
-          "result": "source-cell retrieval boost rerun timed out at 240s before producing row payload; diagnostic only.",
-          "results": "test_reports/retrieval_eval_results_20260831_223703.jsonl",
-          "run_id": "retrieval_eval_20260831_223703",
-          "summary": "test_reports/retrieval_eval_summary_20260831_223703.json"
-        }
-      ],
-      "latest_run": "retrieval_eval_20260901_004116",
-      "manifest": "test_reports/retrieval_eval_manifest_20260901_004116.json",
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_004116.jsonl for both rows. Row 1 user-visible fallback answer cites exact chunk a7ed6202-8a02-566c-a845-55acfe8c07bb and states the 0028/65.0 Command output area -> Command Result table cell. Row 2 user-visible fallback answer cites exact chunk c589846f-8d37-5045-87d3-c46fff60c43c and states Column headers: Output status; Row headers: ON when = Set value > Count value= 9; Cell value: One-Shot output, with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. The latching sibling chunks 4512a657/3a534b05 remained below the source-bearing One-Shot chunks in top results. No quote_span text was generated or accepted.",
-      "next_target": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
-      "previous_clean_claim_reclassified": {
-        "reason": "Guardrail 2026-08-31T21:03:00Z found the visible row-2 question ambiguous because Count value=9 and ON equals Set value match both Quantity counted at one time 2 / Latching output and 3 / One-Shot output rows.",
-        "rows": "row 2 and combined rows 1-2 clean claim",
-        "run": "retrieval_eval_20260831_204556"
+      "classification": "diagnostic_timeout_no_answer_payload",
+      "current_answer_failures": {
+        "eval_timeout": 2
       },
+      "current_retrieval_failures": {
+        "eval_timeout": 2
+      },
+      "dataset": "test_reports/retrieval_eval_dataset_20260901_022901.jsonl",
+      "latest_run": "retrieval_eval_20260901_022901",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_022901.jsonl. Both rows contain only timeout evaluations with retrieved_results null and api_answer null; there is no user-visible answer, citation, quote_span, or retrieved chunk payload to count as clean evidence. Row 3 expected the Contrast/no-NG Quality Match corrective action; row 4 expected the OP-42284 to CA-DRx9 applicable-light relation.",
+      "max_queries": 2,
+      "preserved_evidence": [
+        "retrieval_eval_20260901_004116 remains limited clean row-1/row-2 source-reviewed evidence after comparator containment.",
+        "All previous diagnostic exclusions and guardrail containments remain preserved."
+      ],
+      "query_offset": 2,
+      "remaining": "Investigate timeout-limited single-step v2 rows 3-4 answer-mode evaluation before broader coverage: source-reviewed expected evidence is now present, but retrieval_eval_20260901_022901 timed out both cases at 120s with no retrieved results or API answer payload. Rerun with a documented schedule/timeout adjustment or isolate the retrieval latency bottleneck before counting rows 3-4 clean.",
       "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
-      "retrieval_result": "2/2 retrieval passed at rank 1",
+      "results": "test_reports/retrieval_eval_results_20260901_022901.jsonl",
+      "retrieval_result": "0/2 retrieval scored because both cases timed out before returned results were available.",
       "runtime_load_evidence": {
-        "_status_output_matching_row_context_sha256": "2faa43945fe5c8b6c44cd178e1364a9436db39f81906c660540a469f6906a81b",
         "api_base_container": "http://127.0.0.1:8600",
-        "api_base_host": "http://127.0.0.1:8984",
-        "health": "ok at 2026-09-01T00:40:49Z",
+        "api_base_host": "http://127.0.0.1:8998",
+        "apps_api_main.py_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+        "generator.py_sha256": "86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90",
+        "health": "ok at 2026-09-01T02:28:41Z",
+        "launch_note": "First side-API launch omitted host-gateway and produced a /search 500 resolving host.docker.internal; the rerun used --add-host host.docker.internal:host-gateway and reached the configured local Ollama endpoint.",
         "ollama_answer_model": "qwen3.5:9b",
         "ollama_embed_model": "qwen3-embedding:0.6b",
         "ollama_url": "http://host.docker.internal:11434",
         "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
-        "retriever.py_sha256": "5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193",
-        "run_table_lexical_search_sha256": "7fd3a245c536e1903d640789298dc7d82d01f09a3a1c5f82f92570d9d051dcd2",
-        "side_api": "manuals-rag-temp-api-39262386-20260831-status-output-rowctx2"
+        "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
+        "retriever.py_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22",
+        "side_api": "manuals-rag-temp-api-39262386-20260901-single-v2-3-4"
       },
-      "scorer_control": "Added test_answer_response_scoring_rejects_sibling_quantity_table_row so a Latching output / value 2 sibling citation cannot satisfy the source-reviewed One-Shot output / value 3 quantity question.",
       "search_mode": "http",
-      "status": "single_step_v2_rows1_2_clean_after_status_output_row_context_binding",
-      "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
-      "timestamp": "2026-09-01T00:55:00Z"
+      "source_dataset_updated": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl rows 3-4 now have explicit expected_source_chunk_ids and expected_evidence roles.",
+      "status": "source_reviewed_rows_3_4_timeout_diagnostic_not_clean",
+      "summary": "test_reports/retrieval_eval_summary_20260901_022901.json",
+      "target": "Broaden source-reviewed single-step answer-grounding coverage to curated single-step v2 rows 3-4.",
+      "timestamp": "2026-09-01T02:37:00Z"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10238,53 +10229,56 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
-      "timestamp": "2026-09-01T01:34:00Z",
-      "status": "status_output_exact_comparator_containment_addressed",
-      "target": "Fix guardrail 2026-09-01T00:58:00Z status-output comparator preservation bug.",
-      "latest_run": "retrieval_eval_20260901_004116",
-      "classification": "source_reviewed_loaded_http_clean_evidence_with_comparator_guardrail_contained",
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
-      "runtime_load_evidence": {
-        "side_api": "manuals-rag-temp-api-39262386-20260901-comparator",
-        "api_base_host": "http://127.0.0.1:8996",
-        "api_base_container": "http://127.0.0.1:8600",
-        "health": "ok at 2026-09-01T01:32:31Z",
-        "retriever.py_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22",
-        "_status_output_line_uses_range_set_value_sha256": "dbd6b7837030631a9ff8cf3fc38f4106c6888d65f8164da0457e55ef161f767e",
-        "_status_output_matching_row_context_sha256": "3694194bb1d6f03db7d99f2bdaf89506206c7160bae137f28bd5f8a9b12fd397",
-        "ollama_url": "http://host.docker.internal:11434",
-        "ollama_embed_model": "qwen3-embedding:0.6b",
-        "ollama_answer_model": "qwen3.5:9b",
-        "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
-        "compose_note": "Starting the clean side API recreated the compose Postgres container from the checked-in compose file; no compose/config file was edited."
-      },
       "checks": [
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'status_output_row_context or table_cell_value_binding_score_prefers_row_column_and_value_match or structured_table_promotion_preserves_top_lexical_cell' -> 4 passed, 126 deselected.",
-        "Loaded helper controls in side API: exact ON when = Set value row accepted; ASCII ON when >= Set value row rejected; Unicode ON when >= Set value row rejected.",
-        "Actual side-API /search check for the exact row-2 query ranked c589846f first and c90f4dfb second with Source row context; latching sibling 4512a657 and key-value siblings including Unicode >= bd99442c were not promoted with Source row context.",
-        "Actual side-API /query check returned a fallback answer citing c589846f and stating the exact ON when = Set value / Count value=9 / 7 / 3 / 0 / One-Shot output row context.",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q initially failed only because ignored tmp_eval_docs* fixtures were missing from the clean worktree; after copying fixtures, rerun passed 519 passed, 59 warnings.",
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before and after tracking update.",
-        "git diff --check HEAD -> passed before tracking update."
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before source-evidence update.",
+        "Actual HTTP answer run: docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260901-single-v2-3-4 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 2 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260901_022901, 0/2 retrieval and 0/2 answers due eval_timeout.",
+        "Manual JSONL inspection confirmed no answer/citation payload exists for either timeout row."
       ],
-      "manual_jsonl_inspection": "Preserved prior manual inspection of test_reports/retrieval_eval_results_20260901_004116.jsonl: row 1 cites exact chunk a7ed6202 for the CV-X command-result table cell, and row 2 cites exact chunk c589846f with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. No quote_span text was generated or accepted.",
-      "guardrail_followup": {
-        "timestamp": "2026-09-01T00:58:00Z",
-        "guardrail_commit": "fc36f79",
-        "severity": "needs_fix",
-        "finding": "Exact-equality status-output row context could accept ON when >= Set value after normalization stripped comparator punctuation.",
-        "addressed_this_run": "Preserved comparator semantics before normalized punctuation stripping and added loaded adverse controls for ASCII >= and Unicode >= rows.",
-        "remaining": "No active comparator containment remains; continue broader source-reviewed coverage without treating row 2 as proof for unrelated answer-grounding paths."
+      "classification": "diagnostic_timeout_no_answer_payload",
+      "current_answer_failures": {
+        "eval_timeout": 2
       },
-      "current_retrieval_failures": {},
-      "current_answer_failures": {},
-      "remaining": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries."
+      "current_retrieval_failures": {
+        "eval_timeout": 2
+      },
+      "dataset": "test_reports/retrieval_eval_dataset_20260901_022901.jsonl",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_022901.jsonl. Both rows contain only timeout evaluations with retrieved_results null and api_answer null; there is no user-visible answer, citation, quote_span, or retrieved chunk payload to count as clean evidence. Row 3 expected the Contrast/no-NG Quality Match corrective action; row 4 expected the OP-42284 to CA-DRx9 applicable-light relation.",
+      "preserved_evidence": [
+        "retrieval_eval_20260901_004116 remains limited clean row-1/row-2 source-reviewed evidence after comparator containment.",
+        "All previous diagnostic exclusions and guardrail containments remain preserved."
+      ],
+      "remaining": "Investigate timeout-limited single-step v2 rows 3-4 answer-mode evaluation before broader coverage: source-reviewed expected evidence is now present, but retrieval_eval_20260901_022901 timed out both cases at 120s with no retrieved results or API answer payload. Rerun with a documented schedule/timeout adjustment or isolate the retrieval latency bottleneck before counting rows 3-4 clean.",
+      "results": "test_reports/retrieval_eval_results_20260901_022901.jsonl",
+      "runtime_load_evidence": {
+        "api_base_container": "http://127.0.0.1:8600",
+        "api_base_host": "http://127.0.0.1:8998",
+        "apps_api_main.py_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+        "generator.py_sha256": "86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90",
+        "health": "ok at 2026-09-01T02:28:41Z",
+        "launch_note": "First side-API launch omitted host-gateway and produced a /search 500 resolving host.docker.internal; the rerun used --add-host host.docker.internal:host-gateway and reached the configured local Ollama endpoint.",
+        "ollama_answer_model": "qwen3.5:9b",
+        "ollama_embed_model": "qwen3-embedding:0.6b",
+        "ollama_url": "http://host.docker.internal:11434",
+        "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
+        "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
+        "retriever.py_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22",
+        "side_api": "manuals-rag-temp-api-39262386-20260901-single-v2-3-4"
+      },
+      "source_dataset_updated": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl rows 3-4 now have explicit expected_source_chunk_ids and expected_evidence roles.",
+      "status": "source_reviewed_rows_3_4_timeout_diagnostic_not_clean",
+      "summary": "test_reports/retrieval_eval_summary_20260901_022901.json",
+      "target": "Broaden source-reviewed single-step answer-grounding coverage to curated single-step v2 rows 3-4.",
+      "timestamp": "2026-09-01T02:37:00Z"
     },
-    "current_answer_failure_categories": {},
-    "current_failure_categories": {},
-    "current_retrieval_failure_categories": {},
+    "current_answer_failure_categories": {
+      "eval_timeout": 2
+    },
+    "current_failure_categories": {
+      "eval_timeout": 2
+    },
+    "current_retrieval_failure_categories": {
+      "eval_timeout": 2
+    },
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
     "datasets": [
       {
@@ -10630,7 +10624,9 @@
       }
     ],
     "exploratory_questions": 208,
-    "failure_categories": {},
+    "failure_categories": {
+      "eval_timeout": 2
+    },
     "latest_comparison_setting_side_binding_containment": {
       "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
       "actual_http_evidence": {
@@ -12396,28 +12392,6 @@
       "timestamp": "2026-08-27T18:03:52-04:00"
     },
     "latest_status_output_row2_diagnostic_experiment": {
-      "timestamp": "2026-09-01T01:34:00Z",
-      "status": "status_output_exact_comparator_containment_addressed",
-      "target": "Fix guardrail 2026-09-01T00:58:00Z status-output comparator preservation bug.",
-      "latest_run": "retrieval_eval_20260901_004116",
-      "classification": "source_reviewed_loaded_http_clean_evidence_with_comparator_guardrail_contained",
-      "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
-      "runtime_load_evidence": {
-        "side_api": "manuals-rag-temp-api-39262386-20260901-comparator",
-        "api_base_host": "http://127.0.0.1:8996",
-        "api_base_container": "http://127.0.0.1:8600",
-        "health": "ok at 2026-09-01T01:32:31Z",
-        "retriever.py_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22",
-        "_status_output_line_uses_range_set_value_sha256": "dbd6b7837030631a9ff8cf3fc38f4106c6888d65f8164da0457e55ef161f767e",
-        "_status_output_matching_row_context_sha256": "3694194bb1d6f03db7d99f2bdaf89506206c7160bae137f28bd5f8a9b12fd397",
-        "ollama_url": "http://host.docker.internal:11434",
-        "ollama_embed_model": "qwen3-embedding:0.6b",
-        "ollama_answer_model": "qwen3.5:9b",
-        "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
-        "compose_note": "Starting the clean side API recreated the compose Postgres container from the checked-in compose file; no compose/config file was edited."
-      },
       "checks": [
         "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'status_output_row_context or table_cell_value_binding_score_prefers_row_column_and_value_match or structured_table_promotion_preserves_top_lexical_cell' -> 4 passed, 126 deselected.",
         "Loaded helper controls in side API: exact ON when = Set value row accepted; ASCII ON when >= Set value row rejected; Unicode ON when >= Set value row rejected.",
@@ -12427,18 +12401,40 @@
         "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before and after tracking update.",
         "git diff --check HEAD -> passed before tracking update."
       ],
-      "manual_jsonl_inspection": "Preserved prior manual inspection of test_reports/retrieval_eval_results_20260901_004116.jsonl: row 1 cites exact chunk a7ed6202 for the CV-X command-result table cell, and row 2 cites exact chunk c589846f with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. No quote_span text was generated or accepted.",
-      "guardrail_followup": {
-        "timestamp": "2026-09-01T00:58:00Z",
-        "guardrail_commit": "fc36f79",
-        "severity": "needs_fix",
-        "finding": "Exact-equality status-output row context could accept ON when >= Set value after normalization stripped comparator punctuation.",
-        "addressed_this_run": "Preserved comparator semantics before normalized punctuation stripping and added loaded adverse controls for ASCII >= and Unicode >= rows.",
-        "remaining": "No active comparator containment remains; continue broader source-reviewed coverage without treating row 2 as proof for unrelated answer-grounding paths."
-      },
-      "current_retrieval_failures": {},
+      "classification": "source_reviewed_loaded_http_clean_evidence_with_comparator_guardrail_contained",
       "current_answer_failures": {},
-      "remaining": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries."
+      "current_retrieval_failures": {},
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
+      "guardrail_followup": {
+        "addressed_this_run": "Preserved comparator semantics before normalized punctuation stripping and added loaded adverse controls for ASCII >= and Unicode >= rows.",
+        "finding": "Exact-equality status-output row context could accept ON when >= Set value after normalization stripped comparator punctuation.",
+        "guardrail_commit": "fc36f79",
+        "remaining": "No active comparator containment remains; continue broader source-reviewed coverage without treating row 2 as proof for unrelated answer-grounding paths.",
+        "severity": "needs_fix",
+        "timestamp": "2026-09-01T00:58:00Z"
+      },
+      "latest_run": "retrieval_eval_20260901_004116",
+      "manual_jsonl_inspection": "Preserved prior manual inspection of test_reports/retrieval_eval_results_20260901_004116.jsonl: row 1 cites exact chunk a7ed6202 for the CV-X command-result table cell, and row 2 cites exact chunk c589846f with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. No quote_span text was generated or accepted.",
+      "remaining": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries.",
+      "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
+      "runtime_load_evidence": {
+        "_status_output_line_uses_range_set_value_sha256": "dbd6b7837030631a9ff8cf3fc38f4106c6888d65f8164da0457e55ef161f767e",
+        "_status_output_matching_row_context_sha256": "3694194bb1d6f03db7d99f2bdaf89506206c7160bae137f28bd5f8a9b12fd397",
+        "api_base_container": "http://127.0.0.1:8600",
+        "api_base_host": "http://127.0.0.1:8996",
+        "compose_note": "Starting the clean side API recreated the compose Postgres container from the checked-in compose file; no compose/config file was edited.",
+        "health": "ok at 2026-09-01T01:32:31Z",
+        "ollama_answer_model": "qwen3.5:9b",
+        "ollama_embed_model": "qwen3-embedding:0.6b",
+        "ollama_url": "http://host.docker.internal:11434",
+        "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
+        "retriever.py_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22",
+        "side_api": "manuals-rag-temp-api-39262386-20260901-comparator"
+      },
+      "status": "status_output_exact_comparator_containment_addressed",
+      "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
+      "target": "Fix guardrail 2026-09-01T00:58:00Z status-output comparator preservation bug.",
+      "timestamp": "2026-09-01T01:34:00Z"
     },
     "llm_answer_judge_policy": {
       "guardrail_timestamp": "2026-08-27T02:12:42Z / 2026-08-27T02:41:22Z",
@@ -12449,7 +12445,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries.",
+    "next_target": "Investigate timeout-limited single-step v2 rows 3-4 answer-mode evaluation before broader coverage: source-reviewed expected evidence is now present, but retrieval_eval_20260901_022901 timed out both cases at 120s with no retrieved results or API answer payload. Rerun with a documented schedule/timeout adjustment or isolate the retrieval latency bottleneck before counting rows 3-4 clean.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12486,8 +12482,10 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries.",
-    "retrieval_current_failure_categories": {},
+    "remaining": "Investigate timeout-limited single-step v2 rows 3-4 answer-mode evaluation before broader coverage: source-reviewed expected evidence is now present, but retrieval_eval_20260901_022901 timed out both cases at 120s with no retrieved results or API answer payload. Rerun with a documented schedule/timeout adjustment or isolate the retrieval latency bottleneck before counting rows 3-4 clean.",
+    "retrieval_current_failure_categories": {
+      "eval_timeout": 2
+    },
     "run_exclusions": [
       {
         "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -13069,17 +13067,17 @@
         "reason": "retrieval-only diagnostic control after reverted experiment; rank remained 3 and exact expected chunk c589846f was not in inspected top results",
         "run_id": "retrieval_eval_20260831_230951",
         "scope": "curated single-step v2 row 2 retrieval/control evidence"
+      },
+      {
+        "reason": "diagnostic timeout-limited run; both rows hit the 120-second per-query timeout and produced no retrieved results or user-visible API answer/citation payload, so no clean evidence can be accepted.",
+        "run_id": "retrieval_eval_20260901_022901",
+        "scope": "curated single-step v2 rows 3-4 answer-grounding coverage"
       }
     ],
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
       {
-        "timestamp": "2026-09-01T00:58:00Z",
-        "severity": "needs_fix",
-        "guardrail_commit": "fc36f79",
-        "finding": "Status-output exact-equality row context accepted ON when >= Set value because normalization stripped comparator punctuation before the range-comparator guard.",
-        "status": "addressed_comparator_preserved_and_loaded_controls_passed",
         "addressed_this_run": "Added comparator-preserving range-row detection for ASCII >=, reversed =>, and Unicode >= before normalized row matching; exact = rows still pass.",
         "evidence": [
           "Focused status-output retriever controls passed with 4 passed, 126 deselected.",
@@ -13088,7 +13086,12 @@
           "Actual side-API /search and /query checks returned/cited c589846f exact source row context and did not promote Unicode >= sibling bd99442c with Source row context.",
           "Manifest checker passed after paired tracking update."
         ],
-        "remaining": "Continue broader source-reviewed answer-grounding coverage; preserve retrieval_eval_20260901_004116 as limited source-reviewed row evidence with comparator containment now tested."
+        "finding": "Status-output exact-equality row context accepted ON when >= Set value because normalization stripped comparator punctuation before the range-comparator guard.",
+        "guardrail_commit": "fc36f79",
+        "remaining": "Continue broader source-reviewed answer-grounding coverage; preserve retrieval_eval_20260901_004116 as limited source-reviewed row evidence with comparator containment now tested.",
+        "severity": "needs_fix",
+        "status": "addressed_comparator_preserved_and_loaded_controls_passed",
+        "timestamp": "2026-09-01T00:58:00Z"
       },
       {
         "addressed_this_run": "Registered latest_status_output_row2_diagnostic_experiment as a required root/question_bank manifest pair and added deterministic equal, missing-root, missing-question_bank, and unequal controls.",
@@ -14070,10 +14073,12 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T02:05:00Z"
+    "updated_at": "2026-09-01T02:37:00Z"
   },
-  "remaining": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries.",
-  "retrieval_current_failure_categories": {},
+  "remaining": "Investigate timeout-limited single-step v2 rows 3-4 answer-mode evaluation before broader coverage: source-reviewed expected evidence is now present, but retrieval_eval_20260901_022901 timed out both cases at 120s with no retrieved results or API answer payload. Rerun with a documented schedule/timeout adjustment or isolate the retrieval latency bottleneck before counting rows 3-4 clean.",
+  "retrieval_current_failure_categories": {
+    "eval_timeout": 2
+  },
   "run_exclusions": [
     {
       "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -14655,16 +14660,16 @@
       "reason": "retrieval-only diagnostic control after reverted experiment; rank remained 3 and exact expected chunk c589846f was not in inspected top results",
       "run_id": "retrieval_eval_20260831_230951",
       "scope": "curated single-step v2 row 2 retrieval/control evidence"
+    },
+    {
+      "reason": "diagnostic timeout-limited run; both rows hit the 120-second per-query timeout and produced no retrieved results or user-visible API answer/citation payload, so no clean evidence can be accepted.",
+      "run_id": "retrieval_eval_20260901_022901",
+      "scope": "curated single-step v2 rows 3-4 answer-grounding coverage"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
     {
-      "timestamp": "2026-09-01T00:58:00Z",
-      "severity": "needs_fix",
-      "guardrail_commit": "fc36f79",
-      "finding": "Status-output exact-equality row context accepted ON when >= Set value because normalization stripped comparator punctuation before the range-comparator guard.",
-      "status": "addressed_comparator_preserved_and_loaded_controls_passed",
       "addressed_this_run": "Added comparator-preserving range-row detection for ASCII >=, reversed =>, and Unicode >= before normalized row matching; exact = rows still pass.",
       "evidence": [
         "Focused status-output retriever controls passed with 4 passed, 126 deselected.",
@@ -14673,7 +14678,12 @@
         "Actual side-API /search and /query checks returned/cited c589846f exact source row context and did not promote Unicode >= sibling bd99442c with Source row context.",
         "Manifest checker passed after paired tracking update."
       ],
-      "remaining": "Continue broader source-reviewed answer-grounding coverage; preserve retrieval_eval_20260901_004116 as limited source-reviewed row evidence with comparator containment now tested."
+      "finding": "Status-output exact-equality row context accepted ON when >= Set value because normalization stripped comparator punctuation before the range-comparator guard.",
+      "guardrail_commit": "fc36f79",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage; preserve retrieval_eval_20260901_004116 as limited source-reviewed row evidence with comparator containment now tested.",
+      "severity": "needs_fix",
+      "status": "addressed_comparator_preserved_and_loaded_controls_passed",
+      "timestamp": "2026-09-01T00:58:00Z"
     },
     {
       "addressed_this_run": "Registered latest_status_output_row2_diagnostic_experiment as a required root/question_bank manifest pair and added deterministic equal, missing-root, missing-question_bank, and unequal controls.",
@@ -15655,5 +15665,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T02:05:00Z"
+  "updated_at": "2026-09-01T02:37:00Z"
 }
