@@ -74,6 +74,7 @@ _MISSING = object()
 _RUN_ID_RE = re.compile(
     r"retrieval_eval_(?:dataset_|results_|summary_|manifest_)?(\d{8}_\d{6})"
 )
+_ACCEPTED_RUN_ID_RE = re.compile(r"\bretrieval_eval_(\d{8}_\d{6})\b")
 
 
 def _target_row_refs(value: Any) -> set[str]:
@@ -180,6 +181,33 @@ def _check_answer_grounding_rotation_artifacts(
             )
 
 
+def _check_accepted_clean_run_artifacts(
+    label: str,
+    status: Any,
+    artifact_base_dir: Path | None,
+    errors: list[str],
+) -> None:
+    if artifact_base_dir is None or not isinstance(status, dict):
+        return
+    accepted_runs = status.get("accepted_clean_runs")
+    if not isinstance(accepted_runs, list):
+        return
+    for entry in accepted_runs:
+        if not isinstance(entry, str):
+            continue
+        match = _ACCEPTED_RUN_ID_RE.search(entry)
+        if not match:
+            continue
+        run_suffix = match.group(1)
+        for kind in ("dataset", "results"):
+            rel_path = Path(f"test_reports/retrieval_eval_{kind}_{run_suffix}.jsonl")
+            if not (artifact_base_dir / rel_path).is_file():
+                errors.append(
+                    f"{label}.accepted_clean_runs references missing {kind} artifact "
+                    f"for retrieval_eval_{run_suffix}: {rel_path}"
+                )
+
+
 def _check_current_retrieval_failure_source(
     label: str, manifest: dict[str, Any], errors: list[str]
 ) -> None:
@@ -256,7 +284,9 @@ def _check_monotonic_tracking_floors(
             )
 
 
-def check_manifest(data: dict[str, Any]) -> list[str]:
+def check_manifest(
+    data: dict[str, Any], artifact_base_dir: Path | None = None
+) -> list[str]:
     errors: list[str] = []
     question_bank = data.get("question_bank")
     if not isinstance(question_bank, dict):
@@ -304,6 +334,18 @@ def check_manifest(data: dict[str, Any]) -> list[str]:
     _check_answer_grounding_rotation_artifacts(
         "question_bank.answer_grounding_rotation",
         _get_path(data, "question_bank.answer_grounding_rotation"),
+        errors,
+    )
+    _check_accepted_clean_run_artifacts(
+        "answer_grounding_status",
+        _get_path(data, "answer_grounding_status"),
+        artifact_base_dir,
+        errors,
+    )
+    _check_accepted_clean_run_artifacts(
+        "question_bank.answer_grounding_status",
+        _get_path(data, "question_bank.answer_grounding_status"),
+        artifact_base_dir,
         errors,
     )
     _check_current_retrieval_failure_source("root", data, errors)
@@ -359,7 +401,7 @@ def main() -> int:
 
     path = Path(args.manifest)
     data = json.loads(path.read_text(encoding="utf-8"))
-    errors = check_manifest(data)
+    errors = check_manifest(data, Path.cwd())
     if errors:
         for error in errors:
             print(error, file=sys.stderr)

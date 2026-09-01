@@ -698,7 +698,8 @@
       "Repaired active cross-document v2 row 4 to a realistic source-scoped question already present in prior repair evidence: IV-HG500CA sensor-program-damaged/initialization condition versus IV4-G600CA startup-memory-read cause. Expected evidence remains exact chunks 1ddc77c5 and 15e7e400.",
       "retrieval_eval_20260901_142708 over a source-equivalence attempt passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited and expected_table_cell_binding_missing; preserved diagnostic only.",
       "retrieval_eval_20260901_142929 over the repaired row timed out at 120s in actual HTTP/API answer mode with no answer/citation payload; preserved diagnostic only.",
-      "retrieval_eval_20260901_143153 retrieval-only over the repaired row failed ranking_or_context_loss in 14.927s while candidate_recall stayed 1.0; next target is retrieval/context selection, not answer acceptance."
+      "retrieval_eval_20260901_143153 retrieval-only over the repaired row failed ranking_or_context_loss in 14.927s while candidate_recall stayed 1.0; next target is retrieval/context selection, not answer acceptance.",
+      "2026-09-01T14:59:00Z artifact-presence repair: retrieval_eval_20260901_131404 dataset/results JSONL are now committed and the manifest checker fails accepted clean runs with missing dataset/results artifacts."
     ],
     "classification": "cross_document_rows_1_3_clean_row4_source_repaired_retrieval_pending",
     "current_answer_failures": {
@@ -9020,6 +9021,20 @@
       "remaining": "Continue from the current cross-document row 2 retrieval/context target after this tracking-integrity guard. Do not use the dirty primary checkout as clean eval evidence until it is reconciled or quarantined; preserve unrelated UI/retrieval/eval/test/compose/artifact changes.",
       "timestamp": "2026-09-01T11:34:00Z",
       "type": "monotonic_count_and_exclusion_floor_guard"
+    },
+    {
+      "addressed": "Recovered and committed test_reports/retrieval_eval_dataset_20260901_131404.jsonl and test_reports/retrieval_eval_results_20260901_131404.jsonl from the original clean accuracy temp worktree, then added a deterministic manifest checker guard that fails when answer_grounding_status.accepted_clean_runs references missing dataset or results JSONL artifacts at either root or question_bank.",
+      "evidence": [
+        "Recovered artifact hashes: dataset 5fbd3cf676105909cebda58877bc0257c7697dc5f8777e2be8cc4649cd318eed; results 0b43c10b10350342e9775c9ec7f1ea4df64664a16c1c78aaacbb1b8a14f52dbb.",
+        "Manual JSONL inspection of retrieval_eval_results_20260901_131404 confirmed the user-visible answer cites LJ-S chunk 465e0cff for ERRC > Error Code -> Integer 7 digits and LJ-X chunk 89228041 for T1 > Angle 1 > MS,AB -> Sign, Integer 3 digits, 3 digits after the decimal point; both citation quote_spans are null and the cited chunk content directly contains the expected rows.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed on the repaired real manifest.",
+        "Explicit negative controls moving retrieval_eval_results_20260901_131404.jsonl and retrieval_eval_dataset_20260901_131404.jsonl out of the worktree failed the checker for both answer_grounding_status and question_bank.answer_grounding_status accepted_clean_runs.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 38 passed."
+      ],
+      "guardrail_finding": "2026-09-01T13:32:43Z / 2026-09-01T14:04:00Z / 2026-09-01T14:38:49Z needs_fix found accepted clean retrieval_eval_20260901_131404 row-2 evidence referenced missing committed dataset/results JSONL artifacts.",
+      "remaining": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
+      "timestamp": "2026-09-01T14:59:00Z",
+      "type": "accepted_clean_run_artifact_presence_guard"
     }
   ],
   "next_target": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
@@ -10263,7 +10278,8 @@
         "Repaired active cross-document v2 row 4 to a realistic source-scoped question already present in prior repair evidence: IV-HG500CA sensor-program-damaged/initialization condition versus IV4-G600CA startup-memory-read cause. Expected evidence remains exact chunks 1ddc77c5 and 15e7e400.",
         "retrieval_eval_20260901_142708 over a source-equivalence attempt passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited and expected_table_cell_binding_missing; preserved diagnostic only.",
         "retrieval_eval_20260901_142929 over the repaired row timed out at 120s in actual HTTP/API answer mode with no answer/citation payload; preserved diagnostic only.",
-        "retrieval_eval_20260901_143153 retrieval-only over the repaired row failed ranking_or_context_loss in 14.927s while candidate_recall stayed 1.0; next target is retrieval/context selection, not answer acceptance."
+        "retrieval_eval_20260901_143153 retrieval-only over the repaired row failed ranking_or_context_loss in 14.927s while candidate_recall stayed 1.0; next target is retrieval/context selection, not answer acceptance.",
+        "2026-09-01T14:59:00Z artifact-presence repair: retrieval_eval_20260901_131404 dataset/results JSONL are now committed and the manifest checker fails accepted clean runs with missing dataset/results artifacts."
       ],
       "classification": "cross_document_rows_1_3_clean_row4_source_repaired_retrieval_pending",
       "current_answer_failures": {
@@ -12530,6 +12546,20 @@
         "remaining": "Continue from the current cross-document row 2 retrieval/context target after this tracking-integrity guard. Do not use the dirty primary checkout as clean eval evidence until it is reconciled or quarantined; preserve unrelated UI/retrieval/eval/test/compose/artifact changes.",
         "timestamp": "2026-09-01T11:34:00Z",
         "type": "monotonic_count_and_exclusion_floor_guard"
+      },
+      {
+        "addressed": "Recovered and committed test_reports/retrieval_eval_dataset_20260901_131404.jsonl and test_reports/retrieval_eval_results_20260901_131404.jsonl from the original clean accuracy temp worktree, then added a deterministic manifest checker guard that fails when answer_grounding_status.accepted_clean_runs references missing dataset or results JSONL artifacts at either root or question_bank.",
+        "evidence": [
+          "Recovered artifact hashes: dataset 5fbd3cf676105909cebda58877bc0257c7697dc5f8777e2be8cc4649cd318eed; results 0b43c10b10350342e9775c9ec7f1ea4df64664a16c1c78aaacbb1b8a14f52dbb.",
+          "Manual JSONL inspection of retrieval_eval_results_20260901_131404 confirmed the user-visible answer cites LJ-S chunk 465e0cff for ERRC > Error Code -> Integer 7 digits and LJ-X chunk 89228041 for T1 > Angle 1 > MS,AB -> Sign, Integer 3 digits, 3 digits after the decimal point; both citation quote_spans are null and the cited chunk content directly contains the expected rows.",
+          "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed on the repaired real manifest.",
+          "Explicit negative controls moving retrieval_eval_results_20260901_131404.jsonl and retrieval_eval_dataset_20260901_131404.jsonl out of the worktree failed the checker for both answer_grounding_status and question_bank.answer_grounding_status accepted_clean_runs.",
+          "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 38 passed."
+        ],
+        "guardrail_finding": "2026-09-01T13:32:43Z / 2026-09-01T14:04:00Z / 2026-09-01T14:38:49Z needs_fix found accepted clean retrieval_eval_20260901_131404 row-2 evidence referenced missing committed dataset/results JSONL artifacts.",
+        "remaining": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
+        "timestamp": "2026-09-01T14:59:00Z",
+        "type": "accepted_clean_run_artifact_presence_guard"
       }
     ],
     "multi_step_questions": 107,
@@ -13251,6 +13281,21 @@
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "addressed_this_run": "Committed the missing 131404 dataset/results JSONL artifacts and added a deterministic accepted_clean_runs artifact-presence check for root and question_bank answer_grounding_status.",
+        "evidence": [
+          "Recovered artifact hashes: dataset 5fbd3cf676105909cebda58877bc0257c7697dc5f8777e2be8cc4649cd318eed; results 0b43c10b10350342e9775c9ec7f1ea4df64664a16c1c78aaacbb1b8a14f52dbb.",
+          "Manual JSONL inspection of retrieval_eval_results_20260901_131404 confirmed the user-visible answer cites LJ-S chunk 465e0cff for ERRC > Error Code -> Integer 7 digits and LJ-X chunk 89228041 for T1 > Angle 1 > MS,AB -> Sign, Integer 3 digits, 3 digits after the decimal point; both citation quote_spans are null and the cited chunk content directly contains the expected rows.",
+          "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed on the repaired real manifest.",
+          "Explicit negative controls moving retrieval_eval_results_20260901_131404.jsonl and retrieval_eval_dataset_20260901_131404.jsonl out of the worktree failed the checker for both answer_grounding_status and question_bank.answer_grounding_status accepted_clean_runs.",
+          "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 38 passed."
+        ],
+        "finding": "Accepted clean cross-document row-2 evidence retrieval_eval_20260901_131404 referenced missing committed dataset/results JSONL artifacts, repeated by guardrail reviews through 2026-09-01T14:38:49Z.",
+        "remaining": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_artifacts_committed_and_presence_guard_added",
+        "timestamp": "2026-09-01T14:59:00Z"
+      },
       {
         "addressed_this_run": "Replaced the active row 4 wording with a realistic source-scoped question that distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup-memory-read cause, preserved exact expected evidence, and reran actual HTTP/API answer plus retrieval-only diagnostics.",
         "evidence": [
@@ -14369,7 +14414,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T14:34:00Z"
+    "updated_at": "2026-09-01T14:59:00Z"
   },
   "remaining": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
   "retrieval_current_failure_categories": {
@@ -15051,6 +15096,21 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "addressed_this_run": "Committed the missing 131404 dataset/results JSONL artifacts and added a deterministic accepted_clean_runs artifact-presence check for root and question_bank answer_grounding_status.",
+      "evidence": [
+        "Recovered artifact hashes: dataset 5fbd3cf676105909cebda58877bc0257c7697dc5f8777e2be8cc4649cd318eed; results 0b43c10b10350342e9775c9ec7f1ea4df64664a16c1c78aaacbb1b8a14f52dbb.",
+        "Manual JSONL inspection of retrieval_eval_results_20260901_131404 confirmed the user-visible answer cites LJ-S chunk 465e0cff for ERRC > Error Code -> Integer 7 digits and LJ-X chunk 89228041 for T1 > Angle 1 > MS,AB -> Sign, Integer 3 digits, 3 digits after the decimal point; both citation quote_spans are null and the cited chunk content directly contains the expected rows.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed on the repaired real manifest.",
+        "Explicit negative controls moving retrieval_eval_results_20260901_131404.jsonl and retrieval_eval_dataset_20260901_131404.jsonl out of the worktree failed the checker for both answer_grounding_status and question_bank.answer_grounding_status accepted_clean_runs.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 38 passed."
+      ],
+      "finding": "Accepted clean cross-document row-2 evidence retrieval_eval_20260901_131404 referenced missing committed dataset/results JSONL artifacts, repeated by guardrail reviews through 2026-09-01T14:38:49Z.",
+      "remaining": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_artifacts_committed_and_presence_guard_added",
+      "timestamp": "2026-09-01T14:59:00Z"
+    },
     {
       "addressed_this_run": "Replaced the active row 4 wording with a realistic source-scoped question that distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup-memory-read cause, preserved exact expected evidence, and reran actual HTTP/API answer plus retrieval-only diagnostics.",
       "evidence": [
@@ -16169,5 +16229,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T14:34:00Z"
+  "updated_at": "2026-09-01T14:59:00Z"
 }

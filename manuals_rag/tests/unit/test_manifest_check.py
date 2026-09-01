@@ -235,6 +235,44 @@ def test_manifest_checker_rejects_nested_answer_grounding_rotation_artifact_run_
     )
 
 
+def test_manifest_checker_rejects_missing_accepted_clean_run_artifacts(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    accepted = [
+        "retrieval_eval_20260830_201603 row 1",
+        "retrieval_eval_20260901_131404 cross-document row 2",
+    ]
+    manifest["answer_grounding_status"]["accepted_clean_runs"] = accepted
+    manifest["question_bank"]["answer_grounding_status"]["accepted_clean_runs"] = accepted
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    for suffix in ("20260830_201603", "20260901_131404"):
+        (reports / f"retrieval_eval_dataset_{suffix}.jsonl").write_text(
+            "{}\n", encoding="utf-8"
+        )
+        (reports / f"retrieval_eval_results_{suffix}.jsonl").write_text(
+            "{}\n", encoding="utf-8"
+        )
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+    (reports / "retrieval_eval_results_20260901_131404.jsonl").unlink()
+    errors = module.check_manifest(manifest, tmp_path)
+
+    assert any(
+        "answer_grounding_status.accepted_clean_runs references missing results artifact"
+        in error
+        and "retrieval_eval_20260901_131404" in error
+        for error in errors
+    )
+    assert any(
+        "question_bank.answer_grounding_status.accepted_clean_runs references missing results artifact"
+        in error
+        and "retrieval_eval_20260901_131404" in error
+        for error in errors
+    )
+
+
 def test_manifest_checker_rejects_stale_current_retrieval_failure_source():
     module = _load_manifest_check_module()
     manifest = _minimal_manifest()
