@@ -634,6 +634,121 @@ def test_multi_part_procedure_fallback_expands_heading_to_operation_context():
     assert "single measurement" in validated.answer
 
 
+def test_comparison_table_fallback_keeps_requested_model_sides():
+    query = "For LJ-S8000 and LJ-X8000, compare the measured-data format for ERRC with T1 Angle 1 MS/AB."
+    results = [
+        SearchResult(
+            chunk_id="lj-s-errc",
+            score=0.9,
+            title="LJ-S8000 manual",
+            document_version_id="v1",
+            source_document_id="doc-ljs",
+            pages=[462],
+            section_path=["Measured data"],
+            content=(
+                "Column headers: Form of measured data; Row headers: ERRC > Error Code; "
+                "Cell value: Integer 7 digits; Row: 4; Column: 3"
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_family": "LJ-S8000 Series",
+                "table_row_headers": ["ERRC", "Error Code"],
+                "table_column_headers": ["Form of measured data"],
+            },
+        ),
+        SearchResult(
+            chunk_id="lj-s-t1-sibling",
+            score=0.89,
+            title="LJ-S8000 manual",
+            document_version_id="v1",
+            source_document_id="doc-ljs",
+            pages=[463],
+            section_path=["Measured data"],
+            content=(
+                "Column headers: Form of measured data; Row headers: T1 > Angle 1 > MS,AB; "
+                "Cell value: Sign, Integer 3 digits, 3 digits after the decimal point"
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_family": "LJ-S8000 Series",
+                "table_row_headers": ["T1", "Angle 1", "MS,AB"],
+                "table_column_headers": ["Form of measured data"],
+            },
+        ),
+        SearchResult(
+            chunk_id="lj-x-t1",
+            score=0.88,
+            title="LJ-X8000 manual",
+            document_version_id="v1",
+            source_document_id="doc-ljx",
+            pages=[698],
+            section_path=["Measured data"],
+            content=(
+                "Column headers: Form of measured data; Row headers: T1 > Angle 1 > MS,AB; "
+                "Cell value: Sign, Integer 3 digits, 3 digits after the decimal point; Row: 26; Column: 4"
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_family": "LJ-X8000 Series",
+                "table_row_headers": ["T1", "Angle 1", "MS,AB"],
+                "table_column_headers": ["Form of measured data"],
+            },
+        ),
+    ]
+
+    selected = _fallback_evidence_results(query, results)
+
+    assert [result.chunk_id for result in selected] == ["lj-s-errc", "lj-x-t1"]
+
+
+def test_comparison_table_fallback_fails_closed_for_wrong_side_sibling_row():
+    query = "For LJ-S8000 and LJ-X8000, compare the measured-data format for ERRC with T1 Angle 1 MS/AB."
+    results = [
+        SearchResult(
+            chunk_id="lj-s-errc",
+            score=0.9,
+            title="LJ-S8000 manual",
+            document_version_id="v1",
+            source_document_id="doc-ljs",
+            pages=[462],
+            section_path=["Measured data"],
+            content=(
+                "Column headers: Form of measured data; Row headers: ERRC > Error Code; "
+                "Cell value: Integer 7 digits"
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_family": "LJ-S8000 Series",
+                "table_row_headers": ["ERRC", "Error Code"],
+                "table_column_headers": ["Form of measured data"],
+            },
+        ),
+        SearchResult(
+            chunk_id="lj-x-t1hi",
+            score=0.89,
+            title="LJ-X8000 manual",
+            document_version_id="v1",
+            source_document_id="doc-ljx",
+            pages=[698],
+            section_path=["Measured data"],
+            content=(
+                "Column headers: Form of measured data; Row headers: T1HI > Angle 1 (max) > MS,AB; "
+                "Cell value: Sign, Integer 3 digits, 3 digits after the decimal point"
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "product_family": "LJ-X8000 Series",
+                "table_row_headers": ["T1HI", "Angle 1 (max)", "MS,AB"],
+                "table_column_headers": ["Form of measured data"],
+            },
+        ),
+    ]
+
+    selected = _fallback_evidence_results(query, results)
+
+    assert selected == []
+
+
 def test_procedure_fallback_prefers_persisted_citation_context():
     answer = AnswerResponse(
         answer="Configure OPC-UA security certificates.",

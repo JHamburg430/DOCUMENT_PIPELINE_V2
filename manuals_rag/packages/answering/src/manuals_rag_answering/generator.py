@@ -143,6 +143,17 @@ def _model_tokens(text: str) -> set[str]:
     return {match.group(0).upper() for match in MODEL_TOKEN_RE.finditer(text)}
 
 
+def _ordered_model_tokens(text: str) -> list[str]:
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for match in MODEL_TOKEN_RE.finditer(text):
+        model = match.group(0).upper()
+        if model not in seen:
+            ordered.append(model)
+            seen.add(model)
+    return ordered
+
+
 def _series_prefix(model: str) -> str | None:
     match = re.fullmatch(r"([A-Z]{1,5}-[A-Z]+)(\d+)[A-Z]?", model.upper())
     if not match:
@@ -1140,6 +1151,153 @@ def _meaningful_comparison_clause_terms(clause: str) -> set[str]:
         if "-" in term:
             expanded_terms.update(part for part in term.split("-") if len(part) >= 3)
     return expanded_terms
+
+
+def _compact_query_codes(text: str) -> set[str]:
+    return {
+        token.lower()
+        for token in re.findall(r"\b[A-Za-z]{1,6}\d*[A-Za-z]*\b", text)
+        if 2 <= len(token) <= 8
+        and token.lower()
+        not in {
+            "and",
+            "for",
+            "the",
+            "with",
+            "value",
+            "data",
+            "form",
+            "format",
+            "angle",
+            "compare",
+            "measured",
+            "series",
+        }
+    }
+
+
+def _comparison_table_requested_codes(query: str) -> set[str]:
+    query_without_models = MODEL_TOKEN_RE.sub(" ", query)
+    return _compact_query_codes(query_without_models)
+
+
+def _comparison_table_primary_requested_codes(query: str) -> set[str]:
+    codes = _comparison_table_requested_codes(query)
+    primary = {code for code in codes if re.search(r"\d", code)}
+    return primary or codes
+
+
+def _comparison_table_result_codes(result: SearchResult) -> set[str]:
+    texts = [
+        str(result.content or ""),
+        " ".join(str(item) for item in result.metadata.get("table_row_headers") or []),
+        " ".join(str(item) for item in result.metadata.get("table_column_headers") or []),
+    ]
+    return _compact_query_codes(" ".join(texts))
+
+
+def _comparison_table_result_score(query: str, result: SearchResult) -> float:
+    if str(result.metadata.get("chunk_type") or "") != "table_record":
+        return 0.0
+    score = _fallback_evidence_score(query, result)
+    query_terms = _answer_terms(query)
+    content = str(result.content or "")
+    content_terms = _answer_terms(content)
+    if {"form", "format", "measured", "data"}.intersection(query_terms) and {
+        "form",
+        "measured",
+        "data",
+    }.issubset(content_terms):
+        score += 3.0
+    if "cause" in query_terms and "cause" in content_terms:
+        score += 2.0
+    requested_codes = _comparison_table_requested_codes(query)
+    if requested_codes:
+        result_codes = _comparison_table_result_codes(result)
+        code_matches = requested_codes.intersection(result_codes)
+        score += min(5.0, 2.5 * len(code_matches))
+        if not code_matches and len(requested_codes) <= 3:
+            score -= 4.0
+    if re.search(r"\brow headers?:\s*[^;\n]+", content, flags=re.IGNORECASE):
+        score += 1.0
+    if re.search(r"\bcell value:\s*[^;\n]+", content, flags=re.IGNORECASE):
+        score += 1.0
+    return score
+
+
+def _comparison_model_side_queries(query: str) -> dict[str, str]:
+    models = _ordered_model_tokens(query)
+    if len(models) < 2:
+        return {}
+    side_queries = {model: query for model in models}
+    pattern = re.search(
+        rf"\bfor\s+{re.escape(models[0])}\s+and\s+{re.escape(models[1])}\b[\w\s,\-/]*?\bcompare\b(.+?)\bwith\b(.+?)(?:[.?]|$)",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not pattern:
+        return side_queries
+    common_prefix = query[: pattern.start(1)]
+    left = pattern.group(1).strip(" ,.;:?")
+    right = pattern.group(2).strip(" ,.;:?")
+    if left and right:
+        side_queries[models[0]] = f"{common_prefix} {left}"
+        side_queries[models[1]] = f"{common_prefix} {right}"
+    return side_queries
+
+
+def _comparison_table_model_side_results(query: str, ordered_results: list[SearchResult]) -> list[SearchResult]:
+    if not _is_comparison_query(query):
+        return []
+    side_queries = _comparison_model_side_queries(query)
+    explicit_models = set(side_queries)
+    if len(explicit_models) < 2:
+        return []
+
+    selected: list[SearchResult] = []
+    seen_chunks: set[str] = set()
+    available_models = [
+        model
+        for model in sorted(explicit_models)
+        if any(_result_mentions_requested_model_side(result, model) for result in ordered_results)
+    ]
+    if len(available_models) < 2:
+        return []
+
+    for model in available_models:
+        side_query = side_queries.get(model, query)
+        requested_codes = _comparison_table_requested_codes(side_query)
+        primary_requested_codes = _comparison_table_primary_requested_codes(side_query)
+        candidates = [
+            (_comparison_table_result_score(side_query, result), index, result)
+            for index, result in enumerate(ordered_results[:12])
+            if result.chunk_id not in seen_chunks
+            and _result_mentions_requested_model_side(result, model)
+            and (
+                not requested_codes
+                or requested_codes.intersection(_comparison_table_result_codes(result))
+            )
+            and (
+                not primary_requested_codes
+                or primary_requested_codes.intersection(_comparison_table_result_codes(result))
+            )
+        ]
+        candidates = [item for item in candidates if item[0] >= 4.0]
+        if not candidates:
+            return []
+        _score, _index, result = max(candidates, key=lambda item: (item[0], -item[1]))
+        selected.append(result)
+        seen_chunks.add(result.chunk_id)
+    return selected
+
+
+def _requires_comparison_table_model_side_coverage(query: str, results: list[SearchResult]) -> bool:
+    if not (_is_comparison_query(query) and len(_model_tokens(query)) >= 2):
+        return False
+    query_terms = _answer_terms(query)
+    if not {"form", "format", "value", "setting", "settings", "field", "parameter", "cell"}.intersection(query_terms):
+        return False
+    return any(str(result.metadata.get("chunk_type") or "") == "table_record" for result in results[:12])
 
 
 def _result_matches_comparison_side_clause(result: SearchResult, clause: str) -> bool:
@@ -2198,6 +2356,10 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
         return []
     if diagnostic_table_results := _diagnostic_table_evidence_results(query, ordered_results):
         return diagnostic_table_results
+    if comparison_table_results := _comparison_table_model_side_results(query, ordered_results):
+        return comparison_table_results
+    if _requires_comparison_table_model_side_coverage(query, ordered_results):
+        return []
     if not _is_comparison_query(query):
         if status_output_results := _status_output_table_results(query, ordered_results):
             return status_output_results
