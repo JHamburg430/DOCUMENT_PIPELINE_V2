@@ -3068,6 +3068,64 @@ def test_table_cell_value_binding_score_prefers_row_column_and_value_match():
     )
 
 
+def test_status_output_row_context_binds_cell_to_requested_source_row():
+    query = (
+        "For IV4-G120 status output settings, when ON equals Set value, Count value is 9, "
+        "previous count is 7, quantity counted at one time is 3, and current count is 0, "
+        "what output status is listed?"
+    )
+    expected_cell = {
+        "content": (
+            "Column headers: Output status; Row headers: ON when = Set value > Count value= 9; "
+            "Cell value: One-Shot output; Row: 4; Column: 5"
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_column_headers": ["Output status"],
+            "table_row_headers": ["ON when = Set value", "Count value= 9"],
+        },
+    }
+    sibling_cell = {
+        "content": (
+            "Column headers: Output status; Row headers: ON when = Set value > Count value= 9; "
+            "Cell value: Latching output; Row: 3; Column: 5"
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_column_headers": ["Output status"],
+            "table_row_headers": ["ON when = Set value", "Count value= 9"],
+        },
+    }
+    wrong_row_cell = {
+        "content": (
+            "Column headers: Output status; Row headers: ON when = Set value > Count value= 8; "
+            "Cell value: One-Shot output; Row: 2; Column: 5"
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_column_headers": ["Output status"],
+            "table_row_headers": ["ON when = Set value", "Count value= 8"],
+        },
+    }
+    context_rows = [
+        {
+            "content": (
+                "ON when = Set value | Count value= 9 | 7 | 2 | 9 | Latching output\n"
+                "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output"
+            )
+        }
+    ]
+
+    assert retriever._status_output_matching_row_context(query, expected_cell, context_rows) == (
+        "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output"
+    )
+    assert retriever._status_output_matching_row_context(query, sibling_cell, context_rows) == ""
+    assert retriever._status_output_matching_row_context(query, wrong_row_cell, context_rows) == ""
+
+
 def test_structured_table_promotion_preserves_top_lexical_cell_after_rerank():
     analysis = analyze_query(
         "What value is listed for LumiTrax Capture Settings Track Moving Object: "

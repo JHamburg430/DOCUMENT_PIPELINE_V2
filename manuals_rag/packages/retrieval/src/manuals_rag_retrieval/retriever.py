@@ -475,6 +475,118 @@ def _lexical_table_symbol_terms(terms: list[str]) -> list[str]:
     return symbol_terms[:8]
 
 
+def _is_status_output_table_lookup(query: str) -> bool:
+    lowered = query.lower()
+    return (
+        "output status" in lowered
+        and "set value" in lowered
+        and re.search(r"\bcount\s+value\b", lowered) is not None
+        and re.search(r"\b(?:current|previous|quantity|counted)\b", lowered) is not None
+    )
+
+
+def _status_output_numeric_terms(query: str) -> list[str]:
+    query_without_models = re.sub(r"\b[A-Za-z]{1,5}\d{0,4}(?:-[A-Za-z0-9]{1,8})+\b", " ", query)
+    terms: list[str] = []
+    for term in re.findall(r"\b\d+(?:\.\d+)?\b", query_without_models):
+        if term not in terms:
+            terms.append(term)
+    return terms[:8]
+
+
+def _status_output_requires_exact_set_value(query: str) -> bool:
+    return bool(re.search(r"\b(?:on\s+(?:equals|=)|on\s+when\s*=\s*set\s+value)\b", query, flags=re.IGNORECASE))
+
+
+def _normalized_status_output_text(text: str) -> str:
+    return re.sub(r"[^a-z0-9=]+", "", text.lower())
+
+
+def _status_output_matching_row_context(query: str, row: dict[str, object], context_rows: list[dict[str, object]]) -> str:
+    metadata = dict(row.get("metadata_json") or {})
+    if not metadata.get("table_cell"):
+        return ""
+    if "output status" not in " ".join(str(item) for item in metadata.get("table_column_headers") or []).lower():
+        return ""
+    cell_match = re.search(r"\bCell value:\s*([^;\n]+)", str(row.get("content") or ""), flags=re.IGNORECASE)
+    if not cell_match:
+        return ""
+    cell_value = cell_match.group(1).strip()
+    cell_terms = _text_terms(cell_value)
+    row_header_terms = _text_terms(" ".join(str(item) for item in metadata.get("table_row_headers") or []))
+    distinctive_row_header_terms = {
+        term for term in row_header_terms if term.isdigit() or any(char.isdigit() for char in term) or len(term) >= 5
+    }
+    required_numbers = set(_status_output_numeric_terms(query))
+    if not required_numbers:
+        return ""
+    query_requires_exact = _status_output_requires_exact_set_value(query)
+    for context_row in context_rows:
+        for raw_line in str(context_row.get("content") or "").splitlines():
+            line = raw_line.strip()
+            if "|" not in line:
+                continue
+            normalized = _normalized_status_output_text(line)
+            if "outputstatus" in normalized and not re.search(r"\b(?:latching|one[- ]?shot|does\s+not\s+output)\b", line, flags=re.IGNORECASE):
+                continue
+            if query_requires_exact and "onwhen=setvalue" not in normalized:
+                continue
+            if query_requires_exact and "onwhen>=setvalue" in normalized:
+                continue
+            line_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", line))
+            if not required_numbers.issubset(line_numbers):
+                continue
+            line_terms = _text_terms(line)
+            if distinctive_row_header_terms and not distinctive_row_header_terms.issubset(line_terms):
+                continue
+            if cell_terms and not cell_terms.issubset(line_terms):
+                continue
+            return line
+    return ""
+
+
+def _attach_status_output_row_context(query: str, rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    if not rows or not _is_status_output_table_lookup(query):
+        return rows
+    sections = {
+        (str(row["document_version_id"]), str(row["section_path_text"]))
+        for row in rows
+        if dict(row.get("metadata_json") or {}).get("table_cell")
+    }
+    if not sections:
+        return rows
+    placeholders = ",".join(["(%s,%s)"] * len(sections))
+    params: list[object] = []
+    for document_version_id, section_path_text in sections:
+        params.extend([document_version_id, section_path_text])
+    context_rows = fetch_all(
+        f"""
+        select document_version_id, section_path_text, content, metadata_json
+        from retrieval_chunks
+        where (document_version_id, section_path_text) in ({placeholders})
+          and chunk_type = 'table_record'
+          and metadata_json->>'table_row_group' = 'true'
+        """,
+        tuple(params),
+    )
+    contexts_by_section: dict[tuple[str, str], list[dict[str, object]]] = {}
+    for context_row in context_rows:
+        key = (str(context_row["document_version_id"]), str(context_row["section_path_text"]))
+        contexts_by_section.setdefault(key, []).append(context_row)
+    updated: list[dict[str, object]] = []
+    for row in rows:
+        key = (str(row["document_version_id"]), str(row["section_path_text"]))
+        matching_context = _status_output_matching_row_context(query, row, contexts_by_section.get(key, []))
+        if matching_context:
+            row = {
+                **row,
+                "content": f"{row.get('content')}\nSource row context: {matching_context}",
+                "priority_score": float(row.get("priority_score") or 0.0) + 600.0,
+            }
+        updated.append(row)
+    return updated
+
+
 def _comparison_row_key_terms(terms: list[str]) -> list[str]:
     row_key_terms: list[str] = []
     for term in [*_lexical_table_symbol_terms(terms), *terms]:
@@ -839,6 +951,8 @@ def run_table_lexical_search(
             values = value if isinstance(value, list) else [value]
             where.append(f"metadata_json->>%s = any(%s)")
             params.extend([key, [str(item) for item in values]])
+    base_where = [*where]
+    base_params = [*params]
     required_terms = [] if is_comparison_lookup else _lexical_table_content_terms(terms)
     symbol_terms = _lexical_table_symbol_terms(terms)
     diagnostic_code_terms = _diagnostic_table_code_terms(query, analysis)
@@ -953,6 +1067,36 @@ def run_table_lexical_search(
         """,
         tuple([*params, *order_params]),
     )
+    if not is_comparison_lookup and _is_status_output_table_lookup(query):
+        numeric_terms = _status_output_numeric_terms(query)
+        if numeric_terms:
+            supplemental_where = [*base_where]
+            supplemental_params = [*base_params]
+            supplemental_where.append(
+                "(content ilike %s or metadata_json->>'table_column_headers' ilike %s)"
+            )
+            supplemental_params.extend(["%output status%", "%output status%"])
+            supplemental_where.append(
+                "(content ilike %s or metadata_json->>'table_row_headers' ilike %s)"
+            )
+            supplemental_params.extend(["%count value%", "%count value%"])
+            if _status_output_requires_exact_set_value(query):
+                supplemental_where.append("regexp_replace(lower(content), '[^a-z0-9=]+', '', 'g') like %s")
+                supplemental_params.append("%onwhen=setvalue%")
+            rows.extend(
+                fetch_all(
+                    f"""
+                    select id, document_version_id, source_document_id, title, section_path_text,
+                           page_from, page_to, content, metadata_json, priority_score
+                    from retrieval_chunks
+                    where {" and ".join(supplemental_where)}
+                    order by priority_score desc, id
+                    limit 160
+                    """,
+                    tuple(supplemental_params),
+                )
+            )
+    rows = _attach_status_output_row_context(query, rows)
     if is_comparison_lookup and analysis.product_identifiers:
         row_key_terms = _comparison_row_key_terms(terms)
         product_patterns = [f"%{identifier}%" for identifier in analysis.product_identifiers[:4]]

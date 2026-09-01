@@ -1,9 +1,5 @@
 {
-  "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 1,
-    "expected_terms_missing": 1,
-    "insufficient_evidence": 1
-  },
+  "answer_current_failure_categories": {},
   "answer_failure_categories": {
     "expected_evidence_not_cited": 1
   },
@@ -188,8 +184,9 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "No new clean row-2 evidence accepted. retrieval_eval_20260831_223124 selected correct row text but cited 0b84d8d8 and failed expected_evidence_not_cited; retrieval_eval_20260831_223703 timed out at 240s.",
-    "classification": "partial_clean_row1_only_row2_diagnostic_not_clean",
+    "answer_result": "2/2 actual HTTP API answers passed via fallback_validation",
+    "classification": "source_reviewed_loaded_http_clean_evidence",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
     "datasets": [
       "test_reports/retrieval_eval_dataset_20260831_2145_single_step_row2_one_shot_quantity_repair.jsonl",
       "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl"
@@ -213,51 +210,36 @@
         "summary": "test_reports/retrieval_eval_summary_20260831_223703.json"
       }
     ],
-    "latest_run": "retrieval_eval_20260831_223703",
-    "manifest": "test_reports/retrieval_eval_manifest_20260831_223703.json",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_223124.jsonl: the user-visible answer was the correct row `ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output`, but its only citation was shifted key-value chunk 0b84d8d8 rather than source-reviewed table-cell chunk c589846f, so expected_evidence_not_cited remained correct. retrieval_eval_20260831_223703 produced only a timeout row, with no clean answer payload to inspect.",
-    "next_target": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy: the source-reviewed output-status question is realistic and retrieval-clean in earlier runs, but current API answer evidence is still not clean. A row-context fallback experiment selected the correct pipe-table row but cited shifted key-value chunk 0b84d8d8, and a source-cell retrieval boost experiment timed out at 240 seconds, so both are diagnostic/reverted. Next work should make the exact source-bearing table-cell chunk c589846f survive into the answer citation context, or document the smallest timeout/schedule adjustment needed for a full loaded rerun, then inspect JSONL citations before clearing failures.",
+    "latest_run": "retrieval_eval_20260901_004116",
+    "manifest": "test_reports/retrieval_eval_manifest_20260901_004116.json",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_004116.jsonl for both rows. Row 1 user-visible fallback answer cites exact chunk a7ed6202-8a02-566c-a845-55acfe8c07bb and states the 0028/65.0 Command output area -> Command Result table cell. Row 2 user-visible fallback answer cites exact chunk c589846f-8d37-5045-87d3-c46fff60c43c and states Column headers: Output status; Row headers: ON when = Set value > Count value= 9; Cell value: One-Shot output, with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. The latching sibling chunks 4512a657/3a534b05 remained below the source-bearing One-Shot chunks in top results. No quote_span text was generated or accepted.",
+    "next_target": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
     "previous_clean_claim_reclassified": {
       "reason": "Guardrail 2026-08-31T21:03:00Z found the visible row-2 question ambiguous because Count value=9 and ON equals Set value match both Quantity counted at one time 2 / Latching output and 3 / One-Shot output rows.",
       "rows": "row 2 and combined rows 1-2 clean claim",
       "run": "retrieval_eval_20260831_204556"
     },
     "response_mode": "answer_with_citations",
-    "results": "test_reports/retrieval_eval_results_20260831_223703.jsonl",
-    "retrieval_result": "Row 2 remained retrieval-clean in retrieval_eval_20260831_223124 at rank 3; later retrieval-boost experiment timed out and is diagnostic only.",
+    "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
+    "retrieval_result": "2/2 retrieval passed at rank 1",
     "runtime_load_evidence": {
-      "diagnostic_side_apis": [
-        {
-          "_focused_status_output_answer_text_sha256": "6c445bed866fb58d43a72edb1a20dbe0aa2ddbe26bc28dcef6083bef2a933f3c",
-          "_status_output_bound_row_sha256": "1dc9ba36eb07f2ff4f992181ec4f25d0fc47e11ddfb7625f2f17d44623240fb7",
-          "api_base": "http://127.0.0.1:8968",
-          "container": "manuals-rag-temp-api-39262386-20260831-row2-rowctx",
-          "generator.py_sha256": "e909f3ee413c4deb679eda9e7ab62c99b58c1930649735a4872efc0dec65eb80",
-          "retriever.py_sha256": "3b054b5a7d4662c400df375497220d07085b4485d6e831a6fabb465e0421394c"
-        },
-        {
-          "_table_cell_status_output_row_binding_score_sha256": "548d13e5ba7255bd5f5451964c26383571ab4d41becfb3107b03ffefa2732854",
-          "_table_cell_value_binding_score_sha256": "7e925c9261b472ff3515e4e64c82b621b838cc2b728f5a42f5d9e44a7b5c12a0",
-          "api_base": "http://127.0.0.1:8972",
-          "container": "manuals-rag-temp-api-39262386-20260831-row2-sourcecell",
-          "generator.py_sha256": "e909f3ee413c4deb679eda9e7ab62c99b58c1930649735a4872efc0dec65eb80",
-          "retriever.py_sha256": "88ccb8305aa1cef6caa5c1aa1e6602095e2274bd4b8121f038a81e22b4412e11"
-        }
-      ],
-      "models": {
-        "HAYSTACK_RERANK_DEVICE": "cuda:0",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_URL": "http://host.docker.internal:11434"
-      }
+      "_status_output_matching_row_context_sha256": "2faa43945fe5c8b6c44cd178e1364a9436db39f81906c660540a469f6906a81b",
+      "api_base_container": "http://127.0.0.1:8600",
+      "api_base_host": "http://127.0.0.1:8984",
+      "health": "ok at 2026-09-01T00:40:49Z",
+      "ollama_answer_model": "qwen3.5:9b",
+      "ollama_embed_model": "qwen3-embedding:0.6b",
+      "ollama_url": "http://host.docker.internal:11434",
+      "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
+      "retriever.py_sha256": "5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193",
+      "run_table_lexical_search_sha256": "7fd3a245c536e1903d640789298dc7d82d01f09a3a1c5f82f92570d9d051dcd2",
+      "side_api": "manuals-rag-temp-api-39262386-20260831-status-output-rowctx2"
     },
     "scorer_control": "Added test_answer_response_scoring_rejects_sibling_quantity_table_row so a Latching output / value 2 sibling citation cannot satisfy the source-reviewed One-Shot output / value 3 quantity question.",
     "search_mode": "http",
-    "status": "row1_clean_row2_open_after_reverted_diagnostic_experiment",
-    "summary": "test_reports/retrieval_eval_summary_20260831_223703.json",
-    "timestamp": "2026-08-31T22:42:00Z"
+    "status": "single_step_v2_rows1_2_clean_after_status_output_row_context_binding",
+    "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
+    "timestamp": "2026-09-01T00:55:00Z"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -734,47 +716,37 @@
   },
   "answer_grounding_status": {
     "checks": [
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'status_output' -> 3 passed, 108 deselected, 5 warnings during reverted experiment.",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'output_status_cell or bounded_output_status_cell_supplement or table_cell_value_binding_score_prefers_row_column_and_value_match' -> 3 passed, 127 deselected during reverted experiment.",
-      "Actual loaded HTTP answer runs 225848 and 230445 remained not clean after manual JSONL inspection; retrieval-only control 230951 did not expose c589846f in inspected top results.",
-      "Production retrieval/answering/test edits from this run were reverted before commit because loaded HTTP evidence did not produce a clean row-2 citation.",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 31 passed."
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'status_output_row_context or table_cell_value_binding_score_prefers_row_column_and_value_match or structured_table_promotion_preserves_top_lexical_cell' -> 3 passed, 126 deselected.",
+      "Loaded run_table_lexical_search probe on the repaired row-2 query ranked c589846f first with source row context and kept latching sibling 4512a657 below it.",
+      "Side API manuals-rag-temp-api-39262386-20260831-status-output-rowctx2 on http://127.0.0.1:8984 returned /health ok and served the changed retriever.py fingerprint 5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193.",
+      "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-status-output-rowctx2 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260901_004116, retrieval 2/2 rank 1, answer 2/2 fallback_validation.",
+      "Manual JSONL inspection confirmed row 2 cites c589846f and includes the row-bound One-Shot output evidence; row 1 control remains clean.",
+      "First full unit gate failed only because ignored tmp_eval_docs* fixtures were absent from the clean worktree: 513 passed, 5 failed. After copying local ignored fixtures into the clean worktree, docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 518 passed, 59 warnings.",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK."
     ],
-    "current_answer_failures": {
-      "expected_evidence_not_cited": 1,
-      "expected_terms_missing": 1,
-      "insufficient_evidence": 1
-    },
+    "current_answer_failures": {},
     "current_retrieval_failures": {},
-    "latest_run": "retrieval_eval_20260831_230951",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_225848.jsonl and retrieval_eval_results_20260831_230445.jsonl: the user-visible API answer was `I could not answer from the available evidence.`, citations were empty, and answer scoring correctly failed expected_evidence_not_cited, expected_terms_missing, and insufficient_evidence. Inspected retrieval_eval_results_20260831_230951.jsonl: retrieval-only results still returned status-result chunks a471086b, 506b4c98, and 422c7012 ahead of shifted key-value rows 0b84d8d8/bd99442c, and did not expose exact expected chunk c589846f in the inspected top results. No clean answer evidence was accepted.",
-    "remaining": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy. The source-reviewed output-status question remains realistic, but the latest bounded status-output priority experiment did not make source-bearing table-cell chunk c589846f survive into the returned/cited answer context: loaded HTTP answer runs retrieval_eval_20260831_225848 and retrieval_eval_20260831_230445 both fell back to insufficient evidence with no citations, and retrieval-only run retrieval_eval_20260831_230951 still ranked noisy status-result chunks ahead of shifted key-value rows while omitting c589846f from the inspected top results. The attempted production/test edits were reverted before commit. Next work should inspect the retrieval pipeline path that drops or downranks the exact table-cell chunk before answer synthesis, or document the smallest schedule/timeout adjustment needed for a source-backed loaded rerun.",
+    "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
+    "latest_run": "retrieval_eval_20260901_004116",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_004116.jsonl for both rows. Row 1 user-visible fallback answer cites exact chunk a7ed6202-8a02-566c-a845-55acfe8c07bb and states the 0028/65.0 Command output area -> Command Result table cell. Row 2 user-visible fallback answer cites exact chunk c589846f-8d37-5045-87d3-c46fff60c43c and states Column headers: Output status; Row headers: ON when = Set value > Count value= 9; Cell value: One-Shot output, with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. The latching sibling chunks 4512a657/3a534b05 remained below the source-bearing One-Shot chunks in top results. No quote_span text was generated or accepted.",
+    "remaining": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
+    "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
     "runtime_load_evidence": {
-      "diagnostic_side_api": {
-        "_is_status_output_table_lookup_sha256": "486481dbaf2215acd6a2f16cc91d1ceaed19ec461d242c626bcd662adae43964",
-        "_status_output_table_results_sha256": "c9cb8001649cb3127940903fe48c18c263e53a50345ad22f529a99d7d43d3742",
-        "_table_cell_value_binding_score_sha256": "6d08bbe2cfb5f28886ea8cda88616739ba04e59cf93280b1fdf74c6e8412be0f",
-        "api_base": "http://127.0.0.1:8976",
-        "container": "manuals-rag-temp-api-39262386-20260831-row2-priority",
-        "generator.py_sha256": "1bd03ec7d758c36e7442195012875b9ceb856eeaa16f9447f5bd57edc7dca259",
-        "health_checked_at": "2026-08-31T23:09:21Z",
-        "prioritize_results_for_answer_sha256": "0ec935a128964d6b438216f1ca8c64db1617ac407c43585fb00a26bff0dfcdc3",
-        "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
-        "retriever.py_sha256": "53a1f642a5f968d04a63519d94c1ece9fcd057b96ccce20fec0acb6355bad42a",
-        "run_table_lexical_search_sha256": "d75e566af864eb7f886985ee60679789b0d7858cbf1dd75683fc5c5a48db4b9b",
-        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
-      },
-      "models": {
-        "HAYSTACK_RERANK_DEVICE": "cuda:0",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_URL": "http://host.docker.internal:11434"
-      }
+      "_status_output_matching_row_context_sha256": "2faa43945fe5c8b6c44cd178e1364a9436db39f81906c660540a469f6906a81b",
+      "api_base_container": "http://127.0.0.1:8600",
+      "api_base_host": "http://127.0.0.1:8984",
+      "health": "ok at 2026-09-01T00:40:49Z",
+      "ollama_answer_model": "qwen3.5:9b",
+      "ollama_embed_model": "qwen3-embedding:0.6b",
+      "ollama_url": "http://host.docker.internal:11434",
+      "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
+      "retriever.py_sha256": "5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193",
+      "run_table_lexical_search_sha256": "7fd3a245c536e1903d640789298dc7d82d01f09a3a1c5f82f92570d9d051dcd2",
+      "side_api": "manuals-rag-temp-api-39262386-20260831-status-output-rowctx2"
     },
-    "status": "single_step_v2_row2_answer_open_after_reverted_status_output_priority_experiment",
-    "timestamp": "2026-08-31T23:16:00Z"
+    "status": "single_step_v2_rows1_2_clean_after_status_output_row_context_binding",
+    "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
+    "timestamp": "2026-09-01T00:55:00Z"
   },
   "constraints": {
     "allowed_logic": [
@@ -792,11 +764,7 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 1,
-    "expected_terms_missing": 1,
-    "insufficient_evidence": 1
-  },
+  "current_answer_failure_categories": {},
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -8944,63 +8912,44 @@
   },
   "latest_status_output_row2_diagnostic_experiment": {
     "checks": [
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'status_output' -> 3 passed, 108 deselected, 5 warnings during reverted experiment.",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'output_status_cell or bounded_output_status_cell_supplement or table_cell_value_binding_score_prefers_row_column_and_value_match' -> 3 passed, 127 deselected during reverted experiment.",
-      "Actual loaded HTTP answer runs 225848 and 230445 remained not clean after manual JSONL inspection; retrieval-only control 230951 did not expose c589846f in inspected top results.",
-      "Production retrieval/answering/test edits from this run were reverted before commit because loaded HTTP evidence did not produce a clean row-2 citation.",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 31 passed."
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'status_output_row_context or table_cell_value_binding_score_prefers_row_column_and_value_match or structured_table_promotion_preserves_top_lexical_cell' -> 3 passed, 126 deselected.",
+      "Loaded run_table_lexical_search probe on the repaired row-2 query ranked c589846f first with source row context and kept latching sibling 4512a657 below it.",
+      "Side API manuals-rag-temp-api-39262386-20260831-status-output-rowctx2 on http://127.0.0.1:8984 returned /health ok and served the changed retriever.py fingerprint 5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193.",
+      "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-status-output-rowctx2 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260901_004116, retrieval 2/2 rank 1, answer 2/2 fallback_validation.",
+      "Manual JSONL inspection confirmed row 2 cites c589846f and includes the row-bound One-Shot output evidence; row 1 control remains clean.",
+      "First full unit gate failed only because ignored tmp_eval_docs* fixtures were absent from the clean worktree: 513 passed, 5 failed. After copying local ignored fixtures into the clean worktree, docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 518 passed, 59 warnings.",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK."
     ],
-    "classification": "diagnostic_reverted_status_output_priority_experiment",
+    "classification": "source_reviewed_loaded_http_clean_evidence",
     "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_225848.jsonl and retrieval_eval_results_20260831_230445.jsonl: the user-visible API answer was `I could not answer from the available evidence.`, citations were empty, and answer scoring correctly failed expected_evidence_not_cited, expected_terms_missing, and insufficient_evidence. Inspected retrieval_eval_results_20260831_230951.jsonl: retrieval-only results still returned status-result chunks a471086b, 506b4c98, and 422c7012 ahead of shifted key-value rows 0b84d8d8/bd99442c, and did not expose exact expected chunk c589846f in the inspected top results. No clean answer evidence was accepted.",
-    "remaining": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy. The source-reviewed output-status question remains realistic, but the latest bounded status-output priority experiment did not make source-bearing table-cell chunk c589846f survive into the returned/cited answer context: loaded HTTP answer runs retrieval_eval_20260831_225848 and retrieval_eval_20260831_230445 both fell back to insufficient evidence with no citations, and retrieval-only run retrieval_eval_20260831_230951 still ranked noisy status-result chunks ahead of shifted key-value rows while omitting c589846f from the inspected top results. The attempted production/test edits were reverted before commit. Next work should inspect the retrieval pipeline path that drops or downranks the exact table-cell chunk before answer synthesis, or document the smallest schedule/timeout adjustment needed for a source-backed loaded rerun.",
-    "runs": [
-      {
-        "result": "Loaded HTTP answer run after status-output answer prioritization patch remained not clean: retrieval passed at rank 3, but the user-visible answer was insufficient evidence with no citations and failed expected_evidence_not_cited, expected_terms_missing, and insufficient_evidence.",
-        "results": "test_reports/retrieval_eval_results_20260831_225848.jsonl",
-        "run_id": "retrieval_eval_20260831_225848",
-        "summary": "test_reports/retrieval_eval_summary_20260831_225848.json"
-      },
-      {
-        "result": "Loaded HTTP answer run after additional status-output table-cell retrieval supplement still remained not clean with the same insufficient-evidence/no-citation answer failures.",
-        "results": "test_reports/retrieval_eval_results_20260831_230445.jsonl",
-        "run_id": "retrieval_eval_20260831_230445",
-        "summary": "test_reports/retrieval_eval_summary_20260831_230445.json"
-      },
-      {
-        "result": "Loaded HTTP retrieval-only control passed retrieval at rank 3 but did not raise exact source-bearing chunk c589846f into the inspected top results; diagnostic only.",
-        "results": "test_reports/retrieval_eval_results_20260831_230951.jsonl",
-        "run_id": "retrieval_eval_20260831_230951",
-        "summary": "test_reports/retrieval_eval_summary_20260831_230951.json"
-      }
-    ],
-    "runtime_load_evidence": {
-      "diagnostic_side_api": {
-        "_is_status_output_table_lookup_sha256": "486481dbaf2215acd6a2f16cc91d1ceaed19ec461d242c626bcd662adae43964",
-        "_status_output_table_results_sha256": "c9cb8001649cb3127940903fe48c18c263e53a50345ad22f529a99d7d43d3742",
-        "_table_cell_value_binding_score_sha256": "6d08bbe2cfb5f28886ea8cda88616739ba04e59cf93280b1fdf74c6e8412be0f",
-        "api_base": "http://127.0.0.1:8976",
-        "container": "manuals-rag-temp-api-39262386-20260831-row2-priority",
-        "generator.py_sha256": "1bd03ec7d758c36e7442195012875b9ceb856eeaa16f9447f5bd57edc7dca259",
-        "health_checked_at": "2026-08-31T23:09:21Z",
-        "prioritize_results_for_answer_sha256": "0ec935a128964d6b438216f1ca8c64db1617ac407c43585fb00a26bff0dfcdc3",
-        "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
-        "retriever.py_sha256": "53a1f642a5f968d04a63519d94c1ece9fcd057b96ccce20fec0acb6355bad42a",
-        "run_table_lexical_search_sha256": "d75e566af864eb7f886985ee60679789b0d7858cbf1dd75683fc5c5a48db4b9b",
-        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
-      },
-      "models": {
-        "HAYSTACK_RERANK_DEVICE": "cuda:0",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_URL": "http://host.docker.internal:11434"
-      }
+    "guardrail_followup": {
+      "evidence": "The previously registered latest_status_output_row2_diagnostic_experiment pair remains duplicated and checker-enforced; this run updated that registered object atomically at root and question_bank.",
+      "guardrail_commit": "94c2132",
+      "status": "preserved_manifest_pair_repair_and_completed_row2_grounding_target",
+      "timestamp": "2026-08-31T23:20:26Z"
     },
-    "status": "not_clean_no_production_change_accepted",
-    "target": "curated single-step v2 row 2 output-status answer grounding",
-    "timestamp": "2026-08-31T23:16:00Z"
+    "latest_run": "retrieval_eval_20260901_004116",
+    "manifest": "test_reports/retrieval_eval_manifest_20260901_004116.json",
+    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_004116.jsonl for both rows. Row 1 user-visible fallback answer cites exact chunk a7ed6202-8a02-566c-a845-55acfe8c07bb and states the 0028/65.0 Command output area -> Command Result table cell. Row 2 user-visible fallback answer cites exact chunk c589846f-8d37-5045-87d3-c46fff60c43c and states Column headers: Output status; Row headers: ON when = Set value > Count value= 9; Cell value: One-Shot output, with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. The latching sibling chunks 4512a657/3a534b05 remained below the source-bearing One-Shot chunks in top results. No quote_span text was generated or accepted.",
+    "remaining": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
+    "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
+    "runtime_load_evidence": {
+      "_status_output_matching_row_context_sha256": "2faa43945fe5c8b6c44cd178e1364a9436db39f81906c660540a469f6906a81b",
+      "api_base_container": "http://127.0.0.1:8600",
+      "api_base_host": "http://127.0.0.1:8984",
+      "health": "ok at 2026-09-01T00:40:49Z",
+      "ollama_answer_model": "qwen3.5:9b",
+      "ollama_embed_model": "qwen3-embedding:0.6b",
+      "ollama_url": "http://host.docker.internal:11434",
+      "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
+      "retriever.py_sha256": "5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193",
+      "run_table_lexical_search_sha256": "7fd3a245c536e1903d640789298dc7d82d01f09a3a1c5f82f92570d9d051dcd2",
+      "side_api": "manuals-rag-temp-api-39262386-20260831-status-output-rowctx2"
+    },
+    "status": "single_step_v2_row2_status_output_answer_grounding_clean_after_row_context_binding",
+    "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
+    "target": "Repair curated single-step v2 row 2 answer grounding after source-backed output-status replacement.",
+    "timestamp": "2026-09-01T00:55:00Z"
   },
   "llm_answer_judge_policy": {
     "guardrail_timestamp": "2026-08-27T02:12:42Z / 2026-08-27T02:41:22Z",
@@ -9009,7 +8958,7 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
-  "next_target": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy. The source-reviewed output-status question remains realistic, but the latest bounded status-output priority experiment did not make source-bearing table-cell chunk c589846f survive into the returned/cited answer context: loaded HTTP answer runs retrieval_eval_20260831_225848 and retrieval_eval_20260831_230445 both fell back to insufficient evidence with no citations, and retrieval-only run retrieval_eval_20260831_230951 still ranked noisy status-result chunks ahead of shifted key-value rows while omitting c589846f from the inspected top results. The attempted production/test edits were reverted before commit. Next work should inspect the retrieval pipeline path that drops or downranks the exact table-cell chunk before answer synthesis, or document the smallest schedule/timeout adjustment needed for a source-backed loaded rerun.",
+  "next_target": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9762,11 +9711,7 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 1,
-      "expected_terms_missing": 1,
-      "insufficient_evidence": 1
-    },
+    "answer_current_failure_categories": {},
     "answer_failure_categories": {
       "expected_evidence_not_cited": 1
     },
@@ -9951,8 +9896,9 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "No new clean row-2 evidence accepted. retrieval_eval_20260831_223124 selected correct row text but cited 0b84d8d8 and failed expected_evidence_not_cited; retrieval_eval_20260831_223703 timed out at 240s.",
-      "classification": "partial_clean_row1_only_row2_diagnostic_not_clean",
+      "answer_result": "2/2 actual HTTP API answers passed via fallback_validation",
+      "classification": "source_reviewed_loaded_http_clean_evidence",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
       "datasets": [
         "test_reports/retrieval_eval_dataset_20260831_2145_single_step_row2_one_shot_quantity_repair.jsonl",
         "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl"
@@ -9976,51 +9922,36 @@
           "summary": "test_reports/retrieval_eval_summary_20260831_223703.json"
         }
       ],
-      "latest_run": "retrieval_eval_20260831_223703",
-      "manifest": "test_reports/retrieval_eval_manifest_20260831_223703.json",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_223124.jsonl: the user-visible answer was the correct row `ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output`, but its only citation was shifted key-value chunk 0b84d8d8 rather than source-reviewed table-cell chunk c589846f, so expected_evidence_not_cited remained correct. retrieval_eval_20260831_223703 produced only a timeout row, with no clean answer payload to inspect.",
-      "next_target": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy: the source-reviewed output-status question is realistic and retrieval-clean in earlier runs, but current API answer evidence is still not clean. A row-context fallback experiment selected the correct pipe-table row but cited shifted key-value chunk 0b84d8d8, and a source-cell retrieval boost experiment timed out at 240 seconds, so both are diagnostic/reverted. Next work should make the exact source-bearing table-cell chunk c589846f survive into the answer citation context, or document the smallest timeout/schedule adjustment needed for a full loaded rerun, then inspect JSONL citations before clearing failures.",
+      "latest_run": "retrieval_eval_20260901_004116",
+      "manifest": "test_reports/retrieval_eval_manifest_20260901_004116.json",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_004116.jsonl for both rows. Row 1 user-visible fallback answer cites exact chunk a7ed6202-8a02-566c-a845-55acfe8c07bb and states the 0028/65.0 Command output area -> Command Result table cell. Row 2 user-visible fallback answer cites exact chunk c589846f-8d37-5045-87d3-c46fff60c43c and states Column headers: Output status; Row headers: ON when = Set value > Count value= 9; Cell value: One-Shot output, with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. The latching sibling chunks 4512a657/3a534b05 remained below the source-bearing One-Shot chunks in top results. No quote_span text was generated or accepted.",
+      "next_target": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
       "previous_clean_claim_reclassified": {
         "reason": "Guardrail 2026-08-31T21:03:00Z found the visible row-2 question ambiguous because Count value=9 and ON equals Set value match both Quantity counted at one time 2 / Latching output and 3 / One-Shot output rows.",
         "rows": "row 2 and combined rows 1-2 clean claim",
         "run": "retrieval_eval_20260831_204556"
       },
       "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260831_223703.jsonl",
-      "retrieval_result": "Row 2 remained retrieval-clean in retrieval_eval_20260831_223124 at rank 3; later retrieval-boost experiment timed out and is diagnostic only.",
+      "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
+      "retrieval_result": "2/2 retrieval passed at rank 1",
       "runtime_load_evidence": {
-        "diagnostic_side_apis": [
-          {
-            "_focused_status_output_answer_text_sha256": "6c445bed866fb58d43a72edb1a20dbe0aa2ddbe26bc28dcef6083bef2a933f3c",
-            "_status_output_bound_row_sha256": "1dc9ba36eb07f2ff4f992181ec4f25d0fc47e11ddfb7625f2f17d44623240fb7",
-            "api_base": "http://127.0.0.1:8968",
-            "container": "manuals-rag-temp-api-39262386-20260831-row2-rowctx",
-            "generator.py_sha256": "e909f3ee413c4deb679eda9e7ab62c99b58c1930649735a4872efc0dec65eb80",
-            "retriever.py_sha256": "3b054b5a7d4662c400df375497220d07085b4485d6e831a6fabb465e0421394c"
-          },
-          {
-            "_table_cell_status_output_row_binding_score_sha256": "548d13e5ba7255bd5f5451964c26383571ab4d41becfb3107b03ffefa2732854",
-            "_table_cell_value_binding_score_sha256": "7e925c9261b472ff3515e4e64c82b621b838cc2b728f5a42f5d9e44a7b5c12a0",
-            "api_base": "http://127.0.0.1:8972",
-            "container": "manuals-rag-temp-api-39262386-20260831-row2-sourcecell",
-            "generator.py_sha256": "e909f3ee413c4deb679eda9e7ab62c99b58c1930649735a4872efc0dec65eb80",
-            "retriever.py_sha256": "88ccb8305aa1cef6caa5c1aa1e6602095e2274bd4b8121f038a81e22b4412e11"
-          }
-        ],
-        "models": {
-          "HAYSTACK_RERANK_DEVICE": "cuda:0",
-          "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-          "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-          "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-          "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-          "OLLAMA_URL": "http://host.docker.internal:11434"
-        }
+        "_status_output_matching_row_context_sha256": "2faa43945fe5c8b6c44cd178e1364a9436db39f81906c660540a469f6906a81b",
+        "api_base_container": "http://127.0.0.1:8600",
+        "api_base_host": "http://127.0.0.1:8984",
+        "health": "ok at 2026-09-01T00:40:49Z",
+        "ollama_answer_model": "qwen3.5:9b",
+        "ollama_embed_model": "qwen3-embedding:0.6b",
+        "ollama_url": "http://host.docker.internal:11434",
+        "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
+        "retriever.py_sha256": "5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193",
+        "run_table_lexical_search_sha256": "7fd3a245c536e1903d640789298dc7d82d01f09a3a1c5f82f92570d9d051dcd2",
+        "side_api": "manuals-rag-temp-api-39262386-20260831-status-output-rowctx2"
       },
       "scorer_control": "Added test_answer_response_scoring_rejects_sibling_quantity_table_row so a Latching output / value 2 sibling citation cannot satisfy the source-reviewed One-Shot output / value 3 quantity question.",
       "search_mode": "http",
-      "status": "row1_clean_row2_open_after_reverted_diagnostic_experiment",
-      "summary": "test_reports/retrieval_eval_summary_20260831_223703.json",
-      "timestamp": "2026-08-31T22:42:00Z"
+      "status": "single_step_v2_rows1_2_clean_after_status_output_row_context_binding",
+      "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
+      "timestamp": "2026-09-01T00:55:00Z"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10286,53 +10217,39 @@
     },
     "answer_grounding_status": {
       "checks": [
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'status_output' -> 3 passed, 108 deselected, 5 warnings during reverted experiment.",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'output_status_cell or bounded_output_status_cell_supplement or table_cell_value_binding_score_prefers_row_column_and_value_match' -> 3 passed, 127 deselected during reverted experiment.",
-        "Actual loaded HTTP answer runs 225848 and 230445 remained not clean after manual JSONL inspection; retrieval-only control 230951 did not expose c589846f in inspected top results.",
-        "Production retrieval/answering/test edits from this run were reverted before commit because loaded HTTP evidence did not produce a clean row-2 citation.",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 31 passed."
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'status_output_row_context or table_cell_value_binding_score_prefers_row_column_and_value_match or structured_table_promotion_preserves_top_lexical_cell' -> 3 passed, 126 deselected.",
+        "Loaded run_table_lexical_search probe on the repaired row-2 query ranked c589846f first with source row context and kept latching sibling 4512a657 below it.",
+        "Side API manuals-rag-temp-api-39262386-20260831-status-output-rowctx2 on http://127.0.0.1:8984 returned /health ok and served the changed retriever.py fingerprint 5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193.",
+        "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-status-output-rowctx2 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260901_004116, retrieval 2/2 rank 1, answer 2/2 fallback_validation.",
+        "Manual JSONL inspection confirmed row 2 cites c589846f and includes the row-bound One-Shot output evidence; row 1 control remains clean.",
+        "First full unit gate failed only because ignored tmp_eval_docs* fixtures were absent from the clean worktree: 513 passed, 5 failed. After copying local ignored fixtures into the clean worktree, docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 518 passed, 59 warnings.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK."
       ],
-      "current_answer_failures": {
-        "expected_evidence_not_cited": 1,
-        "expected_terms_missing": 1,
-        "insufficient_evidence": 1
-      },
+      "current_answer_failures": {},
       "current_retrieval_failures": {},
-      "latest_run": "retrieval_eval_20260831_230951",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_225848.jsonl and retrieval_eval_results_20260831_230445.jsonl: the user-visible API answer was `I could not answer from the available evidence.`, citations were empty, and answer scoring correctly failed expected_evidence_not_cited, expected_terms_missing, and insufficient_evidence. Inspected retrieval_eval_results_20260831_230951.jsonl: retrieval-only results still returned status-result chunks a471086b, 506b4c98, and 422c7012 ahead of shifted key-value rows 0b84d8d8/bd99442c, and did not expose exact expected chunk c589846f in the inspected top results. No clean answer evidence was accepted.",
-      "remaining": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy. The source-reviewed output-status question remains realistic, but the latest bounded status-output priority experiment did not make source-bearing table-cell chunk c589846f survive into the returned/cited answer context: loaded HTTP answer runs retrieval_eval_20260831_225848 and retrieval_eval_20260831_230445 both fell back to insufficient evidence with no citations, and retrieval-only run retrieval_eval_20260831_230951 still ranked noisy status-result chunks ahead of shifted key-value rows while omitting c589846f from the inspected top results. The attempted production/test edits were reverted before commit. Next work should inspect the retrieval pipeline path that drops or downranks the exact table-cell chunk before answer synthesis, or document the smallest schedule/timeout adjustment needed for a source-backed loaded rerun.",
+      "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
+      "latest_run": "retrieval_eval_20260901_004116",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_004116.jsonl for both rows. Row 1 user-visible fallback answer cites exact chunk a7ed6202-8a02-566c-a845-55acfe8c07bb and states the 0028/65.0 Command output area -> Command Result table cell. Row 2 user-visible fallback answer cites exact chunk c589846f-8d37-5045-87d3-c46fff60c43c and states Column headers: Output status; Row headers: ON when = Set value > Count value= 9; Cell value: One-Shot output, with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. The latching sibling chunks 4512a657/3a534b05 remained below the source-bearing One-Shot chunks in top results. No quote_span text was generated or accepted.",
+      "remaining": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
+      "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
       "runtime_load_evidence": {
-        "diagnostic_side_api": {
-          "_is_status_output_table_lookup_sha256": "486481dbaf2215acd6a2f16cc91d1ceaed19ec461d242c626bcd662adae43964",
-          "_status_output_table_results_sha256": "c9cb8001649cb3127940903fe48c18c263e53a50345ad22f529a99d7d43d3742",
-          "_table_cell_value_binding_score_sha256": "6d08bbe2cfb5f28886ea8cda88616739ba04e59cf93280b1fdf74c6e8412be0f",
-          "api_base": "http://127.0.0.1:8976",
-          "container": "manuals-rag-temp-api-39262386-20260831-row2-priority",
-          "generator.py_sha256": "1bd03ec7d758c36e7442195012875b9ceb856eeaa16f9447f5bd57edc7dca259",
-          "health_checked_at": "2026-08-31T23:09:21Z",
-          "prioritize_results_for_answer_sha256": "0ec935a128964d6b438216f1ca8c64db1617ac407c43585fb00a26bff0dfcdc3",
-          "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
-          "retriever.py_sha256": "53a1f642a5f968d04a63519d94c1ece9fcd057b96ccce20fec0acb6355bad42a",
-          "run_table_lexical_search_sha256": "d75e566af864eb7f886985ee60679789b0d7858cbf1dd75683fc5c5a48db4b9b",
-          "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
-        },
-        "models": {
-          "HAYSTACK_RERANK_DEVICE": "cuda:0",
-          "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-          "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-          "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-          "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-          "OLLAMA_URL": "http://host.docker.internal:11434"
-        }
+        "_status_output_matching_row_context_sha256": "2faa43945fe5c8b6c44cd178e1364a9436db39f81906c660540a469f6906a81b",
+        "api_base_container": "http://127.0.0.1:8600",
+        "api_base_host": "http://127.0.0.1:8984",
+        "health": "ok at 2026-09-01T00:40:49Z",
+        "ollama_answer_model": "qwen3.5:9b",
+        "ollama_embed_model": "qwen3-embedding:0.6b",
+        "ollama_url": "http://host.docker.internal:11434",
+        "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
+        "retriever.py_sha256": "5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193",
+        "run_table_lexical_search_sha256": "7fd3a245c536e1903d640789298dc7d82d01f09a3a1c5f82f92570d9d051dcd2",
+        "side_api": "manuals-rag-temp-api-39262386-20260831-status-output-rowctx2"
       },
-      "status": "single_step_v2_row2_answer_open_after_reverted_status_output_priority_experiment",
-      "timestamp": "2026-08-31T23:16:00Z"
+      "status": "single_step_v2_rows1_2_clean_after_status_output_row_context_binding",
+      "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
+      "timestamp": "2026-09-01T00:55:00Z"
     },
-    "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 1,
-      "expected_terms_missing": 1,
-      "insufficient_evidence": 1
-    },
+    "current_answer_failure_categories": {},
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
@@ -12447,63 +12364,44 @@
     },
     "latest_status_output_row2_diagnostic_experiment": {
       "checks": [
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'status_output' -> 3 passed, 108 deselected, 5 warnings during reverted experiment.",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'output_status_cell or bounded_output_status_cell_supplement or table_cell_value_binding_score_prefers_row_column_and_value_match' -> 3 passed, 127 deselected during reverted experiment.",
-        "Actual loaded HTTP answer runs 225848 and 230445 remained not clean after manual JSONL inspection; retrieval-only control 230951 did not expose c589846f in inspected top results.",
-        "Production retrieval/answering/test edits from this run were reverted before commit because loaded HTTP evidence did not produce a clean row-2 citation.",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 31 passed."
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k 'status_output_row_context or table_cell_value_binding_score_prefers_row_column_and_value_match or structured_table_promotion_preserves_top_lexical_cell' -> 3 passed, 126 deselected.",
+        "Loaded run_table_lexical_search probe on the repaired row-2 query ranked c589846f first with source row context and kept latching sibling 4512a657 below it.",
+        "Side API manuals-rag-temp-api-39262386-20260831-status-output-rowctx2 on http://127.0.0.1:8984 returned /health ok and served the changed retriever.py fingerprint 5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193.",
+        "docker exec -e API_BASE=http://127.0.0.1:8600 manuals-rag-temp-api-39262386-20260831-status-output-rowctx2 python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260901_004116, retrieval 2/2 rank 1, answer 2/2 fallback_validation.",
+        "Manual JSONL inspection confirmed row 2 cites c589846f and includes the row-bound One-Shot output evidence; row 1 control remains clean.",
+        "First full unit gate failed only because ignored tmp_eval_docs* fixtures were absent from the clean worktree: 513 passed, 5 failed. After copying local ignored fixtures into the clean worktree, docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 518 passed, 59 warnings.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK."
       ],
-      "classification": "diagnostic_reverted_status_output_priority_experiment",
+      "classification": "source_reviewed_loaded_http_clean_evidence",
       "dataset": "test_reports/retrieval_eval_dataset_20260831_2152_single_step_row2_output_status_repair.jsonl",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_225848.jsonl and retrieval_eval_results_20260831_230445.jsonl: the user-visible API answer was `I could not answer from the available evidence.`, citations were empty, and answer scoring correctly failed expected_evidence_not_cited, expected_terms_missing, and insufficient_evidence. Inspected retrieval_eval_results_20260831_230951.jsonl: retrieval-only results still returned status-result chunks a471086b, 506b4c98, and 422c7012 ahead of shifted key-value rows 0b84d8d8/bd99442c, and did not expose exact expected chunk c589846f in the inspected top results. No clean answer evidence was accepted.",
-      "remaining": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy. The source-reviewed output-status question remains realistic, but the latest bounded status-output priority experiment did not make source-bearing table-cell chunk c589846f survive into the returned/cited answer context: loaded HTTP answer runs retrieval_eval_20260831_225848 and retrieval_eval_20260831_230445 both fell back to insufficient evidence with no citations, and retrieval-only run retrieval_eval_20260831_230951 still ranked noisy status-result chunks ahead of shifted key-value rows while omitting c589846f from the inspected top results. The attempted production/test edits were reverted before commit. Next work should inspect the retrieval pipeline path that drops or downranks the exact table-cell chunk before answer synthesis, or document the smallest schedule/timeout adjustment needed for a source-backed loaded rerun.",
-      "runs": [
-        {
-          "result": "Loaded HTTP answer run after status-output answer prioritization patch remained not clean: retrieval passed at rank 3, but the user-visible answer was insufficient evidence with no citations and failed expected_evidence_not_cited, expected_terms_missing, and insufficient_evidence.",
-          "results": "test_reports/retrieval_eval_results_20260831_225848.jsonl",
-          "run_id": "retrieval_eval_20260831_225848",
-          "summary": "test_reports/retrieval_eval_summary_20260831_225848.json"
-        },
-        {
-          "result": "Loaded HTTP answer run after additional status-output table-cell retrieval supplement still remained not clean with the same insufficient-evidence/no-citation answer failures.",
-          "results": "test_reports/retrieval_eval_results_20260831_230445.jsonl",
-          "run_id": "retrieval_eval_20260831_230445",
-          "summary": "test_reports/retrieval_eval_summary_20260831_230445.json"
-        },
-        {
-          "result": "Loaded HTTP retrieval-only control passed retrieval at rank 3 but did not raise exact source-bearing chunk c589846f into the inspected top results; diagnostic only.",
-          "results": "test_reports/retrieval_eval_results_20260831_230951.jsonl",
-          "run_id": "retrieval_eval_20260831_230951",
-          "summary": "test_reports/retrieval_eval_summary_20260831_230951.json"
-        }
-      ],
-      "runtime_load_evidence": {
-        "diagnostic_side_api": {
-          "_is_status_output_table_lookup_sha256": "486481dbaf2215acd6a2f16cc91d1ceaed19ec461d242c626bcd662adae43964",
-          "_status_output_table_results_sha256": "c9cb8001649cb3127940903fe48c18c263e53a50345ad22f529a99d7d43d3742",
-          "_table_cell_value_binding_score_sha256": "6d08bbe2cfb5f28886ea8cda88616739ba04e59cf93280b1fdf74c6e8412be0f",
-          "api_base": "http://127.0.0.1:8976",
-          "container": "manuals-rag-temp-api-39262386-20260831-row2-priority",
-          "generator.py_sha256": "1bd03ec7d758c36e7442195012875b9ceb856eeaa16f9447f5bd57edc7dca259",
-          "health_checked_at": "2026-08-31T23:09:21Z",
-          "prioritize_results_for_answer_sha256": "0ec935a128964d6b438216f1ca8c64db1617ac407c43585fb00a26bff0dfcdc3",
-          "retrieval_eval.py_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
-          "retriever.py_sha256": "53a1f642a5f968d04a63519d94c1ece9fcd057b96ccce20fec0acb6355bad42a",
-          "run_table_lexical_search_sha256": "d75e566af864eb7f886985ee60679789b0d7858cbf1dd75683fc5c5a48db4b9b",
-          "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
-        },
-        "models": {
-          "HAYSTACK_RERANK_DEVICE": "cuda:0",
-          "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-          "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-          "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-          "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-          "OLLAMA_URL": "http://host.docker.internal:11434"
-        }
+      "guardrail_followup": {
+        "evidence": "The previously registered latest_status_output_row2_diagnostic_experiment pair remains duplicated and checker-enforced; this run updated that registered object atomically at root and question_bank.",
+        "guardrail_commit": "94c2132",
+        "status": "preserved_manifest_pair_repair_and_completed_row2_grounding_target",
+        "timestamp": "2026-08-31T23:20:26Z"
       },
-      "status": "not_clean_no_production_change_accepted",
-      "target": "curated single-step v2 row 2 output-status answer grounding",
-      "timestamp": "2026-08-31T23:16:00Z"
+      "latest_run": "retrieval_eval_20260901_004116",
+      "manifest": "test_reports/retrieval_eval_manifest_20260901_004116.json",
+      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260901_004116.jsonl for both rows. Row 1 user-visible fallback answer cites exact chunk a7ed6202-8a02-566c-a845-55acfe8c07bb and states the 0028/65.0 Command output area -> Command Result table cell. Row 2 user-visible fallback answer cites exact chunk c589846f-8d37-5045-87d3-c46fff60c43c and states Column headers: Output status; Row headers: ON when = Set value > Count value= 9; Cell value: One-Shot output, with source row context ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output. The latching sibling chunks 4512a657/3a534b05 remained below the source-bearing One-Shot chunks in top results. No quote_span text was generated or accepted.",
+      "remaining": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
+      "results": "test_reports/retrieval_eval_results_20260901_004116.jsonl",
+      "runtime_load_evidence": {
+        "_status_output_matching_row_context_sha256": "2faa43945fe5c8b6c44cd178e1364a9436db39f81906c660540a469f6906a81b",
+        "api_base_container": "http://127.0.0.1:8600",
+        "api_base_host": "http://127.0.0.1:8984",
+        "health": "ok at 2026-09-01T00:40:49Z",
+        "ollama_answer_model": "qwen3.5:9b",
+        "ollama_embed_model": "qwen3-embedding:0.6b",
+        "ollama_url": "http://host.docker.internal:11434",
+        "reranker": "cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0",
+        "retriever.py_sha256": "5af80063956d3e27d0dacb2a730c7c1a39591a8ca9b26bbbc83352fb226a2193",
+        "run_table_lexical_search_sha256": "7fd3a245c536e1903d640789298dc7d82d01f09a3a1c5f82f92570d9d051dcd2",
+        "side_api": "manuals-rag-temp-api-39262386-20260831-status-output-rowctx2"
+      },
+      "status": "single_step_v2_row2_status_output_answer_grounding_clean_after_row_context_binding",
+      "summary": "test_reports/retrieval_eval_summary_20260901_004116.json",
+      "target": "Repair curated single-step v2 row 2 answer grounding after source-backed output-status replacement.",
+      "timestamp": "2026-09-01T00:55:00Z"
     },
     "llm_answer_judge_policy": {
       "guardrail_timestamp": "2026-08-27T02:12:42Z / 2026-08-27T02:41:22Z",
@@ -12514,7 +12412,7 @@
     },
     "locked_regression_questions": 0,
     "multi_step_questions": 107,
-    "next_target": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy. The source-reviewed output-status question remains realistic, but the latest bounded status-output priority experiment did not make source-bearing table-cell chunk c589846f survive into the returned/cited answer context: loaded HTTP answer runs retrieval_eval_20260831_225848 and retrieval_eval_20260831_230445 both fell back to insufficient evidence with no citations, and retrieval-only run retrieval_eval_20260831_230951 still ranked noisy status-result chunks ahead of shifted key-value rows while omitting c589846f from the inspected top results. The attempted production/test edits were reverted before commit. Next work should inspect the retrieval pipeline path that drops or downranks the exact table-cell chunk before answer synthesis, or document the smallest schedule/timeout adjustment needed for a source-backed loaded rerun.",
+    "next_target": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12551,7 +12449,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy. The source-reviewed output-status question remains realistic, but the latest bounded status-output priority experiment did not make source-bearing table-cell chunk c589846f survive into the returned/cited answer context: loaded HTTP answer runs retrieval_eval_20260831_225848 and retrieval_eval_20260831_230445 both fell back to insufficient evidence with no citations, and retrieval-only run retrieval_eval_20260831_230951 still ranked noisy status-result chunks ahead of shifted key-value rows while omitting c589846f from the inspected top results. The attempted production/test edits were reverted before commit. Next work should inspect the retrieval pipeline path that drops or downranks the exact table-cell chunk before answer synthesis, or document the smallest schedule/timeout adjustment needed for a source-backed loaded rerun.",
+    "remaining": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13150,9 +13048,9 @@
         ],
         "finding": "latest_status_output_row2_diagnostic_experiment was duplicated at manifest root and question_bank but was not registered in the deterministic required-pair checker, so missing or unequal copies could pass.",
         "guardrail_commit": "94c2132",
-        "remaining": "Continue repaired curated single-step v2 row 2 answer grounding only after preserving the diagnostic exclusions and proving exact source-bearing chunk c589846f supports any accepted answer.",
+        "remaining": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
         "severity": "needs_fix",
-        "status": "addressed_this_run_manifest_pair_enforced",
+        "status": "addressed_and_preserved_manifest_pair_enforced",
         "timestamp": "2026-08-31T23:20:26Z"
       },
       {
@@ -13171,9 +13069,9 @@
         ],
         "finding": "Guardrail found retrieval_eval_20260831_204556 row 2 and the combined rows 1-2 clean claim were premature because the visible row-2 quantity question did not distinguish sibling Count value=9 rows.",
         "guardrail_commit": "155411a",
-        "remaining": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy. The source-reviewed output-status question remains realistic, but the latest bounded status-output priority experiment did not make source-bearing table-cell chunk c589846f survive into the returned/cited answer context: loaded HTTP answer runs retrieval_eval_20260831_225848 and retrieval_eval_20260831_230445 both fell back to insufficient evidence with no citations, and retrieval-only run retrieval_eval_20260831_230951 still ranked noisy status-result chunks ahead of shifted key-value rows while omitting c589846f from the inspected top results. The attempted production/test edits were reverted before commit. Next work should inspect the retrieval pipeline path that drops or downranks the exact table-cell chunk before answer synthesis, or document the smallest schedule/timeout adjustment needed for a source-backed loaded rerun.",
+        "remaining": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
         "severity": "needs_fix",
-        "status": "followed_up_with_reverted_status_output_priority_experiment_row2_still_open",
+        "status": "followed_up_with_loaded_clean_row2_evidence",
         "timestamp": "2026-08-31T21:03:00Z"
       },
       {
@@ -14119,9 +14017,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-08-31T23:25:30Z"
+    "updated_at": "2026-09-01T00:55:00Z"
   },
-  "remaining": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy. The source-reviewed output-status question remains realistic, but the latest bounded status-output priority experiment did not make source-bearing table-cell chunk c589846f survive into the returned/cited answer context: loaded HTTP answer runs retrieval_eval_20260831_225848 and retrieval_eval_20260831_230445 both fell back to insufficient evidence with no citations, and retrieval-only run retrieval_eval_20260831_230951 still ranked noisy status-result chunks ahead of shifted key-value rows while omitting c589846f from the inspected top results. The attempted production/test edits were reverted before commit. Next work should inspect the retrieval pipeline path that drops or downranks the exact table-cell chunk before answer synthesis, or document the smallest schedule/timeout adjustment needed for a source-backed loaded rerun.",
+  "remaining": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14719,9 +14617,9 @@
       ],
       "finding": "latest_status_output_row2_diagnostic_experiment was duplicated at manifest root and question_bank but was not registered in the deterministic required-pair checker, so missing or unequal copies could pass.",
       "guardrail_commit": "94c2132",
-      "remaining": "Continue repaired curated single-step v2 row 2 answer grounding only after preserving the diagnostic exclusions and proving exact source-bearing chunk c589846f supports any accepted answer.",
+      "remaining": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
       "severity": "needs_fix",
-      "status": "addressed_this_run_manifest_pair_enforced",
+      "status": "addressed_and_preserved_manifest_pair_enforced",
       "timestamp": "2026-08-31T23:20:26Z"
     },
     {
@@ -14740,9 +14638,9 @@
       ],
       "finding": "Guardrail found retrieval_eval_20260831_204556 row 2 and the combined rows 1-2 clean claim were premature because the visible row-2 quantity question did not distinguish sibling Count value=9 rows.",
       "guardrail_commit": "155411a",
-      "remaining": "Finish repaired curated single-step v2 row 2 answer grounding with a safe retrieval/context strategy. The source-reviewed output-status question remains realistic, but the latest bounded status-output priority experiment did not make source-bearing table-cell chunk c589846f survive into the returned/cited answer context: loaded HTTP answer runs retrieval_eval_20260831_225848 and retrieval_eval_20260831_230445 both fell back to insufficient evidence with no citations, and retrieval-only run retrieval_eval_20260831_230951 still ranked noisy status-result chunks ahead of shifted key-value rows while omitting c589846f from the inspected top results. The attempted production/test edits were reverted before commit. Next work should inspect the retrieval pipeline path that drops or downranks the exact table-cell chunk before answer synthesis, or document the smallest schedule/timeout adjustment needed for a source-backed loaded rerun.",
+      "remaining": "Await guardrail audit of the row-2 status-output repair, then continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice while preserving row 1 and repaired row 2 as clean only for the source-reviewed table-cell evidence in retrieval_eval_20260901_004116.",
       "severity": "needs_fix",
-      "status": "followed_up_with_reverted_status_output_priority_experiment_row2_still_open",
+      "status": "followed_up_with_loaded_clean_row2_evidence",
       "timestamp": "2026-08-31T21:03:00Z"
     },
     {
@@ -15688,5 +15586,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-08-31T23:25:30Z"
+  "updated_at": "2026-09-01T00:55:00Z"
 }
