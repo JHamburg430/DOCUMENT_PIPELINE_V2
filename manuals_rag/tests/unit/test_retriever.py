@@ -3496,6 +3496,80 @@ def test_comparison_table_promotion_requires_requested_row_code_for_product():
     assert promoted[2].chunk_id == "s8000-generic"
 
 
+def test_comparison_table_promotion_does_not_count_prefixed_sibling_code_as_covered():
+    analysis = analyze_query(
+        "For LJ-S8000 and LJ-X8000, compare the measured-data format for the ERRC error code "
+        "with the T1 Angle 1 MS/AB value."
+    )
+    reranked = [
+        SearchResult(
+            chunk_id="s8000-errc",
+            score=4.0,
+            title="LJ-S8000 Manual",
+            document_version_id="ver-s",
+            source_document_id="doc-s",
+            pages=[462],
+            section_path=["A"],
+            content="Column headers: Form of measured data; Row headers: ERRC > Error Code; Cell value: Integer 7 digits.",
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Form of measured data"],
+                "table_row_headers": ["ERRC", "Error Code"],
+                "product_family": "LJ-S8000 Series",
+            },
+        ),
+        SearchResult(
+            chunk_id="x8000-t1hi-sibling",
+            score=3.9,
+            title="LJ-X8000 Manual",
+            document_version_id="ver-x",
+            source_document_id="doc-x",
+            pages=[250],
+            section_path=["A"],
+            content=(
+                "Column headers: Form of measured data; Row headers: T1HI > Angle 1 (max) > MS,AB; "
+                "Cell value: Sign, Integer 3 digits, 3 digits after the decimal point."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Form of measured data"],
+                "table_row_headers": ["T1HI", "Angle 1 (max)", "MS,AB"],
+                "product_family": "LJ: X8000 Series",
+                "product_models": ["LJ-X8000"],
+            },
+        ),
+    ]
+    supplemental = [
+        SearchResult(
+            chunk_id="x8000-t1-exact",
+            score=1.5,
+            title="LJ-X8000 Manual",
+            document_version_id="ver-x",
+            source_document_id="doc-x",
+            pages=[251],
+            section_path=["A"],
+            content=(
+                "Column headers: Form of measured data; Row headers: T1 > Angle 1 > MS,AB; "
+                "Cell value: Sign, Integer 3 digits, 3 digits after the decimal point."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "table_column_headers": ["Form of measured data"],
+                "table_row_headers": ["T1", "Angle 1", "MS,AB"],
+                "product_family": "LJ: X8000 Series",
+                "product_models": ["LJ-X8000"],
+            },
+        )
+    ]
+
+    assert retriever._matching_comparison_row_codes(reranked[1], ["t1"]) == set()
+    promoted = retriever._promote_comparison_table_candidates(reranked, supplemental, analysis, limit=5)
+
+    assert promoted[0].chunk_id == "x8000-t1-exact"
+    assert promoted[0].metadata["retrieval_stage"] == "comparison_table_promoted"
+    assert promoted[1].chunk_id == "s8000-errc"
+
+
 def test_comparison_table_promotion_does_not_treat_compatible_device_as_document_side():
     analysis = analyze_query(
         "For the controller, what enclosure rating is listed for MOD1-A manual, "

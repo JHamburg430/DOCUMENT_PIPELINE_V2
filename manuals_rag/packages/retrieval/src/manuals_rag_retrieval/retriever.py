@@ -1113,6 +1113,13 @@ def run_table_lexical_search(
         if row_key_terms and product_patterns:
             supplemental_where = [*where]
             supplemental_params = [*params]
+            row_key_order_fragments = [
+                "case when metadata_json->>'table_row_headers' ilike %s or content ilike %s then 1 else 0 end"
+                for _ in row_key_terms
+            ]
+            row_key_order_params: list[object] = []
+            for term in row_key_terms:
+                row_key_order_params.extend([f"%{term}%", f"%{term}%"])
             supplemental_where.append(
                 "("
                 + " or ".join(
@@ -1145,10 +1152,10 @@ def run_table_lexical_search(
                            page_from, page_to, content, metadata_json, priority_score
                     from retrieval_chunks
                     where {" and ".join(supplemental_where)}
-                    order by priority_score desc, id
+                    order by {" + ".join(row_key_order_fragments)} desc, priority_score desc, id
                     limit 120
                     """,
-                    tuple(supplemental_params),
+                    tuple([*supplemental_params, *row_key_order_params]),
                 )
             )
         setting_phrases = _comparison_setting_phrases(query)
@@ -1258,14 +1265,15 @@ def run_table_lexical_search(
             if row_code_terms and not uncovered_row_codes:
                 break
             side_setting_phrases = _comparison_setting_phrases_for_identifier(analysis.raw_query, identifiers, str(identifier))
+            context_terms = _comparison_side_context_terms(analysis.raw_query, identifiers, str(identifier))
+            side_row_code_terms = _comparison_side_row_code_terms(uncovered_row_codes or row_code_terms, context_terms)
             candidates = [
                 result
                 for result in results
                 if result.chunk_id not in seen_ids and _result_matches_primary_identifier(result, identifier)
                 and _comparison_result_matches_setting_phrase(result, side_setting_phrases)
-                and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
+                and _result_matches_all_comparison_row_codes(result, side_row_code_terms)
             ]
-            context_terms = _comparison_side_context_terms(analysis.raw_query, identifiers, str(identifier))
             if context_terms:
                 candidates.sort(
                     key=lambda result: (
@@ -1275,7 +1283,7 @@ def run_table_lexical_search(
                     ),
                     reverse=True,
                 )
-            promotion_limit = 2 if row_code_terms else 1
+            promotion_limit = 1
             for candidate in candidates[:promotion_limit]:
                 seen_ids.add(candidate.chunk_id)
                 covered_row_codes.update(_matching_comparison_row_codes(candidate, row_code_terms))
@@ -2212,15 +2220,47 @@ def _comparison_row_code_terms(query: str, identifiers: list[str]) -> list[str]:
 def _result_matches_comparison_row_code(result: SearchResult, row_code_terms: list[str]) -> bool:
     if not row_code_terms:
         return True
-    row_header_text = " ".join(str(item) for item in result.metadata.get("table_row_headers") or [])
-    haystack = _compact_identifier(" ".join([row_header_text, result.content]))
-    return any(term in haystack for term in row_code_terms)
+    tokens = _comparison_row_code_result_tokens(result)
+    return any(term in tokens for term in row_code_terms)
+
+
+def _result_matches_all_comparison_row_codes(result: SearchResult, row_code_terms: list[str]) -> bool:
+    if not row_code_terms:
+        return True
+    tokens = _comparison_row_code_result_tokens(result)
+    return all(term in tokens for term in row_code_terms)
 
 
 def _matching_comparison_row_codes(result: SearchResult, row_code_terms: list[str]) -> set[str]:
-    row_header_text = " ".join(str(item) for item in result.metadata.get("table_row_headers") or [])
-    haystack = _compact_identifier(" ".join([row_header_text, result.content]))
-    return {term for term in row_code_terms if term in haystack}
+    tokens = _comparison_row_code_result_tokens(result)
+    return {term for term in row_code_terms if term in tokens}
+
+
+def _comparison_side_row_code_terms(row_code_terms: list[str], context_terms: set[str]) -> list[str]:
+    side_terms = [term for term in row_code_terms if term in context_terms]
+    return side_terms or row_code_terms
+
+
+def _comparison_row_code_result_tokens(result: SearchResult) -> set[str]:
+    tokens: set[str] = set()
+    row_headers = [str(item) for item in result.metadata.get("table_row_headers") or []]
+    if not row_headers:
+        row_header_match = re.search(
+            r"\bRow headers?:\s*(?P<headers>[^;]+)",
+            str(result.content or ""),
+            flags=re.IGNORECASE,
+        )
+        if row_header_match:
+            row_headers = [part.strip() for part in row_header_match.group("headers").split(">")]
+    for header in row_headers:
+        compact_header = _compact_identifier(header)
+        if compact_header:
+            tokens.add(compact_header)
+        for piece in re.split(r"[^A-Za-z0-9]+", header):
+            compact_piece = _compact_identifier(piece)
+            if compact_piece:
+                tokens.add(compact_piece)
+    return tokens
 
 
 def _identifier_context_terms(query: str, identifier: str) -> set[str]:
@@ -2407,7 +2447,9 @@ def _promote_comparison_table_candidates(
     promoted: list[SearchResult] = []
     seen: set[str] = set()
     for identifier in identifiers:
-        context_terms = set() if row_code_terms else _comparison_side_context_terms(analysis.raw_query, identifiers, identifier)
+        context_terms = _comparison_side_context_terms(analysis.raw_query, identifiers, identifier)
+        required_context_terms = set() if row_code_terms else context_terms
+        side_row_code_terms = _comparison_side_row_code_terms(uncovered_row_codes or row_code_terms, context_terms)
         side_setting_phrases = _comparison_setting_phrases_for_identifier(analysis.raw_query, identifiers, identifier)
         if not row_code_terms and not context_terms and not field_terms:
             continue
@@ -2419,8 +2461,8 @@ def _promote_comparison_table_candidates(
             and _is_structured_comparison_table_result(result)
             and _result_matches_primary_identifier(result, identifier)
             and _comparison_result_matches_setting_phrase(result, side_setting_phrases)
-            and _result_matches_comparison_row_code(result, uncovered_row_codes or row_code_terms)
-            and _comparison_result_satisfies_identifier_context(result, context_terms, field_terms)
+            and _result_matches_all_comparison_row_codes(result, side_row_code_terms)
+            and _comparison_result_satisfies_identifier_context(result, required_context_terms, field_terms)
         ]
         existing_matches = [
             result
@@ -2428,7 +2470,7 @@ def _promote_comparison_table_candidates(
             if _result_matches_primary_identifier(result, identifier)
             and _is_structured_comparison_table_result(result)
             and _comparison_result_matches_setting_phrase(result, side_setting_phrases)
-            and _comparison_result_satisfies_identifier_context(result, context_terms, field_terms)
+            and _comparison_result_satisfies_identifier_context(result, required_context_terms, field_terms)
             and (
                 not row_code_terms
                 or _matching_comparison_row_codes(result, uncovered_row_codes)
@@ -2449,7 +2491,7 @@ def _promote_comparison_table_candidates(
             )
         if existing_matches and (not candidates or _comparison_side_match_score(existing_matches[0], side_setting_phrases, context_terms) >= _comparison_side_match_score(candidates[0], side_setting_phrases, context_terms)):
             continue
-        promotion_limit = 2 if row_code_terms else 1
+        promotion_limit = 1
         for candidate in candidates[:promotion_limit]:
             seen.add(candidate.chunk_id)
             promoted.append(
