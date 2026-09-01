@@ -1266,13 +1266,18 @@ def run_table_lexical_search(
                 break
             side_setting_phrases = _comparison_setting_phrases_for_identifier(analysis.raw_query, identifiers, str(identifier))
             context_terms = _comparison_side_context_terms(analysis.raw_query, identifiers, str(identifier))
-            side_row_code_terms = _comparison_side_row_code_terms(uncovered_row_codes or row_code_terms, context_terms)
+            side_row_code_options = _comparison_side_row_code_options(
+                uncovered_row_codes or row_code_terms,
+                context_terms,
+                identifiers=identifiers,
+                identifier=str(identifier),
+            )
             candidates = [
                 result
                 for result in results
                 if result.chunk_id not in seen_ids and _result_matches_primary_identifier(result, identifier)
                 and _comparison_result_matches_setting_phrase(result, side_setting_phrases)
-                and _result_matches_all_comparison_row_codes(result, side_row_code_terms)
+                and any(_result_matches_all_comparison_row_codes(result, option) for option in side_row_code_options)
             ]
             if context_terms:
                 candidates.sort(
@@ -2236,9 +2241,24 @@ def _matching_comparison_row_codes(result: SearchResult, row_code_terms: list[st
     return {term for term in row_code_terms if term in tokens}
 
 
-def _comparison_side_row_code_terms(row_code_terms: list[str], context_terms: set[str]) -> list[str]:
+def _comparison_side_row_code_options(
+    row_code_terms: list[str],
+    context_terms: set[str],
+    *,
+    identifiers: list[str] | None = None,
+    identifier: str | None = None,
+) -> list[list[str]]:
     side_terms = [term for term in row_code_terms if term in context_terms]
-    return side_terms or row_code_terms
+    if side_terms:
+        return [side_terms]
+    if identifiers and identifier and len(row_code_terms) == len(identifiers) and len(identifiers) >= 2:
+        try:
+            index = identifiers.index(identifier)
+        except ValueError:
+            index = -1
+        if 0 <= index < len(row_code_terms):
+            return [[row_code_terms[index]]]
+    return [[term] for term in row_code_terms] or [[]]
 
 
 def _comparison_row_code_result_tokens(result: SearchResult) -> set[str]:
@@ -2449,7 +2469,12 @@ def _promote_comparison_table_candidates(
     for identifier in identifiers:
         context_terms = _comparison_side_context_terms(analysis.raw_query, identifiers, identifier)
         required_context_terms = set() if row_code_terms else context_terms
-        side_row_code_terms = _comparison_side_row_code_terms(uncovered_row_codes or row_code_terms, context_terms)
+        side_row_code_options = _comparison_side_row_code_options(
+            uncovered_row_codes or row_code_terms,
+            context_terms,
+            identifiers=identifiers,
+            identifier=identifier,
+        )
         side_setting_phrases = _comparison_setting_phrases_for_identifier(analysis.raw_query, identifiers, identifier)
         if not row_code_terms and not context_terms and not field_terms:
             continue
@@ -2461,7 +2486,7 @@ def _promote_comparison_table_candidates(
             and _is_structured_comparison_table_result(result)
             and _result_matches_primary_identifier(result, identifier)
             and _comparison_result_matches_setting_phrase(result, side_setting_phrases)
-            and _result_matches_all_comparison_row_codes(result, side_row_code_terms)
+            and any(_result_matches_all_comparison_row_codes(result, option) for option in side_row_code_options)
             and _comparison_result_satisfies_identifier_context(result, required_context_terms, field_terms)
         ]
         existing_matches = [
