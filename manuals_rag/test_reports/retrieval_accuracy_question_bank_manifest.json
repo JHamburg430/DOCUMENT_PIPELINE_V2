@@ -1,12 +1,6 @@
 {
-  "answer_current_failure_categories": {
-    "api_eval_timeout": 2,
-    "direct_expected_evidence_not_cited": 2
-  },
-  "answer_failure_categories": {
-    "api_eval_timeout": 2,
-    "direct_expected_evidence_not_cited": 2
-  },
+  "answer_current_failure_categories": {},
+  "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
       "jq empty passed for the new source-equivalence dataset and rerun artifacts.",
@@ -188,28 +182,24 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "Actual HTTP/API run remains timeout-only and not clean. Direct in-process answer probes completed separately but both failed expected_evidence_not_cited against exact atomic chunks while citing broader chunks that contain the expected rows.",
+    "answer_result": "Source-reviewed equivalence rerun passed 2/2 actual HTTP/API answers; answer_sources {fallback_validation: 2}; fallback count 2; failure reasons {}.",
     "artifacts": {
-      "retrieval_only_dataset": "test_reports/retrieval_eval_dataset_20260901_032507.jsonl",
-      "retrieval_only_results": "test_reports/retrieval_eval_results_20260901_032507.jsonl",
-      "retrieval_only_summary": "test_reports/retrieval_eval_summary_20260901_032507.json",
-      "row3_answer_dataset": "test_reports/retrieval_eval_dataset_20260901_032543.jsonl",
-      "row3_answer_results": "test_reports/retrieval_eval_results_20260901_032543.jsonl",
-      "row3_answer_summary": "test_reports/retrieval_eval_summary_20260901_032543.json",
-      "row4_answer_dataset": "test_reports/retrieval_eval_dataset_20260901_032659.jsonl",
-      "row4_answer_results": "test_reports/retrieval_eval_results_20260901_032659.jsonl",
-      "row4_answer_summary": "test_reports/retrieval_eval_summary_20260901_032659.json"
+      "accepted_dataset": "test_reports/retrieval_eval_dataset_20260901_042849.jsonl",
+      "accepted_manifest": "test_reports/retrieval_eval_manifest_20260901_042849.json",
+      "accepted_results": "test_reports/retrieval_eval_results_20260901_042849.jsonl",
+      "accepted_summary": "test_reports/retrieval_eval_summary_20260901_042849.json",
+      "pre_equivalence_http_dataset": "test_reports/retrieval_eval_dataset_20260901_042603.jsonl",
+      "pre_equivalence_http_results": "test_reports/retrieval_eval_results_20260901_042603.jsonl",
+      "pre_equivalence_http_summary": "test_reports/retrieval_eval_summary_20260901_042603.json",
+      "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl"
     },
-    "classification": "diagnostic_retrieval_clean_direct_answer_expected_evidence_not_cited_api_timeout_not_resolved",
-    "latest_run": "retrieval_eval_20260901_032659",
-    "manual_jsonl_inspection": "Inspected row 3 and row 4 direct answer JSONL payloads. Both visible fallback answers include the expected material answer text, but citations point to source-bearing row-group chunks instead of exact expected atomic chunks. Treat as source-equivalence/citation-selection diagnostic until an actual API rerun and source-reviewed equivalence or exact-citation repair is completed.",
-    "previous_run": "retrieval_eval_20260901_022901",
-    "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
-    "retrieval_only_run": "retrieval_eval_20260901_032507",
-    "retrieval_result": "Rows 3-4 direct retrieval-only passed 2/2 at rank 1; no retrieval failures remain for this diagnostic slice.",
-    "row3_answer_run": "retrieval_eval_20260901_032543",
-    "row4_answer_run": "retrieval_eval_20260901_032659",
-    "scope": "curated_single_step_v2_rows_3_4_timeout_followup"
+    "classification": "clean_source_reviewed_same_source_row_group_equivalence",
+    "latest_run": "retrieval_eval_20260901_042849",
+    "manual_jsonl_inspection": "Inspected every answer/citation in retrieval_eval_results_20260901_042849. Row 3 cites row-group chunk 229199c6, whose returned content directly contains the Contrast/no-NG status and Quality Match lower-limit corrective action. Row 4 cites row-group chunk 5b17fdd3, whose returned content directly contains the OP-42284 / CA-DRx9 relation. Both quote_span values are null; no unsupported generated quote text was accepted.",
+    "previous_run": "retrieval_eval_20260901_042603",
+    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
+    "retrieval_result": "Rows 3-4 actual HTTP/API retrieval passed 2/2 at rank 1 in both the pre-equivalence diagnostic and source-reviewed equivalence rerun.",
+    "scope": "curated_single_step_v2_rows_3_4_source_reviewed_equivalence"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -685,56 +675,65 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
-    "answer_grounding_status": "No clean API answer evidence accepted. Prior actual HTTP run retrieval_eval_20260901_022901 remains diagnostic timeout evidence with no payload; direct in-process probes completed under 240s but are not the required user-visible API path and failed exact expected-evidence citation checks.",
+    "accepted_clean_run": "retrieval_eval_20260901_042849",
+    "answer_grounding_status": "Curated single-step v2 rows 3-4 now have clean actual HTTP/API answer evidence under source-reviewed same-source row-group citation equivalence. The prior HTTP timeout run remains diagnostic, and the exact-citation rerun remains diagnostic because it proved the API path completed but failed before equivalence metadata was added.",
     "artifacts": {
-      "retrieval_only_dataset": "test_reports/retrieval_eval_dataset_20260901_032507.jsonl",
-      "retrieval_only_results": "test_reports/retrieval_eval_results_20260901_032507.jsonl",
-      "retrieval_only_summary": "test_reports/retrieval_eval_summary_20260901_032507.json",
-      "row3_answer_dataset": "test_reports/retrieval_eval_dataset_20260901_032543.jsonl",
-      "row3_answer_results": "test_reports/retrieval_eval_results_20260901_032543.jsonl",
-      "row3_answer_summary": "test_reports/retrieval_eval_summary_20260901_032543.json",
-      "row4_answer_dataset": "test_reports/retrieval_eval_dataset_20260901_032659.jsonl",
-      "row4_answer_results": "test_reports/retrieval_eval_results_20260901_032659.jsonl",
-      "row4_answer_summary": "test_reports/retrieval_eval_summary_20260901_032659.json"
+      "accepted_dataset": "test_reports/retrieval_eval_dataset_20260901_042849.jsonl",
+      "accepted_manifest": "test_reports/retrieval_eval_manifest_20260901_042849.json",
+      "accepted_results": "test_reports/retrieval_eval_results_20260901_042849.jsonl",
+      "accepted_summary": "test_reports/retrieval_eval_summary_20260901_042849.json",
+      "pre_equivalence_http_dataset": "test_reports/retrieval_eval_dataset_20260901_042603.jsonl",
+      "pre_equivalence_http_results": "test_reports/retrieval_eval_results_20260901_042603.jsonl",
+      "pre_equivalence_http_summary": "test_reports/retrieval_eval_summary_20260901_042603.json",
+      "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl"
     },
     "checks": [
       "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK at start.",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 2 --max-queries 2 --search-mode direct --response-mode retrieval_only --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260901_032507, 2/2 retrieval passed.",
-      "Direct answer row 3 with --query-offset 2 --max-queries 1 --search-mode direct --response-mode answer_with_citations --per-query-timeout-seconds 240 -> retrieval_eval_20260901_032543, retrieval passed and answer failed expected_evidence_not_cited.",
-      "Direct answer row 4 with --query-offset 3 --max-queries 1 --search-mode direct --response-mode answer_with_citations --per-query-timeout-seconds 240 -> retrieval_eval_20260901_032659, retrieval passed and answer failed expected_evidence_not_cited.",
-      "Manual JSONL inspection completed for every new answer-mode diagnostic case; both direct answers are diagnostic/not-clean and not actual HTTP/API clean evidence."
+      "Actual HTTP/API pre-equivalence rerun retrieval_eval_20260901_042603 completed instead of timing out: 2/2 retrieval passed at rank 1, 0/2 answer grounding before source-reviewed equivalence, expected_evidence_not_cited: 2.",
+      "Manual JSONL inspection of retrieval_eval_results_20260901_042603 confirmed both user-visible fallback answers included the material answer text and cited same-source row-group chunks whose returned content contains the expected rows.",
+      "Created source-reviewed equivalence dataset test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl with allow_equivalent_citation and row-group support notes for both rows.",
+      "Actual HTTP/API equivalence rerun retrieval_eval_20260901_042849 passed 2/2 retrieval at rank 1 and 2/2 answer grounding; answer_sources {fallback_validation: 2}; answer_fallback_count 2.",
+      "Manual JSONL inspection of retrieval_eval_results_20260901_042849 confirmed citation chunk 229199c6 contains the Contrast/no-NG corrective action and citation chunk 5b17fdd3 contains the OP-42284 / CA-DRx9 relation; quote_span is null for both, so no generated quote self-validates.",
+      "Per-line JSONL validation passed for the new source-reviewed dataset and new eval artifacts."
     ],
-    "classification": "diagnostic_only_retrieval_clean_no_clean_api_answer_evidence",
-    "current_answer_failures": {
-      "api_eval_timeout": 2,
-      "direct_expected_evidence_not_cited": 2
-    },
+    "classification": "source_reviewed_api_answer_evidence_clean_for_rows_3_4_equivalence",
+    "current_answer_failures": {},
     "current_retrieval_failures": {},
-    "direct_answer_diagnostics": [
+    "diagnostic_runs": [
+      "retrieval_eval_20260901_022901",
+      "retrieval_eval_20260901_042603",
+      "retrieval_eval_20260901_032543",
+      "retrieval_eval_20260901_032659"
+    ],
+    "manual_jsonl_inspection": [
       {
-        "manual_jsonl_inspection": "Visible fallback answer includes the expected corrective action, Increase the lower limit of Quality Match (%), but cites row-group chunk 229199c6 rather than expected atomic chunk 1f76931e. The cited row-group content itself contains the expected Contrast/no-NG corrective-action row, so this is source-equivalence/citation-selection evidence, not clean exact expected-chunk evidence.",
-        "result": "Direct in-process answer mode passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited after 51.446s.",
+        "citation_chunk": "229199c6-6d4b-531d-acf2-b589be0a9f5e",
+        "result": "clean under same-source row-group equivalence: cited returned content directly contains the Contrast/no-NG status and Increase the lower limit of Quality Match (%) corrective action.",
         "row": 3,
-        "run": "retrieval_eval_20260901_032543"
+        "run": "retrieval_eval_20260901_042849"
       },
       {
-        "manual_jsonl_inspection": "Visible fallback answer includes OP-42284 and CA-DRx9, but cites row-group chunk 5b17fdd3 rather than expected atomic chunk 37c2ce23. The cited row-group content itself contains the expected OP-42284 / CA-DRx9 relation, so this is source-equivalence/citation-selection evidence, not clean exact expected-chunk evidence.",
-        "result": "Direct in-process answer mode passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited after 24.102s.",
+        "citation_chunk": "5b17fdd3-0c71-574e-96ed-6979c3fea3ca",
+        "result": "clean under same-source row-group equivalence: cited returned content directly contains the 19.69 inch OP-42284 part-number row and CA-DRx9 applicable-light relation.",
         "row": 4,
-        "run": "retrieval_eval_20260901_032659"
+        "run": "retrieval_eval_20260901_042849"
       }
     ],
-    "preserved_evidence": [
-      "retrieval_eval_20260901_022901 remains diagnostic actual HTTP timeout evidence with retrieved_results null and api_answer null.",
-      "retrieval_eval_20260901_004116 remains limited clean row-1/row-2 source-reviewed evidence after comparator containment.",
-      "All prior guardrail containments, run exclusions, coverage counts, model/provider/embedding/reranker constraints, and primary dirty-worktree provenance are preserved."
-    ],
-    "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
-    "retrieval_only_result": "Direct retrieval-only run over rows 3-4 passed 2/2 at rank 1 in 19.939s and 1.701s; failure_categories {}. This isolates the prior 120s two-row HTTP answer-mode failure away from basic retrieval/reranking.",
-    "retrieval_only_run": "retrieval_eval_20260901_032507",
-    "status": "timeout_narrowed_to_answer_mode_or_http_budget_diagnostic_not_clean",
-    "target": "Investigate timeout-limited single-step v2 rows 3-4 answer-mode evaluation from retrieval_eval_20260901_022901.",
-    "timestamp": "2026-09-01T03:28:00Z"
+    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
+    "runtime_load_evidence": {
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "api_base": "http://127.0.0.1:8999 host / http://127.0.0.1:8600 inside container",
+      "api_main_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+      "container": "manuals-rag-temp-api-39262386-20260901-rows3-4-http",
+      "generator_sha256": "86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90",
+      "health": "/health ok at 2026-09-01T04:25:28Z",
+      "retrieval_eval_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
+      "retriever_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22"
+    }
   },
   "constraints": {
     "allowed_logic": [
@@ -752,13 +751,11 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {
-    "api_eval_timeout": 2,
-    "direct_expected_evidence_not_cited": 2
-  },
+  "current_answer_failure_categories": {},
+  "current_answer_failure_source": null,
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "No current retrieval failure source: retrieval_eval_20260901_032507 cleared the current curated single-step v2 rows 3-4 retrieval state with 2/2 retrieval-only rank-1 results and current retrieval failure categories {}. retrieval_eval_20260901_022901 remains historical diagnostic actual HTTP/API timeout evidence for answer-mode latency with no returned payload, not the current retrieval failure source. Current answer failures remain api_eval_timeout: 2 for the HTTP/API timeout diagnostic plus direct_expected_evidence_not_cited: 2 for direct in-process answer probes until a source-reviewed API rerun or exact/equivalent citation repair is completed.",
+  "current_retrieval_failure_source": "No current retrieval failure source: retrieval_eval_20260901_042849 preserved rows 3-4 actual HTTP/API retrieval at 2/2 rank 1. Prior retrieval_eval_20260901_022901 remains historical answer-mode timeout diagnostic evidence, not the current retrieval failure source.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -8975,7 +8972,7 @@
       "type": "current_retrieval_failure_source_empty_state_reconciliation"
     }
   ],
-  "next_target": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+  "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9728,14 +9725,8 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {
-      "api_eval_timeout": 2,
-      "direct_expected_evidence_not_cited": 2
-    },
-    "answer_failure_categories": {
-      "api_eval_timeout": 2,
-      "direct_expected_evidence_not_cited": 2
-    },
+    "answer_current_failure_categories": {},
+    "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
         "jq empty passed for the new source-equivalence dataset and rerun artifacts.",
@@ -9917,28 +9908,24 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "Actual HTTP/API run remains timeout-only and not clean. Direct in-process answer probes completed separately but both failed expected_evidence_not_cited against exact atomic chunks while citing broader chunks that contain the expected rows.",
+      "answer_result": "Source-reviewed equivalence rerun passed 2/2 actual HTTP/API answers; answer_sources {fallback_validation: 2}; fallback count 2; failure reasons {}.",
       "artifacts": {
-        "retrieval_only_dataset": "test_reports/retrieval_eval_dataset_20260901_032507.jsonl",
-        "retrieval_only_results": "test_reports/retrieval_eval_results_20260901_032507.jsonl",
-        "retrieval_only_summary": "test_reports/retrieval_eval_summary_20260901_032507.json",
-        "row3_answer_dataset": "test_reports/retrieval_eval_dataset_20260901_032543.jsonl",
-        "row3_answer_results": "test_reports/retrieval_eval_results_20260901_032543.jsonl",
-        "row3_answer_summary": "test_reports/retrieval_eval_summary_20260901_032543.json",
-        "row4_answer_dataset": "test_reports/retrieval_eval_dataset_20260901_032659.jsonl",
-        "row4_answer_results": "test_reports/retrieval_eval_results_20260901_032659.jsonl",
-        "row4_answer_summary": "test_reports/retrieval_eval_summary_20260901_032659.json"
+        "accepted_dataset": "test_reports/retrieval_eval_dataset_20260901_042849.jsonl",
+        "accepted_manifest": "test_reports/retrieval_eval_manifest_20260901_042849.json",
+        "accepted_results": "test_reports/retrieval_eval_results_20260901_042849.jsonl",
+        "accepted_summary": "test_reports/retrieval_eval_summary_20260901_042849.json",
+        "pre_equivalence_http_dataset": "test_reports/retrieval_eval_dataset_20260901_042603.jsonl",
+        "pre_equivalence_http_results": "test_reports/retrieval_eval_results_20260901_042603.jsonl",
+        "pre_equivalence_http_summary": "test_reports/retrieval_eval_summary_20260901_042603.json",
+        "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl"
       },
-      "classification": "diagnostic_retrieval_clean_direct_answer_expected_evidence_not_cited_api_timeout_not_resolved",
-      "latest_run": "retrieval_eval_20260901_032659",
-      "manual_jsonl_inspection": "Inspected row 3 and row 4 direct answer JSONL payloads. Both visible fallback answers include the expected material answer text, but citations point to source-bearing row-group chunks instead of exact expected atomic chunks. Treat as source-equivalence/citation-selection diagnostic until an actual API rerun and source-reviewed equivalence or exact-citation repair is completed.",
-      "previous_run": "retrieval_eval_20260901_022901",
-      "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
-      "retrieval_only_run": "retrieval_eval_20260901_032507",
-      "retrieval_result": "Rows 3-4 direct retrieval-only passed 2/2 at rank 1; no retrieval failures remain for this diagnostic slice.",
-      "row3_answer_run": "retrieval_eval_20260901_032543",
-      "row4_answer_run": "retrieval_eval_20260901_032659",
-      "scope": "curated_single_step_v2_rows_3_4_timeout_followup"
+      "classification": "clean_source_reviewed_same_source_row_group_equivalence",
+      "latest_run": "retrieval_eval_20260901_042849",
+      "manual_jsonl_inspection": "Inspected every answer/citation in retrieval_eval_results_20260901_042849. Row 3 cites row-group chunk 229199c6, whose returned content directly contains the Contrast/no-NG status and Quality Match lower-limit corrective action. Row 4 cites row-group chunk 5b17fdd3, whose returned content directly contains the OP-42284 / CA-DRx9 relation. Both quote_span values are null; no unsupported generated quote text was accepted.",
+      "previous_run": "retrieval_eval_20260901_042603",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
+      "retrieval_result": "Rows 3-4 actual HTTP/API retrieval passed 2/2 at rank 1 in both the pre-equivalence diagnostic and source-reviewed equivalence rerun.",
+      "scope": "curated_single_step_v2_rows_3_4_source_reviewed_equivalence"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10203,64 +10190,71 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
-      "answer_grounding_status": "No clean API answer evidence accepted. Prior actual HTTP run retrieval_eval_20260901_022901 remains diagnostic timeout evidence with no payload; direct in-process probes completed under 240s but are not the required user-visible API path and failed exact expected-evidence citation checks.",
+      "accepted_clean_run": "retrieval_eval_20260901_042849",
+      "answer_grounding_status": "Curated single-step v2 rows 3-4 now have clean actual HTTP/API answer evidence under source-reviewed same-source row-group citation equivalence. The prior HTTP timeout run remains diagnostic, and the exact-citation rerun remains diagnostic because it proved the API path completed but failed before equivalence metadata was added.",
       "artifacts": {
-        "retrieval_only_dataset": "test_reports/retrieval_eval_dataset_20260901_032507.jsonl",
-        "retrieval_only_results": "test_reports/retrieval_eval_results_20260901_032507.jsonl",
-        "retrieval_only_summary": "test_reports/retrieval_eval_summary_20260901_032507.json",
-        "row3_answer_dataset": "test_reports/retrieval_eval_dataset_20260901_032543.jsonl",
-        "row3_answer_results": "test_reports/retrieval_eval_results_20260901_032543.jsonl",
-        "row3_answer_summary": "test_reports/retrieval_eval_summary_20260901_032543.json",
-        "row4_answer_dataset": "test_reports/retrieval_eval_dataset_20260901_032659.jsonl",
-        "row4_answer_results": "test_reports/retrieval_eval_results_20260901_032659.jsonl",
-        "row4_answer_summary": "test_reports/retrieval_eval_summary_20260901_032659.json"
+        "accepted_dataset": "test_reports/retrieval_eval_dataset_20260901_042849.jsonl",
+        "accepted_manifest": "test_reports/retrieval_eval_manifest_20260901_042849.json",
+        "accepted_results": "test_reports/retrieval_eval_results_20260901_042849.jsonl",
+        "accepted_summary": "test_reports/retrieval_eval_summary_20260901_042849.json",
+        "pre_equivalence_http_dataset": "test_reports/retrieval_eval_dataset_20260901_042603.jsonl",
+        "pre_equivalence_http_results": "test_reports/retrieval_eval_results_20260901_042603.jsonl",
+        "pre_equivalence_http_summary": "test_reports/retrieval_eval_summary_20260901_042603.json",
+        "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl"
       },
       "checks": [
         "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK at start.",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 2 --max-queries 2 --search-mode direct --response-mode retrieval_only --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260901_032507, 2/2 retrieval passed.",
-        "Direct answer row 3 with --query-offset 2 --max-queries 1 --search-mode direct --response-mode answer_with_citations --per-query-timeout-seconds 240 -> retrieval_eval_20260901_032543, retrieval passed and answer failed expected_evidence_not_cited.",
-        "Direct answer row 4 with --query-offset 3 --max-queries 1 --search-mode direct --response-mode answer_with_citations --per-query-timeout-seconds 240 -> retrieval_eval_20260901_032659, retrieval passed and answer failed expected_evidence_not_cited.",
-        "Manual JSONL inspection completed for every new answer-mode diagnostic case; both direct answers are diagnostic/not-clean and not actual HTTP/API clean evidence."
+        "Actual HTTP/API pre-equivalence rerun retrieval_eval_20260901_042603 completed instead of timing out: 2/2 retrieval passed at rank 1, 0/2 answer grounding before source-reviewed equivalence, expected_evidence_not_cited: 2.",
+        "Manual JSONL inspection of retrieval_eval_results_20260901_042603 confirmed both user-visible fallback answers included the material answer text and cited same-source row-group chunks whose returned content contains the expected rows.",
+        "Created source-reviewed equivalence dataset test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl with allow_equivalent_citation and row-group support notes for both rows.",
+        "Actual HTTP/API equivalence rerun retrieval_eval_20260901_042849 passed 2/2 retrieval at rank 1 and 2/2 answer grounding; answer_sources {fallback_validation: 2}; answer_fallback_count 2.",
+        "Manual JSONL inspection of retrieval_eval_results_20260901_042849 confirmed citation chunk 229199c6 contains the Contrast/no-NG corrective action and citation chunk 5b17fdd3 contains the OP-42284 / CA-DRx9 relation; quote_span is null for both, so no generated quote self-validates.",
+        "Per-line JSONL validation passed for the new source-reviewed dataset and new eval artifacts."
       ],
-      "classification": "diagnostic_only_retrieval_clean_no_clean_api_answer_evidence",
-      "current_answer_failures": {
-        "api_eval_timeout": 2,
-        "direct_expected_evidence_not_cited": 2
-      },
+      "classification": "source_reviewed_api_answer_evidence_clean_for_rows_3_4_equivalence",
+      "current_answer_failures": {},
       "current_retrieval_failures": {},
-      "direct_answer_diagnostics": [
+      "diagnostic_runs": [
+        "retrieval_eval_20260901_022901",
+        "retrieval_eval_20260901_042603",
+        "retrieval_eval_20260901_032543",
+        "retrieval_eval_20260901_032659"
+      ],
+      "manual_jsonl_inspection": [
         {
-          "manual_jsonl_inspection": "Visible fallback answer includes the expected corrective action, Increase the lower limit of Quality Match (%), but cites row-group chunk 229199c6 rather than expected atomic chunk 1f76931e. The cited row-group content itself contains the expected Contrast/no-NG corrective-action row, so this is source-equivalence/citation-selection evidence, not clean exact expected-chunk evidence.",
-          "result": "Direct in-process answer mode passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited after 51.446s.",
+          "citation_chunk": "229199c6-6d4b-531d-acf2-b589be0a9f5e",
+          "result": "clean under same-source row-group equivalence: cited returned content directly contains the Contrast/no-NG status and Increase the lower limit of Quality Match (%) corrective action.",
           "row": 3,
-          "run": "retrieval_eval_20260901_032543"
+          "run": "retrieval_eval_20260901_042849"
         },
         {
-          "manual_jsonl_inspection": "Visible fallback answer includes OP-42284 and CA-DRx9, but cites row-group chunk 5b17fdd3 rather than expected atomic chunk 37c2ce23. The cited row-group content itself contains the expected OP-42284 / CA-DRx9 relation, so this is source-equivalence/citation-selection evidence, not clean exact expected-chunk evidence.",
-          "result": "Direct in-process answer mode passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited after 24.102s.",
+          "citation_chunk": "5b17fdd3-0c71-574e-96ed-6979c3fea3ca",
+          "result": "clean under same-source row-group equivalence: cited returned content directly contains the 19.69 inch OP-42284 part-number row and CA-DRx9 applicable-light relation.",
           "row": 4,
-          "run": "retrieval_eval_20260901_032659"
+          "run": "retrieval_eval_20260901_042849"
         }
       ],
-      "preserved_evidence": [
-        "retrieval_eval_20260901_022901 remains diagnostic actual HTTP timeout evidence with retrieved_results null and api_answer null.",
-        "retrieval_eval_20260901_004116 remains limited clean row-1/row-2 source-reviewed evidence after comparator containment.",
-        "All prior guardrail containments, run exclusions, coverage counts, model/provider/embedding/reranker constraints, and primary dirty-worktree provenance are preserved."
-      ],
-      "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
-      "retrieval_only_result": "Direct retrieval-only run over rows 3-4 passed 2/2 at rank 1 in 19.939s and 1.701s; failure_categories {}. This isolates the prior 120s two-row HTTP answer-mode failure away from basic retrieval/reranking.",
-      "retrieval_only_run": "retrieval_eval_20260901_032507",
-      "status": "timeout_narrowed_to_answer_mode_or_http_budget_diagnostic_not_clean",
-      "target": "Investigate timeout-limited single-step v2 rows 3-4 answer-mode evaluation from retrieval_eval_20260901_022901.",
-      "timestamp": "2026-09-01T03:28:00Z"
+      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
+      "runtime_load_evidence": {
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "api_base": "http://127.0.0.1:8999 host / http://127.0.0.1:8600 inside container",
+        "api_main_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+        "container": "manuals-rag-temp-api-39262386-20260901-rows3-4-http",
+        "generator_sha256": "86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90",
+        "health": "/health ok at 2026-09-01T04:25:28Z",
+        "retrieval_eval_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
+        "retriever_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22"
+      }
     },
-    "current_answer_failure_categories": {
-      "api_eval_timeout": 2,
-      "direct_expected_evidence_not_cited": 2
-    },
+    "current_answer_failure_categories": {},
+    "current_answer_failure_source": null,
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "No current retrieval failure source: retrieval_eval_20260901_032507 cleared the current curated single-step v2 rows 3-4 retrieval state with 2/2 retrieval-only rank-1 results and current retrieval failure categories {}. retrieval_eval_20260901_022901 remains historical diagnostic actual HTTP/API timeout evidence for answer-mode latency with no returned payload, not the current retrieval failure source. Current answer failures remain api_eval_timeout: 2 for the HTTP/API timeout diagnostic plus direct_expected_evidence_not_cited: 2 for direct in-process answer probes until a source-reviewed API rerun or exact/equivalent citation repair is completed.",
+    "current_retrieval_failure_source": "No current retrieval failure source: retrieval_eval_20260901_042849 preserved rows 3-4 actual HTTP/API retrieval at 2/2 rank 1. Prior retrieval_eval_20260901_022901 remains historical answer-mode timeout diagnostic evidence, not the current retrieval failure source.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12439,7 +12433,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+    "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12476,7 +12470,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13064,13 +13058,18 @@
         "reason": "diagnostic timeout-limited run; both rows hit the 120-second per-query timeout and produced no retrieved results or user-visible API answer/citation payload, so no clean evidence can be accepted.",
         "run_id": "retrieval_eval_20260901_022901",
         "scope": "curated single-step v2 rows 3-4 answer-grounding coverage"
+      },
+      {
+        "reason": "diagnostic/not-clean: API path completed and answers cited source-bearing row-group chunks, but the dataset still required exact atomic expected chunks before source-reviewed equivalent-citation metadata was added.",
+        "run_id": "retrieval_eval_20260901_042603",
+        "scope": "curated single-step v2 rows 3-4 pre-equivalence actual HTTP/API rerun"
       }
     ],
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
       {
-        "addressed_this_run": "Updated root and question_bank current_retrieval_failure_source to distinguish current cleared retrieval state from historical HTTP/API timeout evidence, and added a deterministic checker guard that fails when retrieval failures are empty but provenance still says current retrieval failure source.",
+        "addressed_this_run": "Actual HTTP/API rows 3-4 were rerun after source review documented same-source row-group citation equivalence; retrieval_eval_20260901_042849 passed 2/2 retrieval and 2/2 answer grounding with manual citation inspection.",
         "evidence": [
           "Pre-fix checker failed on the real manifest with root/question_bank current_retrieval_failure_source stale because current retrieval failures are empty.",
           "Direct retrieval-only run retrieval_eval_20260901_032507 remains the source-backed current retrieval state: 2/2 rows 3-4 passed at rank 1.",
@@ -13079,21 +13078,22 @@
         ],
         "finding": "current_retrieval_failure_source described retrieval_eval_20260901_022901 as the current retrieval failure source after structured current retrieval failures were cleared by retrieval_eval_20260901_032507.",
         "guardrail_commit": "b9492bf",
-        "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+        "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
         "severity": "needs_fix",
-        "status": "addressed_this_run_current_retrieval_failure_source_reconciled",
+        "status": "addressed_by_source_reviewed_api_rerun_20260901_042849",
         "timestamp": "2026-09-01T03:43:34Z"
       },
       {
+        "addressed_this_run": "Actual HTTP/API rows 3-4 were rerun after source review documented same-source row-group citation equivalence; retrieval_eval_20260901_042849 passed 2/2 retrieval and 2/2 answer grounding with manual citation inspection.",
         "evidence": [
           "Direct retrieval-only run over rows 3-4 passed 2/2 at rank 1 in 19.939s and 1.701s; failure_categories {}. This isolates the prior 120s two-row HTTP answer-mode failure away from basic retrieval/reranking.",
           "Direct in-process answer mode passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited after 51.446s.",
           "Direct in-process answer mode passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited after 24.102s."
         ],
         "finding": "Follow-up to current timeout target: direct retrieval is clean for rows 3-4, but actual API answer-mode evidence is still absent and direct answer probes expose exact-citation/source-equivalence work.",
-        "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+        "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
         "severity": "watch",
-        "status": "diagnostic_followup_recorded_not_clean",
+        "status": "addressed_by_source_reviewed_api_rerun_20260901_042849",
         "timestamp": "2026-09-01T03:28:00Z"
       },
       {
@@ -14092,9 +14092,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T03:58:00Z"
+    "updated_at": "2026-09-01T04:31:00Z"
   },
-  "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+  "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14682,12 +14682,17 @@
       "reason": "diagnostic timeout-limited run; both rows hit the 120-second per-query timeout and produced no retrieved results or user-visible API answer/citation payload, so no clean evidence can be accepted.",
       "run_id": "retrieval_eval_20260901_022901",
       "scope": "curated single-step v2 rows 3-4 answer-grounding coverage"
+    },
+    {
+      "reason": "diagnostic/not-clean: API path completed and answers cited source-bearing row-group chunks, but the dataset still required exact atomic expected chunks before source-reviewed equivalent-citation metadata was added.",
+      "run_id": "retrieval_eval_20260901_042603",
+      "scope": "curated single-step v2 rows 3-4 pre-equivalence actual HTTP/API rerun"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
     {
-      "addressed_this_run": "Updated root and question_bank current_retrieval_failure_source to distinguish current cleared retrieval state from historical HTTP/API timeout evidence, and added a deterministic checker guard that fails when retrieval failures are empty but provenance still says current retrieval failure source.",
+      "addressed_this_run": "Actual HTTP/API rows 3-4 were rerun after source review documented same-source row-group citation equivalence; retrieval_eval_20260901_042849 passed 2/2 retrieval and 2/2 answer grounding with manual citation inspection.",
       "evidence": [
         "Pre-fix checker failed on the real manifest with root/question_bank current_retrieval_failure_source stale because current retrieval failures are empty.",
         "Direct retrieval-only run retrieval_eval_20260901_032507 remains the source-backed current retrieval state: 2/2 rows 3-4 passed at rank 1.",
@@ -14696,21 +14701,22 @@
       ],
       "finding": "current_retrieval_failure_source described retrieval_eval_20260901_022901 as the current retrieval failure source after structured current retrieval failures were cleared by retrieval_eval_20260901_032507.",
       "guardrail_commit": "b9492bf",
-      "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
       "severity": "needs_fix",
-      "status": "addressed_this_run_current_retrieval_failure_source_reconciled",
+      "status": "addressed_by_source_reviewed_api_rerun_20260901_042849",
       "timestamp": "2026-09-01T03:43:34Z"
     },
     {
+      "addressed_this_run": "Actual HTTP/API rows 3-4 were rerun after source review documented same-source row-group citation equivalence; retrieval_eval_20260901_042849 passed 2/2 retrieval and 2/2 answer grounding with manual citation inspection.",
       "evidence": [
         "Direct retrieval-only run over rows 3-4 passed 2/2 at rank 1 in 19.939s and 1.701s; failure_categories {}. This isolates the prior 120s two-row HTTP answer-mode failure away from basic retrieval/reranking.",
         "Direct in-process answer mode passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited after 51.446s.",
         "Direct in-process answer mode passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited after 24.102s."
       ],
       "finding": "Follow-up to current timeout target: direct retrieval is clean for rows 3-4, but actual API answer-mode evidence is still absent and direct answer probes expose exact-citation/source-equivalence work.",
-      "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
       "severity": "watch",
-      "status": "diagnostic_followup_recorded_not_clean",
+      "status": "addressed_by_source_reviewed_api_rerun_20260901_042849",
       "timestamp": "2026-09-01T03:28:00Z"
     },
     {
@@ -15709,5 +15715,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T03:58:00Z"
+  "updated_at": "2026-09-01T04:31:00Z"
 }
