@@ -1,8 +1,8 @@
 {
   "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 2,
-    "insufficient_evidence": 1,
-    "expected_terms_missing": 1
+    "expected_evidence_not_cited": 1,
+    "expected_terms_missing": 1,
+    "insufficient_evidence": 1
   },
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
@@ -186,45 +186,45 @@
     ]
   },
   "answer_grounding_rotation": {
-    "classification": "cross_document_rows_1_2_comparison_table_fail_closed_partial_repair",
-    "latest_run": "retrieval_eval_20260901_083606",
-    "dataset": "test_reports/retrieval_eval_dataset_20260901_083606.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260901_083606.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260901_083606.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260901_083606.json",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260901_075734.jsonl",
-    "search_mode": "http",
-    "response_mode": "answer_with_citations",
-    "query_offset": 0,
-    "max_queries": 2,
-    "retrieval_result": "2/2 retrieval passed at rank 1; candidate recall and metadata document selection passed.",
-    "answer_result": "0/2 actual HTTP/API answers passed. Row 2 now fails closed with insufficient_evidence instead of returning only LJ-S8000 evidence; row 1 remains expected_evidence_not_cited for exact VS Pattern Data evidence.",
-    "current_retrieval_failures": {},
+    "answer_result": "1/1 actual HTTP/API answer passed under source-reviewed same-source row-group equivalence. Row 2 remains unresolved from retrieval_eval_20260901_083606.",
+    "classification": "cross_document_row1_source_reviewed_equivalence_clean_row2_remaining",
     "current_answer_failures": {
-      "expected_evidence_not_cited": 2,
-      "insufficient_evidence": 1,
-      "expected_terms_missing": 1
+      "expected_evidence_not_cited": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
     },
+    "current_retrieval_failures": {},
+    "dataset": "test_reports/retrieval_eval_dataset_20260901_085649.jsonl",
+    "latest_run": "retrieval_eval_20260901_085649",
+    "manifest": "test_reports/retrieval_eval_manifest_20260901_085649.json",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_085649. The user-visible fallback answer cites VS row-group chunk 8b5d174c and IV-H exact chunk 1ddc77c5; both citations have quote_span null. The VS cited content directly includes 20503 / Pattern Data / file format invalid cause, and the IV-H cited content directly includes the memory read error at sensor startup cause.",
+    "max_queries": 1,
+    "query_offset": 0,
+    "remaining": "Continue curated cross-document v2 row 2 answer evidence selection after retrieval_eval_20260901_085649 accepted row 1 under source-reviewed same-source row-group equivalence. Row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row; preserve retrieval_eval_20260901_083606 row 2 and the combined rows 1-2 claim as diagnostic/not-clean.",
+    "response_mode": "answer_with_citations",
+    "results": "test_reports/retrieval_eval_results_20260901_085649.jsonl",
+    "retrieval_result": "1/1 retrieval passed at rank 1 with candidate recall and metadata-document selection passing.",
     "runtime_load": {
-      "api_base": "http://127.0.0.1:9042",
-      "api_container": "manuals-rag-temp-api-39262386-20260901-crossdoc12-fix",
-      "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
-      "retriever_sha256": "d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc",
-      "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
-      "eval_sha256": "73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d",
-      "fallback_evidence_results_sha256": "863cdae6ec1ba20b75f271778c6fa20dc63933cb2e8009b7e1823ca5d8b64138",
-      "comparison_table_model_side_results_sha256": "133b75f860b25082762ad189a7d80b1c6ade47a4f5d5a0069f392d400865fd52",
-      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-      "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "HAYSTACK_RERANK_DEVICE": "cuda:0"
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "api_base": "http://127.0.0.1:9048",
+      "api_container": "manuals-rag-temp-api-39262386-20260901-row1-equiv",
+      "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+      "comparison_table_model_side_results_sha256": "133b75f860b25082762ad189a7d80b1c6ade47a4f5d5a0069f392d400865fd52",
+      "eval_sha256": "73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d",
+      "expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+      "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
+      "retriever_sha256": "d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc",
+      "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
     },
-    "manual_jsonl_inspection": "Inspected every user-visible answer/citation in retrieval_eval_results_20260901_083606. Row 1 answer cites VS row-group chunk 8b5d174c plus IV-H chunk 1ddc77c5; the VS cited content visibly contains the 20503 invalid-format cause but exact expected chunk 6744c005 remains uncited, so it stays diagnostic/not-clean pending source-reviewed equivalence or exact-citation repair. Row 2 returns insufficient evidence with no citations because no LJ-X8000 result with the requested T1 Angle 1 MS/AB primary row code survived in citation scope; this avoids the prior one-sided LJ-S8000 answer, but remains not-clean.",
-    "remaining": "Continue curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_083606: the new side-aware comparison table fallback correctly fails closed for row 2 instead of returning a one-sided LJ-S8000 answer when the LJ-X8000 T1 evidence is absent from citation scope, but the slice is still not clean. Row 1 still needs a source-reviewed equivalence policy or exact-citation repair for the VS 20503 Pattern Data invalid-format row-group citation, and row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve retrieval_eval_20260901_083606 as diagnostic/not-clean and keep all prior clean/diagnostic exclusions."
+    "search_mode": "http",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260901_0856_cross_document_row1_equivalence.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260901_085649.json"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -691,48 +691,36 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
-    "classification": "cross_document_rows_1_2_comparison_table_fail_closed_partial_repair",
-    "answer_grounding_status": "Cross-document rows 1-2 remain the current answer-grounding target after retrieval_eval_20260901_083606: retrieval passed 2/2 at rank 1, but actual HTTP/API answers failed 0/2. The production change improved row 2 truthfulness by returning insufficient evidence instead of a one-sided/wrong-sibling comparison answer when no requested LJ-X8000 T1 side evidence survived citation scope.",
-    "current_retrieval_failures": {},
-    "current_answer_failures": {
-      "expected_evidence_not_cited": 2,
-      "insufficient_evidence": 1,
-      "expected_terms_missing": 1
-    },
     "accepted_clean_runs": [
-      "retrieval_eval_20260901_062601 row 13",
-      "retrieval_eval_20260901_073520 contextual row 15",
-      "retrieval_eval_20260901_063040 contextual row 16"
+      "retrieval_eval_20260901_085649 cross-document row 1"
     ],
-    "diagnostic_runs": {
-      "retrieval_eval_20260901_062733": "pre-source-review exact-chunk scoring failed expected_evidence_not_cited; remains diagnostic/not-clean",
-      "retrieval_eval_20260901_063040 combined rows 15-16": "not clean because row 15 was diagnostic/not-clean in that combined run; row 16 alone remains clean",
-      "retrieval_eval_20260901_072854": "pre-final-helper-control rerun; citation content looked clean but helper adverse control still selected metadata-only evidence, so unaccepted",
-      "retrieval_eval_20260901_075734": "cross-document v2 rows 1-2 retrieval-clean but answer-not-clean; current failure source for answer evidence selection",
-      "retrieval_eval_20260901_083606": "loaded HTTP/API rerun after side-aware comparison table fallback; retrieval 2/2, answer 0/2. Row 1 cites VS row-group chunk 8b5d174c that visibly contains the 20503 invalid-format row but exact expected evidence 6744c005 remains uncited; row 2 now fails closed as insufficient evidence because the returned LJ-X side is T1HI sibling evidence rather than requested T1 Angle 1 MS/AB evidence."
-    },
+    "answer_grounding_status": "Cross-document row 1 is now clean actual HTTP/API answer evidence from retrieval_eval_20260901_085649 under explicit same-source row-group citation equivalence; row 2 remains the current answer-grounding target because retrieval_eval_20260901_083606 correctly failed closed with insufficient evidence when the requested LJ-X8000 T1 row was absent from citation scope.",
     "artifacts": {
-      "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "cross_document_rows_1_2_dataset": "test_reports/retrieval_eval_dataset_20260901_075734.jsonl",
-      "cross_document_rows_1_2_manifest": "test_reports/retrieval_eval_manifest_20260901_075734.json",
-      "cross_document_rows_1_2_results": "test_reports/retrieval_eval_results_20260901_075734.jsonl",
-      "cross_document_rows_1_2_summary": "test_reports/retrieval_eval_summary_20260901_075734.json",
-      "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
-      "row15_visible_citation_results": "test_reports/retrieval_eval_results_20260901_073520.jsonl",
-      "row16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
-      "cross_document_rows_1_2_fail_closed_dataset": "test_reports/retrieval_eval_dataset_20260901_083606.jsonl",
-      "cross_document_rows_1_2_fail_closed_results": "test_reports/retrieval_eval_results_20260901_083606.jsonl",
-      "cross_document_rows_1_2_fail_closed_summary": "test_reports/retrieval_eval_summary_20260901_083606.json",
-      "cross_document_rows_1_2_fail_closed_manifest": "test_reports/retrieval_eval_manifest_20260901_083606.json"
+      "row1_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_085649.jsonl",
+      "row1_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_085649.json",
+      "row1_clean_results": "test_reports/retrieval_eval_results_20260901_085649.jsonl",
+      "row1_clean_summary": "test_reports/retrieval_eval_summary_20260901_085649.json",
+      "row1_source_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260901_0856_cross_document_row1_equivalence.jsonl",
+      "row2_current_diagnostic_results": "test_reports/retrieval_eval_results_20260901_083606.jsonl"
     },
     "checks": [
-      "Focused comparison table fallback controls passed: 2 passed.",
-      "Full answering unit subset passed excluding two parser fixture tests whose ignored PDFs were absent from the clean worktree: 111 passed, 2 deselected.",
-      "Full Docker unit gate with fixture directories mounted read-only passed: 527 passed, 59 warnings.",
-      "Clean side API manuals-rag-temp-api-39262386-20260901-crossdoc12-fix served http://127.0.0.1:9042 with unchanged local model/reranker settings and loaded generator.py sha256 a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836.",
-      "retrieval_eval_20260901_083606 actual HTTP/API answer mode passed retrieval 2/2 and failed answer grounding 0/2; manual JSONL inspection preserved it as diagnostic/not-clean."
+      "python3 -m json.tool passed for the row-1 source-reviewed dataset and new eval artifacts.",
+      "Actual HTTP/API answer-mode run retrieval_eval_20260901_085649 passed retrieval 1/1 at rank 1 and answer grounding 1/1; answer source fallback_validation with consistent fallback telemetry.",
+      "Manual JSONL inspection confirmed the user-visible answer cites VS row-group chunk 8b5d174c and IV-H exact chunk 1ddc77c5, both with quote_span null; the cited VS chunk directly contains the 20503 Pattern Data invalid-format cause and the IV-H chunk directly contains the startup memory-read cause.",
+      "Clean side API manuals-rag-temp-api-39262386-20260901-row1-equiv served http://127.0.0.1:9048 with unchanged local model/reranker settings and loaded generator.py sha256 a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836."
     ],
-    "remaining": "Continue curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_083606: the new side-aware comparison table fallback correctly fails closed for row 2 instead of returning a one-sided LJ-S8000 answer when the LJ-X8000 T1 evidence is absent from citation scope, but the slice is still not clean. Row 1 still needs a source-reviewed equivalence policy or exact-citation repair for the VS 20503 Pattern Data invalid-format row-group citation, and row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve retrieval_eval_20260901_083606 as diagnostic/not-clean and keep all prior clean/diagnostic exclusions."
+    "classification": "cross_document_row1_source_reviewed_equivalence_clean_row2_remaining",
+    "current_answer_failures": {
+      "expected_evidence_not_cited": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
+    },
+    "current_retrieval_failures": {},
+    "diagnostic_runs": {
+      "retrieval_eval_20260901_075734": "cross-document v2 rows 1-2 retrieval-clean but answer-not-clean before row-1 equivalence source review",
+      "retrieval_eval_20260901_083606": "loaded HTTP/API rerun after side-aware comparison table fallback; row 1 cited a same-source VS row-group chunk that later received explicit source-reviewed equivalence, but the combined rows 1-2 result remains diagnostic because row 2 failed closed with insufficient evidence and no citations"
+    },
+    "remaining": "Continue curated cross-document v2 row 2 answer evidence selection after retrieval_eval_20260901_085649 accepted row 1 under source-reviewed same-source row-group equivalence. Row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row; preserve retrieval_eval_20260901_083606 row 2 and the combined rows 1-2 claim as diagnostic/not-clean."
   },
   "constraints": {
     "allowed_logic": [
@@ -751,14 +739,14 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 2,
-    "insufficient_evidence": 1,
-    "expected_terms_missing": 1
+    "expected_evidence_not_cited": 1,
+    "expected_terms_missing": 1,
+    "insufficient_evidence": 1
   },
-  "current_answer_failure_source": "retrieval_eval_20260901_083606 is the current answer failure source for cross-document rows 1-2: row 1 exact/source-equivalent VS citation remains unresolved, and row 2 fails closed with insufficient evidence because the requested LJ-X8000 T1 side evidence was not available in citation scope.",
+  "current_answer_failure_source": "retrieval_eval_20260901_083606 row 2 remains the current answer failure source: insufficient evidence/no citations for the requested LJ-X8000 T1 Angle 1 MS/AB measured-data format role.",
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "No current retrieval failure source remains: retrieval_eval_20260901_083606 passed cross-document rows 1-2 retrieval 2/2 at rank 1.",
+  "current_retrieval_failure_source": "No current structured retrieval failures after retrieval_eval_20260901_085649 row 1 and retrieval_eval_20260901_083606 rows 1-2 passed retrieval.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -8975,7 +8963,7 @@
       "type": "current_retrieval_failure_source_empty_state_reconciliation"
     }
   ],
-  "next_target": "Continue curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_083606: the new side-aware comparison table fallback correctly fails closed for row 2 instead of returning a one-sided LJ-S8000 answer when the LJ-X8000 T1 evidence is absent from citation scope, but the slice is still not clean. Row 1 still needs a source-reviewed equivalence policy or exact-citation repair for the VS 20503 Pattern Data invalid-format row-group citation, and row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve retrieval_eval_20260901_083606 as diagnostic/not-clean and keep all prior clean/diagnostic exclusions.",
+  "next_target": "Continue curated cross-document v2 row 2 answer evidence selection after retrieval_eval_20260901_085649 accepted row 1 under source-reviewed same-source row-group equivalence. Row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row; preserve retrieval_eval_20260901_083606 row 2 and the combined rows 1-2 claim as diagnostic/not-clean.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9729,9 +9717,9 @@
   },
   "question_bank": {
     "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 2,
-      "insufficient_evidence": 1,
-      "expected_terms_missing": 1
+      "expected_evidence_not_cited": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
     },
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
@@ -9915,45 +9903,45 @@
       ]
     },
     "answer_grounding_rotation": {
-      "classification": "cross_document_rows_1_2_comparison_table_fail_closed_partial_repair",
-      "latest_run": "retrieval_eval_20260901_083606",
-      "dataset": "test_reports/retrieval_eval_dataset_20260901_083606.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260901_083606.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260901_083606.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260901_083606.json",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260901_075734.jsonl",
-      "search_mode": "http",
-      "response_mode": "answer_with_citations",
-      "query_offset": 0,
-      "max_queries": 2,
-      "retrieval_result": "2/2 retrieval passed at rank 1; candidate recall and metadata document selection passed.",
-      "answer_result": "0/2 actual HTTP/API answers passed. Row 2 now fails closed with insufficient_evidence instead of returning only LJ-S8000 evidence; row 1 remains expected_evidence_not_cited for exact VS Pattern Data evidence.",
-      "current_retrieval_failures": {},
+      "answer_result": "1/1 actual HTTP/API answer passed under source-reviewed same-source row-group equivalence. Row 2 remains unresolved from retrieval_eval_20260901_083606.",
+      "classification": "cross_document_row1_source_reviewed_equivalence_clean_row2_remaining",
       "current_answer_failures": {
-        "expected_evidence_not_cited": 2,
-        "insufficient_evidence": 1,
-        "expected_terms_missing": 1
+        "expected_evidence_not_cited": 1,
+        "expected_terms_missing": 1,
+        "insufficient_evidence": 1
       },
+      "current_retrieval_failures": {},
+      "dataset": "test_reports/retrieval_eval_dataset_20260901_085649.jsonl",
+      "latest_run": "retrieval_eval_20260901_085649",
+      "manifest": "test_reports/retrieval_eval_manifest_20260901_085649.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_085649. The user-visible fallback answer cites VS row-group chunk 8b5d174c and IV-H exact chunk 1ddc77c5; both citations have quote_span null. The VS cited content directly includes 20503 / Pattern Data / file format invalid cause, and the IV-H cited content directly includes the memory read error at sensor startup cause.",
+      "max_queries": 1,
+      "query_offset": 0,
+      "remaining": "Continue curated cross-document v2 row 2 answer evidence selection after retrieval_eval_20260901_085649 accepted row 1 under source-reviewed same-source row-group equivalence. Row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row; preserve retrieval_eval_20260901_083606 row 2 and the combined rows 1-2 claim as diagnostic/not-clean.",
+      "response_mode": "answer_with_citations",
+      "results": "test_reports/retrieval_eval_results_20260901_085649.jsonl",
+      "retrieval_result": "1/1 retrieval passed at rank 1 with candidate recall and metadata-document selection passing.",
       "runtime_load": {
-        "api_base": "http://127.0.0.1:9042",
-        "api_container": "manuals-rag-temp-api-39262386-20260901-crossdoc12-fix",
-        "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
-        "retriever_sha256": "d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc",
-        "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
-        "eval_sha256": "73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d",
-        "fallback_evidence_results_sha256": "863cdae6ec1ba20b75f271778c6fa20dc63933cb2e8009b7e1823ca5d8b64138",
-        "comparison_table_model_side_results_sha256": "133b75f860b25082762ad189a7d80b1c6ade47a4f5d5a0069f392d400865fd52",
-        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-        "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "HAYSTACK_RERANK_DEVICE": "cuda:0"
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "api_base": "http://127.0.0.1:9048",
+        "api_container": "manuals-rag-temp-api-39262386-20260901-row1-equiv",
+        "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+        "comparison_table_model_side_results_sha256": "133b75f860b25082762ad189a7d80b1c6ade47a4f5d5a0069f392d400865fd52",
+        "eval_sha256": "73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d",
+        "expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
+        "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
+        "retriever_sha256": "d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc",
+        "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
       },
-      "manual_jsonl_inspection": "Inspected every user-visible answer/citation in retrieval_eval_results_20260901_083606. Row 1 answer cites VS row-group chunk 8b5d174c plus IV-H chunk 1ddc77c5; the VS cited content visibly contains the 20503 invalid-format cause but exact expected chunk 6744c005 remains uncited, so it stays diagnostic/not-clean pending source-reviewed equivalence or exact-citation repair. Row 2 returns insufficient evidence with no citations because no LJ-X8000 result with the requested T1 Angle 1 MS/AB primary row code survived in citation scope; this avoids the prior one-sided LJ-S8000 answer, but remains not-clean.",
-      "remaining": "Continue curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_083606: the new side-aware comparison table fallback correctly fails closed for row 2 instead of returning a one-sided LJ-S8000 answer when the LJ-X8000 T1 evidence is absent from citation scope, but the slice is still not clean. Row 1 still needs a source-reviewed equivalence policy or exact-citation repair for the VS 20503 Pattern Data invalid-format row-group citation, and row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve retrieval_eval_20260901_083606 as diagnostic/not-clean and keep all prior clean/diagnostic exclusions."
+      "search_mode": "http",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260901_0856_cross_document_row1_equivalence.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260901_085649.json"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10209,58 +10197,46 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
-      "classification": "cross_document_rows_1_2_comparison_table_fail_closed_partial_repair",
-      "answer_grounding_status": "Cross-document rows 1-2 remain the current answer-grounding target after retrieval_eval_20260901_083606: retrieval passed 2/2 at rank 1, but actual HTTP/API answers failed 0/2. The production change improved row 2 truthfulness by returning insufficient evidence instead of a one-sided/wrong-sibling comparison answer when no requested LJ-X8000 T1 side evidence survived citation scope.",
-      "current_retrieval_failures": {},
-      "current_answer_failures": {
-        "expected_evidence_not_cited": 2,
-        "insufficient_evidence": 1,
-        "expected_terms_missing": 1
-      },
       "accepted_clean_runs": [
-        "retrieval_eval_20260901_062601 row 13",
-        "retrieval_eval_20260901_073520 contextual row 15",
-        "retrieval_eval_20260901_063040 contextual row 16"
+        "retrieval_eval_20260901_085649 cross-document row 1"
       ],
-      "diagnostic_runs": {
-        "retrieval_eval_20260901_062733": "pre-source-review exact-chunk scoring failed expected_evidence_not_cited; remains diagnostic/not-clean",
-        "retrieval_eval_20260901_063040 combined rows 15-16": "not clean because row 15 was diagnostic/not-clean in that combined run; row 16 alone remains clean",
-        "retrieval_eval_20260901_072854": "pre-final-helper-control rerun; citation content looked clean but helper adverse control still selected metadata-only evidence, so unaccepted",
-        "retrieval_eval_20260901_075734": "cross-document v2 rows 1-2 retrieval-clean but answer-not-clean; current failure source for answer evidence selection",
-        "retrieval_eval_20260901_083606": "loaded HTTP/API rerun after side-aware comparison table fallback; retrieval 2/2, answer 0/2. Row 1 cites VS row-group chunk 8b5d174c that visibly contains the 20503 invalid-format row but exact expected evidence 6744c005 remains uncited; row 2 now fails closed as insufficient evidence because the returned LJ-X side is T1HI sibling evidence rather than requested T1 Angle 1 MS/AB evidence."
-      },
+      "answer_grounding_status": "Cross-document row 1 is now clean actual HTTP/API answer evidence from retrieval_eval_20260901_085649 under explicit same-source row-group citation equivalence; row 2 remains the current answer-grounding target because retrieval_eval_20260901_083606 correctly failed closed with insufficient evidence when the requested LJ-X8000 T1 row was absent from citation scope.",
       "artifacts": {
-        "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-        "cross_document_rows_1_2_dataset": "test_reports/retrieval_eval_dataset_20260901_075734.jsonl",
-        "cross_document_rows_1_2_manifest": "test_reports/retrieval_eval_manifest_20260901_075734.json",
-        "cross_document_rows_1_2_results": "test_reports/retrieval_eval_results_20260901_075734.jsonl",
-        "cross_document_rows_1_2_summary": "test_reports/retrieval_eval_summary_20260901_075734.json",
-        "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
-        "row15_visible_citation_results": "test_reports/retrieval_eval_results_20260901_073520.jsonl",
-        "row16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
-        "cross_document_rows_1_2_fail_closed_dataset": "test_reports/retrieval_eval_dataset_20260901_083606.jsonl",
-        "cross_document_rows_1_2_fail_closed_results": "test_reports/retrieval_eval_results_20260901_083606.jsonl",
-        "cross_document_rows_1_2_fail_closed_summary": "test_reports/retrieval_eval_summary_20260901_083606.json",
-        "cross_document_rows_1_2_fail_closed_manifest": "test_reports/retrieval_eval_manifest_20260901_083606.json"
+        "row1_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_085649.jsonl",
+        "row1_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_085649.json",
+        "row1_clean_results": "test_reports/retrieval_eval_results_20260901_085649.jsonl",
+        "row1_clean_summary": "test_reports/retrieval_eval_summary_20260901_085649.json",
+        "row1_source_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260901_0856_cross_document_row1_equivalence.jsonl",
+        "row2_current_diagnostic_results": "test_reports/retrieval_eval_results_20260901_083606.jsonl"
       },
       "checks": [
-        "Focused comparison table fallback controls passed: 2 passed.",
-        "Full answering unit subset passed excluding two parser fixture tests whose ignored PDFs were absent from the clean worktree: 111 passed, 2 deselected.",
-        "Full Docker unit gate with fixture directories mounted read-only passed: 527 passed, 59 warnings.",
-        "Clean side API manuals-rag-temp-api-39262386-20260901-crossdoc12-fix served http://127.0.0.1:9042 with unchanged local model/reranker settings and loaded generator.py sha256 a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836.",
-        "retrieval_eval_20260901_083606 actual HTTP/API answer mode passed retrieval 2/2 and failed answer grounding 0/2; manual JSONL inspection preserved it as diagnostic/not-clean."
+        "python3 -m json.tool passed for the row-1 source-reviewed dataset and new eval artifacts.",
+        "Actual HTTP/API answer-mode run retrieval_eval_20260901_085649 passed retrieval 1/1 at rank 1 and answer grounding 1/1; answer source fallback_validation with consistent fallback telemetry.",
+        "Manual JSONL inspection confirmed the user-visible answer cites VS row-group chunk 8b5d174c and IV-H exact chunk 1ddc77c5, both with quote_span null; the cited VS chunk directly contains the 20503 Pattern Data invalid-format cause and the IV-H chunk directly contains the startup memory-read cause.",
+        "Clean side API manuals-rag-temp-api-39262386-20260901-row1-equiv served http://127.0.0.1:9048 with unchanged local model/reranker settings and loaded generator.py sha256 a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836."
       ],
-      "remaining": "Continue curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_083606: the new side-aware comparison table fallback correctly fails closed for row 2 instead of returning a one-sided LJ-S8000 answer when the LJ-X8000 T1 evidence is absent from citation scope, but the slice is still not clean. Row 1 still needs a source-reviewed equivalence policy or exact-citation repair for the VS 20503 Pattern Data invalid-format row-group citation, and row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve retrieval_eval_20260901_083606 as diagnostic/not-clean and keep all prior clean/diagnostic exclusions."
+      "classification": "cross_document_row1_source_reviewed_equivalence_clean_row2_remaining",
+      "current_answer_failures": {
+        "expected_evidence_not_cited": 1,
+        "expected_terms_missing": 1,
+        "insufficient_evidence": 1
+      },
+      "current_retrieval_failures": {},
+      "diagnostic_runs": {
+        "retrieval_eval_20260901_075734": "cross-document v2 rows 1-2 retrieval-clean but answer-not-clean before row-1 equivalence source review",
+        "retrieval_eval_20260901_083606": "loaded HTTP/API rerun after side-aware comparison table fallback; row 1 cited a same-source VS row-group chunk that later received explicit source-reviewed equivalence, but the combined rows 1-2 result remains diagnostic because row 2 failed closed with insufficient evidence and no citations"
+      },
+      "remaining": "Continue curated cross-document v2 row 2 answer evidence selection after retrieval_eval_20260901_085649 accepted row 1 under source-reviewed same-source row-group equivalence. Row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row; preserve retrieval_eval_20260901_083606 row 2 and the combined rows 1-2 claim as diagnostic/not-clean."
     },
     "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 2,
-      "insufficient_evidence": 1,
-      "expected_terms_missing": 1
+      "expected_evidence_not_cited": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
     },
-    "current_answer_failure_source": "retrieval_eval_20260901_083606 is the current answer failure source for cross-document rows 1-2: row 1 exact/source-equivalent VS citation remains unresolved, and row 2 fails closed with insufficient evidence because the requested LJ-X8000 T1 side evidence was not available in citation scope.",
+    "current_answer_failure_source": "retrieval_eval_20260901_083606 row 2 remains the current answer failure source: insufficient evidence/no citations for the requested LJ-X8000 T1 Angle 1 MS/AB measured-data format role.",
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "No current retrieval failure source remains: retrieval_eval_20260901_083606 passed cross-document rows 1-2 retrieval 2/2 at rank 1.",
+    "current_retrieval_failure_source": "No current structured retrieval failures after retrieval_eval_20260901_085649 row 1 and retrieval_eval_20260901_083606 rows 1-2 passed retrieval.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12439,7 +12415,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Continue curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_083606: the new side-aware comparison table fallback correctly fails closed for row 2 instead of returning a one-sided LJ-S8000 answer when the LJ-X8000 T1 evidence is absent from citation scope, but the slice is still not clean. Row 1 still needs a source-reviewed equivalence policy or exact-citation repair for the VS 20503 Pattern Data invalid-format row-group citation, and row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve retrieval_eval_20260901_083606 as diagnostic/not-clean and keep all prior clean/diagnostic exclusions.",
+    "next_target": "Continue curated cross-document v2 row 2 answer evidence selection after retrieval_eval_20260901_085649 accepted row 1 under source-reviewed same-source row-group equivalence. Row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row; preserve retrieval_eval_20260901_083606 row 2 and the combined rows 1-2 claim as diagnostic/not-clean.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12476,7 +12452,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_083606: the new side-aware comparison table fallback correctly fails closed for row 2 instead of returning a one-sided LJ-S8000 answer when the LJ-X8000 T1 evidence is absent from citation scope, but the slice is still not clean. Row 1 still needs a source-reviewed equivalence policy or exact-citation repair for the VS 20503 Pattern Data invalid-format row-group citation, and row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve retrieval_eval_20260901_083606 as diagnostic/not-clean and keep all prior clean/diagnostic exclusions.",
+    "remaining": "Continue curated cross-document v2 row 2 answer evidence selection after retrieval_eval_20260901_085649 accepted row 1 under source-reviewed same-source row-group equivalence. Row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row; preserve retrieval_eval_20260901_083606 row 2 and the combined rows 1-2 claim as diagnostic/not-clean.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13112,14 +13088,27 @@
         "scope": "curated cross-document v2 rows 1-2 answer-grounding clean claim"
       },
       {
+        "reason": "diagnostic fail-closed partial repair only: retrieval passed 2/2 but answer grounding failed 0/2; row 1 still lacks accepted exact/source-equivalent VS Pattern Data citation, and row 2 correctly returns insufficient evidence instead of a one-sided comparison because requested LJ-X8000 T1 evidence is absent from citation scope.",
         "run_id": "retrieval_eval_20260901_083606",
-        "scope": "curated cross-document v2 rows 1-2 clean answer evidence",
-        "reason": "diagnostic fail-closed partial repair only: retrieval passed 2/2 but answer grounding failed 0/2; row 1 still lacks accepted exact/source-equivalent VS Pattern Data citation, and row 2 correctly returns insufficient evidence instead of a one-sided comparison because requested LJ-X8000 T1 evidence is absent from citation scope."
+        "scope": "curated cross-document v2 rows 1-2 clean answer evidence"
       }
     ],
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "addressed_this_run": "Added a row-1 source-reviewed equivalence dataset and reran the actual HTTP/API answer path; row 1 is now clean under existing source-only equivalent-citation scoring.",
+        "evidence": [
+          "test_reports/retrieval_eval_dataset_20260901_0856_cross_document_row1_equivalence.jsonl",
+          "retrieval_eval_20260901_085649",
+          "manual JSONL inspection of retrieval_eval_results_20260901_085649"
+        ],
+        "finding": "Current cross-document rows 1-2 target had row 1 exact expected chunk uncited even though the cited same-source VS row-group chunk directly contained the 20503 Pattern Data invalid-format cause.",
+        "remaining": "Row 2 remains unresolved and must cite/use LJ-X8000 T1 Angle 1 MS/AB evidence before the rows 1-2 slice or combined claim can be clean.",
+        "severity": "watch",
+        "status": "followed_up_by_row1_source_reviewed_equivalence_20260901_085649",
+        "timestamp": "2026-09-01T08:59:00Z"
+      },
       {
         "addressed_this_run": "Added a citation-visible quantity fallback preference, validated loaded helper controls, reran contextual row 15 through actual HTTP/API, and manually inspected that citation a1b17edc content directly contains every expected role.",
         "evidence": [
@@ -14175,9 +14164,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T08:42:00Z"
+    "updated_at": "2026-09-01T08:59:00Z"
   },
-  "remaining": "Continue curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_083606: the new side-aware comparison table fallback correctly fails closed for row 2 instead of returning a one-sided LJ-S8000 answer when the LJ-X8000 T1 evidence is absent from citation scope, but the slice is still not clean. Row 1 still needs a source-reviewed equivalence policy or exact-citation repair for the VS 20503 Pattern Data invalid-format row-group citation, and row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve retrieval_eval_20260901_083606 as diagnostic/not-clean and keep all prior clean/diagnostic exclusions.",
+  "remaining": "Continue curated cross-document v2 row 2 answer evidence selection after retrieval_eval_20260901_085649 accepted row 1 under source-reviewed same-source row-group equivalence. Row 2 still needs retrieval/citation context that directly includes the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row; preserve retrieval_eval_20260901_083606 row 2 and the combined rows 1-2 claim as diagnostic/not-clean.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14813,13 +14802,26 @@
       "scope": "curated cross-document v2 rows 1-2 answer-grounding clean claim"
     },
     {
+      "reason": "diagnostic fail-closed partial repair only: retrieval passed 2/2 but answer grounding failed 0/2; row 1 still lacks accepted exact/source-equivalent VS Pattern Data citation, and row 2 correctly returns insufficient evidence instead of a one-sided comparison because requested LJ-X8000 T1 evidence is absent from citation scope.",
       "run_id": "retrieval_eval_20260901_083606",
-      "scope": "curated cross-document v2 rows 1-2 clean answer evidence",
-      "reason": "diagnostic fail-closed partial repair only: retrieval passed 2/2 but answer grounding failed 0/2; row 1 still lacks accepted exact/source-equivalent VS Pattern Data citation, and row 2 correctly returns insufficient evidence instead of a one-sided comparison because requested LJ-X8000 T1 evidence is absent from citation scope."
+      "scope": "curated cross-document v2 rows 1-2 clean answer evidence"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "addressed_this_run": "Added a row-1 source-reviewed equivalence dataset and reran the actual HTTP/API answer path; row 1 is now clean under existing source-only equivalent-citation scoring.",
+      "evidence": [
+        "test_reports/retrieval_eval_dataset_20260901_0856_cross_document_row1_equivalence.jsonl",
+        "retrieval_eval_20260901_085649",
+        "manual JSONL inspection of retrieval_eval_results_20260901_085649"
+      ],
+      "finding": "Current cross-document rows 1-2 target had row 1 exact expected chunk uncited even though the cited same-source VS row-group chunk directly contained the 20503 Pattern Data invalid-format cause.",
+      "remaining": "Row 2 remains unresolved and must cite/use LJ-X8000 T1 Angle 1 MS/AB evidence before the rows 1-2 slice or combined claim can be clean.",
+      "severity": "watch",
+      "status": "followed_up_by_row1_source_reviewed_equivalence_20260901_085649",
+      "timestamp": "2026-09-01T08:59:00Z"
+    },
     {
       "addressed_this_run": "Added a citation-visible quantity fallback preference, validated loaded helper controls, reran contextual row 15 through actual HTTP/API, and manually inspected that citation a1b17edc content directly contains every expected role.",
       "evidence": [
@@ -15875,5 +15877,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T08:42:00Z"
+  "updated_at": "2026-09-01T08:59:00Z"
 }
