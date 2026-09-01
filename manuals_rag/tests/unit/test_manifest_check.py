@@ -74,6 +74,7 @@ def _minimal_manifest():
         },
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
+        "manifest_integrity_repairs": [{"status": "current"}],
         "failure_categories": retrieval_failures,
         "current_failure_categories": retrieval_failures,
         "current_retrieval_failure_categories": retrieval_failures,
@@ -224,6 +225,29 @@ def test_manifest_checker_allows_historical_source_when_no_current_retrieval_fai
     errors = module.check_manifest(manifest)
 
     assert errors == []
+
+
+def test_manifest_checker_rejects_current_source_when_retrieval_failures_empty():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    for key in (
+        "failure_categories",
+        "current_failure_categories",
+        "current_retrieval_failure_categories",
+        "retrieval_current_failure_categories",
+    ):
+        manifest[key] = {}
+        manifest["question_bank"][key] = {}
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "root.current_retrieval_failure_source stale" in error for error in errors
+    )
+    assert any(
+        "question_bank.current_retrieval_failure_source stale" in error
+        for error in errors
+    )
 
 
 def test_manifest_checker_rejects_stale_remaining_row_target():

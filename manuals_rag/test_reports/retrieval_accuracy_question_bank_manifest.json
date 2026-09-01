@@ -758,7 +758,7 @@
   },
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "retrieval_eval_20260901_022901 is the current retrieval failure source for the timeout-limited single-step v2 rows 3-4 answer-mode diagnostic: both cases timed out at the 120-second per-query limit before returning retrieved_results or api_answer payloads, so current retrieval and answer failure categories are eval_timeout: 2. Older cross-document runs such as retrieval_eval_20260827_074631 remain historical baseline evidence only, not the current failure source.",
+  "current_retrieval_failure_source": "No current retrieval failure source: retrieval_eval_20260901_032507 cleared the current curated single-step v2 rows 3-4 retrieval state with 2/2 retrieval-only rank-1 results and current retrieval failure categories {}. retrieval_eval_20260901_022901 remains historical diagnostic actual HTTP/API timeout evidence for answer-mode latency with no returned payload, not the current retrieval failure source. Current answer failures remain api_eval_timeout: 2 for the HTTP/API timeout diagnostic plus direct_expected_evidence_not_cited: 2 for direct in-process answer probes until a source-reviewed API rerun or exact/equivalent citation repair is completed.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -8960,6 +8960,21 @@
     "summary": "The optional LLM answer-information judge may be used only as diagnostic assistance. It must not override deterministic expected-evidence checks or support production pass/fail accuracy claims without explicit source-reviewed policy and approval.",
     "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
   },
+  "manifest_integrity_repairs": [
+    {
+      "addressed": "Updated root and question_bank current_retrieval_failure_source to distinguish current cleared retrieval state from historical HTTP/API timeout evidence, and added a deterministic checker guard that fails when retrieval failures are empty but provenance still says current retrieval failure source.",
+      "evidence": [
+        "Pre-fix checker failed on the real manifest with root/question_bank current_retrieval_failure_source stale because current retrieval failures are empty.",
+        "Direct retrieval-only run retrieval_eval_20260901_032507 remains the source-backed current retrieval state: 2/2 rows 3-4 passed at rank 1.",
+        "retrieval_eval_20260901_022901 remains diagnostic actual HTTP/API timeout evidence and stays excluded/not-clean.",
+        "Direct answer probes retrieval_eval_20260901_032543 and retrieval_eval_20260901_032659 remain diagnostic/not-clean expected_evidence_not_cited evidence, not accepted API answer evidence."
+      ],
+      "guardrail_finding": "2026-09-01T03:43:34Z needs_fix / guardrail commit b9492bf found current retrieval failure categories were {} after retrieval_eval_20260901_032507, while current_retrieval_failure_source still called retrieval_eval_20260901_022901 the current retrieval failure source.",
+      "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+      "timestamp": "2026-09-01T03:58:00Z",
+      "type": "current_retrieval_failure_source_empty_state_reconciliation"
+    }
+  ],
   "next_target": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
@@ -10245,7 +10260,7 @@
     },
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "retrieval_eval_20260901_022901 is the current retrieval failure source for the timeout-limited single-step v2 rows 3-4 answer-mode diagnostic: both cases timed out at the 120-second per-query limit before returning retrieved_results or api_answer payloads, so current retrieval and answer failure categories are eval_timeout: 2. Older cross-document runs such as retrieval_eval_20260827_074631 remain historical baseline evidence only, not the current failure source.",
+    "current_retrieval_failure_source": "No current retrieval failure source: retrieval_eval_20260901_032507 cleared the current curated single-step v2 rows 3-4 retrieval state with 2/2 retrieval-only rank-1 results and current retrieval failure categories {}. retrieval_eval_20260901_022901 remains historical diagnostic actual HTTP/API timeout evidence for answer-mode latency with no returned payload, not the current retrieval failure source. Current answer failures remain api_eval_timeout: 2 for the HTTP/API timeout diagnostic plus direct_expected_evidence_not_cited: 2 for direct in-process answer probes until a source-reviewed API rerun or exact/equivalent citation repair is completed.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12408,6 +12423,21 @@
       "ui_default": "disabled/unchecked in apps/ui/index.html as of this tracking correction"
     },
     "locked_regression_questions": 0,
+    "manifest_integrity_repairs": [
+      {
+        "addressed": "Updated root and question_bank current_retrieval_failure_source to distinguish current cleared retrieval state from historical HTTP/API timeout evidence, and added a deterministic checker guard that fails when retrieval failures are empty but provenance still says current retrieval failure source.",
+        "evidence": [
+          "Pre-fix checker failed on the real manifest with root/question_bank current_retrieval_failure_source stale because current retrieval failures are empty.",
+          "Direct retrieval-only run retrieval_eval_20260901_032507 remains the source-backed current retrieval state: 2/2 rows 3-4 passed at rank 1.",
+          "retrieval_eval_20260901_022901 remains diagnostic actual HTTP/API timeout evidence and stays excluded/not-clean.",
+          "Direct answer probes retrieval_eval_20260901_032543 and retrieval_eval_20260901_032659 remain diagnostic/not-clean expected_evidence_not_cited evidence, not accepted API answer evidence."
+        ],
+        "guardrail_finding": "2026-09-01T03:43:34Z needs_fix / guardrail commit b9492bf found current retrieval failure categories were {} after retrieval_eval_20260901_032507, while current_retrieval_failure_source still called retrieval_eval_20260901_022901 the current retrieval failure source.",
+        "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+        "timestamp": "2026-09-01T03:58:00Z",
+        "type": "current_retrieval_failure_source_empty_state_reconciliation"
+      }
+    ],
     "multi_step_questions": 107,
     "next_target": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
     "partial_claim_citation_pruning_containment": {
@@ -13039,6 +13069,21 @@
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "addressed_this_run": "Updated root and question_bank current_retrieval_failure_source to distinguish current cleared retrieval state from historical HTTP/API timeout evidence, and added a deterministic checker guard that fails when retrieval failures are empty but provenance still says current retrieval failure source.",
+        "evidence": [
+          "Pre-fix checker failed on the real manifest with root/question_bank current_retrieval_failure_source stale because current retrieval failures are empty.",
+          "Direct retrieval-only run retrieval_eval_20260901_032507 remains the source-backed current retrieval state: 2/2 rows 3-4 passed at rank 1.",
+          "retrieval_eval_20260901_022901 remains diagnostic actual HTTP/API timeout evidence and stays excluded/not-clean.",
+          "Direct answer probes retrieval_eval_20260901_032543 and retrieval_eval_20260901_032659 remain diagnostic/not-clean expected_evidence_not_cited evidence, not accepted API answer evidence."
+        ],
+        "finding": "current_retrieval_failure_source described retrieval_eval_20260901_022901 as the current retrieval failure source after structured current retrieval failures were cleared by retrieval_eval_20260901_032507.",
+        "guardrail_commit": "b9492bf",
+        "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_current_retrieval_failure_source_reconciled",
+        "timestamp": "2026-09-01T03:43:34Z"
+      },
       {
         "evidence": [
           "Direct retrieval-only run over rows 3-4 passed 2/2 at rank 1 in 19.939s and 1.701s; failure_categories {}. This isolates the prior 120s two-row HTTP answer-mode failure away from basic retrieval/reranking.",
@@ -14047,7 +14092,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T03:28:00Z"
+    "updated_at": "2026-09-01T03:58:00Z"
   },
   "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
   "retrieval_current_failure_categories": {},
@@ -14641,6 +14686,21 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "addressed_this_run": "Updated root and question_bank current_retrieval_failure_source to distinguish current cleared retrieval state from historical HTTP/API timeout evidence, and added a deterministic checker guard that fails when retrieval failures are empty but provenance still says current retrieval failure source.",
+      "evidence": [
+        "Pre-fix checker failed on the real manifest with root/question_bank current_retrieval_failure_source stale because current retrieval failures are empty.",
+        "Direct retrieval-only run retrieval_eval_20260901_032507 remains the source-backed current retrieval state: 2/2 rows 3-4 passed at rank 1.",
+        "retrieval_eval_20260901_022901 remains diagnostic actual HTTP/API timeout evidence and stays excluded/not-clean.",
+        "Direct answer probes retrieval_eval_20260901_032543 and retrieval_eval_20260901_032659 remain diagnostic/not-clean expected_evidence_not_cited evidence, not accepted API answer evidence."
+      ],
+      "finding": "current_retrieval_failure_source described retrieval_eval_20260901_022901 as the current retrieval failure source after structured current retrieval failures were cleared by retrieval_eval_20260901_032507.",
+      "guardrail_commit": "b9492bf",
+      "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_current_retrieval_failure_source_reconciled",
+      "timestamp": "2026-09-01T03:43:34Z"
+    },
     {
       "evidence": [
         "Direct retrieval-only run over rows 3-4 passed 2/2 at rank 1 in 19.939s and 1.701s; failure_categories {}. This isolates the prior 120s two-row HTTP answer-mode failure away from basic retrieval/reranking.",
@@ -15649,5 +15709,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T03:28:00Z"
+  "updated_at": "2026-09-01T03:58:00Z"
 }

@@ -45,6 +45,7 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "latest_status_output_row2_diagnostic_experiment",
     "partial_claim_citation_pruning_containment",
     "llm_answer_judge_policy",
+    "manifest_integrity_repairs",
     "updated_at",
 )
 
@@ -174,18 +175,27 @@ def _check_current_retrieval_failure_source(
     label: str, manifest: dict[str, Any], errors: list[str]
 ) -> None:
     failures = manifest.get("current_retrieval_failure_categories")
+    rotation = manifest.get("answer_grounding_rotation")
+    latest_run = rotation.get("latest_run") if isinstance(rotation, dict) else None
+    source = manifest.get("current_retrieval_failure_source")
     if not failures:
+        if (
+            isinstance(source, str)
+            and (
+                " is the current retrieval failure source" in source.lower()
+                or "current retrieval and answer failure categories" in source.lower()
+            )
+        ):
+            errors.append(
+                f"{label}.current_retrieval_failure_source stale: "
+                "current retrieval failures are empty"
+            )
         return
     if not isinstance(failures, dict):
         errors.append(f"{label}.current_retrieval_failure_categories must be an object")
         return
-    rotation = manifest.get("answer_grounding_rotation")
-    if not isinstance(rotation, dict):
-        return
-    latest_run = rotation.get("latest_run")
     if not isinstance(latest_run, str):
         return
-    source = manifest.get("current_retrieval_failure_source")
     if not isinstance(source, str) or latest_run not in source:
         errors.append(
             f"{label}.current_retrieval_failure_source stale: "
