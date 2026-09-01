@@ -2371,6 +2371,40 @@ def _result_term_overlap(result: dict[str, Any], expected_terms: list[str]) -> i
     return sum(1 for term in expected_terms if _term_matches_evidence(term, evidence_text))
 
 
+def _result_row_group_context_text(result: dict[str, Any]) -> str:
+    metadata = result.get("metadata", {})
+    metadata = metadata if isinstance(metadata, dict) else {}
+    context_parts = [
+        metadata.get("context_window"),
+        metadata.get("table_row_group_context"),
+        metadata.get("parent_context"),
+    ]
+    return " ".join(str(part) for part in context_parts if part)
+
+
+def _result_context_supports_expected_item(
+    result: dict[str, Any],
+    item: dict[str, Any],
+    *,
+    required_overlap: int,
+) -> bool:
+    context_text = _result_row_group_context_text(result)
+    if not context_text:
+        return False
+    terms = [str(term) for term in item.get("expected_terms", []) if str(term)]
+    if not terms:
+        return False
+    context_lower = context_text.lower()
+    context_tokens = set(tokenize(context_lower))
+    overlap = sum(1 for term in terms if _expected_term_matches_text(term, context_lower, context_tokens))
+    if overlap < required_overlap:
+        return False
+    expected_field = normalize_text(str(item.get("field") or ""))
+    if expected_field and expected_field not in normalize_text(context_text):
+        return False
+    return True
+
+
 def _result_supports_single_step_expected_evidence(case: RetrievalEvalCase, result: dict[str, Any]) -> bool:
     expected_evidence = case.expected_evidence or []
     if not expected_evidence:
@@ -2514,7 +2548,15 @@ def _score_multi_step_search_results(
             required_overlap = max(1, min(2, len(terms)))
             if (
                 same_chunk
-                or (result_is_expected_context and same_document and overlap >= required_overlap)
+                or (
+                    result_is_expected_context
+                    and same_document
+                    and _result_context_supports_expected_item(
+                        result,
+                        item,
+                        required_overlap=required_overlap,
+                    )
+                )
                 or (item.get("allow_equivalent_citation") and same_document and overlap >= required_overlap)
                 or _result_matches_cross_document_evidence_item(
                     case,

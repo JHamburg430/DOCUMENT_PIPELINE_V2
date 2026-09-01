@@ -5986,6 +5986,61 @@ def test_score_search_results_counts_table_row_group_context_as_multi_step_evide
     assert evaluation["match_reason"] == "multi_step_expected_evidence"
 
 
+def test_multi_step_retrieval_scoring_rejects_expected_context_role_mixing_without_row_group_context():
+    case = RetrievalEvalCase(
+        case_id="c-row-context-role-mixing",
+        query="What causes the measured-data error, and which T1 value should be checked?",
+        source_document_id="doc-ljx",
+        document_version_id="ver-ljx",
+        source_chunk_id="cause-cell",
+        source_title="LJ-X",
+        source_filename="ljx.pdf",
+        chunk_type="table_record",
+        section_path="Measured data",
+        page_from=10,
+        page_to=10,
+        expected_terms=["measured", "data", "t1", "angle"],
+        expected_snippet="Cause and T1 measured-data value",
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={"product_family": "LJ-X8000"},
+        retrieval_task="multi_step_retrieval",
+        expected_source_chunk_ids=["cause-cell", "t1-angle-cell"],
+        expected_evidence=[
+            {
+                "chunk_id": "cause-cell",
+                "source_document_id": "doc-ljx",
+                "field": "cause",
+                "expected_terms": ["measured", "data"],
+            },
+            {
+                "chunk_id": "t1-angle-cell",
+                "source_document_id": "doc-ljx",
+                "field": "form of measured data",
+                "expected_terms": ["integer", "digits", "decimal"],
+            },
+        ],
+    )
+    results = [
+        {
+            "chunk_id": "cause-cell",
+            "source_document_id": "doc-ljx",
+            "content": (
+                "Cause: measured data settings were reviewed near integer digits and decimal "
+                "configuration notes, but this row does not state the T1 Angle 1 MS/AB value."
+            ),
+            "metadata": {"chunk_type": "table_record", "table_column_headers": ["Cause"]},
+        }
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is False
+    assert evaluation["failure_category"] == "ranking_or_context_loss"
+    assert evaluation["missing_evidence"] == [
+        {"chunk_id": "t1-angle-cell", "matched": False, "rank": None, "overlap_terms": 3}
+    ]
+
+
 def test_score_search_results_accepts_cross_document_same_field_equivalent_evidence():
     case = RetrievalEvalCase(
         case_id="c-cross-equivalent",

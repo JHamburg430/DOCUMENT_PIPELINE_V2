@@ -34,6 +34,7 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "latest_cross_document_row8_answer_partial_side_containment",
     "latest_contextual_procedure_rows_3_4_source_review",
     "latest_contextual_procedure_rows_5_6_answer_evidence_failure",
+    "latest_multi_step_expected_context_scoring_containment",
     "answer_grounding_cross_document_rows_6_7",
     "answer_grounding_contextual_rows_15_16",
     "answer_grounding_contextual_rows_17_18",
