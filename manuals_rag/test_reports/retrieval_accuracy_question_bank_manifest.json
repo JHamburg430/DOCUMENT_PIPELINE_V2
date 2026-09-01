@@ -185,37 +185,36 @@
     ]
   },
   "answer_grounding_rotation": {
-    "latest_run": "retrieval_eval_20260901_172924",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260901_172924.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260901_172924.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260901_172924.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260901_172924.json",
-    "search_mode": "http",
-    "response_mode": "answer_with_citations",
-    "query_offset": 0,
-    "max_queries": 1,
-    "classification": "clean_cross_document_row5_source_reviewed_visible_equivalent_citations",
-    "retrieval_result": "1/1 passed at rank 1; failure_categories {}; candidate_recall_rate 1.0; metadata_document_selection_recall_rate 1.0.",
     "answer_result": "1/1 actual HTTP/API answer grounding passed; answer_failure_reasons {}; answer_sources {fallback_validation: 1}.",
-    "current_retrieval_failures": {},
+    "classification": "clean_cross_document_row6_source_reviewed_visible_equivalent_citations",
     "current_answer_failures": {},
-    "manual_jsonl_inspection": "Visible fallback answer cites VS chunk 5182e16e and IV4 chunk be74fe77, both with null quote_spans. Returned cited content directly states the VS Pattern Data 21802 file-format-invalid cause and IV4 advanced-program switching at startup/during operation cause. No expected evidence role is satisfied by hidden metadata.content or generated quote text.",
-    "runtime_load": {
-      "container": "manuals-rag-temp-api-39262386-20260901-row5-xdoc",
-      "host_url": "http://127.0.0.1:9040",
-      "container_api_base": "http://127.0.0.1:8600",
-      "retriever_sha256": "dd4b7e2f53ade30cdc4e70cee653ab0fc06688d3796a26d356e32d616fde5592",
-      "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
-      "retrieval_eval_sha256": "d494391ccba87e264d748892e5c1aa69baca15df177e9351be189c76d00a067f",
-      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-      "models": "OLLAMA_URL=http://host.docker.internal:11434; answer qwen3.5:9b; embedding qwen3-embedding:0.6b; reranker cross-encoder/ms-marco-MiniLM-L-12-v2 cuda:0"
-    },
+    "current_retrieval_failures": {},
+    "dataset": "test_reports/retrieval_eval_dataset_20260901_175833.jsonl",
     "diagnostic_runs": {
-      "retrieval_eval_20260901_165512": "prior exact-chunk row-5 diagnostic/not-clean",
-      "retrieval_eval_20260901_172753": "same loaded runtime exact-chunk rerun diagnostic/not-clean before source-reviewed equivalence dataset"
+      "retrieval_eval_20260901_175602": "same loaded runtime exact-chunk row-6 diagnostic/not-clean before source-reviewed equivalence dataset; retrieval 0/1 and answer 0/1 despite candidate recall and visible same-source support"
     },
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
+    "latest_run": "retrieval_eval_20260901_175833",
+    "manifest": "test_reports/retrieval_eval_manifest_20260901_175833.json",
+    "manual_jsonl_inspection": "Visible fallback answer cites CV-X chunk 00b27fd9 and LJ-X8000 chunk 8ad34fac, both with null quote_spans. Returned cited content directly states the Condition list reference-condition/range-matching behavior and the Label Order/Standard Angle clockwise-counterclockwise reference/start-angle behavior. No expected evidence role is satisfied by hidden metadata.content or generated quote text.",
+    "max_queries": 1,
+    "query_offset": 0,
+    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 7 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+    "response_mode": "answer_with_citations",
+    "results": "test_reports/retrieval_eval_results_20260901_175833.jsonl",
+    "retrieval_result": "1/1 passed at rank 1; failure_categories {}; candidate_recall_rate 1.0; metadata_document_selection_recall_rate 1.0.",
+    "runtime_load": {
+      "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+      "container": "manuals-rag-temp-api-39262386-20260901-row6-xdoc",
+      "container_api_base": "http://127.0.0.1:8600",
+      "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
+      "host_url": "http://127.0.0.1:9060",
+      "models": "OLLAMA_URL=http://host.docker.internal:11434; answer qwen3.5:9b; embedding qwen3-embedding:0.6b; reranker cross-encoder/ms-marco-MiniLM-L-12-v2 cuda:0",
+      "retrieval_eval_sha256": "d494391ccba87e264d748892e5c1aa69baca15df177e9351be189c76d00a067f",
+      "retriever_sha256": "dd4b7e2f53ade30cdc4e70cee653ab0fc06688d3796a26d356e32d616fde5592"
+    },
+    "search_mode": "http",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260901_175833.json"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -682,39 +681,41 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
-    "answer_grounding_status": "Cross-document rows 1-5 are accepted clean under visible-citation-content scoring. Row 5 is clean from retrieval_eval_20260901_172924 after source-reviewed same-source equivalence annotations; the prior exact-chunk run retrieval_eval_20260901_165512 and same-code rerun retrieval_eval_20260901_172753 remain diagnostic/not-clean.",
-    "classification": "cross_document_rows_1_5_clean_row5_source_reviewed_equivalent_visible_citations",
     "accepted_clean_runs": [
       "retrieval_eval_20260901_085649 cross-document row 1",
       "retrieval_eval_20260901_131404 cross-document row 2",
       "retrieval_eval_20260901_135906 cross-document row 3",
       "retrieval_eval_20260901_163118 cross-document row 4 visible-content citation containment rerun",
-      "retrieval_eval_20260901_172924 cross-document row 5 source-reviewed visible equivalent citations"
+      "retrieval_eval_20260901_172924 cross-document row 5 source-reviewed visible equivalent citations",
+      "retrieval_eval_20260901_175833 cross-document row 6 source-reviewed visible equivalent citations"
     ],
-    "current_retrieval_failures": {},
-    "current_answer_failures": {},
+    "answer_grounding_status": "Cross-document rows 1-6 are accepted clean under visible-citation-content scoring. Row 6 is clean from retrieval_eval_20260901_175833 after source-reviewed same-source equivalence annotations; the exact-chunk baseline run retrieval_eval_20260901_175602 remains diagnostic/not-clean.",
     "artifacts": {
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-      "row5_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_1735_cross_document_row5_equivalence.jsonl",
-      "row5_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_172924.jsonl",
       "row5_clean_results": "test_reports/retrieval_eval_results_20260901_172924.jsonl",
-      "row5_clean_summary": "test_reports/retrieval_eval_summary_20260901_172924.json",
-      "row5_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_172924.json",
-      "row5_diagnostic_rerun_dataset": "test_reports/retrieval_eval_dataset_20260901_172753.jsonl",
-      "row5_diagnostic_rerun_results": "test_reports/retrieval_eval_results_20260901_172753.jsonl",
-      "row5_prior_diagnostic_results": "test_reports/retrieval_eval_results_20260901_165512.jsonl"
+      "row6_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_175833.jsonl",
+      "row6_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_175833.json",
+      "row6_clean_results": "test_reports/retrieval_eval_results_20260901_175833.jsonl",
+      "row6_clean_summary": "test_reports/retrieval_eval_summary_20260901_175833.json",
+      "row6_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_1802_cross_document_row6_equivalence.jsonl",
+      "row6_exact_chunk_diagnostic_dataset": "test_reports/retrieval_eval_dataset_20260901_175602.jsonl",
+      "row6_exact_chunk_diagnostic_results": "test_reports/retrieval_eval_results_20260901_175602.jsonl",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl"
     },
     "checks": [
-      "Read latest guardrail finding 2026-09-01T17:12:02Z: ok for 780eecd; required continuing from cross-document row 5 and preserving dirty primary checkout.",
-      "Started clean side API manuals-rag-temp-api-39262386-20260901-row5-xdoc on http://127.0.0.1:9040; inside-container API_BASE http://127.0.0.1:8600.",
-      "Runtime fingerprints: retriever.py dd4b7e2f53ade30cdc4e70cee653ab0fc06688d3796a26d356e32d616fde5592; generator.py a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836; retrieval_eval.py d494391ccba87e264d748892e5c1aa69baca15df177e9351be189c76d00a067f; validate_answer 023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702.",
+      "Read latest checked-in guardrail finding 2026-09-01T17:12:02Z and current origin/main progress through row 5; direct guardrail cron history was restricted to the current job.",
+      "Used clean detached origin/main worktree /tmp/manuals_rag_accuracy_20260901_cron_gEIaqw/manuals_rag/manuals_rag because the primary checkout remained stale/dirty with unrelated UI/retrieval/eval/test/compose/artifact changes.",
+      "Started clean side API manuals-rag-temp-api-39262386-20260901-row6-xdoc on http://127.0.0.1:9060; inside-container API_BASE http://127.0.0.1:8600.",
+      "Runtime fingerprints: api.py 4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90; retriever.py dd4b7e2f53ade30cdc4e70cee653ab0fc06688d3796a26d356e32d616fde5592; generator.py a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836; retrieval_eval.py d494391ccba87e264d748892e5c1aa69baca15df177e9351be189c76d00a067f.",
       "Model settings unchanged: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_ANSWER_MODEL=qwen3.5:9b, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0.",
-      "Baseline rerun retrieval_eval_20260901_172753 preserved exact-chunk failure as diagnostic: retrieval 0/1, answer 0/1, cited chunks 5182e16e and be74fe77.",
-      "Source-reviewed row 5 equivalent snippets require returned cited content to directly state the VS invalid pattern-data file-format cause and the IV4 advanced-program startup/during-operation switching cause; hidden metadata-only, remedy-only, and sibling causes remain disallowed.",
-      "Actual HTTP/API rerun retrieval_eval_20260901_172924 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with fallback_validation.",
-      "Manual JSONL inspection confirmed visible answer cites chunks 5182e16e and be74fe77 with null quote_spans; both returned content fields directly support their expected cause roles, citation_fidelity and evidence_citation_support passed, and no evidence-gap warnings were present beyond the generic validation-fallback and multi-version warnings."
+      "Exact-chunk baseline run retrieval_eval_20260901_175602 remained diagnostic/not-clean: candidate recall and document selection passed, but final top-k missed exact expected chunks and answer scoring failed expected_evidence_not_cited/retrieval_not_passed.",
+      "Source-reviewed row 6 equivalent snippets require returned cited content to directly state the CV-X Condition list reference-condition/range-matching behavior and the LJ-X8000 Standard Angle/Label Order clockwise-counterclockwise start/reference angle behavior; hidden metadata-only support remains disallowed.",
+      "Actual HTTP/API rerun retrieval_eval_20260901_175833 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with fallback_validation.",
+      "Manual JSONL inspection confirmed visible answer cites chunks 00b27fd9 and 8ad34fac with null quote_spans; both returned content fields directly support their expected roles, citation_fidelity and evidence_citation_support passed, and no generated quote text self-validated the result."
     ],
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
+    "classification": "cross_document_rows_1_6_clean_row6_source_reviewed_equivalent_visible_citations",
+    "current_answer_failures": {},
+    "current_retrieval_failures": {},
+    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 7 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
   },
   "constraints": {
     "allowed_logic": [
@@ -733,10 +734,10 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {},
-  "current_answer_failure_source": "None; retrieval_eval_20260901_172924 passed actual HTTP/API row 5 answer grounding after manual citation-visible JSONL inspection.",
+  "current_answer_failure_source": "none_current_after_retrieval_eval_20260901_175833_row6_clean",
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "None; latest accepted run retrieval_eval_20260901_172924 passed curated cross-document v2 row 5 under source-reviewed visible equivalent citations.",
+  "current_retrieval_failure_source": "none_current_after_retrieval_eval_20260901_175833_row6_clean",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -9035,7 +9036,7 @@
       "type": "accepted_clean_run_artifact_presence_guard"
     }
   ],
-  "next_target": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+  "next_target": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 7 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9974,37 +9975,36 @@
       ]
     },
     "answer_grounding_rotation": {
-      "latest_run": "retrieval_eval_20260901_172924",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260901_172924.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260901_172924.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260901_172924.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260901_172924.json",
-      "search_mode": "http",
-      "response_mode": "answer_with_citations",
-      "query_offset": 0,
-      "max_queries": 1,
-      "classification": "clean_cross_document_row5_source_reviewed_visible_equivalent_citations",
-      "retrieval_result": "1/1 passed at rank 1; failure_categories {}; candidate_recall_rate 1.0; metadata_document_selection_recall_rate 1.0.",
       "answer_result": "1/1 actual HTTP/API answer grounding passed; answer_failure_reasons {}; answer_sources {fallback_validation: 1}.",
-      "current_retrieval_failures": {},
+      "classification": "clean_cross_document_row6_source_reviewed_visible_equivalent_citations",
       "current_answer_failures": {},
-      "manual_jsonl_inspection": "Visible fallback answer cites VS chunk 5182e16e and IV4 chunk be74fe77, both with null quote_spans. Returned cited content directly states the VS Pattern Data 21802 file-format-invalid cause and IV4 advanced-program switching at startup/during operation cause. No expected evidence role is satisfied by hidden metadata.content or generated quote text.",
-      "runtime_load": {
-        "container": "manuals-rag-temp-api-39262386-20260901-row5-xdoc",
-        "host_url": "http://127.0.0.1:9040",
-        "container_api_base": "http://127.0.0.1:8600",
-        "retriever_sha256": "dd4b7e2f53ade30cdc4e70cee653ab0fc06688d3796a26d356e32d616fde5592",
-        "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
-        "retrieval_eval_sha256": "d494391ccba87e264d748892e5c1aa69baca15df177e9351be189c76d00a067f",
-        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-        "models": "OLLAMA_URL=http://host.docker.internal:11434; answer qwen3.5:9b; embedding qwen3-embedding:0.6b; reranker cross-encoder/ms-marco-MiniLM-L-12-v2 cuda:0"
-      },
+      "current_retrieval_failures": {},
+      "dataset": "test_reports/retrieval_eval_dataset_20260901_175833.jsonl",
       "diagnostic_runs": {
-        "retrieval_eval_20260901_165512": "prior exact-chunk row-5 diagnostic/not-clean",
-        "retrieval_eval_20260901_172753": "same loaded runtime exact-chunk rerun diagnostic/not-clean before source-reviewed equivalence dataset"
+        "retrieval_eval_20260901_175602": "same loaded runtime exact-chunk row-6 diagnostic/not-clean before source-reviewed equivalence dataset; retrieval 0/1 and answer 0/1 despite candidate recall and visible same-source support"
       },
-      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
+      "latest_run": "retrieval_eval_20260901_175833",
+      "manifest": "test_reports/retrieval_eval_manifest_20260901_175833.json",
+      "manual_jsonl_inspection": "Visible fallback answer cites CV-X chunk 00b27fd9 and LJ-X8000 chunk 8ad34fac, both with null quote_spans. Returned cited content directly states the Condition list reference-condition/range-matching behavior and the Label Order/Standard Angle clockwise-counterclockwise reference/start-angle behavior. No expected evidence role is satisfied by hidden metadata.content or generated quote text.",
+      "max_queries": 1,
+      "query_offset": 0,
+      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 7 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+      "response_mode": "answer_with_citations",
+      "results": "test_reports/retrieval_eval_results_20260901_175833.jsonl",
+      "retrieval_result": "1/1 passed at rank 1; failure_categories {}; candidate_recall_rate 1.0; metadata_document_selection_recall_rate 1.0.",
+      "runtime_load": {
+        "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+        "container": "manuals-rag-temp-api-39262386-20260901-row6-xdoc",
+        "container_api_base": "http://127.0.0.1:8600",
+        "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
+        "host_url": "http://127.0.0.1:9060",
+        "models": "OLLAMA_URL=http://host.docker.internal:11434; answer qwen3.5:9b; embedding qwen3-embedding:0.6b; reranker cross-encoder/ms-marco-MiniLM-L-12-v2 cuda:0",
+        "retrieval_eval_sha256": "d494391ccba87e264d748892e5c1aa69baca15df177e9351be189c76d00a067f",
+        "retriever_sha256": "dd4b7e2f53ade30cdc4e70cee653ab0fc06688d3796a26d356e32d616fde5592"
+      },
+      "search_mode": "http",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260901_175833.json"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10260,45 +10260,47 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
-      "answer_grounding_status": "Cross-document rows 1-5 are accepted clean under visible-citation-content scoring. Row 5 is clean from retrieval_eval_20260901_172924 after source-reviewed same-source equivalence annotations; the prior exact-chunk run retrieval_eval_20260901_165512 and same-code rerun retrieval_eval_20260901_172753 remain diagnostic/not-clean.",
-      "classification": "cross_document_rows_1_5_clean_row5_source_reviewed_equivalent_visible_citations",
       "accepted_clean_runs": [
         "retrieval_eval_20260901_085649 cross-document row 1",
         "retrieval_eval_20260901_131404 cross-document row 2",
         "retrieval_eval_20260901_135906 cross-document row 3",
         "retrieval_eval_20260901_163118 cross-document row 4 visible-content citation containment rerun",
-        "retrieval_eval_20260901_172924 cross-document row 5 source-reviewed visible equivalent citations"
+        "retrieval_eval_20260901_172924 cross-document row 5 source-reviewed visible equivalent citations",
+        "retrieval_eval_20260901_175833 cross-document row 6 source-reviewed visible equivalent citations"
       ],
-      "current_retrieval_failures": {},
-      "current_answer_failures": {},
+      "answer_grounding_status": "Cross-document rows 1-6 are accepted clean under visible-citation-content scoring. Row 6 is clean from retrieval_eval_20260901_175833 after source-reviewed same-source equivalence annotations; the exact-chunk baseline run retrieval_eval_20260901_175602 remains diagnostic/not-clean.",
       "artifacts": {
-        "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-        "row5_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_1735_cross_document_row5_equivalence.jsonl",
-        "row5_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_172924.jsonl",
         "row5_clean_results": "test_reports/retrieval_eval_results_20260901_172924.jsonl",
-        "row5_clean_summary": "test_reports/retrieval_eval_summary_20260901_172924.json",
-        "row5_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_172924.json",
-        "row5_diagnostic_rerun_dataset": "test_reports/retrieval_eval_dataset_20260901_172753.jsonl",
-        "row5_diagnostic_rerun_results": "test_reports/retrieval_eval_results_20260901_172753.jsonl",
-        "row5_prior_diagnostic_results": "test_reports/retrieval_eval_results_20260901_165512.jsonl"
+        "row6_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_175833.jsonl",
+        "row6_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_175833.json",
+        "row6_clean_results": "test_reports/retrieval_eval_results_20260901_175833.jsonl",
+        "row6_clean_summary": "test_reports/retrieval_eval_summary_20260901_175833.json",
+        "row6_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_1802_cross_document_row6_equivalence.jsonl",
+        "row6_exact_chunk_diagnostic_dataset": "test_reports/retrieval_eval_dataset_20260901_175602.jsonl",
+        "row6_exact_chunk_diagnostic_results": "test_reports/retrieval_eval_results_20260901_175602.jsonl",
+        "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl"
       },
       "checks": [
-        "Read latest guardrail finding 2026-09-01T17:12:02Z: ok for 780eecd; required continuing from cross-document row 5 and preserving dirty primary checkout.",
-        "Started clean side API manuals-rag-temp-api-39262386-20260901-row5-xdoc on http://127.0.0.1:9040; inside-container API_BASE http://127.0.0.1:8600.",
-        "Runtime fingerprints: retriever.py dd4b7e2f53ade30cdc4e70cee653ab0fc06688d3796a26d356e32d616fde5592; generator.py a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836; retrieval_eval.py d494391ccba87e264d748892e5c1aa69baca15df177e9351be189c76d00a067f; validate_answer 023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702.",
+        "Read latest checked-in guardrail finding 2026-09-01T17:12:02Z and current origin/main progress through row 5; direct guardrail cron history was restricted to the current job.",
+        "Used clean detached origin/main worktree /tmp/manuals_rag_accuracy_20260901_cron_gEIaqw/manuals_rag/manuals_rag because the primary checkout remained stale/dirty with unrelated UI/retrieval/eval/test/compose/artifact changes.",
+        "Started clean side API manuals-rag-temp-api-39262386-20260901-row6-xdoc on http://127.0.0.1:9060; inside-container API_BASE http://127.0.0.1:8600.",
+        "Runtime fingerprints: api.py 4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90; retriever.py dd4b7e2f53ade30cdc4e70cee653ab0fc06688d3796a26d356e32d616fde5592; generator.py a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836; retrieval_eval.py d494391ccba87e264d748892e5c1aa69baca15df177e9351be189c76d00a067f.",
         "Model settings unchanged: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_ANSWER_MODEL=qwen3.5:9b, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0.",
-        "Baseline rerun retrieval_eval_20260901_172753 preserved exact-chunk failure as diagnostic: retrieval 0/1, answer 0/1, cited chunks 5182e16e and be74fe77.",
-        "Source-reviewed row 5 equivalent snippets require returned cited content to directly state the VS invalid pattern-data file-format cause and the IV4 advanced-program startup/during-operation switching cause; hidden metadata-only, remedy-only, and sibling causes remain disallowed.",
-        "Actual HTTP/API rerun retrieval_eval_20260901_172924 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with fallback_validation.",
-        "Manual JSONL inspection confirmed visible answer cites chunks 5182e16e and be74fe77 with null quote_spans; both returned content fields directly support their expected cause roles, citation_fidelity and evidence_citation_support passed, and no evidence-gap warnings were present beyond the generic validation-fallback and multi-version warnings."
+        "Exact-chunk baseline run retrieval_eval_20260901_175602 remained diagnostic/not-clean: candidate recall and document selection passed, but final top-k missed exact expected chunks and answer scoring failed expected_evidence_not_cited/retrieval_not_passed.",
+        "Source-reviewed row 6 equivalent snippets require returned cited content to directly state the CV-X Condition list reference-condition/range-matching behavior and the LJ-X8000 Standard Angle/Label Order clockwise-counterclockwise start/reference angle behavior; hidden metadata-only support remains disallowed.",
+        "Actual HTTP/API rerun retrieval_eval_20260901_175833 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with fallback_validation.",
+        "Manual JSONL inspection confirmed visible answer cites chunks 00b27fd9 and 8ad34fac with null quote_spans; both returned content fields directly support their expected roles, citation_fidelity and evidence_citation_support passed, and no generated quote text self-validated the result."
       ],
-      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
+      "classification": "cross_document_rows_1_6_clean_row6_source_reviewed_equivalent_visible_citations",
+      "current_answer_failures": {},
+      "current_retrieval_failures": {},
+      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 7 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
     },
     "current_answer_failure_categories": {},
-    "current_answer_failure_source": "None; retrieval_eval_20260901_172924 passed actual HTTP/API row 5 answer grounding after manual citation-visible JSONL inspection.",
+    "current_answer_failure_source": "none_current_after_retrieval_eval_20260901_175833_row6_clean",
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "None; latest accepted run retrieval_eval_20260901_172924 passed curated cross-document v2 row 5 under source-reviewed visible equivalent citations.",
+    "current_retrieval_failure_source": "none_current_after_retrieval_eval_20260901_175833_row6_clean",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12559,7 +12561,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+    "next_target": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 7 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12596,7 +12598,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 7 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13277,26 +13279,41 @@
         "scope": "cross-document row 4 answer scoring before equivalent-snippet repair"
       },
       {
-        "run_id": "retrieval_eval_20260901_165512",
-        "scope": "curated_cross_document_v2 row 5 and any combined row-5 clean claim",
         "classification": "diagnostic_not_clean_ranking_or_context_loss_expected_evidence_not_cited",
         "reason": "Candidate recall succeeded and cited same-document chunks contain nearby evidence, but final top-k missed exact expected evidence and the user-visible fallback answer includes contradictory evidence-gap warnings. Requires source-reviewed equivalence/rerun or answer/citation repair before clean acceptance.",
+        "run_id": "retrieval_eval_20260901_165512",
+        "scope": "curated_cross_document_v2 row 5 and any combined row-5 clean claim",
         "timestamp": "2026-09-01T16:58:00Z"
       },
       {
+        "reason": "diagnostic/not-clean before source-reviewed visible equivalent-citation annotations; exact expected chunks missed even though cited returned chunks directly supported same-source cause roles",
         "run_id": "retrieval_eval_20260901_172753",
-        "scope": "curated cross-document v2 row 5 exact-chunk rerun",
-        "reason": "diagnostic/not-clean before source-reviewed visible equivalent-citation annotations; exact expected chunks missed even though cited returned chunks directly supported same-source cause roles"
+        "scope": "curated cross-document v2 row 5 exact-chunk rerun"
+      },
+      {
+        "reason": "diagnostic/not-clean before source-reviewed visible equivalent-citation annotations; exact expected chunks missed even though cited returned chunks directly supported same-source setting-control roles",
+        "run_id": "retrieval_eval_20260901_175602",
+        "scope": "curated cross-document v2 row 6 exact-chunk baseline"
       }
     ],
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
       {
-        "timestamp": "2026-09-01T17:12:02Z",
+        "addressed_this_run": "Added row-6 source-reviewed equivalent-citation annotations requiring visible returned chunk content, reran actual HTTP/API row 6, and manually inspected the answer/citations. retrieval_eval_20260901_175833 is accepted clean; retrieval_eval_20260901_175602 remains diagnostic.",
+        "evidence": [
+          "test_reports/retrieval_eval_dataset_20260901_1802_cross_document_row6_equivalence.jsonl",
+          "retrieval_eval_20260901_175833",
+          "manual JSONL inspection of cited chunks 00b27fd9 and 8ad34fac",
+          "runtime fingerprint checks for side API on port 9060"
+        ],
+        "finding": "Broader cross-document row 6 answer-grounding coverage found same-source visible cited chunks that directly support the requested CV-X Condition list and LJ-X8000 Standard Angle roles, while exact stored chunks failed before source review.",
+        "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 7 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
         "severity": "ok",
-        "finding": "Guardrail accepted 780eecd and required continuing from cross-document row 5 without counting retrieval_eval_20260901_165512 clean until returned cited chunks directly support both roles or a source-reviewed equivalence policy is rerun.",
-        "status": "followed_up_this_run_row5_clean_source_reviewed_visible_citations",
+        "status": "followed_up_this_run_row6_clean_source_reviewed_visible_citations",
+        "timestamp": "2026-09-01T18:04:00Z"
+      },
+      {
         "addressed_this_run": "Added row-5 source-reviewed equivalent-citation annotations requiring visible returned chunk content, reran actual HTTP/API row 5, and manually inspected the answer/citations. retrieval_eval_20260901_172924 is accepted clean; retrieval_eval_20260901_172753 remains diagnostic.",
         "evidence": [
           "test_reports/retrieval_eval_dataset_20260901_1735_cross_document_row5_equivalence.jsonl",
@@ -13304,13 +13321,13 @@
           "manual JSONL inspection of cited chunks 5182e16e and be74fe77",
           "runtime fingerprint checks for side API on port 9040"
         ],
-        "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
+        "finding": "Guardrail accepted 780eecd and required continuing from cross-document row 5 without counting retrieval_eval_20260901_165512 clean until returned cited chunks directly support both roles or a source-reviewed equivalence policy is rerun.",
+        "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+        "severity": "ok",
+        "status": "followed_up_this_run_row5_clean_source_reviewed_visible_citations",
+        "timestamp": "2026-09-01T17:12:02Z"
       },
       {
-        "timestamp": "2026-09-01T16:13:30Z",
-        "severity": "needs_fix",
-        "finding": "Equivalent-citation scoring accepted same-document support from hidden metadata.content even when the returned cited chunk content was only generic overview text.",
-        "status": "addressed_this_run_visible_citation_content_only",
         "addressed_this_run": "Changed citation-fidelity/evidence-support scoring to use returned chunk content only, added metadata-only adverse coverage, ran focused/full tests, and reran row 4 through actual HTTP/API answer mode with manual citation inspection.",
         "evidence": [
           "packages/evals/src/manuals_rag_evals/retrieval_eval.py _retrieved_chunk_texts now returns only result.content for citation scoring.",
@@ -13320,7 +13337,11 @@
           "retrieval_eval_20260901_163118 actual HTTP/API answer mode passed retrieval 1/1 and answer 1/1.",
           "Manual JSONL inspection confirmed cited returned content directly supports both expected row-4 cause roles."
         ],
-        "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support."
+        "finding": "Equivalent-citation scoring accepted same-document support from hidden metadata.content even when the returned cited chunk content was only generic overview text.",
+        "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support.",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_visible_citation_content_only",
+        "timestamp": "2026-09-01T16:13:30Z"
       },
       {
         "addressed_this_run": "Added source-reviewed equivalent_snippet scoring for same-source equivalent citations, reran row 4 through actual HTTP/API answer mode, and manually inspected the user-visible answer/citations.",
@@ -14469,9 +14490,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T17:35:00Z"
+    "updated_at": "2026-09-01T18:04:00Z"
   },
-  "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+  "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 7 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -15152,25 +15173,40 @@
       "scope": "cross-document row 4 answer scoring before equivalent-snippet repair"
     },
     {
-      "run_id": "retrieval_eval_20260901_165512",
-      "scope": "curated_cross_document_v2 row 5 and any combined row-5 clean claim",
       "classification": "diagnostic_not_clean_ranking_or_context_loss_expected_evidence_not_cited",
       "reason": "Candidate recall succeeded and cited same-document chunks contain nearby evidence, but final top-k missed exact expected evidence and the user-visible fallback answer includes contradictory evidence-gap warnings. Requires source-reviewed equivalence/rerun or answer/citation repair before clean acceptance.",
+      "run_id": "retrieval_eval_20260901_165512",
+      "scope": "curated_cross_document_v2 row 5 and any combined row-5 clean claim",
       "timestamp": "2026-09-01T16:58:00Z"
     },
     {
+      "reason": "diagnostic/not-clean before source-reviewed visible equivalent-citation annotations; exact expected chunks missed even though cited returned chunks directly supported same-source cause roles",
       "run_id": "retrieval_eval_20260901_172753",
-      "scope": "curated cross-document v2 row 5 exact-chunk rerun",
-      "reason": "diagnostic/not-clean before source-reviewed visible equivalent-citation annotations; exact expected chunks missed even though cited returned chunks directly supported same-source cause roles"
+      "scope": "curated cross-document v2 row 5 exact-chunk rerun"
+    },
+    {
+      "reason": "diagnostic/not-clean before source-reviewed visible equivalent-citation annotations; exact expected chunks missed even though cited returned chunks directly supported same-source setting-control roles",
+      "run_id": "retrieval_eval_20260901_175602",
+      "scope": "curated cross-document v2 row 6 exact-chunk baseline"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
     {
-      "timestamp": "2026-09-01T17:12:02Z",
+      "addressed_this_run": "Added row-6 source-reviewed equivalent-citation annotations requiring visible returned chunk content, reran actual HTTP/API row 6, and manually inspected the answer/citations. retrieval_eval_20260901_175833 is accepted clean; retrieval_eval_20260901_175602 remains diagnostic.",
+      "evidence": [
+        "test_reports/retrieval_eval_dataset_20260901_1802_cross_document_row6_equivalence.jsonl",
+        "retrieval_eval_20260901_175833",
+        "manual JSONL inspection of cited chunks 00b27fd9 and 8ad34fac",
+        "runtime fingerprint checks for side API on port 9060"
+      ],
+      "finding": "Broader cross-document row 6 answer-grounding coverage found same-source visible cited chunks that directly support the requested CV-X Condition list and LJ-X8000 Standard Angle roles, while exact stored chunks failed before source review.",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 7 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
       "severity": "ok",
-      "finding": "Guardrail accepted 780eecd and required continuing from cross-document row 5 without counting retrieval_eval_20260901_165512 clean until returned cited chunks directly support both roles or a source-reviewed equivalence policy is rerun.",
-      "status": "followed_up_this_run_row5_clean_source_reviewed_visible_citations",
+      "status": "followed_up_this_run_row6_clean_source_reviewed_visible_citations",
+      "timestamp": "2026-09-01T18:04:00Z"
+    },
+    {
       "addressed_this_run": "Added row-5 source-reviewed equivalent-citation annotations requiring visible returned chunk content, reran actual HTTP/API row 5, and manually inspected the answer/citations. retrieval_eval_20260901_172924 is accepted clean; retrieval_eval_20260901_172753 remains diagnostic.",
       "evidence": [
         "test_reports/retrieval_eval_dataset_20260901_1735_cross_document_row5_equivalence.jsonl",
@@ -15178,13 +15214,13 @@
         "manual JSONL inspection of cited chunks 5182e16e and be74fe77",
         "runtime fingerprint checks for side API on port 9040"
       ],
-      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
+      "finding": "Guardrail accepted 780eecd and required continuing from cross-document row 5 without counting retrieval_eval_20260901_165512 clean until returned cited chunks directly support both roles or a source-reviewed equivalence policy is rerun.",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 6 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+      "severity": "ok",
+      "status": "followed_up_this_run_row5_clean_source_reviewed_visible_citations",
+      "timestamp": "2026-09-01T17:12:02Z"
     },
     {
-      "timestamp": "2026-09-01T16:13:30Z",
-      "severity": "needs_fix",
-      "finding": "Equivalent-citation scoring accepted same-document support from hidden metadata.content even when the returned cited chunk content was only generic overview text.",
-      "status": "addressed_this_run_visible_citation_content_only",
       "addressed_this_run": "Changed citation-fidelity/evidence-support scoring to use returned chunk content only, added metadata-only adverse coverage, ran focused/full tests, and reran row 4 through actual HTTP/API answer mode with manual citation inspection.",
       "evidence": [
         "packages/evals/src/manuals_rag_evals/retrieval_eval.py _retrieved_chunk_texts now returns only result.content for citation scoring.",
@@ -15194,7 +15230,11 @@
         "retrieval_eval_20260901_163118 actual HTTP/API answer mode passed retrieval 1/1 and answer 1/1.",
         "Manual JSONL inspection confirmed cited returned content directly supports both expected row-4 cause roles."
       ],
-      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support."
+      "finding": "Equivalent-citation scoring accepted same-document support from hidden metadata.content even when the returned cited chunk content was only generic overview text.",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support.",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_visible_citation_content_only",
+      "timestamp": "2026-09-01T16:13:30Z"
     },
     {
       "addressed_this_run": "Added source-reviewed equivalent_snippet scoring for same-source equivalent citations, reran row 4 through actual HTTP/API answer mode, and manually inspected the user-visible answer/citations.",
@@ -16343,5 +16383,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T17:35:00Z"
+  "updated_at": "2026-09-01T18:04:00Z"
 }
