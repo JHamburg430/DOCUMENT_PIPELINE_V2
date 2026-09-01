@@ -1413,6 +1413,41 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
     return score
 
 
+def _citation_visible_text(result: SearchResult) -> str:
+    return str(result.content or "").strip()
+
+
+def _quantity_citation_visible_score(query: str, result: SearchResult) -> float:
+    if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
+        return 0.0
+    requested_roles = _requested_quantity_roles(query)
+    if not requested_roles:
+        return 0.0
+    content = _citation_visible_text(result)
+    if not content:
+        return 0.0
+    query_scope_terms = _quantity_scope_terms(query)
+    best_score = 0.0
+    content_role_values = _quantity_role_values(content)
+    if requested_roles.issubset({role for role, values in content_role_values.items() if values}):
+        best_score = 6.0
+        best_score += min(4.0, float(len(query_scope_terms.intersection(_quantity_scope_terms(content)))))
+    for role_values, clause in _quantity_role_value_group_records(content):
+        scoped_role_values = {role: values for role, values in role_values.items() if role in requested_roles and values}
+        if not requested_roles.issubset(scoped_role_values):
+            continue
+        score = 6.0
+        score += min(4.0, float(len(query_scope_terms.intersection(_quantity_scope_terms(clause)))))
+        if re.search(r"\bcontinuous\b", query, flags=re.IGNORECASE) and re.search(
+            r"\bcontinuous\b", content, flags=re.IGNORECASE
+        ):
+            score += 2.0
+        if re.search(r"\btrigger\b", query, flags=re.IGNORECASE) and re.search(r"\btrigger\b", content, flags=re.IGNORECASE):
+            score += 1.0
+        best_score = max(best_score, score)
+    return best_score
+
+
 def _explicit_scope_phrase_groups(text: str) -> list[set[str]]:
     phrase_groups: list[set[str]] = []
     for match in re.finditer(r"\b([A-Za-z0-9][A-Za-z0-9/\- ]{0,60}?\s+mode)\b", text, flags=re.IGNORECASE):
@@ -2196,6 +2231,17 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
                     return []
         if not re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
             return ordered_results[:1]
+        visible_quantity_scored = [
+            (_quantity_citation_visible_score(query, result), _fallback_evidence_score(query, result), index, result)
+            for index, result in enumerate(ordered_results[:8])
+        ]
+        visible_quantity_scored = [item for item in visible_quantity_scored if item[0] >= 6.0]
+        if visible_quantity_scored:
+            _visible_score, _fallback_score, _best_index, best_result = max(
+                visible_quantity_scored,
+                key=lambda item: (item[0], item[1], -item[2]),
+            )
+            return [best_result]
         scored = [
             (_fallback_evidence_score(query, result), index, result)
             for index, result in enumerate(ordered_results[:8])

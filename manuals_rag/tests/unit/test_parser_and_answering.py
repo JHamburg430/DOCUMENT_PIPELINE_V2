@@ -3261,6 +3261,71 @@ def test_validate_answer_falls_back_for_quantity_cross_chunk_role_mixing():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_validate_answer_prefers_quantity_citation_with_visible_content_over_metadata_only_context():
+    answer = AnswerResponse(
+        answer="The example uses 9 lines and one overlap line.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="metadata-expanded-procedure",
+            score=0.95,
+            title="CV-X manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[864],
+            section_path=["Timing chart"],
+            content=(
+                "Procedure step 2: Typical operations at trigger input when the LJ-V series head is used, "
+                "[Continuous] is set, and [Total Number of Lines]"
+            ),
+            metadata={
+                "chunk_type": "procedure_record",
+                "content": (
+                    "Procedure step 2: Typical operations at trigger input when the LJ-V series head is used, "
+                    "[Continuous] is set, and [Total Number of Lines] is enabled. "
+                    "For this description, the number of lines is 10 and the number of overlap lines is two."
+                ),
+            },
+        ),
+        SearchResult(
+            chunk_id="visible-section-window",
+            score=0.8,
+            title="CV-X manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[864],
+            section_path=["Timing chart"],
+            content=(
+                "Procedure step 2: Typical operations at trigger input when the LJ-V series head is used, "
+                "[Continuous] is set, and [Total Number of Lines] is enabled. "
+                "Camera settings Number of Lines 10 Number of Overlapping Lines Two lines. "
+                "For this description, the number of lines is 10 and the number of overlap lines is two."
+            ),
+            metadata={"chunk_type": "section_window"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "For CV-X with an LJ-V head in continuous mode, what example line count and overlap count "
+            "does the timing description use?"
+        ),
+    )
+
+    assert "number of lines is 10" in validated.answer or "Number of Lines 10" in validated.answer
+    assert "overlap lines is two" in validated.answer or "Number of Overlapping Lines Two lines" in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["visible-section-window"]
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_falls_back_for_sibling_quantity_values():
     results = [
         _quantity_result(
