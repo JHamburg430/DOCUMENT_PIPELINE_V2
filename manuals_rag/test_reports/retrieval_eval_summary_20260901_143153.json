@@ -1,0 +1,50 @@
+{
+  "total_queries": 1,
+  "passed_queries": 0,
+  "failed_queries": 1,
+  "pass_rate": 0.0,
+  "pass_at_1": 0.0,
+  "pass_at_3": 0.0,
+  "pass_at_5": 0.0,
+  "mean_passing_rank": null,
+  "by_chunk_type": {
+    "table_record": {
+      "total": 1,
+      "passed": 0
+    }
+  },
+  "by_retrieval_task": {
+    "multi_step_retrieval": {
+      "total": 1,
+      "passed": 0
+    }
+  },
+  "by_document": {
+    "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM_A61GB_WW_GB_2072_2.pdf": {
+      "total": 1,
+      "passed": 0
+    }
+  },
+  "failure_categories": {
+    "ranking_or_context_loss": 1
+  },
+  "benchmark_quality": {
+    "validated": 1
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 1.0,
+  "metadata_document_selection_attempts": 1,
+  "metadata_document_selection_recall_rate": 1.0,
+  "metadata_document_selection_rank_1_rate": 0.0,
+  "answer_eval_count": 0,
+  "answer_passed_queries": 0,
+  "answer_failed_queries": 0,
+  "answer_pass_rate": null,
+  "answer_failure_reasons": {},
+  "answer_latency": null,
+  "answer_fallback_count": null,
+  "answer_fallback_rate": null,
+  "answer_sources": {},
+  "answer_fallback_reasons": {},
+  "answer_mean_summary_count": null
+}
