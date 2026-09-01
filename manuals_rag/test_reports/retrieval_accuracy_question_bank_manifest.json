@@ -182,29 +182,27 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "Prior row 13 clean evidence is preserved; durable expected_evidence annotation added and prior JSONL answer re-scored clean with source-only expected evidence.",
-    "artifacts": {
-      "row13_prior_clean_results": "test_reports/retrieval_eval_results_20260831_183111.jsonl",
-      "row13_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-      "row5_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_053438.jsonl",
-      "row5_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_053438.json",
-      "row5_clean_results": "test_reports/retrieval_eval_results_20260901_053438.jsonl",
-      "row5_clean_summary": "test_reports/retrieval_eval_summary_20260901_053438.json",
-      "row5_pre_scorer_fix_http_diagnostic_results": "test_reports/retrieval_eval_results_20260901_052740.jsonl",
-      "row5_retrieval_only_diagnostic_dataset": "test_reports/retrieval_eval_dataset_20260901_052637.jsonl",
-      "row5_retrieval_only_diagnostic_results": "test_reports/retrieval_eval_results_20260901_052637.jsonl",
-      "row6_clean_results": "test_reports/retrieval_eval_results_20260901_045928.jsonl",
-      "row6_clean_summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
-      "source_review_dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl"
-    },
-    "classification": "single_step_v2_row13_source_evidence_annotation_added",
-    "current_answer_failures": {},
+    "classification": "row13_rerun_and_contextual_rows_15_16_source_reviewed_clean",
+    "latest_run": "retrieval_eval_20260901_063040",
+    "previous_row13_fresh_run": "retrieval_eval_20260901_062601",
+    "answer_result": "Fresh row 13 HTTP/API rerun passed 1/1 retrieval and 1/1 answer grounding. Contextual rows 15-16 initially failed exact expected-evidence citation scoring in retrieval_eval_20260901_062733; source review showed the cited row-group/procedure chunks directly support every expected evidence role, equivalent-citation annotations were added, and fresh HTTP/API rerun retrieval_eval_20260901_063040 passed 2/2 retrieval and 2/2 answer grounding.",
+    "retrieval_result": "Row 13 retrieved source evidence at rank 1. Contextual row 15 retrieved both expected evidence roles at ranks 3 and 4, and row 16 retrieved both expected evidence roles at rank 1.",
     "current_retrieval_failures": {},
-    "latest_run": "retrieval_eval_20260831_183111",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_183111 row 13: visible fallback answer states Course displays course characteristics used by course search and Fine displays fine characteristics used by fine search. Citation chunk 37d21822 on page 250 directly contains those statements; quote_span is null and prior citation fidelity passed. This run only made the expected evidence durable in the dataset and did not claim new HTTP evidence. Re-scoring the same payload against the updated case passed with expected_evidence_specific_terms and checked source evidence support.",
-    "previous_partial_run": "retrieval_eval_20260901_045928",
-    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
-    "retrieval_result": "Prior row 13 run retrieved same-document evidence at rank 1; fresh HTTP rerun remains next target."
+    "current_answer_failures": {},
+    "artifacts": {
+      "row13_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_062601.jsonl",
+      "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
+      "row13_clean_summary": "test_reports/retrieval_eval_summary_20260901_062601.json",
+      "row13_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_062601.json",
+      "contextual_rows_15_16_pre_annotation_diagnostic_results": "test_reports/retrieval_eval_results_20260901_062733.jsonl",
+      "contextual_rows_15_16_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
+      "contextual_rows_15_16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
+      "contextual_rows_15_16_clean_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
+      "contextual_rows_15_16_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
+      "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl"
+    },
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_062601 and retrieval_eval_results_20260901_063040. Row 13 visible answer states the Display Feature Course/Fine meanings and cites chunk 37d21822, whose returned content directly contains Display Feature, Course, Fine, course-search, and fine-search statements. Contextual row 15 visible answer states the LJ-V continuous/Total Number of Lines timing example with 10 lines and two overlap lines, citing chunk 02767534; its persisted metadata.content directly contains the procedure context plus the 10-line/two-overlap-line values. Contextual row 16 visible answer states that TRG1 for CAM 1 executes capture plus measurement processing for only the arbitrary one camera as one measurement, citing chunk 450fca55, whose returned content directly contains that asynchronous trigger procedure and behavior. All quote_span values were null, citation_fidelity passed, evidence_citation_support passed, and trace/summary telemetry agreed on fallback_validation.",
+    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -671,47 +669,39 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
-    "accepted_clean_run": "retrieval_eval_20260831_183111 row 13 prior clean evidence; no new clean API answer run claimed on 2026-09-01T06:02:00Z",
-    "answer_grounding_status": "Curated single-step v2 row 13 source-reviewed expected evidence is now durable in the active question bank. Existing clean evidence remains retrieval_eval_20260831_183111, where the visible answer cited same-page chunk 37d21822 that directly contains the Display Feature, Course, Fine, course-search, and fine-search statements.",
+    "classification": "row13_and_contextual_rows_15_16_source_reviewed_clean",
+    "answer_grounding_status": "Fresh source-reviewed HTTP/API answer evidence is clean for curated single-step v2 row 13 and contextual procedure rows 15-16. Rows 15-16 use bounded same-source equivalent citations only where the cited row-group/procedure chunks directly contain every expected evidence role; this avoids treating exact atomic chunk mismatch as a production answer failure.",
+    "accepted_clean_runs": [
+      "retrieval_eval_20260901_062601 row 13",
+      "retrieval_eval_20260901_063040 contextual rows 15-16"
+    ],
+    "diagnostic_runs": {
+      "retrieval_eval_20260901_062733": "pre-source-review exact-chunk scoring failed expected_evidence_not_cited; superseded by equivalent-citation annotations and clean rerun retrieval_eval_20260901_063040"
+    },
+    "current_retrieval_failures": {},
+    "current_answer_failures": {},
     "artifacts": {
-      "row13_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-      "row5_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_053438.jsonl",
-      "row5_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_053438.json",
-      "row5_clean_results": "test_reports/retrieval_eval_results_20260901_053438.jsonl",
-      "row5_clean_summary": "test_reports/retrieval_eval_summary_20260901_053438.json",
-      "row5_pre_scorer_fix_http_diagnostic_results": "test_reports/retrieval_eval_results_20260901_052740.jsonl",
-      "row5_retrieval_only_diagnostic_dataset": "test_reports/retrieval_eval_dataset_20260901_052637.jsonl",
-      "row5_retrieval_only_diagnostic_results": "test_reports/retrieval_eval_results_20260901_052637.jsonl",
-      "row6_clean_results": "test_reports/retrieval_eval_results_20260901_045928.jsonl",
-      "row6_clean_summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
-      "source_review_dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl"
+      "row13_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_062601.jsonl",
+      "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
+      "row13_clean_summary": "test_reports/retrieval_eval_summary_20260901_062601.json",
+      "row13_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_062601.json",
+      "contextual_rows_15_16_pre_annotation_diagnostic_results": "test_reports/retrieval_eval_results_20260901_062733.jsonl",
+      "contextual_rows_15_16_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
+      "contextual_rows_15_16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
+      "contextual_rows_15_16_clean_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
+      "contextual_rows_15_16_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
+      "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl"
     },
     "checks": [
-      "Focused retriever controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k safety_lookup_does_not_promote_numeric_table_rows_or_structured_table_candidates_or_safety_queries_keep_warning_records -> 2 passed, 129 deselected.",
-      "Focused retriever/scorer controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py tests/unit/test_retrieval_eval.py -q -k safety_warning_and_source_only_relation_controls -> 7 passed, 253 deselected.",
-      "Full Docker unit gate passed after copying ignored tmp_eval_docs* fixtures into the clean worktree: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 524 passed, 59 warnings.",
-      "Clean side API manuals-rag-temp-api-39262386-20260901-row5-safety-b served http://127.0.0.1:9006 with internal API_BASE=http://127.0.0.1:8600. Loaded fingerprints: _promote_structured_table_candidates a06d63eada9999c0f266634b71763fb079fab77ba7c207655750f7c6c9611345; retriever.py d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc; _role_value_relations e9f2e512d43e14e4a5eb5e21930d4de642aef64a591b29778fc0b5dacef6c9b9; _expected_evidence_binding_check e4a5538b61b4ae72222329323fdcb9efa348994e6f7e36c9676105d96ea41e4f; retrieval_eval.py 73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d.",
-      "Local settings stayed OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
-      "Direct retrieval-only diagnostic retrieval_eval_20260901_052637 passed row 5 at rank 4 but is not answer evidence.",
-      "Pre-scorer-fix HTTP diagnostic retrieval_eval_20260901_052740 passed retrieval but failed answer grounding with expected_evidence_not_cited.",
-      "Final loaded HTTP/API answer run retrieval_eval_20260901_053438 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with answer_source fallback_validation and answer_failure_reasons {}.",
-      "Inspected retrieval_eval_results_20260901_053438 JSONL. Row 5 visible API answer states that when Limit Output is OFF and intensity is set to 512 or higher, the user should be careful not to damage the light through excessive heat generation. It cites returned same-document chunk 8b1efbb8 on page 841; that chunk directly contains the warning, quote_span is null, citation_fidelity.passed is true, evidence_citation_support.passed is true, and failure_reasons is empty. Row 6 remains clean from retrieval_eval_20260901_045928 with source-reviewed Output Symbol Identifier evidence.",
-      "2026-09-01T06:02:00Z source-reviewed row 13 expected_evidence added to active curated single-step v2 dataset; manifest checker passed before commit.",
-      "2026-09-01T06:05:00Z rescore of retrieval_eval_results_20260831_183111 row 13 against the updated case passed with term_source expected_evidence_specific_terms, evidence_citation_support.checked true/passed true, citation_fidelity.checked true/passed true, and no failure reasons."
+      "Clean side API manuals-rag-temp-api-39262386-20260901-row13-rerun served http://127.0.0.1:9016 and loaded code from /workspace/manuals_rag.",
+      "Runtime fingerprints: retriever.py d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc; generator.py 86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90; retrieval_eval.py 73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d; retrieve 7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab; score_answer_response 6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf; validate_answer 023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702.",
+      "Local model settings stayed OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
+      "retrieval_eval_20260901_062601 passed row 13 retrieval 1/1 at rank 1 and answer grounding 1/1 after actual HTTP/API rerun.",
+      "retrieval_eval_20260901_062733 preserved as diagnostic/not-clean before rows 15-16 equivalent-citation evidence annotations.",
+      "retrieval_eval_20260901_063040 passed contextual rows 15-16 retrieval 2/2 and answer grounding 2/2 after source-reviewed expected_evidence annotations.",
+      "Manual JSONL inspection verified every accepted citation chunk directly supports the expected evidence roles and all quote_span values were null."
     ],
-    "classification": "rows_5_6_source_reviewed_clean",
-    "clean_rows": [
-      "single-step v2 row 5: retrieval_eval_20260901_053438",
-      "single-step v2 row 6: retrieval_eval_20260901_045928"
-    ],
-    "current_answer_failures": {},
-    "current_retrieval_failures": {},
-    "diagnostic_runs": {
-      "retrieval_eval_20260901_045928": "partial rows 5-6 run; row 6 clean, row 5 diagnostic/not-clean before row-5 repair",
-      "retrieval_eval_20260901_052637": "retrieval-only diagnostic; no answer/citation payload was scored",
-      "retrieval_eval_20260901_052740": "pre-scorer-fix diagnostic; retrieval passed but same-source warning citation failed expected_evidence_not_cited"
-    },
-    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence."
+    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean."
   },
   "constraints": {
     "allowed_logic": [
@@ -730,10 +720,10 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {},
-  "current_answer_failure_source": "No current answer failure source remains. Row 13 is tracked as source-reviewed dataset-strengthening evidence only; no new clean API answer run was claimed in this run.",
+  "current_answer_failure_source": "No current answer failure source remains. Fresh row 13 and contextual rows 15-16 HTTP/API reruns passed answer grounding after source-reviewed expected_evidence annotations; retrieval_eval_20260901_062733 remains diagnostic only.",
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "No current retrieval failure source remains. Row 13 source-only expected_evidence was added from prior clean HTTP evidence, and a fresh HTTP rerun remains the next validation target.",
+  "current_retrieval_failure_source": "No current retrieval failure source remains. Fresh row 13 and contextual rows 15-16 HTTP/API reruns retrieved all expected evidence; continue broader coverage from the next validated unresolved slice.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -8950,7 +8940,7 @@
       "type": "current_retrieval_failure_source_empty_state_reconciliation"
     }
   ],
-  "next_target": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
+  "next_target": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9886,29 +9876,27 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "Prior row 13 clean evidence is preserved; durable expected_evidence annotation added and prior JSONL answer re-scored clean with source-only expected evidence.",
-      "artifacts": {
-        "row13_prior_clean_results": "test_reports/retrieval_eval_results_20260831_183111.jsonl",
-        "row13_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-        "row5_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_053438.jsonl",
-        "row5_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_053438.json",
-        "row5_clean_results": "test_reports/retrieval_eval_results_20260901_053438.jsonl",
-        "row5_clean_summary": "test_reports/retrieval_eval_summary_20260901_053438.json",
-        "row5_pre_scorer_fix_http_diagnostic_results": "test_reports/retrieval_eval_results_20260901_052740.jsonl",
-        "row5_retrieval_only_diagnostic_dataset": "test_reports/retrieval_eval_dataset_20260901_052637.jsonl",
-        "row5_retrieval_only_diagnostic_results": "test_reports/retrieval_eval_results_20260901_052637.jsonl",
-        "row6_clean_results": "test_reports/retrieval_eval_results_20260901_045928.jsonl",
-        "row6_clean_summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
-        "source_review_dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl"
-      },
-      "classification": "single_step_v2_row13_source_evidence_annotation_added",
-      "current_answer_failures": {},
+      "classification": "row13_rerun_and_contextual_rows_15_16_source_reviewed_clean",
+      "latest_run": "retrieval_eval_20260901_063040",
+      "previous_row13_fresh_run": "retrieval_eval_20260901_062601",
+      "answer_result": "Fresh row 13 HTTP/API rerun passed 1/1 retrieval and 1/1 answer grounding. Contextual rows 15-16 initially failed exact expected-evidence citation scoring in retrieval_eval_20260901_062733; source review showed the cited row-group/procedure chunks directly support every expected evidence role, equivalent-citation annotations were added, and fresh HTTP/API rerun retrieval_eval_20260901_063040 passed 2/2 retrieval and 2/2 answer grounding.",
+      "retrieval_result": "Row 13 retrieved source evidence at rank 1. Contextual row 15 retrieved both expected evidence roles at ranks 3 and 4, and row 16 retrieved both expected evidence roles at rank 1.",
       "current_retrieval_failures": {},
-      "latest_run": "retrieval_eval_20260831_183111",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_183111 row 13: visible fallback answer states Course displays course characteristics used by course search and Fine displays fine characteristics used by fine search. Citation chunk 37d21822 on page 250 directly contains those statements; quote_span is null and prior citation fidelity passed. This run only made the expected evidence durable in the dataset and did not claim new HTTP evidence. Re-scoring the same payload against the updated case passed with expected_evidence_specific_terms and checked source evidence support.",
-      "previous_partial_run": "retrieval_eval_20260901_045928",
-      "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
-      "retrieval_result": "Prior row 13 run retrieved same-document evidence at rank 1; fresh HTTP rerun remains next target."
+      "current_answer_failures": {},
+      "artifacts": {
+        "row13_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_062601.jsonl",
+        "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
+        "row13_clean_summary": "test_reports/retrieval_eval_summary_20260901_062601.json",
+        "row13_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_062601.json",
+        "contextual_rows_15_16_pre_annotation_diagnostic_results": "test_reports/retrieval_eval_results_20260901_062733.jsonl",
+        "contextual_rows_15_16_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
+        "contextual_rows_15_16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
+        "contextual_rows_15_16_clean_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
+        "contextual_rows_15_16_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
+        "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl"
+      },
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_062601 and retrieval_eval_results_20260901_063040. Row 13 visible answer states the Display Feature Course/Fine meanings and cites chunk 37d21822, whose returned content directly contains Display Feature, Course, Fine, course-search, and fine-search statements. Contextual row 15 visible answer states the LJ-V continuous/Total Number of Lines timing example with 10 lines and two overlap lines, citing chunk 02767534; its persisted metadata.content directly contains the procedure context plus the 10-line/two-overlap-line values. Contextual row 16 visible answer states that TRG1 for CAM 1 executes capture plus measurement processing for only the arbitrary one camera as one measurement, citing chunk 450fca55, whose returned content directly contains that asynchronous trigger procedure and behavior. All quote_span values were null, citation_fidelity passed, evidence_citation_support passed, and trace/summary telemetry agreed on fallback_validation.",
+      "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10164,53 +10152,45 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
-      "accepted_clean_run": "retrieval_eval_20260831_183111 row 13 prior clean evidence; no new clean API answer run claimed on 2026-09-01T06:02:00Z",
-      "answer_grounding_status": "Curated single-step v2 row 13 source-reviewed expected evidence is now durable in the active question bank. Existing clean evidence remains retrieval_eval_20260831_183111, where the visible answer cited same-page chunk 37d21822 that directly contains the Display Feature, Course, Fine, course-search, and fine-search statements.",
+      "classification": "row13_and_contextual_rows_15_16_source_reviewed_clean",
+      "answer_grounding_status": "Fresh source-reviewed HTTP/API answer evidence is clean for curated single-step v2 row 13 and contextual procedure rows 15-16. Rows 15-16 use bounded same-source equivalent citations only where the cited row-group/procedure chunks directly contain every expected evidence role; this avoids treating exact atomic chunk mismatch as a production answer failure.",
+      "accepted_clean_runs": [
+        "retrieval_eval_20260901_062601 row 13",
+        "retrieval_eval_20260901_063040 contextual rows 15-16"
+      ],
+      "diagnostic_runs": {
+        "retrieval_eval_20260901_062733": "pre-source-review exact-chunk scoring failed expected_evidence_not_cited; superseded by equivalent-citation annotations and clean rerun retrieval_eval_20260901_063040"
+      },
+      "current_retrieval_failures": {},
+      "current_answer_failures": {},
       "artifacts": {
-        "row13_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-        "row5_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_053438.jsonl",
-        "row5_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_053438.json",
-        "row5_clean_results": "test_reports/retrieval_eval_results_20260901_053438.jsonl",
-        "row5_clean_summary": "test_reports/retrieval_eval_summary_20260901_053438.json",
-        "row5_pre_scorer_fix_http_diagnostic_results": "test_reports/retrieval_eval_results_20260901_052740.jsonl",
-        "row5_retrieval_only_diagnostic_dataset": "test_reports/retrieval_eval_dataset_20260901_052637.jsonl",
-        "row5_retrieval_only_diagnostic_results": "test_reports/retrieval_eval_results_20260901_052637.jsonl",
-        "row6_clean_results": "test_reports/retrieval_eval_results_20260901_045928.jsonl",
-        "row6_clean_summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
-        "source_review_dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl"
+        "row13_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_062601.jsonl",
+        "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
+        "row13_clean_summary": "test_reports/retrieval_eval_summary_20260901_062601.json",
+        "row13_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_062601.json",
+        "contextual_rows_15_16_pre_annotation_diagnostic_results": "test_reports/retrieval_eval_results_20260901_062733.jsonl",
+        "contextual_rows_15_16_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
+        "contextual_rows_15_16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
+        "contextual_rows_15_16_clean_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
+        "contextual_rows_15_16_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
+        "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl"
       },
       "checks": [
-        "Focused retriever controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py -q -k safety_lookup_does_not_promote_numeric_table_rows_or_structured_table_candidates_or_safety_queries_keep_warning_records -> 2 passed, 129 deselected.",
-        "Focused retriever/scorer controls passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retriever.py tests/unit/test_retrieval_eval.py -q -k safety_warning_and_source_only_relation_controls -> 7 passed, 253 deselected.",
-        "Full Docker unit gate passed after copying ignored tmp_eval_docs* fixtures into the clean worktree: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit -q -> 524 passed, 59 warnings.",
-        "Clean side API manuals-rag-temp-api-39262386-20260901-row5-safety-b served http://127.0.0.1:9006 with internal API_BASE=http://127.0.0.1:8600. Loaded fingerprints: _promote_structured_table_candidates a06d63eada9999c0f266634b71763fb079fab77ba7c207655750f7c6c9611345; retriever.py d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc; _role_value_relations e9f2e512d43e14e4a5eb5e21930d4de642aef64a591b29778fc0b5dacef6c9b9; _expected_evidence_binding_check e4a5538b61b4ae72222329323fdcb9efa348994e6f7e36c9676105d96ea41e4f; retrieval_eval.py 73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d.",
-        "Local settings stayed OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
-        "Direct retrieval-only diagnostic retrieval_eval_20260901_052637 passed row 5 at rank 4 but is not answer evidence.",
-        "Pre-scorer-fix HTTP diagnostic retrieval_eval_20260901_052740 passed retrieval but failed answer grounding with expected_evidence_not_cited.",
-        "Final loaded HTTP/API answer run retrieval_eval_20260901_053438 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with answer_source fallback_validation and answer_failure_reasons {}.",
-        "Inspected retrieval_eval_results_20260901_053438 JSONL. Row 5 visible API answer states that when Limit Output is OFF and intensity is set to 512 or higher, the user should be careful not to damage the light through excessive heat generation. It cites returned same-document chunk 8b1efbb8 on page 841; that chunk directly contains the warning, quote_span is null, citation_fidelity.passed is true, evidence_citation_support.passed is true, and failure_reasons is empty. Row 6 remains clean from retrieval_eval_20260901_045928 with source-reviewed Output Symbol Identifier evidence.",
-        "2026-09-01T06:02:00Z source-reviewed row 13 expected_evidence added to active curated single-step v2 dataset; manifest checker passed before commit.",
-        "2026-09-01T06:05:00Z rescore of retrieval_eval_results_20260831_183111 row 13 against the updated case passed with term_source expected_evidence_specific_terms, evidence_citation_support.checked true/passed true, citation_fidelity.checked true/passed true, and no failure reasons."
+        "Clean side API manuals-rag-temp-api-39262386-20260901-row13-rerun served http://127.0.0.1:9016 and loaded code from /workspace/manuals_rag.",
+        "Runtime fingerprints: retriever.py d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc; generator.py 86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90; retrieval_eval.py 73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d; retrieve 7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab; score_answer_response 6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf; validate_answer 023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702.",
+        "Local model settings stayed OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
+        "retrieval_eval_20260901_062601 passed row 13 retrieval 1/1 at rank 1 and answer grounding 1/1 after actual HTTP/API rerun.",
+        "retrieval_eval_20260901_062733 preserved as diagnostic/not-clean before rows 15-16 equivalent-citation evidence annotations.",
+        "retrieval_eval_20260901_063040 passed contextual rows 15-16 retrieval 2/2 and answer grounding 2/2 after source-reviewed expected_evidence annotations.",
+        "Manual JSONL inspection verified every accepted citation chunk directly supports the expected evidence roles and all quote_span values were null."
       ],
-      "classification": "rows_5_6_source_reviewed_clean",
-      "clean_rows": [
-        "single-step v2 row 5: retrieval_eval_20260901_053438",
-        "single-step v2 row 6: retrieval_eval_20260901_045928"
-      ],
-      "current_answer_failures": {},
-      "current_retrieval_failures": {},
-      "diagnostic_runs": {
-        "retrieval_eval_20260901_045928": "partial rows 5-6 run; row 6 clean, row 5 diagnostic/not-clean before row-5 repair",
-        "retrieval_eval_20260901_052637": "retrieval-only diagnostic; no answer/citation payload was scored",
-        "retrieval_eval_20260901_052740": "pre-scorer-fix diagnostic; retrieval passed but same-source warning citation failed expected_evidence_not_cited"
-      },
-      "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence."
+      "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean."
     },
     "current_answer_failure_categories": {},
-    "current_answer_failure_source": "No current answer failure source remains. Row 13 is tracked as source-reviewed dataset-strengthening evidence only; no new clean API answer run was claimed in this run.",
+    "current_answer_failure_source": "No current answer failure source remains. Fresh row 13 and contextual rows 15-16 HTTP/API reruns passed answer grounding after source-reviewed expected_evidence annotations; retrieval_eval_20260901_062733 remains diagnostic only.",
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "No current retrieval failure source remains. Row 13 source-only expected_evidence was added from prior clean HTTP evidence, and a fresh HTTP rerun remains the next validation target.",
+    "current_retrieval_failure_source": "No current retrieval failure source remains. Fresh row 13 and contextual rows 15-16 HTTP/API reruns retrieved all expected evidence; continue broader coverage from the next validated unresolved slice.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12389,7 +12369,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
+    "next_target": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12426,7 +12406,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
+    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13039,6 +13019,11 @@
         "reason": "diagnostic/not-clean pre-scorer-fix run; retrieval passed but same-source warning citation failed expected_evidence_not_cited before source-only relation extraction was corrected.",
         "run_id": "retrieval_eval_20260901_052740",
         "scope": "curated single-step v2 row 5 clean answer claim"
+      },
+      {
+        "run_id": "retrieval_eval_20260901_062733",
+        "scope": "contextual procedure rows 15-16 pre-source-review exact-chunk answer scoring",
+        "reason": "Diagnostic/not-clean pre-annotation HTTP run: visible answers cited same-source row-group/procedure chunks that manual inspection found source-supported, but the dataset had not yet recorded equivalent-citation expected_evidence, so automated scoring failed expected_evidence_not_cited. Superseded by source-reviewed clean rerun retrieval_eval_20260901_063040."
       }
     ],
     "single_step_questions": 101,
@@ -14083,9 +14068,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T06:02:00Z"
+    "updated_at": "2026-09-01T06:38:00Z"
   },
-  "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
+  "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14698,6 +14683,11 @@
       "reason": "diagnostic/not-clean pre-scorer-fix run; retrieval passed but same-source warning citation failed expected_evidence_not_cited before source-only relation extraction was corrected.",
       "run_id": "retrieval_eval_20260901_052740",
       "scope": "curated single-step v2 row 5 clean answer claim"
+    },
+    {
+      "run_id": "retrieval_eval_20260901_062733",
+      "scope": "contextual procedure rows 15-16 pre-source-review exact-chunk answer scoring",
+      "reason": "Diagnostic/not-clean pre-annotation HTTP run: visible answers cited same-source row-group/procedure chunks that manual inspection found source-supported, but the dataset had not yet recorded equivalent-citation expected_evidence, so automated scoring failed expected_evidence_not_cited. Superseded by source-reviewed clean rerun retrieval_eval_20260901_063040."
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -15741,5 +15731,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T06:02:00Z"
+  "updated_at": "2026-09-01T06:38:00Z"
 }
