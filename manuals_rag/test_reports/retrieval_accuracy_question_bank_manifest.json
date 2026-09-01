@@ -9029,6 +9029,15 @@
       "validation": "passed: real manifest equal copy passed; missing root, missing question_bank, and unequal copy failed; focused test_manifest_check passed with 39 tests; full unit gate passed with 546 tests"
     },
     "classification": "operational_worktree_hygiene_containment",
+    "cleanup_attempt": {
+      "command": "git worktree remove /tmp/manuals_rag_accuracy_cron_39262386",
+      "next_run_instruction": "Do not create another throwaway worktree until this blocker is resolved or a different known clean registered job-owned worktree is safely reused.",
+      "post_remove_git_status": "fatal: not a git repository: missing .git/worktrees/manuals_rag_accuracy_cron_39262386 metadata",
+      "post_remove_path_check": "/tmp/manuals_rag_accuracy_cron_39262386 still exists",
+      "post_remove_registry_check": "git worktree list --porcelain no longer lists /tmp/manuals_rag_accuracy_cron_39262386",
+      "pre_remove_status": "git status --short --branch returned clean detached HEAD",
+      "result": "failed: error: failed to delete /tmp/manuals_rag_accuracy_cron_39262386: Permission denied"
+    },
     "created_new_worktree": false,
     "evidence": [
       "Direct guardrail cron history reported the latest guardrail summary as operational needs_fix with 104 registered accuracy temp worktrees.",
@@ -9038,18 +9047,19 @@
     "guardrail_commit": "378f147",
     "guardrail_finding_timestamp": "2026-09-01T23:18:00Z",
     "policy_added": "docs/runbooks/retrieval_accuracy_cron.md now requires reusing one clean job-owned worktree when safe, creating at most one new worktree per run, verifying clean state before removal, using git worktree remove on the exact path, verifying deregistration, and recording blockers instead of serial throwaway creation.",
-    "remaining": "After commit/push, verify the reused worktree is clean, attempt git worktree remove on the exact path, and report any removal blocker. Then continue row 17 source review in a later run.",
+    "remaining": "Cleanup partially deregistered but could not delete /tmp/manuals_rag_accuracy_cron_39262386 due to Permission denied. Next run should not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker before optional row 17 work.",
     "repo_subdir": "/tmp/manuals_rag_accuracy_cron_39262386/manuals_rag",
     "reused_worktree": "/tmp/manuals_rag_accuracy_cron_39262386",
     "severity": "needs_fix",
-    "status": "addressed_this_run_pending_guardrail_review",
-    "timestamp": "2026-09-01T23:25:59Z",
+    "status": "addressed_with_cleanup_blocker_recorded_pending_guardrail_review",
+    "timestamp": "2026-09-01T23:32:59Z",
     "validation": [
       "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
       "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 39 passed",
       "real-manifest controls: equal copy passed; deleting root latest_temp_worktree_hygiene_guardrail failed; deleting question_bank copy failed; unequal status failed",
       "git diff --check -> passed",
-      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only -> 546 passed, 59 warnings"
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only -> 546 passed, 59 warnings",
+      "post-push cleanup attempted; deregistration succeeded but directory deletion failed with Permission denied"
     ]
   },
   "llm_answer_judge_policy": {
@@ -12618,6 +12628,15 @@
         "validation": "passed: real manifest equal copy passed; missing root, missing question_bank, and unequal copy failed; focused test_manifest_check passed with 39 tests; full unit gate passed with 546 tests"
       },
       "classification": "operational_worktree_hygiene_containment",
+      "cleanup_attempt": {
+        "command": "git worktree remove /tmp/manuals_rag_accuracy_cron_39262386",
+        "next_run_instruction": "Do not create another throwaway worktree until this blocker is resolved or a different known clean registered job-owned worktree is safely reused.",
+        "post_remove_git_status": "fatal: not a git repository: missing .git/worktrees/manuals_rag_accuracy_cron_39262386 metadata",
+        "post_remove_path_check": "/tmp/manuals_rag_accuracy_cron_39262386 still exists",
+        "post_remove_registry_check": "git worktree list --porcelain no longer lists /tmp/manuals_rag_accuracy_cron_39262386",
+        "pre_remove_status": "git status --short --branch returned clean detached HEAD",
+        "result": "failed: error: failed to delete /tmp/manuals_rag_accuracy_cron_39262386: Permission denied"
+      },
       "created_new_worktree": false,
       "evidence": [
         "Direct guardrail cron history reported the latest guardrail summary as operational needs_fix with 104 registered accuracy temp worktrees.",
@@ -12627,18 +12646,19 @@
       "guardrail_commit": "378f147",
       "guardrail_finding_timestamp": "2026-09-01T23:18:00Z",
       "policy_added": "docs/runbooks/retrieval_accuracy_cron.md now requires reusing one clean job-owned worktree when safe, creating at most one new worktree per run, verifying clean state before removal, using git worktree remove on the exact path, verifying deregistration, and recording blockers instead of serial throwaway creation.",
-      "remaining": "After commit/push, verify the reused worktree is clean, attempt git worktree remove on the exact path, and report any removal blocker. Then continue row 17 source review in a later run.",
+      "remaining": "Cleanup partially deregistered but could not delete /tmp/manuals_rag_accuracy_cron_39262386 due to Permission denied. Next run should not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker before optional row 17 work.",
       "repo_subdir": "/tmp/manuals_rag_accuracy_cron_39262386/manuals_rag",
       "reused_worktree": "/tmp/manuals_rag_accuracy_cron_39262386",
       "severity": "needs_fix",
-      "status": "addressed_this_run_pending_guardrail_review",
-      "timestamp": "2026-09-01T23:25:59Z",
+      "status": "addressed_with_cleanup_blocker_recorded_pending_guardrail_review",
+      "timestamp": "2026-09-01T23:32:59Z",
       "validation": [
         "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
         "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 39 passed",
         "real-manifest controls: equal copy passed; deleting root latest_temp_worktree_hygiene_guardrail failed; deleting question_bank copy failed; unequal status failed",
         "git diff --check -> passed",
-        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only -> 546 passed, 59 warnings"
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only -> 546 passed, 59 warnings",
+        "post-push cleanup attempted; deregistration succeeded but directory deletion failed with Permission denied"
       ]
     },
     "llm_answer_judge_policy": {
@@ -14755,7 +14775,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T23:25:59Z"
+    "updated_at": "2026-09-01T23:32:59Z"
   },
   "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
   "retrieval_current_failure_categories": {},
@@ -16781,5 +16801,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T23:25:59Z"
+  "updated_at": "2026-09-01T23:32:59Z"
 }
