@@ -1,5 +1,9 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "expected_document_not_cited_or_used": 1,
+    "expected_evidence_not_cited": 2,
+    "expected_terms_missing": 1
+  },
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
@@ -182,24 +186,44 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "Row 15 now has clean actual HTTP/API answer evidence with citation-visible support; row 13 and row 16 remain clean. Current retrieval and answer failures are cleared.",
-    "artifacts": {
-      "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-      "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
-      "row15_visible_citation_dataset": "test_reports/retrieval_eval_dataset_20260901_0730_contextual_row15_visible_citation.jsonl",
-      "row15_visible_citation_manifest": "test_reports/retrieval_eval_manifest_20260901_073520.json",
-      "row15_visible_citation_results": "test_reports/retrieval_eval_results_20260901_073520.jsonl",
-      "row15_visible_citation_summary": "test_reports/retrieval_eval_summary_20260901_073520.json",
-      "row16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl"
+    "answer_result": "0/2 actual HTTP/API answers passed; both used fallback_validation and failed citation-grade expected evidence checks.",
+    "classification": "cross_document_rows_1_2_current_answer_evidence_failure",
+    "current_answer_failures": {
+      "expected_document_not_cited_or_used": 1,
+      "expected_evidence_not_cited": 2,
+      "expected_terms_missing": 1
     },
-    "classification": "row15_visible_citation_content_clean_row13_row16_clean",
-    "current_answer_failures": {},
     "current_retrieval_failures": {},
-    "latest_run": "retrieval_eval_20260901_073520",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_073520. The user-visible answer states the LJ-V continuous timing example values and cites chunk a1b17edc, whose returned content directly contains the Continuous/Total Number of Lines context, Number of Lines 10, Number of Overlapping Lines Two lines, and the 10/two explanatory sentence. The prior retrieval_eval_20260901_063040 row 15 citation 02767534 remains diagnostic because those values appeared only in metadata.content.",
-    "previous_row13_fresh_run": "retrieval_eval_20260901_062601",
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice. Preserve row 13 clean evidence from retrieval_eval_20260901_062601, contextual row 15 clean evidence from retrieval_eval_20260901_073520, contextual row 16 clean evidence from retrieval_eval_20260901_063040, and all diagnostic exclusions/source-only citation safeguards.",
-    "retrieval_result": "Row 15 retrieval passed at rank 3; candidate recall and metadata document selection passed."
+    "dataset": "test_reports/retrieval_eval_dataset_20260901_075734.jsonl",
+    "latest_run": "retrieval_eval_20260901_075734",
+    "manifest": "test_reports/retrieval_eval_manifest_20260901_075734.json",
+    "manual_jsonl_inspection": "Inspected every user-visible answer/citation in retrieval_eval_results_20260901_075734. Row 1 retrieved expected chunks 6744c005 and 1ddc77c5 at ranks 1 and 2, but cited VS row-group chunk 8b5d174c plus IV-H chunk 1ddc77c5; the answer failed expected_evidence_not_cited for the exact VS Pattern Data cause role. Row 2 retrieved expected chunks 465e0cff and a1187433, but the visible fallback answer cited only LJ-S8000 chunk 465e0cff and omitted the LJ-X8000 T1 Angle 1 MS/AB format, failing expected_document_not_cited_or_used, expected_terms_missing, and expected_evidence_not_cited.",
+    "max_queries": 2,
+    "query_offset": 0,
+    "remaining": "Fix curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_075734 passed retrieval 2/2 at rank 1 but failed actual HTTP/API answer grounding 0/2. Row 1 must cite evidence that directly supports the VS Pattern Data 20503 invalid-format cause and the IV-HG500CA memory-read startup cause; row 2 must cite both the LJ-S8000 ERRC Integer 7 digits row and the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve row 13, contextual row 15, contextual row 16, and all prior clean/diagnostic exclusions.",
+    "response_mode": "answer_with_citations",
+    "results": "test_reports/retrieval_eval_results_20260901_075734.jsonl",
+    "retrieval_result": "2/2 retrieval passed at rank 1; candidate recall and metadata document selection passed.",
+    "runtime_load": {
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
+      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+      "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "api_base": "http://127.0.0.1:9032",
+      "api_container": "manuals-rag-temp-api-39262386-20260901-crossdoc12",
+      "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+      "eval_sha256": "73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d",
+      "generator_sha256": "6ade26049a4b6ebda39464a51e6f94edfc289f814567e0765308c6d1e0b0a4f3",
+      "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
+      "retriever_sha256": "d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc",
+      "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
+    },
+    "search_mode": "http",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260901_075734.json"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -671,33 +695,36 @@
       "retrieval_eval_20260901_073520 contextual row 15",
       "retrieval_eval_20260901_063040 contextual row 16"
     ],
-    "answer_grounding_status": "Row 13 remains clean from retrieval_eval_20260901_062601, contextual row 16 remains clean from retrieval_eval_20260901_063040, and contextual row 15 is clean from retrieval_eval_20260901_073520 after fallback selected citation-visible chunk a1b17edc. The cited returned content directly contains the LJ-V Continuous/Total Number of Lines context plus Number of Lines 10 and Number of Overlapping Lines Two lines.",
+    "answer_grounding_status": "Cross-document rows 1-2 are the current answer-grounding target after retrieval_eval_20260901_075734: retrieval passed 2/2 at rank 1, but actual HTTP/API answers failed 0/2 because citations did not cover every expected evidence role.",
     "artifacts": {
       "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+      "cross_document_rows_1_2_dataset": "test_reports/retrieval_eval_dataset_20260901_075734.jsonl",
+      "cross_document_rows_1_2_manifest": "test_reports/retrieval_eval_manifest_20260901_075734.json",
+      "cross_document_rows_1_2_results": "test_reports/retrieval_eval_results_20260901_075734.jsonl",
+      "cross_document_rows_1_2_summary": "test_reports/retrieval_eval_summary_20260901_075734.json",
       "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
-      "row15_visible_citation_dataset": "test_reports/retrieval_eval_dataset_20260901_0730_contextual_row15_visible_citation.jsonl",
-      "row15_visible_citation_manifest": "test_reports/retrieval_eval_manifest_20260901_073520.json",
       "row15_visible_citation_results": "test_reports/retrieval_eval_results_20260901_073520.jsonl",
-      "row15_visible_citation_summary": "test_reports/retrieval_eval_summary_20260901_073520.json",
       "row16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl"
     },
     "checks": [
-      "Loaded side API manuals-rag-temp-api-39262386-20260901-row15-visible served http://127.0.0.1:9026 with generator.py sha256 6ade26049a4b6ebda39464a51e6f94edfc289f814567e0765308c6d1e0b0a4f3 and _quantity_citation_visible_score sha256 517a6882cbd87bbc1eb3385e094423f3c712af4c5002f798108f38e650eb6a5b4.",
-      "Loaded helper control scored metadata-only citation-visible quantity evidence 0.0, visible source-bearing content 8.0, and selected visible over metadata-only.",
-      "Focused quantity fallback tests passed: 5 passed, 106 deselected.",
-      "Full clean one-off Docker unit gate passed after copying ignored tmp_eval_docs* fixtures: 525 passed, 59 warnings.",
-      "Manual JSONL inspection confirmed retrieval_eval_20260901_073520 row 15 cites a1b17edc with quote_span null and the cited chunk content directly contains the LJ-V continuous/Total Number of Lines context, Number of Lines 10, Number of Overlapping Lines Two lines, and the 10/two explanatory sentence."
+      "Clean side API manuals-rag-temp-api-39262386-20260901-crossdoc12 served http://127.0.0.1:9032 with unchanged local model/reranker settings.",
+      "retrieval_eval_20260901_075734 actual HTTP/API answer mode passed retrieval 2/2 at rank 1 and failed answer grounding 0/2.",
+      "Manual JSONL inspection compared every user-visible answer/citation against expected evidence roles; no clean rows 1-2 evidence was accepted."
     ],
-    "classification": "row15_visible_citation_content_clean_row13_row16_clean",
-    "current_answer_failures": {},
+    "classification": "cross_document_rows_1_2_current_answer_evidence_failure",
+    "current_answer_failures": {
+      "expected_document_not_cited_or_used": 1,
+      "expected_evidence_not_cited": 2,
+      "expected_terms_missing": 1
+    },
     "current_retrieval_failures": {},
     "diagnostic_runs": {
       "retrieval_eval_20260901_062733": "pre-source-review exact-chunk scoring failed expected_evidence_not_cited; remains diagnostic/not-clean",
       "retrieval_eval_20260901_063040 combined rows 15-16": "not clean because row 15 was diagnostic/not-clean in that combined run; row 16 alone remains clean",
-      "retrieval_eval_20260901_063040 row 15": "guardrail 2026-09-01T06:56:00Z found cited chunk content does not directly contain the line-count/overlap values; not clean citation evidence",
-      "retrieval_eval_20260901_072854": "pre-final-helper-control rerun from this worktree; citation content looked clean but the loaded helper adverse control still selected metadata-only evidence, so this run remains diagnostic/unaccepted"
+      "retrieval_eval_20260901_072854": "pre-final-helper-control rerun; citation content looked clean but helper adverse control still selected metadata-only evidence, so unaccepted",
+      "retrieval_eval_20260901_075734": "cross-document v2 rows 1-2 retrieval-clean but answer-not-clean; current failure source for answer evidence selection"
     },
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice. Preserve row 13 clean evidence from retrieval_eval_20260901_062601, contextual row 15 clean evidence from retrieval_eval_20260901_073520, contextual row 16 clean evidence from retrieval_eval_20260901_063040, and all diagnostic exclusions/source-only citation safeguards."
+    "remaining": "Fix curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_075734 passed retrieval 2/2 at rank 1 but failed actual HTTP/API answer grounding 0/2. Row 1 must cite evidence that directly supports the VS Pattern Data 20503 invalid-format cause and the IV-HG500CA memory-read startup cause; row 2 must cite both the LJ-S8000 ERRC Integer 7 digits row and the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve row 13, contextual row 15, contextual row 16, and all prior clean/diagnostic exclusions."
   },
   "constraints": {
     "allowed_logic": [
@@ -715,11 +742,15 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
-  "current_answer_failure_source": "No current answer failure source remains after retrieval_eval_20260901_073520 row 15 cited returned content directly supporting every expected evidence role; prior row 15 runs remain diagnostic where cited content lacked the values.",
+  "current_answer_failure_categories": {
+    "expected_document_not_cited_or_used": 1,
+    "expected_evidence_not_cited": 2,
+    "expected_terms_missing": 1
+  },
+  "current_answer_failure_source": "retrieval_eval_20260901_075734 is the current answer failure source for cross-document rows 1-2: retrieval passed, but actual HTTP/API answer citations did not cover every expected evidence role.",
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "No current retrieval failure source remains after retrieval_eval_20260901_073520 row 15 passed retrieval at rank 3; broader coverage should continue from the next validated slice.",
+  "current_retrieval_failure_source": "No current retrieval failure source remains: retrieval_eval_20260901_075734 passed cross-document rows 1-2 retrieval 2/2 at rank 1.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -8936,7 +8967,7 @@
       "type": "current_retrieval_failure_source_empty_state_reconciliation"
     }
   ],
-  "next_target": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice. Preserve row 13 clean evidence from retrieval_eval_20260901_062601, contextual row 15 clean evidence from retrieval_eval_20260901_073520, contextual row 16 clean evidence from retrieval_eval_20260901_063040, and all diagnostic exclusions/source-only citation safeguards.",
+  "next_target": "Fix curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_075734 passed retrieval 2/2 at rank 1 but failed actual HTTP/API answer grounding 0/2. Row 1 must cite evidence that directly supports the VS Pattern Data 20503 invalid-format cause and the IV-HG500CA memory-read startup cause; row 2 must cite both the LJ-S8000 ERRC Integer 7 digits row and the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve row 13, contextual row 15, contextual row 16, and all prior clean/diagnostic exclusions.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9689,7 +9720,11 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "expected_document_not_cited_or_used": 1,
+      "expected_evidence_not_cited": 2,
+      "expected_terms_missing": 1
+    },
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
@@ -9872,24 +9907,44 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "Row 15 now has clean actual HTTP/API answer evidence with citation-visible support; row 13 and row 16 remain clean. Current retrieval and answer failures are cleared.",
-      "artifacts": {
-        "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
-        "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
-        "row15_visible_citation_dataset": "test_reports/retrieval_eval_dataset_20260901_0730_contextual_row15_visible_citation.jsonl",
-        "row15_visible_citation_manifest": "test_reports/retrieval_eval_manifest_20260901_073520.json",
-        "row15_visible_citation_results": "test_reports/retrieval_eval_results_20260901_073520.jsonl",
-        "row15_visible_citation_summary": "test_reports/retrieval_eval_summary_20260901_073520.json",
-        "row16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl"
+      "answer_result": "0/2 actual HTTP/API answers passed; both used fallback_validation and failed citation-grade expected evidence checks.",
+      "classification": "cross_document_rows_1_2_current_answer_evidence_failure",
+      "current_answer_failures": {
+        "expected_document_not_cited_or_used": 1,
+        "expected_evidence_not_cited": 2,
+        "expected_terms_missing": 1
       },
-      "classification": "row15_visible_citation_content_clean_row13_row16_clean",
-      "current_answer_failures": {},
       "current_retrieval_failures": {},
-      "latest_run": "retrieval_eval_20260901_073520",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_073520. The user-visible answer states the LJ-V continuous timing example values and cites chunk a1b17edc, whose returned content directly contains the Continuous/Total Number of Lines context, Number of Lines 10, Number of Overlapping Lines Two lines, and the 10/two explanatory sentence. The prior retrieval_eval_20260901_063040 row 15 citation 02767534 remains diagnostic because those values appeared only in metadata.content.",
-      "previous_row13_fresh_run": "retrieval_eval_20260901_062601",
-      "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice. Preserve row 13 clean evidence from retrieval_eval_20260901_062601, contextual row 15 clean evidence from retrieval_eval_20260901_073520, contextual row 16 clean evidence from retrieval_eval_20260901_063040, and all diagnostic exclusions/source-only citation safeguards.",
-      "retrieval_result": "Row 15 retrieval passed at rank 3; candidate recall and metadata document selection passed."
+      "dataset": "test_reports/retrieval_eval_dataset_20260901_075734.jsonl",
+      "latest_run": "retrieval_eval_20260901_075734",
+      "manifest": "test_reports/retrieval_eval_manifest_20260901_075734.json",
+      "manual_jsonl_inspection": "Inspected every user-visible answer/citation in retrieval_eval_results_20260901_075734. Row 1 retrieved expected chunks 6744c005 and 1ddc77c5 at ranks 1 and 2, but cited VS row-group chunk 8b5d174c plus IV-H chunk 1ddc77c5; the answer failed expected_evidence_not_cited for the exact VS Pattern Data cause role. Row 2 retrieved expected chunks 465e0cff and a1187433, but the visible fallback answer cited only LJ-S8000 chunk 465e0cff and omitted the LJ-X8000 T1 Angle 1 MS/AB format, failing expected_document_not_cited_or_used, expected_terms_missing, and expected_evidence_not_cited.",
+      "max_queries": 2,
+      "query_offset": 0,
+      "remaining": "Fix curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_075734 passed retrieval 2/2 at rank 1 but failed actual HTTP/API answer grounding 0/2. Row 1 must cite evidence that directly supports the VS Pattern Data 20503 invalid-format cause and the IV-HG500CA memory-read startup cause; row 2 must cite both the LJ-S8000 ERRC Integer 7 digits row and the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve row 13, contextual row 15, contextual row 16, and all prior clean/diagnostic exclusions.",
+      "response_mode": "answer_with_citations",
+      "results": "test_reports/retrieval_eval_results_20260901_075734.jsonl",
+      "retrieval_result": "2/2 retrieval passed at rank 1; candidate recall and metadata document selection passed.",
+      "runtime_load": {
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
+        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "api_base": "http://127.0.0.1:9032",
+        "api_container": "manuals-rag-temp-api-39262386-20260901-crossdoc12",
+        "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+        "eval_sha256": "73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d",
+        "generator_sha256": "6ade26049a4b6ebda39464a51e6f94edfc289f814567e0765308c6d1e0b0a4f3",
+        "retrieve_sha256": "7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab",
+        "retriever_sha256": "d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc",
+        "score_answer_response_sha256": "6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf",
+        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
+      },
+      "search_mode": "http",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260901_075734.json"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10150,39 +10205,46 @@
         "retrieval_eval_20260901_073520 contextual row 15",
         "retrieval_eval_20260901_063040 contextual row 16"
       ],
-      "answer_grounding_status": "Row 13 remains clean from retrieval_eval_20260901_062601, contextual row 16 remains clean from retrieval_eval_20260901_063040, and contextual row 15 is clean from retrieval_eval_20260901_073520 after fallback selected citation-visible chunk a1b17edc. The cited returned content directly contains the LJ-V Continuous/Total Number of Lines context plus Number of Lines 10 and Number of Overlapping Lines Two lines.",
+      "answer_grounding_status": "Cross-document rows 1-2 are the current answer-grounding target after retrieval_eval_20260901_075734: retrieval passed 2/2 at rank 1, but actual HTTP/API answers failed 0/2 because citations did not cover every expected evidence role.",
       "artifacts": {
         "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl",
+        "cross_document_rows_1_2_dataset": "test_reports/retrieval_eval_dataset_20260901_075734.jsonl",
+        "cross_document_rows_1_2_manifest": "test_reports/retrieval_eval_manifest_20260901_075734.json",
+        "cross_document_rows_1_2_results": "test_reports/retrieval_eval_results_20260901_075734.jsonl",
+        "cross_document_rows_1_2_summary": "test_reports/retrieval_eval_summary_20260901_075734.json",
         "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
-        "row15_visible_citation_dataset": "test_reports/retrieval_eval_dataset_20260901_0730_contextual_row15_visible_citation.jsonl",
-        "row15_visible_citation_manifest": "test_reports/retrieval_eval_manifest_20260901_073520.json",
         "row15_visible_citation_results": "test_reports/retrieval_eval_results_20260901_073520.jsonl",
-        "row15_visible_citation_summary": "test_reports/retrieval_eval_summary_20260901_073520.json",
         "row16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl"
       },
       "checks": [
-        "Loaded side API manuals-rag-temp-api-39262386-20260901-row15-visible served http://127.0.0.1:9026 with generator.py sha256 6ade26049a4b6ebda39464a51e6f94edfc289f814567e0765308c6d1e0b0a4f3 and _quantity_citation_visible_score sha256 517a6882cbd87bbc1eb3385e094423f3c712af4c5002f798108f38e650eb6a5b4.",
-        "Loaded helper control scored metadata-only citation-visible quantity evidence 0.0, visible source-bearing content 8.0, and selected visible over metadata-only.",
-        "Focused quantity fallback tests passed: 5 passed, 106 deselected.",
-        "Full clean one-off Docker unit gate passed after copying ignored tmp_eval_docs* fixtures: 525 passed, 59 warnings.",
-        "Manual JSONL inspection confirmed retrieval_eval_20260901_073520 row 15 cites a1b17edc with quote_span null and the cited chunk content directly contains the LJ-V continuous/Total Number of Lines context, Number of Lines 10, Number of Overlapping Lines Two lines, and the 10/two explanatory sentence."
+        "Clean side API manuals-rag-temp-api-39262386-20260901-crossdoc12 served http://127.0.0.1:9032 with unchanged local model/reranker settings.",
+        "retrieval_eval_20260901_075734 actual HTTP/API answer mode passed retrieval 2/2 at rank 1 and failed answer grounding 0/2.",
+        "Manual JSONL inspection compared every user-visible answer/citation against expected evidence roles; no clean rows 1-2 evidence was accepted."
       ],
-      "classification": "row15_visible_citation_content_clean_row13_row16_clean",
-      "current_answer_failures": {},
+      "classification": "cross_document_rows_1_2_current_answer_evidence_failure",
+      "current_answer_failures": {
+        "expected_document_not_cited_or_used": 1,
+        "expected_evidence_not_cited": 2,
+        "expected_terms_missing": 1
+      },
       "current_retrieval_failures": {},
       "diagnostic_runs": {
         "retrieval_eval_20260901_062733": "pre-source-review exact-chunk scoring failed expected_evidence_not_cited; remains diagnostic/not-clean",
         "retrieval_eval_20260901_063040 combined rows 15-16": "not clean because row 15 was diagnostic/not-clean in that combined run; row 16 alone remains clean",
-        "retrieval_eval_20260901_063040 row 15": "guardrail 2026-09-01T06:56:00Z found cited chunk content does not directly contain the line-count/overlap values; not clean citation evidence",
-        "retrieval_eval_20260901_072854": "pre-final-helper-control rerun from this worktree; citation content looked clean but the loaded helper adverse control still selected metadata-only evidence, so this run remains diagnostic/unaccepted"
+        "retrieval_eval_20260901_072854": "pre-final-helper-control rerun; citation content looked clean but helper adverse control still selected metadata-only evidence, so unaccepted",
+        "retrieval_eval_20260901_075734": "cross-document v2 rows 1-2 retrieval-clean but answer-not-clean; current failure source for answer evidence selection"
       },
-      "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice. Preserve row 13 clean evidence from retrieval_eval_20260901_062601, contextual row 15 clean evidence from retrieval_eval_20260901_073520, contextual row 16 clean evidence from retrieval_eval_20260901_063040, and all diagnostic exclusions/source-only citation safeguards."
+      "remaining": "Fix curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_075734 passed retrieval 2/2 at rank 1 but failed actual HTTP/API answer grounding 0/2. Row 1 must cite evidence that directly supports the VS Pattern Data 20503 invalid-format cause and the IV-HG500CA memory-read startup cause; row 2 must cite both the LJ-S8000 ERRC Integer 7 digits row and the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve row 13, contextual row 15, contextual row 16, and all prior clean/diagnostic exclusions."
     },
-    "current_answer_failure_categories": {},
-    "current_answer_failure_source": "No current answer failure source remains after retrieval_eval_20260901_073520 row 15 cited returned content directly supporting every expected evidence role; prior row 15 runs remain diagnostic where cited content lacked the values.",
+    "current_answer_failure_categories": {
+      "expected_document_not_cited_or_used": 1,
+      "expected_evidence_not_cited": 2,
+      "expected_terms_missing": 1
+    },
+    "current_answer_failure_source": "retrieval_eval_20260901_075734 is the current answer failure source for cross-document rows 1-2: retrieval passed, but actual HTTP/API answer citations did not cover every expected evidence role.",
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "No current retrieval failure source remains after retrieval_eval_20260901_073520 row 15 passed retrieval at rank 3; broader coverage should continue from the next validated slice.",
+    "current_retrieval_failure_source": "No current retrieval failure source remains: retrieval_eval_20260901_075734 passed cross-document rows 1-2 retrieval 2/2 at rank 1.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12361,7 +12423,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice. Preserve row 13 clean evidence from retrieval_eval_20260901_062601, contextual row 15 clean evidence from retrieval_eval_20260901_073520, contextual row 16 clean evidence from retrieval_eval_20260901_063040, and all diagnostic exclusions/source-only citation safeguards.",
+    "next_target": "Fix curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_075734 passed retrieval 2/2 at rank 1 but failed actual HTTP/API answer grounding 0/2. Row 1 must cite evidence that directly supports the VS Pattern Data 20503 invalid-format cause and the IV-HG500CA memory-read startup cause; row 2 must cite both the LJ-S8000 ERRC Integer 7 digits row and the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve row 13, contextual row 15, contextual row 16, and all prior clean/diagnostic exclusions.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12398,7 +12460,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice. Preserve row 13 clean evidence from retrieval_eval_20260901_062601, contextual row 15 clean evidence from retrieval_eval_20260901_073520, contextual row 16 clean evidence from retrieval_eval_20260901_063040, and all diagnostic exclusions/source-only citation safeguards.",
+    "remaining": "Fix curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_075734 passed retrieval 2/2 at rank 1 but failed actual HTTP/API answer grounding 0/2. Row 1 must cite evidence that directly supports the VS Pattern Data 20503 invalid-format cause and the IV-HG500CA memory-read startup cause; row 2 must cite both the LJ-S8000 ERRC Integer 7 digits row and the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve row 13, contextual row 15, contextual row 16, and all prior clean/diagnostic exclusions.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13026,6 +13088,12 @@
         "reason": "pre-final-helper-control rerun from this worktree; citation content looked clean, but loaded adverse control still selected metadata-only quantity evidence, so only retrieval_eval_20260901_073520 is accepted as clean row-15 evidence",
         "run_id": "retrieval_eval_20260901_072854",
         "scope": "contextual procedure row 15"
+      },
+      {
+        "classification": "diagnostic_current_answer_failure_not_clean",
+        "reason": "Retrieval passed 2/2 at rank 1, but manual inspection confirmed user-visible answers/citations failed citation-grade expected evidence roles: row 1 missed exact VS Pattern Data cause citation and row 2 omitted/cited no LJ-X8000 T1 Angle 1 MS/AB evidence.",
+        "run": "retrieval_eval_20260901_075734",
+        "scope": "curated cross-document v2 rows 1-2 answer-grounding clean claim"
       }
     ],
     "single_step_questions": 101,
@@ -14086,9 +14154,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T07:41:00Z"
+    "updated_at": "2026-09-01T07:59:00Z"
   },
-  "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice. Preserve row 13 clean evidence from retrieval_eval_20260901_062601, contextual row 15 clean evidence from retrieval_eval_20260901_073520, contextual row 16 clean evidence from retrieval_eval_20260901_063040, and all diagnostic exclusions/source-only citation safeguards.",
+  "remaining": "Fix curated cross-document v2 rows 1-2 answer evidence selection after retrieval_eval_20260901_075734 passed retrieval 2/2 at rank 1 but failed actual HTTP/API answer grounding 0/2. Row 1 must cite evidence that directly supports the VS Pattern Data 20503 invalid-format cause and the IV-HG500CA memory-read startup cause; row 2 must cite both the LJ-S8000 ERRC Integer 7 digits row and the LJ-X8000 T1 Angle 1 MS/AB sign/integer/decimal format row. Preserve row 13, contextual row 15, contextual row 16, and all prior clean/diagnostic exclusions.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14716,6 +14784,12 @@
       "reason": "pre-final-helper-control rerun from this worktree; citation content looked clean, but loaded adverse control still selected metadata-only quantity evidence, so only retrieval_eval_20260901_073520 is accepted as clean row-15 evidence",
       "run_id": "retrieval_eval_20260901_072854",
       "scope": "contextual procedure row 15"
+    },
+    {
+      "classification": "diagnostic_current_answer_failure_not_clean",
+      "reason": "Retrieval passed 2/2 at rank 1, but manual inspection confirmed user-visible answers/citations failed citation-grade expected evidence roles: row 1 missed exact VS Pattern Data cause citation and row 2 omitted/cited no LJ-X8000 T1 Angle 1 MS/AB evidence.",
+      "run": "retrieval_eval_20260901_075734",
+      "scope": "curated cross-document v2 rows 1-2 answer-grounding clean claim"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -15775,5 +15849,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T07:41:00Z"
+  "updated_at": "2026-09-01T07:59:00Z"
 }
