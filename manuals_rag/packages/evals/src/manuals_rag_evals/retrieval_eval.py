@@ -2382,6 +2382,52 @@ def _result_row_group_context_text(result: dict[str, Any]) -> str:
     return " ".join(str(part) for part in context_parts if part)
 
 
+def _expected_item_row_anchor(item: dict[str, Any]) -> str:
+    for key in ("row_headers", "table_row_headers"):
+        raw_values = item.get(key)
+        if isinstance(raw_values, str):
+            values = [raw_values]
+        elif isinstance(raw_values, list):
+            values = [str(value) for value in raw_values if str(value).strip()]
+        else:
+            values = []
+        if values:
+            return " ".join(values)
+    snippet = str(item.get("snippet") or "")
+    match = re.search(
+        r"(?:Row headers?|Row header|Rows?)\s*:\s*([^;]+)",
+        snippet,
+        flags=re.IGNORECASE,
+    )
+    if match:
+        return match.group(1).strip()
+    return ""
+
+
+def _row_anchor_matches_context(anchor: str, context_text: str) -> bool:
+    anchor_tokens = [token for token in tokenize(anchor) if token not in STOPWORDS]
+    if not anchor_tokens:
+        return True
+    context_tokens = [token for token in tokenize(context_text) if token not in STOPWORDS]
+    if not context_tokens:
+        return False
+    if len(anchor_tokens) == 1:
+        return anchor_tokens[0] in context_tokens
+    position = 0
+    first_match = -1
+    last_match = -1
+    for token in anchor_tokens:
+        try:
+            match_index = context_tokens.index(token, position)
+        except ValueError:
+            return False
+        if first_match < 0:
+            first_match = match_index
+        last_match = match_index
+        position = match_index + 1
+    return last_match - first_match <= len(anchor_tokens) + 6
+
+
 def _result_context_supports_expected_item(
     result: dict[str, Any],
     item: dict[str, Any],
@@ -2402,6 +2448,19 @@ def _result_context_supports_expected_item(
     expected_field = normalize_text(str(item.get("field") or ""))
     if expected_field and expected_field not in normalize_text(context_text):
         return False
+    row_anchor = _expected_item_row_anchor(item)
+    if row_anchor and not _row_anchor_matches_context(row_anchor, context_text):
+        return False
+    item_identifiers = {
+        str(identifier)
+        for identifier in item.get("product_identifiers", []) or []
+        if str(identifier)
+    }
+    if item_identifiers:
+        compact_context = _compact_eval_identifier(context_text)
+        context_identifiers = {identifier for identifier in item_identifiers if identifier in compact_context}
+        if not item_identifiers.intersection(_result_product_identifiers(result)) and not context_identifiers:
+            return False
     return True
 
 

@@ -6041,6 +6041,261 @@ def test_multi_step_retrieval_scoring_rejects_expected_context_role_mixing_witho
     ]
 
 
+def test_multi_step_retrieval_scoring_rejects_sibling_row_code_context_substitution():
+    case = RetrievalEvalCase(
+        case_id="c-row-context-sibling-code",
+        query="For LJ-S8000 and LJ-X8000, compare ERRC with the T1 Angle 1 MS/AB value.",
+        source_document_id="doc-ljs",
+        document_version_id="ver-ljs",
+        source_chunk_id="ljs-errc",
+        source_title="LJ-S",
+        source_filename="ljs.pdf",
+        chunk_type="table_record",
+        section_path="Measured data",
+        page_from=1,
+        page_to=1,
+        expected_terms=["integer", "digits", "decimal"],
+        expected_snippet="Measured data rows from both manuals",
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={"product_family": "LJ-S8000"},
+        retrieval_task="multi_step_retrieval",
+        expected_source_chunk_ids=["ljs-errc", "cause-cell", "ljx-t1"],
+        expected_evidence=[
+            {
+                "chunk_id": "ljs-errc",
+                "source_document_id": "doc-ljs",
+                "field": "form of measured data",
+                "product_identifiers": ["ljs8000"],
+                "expected_terms": ["integer", "digits"],
+                "snippet": "Row headers: ERRC > Error Code; Column headers: Form of measured data; Cell value: Integer 7 digits",
+            },
+            {
+                "chunk_id": "ljx-t1",
+                "source_document_id": "doc-ljx",
+                "field": "form of measured data",
+                "product_identifiers": ["ljx8000"],
+                "expected_terms": ["integer", "digits", "decimal"],
+                "snippet": "Row headers: T1 > Angle 1 > MS,AB; Column headers: Form of measured data; Cell value: Sign, Integer 3 digits, 3 digits after the decimal point",
+            },
+        ],
+    )
+    results = [
+        {
+            "chunk_id": "ljs-errc",
+            "source_document_id": "doc-ljs",
+            "content": "Column headers: Form of measured data; Row headers: ERRC > Error Code; Cell value: Integer 7 digits",
+            "metadata": {"chunk_type": "table_record", "product_family": "LJ-S8000"},
+        },
+        {
+            "chunk_id": "cause-cell",
+            "source_document_id": "doc-ljx",
+            "content": "Cause: measured-data table needs review.",
+            "metadata": {
+                "chunk_type": "table_record",
+                "product_family": "LJ-X8000",
+                "table_row_group_context": (
+                    "Column headers: Form of measured data; Row headers: T1HI > Angle 1 (max) > MS,AB; "
+                    "Cell value: Sign, Integer 3 digits, 3 digits after the decimal point"
+                ),
+            },
+        },
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is False
+    assert evaluation["missing_evidence"] == [
+        {"chunk_id": "ljx-t1", "matched": False, "rank": None, "overlap_terms": 3}
+    ]
+
+
+def test_multi_step_retrieval_scoring_rejects_wrong_model_side_context_substitution():
+    case = RetrievalEvalCase(
+        case_id="c-row-context-wrong-side",
+        query="For MOD1-A and MOD2-B, compare the Alpha Mode and Beta Mode rows.",
+        source_document_id="doc-mod1",
+        document_version_id="ver-mod1",
+        source_chunk_id="mod1-alpha",
+        source_title="Settings",
+        source_filename="settings.pdf",
+        chunk_type="table_record",
+        section_path="Settings",
+        page_from=4,
+        page_to=4,
+        expected_terms=["enable", "output"],
+        expected_snippet="Two model setting rows",
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={"product_model": "MOD1-A"},
+        retrieval_task="multi_step_retrieval",
+        expected_source_chunk_ids=["mod1-alpha", "mod2-beta"],
+        expected_evidence=[
+            {
+                "chunk_id": "mod1-alpha",
+                "source_document_id": "doc-mod1",
+                "field": "setting control",
+                "product_identifiers": ["mod1a"],
+                "expected_terms": ["enable", "output"],
+                "snippet": "Row headers: Alpha Mode; Column headers: Setting control; Cell value: Enable output",
+            },
+            {
+                "chunk_id": "mod2-beta",
+                "source_document_id": "doc-mod2",
+                "field": "setting control",
+                "product_identifiers": ["mod2b"],
+                "expected_terms": ["enable", "output"],
+                "snippet": "Row headers: Beta Mode; Column headers: Setting control; Cell value: Enable output",
+            },
+        ],
+    )
+    results = [
+        {
+            "chunk_id": "mod1-alpha",
+            "source_document_id": "doc-mod1",
+            "content": "Row headers: Alpha Mode; Column headers: Setting control; Cell value: Enable output",
+            "metadata": {"chunk_type": "table_record", "product_model": "MOD1-A"},
+        },
+        {
+            "chunk_id": "mod1-context",
+            "source_document_id": "doc-mod2",
+            "content": "Related settings context.",
+            "metadata": {
+                "chunk_type": "table_record",
+                "product_model": "MOD1-A",
+                "table_row_group_context": (
+                    "Model: MOD1-A; Row headers: Beta Mode; Column headers: Setting control; Cell value: Enable output"
+                ),
+            },
+        },
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is False
+    assert evaluation["missing_evidence"] == [
+        {"chunk_id": "mod2-beta", "matched": False, "rank": None, "overlap_terms": 2}
+    ]
+
+
+def test_multi_step_retrieval_scoring_rejects_cross_chunk_context_role_aggregation():
+    case = RetrievalEvalCase(
+        case_id="c-row-context-cross-chunk",
+        query="What causes link error and which action should be taken?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["link", "cable", "check"],
+        expected_snippet="Error, cause, and corrective action",
+        generation_method="table_sibling_error_cause_action",
+        source_metadata={"product_family": "XG-X Series"},
+        retrieval_task="multi_step_retrieval",
+        expected_source_chunk_ids=["error-cell", "cause-cell", "action-cell"],
+        expected_evidence=[
+            {"chunk_id": "error-cell", "expected_terms": ["link", "error"], "snippet": "Row headers: Link error"},
+            {"chunk_id": "cause-cell", "field": "cause", "expected_terms": ["cable", "disconnected"], "snippet": "Row headers: Link error; Column headers: Cause; Cell value: Cable disconnected"},
+            {"chunk_id": "action-cell", "field": "corrective action", "expected_terms": ["check", "cable"], "snippet": "Row headers: Link error; Column headers: Corrective Action; Cell value: Check the cable"},
+        ],
+    )
+    results = [
+        {
+            "chunk_id": "error-cell",
+            "source_document_id": "doc-xgx",
+            "content": "Column headers: Error Message; Cell value: Link error.",
+            "metadata": {
+                "chunk_type": "table_record",
+                "context_window": "Row headers: Link error; Cause: Cable disconnected.",
+            },
+        },
+        {
+            "chunk_id": "cause-cell",
+            "source_document_id": "doc-xgx",
+            "content": "Cause: Cable disconnected.",
+            "metadata": {
+                "chunk_type": "table_record",
+                "context_window": "Row headers: Different error; Corrective Action: Check the cable.",
+            },
+        },
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is False
+    assert evaluation["missing_evidence"] == [
+        {"chunk_id": "action-cell", "matched": False, "rank": None, "overlap_terms": 2}
+    ]
+
+
+def test_multi_step_retrieval_scoring_accepts_exact_requested_row_group_context():
+    case = RetrievalEvalCase(
+        case_id="c-row-context-exact-code",
+        query="For LJ-S8000 and LJ-X8000, compare ERRC with the T1 Angle 1 MS/AB value.",
+        source_document_id="doc-ljs",
+        document_version_id="ver-ljs",
+        source_chunk_id="ljs-errc",
+        source_title="LJ-S",
+        source_filename="ljs.pdf",
+        chunk_type="table_record",
+        section_path="Measured data",
+        page_from=1,
+        page_to=1,
+        expected_terms=["integer", "digits", "decimal"],
+        expected_snippet="Measured data rows from both manuals",
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={"product_family": "LJ-S8000"},
+        retrieval_task="multi_step_retrieval",
+        expected_source_chunk_ids=["ljs-errc", "ljx-context", "ljx-t1"],
+        expected_evidence=[
+            {
+                "chunk_id": "ljs-errc",
+                "source_document_id": "doc-ljs",
+                "field": "form of measured data",
+                "product_identifiers": ["ljs8000"],
+                "expected_terms": ["integer", "digits"],
+                "snippet": "Row headers: ERRC > Error Code; Column headers: Form of measured data; Cell value: Integer 7 digits",
+            },
+            {
+                "chunk_id": "ljx-t1",
+                "source_document_id": "doc-ljx",
+                "field": "form of measured data",
+                "product_identifiers": ["ljx8000"],
+                "expected_terms": ["integer", "digits", "decimal"],
+                "snippet": "Row headers: T1 > Angle 1 > MS,AB; Column headers: Form of measured data; Cell value: Sign, Integer 3 digits, 3 digits after the decimal point",
+            },
+        ],
+    )
+    results = [
+        {
+            "chunk_id": "ljs-errc",
+            "source_document_id": "doc-ljs",
+            "content": "Column headers: Form of measured data; Row headers: ERRC > Error Code; Cell value: Integer 7 digits",
+            "metadata": {"chunk_type": "table_record", "product_family": "LJ-S8000"},
+        },
+        {
+            "chunk_id": "ljx-context",
+            "source_document_id": "doc-ljx",
+            "content": "Measured-data table context.",
+            "metadata": {
+                "chunk_type": "table_record",
+                "product_family": "LJ-X8000",
+                "table_row_group_context": (
+                    "Column headers: Form of measured data; Row headers: T1 > Angle 1 > MS,AB; "
+                    "Cell value: Sign, Integer 3 digits, 3 digits after the decimal point"
+                ),
+            },
+        },
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is True
+    assert evaluation["match_reason"] == "multi_step_expected_evidence"
+
+
 def test_score_search_results_accepts_cross_document_same_field_equivalent_evidence():
     case = RetrievalEvalCase(
         case_id="c-cross-equivalent",
