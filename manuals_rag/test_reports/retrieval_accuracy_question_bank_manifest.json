@@ -182,43 +182,40 @@
     ]
   },
   "answer_grounding_rotation": {
-    "latest_run": "retrieval_eval_20260901_205536",
-    "classification": "row9_source_reviewed_equivalence_clean_after_timeout_retry",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260901_2038_cross_document_row9_equivalence.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260901_205536.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260901_205536.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260901_205536.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260901_205536.json",
-    "search_mode": "http",
-    "response_mode": "answer_with_citations",
-    "query_offset": 0,
+    "answer_result": "1/1 actual HTTP/API answer grounding passed with fallback_validation; answer_fallback_count 1; no answer failure reasons; elapsed 67.462 seconds under the 180s cap.",
+    "classification": "row10_source_reviewed_clean_visible_citations",
+    "dataset": "test_reports/retrieval_eval_dataset_20260901_212610.jsonl",
+    "diagnostic_runs": {},
+    "latest_run": "retrieval_eval_20260901_212610",
+    "manifest": "test_reports/retrieval_eval_manifest_20260901_212610.json",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_212610.jsonl. The user-visible fallback answer cites SV2 chunk aa013e96 on page 37, whose returned content directly states Symptom monitoring (word) > Supported data types as UINT, INT, UDINT, DINT, and LJ-S8000 chunk aacb725c on page 347, whose returned content directly states Index > UINT with Direction 0 receiving side mapped to Bit area, Fixed byte data area, and CommandParam area. Additional LJ-S8000 context citations 35cb3b67 and 1fe3bd33 have null quote_spans and do not conflict with the required roles. Citation fidelity, evidence citation support, and table-cell binding all passed; no expected role was satisfied from hidden metadata or generated quote text.",
     "max_queries": 1,
+    "production_change": "None. This run changed only progress/manifest tracking and added the loaded HTTP/API row-10 eval artifacts; no production retrieval, answering, eval scoring/generation code, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed.",
+    "query_offset": 9,
+    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 11 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+    "response_mode": "answer_with_citations",
+    "results": "test_reports/retrieval_eval_results_20260901_212610.jsonl",
     "retrieval_result": "1/1 retrieval passed at rank 1; candidate recall 1.0; metadata document-selection recall 1.0.",
-    "answer_result": "1/1 actual HTTP/API answer grounding passed with fallback_validation; answer_fallback_count 1; no answer failure reasons; elapsed 81.883 seconds under the 180s cap.",
-    "diagnostic_runs": {
-      "retrieval_eval_20260901_203350": "Exact row-9 dataset run through loaded API. Candidate recall and metadata document selection passed, but final top-k missed exact expected chunks and answer scoring failed expected_evidence_not_cited, expected_table_cell_binding_missing, and retrieval_not_passed. Manual JSONL inspection showed the user-visible fallback answer cited same-source XG-X SD Card 2 unsupported-card evidence and CV-X row-group evidence that visibly states the edge-detection Max Segments remedy, so this motivated a bounded source-reviewed equivalence dataset but remains not-clean against exact evidence.",
-      "retrieval_eval_20260901_203649": "Source-reviewed equivalence rerun timed out at 120s before retrieval/answer payload, so it remains diagnostic/not-clean."
-    },
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_205536.jsonl. The user-visible fallback answer cites XG-X chunk 1063a1fe on the unsupported SD Card 2 row, whose returned content directly states an unsupported SD card is being used and KEYENCE does not guarantee operation with commercially available non-industrial-rated SD cards. It also cites CV-X chunk 7e7adc82, whose returned content directly binds The edge detection point ends halfway in the region to Increase the Max. Segments. Both quote_spans are null; citation_fidelity, evidence_citation_support, and table_cell_binding passed. No expected role was satisfied from hidden metadata or generated citation quotes.",
     "runtime_load": {
-      "container": "manuals-rag-temp-api-39262386-20260901-row9-retry",
-      "host_url": "http://127.0.0.1:9112",
-      "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
-      "retriever_sha256": "23224235b860340819524ff1dc082cead12be6cfefc3551bc107572b123d01e7",
-      "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
-      "retrieval_eval_sha256": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
-      "score_answer_response_sha256": "15fc1808a355a5993bada9e8fbc17484e227fb7a27934c54e0882efcec244af5",
       "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-      "models": "OLLAMA_URL=http://host.docker.internal:11434; answer qwen3.5:9b; embedding qwen3-embedding:0.6b; metadata tinyllama:1.1b; reranker cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0."
+      "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+      "container": "manuals-rag-temp-api-39262386-20260901-row10-xdoc",
+      "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
+      "host_url": "http://127.0.0.1:9122",
+      "models": "OLLAMA_URL=http://host.docker.internal:11434; answer qwen3.5:9b; embedding qwen3-embedding:0.6b; metadata tinyllama:1.1b; reranker cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0.",
+      "retrieval_eval_sha256": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
+      "retriever_sha256": "23224235b860340819524ff1dc082cead12be6cfefc3551bc107572b123d01e7",
+      "score_answer_response_sha256": "15fc1808a355a5993bada9e8fbc17484e227fb7a27934c54e0882efcec244af5",
+      "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
     },
-    "source_review": "Reused the bounded row-9 source-reviewed equivalence policy: same-source XG-X unsupported-SD-card citation is accepted only when returned visible content directly states unsupported card use and KEYENCE non-guarantee for commercially available non-industrial-rated SD cards; same-source CV-X row-group citation is accepted only when returned visible content directly binds the halfway edge-detection status to Increase the Max. Segments. Sibling SD-card states, other edge-detection remedies, generated quotes, hidden metadata, and cross-document support remain disallowed.",
-    "production_change": "None. This run changed only progress/manifest tracking and added the loaded HTTP/API retry artifacts; no production retrieval, answering, eval scoring/generation code, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed.",
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+    "search_mode": "http",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+    "source_review": "Accepted exact returned citation content only. SV2 support requires the cited content to directly list the symptom-monitoring supported data types including UDINT. LJ-S8000 support requires the cited content to directly bind Index > UINT to Direction 0 receiving-side entries, including Fixed byte data area and CommandParam area. Same-document context, hidden metadata-only support, generated quotes, and sibling rows remain disallowed.",
+    "summary": "test_reports/retrieval_eval_summary_20260901_212610.json",
     "validation": [
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before the retry.",
-      "Clean side API /health returned ok on http://127.0.0.1:9112 and loaded the recorded code fingerprints/model environment from the clean origin/main worktree.",
-      "Actual HTTP/API source-reviewed retry retrieval_eval_20260901_205536: retrieval 1/1 at rank 1; answer 1/1; fallback_validation 1/1; no failure categories.",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before the row-10 run.",
+      "Clean side API /health returned ok on http://127.0.0.1:9122 and loaded the recorded code fingerprints/model environment from the clean origin/main worktree.",
+      "Actual HTTP/API row-10 run retrieval_eval_20260901_212610: retrieval 1/1 at rank 1; answer 1/1; fallback_validation 1/1; no failure categories.",
       "Manual JSONL inspection compared the user-visible answer/citations against every expected evidence role before accepting the run as clean."
     ]
   },
@@ -687,8 +684,6 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
-    "classification": "cross_document_rows_1_9_clean_source_reviewed_visible_citation_content",
-    "answer_grounding_status": "Cross-document rows 1-9 are accepted clean under source-reviewed visible-citation-content scoring. Row 9 was retried with a 180-second per-query cap after the 120-second diagnostic timeout and completed in 81.883 seconds.",
     "accepted_clean_runs": [
       "retrieval_eval_20260901_085649 cross-document row 1",
       "retrieval_eval_20260901_131404 cross-document row 2",
@@ -698,31 +693,43 @@
       "retrieval_eval_20260901_175833 cross-document row 6 source-reviewed visible equivalent citations",
       "retrieval_eval_20260901_190821 cross-document row 7 source-reviewed visible table-cell equivalence",
       "retrieval_eval_20260901_193440 cross-document row 8 source-reviewed visible unsupported-SD equivalent citation",
-      "retrieval_eval_20260901_205536 cross-document row 9 source-reviewed visible equivalent citations"
+      "retrieval_eval_20260901_205536 cross-document row 9 source-reviewed visible equivalent citations",
+      "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations"
     ],
-    "current_retrieval_failures": {},
-    "current_answer_failures": {},
+    "answer_grounding_status": "Cross-document rows 1-10 are accepted clean under source-reviewed visible-citation-content scoring. Row 10 completed under a 180-second per-query cap in 67.462 seconds with exact returned citation content for both required roles.",
     "artifacts": {
+      "row10_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_212610.jsonl",
+      "row10_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_212610.json",
+      "row10_clean_results": "test_reports/retrieval_eval_results_20260901_212610.jsonl",
+      "row10_clean_summary": "test_reports/retrieval_eval_summary_20260901_212610.json",
+      "row9_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_205536.jsonl",
+      "row9_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_205536.json",
+      "row9_clean_results": "test_reports/retrieval_eval_results_20260901_205536.jsonl",
+      "row9_clean_summary": "test_reports/retrieval_eval_summary_20260901_205536.json",
+      "row9_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_2038_cross_document_row9_equivalence.jsonl",
       "row9_exact_diagnostic_dataset": "test_reports/retrieval_eval_dataset_20260901_203350.jsonl",
       "row9_exact_diagnostic_results": "test_reports/retrieval_eval_results_20260901_203350.jsonl",
       "row9_exact_diagnostic_summary": "test_reports/retrieval_eval_summary_20260901_203350.json",
-      "row9_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_2038_cross_document_row9_equivalence.jsonl",
       "row9_timeout_dataset": "test_reports/retrieval_eval_dataset_20260901_203649.jsonl",
       "row9_timeout_results": "test_reports/retrieval_eval_results_20260901_203649.jsonl",
       "row9_timeout_summary": "test_reports/retrieval_eval_summary_20260901_203649.json",
-      "row9_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_205536.jsonl",
-      "row9_clean_results": "test_reports/retrieval_eval_results_20260901_205536.jsonl",
-      "row9_clean_summary": "test_reports/retrieval_eval_summary_20260901_205536.json",
-      "row9_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_205536.json",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl"
     },
     "checks": [
       "Actual HTTP/API exact row-9 run retrieval_eval_20260901_203350 remains diagnostic/not-clean: candidate recall and metadata document-selection recall passed, but final top-k missed exact expected chunks and answer scoring failed expected_evidence_not_cited, expected_table_cell_binding_missing, and retrieval_not_passed.",
       "Actual HTTP/API source-reviewed equivalence rerun retrieval_eval_20260901_203649 timed out at 120s before a user-visible answer payload, so it remains diagnostic/not-clean.",
       "Actual HTTP/API source-reviewed retry retrieval_eval_20260901_205536 completed under a 180s per-query cap in 81.883s and passed retrieval 1/1 at rank 1 plus answer grounding 1/1 with fallback_validation.",
-      "Manual JSONL inspection confirmed the visible fallback answer cites chunk 1063a1fe for XG-X SD Card 2 unsupported-card guarantee text and chunk 7e7adc82 for the CV-X row group containing The edge detection point ends halfway in the region and Increase the Max. Segments; both quote_spans are null and both cited returned content fields directly support the accepted source-reviewed equivalent roles."
+      "Manual JSONL inspection confirmed the visible fallback answer cites chunk 1063a1fe for XG-X SD Card 2 unsupported-card guarantee text and chunk 7e7adc82 for the CV-X row group containing The edge detection point ends halfway in the region and Increase the Max. Segments; both quote_spans are null and both cited returned content fields directly support the accepted source-reviewed equivalent roles.",
+      "Actual HTTP/API row-10 run retrieval_eval_20260901_212610 completed under a 180s per-query cap in 67.462s and passed retrieval 1/1 at rank 1 plus answer grounding 1/1 with fallback_validation.",
+      "Manual JSONL inspection confirmed the visible fallback answer cites chunk aa013e96 for SV2 symptom-monitoring supported data types and chunk aacb725c for LJ-S8000 Index UINT receiving-side Fixed byte data area and CommandParam area; both quote_spans are null and cited returned content directly supports the accepted roles."
     ],
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
+    "classification": "cross_document_rows_1_10_clean_source_reviewed_visible_citation_content",
+    "current_answer_failures": {},
+    "current_retrieval_failures": {},
+    "current_status": "cross_document_rows_1_10_clean_source_reviewed_visible_citations",
+    "latest_clean_run": "retrieval_eval_20260901_212610",
+    "latest_manual_inspection": "Inspected retrieval_eval_results_20260901_212610.jsonl. The user-visible fallback answer cites SV2 chunk aa013e96 on page 37, whose returned content directly states Symptom monitoring (word) > Supported data types as UINT, INT, UDINT, DINT, and LJ-S8000 chunk aacb725c on page 347, whose returned content directly states Index > UINT with Direction 0 receiving side mapped to Bit area, Fixed byte data area, and CommandParam area. Additional LJ-S8000 context citations 35cb3b67 and 1fe3bd33 have null quote_spans and do not conflict with the required roles. Citation fidelity, evidence citation support, and table-cell binding all passed; no expected role was satisfied from hidden metadata or generated quote text.",
+    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 11 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
   },
   "constraints": {
     "allowed_logic": [
@@ -741,10 +748,10 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {},
-  "current_answer_failure_source": "retrieval_eval_20260901_205536 is the current source-reviewed row-9 answer state: 1/1 actual HTTP/API answer grounding passed after manual visible-citation inspection.",
+  "current_answer_failure_source": "Current answer failures are empty after retrieval_eval_20260901_212610 row 10 passed actual HTTP/API answer grounding with manually inspected visible citations; prior diagnostic failures remain historical/excluded evidence.",
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "retrieval_eval_20260901_205536 is the current source-reviewed row-9 retrieval state: 1/1 at rank 1 with no retrieval failures.",
+  "current_retrieval_failure_source": "Current retrieval failures are empty after retrieval_eval_20260901_212610 row 10 passed retrieval at rank 1; prior diagnostic failures remain historical/excluded evidence, not the current retrieval failure source.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -9043,7 +9050,7 @@
       "type": "accepted_clean_run_artifact_presence_guard"
     }
   ],
-  "next_target": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+  "next_target": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 11 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9979,43 +9986,40 @@
       ]
     },
     "answer_grounding_rotation": {
-      "latest_run": "retrieval_eval_20260901_205536",
-      "classification": "row9_source_reviewed_equivalence_clean_after_timeout_retry",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260901_2038_cross_document_row9_equivalence.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260901_205536.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260901_205536.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260901_205536.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260901_205536.json",
-      "search_mode": "http",
-      "response_mode": "answer_with_citations",
-      "query_offset": 0,
+      "answer_result": "1/1 actual HTTP/API answer grounding passed with fallback_validation; answer_fallback_count 1; no answer failure reasons; elapsed 67.462 seconds under the 180s cap.",
+      "classification": "row10_source_reviewed_clean_visible_citations",
+      "dataset": "test_reports/retrieval_eval_dataset_20260901_212610.jsonl",
+      "diagnostic_runs": {},
+      "latest_run": "retrieval_eval_20260901_212610",
+      "manifest": "test_reports/retrieval_eval_manifest_20260901_212610.json",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_212610.jsonl. The user-visible fallback answer cites SV2 chunk aa013e96 on page 37, whose returned content directly states Symptom monitoring (word) > Supported data types as UINT, INT, UDINT, DINT, and LJ-S8000 chunk aacb725c on page 347, whose returned content directly states Index > UINT with Direction 0 receiving side mapped to Bit area, Fixed byte data area, and CommandParam area. Additional LJ-S8000 context citations 35cb3b67 and 1fe3bd33 have null quote_spans and do not conflict with the required roles. Citation fidelity, evidence citation support, and table-cell binding all passed; no expected role was satisfied from hidden metadata or generated quote text.",
       "max_queries": 1,
+      "production_change": "None. This run changed only progress/manifest tracking and added the loaded HTTP/API row-10 eval artifacts; no production retrieval, answering, eval scoring/generation code, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed.",
+      "query_offset": 9,
+      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 11 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+      "response_mode": "answer_with_citations",
+      "results": "test_reports/retrieval_eval_results_20260901_212610.jsonl",
       "retrieval_result": "1/1 retrieval passed at rank 1; candidate recall 1.0; metadata document-selection recall 1.0.",
-      "answer_result": "1/1 actual HTTP/API answer grounding passed with fallback_validation; answer_fallback_count 1; no answer failure reasons; elapsed 81.883 seconds under the 180s cap.",
-      "diagnostic_runs": {
-        "retrieval_eval_20260901_203350": "Exact row-9 dataset run through loaded API. Candidate recall and metadata document selection passed, but final top-k missed exact expected chunks and answer scoring failed expected_evidence_not_cited, expected_table_cell_binding_missing, and retrieval_not_passed. Manual JSONL inspection showed the user-visible fallback answer cited same-source XG-X SD Card 2 unsupported-card evidence and CV-X row-group evidence that visibly states the edge-detection Max Segments remedy, so this motivated a bounded source-reviewed equivalence dataset but remains not-clean against exact evidence.",
-        "retrieval_eval_20260901_203649": "Source-reviewed equivalence rerun timed out at 120s before retrieval/answer payload, so it remains diagnostic/not-clean."
-      },
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_205536.jsonl. The user-visible fallback answer cites XG-X chunk 1063a1fe on the unsupported SD Card 2 row, whose returned content directly states an unsupported SD card is being used and KEYENCE does not guarantee operation with commercially available non-industrial-rated SD cards. It also cites CV-X chunk 7e7adc82, whose returned content directly binds The edge detection point ends halfway in the region to Increase the Max. Segments. Both quote_spans are null; citation_fidelity, evidence_citation_support, and table_cell_binding passed. No expected role was satisfied from hidden metadata or generated citation quotes.",
       "runtime_load": {
-        "container": "manuals-rag-temp-api-39262386-20260901-row9-retry",
-        "host_url": "http://127.0.0.1:9112",
-        "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
-        "retriever_sha256": "23224235b860340819524ff1dc082cead12be6cfefc3551bc107572b123d01e7",
-        "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
-        "retrieval_eval_sha256": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
-        "score_answer_response_sha256": "15fc1808a355a5993bada9e8fbc17484e227fb7a27934c54e0882efcec244af5",
         "_expected_evidence_citation_support_sha256": "dee2528bac1b7b024c8eb3b96d5bfb77a51c8835e98b6ad4f2fb06f4b6fa9cb2",
-        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702",
-        "models": "OLLAMA_URL=http://host.docker.internal:11434; answer qwen3.5:9b; embedding qwen3-embedding:0.6b; metadata tinyllama:1.1b; reranker cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0."
+        "api_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+        "container": "manuals-rag-temp-api-39262386-20260901-row10-xdoc",
+        "generator_sha256": "a5ed091a77a8e3883eea2208bf1672ab9efbded3b791df30db0b11f5f3a98836",
+        "host_url": "http://127.0.0.1:9122",
+        "models": "OLLAMA_URL=http://host.docker.internal:11434; answer qwen3.5:9b; embedding qwen3-embedding:0.6b; metadata tinyllama:1.1b; reranker cross-encoder/ms-marco-MiniLM-L-12-v2 on cuda:0.",
+        "retrieval_eval_sha256": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
+        "retriever_sha256": "23224235b860340819524ff1dc082cead12be6cfefc3551bc107572b123d01e7",
+        "score_answer_response_sha256": "15fc1808a355a5993bada9e8fbc17484e227fb7a27934c54e0882efcec244af5",
+        "validate_answer_sha256": "023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702"
       },
-      "source_review": "Reused the bounded row-9 source-reviewed equivalence policy: same-source XG-X unsupported-SD-card citation is accepted only when returned visible content directly states unsupported card use and KEYENCE non-guarantee for commercially available non-industrial-rated SD cards; same-source CV-X row-group citation is accepted only when returned visible content directly binds the halfway edge-detection status to Increase the Max. Segments. Sibling SD-card states, other edge-detection remedies, generated quotes, hidden metadata, and cross-document support remain disallowed.",
-      "production_change": "None. This run changed only progress/manifest tracking and added the loaded HTTP/API retry artifacts; no production retrieval, answering, eval scoring/generation code, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed.",
-      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+      "search_mode": "http",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
+      "source_review": "Accepted exact returned citation content only. SV2 support requires the cited content to directly list the symptom-monitoring supported data types including UDINT. LJ-S8000 support requires the cited content to directly bind Index > UINT to Direction 0 receiving-side entries, including Fixed byte data area and CommandParam area. Same-document context, hidden metadata-only support, generated quotes, and sibling rows remain disallowed.",
+      "summary": "test_reports/retrieval_eval_summary_20260901_212610.json",
       "validation": [
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before the retry.",
-        "Clean side API /health returned ok on http://127.0.0.1:9112 and loaded the recorded code fingerprints/model environment from the clean origin/main worktree.",
-        "Actual HTTP/API source-reviewed retry retrieval_eval_20260901_205536: retrieval 1/1 at rank 1; answer 1/1; fallback_validation 1/1; no failure categories.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed before the row-10 run.",
+        "Clean side API /health returned ok on http://127.0.0.1:9122 and loaded the recorded code fingerprints/model environment from the clean origin/main worktree.",
+        "Actual HTTP/API row-10 run retrieval_eval_20260901_212610: retrieval 1/1 at rank 1; answer 1/1; fallback_validation 1/1; no failure categories.",
         "Manual JSONL inspection compared the user-visible answer/citations against every expected evidence role before accepting the run as clean."
       ]
     },
@@ -10273,8 +10277,6 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
-      "classification": "cross_document_rows_1_9_clean_source_reviewed_visible_citation_content",
-      "answer_grounding_status": "Cross-document rows 1-9 are accepted clean under source-reviewed visible-citation-content scoring. Row 9 was retried with a 180-second per-query cap after the 120-second diagnostic timeout and completed in 81.883 seconds.",
       "accepted_clean_runs": [
         "retrieval_eval_20260901_085649 cross-document row 1",
         "retrieval_eval_20260901_131404 cross-document row 2",
@@ -10284,37 +10286,49 @@
         "retrieval_eval_20260901_175833 cross-document row 6 source-reviewed visible equivalent citations",
         "retrieval_eval_20260901_190821 cross-document row 7 source-reviewed visible table-cell equivalence",
         "retrieval_eval_20260901_193440 cross-document row 8 source-reviewed visible unsupported-SD equivalent citation",
-        "retrieval_eval_20260901_205536 cross-document row 9 source-reviewed visible equivalent citations"
+        "retrieval_eval_20260901_205536 cross-document row 9 source-reviewed visible equivalent citations",
+        "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations"
       ],
-      "current_retrieval_failures": {},
-      "current_answer_failures": {},
+      "answer_grounding_status": "Cross-document rows 1-10 are accepted clean under source-reviewed visible-citation-content scoring. Row 10 completed under a 180-second per-query cap in 67.462 seconds with exact returned citation content for both required roles.",
       "artifacts": {
+        "row10_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_212610.jsonl",
+        "row10_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_212610.json",
+        "row10_clean_results": "test_reports/retrieval_eval_results_20260901_212610.jsonl",
+        "row10_clean_summary": "test_reports/retrieval_eval_summary_20260901_212610.json",
+        "row9_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_205536.jsonl",
+        "row9_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_205536.json",
+        "row9_clean_results": "test_reports/retrieval_eval_results_20260901_205536.jsonl",
+        "row9_clean_summary": "test_reports/retrieval_eval_summary_20260901_205536.json",
+        "row9_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_2038_cross_document_row9_equivalence.jsonl",
         "row9_exact_diagnostic_dataset": "test_reports/retrieval_eval_dataset_20260901_203350.jsonl",
         "row9_exact_diagnostic_results": "test_reports/retrieval_eval_results_20260901_203350.jsonl",
         "row9_exact_diagnostic_summary": "test_reports/retrieval_eval_summary_20260901_203350.json",
-        "row9_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_2038_cross_document_row9_equivalence.jsonl",
         "row9_timeout_dataset": "test_reports/retrieval_eval_dataset_20260901_203649.jsonl",
         "row9_timeout_results": "test_reports/retrieval_eval_results_20260901_203649.jsonl",
         "row9_timeout_summary": "test_reports/retrieval_eval_summary_20260901_203649.json",
-        "row9_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_205536.jsonl",
-        "row9_clean_results": "test_reports/retrieval_eval_results_20260901_205536.jsonl",
-        "row9_clean_summary": "test_reports/retrieval_eval_summary_20260901_205536.json",
-        "row9_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_205536.json",
         "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl"
       },
       "checks": [
         "Actual HTTP/API exact row-9 run retrieval_eval_20260901_203350 remains diagnostic/not-clean: candidate recall and metadata document-selection recall passed, but final top-k missed exact expected chunks and answer scoring failed expected_evidence_not_cited, expected_table_cell_binding_missing, and retrieval_not_passed.",
         "Actual HTTP/API source-reviewed equivalence rerun retrieval_eval_20260901_203649 timed out at 120s before a user-visible answer payload, so it remains diagnostic/not-clean.",
         "Actual HTTP/API source-reviewed retry retrieval_eval_20260901_205536 completed under a 180s per-query cap in 81.883s and passed retrieval 1/1 at rank 1 plus answer grounding 1/1 with fallback_validation.",
-        "Manual JSONL inspection confirmed the visible fallback answer cites chunk 1063a1fe for XG-X SD Card 2 unsupported-card guarantee text and chunk 7e7adc82 for the CV-X row group containing The edge detection point ends halfway in the region and Increase the Max. Segments; both quote_spans are null and both cited returned content fields directly support the accepted source-reviewed equivalent roles."
+        "Manual JSONL inspection confirmed the visible fallback answer cites chunk 1063a1fe for XG-X SD Card 2 unsupported-card guarantee text and chunk 7e7adc82 for the CV-X row group containing The edge detection point ends halfway in the region and Increase the Max. Segments; both quote_spans are null and both cited returned content fields directly support the accepted source-reviewed equivalent roles.",
+        "Actual HTTP/API row-10 run retrieval_eval_20260901_212610 completed under a 180s per-query cap in 67.462s and passed retrieval 1/1 at rank 1 plus answer grounding 1/1 with fallback_validation.",
+        "Manual JSONL inspection confirmed the visible fallback answer cites chunk aa013e96 for SV2 symptom-monitoring supported data types and chunk aacb725c for LJ-S8000 Index UINT receiving-side Fixed byte data area and CommandParam area; both quote_spans are null and cited returned content directly supports the accepted roles."
       ],
-      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
+      "classification": "cross_document_rows_1_10_clean_source_reviewed_visible_citation_content",
+      "current_answer_failures": {},
+      "current_retrieval_failures": {},
+      "current_status": "cross_document_rows_1_10_clean_source_reviewed_visible_citations",
+      "latest_clean_run": "retrieval_eval_20260901_212610",
+      "latest_manual_inspection": "Inspected retrieval_eval_results_20260901_212610.jsonl. The user-visible fallback answer cites SV2 chunk aa013e96 on page 37, whose returned content directly states Symptom monitoring (word) > Supported data types as UINT, INT, UDINT, DINT, and LJ-S8000 chunk aacb725c on page 347, whose returned content directly states Index > UINT with Direction 0 receiving side mapped to Bit area, Fixed byte data area, and CommandParam area. Additional LJ-S8000 context citations 35cb3b67 and 1fe3bd33 have null quote_spans and do not conflict with the required roles. Citation fidelity, evidence citation support, and table-cell binding all passed; no expected role was satisfied from hidden metadata or generated quote text.",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 11 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
     },
     "current_answer_failure_categories": {},
-    "current_answer_failure_source": "retrieval_eval_20260901_205536 is the current source-reviewed row-9 answer state: 1/1 actual HTTP/API answer grounding passed after manual visible-citation inspection.",
+    "current_answer_failure_source": "Current answer failures are empty after retrieval_eval_20260901_212610 row 10 passed actual HTTP/API answer grounding with manually inspected visible citations; prior diagnostic failures remain historical/excluded evidence.",
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "retrieval_eval_20260901_205536 is the current source-reviewed row-9 retrieval state: 1/1 at rank 1 with no retrieval failures.",
+    "current_retrieval_failure_source": "Current retrieval failures are empty after retrieval_eval_20260901_212610 row 10 passed retrieval at rank 1; prior diagnostic failures remain historical/excluded evidence, not the current retrieval failure source.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12575,7 +12589,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+    "next_target": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 11 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12612,7 +12626,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+    "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 11 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13346,29 +13360,42 @@
         "timestamp": "2026-09-01T19:40:00Z"
       },
       {
-        "run_id": "retrieval_eval_20260901_203350",
-        "reason": "diagnostic_not_clean_row9_exact_dataset_visible_equivalent_chunks_but_exact_expected_evidence_not_cited"
+        "reason": "diagnostic_not_clean_row9_exact_dataset_visible_equivalent_chunks_but_exact_expected_evidence_not_cited",
+        "run_id": "retrieval_eval_20260901_203350"
       },
       {
-        "run_id": "retrieval_eval_20260901_203649",
-        "reason": "diagnostic_not_clean_row9_source_reviewed_equivalence_timeout_no_answer_payload"
+        "reason": "diagnostic_not_clean_row9_source_reviewed_equivalence_timeout_no_answer_payload",
+        "run_id": "retrieval_eval_20260901_203649"
       }
     ],
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
       {
-        "timestamp": "2026-09-01T20:59:00Z",
-        "severity": "watch",
-        "status": "addressed_this_run_row9_clean_source_reviewed_visible_equivalence_timeout_retry",
-        "finding": "Curated cross-document v2 row 9 previously had source-reviewed equivalent evidence but the actual HTTP/API equivalence rerun timed out at 120s, leaving current retrieval and answer failures at eval_timeout: 1.",
+        "addressed_this_run": "Ran row 10 through a clean loaded side API, accepted only returned visible citation content, and manually inspected the saved JSONL answer/citations before marking it clean.",
+        "evidence": [
+          "retrieval_eval_20260901_212610 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with fallback_validation in 67.462 seconds.",
+          "Manual JSONL inspection confirmed cited chunks aa013e96 and aacb725c directly support the SV2 supported-data-types and LJ-S8000 Index UINT details from returned content with null quote_spans.",
+          "Telemetry is consistent: answer_source fallback_validation, used_fallback true, answer_fallback_count 1, and no answer failure reasons."
+        ],
+        "finding": "Guardrail and progress state after row 9 required continuing broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10.",
+        "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 11 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+        "severity": "ok",
+        "status": "followed_up_this_run_row10_clean_source_reviewed_visible_citations",
+        "timestamp": "2026-09-01T21:29:00Z"
+      },
+      {
         "addressed_this_run": "Retried row 9 through a clean loaded side API with a 180s per-query cap, accepted only returned visible citation content, and manually inspected the saved JSONL answer/citations before marking it clean.",
         "evidence": [
           "retrieval_eval_20260901_205536 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with fallback_validation in 81.883 seconds.",
           "Manual JSONL inspection confirmed cited chunks 1063a1fe and 7e7adc82 directly support the XG-X unsupported-card guarantee and CV-X Max Segments corrective-action roles from returned content with null quote_spans.",
           "retrieval_eval_20260901_203350 and retrieval_eval_20260901_203649 remain diagnostic/not-clean exclusions."
         ],
-        "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
+        "finding": "Curated cross-document v2 row 9 previously had source-reviewed equivalent evidence but the actual HTTP/API equivalence rerun timed out at 120s, leaving current retrieval and answer failures at eval_timeout: 1.",
+        "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+        "severity": "watch",
+        "status": "addressed_this_run_row9_clean_source_reviewed_visible_equivalence_timeout_retry",
+        "timestamp": "2026-09-01T20:59:00Z"
       },
       {
         "addressed_this_run": "Added row-8 source-reviewed equivalent-citation annotations for the XG-X unsupported SD-card guidance, patched eval table-cell binding to use the declared equivalent_snippet only after same-document visible cited content supports it, reran actual HTTP/API row 8, and manually inspected visible answer/citations.",
@@ -14587,9 +14614,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T20:59:00Z"
+    "updated_at": "2026-09-01T21:29:00Z"
   },
-  "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+  "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 11 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -15323,28 +15350,41 @@
       "timestamp": "2026-09-01T19:40:00Z"
     },
     {
-      "run_id": "retrieval_eval_20260901_203350",
-      "reason": "diagnostic_not_clean_row9_exact_dataset_visible_equivalent_chunks_but_exact_expected_evidence_not_cited"
+      "reason": "diagnostic_not_clean_row9_exact_dataset_visible_equivalent_chunks_but_exact_expected_evidence_not_cited",
+      "run_id": "retrieval_eval_20260901_203350"
     },
     {
-      "run_id": "retrieval_eval_20260901_203649",
-      "reason": "diagnostic_not_clean_row9_source_reviewed_equivalence_timeout_no_answer_payload"
+      "reason": "diagnostic_not_clean_row9_source_reviewed_equivalence_timeout_no_answer_payload",
+      "run_id": "retrieval_eval_20260901_203649"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
     {
-      "timestamp": "2026-09-01T20:59:00Z",
-      "severity": "watch",
-      "status": "addressed_this_run_row9_clean_source_reviewed_visible_equivalence_timeout_retry",
-      "finding": "Curated cross-document v2 row 9 previously had source-reviewed equivalent evidence but the actual HTTP/API equivalence rerun timed out at 120s, leaving current retrieval and answer failures at eval_timeout: 1.",
+      "addressed_this_run": "Ran row 10 through a clean loaded side API, accepted only returned visible citation content, and manually inspected the saved JSONL answer/citations before marking it clean.",
+      "evidence": [
+        "retrieval_eval_20260901_212610 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with fallback_validation in 67.462 seconds.",
+        "Manual JSONL inspection confirmed cited chunks aa013e96 and aacb725c directly support the SV2 supported-data-types and LJ-S8000 Index UINT details from returned content with null quote_spans.",
+        "Telemetry is consistent: answer_source fallback_validation, used_fallback true, answer_fallback_count 1, and no answer failure reasons."
+      ],
+      "finding": "Guardrail and progress state after row 9 required continuing broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10.",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 11 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+      "severity": "ok",
+      "status": "followed_up_this_run_row10_clean_source_reviewed_visible_citations",
+      "timestamp": "2026-09-01T21:29:00Z"
+    },
+    {
       "addressed_this_run": "Retried row 9 through a clean loaded side API with a 180s per-query cap, accepted only returned visible citation content, and manually inspected the saved JSONL answer/citations before marking it clean.",
       "evidence": [
         "retrieval_eval_20260901_205536 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with fallback_validation in 81.883 seconds.",
         "Manual JSONL inspection confirmed cited chunks 1063a1fe and 7e7adc82 directly support the XG-X unsupported-card guarantee and CV-X Max Segments corrective-action roles from returned content with null quote_spans.",
         "retrieval_eval_20260901_203350 and retrieval_eval_20260901_203649 remain diagnostic/not-clean exclusions."
       ],
-      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
+      "finding": "Curated cross-document v2 row 9 previously had source-reviewed equivalent evidence but the actual HTTP/API equivalence rerun timed out at 120s, leaving current retrieval and answer failures at eval_timeout: 1.",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage from curated cross-document v2 row 10 or the next validated unresolved slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+      "severity": "watch",
+      "status": "addressed_this_run_row9_clean_source_reviewed_visible_equivalence_timeout_retry",
+      "timestamp": "2026-09-01T20:59:00Z"
     },
     {
       "addressed_this_run": "Added row-8 source-reviewed equivalent-citation annotations for the XG-X unsupported SD-card guidance, patched eval table-cell binding to use the declared equivalent_snippet only after same-document visible cited content supports it, reran actual HTTP/API row 8, and manually inspected visible answer/citations.",
@@ -16563,5 +16603,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T20:59:00Z"
+  "updated_at": "2026-09-01T21:29:00Z"
 }
