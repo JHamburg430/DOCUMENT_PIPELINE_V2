@@ -3057,6 +3057,7 @@ def _answer_table_cell_binding_snippets(
             continue
         if item.get("allow_equivalent_citation"):
             expected_document_id = str(item.get("source_document_id") or item.get("document_id") or "")
+            equivalent_snippet = str(item.get("equivalent_snippet") or "")
             for citation in answer.get("citations") or []:
                 if not isinstance(citation, dict):
                     continue
@@ -3068,10 +3069,11 @@ def _answer_table_cell_binding_snippets(
                     and expected_document_id
                     and cited_document_id == expected_document_id
                     and _expected_evidence_supported_by_cited_text(item, cited_text)
-                    and "Cell value:" in cited_text
-                    and "Row headers:" in cited_text
                 ):
-                    snippets.append(cited_text)
+                    if "Cell value:" in cited_text and "Row headers:" in cited_text:
+                        snippets.append(cited_text)
+                    elif "Cell value:" in equivalent_snippet and "Row headers:" in equivalent_snippet:
+                        snippets.append(equivalent_snippet)
                     break
             else:
                 snippets.append(snippet)

@@ -2394,6 +2394,106 @@ def test_answer_response_scoring_accepts_source_reviewed_equivalent_table_cell_l
     assert scored["table_cell_binding"]["passed"] is True
 
 
+def test_answer_response_scoring_uses_equivalent_snippet_for_unstructured_visible_binding():
+    case = RetrievalEvalCase(
+        case_id="answer-equivalent-unstructured-visible-table-binding",
+        query=(
+            "Compare the corrective action for unstable gray-binary inspection on MODEL-A "
+            "with MODEL-B guidance for an unsupported SD card access failure."
+        ),
+        source_document_id="doc-a",
+        document_version_id="ver-a",
+        source_chunk_id="color-binary-cell",
+        source_title="A",
+        source_filename="a.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["color", "binary", "keyence", "guarantee", "commercially"],
+        expected_snippet=(
+            "Column headers: Corrective action; Row headers: Inspection is not stable in gray binary.; "
+            "Cell value: Select Color to Binary in Extract Colors. | "
+            "Column headers: Corrective Action; Row headers: Failed to access SD Card 1. > "
+            "An unsupported SD card is being used.; Cell value: KEYENCE does not guarantee operation "
+            "with commercially available cards."
+        ),
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "color-binary-cell",
+                "source_document_id": "doc-a",
+                "expected_terms": ["color", "binary", "extract"],
+                "snippet": (
+                    "Column headers: Corrective action; Row headers: Inspection is not stable in gray binary.; "
+                    "Cell value: Select Color to Binary in Extract Colors."
+                ),
+            },
+            {
+                "chunk_id": "unsupported-card-atomic",
+                "source_document_id": "doc-b",
+                "allow_equivalent_citation": True,
+                "expected_terms": ["keyence", "guarantee", "operation", "commercially"],
+                "snippet": (
+                    "Column headers: Corrective Action; Row headers: Failed to access SD Card 1. > "
+                    "An unsupported SD card is being used.; Cell value: KEYENCE does not guarantee "
+                    "operation with commercially available cards."
+                ),
+                "equivalent_snippet": (
+                    "Column headers: Corrective Action; Row headers: An unsupported SD card is being used.; "
+                    "Cell value: KEYENCE does not guarantee operation with commercially available "
+                    "(non-industrial rated) SD cards."
+                ),
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "Retrieved evidence:\n"
+                "- MODEL-A: Column headers: Corrective action; Row headers: Inspection is not stable "
+                "in gray binary.; Cell value: Select Color to Binary in Extract Colors.\n"
+                "- MODEL-B: An unsupported SD card is being used. | KEYENCE does not guarantee operation "
+                "with commercially available (non-industrial rated) SD cards."
+            ),
+            "citations": [
+                {"document_id": "doc-a", "chunk_id": "color-binary-cell", "quote_span": None},
+                {"document_id": "doc-b", "chunk_id": "unsupported-card-row-group", "quote_span": None},
+            ],
+            "used_documents": [{"document_id": "doc-a"}, {"document_id": "doc-b"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "color-binary-cell",
+                "source_document_id": "doc-a",
+                "content": (
+                    "Column headers: Corrective action; Row headers: Inspection is not stable in gray binary.; "
+                    "Cell value: Select Color to Binary in Extract Colors."
+                ),
+            },
+            {
+                "chunk_id": "unsupported-card-row-group",
+                "source_document_id": "doc-b",
+                "content": (
+                    "Corrective Action: An unsupported SD card is being used. | "
+                    "KEYENCE does not guarantee operation "
+                    "with commercially available (non-industrial rated) SD cards."
+                ),
+            },
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert scored["evidence_citation_support"]["passed"] is True
+    assert scored["table_cell_binding"]["passed"] is True
+
+
 def test_answer_response_scoring_rejects_equivalent_citation_without_direct_source_support():
     case = RetrievalEvalCase(
         case_id="answer-equivalent-citation-source-reviewed-snippet-negative",
