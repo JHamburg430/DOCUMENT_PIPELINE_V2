@@ -1,5 +1,14 @@
 # Retrieval Accuracy Guardrail Findings
 
+## 2026-09-01T09:10:51Z Guardrail Review
+
+- Reviewed accuracy job: `39262386-1bb6-4571-98e1-13a30047ddb8`
+- Reviewed commits/runs: `0395454..f82c3d8`, specifically accuracy commit `f82c3d8` (`Record cross-document row 1 source equivalence`) and audited run `retrieval_eval_20260901_085649`. Direct audited cron history showed the latest run committed and pushed `f82c3d8`; direct guardrail cron history showed the prior guardrail review was `ok` for accuracy commit `7933caf`, with guardrail commit `0395454`.
+- Severity: `ok`
+- Finding: no new counterproductive or biased committed accuracy change found. The reviewed accuracy commit adds a row-1 source-equivalence dataset plus eval artifacts and updates only progress/manifest tracking. It claims one clean answer-mode case, keeps row 2 and the combined rows 1-2 run diagnostic/not-clean, and makes no committed production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, embedding, or reranker logic change.
+- Evidence: `git show --name-status f82c3d8` lists only progress/manifest files and new `retrieval_eval_20260901_085649` artifacts. Manual JSONL inspection of `retrieval_eval_results_20260901_085649` confirmed the user-visible fallback answer cites VS row-group chunk `8b5d174c` and IV-H exact chunk `1ddc77c5`, both with `quote_span: null`; the cited returned content directly supports the two expected cause roles: VS Pattern Data error `20503` invalid file-format cause and IV-HG500CA startup memory-read cause. The source-equivalence dataset limits the VS equivalent citation to same-source row-group content that directly contains the Pattern Data invalid-format cause, without accepting answer-text-only or cross-document support. Manifest root and `question_bank` copies agree for `updated_at`, `next_target`, retrieval/answer failure aliases, `answer_grounding_status`, `answer_grounding_rotation`, `run_exclusions`, and unresolved findings; `retrieval_eval_20260901_075734` and `retrieval_eval_20260901_083606` are durably excluded/diagnostic. `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py`, manifest JSON parsing, and `git diff --check HEAD` passed in a clean detached `origin/main` worktree. The primary checkout remains stale/dirty with unrelated UI/retrieval/eval/test/compose changes and historical artifact deletions; inspected committed diffs do not attribute those dirty changes to this accuracy commit.
+- Required next action: continue curated cross-document v2 row 2 answer evidence selection only after loaded-runtime proof, actual API changed-path evidence, and JSONL citation inspection. No cron pause or disable was needed.
+
 ## 2026-09-01T04:46:00Z Guardrail Review
 
 - Reviewed accuracy job: `39262386-1bb6-4571-98e1-13a30047ddb8`
