@@ -3418,9 +3418,10 @@ def _evidence_role_segments(text: str) -> list[list[str]]:
 
 
 def _expected_evidence_binding_check(item: dict[str, Any], cited_text: str) -> dict[str, Any]:
+    snippet_text = str(item.get("snippet") or "")
     source_text = " ".join(
         str(value)
-        for value in [item.get("snippet"), " ".join(str(term) for term in item.get("expected_terms") or [])]
+        for value in [snippet_text, " ".join(str(term) for term in item.get("expected_terms") or [])]
         if value
     )
     cited_lower = cited_text.lower()
@@ -3438,7 +3439,7 @@ def _expected_evidence_binding_check(item: dict[str, Any], cited_text: str) -> d
     ]
     relation_errors = [
         relation
-        for relation in _role_value_relations(source_text)
+        for relation in _role_value_relations(snippet_text)
         if not _role_value_relation_matches(relation, cited_text)
     ]
     return {
@@ -3501,36 +3502,42 @@ def _role_value_relations(text: str) -> list[tuple[str, str]]:
         rf"\b(?P<role>{role_pattern})\s+(?:is|are|was|were|to|:)\s+(?P<value>{value_pattern})\b",
         rf"\b(?P<role>{role_pattern})\s+(?P<value>{value_pattern})\b",
     ]
-    for pattern in patterns:
-        for match in re.finditer(pattern, normalized, flags=re.I):
-            role = normalize_text(match.group("role"))
-            value = normalize_text(match.group("value"))
-            role_tokens = [
-                token
-                for token in tokenize(role)
-                if token not in STOPWORDS and token not in GENERIC_ANCHORS and token not in ANSWER_SCORING_GENERIC_TERMS
-            ]
-            if "number" in role_tokens:
-                number_index = role_tokens.index("number")
-                narrowed_role_tokens = [token for token in role_tokens[number_index + 1 :] if token != "of"]
-                if narrowed_role_tokens:
-                    role_tokens = narrowed_role_tokens
-            if "of" in role_tokens:
-                of_index = role_tokens.index("of")
-                narrowed_role_tokens = role_tokens[of_index + 1 :]
-                if narrowed_role_tokens:
-                    role_tokens = narrowed_role_tokens
-            role_tokens = [token for token in role_tokens if token != "of"]
-            if not role_tokens or not value:
-                continue
-            if any(any(char.isdigit() for char in token) for token in role_tokens):
-                continue
-            if not set(role_tokens).intersection(ANSWER_SCORING_QUANTITY_RELATION_ROLE_TERMS):
-                continue
-            role_phrase = " ".join(role_tokens[-3:])
-            relation = (role_phrase, value)
-            if relation not in relations:
-                relations.append(relation)
+    clauses = [
+        clause.strip()
+        for clause in re.split(r"(?<=[.!?;])\s+|\s+\band\b\s+|[;,]", normalized, flags=re.I)
+        if clause.strip()
+    ]
+    for clause in clauses:
+        for pattern in patterns:
+            for match in re.finditer(pattern, clause, flags=re.I):
+                role = normalize_text(match.group("role"))
+                value = normalize_text(match.group("value"))
+                role_tokens = [
+                    token
+                    for token in tokenize(role)
+                    if token not in STOPWORDS and token not in GENERIC_ANCHORS and token not in ANSWER_SCORING_GENERIC_TERMS
+                ]
+                if "number" in role_tokens:
+                    number_index = role_tokens.index("number")
+                    narrowed_role_tokens = [token for token in role_tokens[number_index + 1 :] if token != "of"]
+                    if narrowed_role_tokens:
+                        role_tokens = narrowed_role_tokens
+                if "of" in role_tokens:
+                    of_index = role_tokens.index("of")
+                    narrowed_role_tokens = role_tokens[of_index + 1 :]
+                    if narrowed_role_tokens:
+                        role_tokens = narrowed_role_tokens
+                role_tokens = [token for token in role_tokens if token != "of"]
+                if not role_tokens or not value:
+                    continue
+                if any(any(char.isdigit() for char in token) for token in role_tokens):
+                    continue
+                if not set(role_tokens).intersection(ANSWER_SCORING_QUANTITY_RELATION_ROLE_TERMS):
+                    continue
+                role_phrase = " ".join(role_tokens[-3:])
+                relation = (role_phrase, value)
+                if relation not in relations:
+                    relations.append(relation)
     return relations
 
 

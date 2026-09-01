@@ -3255,6 +3255,41 @@ def test_table_preferred_lookup_promotion_preserves_top_lexical_row_after_rerank
     assert promoted[1].chunk_id == "broad-cyclic-details"
 
 
+def test_safety_lookup_does_not_promote_numeric_table_rows_over_warning_evidence():
+    analysis = analyze_query(
+        "What is the XG-X warning when the output limiter is off and light intensity is 512 or higher?"
+    )
+    warning = SearchResult(
+        chunk_id="limit-output-warning",
+        score=0.8,
+        title="XG-X manual",
+        document_version_id="ver-1",
+        source_document_id="doc-xgx",
+        pages=[84],
+        section_path=["Light settings"],
+        content=(
+            "When the [Limit Output] is [OFF] and the intensity is set to 512 or higher, "
+            "be careful not to damage the light through excessive heat generation."
+        ),
+        metadata={"chunk_type": "atomic_text"},
+    )
+    unrelated_table = SearchResult(
+        chunk_id="camera-output-pixels",
+        score=5.0,
+        title="VS manual",
+        document_version_id="ver-2",
+        source_document_id="doc-vs",
+        pages=[26],
+        section_path=["Specifications"],
+        content="Column headers: VS-C2500M/CX; Row headers: Output image pixels; Cell value: 5120 x 5120",
+        metadata={"chunk_type": "table_record", "table_cell": True},
+    )
+
+    promoted = retriever._promote_structured_table_candidates([warning], [unrelated_table], analysis, limit=12)
+
+    assert promoted == [warning]
+
+
 def test_table_score_prefers_single_signal_description_cell_over_aggregate_function_row():
     analysis = retriever.analyze_query("Which CV-X482 output line corresponds to data output bit 10?")
     terms = retriever._lexical_table_terms(analysis.raw_query, analysis)

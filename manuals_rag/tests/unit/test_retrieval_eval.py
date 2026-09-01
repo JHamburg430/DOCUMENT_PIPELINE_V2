@@ -2199,6 +2199,77 @@ def test_answer_response_scoring_accepts_same_document_equivalent_citation():
     assert scored["evidence_citation_support"]["passed"] is True
 
 
+def test_answer_response_scoring_accepts_equivalent_warning_with_conjoined_setting_state():
+    case = RetrievalEvalCase(
+        case_id="answer-equivalent-warning-conjoined-state",
+        query="What warning applies when the output limiter is off and light intensity is 512 or higher?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="atomic-warning",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="atomic_text",
+        section_path="Light settings",
+        page_from=84,
+        page_to=84,
+        expected_terms=["512", "damage", "light", "heat"],
+        expected_snippet=(
+            "When the [Limit Output] is [OFF] and the intensity is set to 512 or higher, "
+            "be careful not to damage the light through excessive heat generation."
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_family": "XG-X Series"},
+        retrieval_task="single_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "atomic-warning",
+                "source_document_id": "doc-xgx",
+                "allow_equivalent_citation": True,
+                "expected_terms": [
+                    "limit output",
+                    "off",
+                    "intensity",
+                    "512",
+                    "damage",
+                    "light",
+                    "excessive heat generation",
+                ],
+                "snippet": (
+                    "When the [Limit Output] is [OFF] and the intensity is set to 512 or higher, "
+                    "be careful not to damage the light through excessive heat generation."
+                ),
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "When Limit Output is OFF and intensity is set to 512 or higher, "
+                "be careful not to damage the light through excessive heat generation."
+            ),
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "section-window", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-xgx"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "section-window",
+                "source_document_id": "doc-xgx",
+                "content": (
+                    "When the [Limit Output] is [OFF] and the intensity is set to 512 or higher, "
+                    "be careful not to damage the light through excessive heat generation."
+                ),
+            }
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert scored["evidence_citation_support"]["passed"] is True
+
+
 def test_answer_response_scoring_accepts_same_document_section_window_for_atomic_roles():
     case = RetrievalEvalCase(
         case_id="answer-equivalent-section-window",

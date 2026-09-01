@@ -2489,7 +2489,12 @@ def _promote_structured_table_candidates(
         or "table_record" in analysis.preferred_chunk_types
         or _is_natural_quantity_table_lookup(analysis.raw_query, analysis)
     )
-    if not table_lookup or "comparison" in analysis.query_types or not supplemental_results:
+    if (
+        not table_lookup
+        or analysis.safety_intent
+        or "comparison" in analysis.query_types
+        or not supplemental_results
+    ):
         return primary_results
     candidates = [
         result
