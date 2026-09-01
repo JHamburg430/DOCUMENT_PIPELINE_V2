@@ -2950,8 +2950,37 @@ def _answer_contains_expected_terms(
     }
 
 
-def _answer_preserves_expected_table_cell_binding(case: RetrievalEvalCase, answer: dict[str, Any]) -> dict[str, Any]:
-    snippet = str(case.expected_snippet or "")
+def _answer_preserves_expected_table_cell_binding(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+    retrieved_results: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    snippets = _answer_table_cell_binding_snippets(case, answer, retrieved_results)
+    if not snippets:
+        return {"checked": False, "passed": True, "missing_bindings": []}
+    missing_bindings: list[dict[str, Any]] = []
+    checked = False
+    for snippet in snippets:
+        binding = _answer_preserves_table_cell_binding_for_snippet(case, answer, snippet)
+        if not binding.get("checked"):
+            continue
+        checked = True
+        if not binding.get("passed"):
+            missing_bindings.extend(binding.get("missing_bindings") or [])
+    if not checked:
+        return {"checked": False, "passed": True, "missing_bindings": []}
+    return {
+        "checked": True,
+        "passed": not missing_bindings,
+        "missing_bindings": missing_bindings,
+    }
+
+
+def _answer_preserves_table_cell_binding_for_snippet(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+    snippet: str,
+) -> dict[str, Any]:
     if "Cell value:" not in snippet or "Row headers:" not in snippet:
         return {"checked": False, "passed": True, "missing_bindings": []}
     cell_match = re.search(r"Cell value:\s*([^;]+)", snippet, flags=re.I)
@@ -3002,6 +3031,53 @@ def _answer_preserves_expected_table_cell_binding(case: RetrievalEvalCase, answe
             }
         ],
     }
+
+
+def _answer_table_cell_binding_snippets(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+    retrieved_results: list[dict[str, Any]] | None,
+) -> list[str]:
+    expected_items = [item for item in case.expected_evidence or [] if isinstance(item, dict)]
+    item_snippets = [
+        str(item.get("snippet") or "")
+        for item in expected_items
+        if "Cell value:" in str(item.get("snippet") or "")
+        and "Row headers:" in str(item.get("snippet") or "")
+    ]
+    if not item_snippets:
+        snippet = str(case.expected_snippet or "")
+        return [snippet] if "Cell value:" in snippet and "Row headers:" in snippet else []
+    chunk_texts = _retrieved_chunk_texts(retrieved_results)
+    chunk_document_ids = _retrieved_chunk_document_ids(retrieved_results)
+    snippets: list[str] = []
+    for item in expected_items:
+        snippet = str(item.get("snippet") or "")
+        if "Cell value:" not in snippet or "Row headers:" not in snippet:
+            continue
+        if item.get("allow_equivalent_citation"):
+            expected_document_id = str(item.get("source_document_id") or item.get("document_id") or "")
+            for citation in answer.get("citations") or []:
+                if not isinstance(citation, dict):
+                    continue
+                cited_chunk_id = str(citation.get("chunk_id") or "")
+                cited_document_id = _citation_document_id(citation) or chunk_document_ids.get(cited_chunk_id, "")
+                cited_text = chunk_texts.get(cited_chunk_id, "")
+                if (
+                    cited_text
+                    and expected_document_id
+                    and cited_document_id == expected_document_id
+                    and _expected_evidence_supported_by_cited_text(item, cited_text)
+                    and "Cell value:" in cited_text
+                    and "Row headers:" in cited_text
+                ):
+                    snippets.append(cited_text)
+                    break
+            else:
+                snippets.append(snippet)
+        else:
+            snippets.append(snippet)
+    return snippets
 
 
 def _table_cell_binding_segment_supported(row_header: str, cell_value: str, answer_segment: str, query: str = "") -> bool:
@@ -3433,7 +3509,19 @@ def _citation_document_id(citation: dict[str, Any]) -> str:
     return str(citation.get("document_id") or citation.get("source_document_id") or "")
 
 
+def _equivalent_citation_item(item: dict[str, Any]) -> dict[str, Any]:
+    if not item.get("allow_equivalent_citation"):
+        return item
+    equivalent_snippet = str(item.get("equivalent_snippet") or "").strip()
+    if not equivalent_snippet:
+        return item
+    equivalent_item = dict(item)
+    equivalent_item["snippet"] = equivalent_snippet
+    return equivalent_item
+
+
 def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text: str) -> bool:
+    item = _equivalent_citation_item(item)
     text_lower = cited_text.lower()
     text_tokens = set(tokenize(text_lower))
     binding_check = _expected_evidence_binding_check(item, cited_text)
@@ -3918,7 +4006,7 @@ def score_answer_response(
             llm_required_info = {"checked": False, "error": f"{exc.__class__.__name__}: {exc}"}
     citation_fidelity = _answer_citation_fidelity(answer, retrieved_results)
     evidence_citation_support = _expected_evidence_citation_support(case, answer, retrieved_results)
-    table_cell_binding = _answer_preserves_expected_table_cell_binding(case, answer)
+    table_cell_binding = _answer_preserves_expected_table_cell_binding(case, answer, retrieved_results)
     answer_text = str(answer.get("answer") or "").strip()
     passed = bool(
         answer_text

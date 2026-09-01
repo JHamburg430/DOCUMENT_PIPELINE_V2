@@ -2199,6 +2199,171 @@ def test_answer_response_scoring_accepts_same_document_equivalent_citation():
     assert scored["evidence_citation_support"]["passed"] is True
 
 
+def test_answer_response_scoring_accepts_source_reviewed_equivalent_citation_snippet():
+    case = RetrievalEvalCase(
+        case_id="answer-equivalent-citation-source-reviewed-snippet",
+        query=(
+            "For IV-HG500CA, what cause is listed when the sensor program is damaged, "
+            "and how does that differ from the IV4-G600CA startup memory read error cause?"
+        ),
+        source_document_id="doc-ivh",
+        document_version_id="ver-ivh",
+        source_chunk_id="ivh-cause",
+        source_title="IV-H",
+        source_filename="ivh.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=406,
+        page_to=532,
+        expected_terms=["memory", "error", "sensor", "startup"],
+        expected_snippet=(
+            "Column headers: Cause; Row headers: Sensor program damaged. Initialization necessary. "
+            "Cell value: A memory read error occurred when the sensor started. | "
+            "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
+            "A data abnormality occurred due to noise or because the power switched OFF while writing"
+        ),
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "ivh-cause",
+                "source_document_id": "doc-ivh",
+                "expected_terms": ["memory", "error", "sensor"],
+                "snippet": (
+                    "Column headers: Cause; Row headers: Sensor program damaged. Initialization necessary. "
+                    "Cell value: A memory read error occurred when the sensor started."
+                ),
+            },
+            {
+                "chunk_id": "iv4-atomic-cause",
+                "source_document_id": "doc-iv4",
+                "allow_equivalent_citation": True,
+                "expected_terms": ["startup", "memory", "error", "occurred"],
+                "snippet": (
+                    "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
+                    "A data abnormality occurred due to noise or because the power switched OFF while writing"
+                ),
+                "equivalent_snippet": (
+                    "Column headers: Cause; Row headers: Failed to read nonvolatile memory at sensor startup. "
+                    "Cell value: A memory read error occurred when the sensor started. "
+                    "A data error occurred. It is possible that the power was switched OFF during writing, "
+                    "or noise was picked up."
+                ),
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "Retrieved evidence:\n"
+                "- IV-H, page 406: Column headers: Cause; Row headers: Sensor program damaged. "
+                "Initialization necessary.; Cell value: A memory read error occurred when the sensor started.\n"
+                "- IV4, page 532: Column headers: Cause; Row headers: Failed to read nonvolatile memory "
+                "at sensor startup.; Cell value: A memory read error occurred when the sensor started. "
+                "A data error occurred. It is possible that the power was switched OFF during writing, "
+                "or noise was picked up."
+            ),
+            "citations": [
+                {"document_id": "doc-ivh", "chunk_id": "ivh-cause", "quote_span": None},
+                {"document_id": "doc-iv4", "chunk_id": "iv4-row-group", "quote_span": None},
+            ],
+            "used_documents": [{"document_id": "doc-ivh"}, {"document_id": "doc-iv4"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "ivh-cause",
+                "source_document_id": "doc-ivh",
+                "content": (
+                    "Column headers: Cause; Row headers: Sensor program damaged. Initialization necessary. "
+                    "Cell value: A memory read error occurred when the sensor started."
+                ),
+            },
+            {
+                "chunk_id": "iv4-row-group",
+                "source_document_id": "doc-iv4",
+                "content": (
+                    "Column headers: Cause; Row headers: Failed to read nonvolatile memory at sensor startup. "
+                    "Cell value: A memory read error occurred when the sensor started. "
+                    "A data error occurred. It is possible that the power was switched OFF during writing, "
+                    "or noise was picked up."
+                ),
+            },
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert scored["evidence_citation_support"]["passed"] is True
+    assert scored["table_cell_binding"]["passed"] is True
+
+
+def test_answer_response_scoring_rejects_equivalent_citation_without_direct_source_support():
+    case = RetrievalEvalCase(
+        case_id="answer-equivalent-citation-source-reviewed-snippet-negative",
+        query="What startup memory read error cause is listed for IV4-G600CA?",
+        source_document_id="doc-iv4",
+        document_version_id="ver-iv4",
+        source_chunk_id="iv4-atomic-cause",
+        source_title="IV4",
+        source_filename="iv4.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=532,
+        page_to=532,
+        expected_terms=["startup", "memory", "error", "occurred"],
+        expected_snippet=(
+            "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
+            "A data abnormality occurred due to noise or because the power switched OFF while writing"
+        ),
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "iv4-atomic-cause",
+                "source_document_id": "doc-iv4",
+                "allow_equivalent_citation": True,
+                "expected_terms": ["startup", "memory", "error", "occurred"],
+                "snippet": (
+                    "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
+                    "A data abnormality occurred due to noise or because the power switched OFF while writing"
+                ),
+                "equivalent_snippet": (
+                    "Column headers: Cause; Row headers: Failed to read nonvolatile memory at sensor startup. "
+                    "Cell value: A memory read error occurred when the sensor started. "
+                    "A data error occurred. It is possible that the power was switched OFF during writing, "
+                    "or noise was picked up."
+                ),
+            }
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The cause is a memory read error when the sensor started.",
+            "citations": [{"document_id": "doc-iv4", "chunk_id": "iv4-remedy-only", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-iv4"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "iv4-remedy-only",
+                "source_document_id": "doc-iv4",
+                "content": "Column headers: Remedy; Row headers: Startup error. Turn the sensor power on again.",
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+
+
 def test_answer_response_scoring_accepts_equivalent_warning_with_conjoined_setting_state():
     case = RetrievalEvalCase(
         case_id="answer-equivalent-warning-conjoined-state",
