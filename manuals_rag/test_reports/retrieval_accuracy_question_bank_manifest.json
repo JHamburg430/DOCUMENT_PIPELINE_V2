@@ -1,5 +1,8 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "expected_evidence_not_cited": 1,
+    "retrieval_not_passed": 1
+  },
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
@@ -182,24 +185,24 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "Source-reviewed equivalence rerun passed 2/2 actual HTTP/API answers; answer_sources {fallback_validation: 2}; fallback count 2; failure reasons {}.",
+    "answer_result": "Rows 5-6 actual HTTP/API answer grounding scored 1/2 under source-reviewed equivalence. Row 6 passed; row 5 failed expected_evidence_not_cited and retrieval_not_passed.",
     "artifacts": {
-      "accepted_dataset": "test_reports/retrieval_eval_dataset_20260901_042849.jsonl",
-      "accepted_manifest": "test_reports/retrieval_eval_manifest_20260901_042849.json",
-      "accepted_results": "test_reports/retrieval_eval_results_20260901_042849.jsonl",
-      "accepted_summary": "test_reports/retrieval_eval_summary_20260901_042849.json",
-      "pre_equivalence_http_dataset": "test_reports/retrieval_eval_dataset_20260901_042603.jsonl",
-      "pre_equivalence_http_results": "test_reports/retrieval_eval_results_20260901_042603.jsonl",
-      "pre_equivalence_http_summary": "test_reports/retrieval_eval_summary_20260901_042603.json",
-      "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl"
+      "diagnostic_exact_dataset": "test_reports/retrieval_eval_dataset_20260901_045640.jsonl",
+      "diagnostic_exact_results": "test_reports/retrieval_eval_results_20260901_045640.jsonl",
+      "diagnostic_exact_summary": "test_reports/retrieval_eval_summary_20260901_045640.json",
+      "equivalence_dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl",
+      "partial_manifest": "test_reports/retrieval_eval_manifest_20260901_045928.json",
+      "partial_results": "test_reports/retrieval_eval_results_20260901_045928.jsonl",
+      "partial_summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
+      "source_review_dataset": "test_reports/retrieval_eval_dataset_20260901_0456_single_step_rows_5_6_expected_evidence.jsonl"
     },
-    "classification": "clean_source_reviewed_same_source_row_group_equivalence",
-    "latest_run": "retrieval_eval_20260901_042849",
-    "manual_jsonl_inspection": "Inspected every answer/citation in retrieval_eval_results_20260901_042849. Row 3 cites row-group chunk 229199c6, whose returned content directly contains the Contrast/no-NG status and Quality Match lower-limit corrective action. Row 4 cites row-group chunk 5b17fdd3, whose returned content directly contains the OP-42284 / CA-DRx9 relation. Both quote_span values are null; no unsupported generated quote text was accepted.",
-    "previous_run": "retrieval_eval_20260901_042603",
-    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
-    "retrieval_result": "Rows 3-4 actual HTTP/API retrieval passed 2/2 at rank 1 in both the pre-equivalence diagnostic and source-reviewed equivalence rerun.",
-    "scope": "curated_single_step_v2_rows_3_4_source_reviewed_equivalence"
+    "classification": "partial_clean_row6_only_row5_diagnostic_not_clean",
+    "latest_run": "retrieval_eval_20260901_045928",
+    "manual_jsonl_inspection": "Inspected every answer/citation in retrieval_eval_results_20260901_045928. Row 6 cites returned chunk 3aa51e07, whose content directly contains the Output Symbol Identifier setting and enabled 3-byte ISO/IEC 15424 / JIS X 0530 data carrier identifier behavior; quote_span is null. Row 5 answer states the Limit Output OFF / intensity 512 damage warning, but the row remains diagnostic/not-clean because final retrieval/citation support did not satisfy the source-reviewed expected evidence.",
+    "previous_run": "retrieval_eval_20260901_045640",
+    "remaining": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928.",
+    "retrieval_result": "Rows 5-6 actual HTTP/API retrieval scored 1/2. Row 6 passed at rank 1; row 5 failed final_top_k ranking_or_context_loss although candidate recall and metadata document selection were true.",
+    "scope": "curated_single_step_v2_rows_5_6_source_reviewed_equivalence"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -492,60 +495,55 @@
     "total_queries": 2
   },
   "answer_grounding_single_step_v2_rows_5_6": {
-    "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
-    "guardrail_findings": [
-      "2026-08-27T13:38:51Z needs_fix: row 6 from retrieval_eval_20260827_131439 retained unsupported neighboring setting claims.",
-      "2026-08-27T14:28:51Z needs_fix: row 6 remained diagnostic/not-clean until rerun after the field-intent containment."
-    ],
+    "active_count_impact": "none; active exploratory coverage remains 208 total, 101 single-step, 107 multi-step; replacement debt remains 0",
     "latest_run": {
       "answer_eval_count": 2,
-      "answer_failure_reasons": {},
-      "answer_fallback_count": 0,
-      "answer_pass_rate": 1.0,
-      "answer_passed_queries": 2,
-      "answer_sources": {
-        "api": 2
+      "answer_failure_reasons": {
+        "expected_evidence_not_cited": 1,
+        "retrieval_not_passed": 1
       },
-      "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-      "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "manifest": "test_reports/retrieval_eval_manifest_20260827_190715.json",
+      "answer_fallback_count": 2,
+      "answer_pass_rate": 0.5,
+      "answer_passed_queries": 1,
+      "answer_sources": {
+        "fallback_validation": 2
+      },
+      "dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl",
+      "endpoint": "clean side API http://127.0.0.1:8997; internal API_BASE=http://127.0.0.1:8600; OLLAMA_URL=http://host.docker.internal:11434; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2; HAYSTACK_RERANK_DEVICE=cuda:0",
+      "manifest": "test_reports/retrieval_eval_manifest_20260901_045928.json",
       "max_queries": 2,
-      "pass_rate": 1.0,
-      "passed_queries": 2,
-      "query_offset": 4,
+      "pass_rate": 0.5,
+      "passed_queries": 1,
       "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260827_190715.jsonl",
-      "run_id": "retrieval_eval_20260827_190715",
+      "results": "test_reports/retrieval_eval_results_20260901_045928.jsonl",
+      "run_id": "retrieval_eval_20260901_045928",
       "search_mode": "http",
-      "summary": "test_reports/retrieval_eval_summary_20260827_190715.json",
+      "summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
       "total_queries": 2
     },
-    "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_190715.jsonl. Row 5 answer/citation remains clean for the XG-X Limit Output OFF / intensity 512 warning. Row 6 answer is limited to the requested Output Symbol Identifier setting and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; the answer no longer includes unsupported Conditions, Condition List, Data Range, or Reference Pattern claims.",
-    "prior_diagnostic_run": "retrieval_eval_20260827_131439 row 6 and combined rows 5-6 claim remain diagnostic/not-clean for unsupported retained context claims; row 5 from that run remains clean.",
-    "production_change": "Answer fallback and direct evidence summaries now focus multi-row Setting item table_record chunks on the row best matched by user-query terms before appending sibling context. No document/vendor/query hardcoding, inferred filters, model/provider changes, parser/ingestion/API/UI/schema/infra changes, or eval-only behavior.",
+    "manual_jsonl_inspection": "Row 6 is clean: answer cites returned chunk 3aa51e07, which directly states Output Symbol Identifier adds a 3-byte ISO/IEC 15424 / JIS X 0530 symbol identifier to the beginning of read data. Row 5 is not clean: despite source-equivalent warning chunks in top results and an answer that states the warning, retrieval scoring failed final_top_k and answer evidence support failed.",
+    "prior_diagnostic_run": "retrieval_eval_20260901_045640 exact-evidence run scored 1/2 retrieval and 0/2 answers; it remains diagnostic because source-equivalent citations were not yet encoded and row 5 still failed retrieval/context.",
+    "remaining": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928.",
     "runtime_load_evidence": {
+      "HAYSTACK_RERANK_DEVICE": "cuda:0",
       "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
       "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-      "OLLAMA_URL": "http://host.docker.internal:11437",
-      "_direct_evidence_summary_sha256": "fc64c32d70b231f7bc962201d34012b2fd3bfabd0da6fba8567b6cef448e3b15",
-      "_fallback_answer_sha256": "a738d4b845c220023f028af05bb2a12f3c197790668bc819e8cb66a04d03dda1",
-      "_focused_table_record_answer_text_sha256": "2bbddbd4f8bd6b67cf735e089de0d031c2c254bd4a994728a891e57c1e362660",
-      "_summarize_chunk_sha256": "229c3addeddd79ec38df3ebbd8a4bdfb7cf119d7a9561bbb757f3ed04cb35660",
-      "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-      "validate_answer_sha256": "c3acea7d2338b30518d0d226781837ac11d017ce36f55b8b387a182fd47d7e7f"
+      "OLLAMA_URL": "http://host.docker.internal:11434",
+      "api.main.py": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+      "generator.py": "86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90",
+      "retrieval_eval.py": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
+      "retriever.py": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22"
     },
-    "scope": "production answering fallback/context-use logic, focused answering tests, and tracking/eval artifacts only; no retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
-    "status": "rows_5_6_clean_after_focused_table_record_fallback",
-    "target": "single_step_row6_answer_context_repair",
+    "scope": "eval dataset expected-evidence metadata, tracking, and eval artifacts only; no production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
+    "source_review": "Added explicit expected_evidence for rows 5-6, then added allow_equivalent_citation only where the cited returned chunk itself directly contains the expected warning or setting behavior. This preserves source support without requiring an exact atomic chunk when the indexed corpus returns source-equivalent repeated/manual row chunks.",
+    "status": "partial_source_reviewed_rerun_row6_clean_row5_open",
+    "target": "single_step_rows_5_6_source_reviewed_answer_grounding",
     "validation": [
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'omits_unrequested_neighbor_setting_context or focused_table_cell_before_context or support_checks_table_cell_before_context' -> 3 passed, 49 deselected, 5 warnings",
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -> 52 passed, 23 warnings",
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 365 passed, 59 warnings",
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before update",
-      "API restarted with docker compose -f infra/compose/docker-compose.yml restart api; loaded answer fingerprints and local model environment recorded above",
-      "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
+      "Per-line JSONL validation passed for test_reports/retrieval_eval_dataset_20260901_0456_single_step_rows_5_6_expected_evidence.jsonl and test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl.",
+      "Actual HTTP/API run retrieval_eval_20260901_045640 completed with 1/2 retrieval and 0/2 answers; diagnostic only.",
+      "Actual HTTP/API run retrieval_eval_20260901_045928 completed with 1/2 retrieval and 1/2 answers; row 6 clean, row 5 diagnostic/not-clean."
     ]
   },
   "answer_grounding_single_step_v2_rows_7_8": {
@@ -675,65 +673,46 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
-    "accepted_clean_run": "retrieval_eval_20260901_042849",
-    "answer_grounding_status": "Curated single-step v2 rows 3-4 now have clean actual HTTP/API answer evidence under source-reviewed same-source row-group citation equivalence. The prior HTTP timeout run remains diagnostic, and the exact-citation rerun remains diagnostic because it proved the API path completed but failed before equivalence metadata was added.",
+    "accepted_clean_run": "retrieval_eval_20260901_045928 row 6 only",
+    "answer_grounding_status": "Curated single-step v2 rows 5-6 are partial source-reviewed evidence. Row 6 is clean under same-source row-level equivalence; row 5 remains diagnostic/not-clean because retrieval scoring failed final_top_k ranking/context despite candidate recall and same-document warning chunks in the returned payload.",
     "artifacts": {
-      "accepted_dataset": "test_reports/retrieval_eval_dataset_20260901_042849.jsonl",
-      "accepted_manifest": "test_reports/retrieval_eval_manifest_20260901_042849.json",
-      "accepted_results": "test_reports/retrieval_eval_results_20260901_042849.jsonl",
-      "accepted_summary": "test_reports/retrieval_eval_summary_20260901_042849.json",
-      "pre_equivalence_http_dataset": "test_reports/retrieval_eval_dataset_20260901_042603.jsonl",
-      "pre_equivalence_http_results": "test_reports/retrieval_eval_results_20260901_042603.jsonl",
-      "pre_equivalence_http_summary": "test_reports/retrieval_eval_summary_20260901_042603.json",
-      "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl"
+      "diagnostic_exact_dataset": "test_reports/retrieval_eval_dataset_20260901_045640.jsonl",
+      "diagnostic_exact_results": "test_reports/retrieval_eval_results_20260901_045640.jsonl",
+      "diagnostic_exact_summary": "test_reports/retrieval_eval_summary_20260901_045640.json",
+      "equivalence_dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl",
+      "partial_manifest": "test_reports/retrieval_eval_manifest_20260901_045928.json",
+      "partial_results": "test_reports/retrieval_eval_results_20260901_045928.jsonl",
+      "partial_summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
+      "source_review_dataset": "test_reports/retrieval_eval_dataset_20260901_0456_single_step_rows_5_6_expected_evidence.jsonl"
     },
     "checks": [
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK at start.",
-      "Actual HTTP/API pre-equivalence rerun retrieval_eval_20260901_042603 completed instead of timing out: 2/2 retrieval passed at rank 1, 0/2 answer grounding before source-reviewed equivalence, expected_evidence_not_cited: 2.",
-      "Manual JSONL inspection of retrieval_eval_results_20260901_042603 confirmed both user-visible fallback answers included the material answer text and cited same-source row-group chunks whose returned content contains the expected rows.",
-      "Created source-reviewed equivalence dataset test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl with allow_equivalent_citation and row-group support notes for both rows.",
-      "Actual HTTP/API equivalence rerun retrieval_eval_20260901_042849 passed 2/2 retrieval at rank 1 and 2/2 answer grounding; answer_sources {fallback_validation: 2}; answer_fallback_count 2.",
-      "Manual JSONL inspection of retrieval_eval_results_20260901_042849 confirmed citation chunk 229199c6 contains the Contrast/no-NG corrective action and citation chunk 5b17fdd3 contains the OP-42284 / CA-DRx9 relation; quote_span is null for both, so no generated quote self-validates.",
-      "Per-line JSONL validation passed for the new source-reviewed dataset and new eval artifacts."
+      "Clean side API manuals-rag-temp-api-39262386-20260901-rows5-6 served http://127.0.0.1:8997 and loaded origin/main code fingerprints: retriever dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22, generator 86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90, eval scorer ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290, API 4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90.",
+      "Local model/reranker settings were unchanged: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
+      "Actual HTTP/API exact-evidence run retrieval_eval_20260901_045640 scored 1/2 retrieval and 0/2 answers; manual JSONL inspection found row 5 and row 6 answers contained material answer text but citations were source-equivalent rather than exact expected chunks.",
+      "Created source-reviewed equivalence dataset test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl with explicit allow_equivalent_citation notes for repeated XG-X warning chunks and LJ-S8000 row-level Output Symbol Identifier chunks.",
+      "Actual HTTP/API equivalence rerun retrieval_eval_20260901_045928 scored 1/2 retrieval and 1/2 answers. Row 6 passed; row 5 remains failed with ranking_or_context_loss plus expected_evidence_not_cited/retrieval_not_passed.",
+      "Manual JSONL inspection of retrieval_eval_results_20260901_045928 confirmed row 6 answer cites chunk 3aa51e07 with null quote_span and that returned chunk directly states Output Symbol Identifier adds a 3-byte ISO/IEC 15424 / JIS X 0530 symbol identifier to the beginning of read data. Row 5 cites chunk 231d4fc0; the answer states the warning, but the run remains not clean because final retrieval/citation support did not satisfy the expected evidence."
     ],
-    "classification": "source_reviewed_api_answer_evidence_clean_for_rows_3_4_equivalence",
-    "current_answer_failures": {},
-    "current_retrieval_failures": {},
-    "diagnostic_runs": [
-      "retrieval_eval_20260901_022901",
-      "retrieval_eval_20260901_042603",
-      "retrieval_eval_20260901_032543",
-      "retrieval_eval_20260901_032659"
-    ],
-    "manual_jsonl_inspection": [
+    "classification": "partial_source_reviewed_api_answer_evidence_rows_5_6_row6_clean_row5_retrieval_context_loss",
+    "clean_rows": [
       {
-        "citation_chunk": "229199c6-6d4b-531d-acf2-b589be0a9f5e",
-        "result": "clean under same-source row-group equivalence: cited returned content directly contains the Contrast/no-NG status and Increase the lower limit of Quality Match (%) corrective action.",
-        "row": 3,
-        "run": "retrieval_eval_20260901_042849"
-      },
-      {
-        "citation_chunk": "5b17fdd3-0c71-574e-96ed-6979c3fea3ca",
-        "result": "clean under same-source row-group equivalence: cited returned content directly contains the 19.69 inch OP-42284 part-number row and CA-DRx9 applicable-light relation.",
-        "row": 4,
-        "run": "retrieval_eval_20260901_042849"
+        "case_id": "944ec634-843b-59cc-b503-62aae208b7be::curated6",
+        "row": 6,
+        "run_id": "retrieval_eval_20260901_045928"
       }
     ],
-    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
-    "runtime_load_evidence": {
-      "HAYSTACK_RERANK_DEVICE": "cuda:0",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
-      "api_base": "http://127.0.0.1:8999 host / http://127.0.0.1:8600 inside container",
-      "api_main_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
-      "container": "manuals-rag-temp-api-39262386-20260901-rows3-4-http",
-      "generator_sha256": "86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90",
-      "health": "/health ok at 2026-09-01T04:25:28Z",
-      "retrieval_eval_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
-      "retriever_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22"
-    }
+    "current_answer_failures": {
+      "expected_evidence_not_cited": 1,
+      "retrieval_not_passed": 1
+    },
+    "current_retrieval_failures": {
+      "ranking_or_context_loss": 1
+    },
+    "diagnostic_runs": [
+      "retrieval_eval_20260901_045640",
+      "retrieval_eval_20260901_045928 row 5"
+    ],
+    "remaining": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928."
   },
   "constraints": {
     "allowed_logic": [
@@ -751,11 +730,18 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
-  "current_answer_failure_source": null,
-  "current_failure_categories": {},
-  "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "No current retrieval failure source: retrieval_eval_20260901_042849 preserved rows 3-4 actual HTTP/API retrieval at 2/2 rank 1. Prior retrieval_eval_20260901_022901 remains historical answer-mode timeout diagnostic evidence, not the current retrieval failure source.",
+  "current_answer_failure_categories": {
+    "expected_evidence_not_cited": 1,
+    "retrieval_not_passed": 1
+  },
+  "current_answer_failure_source": "retrieval_eval_20260901_045928 row 5 is the active current answer failure source: user-visible fallback answer states the warning, but answer scoring fails expected_evidence_not_cited and retrieval_not_passed because accepted final context/citation support does not satisfy the source-reviewed expected evidence. Row 6 in the same run is clean.",
+  "current_failure_categories": {
+    "ranking_or_context_loss": 1
+  },
+  "current_retrieval_failure_categories": {
+    "ranking_or_context_loss": 1
+  },
+  "current_retrieval_failure_source": "retrieval_eval_20260901_045928 row 5 is the active current retrieval failure source: candidate recall and metadata-document selection were true, but final_top_k scoring failed ranking_or_context_loss for the XG-X Limit Output OFF / intensity 512 warning.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -953,7 +939,9 @@
       "total_queries": 10
     }
   ],
-  "failure_categories": {},
+  "failure_categories": {
+    "ranking_or_context_loss": 1
+  },
   "goal": {
     "components": [
       "single_step_retrieval",
@@ -8972,7 +8960,7 @@
       "type": "current_retrieval_failure_source_empty_state_reconciliation"
     }
   ],
-  "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
+  "next_target": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9725,7 +9713,10 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 1,
+      "retrieval_not_passed": 1
+    },
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
@@ -9908,24 +9899,24 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "Source-reviewed equivalence rerun passed 2/2 actual HTTP/API answers; answer_sources {fallback_validation: 2}; fallback count 2; failure reasons {}.",
+      "answer_result": "Rows 5-6 actual HTTP/API answer grounding scored 1/2 under source-reviewed equivalence. Row 6 passed; row 5 failed expected_evidence_not_cited and retrieval_not_passed.",
       "artifacts": {
-        "accepted_dataset": "test_reports/retrieval_eval_dataset_20260901_042849.jsonl",
-        "accepted_manifest": "test_reports/retrieval_eval_manifest_20260901_042849.json",
-        "accepted_results": "test_reports/retrieval_eval_results_20260901_042849.jsonl",
-        "accepted_summary": "test_reports/retrieval_eval_summary_20260901_042849.json",
-        "pre_equivalence_http_dataset": "test_reports/retrieval_eval_dataset_20260901_042603.jsonl",
-        "pre_equivalence_http_results": "test_reports/retrieval_eval_results_20260901_042603.jsonl",
-        "pre_equivalence_http_summary": "test_reports/retrieval_eval_summary_20260901_042603.json",
-        "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl"
+        "diagnostic_exact_dataset": "test_reports/retrieval_eval_dataset_20260901_045640.jsonl",
+        "diagnostic_exact_results": "test_reports/retrieval_eval_results_20260901_045640.jsonl",
+        "diagnostic_exact_summary": "test_reports/retrieval_eval_summary_20260901_045640.json",
+        "equivalence_dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl",
+        "partial_manifest": "test_reports/retrieval_eval_manifest_20260901_045928.json",
+        "partial_results": "test_reports/retrieval_eval_results_20260901_045928.jsonl",
+        "partial_summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
+        "source_review_dataset": "test_reports/retrieval_eval_dataset_20260901_0456_single_step_rows_5_6_expected_evidence.jsonl"
       },
-      "classification": "clean_source_reviewed_same_source_row_group_equivalence",
-      "latest_run": "retrieval_eval_20260901_042849",
-      "manual_jsonl_inspection": "Inspected every answer/citation in retrieval_eval_results_20260901_042849. Row 3 cites row-group chunk 229199c6, whose returned content directly contains the Contrast/no-NG status and Quality Match lower-limit corrective action. Row 4 cites row-group chunk 5b17fdd3, whose returned content directly contains the OP-42284 / CA-DRx9 relation. Both quote_span values are null; no unsupported generated quote text was accepted.",
-      "previous_run": "retrieval_eval_20260901_042603",
-      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
-      "retrieval_result": "Rows 3-4 actual HTTP/API retrieval passed 2/2 at rank 1 in both the pre-equivalence diagnostic and source-reviewed equivalence rerun.",
-      "scope": "curated_single_step_v2_rows_3_4_source_reviewed_equivalence"
+      "classification": "partial_clean_row6_only_row5_diagnostic_not_clean",
+      "latest_run": "retrieval_eval_20260901_045928",
+      "manual_jsonl_inspection": "Inspected every answer/citation in retrieval_eval_results_20260901_045928. Row 6 cites returned chunk 3aa51e07, whose content directly contains the Output Symbol Identifier setting and enabled 3-byte ISO/IEC 15424 / JIS X 0530 data carrier identifier behavior; quote_span is null. Row 5 answer states the Limit Output OFF / intensity 512 damage warning, but the row remains diagnostic/not-clean because final retrieval/citation support did not satisfy the source-reviewed expected evidence.",
+      "previous_run": "retrieval_eval_20260901_045640",
+      "remaining": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928.",
+      "retrieval_result": "Rows 5-6 actual HTTP/API retrieval scored 1/2. Row 6 passed at rank 1; row 5 failed final_top_k ranking_or_context_loss although candidate recall and metadata document selection were true.",
+      "scope": "curated_single_step_v2_rows_5_6_source_reviewed_equivalence"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10007,60 +9998,55 @@
       "total_queries": 2
     },
     "answer_grounding_single_step_v2_rows_5_6": {
-      "active_count_impact": "none; active exploratory coverage remains 204 total, 101 single-step, 103 multi-step; replacement debt remains 0",
-      "guardrail_findings": [
-        "2026-08-27T13:38:51Z needs_fix: row 6 from retrieval_eval_20260827_131439 retained unsupported neighboring setting claims.",
-        "2026-08-27T14:28:51Z needs_fix: row 6 remained diagnostic/not-clean until rerun after the field-intent containment."
-      ],
+      "active_count_impact": "none; active exploratory coverage remains 208 total, 101 single-step, 107 multi-step; replacement debt remains 0",
       "latest_run": {
         "answer_eval_count": 2,
-        "answer_failure_reasons": {},
-        "answer_fallback_count": 0,
-        "answer_pass_rate": 1.0,
-        "answer_passed_queries": 2,
-        "answer_sources": {
-          "api": 2
+        "answer_failure_reasons": {
+          "expected_evidence_not_cited": 1,
+          "retrieval_not_passed": 1
         },
-        "dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
-        "endpoint": "OLLAMA_URL=http://host.docker.internal:11437; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "manifest": "test_reports/retrieval_eval_manifest_20260827_190715.json",
+        "answer_fallback_count": 2,
+        "answer_pass_rate": 0.5,
+        "answer_passed_queries": 1,
+        "answer_sources": {
+          "fallback_validation": 2
+        },
+        "dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl",
+        "endpoint": "clean side API http://127.0.0.1:8997; internal API_BASE=http://127.0.0.1:8600; OLLAMA_URL=http://host.docker.internal:11434; OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b; OLLAMA_METADATA_MODEL=tinyllama:1.1b; OLLAMA_ANSWER_MODEL=qwen3.5:9b; HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2; HAYSTACK_RERANK_DEVICE=cuda:0",
+        "manifest": "test_reports/retrieval_eval_manifest_20260901_045928.json",
         "max_queries": 2,
-        "pass_rate": 1.0,
-        "passed_queries": 2,
-        "query_offset": 4,
+        "pass_rate": 0.5,
+        "passed_queries": 1,
         "response_mode": "answer_with_citations",
-        "results": "test_reports/retrieval_eval_results_20260827_190715.jsonl",
-        "run_id": "retrieval_eval_20260827_190715",
+        "results": "test_reports/retrieval_eval_results_20260901_045928.jsonl",
+        "run_id": "retrieval_eval_20260901_045928",
         "search_mode": "http",
-        "summary": "test_reports/retrieval_eval_summary_20260827_190715.json",
+        "summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
         "total_queries": 2
       },
-      "manual_jsonl_inspection": "Inspected test_reports/retrieval_eval_results_20260827_190715.jsonl. Row 5 answer/citation remains clean for the XG-X Limit Output OFF / intensity 512 warning. Row 6 answer is limited to the requested Output Symbol Identifier setting and cites returned chunk 65513d89-4fc8-567b-aebc-00eb60993779; the answer no longer includes unsupported Conditions, Condition List, Data Range, or Reference Pattern claims.",
-      "prior_diagnostic_run": "retrieval_eval_20260827_131439 row 6 and combined rows 5-6 claim remain diagnostic/not-clean for unsupported retained context claims; row 5 from that run remains clean.",
-      "production_change": "Answer fallback and direct evidence summaries now focus multi-row Setting item table_record chunks on the row best matched by user-query terms before appending sibling context. No document/vendor/query hardcoding, inferred filters, model/provider changes, parser/ingestion/API/UI/schema/infra changes, or eval-only behavior.",
+      "manual_jsonl_inspection": "Row 6 is clean: answer cites returned chunk 3aa51e07, which directly states Output Symbol Identifier adds a 3-byte ISO/IEC 15424 / JIS X 0530 symbol identifier to the beginning of read data. Row 5 is not clean: despite source-equivalent warning chunks in top results and an answer that states the warning, retrieval scoring failed final_top_k and answer evidence support failed.",
+      "prior_diagnostic_run": "retrieval_eval_20260901_045640 exact-evidence run scored 1/2 retrieval and 0/2 answers; it remains diagnostic because source-equivalent citations were not yet encoded and row 5 still failed retrieval/context.",
+      "remaining": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928.",
       "runtime_load_evidence": {
+        "HAYSTACK_RERANK_DEVICE": "cuda:0",
         "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
         "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_METADATA_MODEL": "tinyllama:1.1b",
-        "OLLAMA_URL": "http://host.docker.internal:11437",
-        "_direct_evidence_summary_sha256": "fc64c32d70b231f7bc962201d34012b2fd3bfabd0da6fba8567b6cef448e3b15",
-        "_fallback_answer_sha256": "a738d4b845c220023f028af05bb2a12f3c197790668bc819e8cb66a04d03dda1",
-        "_focused_table_record_answer_text_sha256": "2bbddbd4f8bd6b67cf735e089de0d031c2c254bd4a994728a891e57c1e362660",
-        "_summarize_chunk_sha256": "229c3addeddd79ec38df3ebbd8a4bdfb7cf119d7a9561bbb757f3ed04cb35660",
-        "module_file": "/workspace/manuals_rag/packages/answering/src/manuals_rag_answering/generator.py",
-        "validate_answer_sha256": "c3acea7d2338b30518d0d226781837ac11d017ce36f55b8b387a182fd47d7e7f"
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "api.main.py": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
+        "generator.py": "86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90",
+        "retrieval_eval.py": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
+        "retriever.py": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22"
       },
-      "scope": "production answering fallback/context-use logic, focused answering tests, and tracking/eval artifacts only; no retrieval, eval scoring/generation, benchmark, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
-      "status": "rows_5_6_clean_after_focused_table_record_fallback",
-      "target": "single_step_row6_answer_context_repair",
+      "scope": "eval dataset expected-evidence metadata, tracking, and eval artifacts only; no production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, model/provider, schema, infrastructure, Docker, or deployment code changed",
+      "source_review": "Added explicit expected_evidence for rows 5-6, then added allow_equivalent_citation only where the cited returned chunk itself directly contains the expected warning or setting behavior. This preserves source support without requiring an exact atomic chunk when the indexed corpus returns source-equivalent repeated/manual row chunks.",
+      "status": "partial_source_reviewed_rerun_row6_clean_row5_open",
+      "target": "single_step_rows_5_6_source_reviewed_answer_grounding",
       "validation": [
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -k 'omits_unrequested_neighbor_setting_context or focused_table_cell_before_context or support_checks_table_cell_before_context' -> 3 passed, 49 deselected, 5 warnings",
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit/test_parser_and_answering.py -q -> 52 passed, 23 warnings",
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python -m pytest tests/unit -q -> 365 passed, 59 warnings",
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before update",
-        "API restarted with docker compose -f infra/compose/docker-compose.yml restart api; loaded answer fingerprints and local model environment recorded above",
-        "docker compose -f infra/compose/docker-compose.yml exec -T api python scripts/benchmark/run_large_retrieval_eval.py --existing-corpus-id manuals_vendor_keyence --dataset-path test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl --query-offset 4 --max-queries 2 --search-mode http --response-mode answer_with_citations --per-query-timeout-seconds 120 --warmup-queries 0 -> retrieval_eval_20260827_190715 2/2 retrieval and 2/2 actual API answers passed"
+        "Per-line JSONL validation passed for test_reports/retrieval_eval_dataset_20260901_0456_single_step_rows_5_6_expected_evidence.jsonl and test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl.",
+        "Actual HTTP/API run retrieval_eval_20260901_045640 completed with 1/2 retrieval and 0/2 answers; diagnostic only.",
+        "Actual HTTP/API run retrieval_eval_20260901_045928 completed with 1/2 retrieval and 1/2 answers; row 6 clean, row 5 diagnostic/not-clean."
       ]
     },
     "answer_grounding_single_step_v2_rows_7_8": {
@@ -10190,71 +10176,59 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
-      "accepted_clean_run": "retrieval_eval_20260901_042849",
-      "answer_grounding_status": "Curated single-step v2 rows 3-4 now have clean actual HTTP/API answer evidence under source-reviewed same-source row-group citation equivalence. The prior HTTP timeout run remains diagnostic, and the exact-citation rerun remains diagnostic because it proved the API path completed but failed before equivalence metadata was added.",
+      "accepted_clean_run": "retrieval_eval_20260901_045928 row 6 only",
+      "answer_grounding_status": "Curated single-step v2 rows 5-6 are partial source-reviewed evidence. Row 6 is clean under same-source row-level equivalence; row 5 remains diagnostic/not-clean because retrieval scoring failed final_top_k ranking/context despite candidate recall and same-document warning chunks in the returned payload.",
       "artifacts": {
-        "accepted_dataset": "test_reports/retrieval_eval_dataset_20260901_042849.jsonl",
-        "accepted_manifest": "test_reports/retrieval_eval_manifest_20260901_042849.json",
-        "accepted_results": "test_reports/retrieval_eval_results_20260901_042849.jsonl",
-        "accepted_summary": "test_reports/retrieval_eval_summary_20260901_042849.json",
-        "pre_equivalence_http_dataset": "test_reports/retrieval_eval_dataset_20260901_042603.jsonl",
-        "pre_equivalence_http_results": "test_reports/retrieval_eval_results_20260901_042603.jsonl",
-        "pre_equivalence_http_summary": "test_reports/retrieval_eval_summary_20260901_042603.json",
-        "source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl"
+        "diagnostic_exact_dataset": "test_reports/retrieval_eval_dataset_20260901_045640.jsonl",
+        "diagnostic_exact_results": "test_reports/retrieval_eval_results_20260901_045640.jsonl",
+        "diagnostic_exact_summary": "test_reports/retrieval_eval_summary_20260901_045640.json",
+        "equivalence_dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl",
+        "partial_manifest": "test_reports/retrieval_eval_manifest_20260901_045928.json",
+        "partial_results": "test_reports/retrieval_eval_results_20260901_045928.jsonl",
+        "partial_summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
+        "source_review_dataset": "test_reports/retrieval_eval_dataset_20260901_0456_single_step_rows_5_6_expected_evidence.jsonl"
       },
       "checks": [
-        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK at start.",
-        "Actual HTTP/API pre-equivalence rerun retrieval_eval_20260901_042603 completed instead of timing out: 2/2 retrieval passed at rank 1, 0/2 answer grounding before source-reviewed equivalence, expected_evidence_not_cited: 2.",
-        "Manual JSONL inspection of retrieval_eval_results_20260901_042603 confirmed both user-visible fallback answers included the material answer text and cited same-source row-group chunks whose returned content contains the expected rows.",
-        "Created source-reviewed equivalence dataset test_reports/retrieval_eval_dataset_20260901_0431_single_step_rows_3_4_equivalence.jsonl with allow_equivalent_citation and row-group support notes for both rows.",
-        "Actual HTTP/API equivalence rerun retrieval_eval_20260901_042849 passed 2/2 retrieval at rank 1 and 2/2 answer grounding; answer_sources {fallback_validation: 2}; answer_fallback_count 2.",
-        "Manual JSONL inspection of retrieval_eval_results_20260901_042849 confirmed citation chunk 229199c6 contains the Contrast/no-NG corrective action and citation chunk 5b17fdd3 contains the OP-42284 / CA-DRx9 relation; quote_span is null for both, so no generated quote self-validates.",
-        "Per-line JSONL validation passed for the new source-reviewed dataset and new eval artifacts."
+        "Clean side API manuals-rag-temp-api-39262386-20260901-rows5-6 served http://127.0.0.1:8997 and loaded origin/main code fingerprints: retriever dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22, generator 86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90, eval scorer ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290, API 4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90.",
+        "Local model/reranker settings were unchanged: OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
+        "Actual HTTP/API exact-evidence run retrieval_eval_20260901_045640 scored 1/2 retrieval and 0/2 answers; manual JSONL inspection found row 5 and row 6 answers contained material answer text but citations were source-equivalent rather than exact expected chunks.",
+        "Created source-reviewed equivalence dataset test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl with explicit allow_equivalent_citation notes for repeated XG-X warning chunks and LJ-S8000 row-level Output Symbol Identifier chunks.",
+        "Actual HTTP/API equivalence rerun retrieval_eval_20260901_045928 scored 1/2 retrieval and 1/2 answers. Row 6 passed; row 5 remains failed with ranking_or_context_loss plus expected_evidence_not_cited/retrieval_not_passed.",
+        "Manual JSONL inspection of retrieval_eval_results_20260901_045928 confirmed row 6 answer cites chunk 3aa51e07 with null quote_span and that returned chunk directly states Output Symbol Identifier adds a 3-byte ISO/IEC 15424 / JIS X 0530 symbol identifier to the beginning of read data. Row 5 cites chunk 231d4fc0; the answer states the warning, but the run remains not clean because final retrieval/citation support did not satisfy the expected evidence."
       ],
-      "classification": "source_reviewed_api_answer_evidence_clean_for_rows_3_4_equivalence",
-      "current_answer_failures": {},
-      "current_retrieval_failures": {},
-      "diagnostic_runs": [
-        "retrieval_eval_20260901_022901",
-        "retrieval_eval_20260901_042603",
-        "retrieval_eval_20260901_032543",
-        "retrieval_eval_20260901_032659"
-      ],
-      "manual_jsonl_inspection": [
+      "classification": "partial_source_reviewed_api_answer_evidence_rows_5_6_row6_clean_row5_retrieval_context_loss",
+      "clean_rows": [
         {
-          "citation_chunk": "229199c6-6d4b-531d-acf2-b589be0a9f5e",
-          "result": "clean under same-source row-group equivalence: cited returned content directly contains the Contrast/no-NG status and Increase the lower limit of Quality Match (%) corrective action.",
-          "row": 3,
-          "run": "retrieval_eval_20260901_042849"
-        },
-        {
-          "citation_chunk": "5b17fdd3-0c71-574e-96ed-6979c3fea3ca",
-          "result": "clean under same-source row-group equivalence: cited returned content directly contains the 19.69 inch OP-42284 part-number row and CA-DRx9 applicable-light relation.",
-          "row": 4,
-          "run": "retrieval_eval_20260901_042849"
+          "case_id": "944ec634-843b-59cc-b503-62aae208b7be::curated6",
+          "row": 6,
+          "run_id": "retrieval_eval_20260901_045928"
         }
       ],
-      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
-      "runtime_load_evidence": {
-        "HAYSTACK_RERANK_DEVICE": "cuda:0",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "api_base": "http://127.0.0.1:8999 host / http://127.0.0.1:8600 inside container",
-        "api_main_sha256": "4f94f640d43b3a2b8dd47f5f262ad3a3f759febb63e49dcb40aa0f0f8ab14b90",
-        "container": "manuals-rag-temp-api-39262386-20260901-rows3-4-http",
-        "generator_sha256": "86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90",
-        "health": "/health ok at 2026-09-01T04:25:28Z",
-        "retrieval_eval_sha256": "ddce21d7216ff8604e93c478d71f6655308e88e0c9a4ea8795b4bec26c10c290",
-        "retriever_sha256": "dbd59116d145a18ad1dcdf41de2c29311e4969307ecc0a535b858bc764cbee22"
-      }
+      "current_answer_failures": {
+        "expected_evidence_not_cited": 1,
+        "retrieval_not_passed": 1
+      },
+      "current_retrieval_failures": {
+        "ranking_or_context_loss": 1
+      },
+      "diagnostic_runs": [
+        "retrieval_eval_20260901_045640",
+        "retrieval_eval_20260901_045928 row 5"
+      ],
+      "remaining": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928."
     },
-    "current_answer_failure_categories": {},
-    "current_answer_failure_source": null,
-    "current_failure_categories": {},
-    "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "No current retrieval failure source: retrieval_eval_20260901_042849 preserved rows 3-4 actual HTTP/API retrieval at 2/2 rank 1. Prior retrieval_eval_20260901_022901 remains historical answer-mode timeout diagnostic evidence, not the current retrieval failure source.",
+    "current_answer_failure_categories": {
+      "expected_evidence_not_cited": 1,
+      "retrieval_not_passed": 1
+    },
+    "current_answer_failure_source": "retrieval_eval_20260901_045928 row 5 is the active current answer failure source: user-visible fallback answer states the warning, but answer scoring fails expected_evidence_not_cited and retrieval_not_passed because accepted final context/citation support does not satisfy the source-reviewed expected evidence. Row 6 in the same run is clean.",
+    "current_failure_categories": {
+      "ranking_or_context_loss": 1
+    },
+    "current_retrieval_failure_categories": {
+      "ranking_or_context_loss": 1
+    },
+    "current_retrieval_failure_source": "retrieval_eval_20260901_045928 row 5 is the active current retrieval failure source: candidate recall and metadata-document selection were true, but final_top_k scoring failed ranking_or_context_loss for the XG-X Limit Output OFF / intensity 512 warning.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -10599,7 +10573,9 @@
       }
     ],
     "exploratory_questions": 208,
-    "failure_categories": {},
+    "failure_categories": {
+      "ranking_or_context_loss": 1
+    },
     "latest_comparison_setting_side_binding_containment": {
       "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
       "actual_http_evidence": {
@@ -12433,7 +12409,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
+    "next_target": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12470,8 +12446,10 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
-    "retrieval_current_failure_categories": {},
+    "remaining": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928.",
+    "retrieval_current_failure_categories": {
+      "ranking_or_context_loss": 1
+    },
     "run_exclusions": [
       {
         "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -13063,11 +13041,33 @@
         "reason": "diagnostic/not-clean: API path completed and answers cited source-bearing row-group chunks, but the dataset still required exact atomic expected chunks before source-reviewed equivalent-citation metadata was added.",
         "run_id": "retrieval_eval_20260901_042603",
         "scope": "curated single-step v2 rows 3-4 pre-equivalence actual HTTP/API rerun"
+      },
+      {
+        "reason": "diagnostic source-review run only: row 5 failed final_top_k retrieval/context and row 6 required explicit same-source row-level equivalence before answer evidence could count clean.",
+        "run_id": "retrieval_eval_20260901_045640",
+        "scope": "curated single-step v2 rows 5-6 exact-evidence clean claim"
+      },
+      {
+        "reason": "partial source-reviewed rerun only: row 6 is clean, but row 5 remains retrieval ranking/context loss plus expected_evidence_not_cited/retrieval_not_passed.",
+        "run_id": "retrieval_eval_20260901_045928",
+        "scope": "curated single-step v2 row 5 and combined rows 5-6 clean claim"
       }
     ],
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "evidence": [
+          "retrieval_eval_20260901_045640 diagnostic exact-evidence run",
+          "retrieval_eval_20260901_045928 partial source-reviewed equivalence run",
+          "manual JSONL inspection of retrieval_eval_results_20260901_045928"
+        ],
+        "finding": "Broader source-reviewed single-step rows 5-6 coverage found row 6 clean but row 5 still loses the XG-X Limit Output OFF / 512 warning from accepted final retrieval/citation context despite candidate recall and source-equivalent returned chunks.",
+        "remaining": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928.",
+        "severity": "watch",
+        "status": "partial_coverage_row6_clean_row5_open",
+        "timestamp": "2026-09-01T05:04:00Z"
+      },
       {
         "addressed_this_run": "Actual HTTP/API rows 3-4 were rerun after source review documented same-source row-group citation equivalence; retrieval_eval_20260901_042849 passed 2/2 retrieval and 2/2 answer grounding with manual citation inspection.",
         "evidence": [
@@ -14092,10 +14092,12 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T04:31:00Z"
+    "updated_at": "2026-09-01T05:04:00Z"
   },
-  "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve retrieval_eval_20260901_042849 rows 3-4 as clean only under source-reviewed same-source row-group citation equivalence, and preserve retrieval_eval_20260901_022901 plus retrieval_eval_20260901_042603 as diagnostic/not-clean evidence.",
-  "retrieval_current_failure_categories": {},
+  "remaining": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928.",
+  "retrieval_current_failure_categories": {
+    "ranking_or_context_loss": 1
+  },
   "run_exclusions": [
     {
       "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -14687,10 +14689,32 @@
       "reason": "diagnostic/not-clean: API path completed and answers cited source-bearing row-group chunks, but the dataset still required exact atomic expected chunks before source-reviewed equivalent-citation metadata was added.",
       "run_id": "retrieval_eval_20260901_042603",
       "scope": "curated single-step v2 rows 3-4 pre-equivalence actual HTTP/API rerun"
+    },
+    {
+      "reason": "diagnostic source-review run only: row 5 failed final_top_k retrieval/context and row 6 required explicit same-source row-level equivalence before answer evidence could count clean.",
+      "run_id": "retrieval_eval_20260901_045640",
+      "scope": "curated single-step v2 rows 5-6 exact-evidence clean claim"
+    },
+    {
+      "reason": "partial source-reviewed rerun only: row 6 is clean, but row 5 remains retrieval ranking/context loss plus expected_evidence_not_cited/retrieval_not_passed.",
+      "run_id": "retrieval_eval_20260901_045928",
+      "scope": "curated single-step v2 row 5 and combined rows 5-6 clean claim"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "evidence": [
+        "retrieval_eval_20260901_045640 diagnostic exact-evidence run",
+        "retrieval_eval_20260901_045928 partial source-reviewed equivalence run",
+        "manual JSONL inspection of retrieval_eval_results_20260901_045928"
+      ],
+      "finding": "Broader source-reviewed single-step rows 5-6 coverage found row 6 clean but row 5 still loses the XG-X Limit Output OFF / 512 warning from accepted final retrieval/citation context despite candidate recall and source-equivalent returned chunks.",
+      "remaining": "Repair curated single-step v2 row 5 retrieval/context selection for the XG-X Limit Output OFF / intensity 512 warning. The expected warning is present in retrieved same-document chunks and the API fallback answer states it, but final retrieval scoring still fails ranking_or_context_loss and answer grounding remains expected_evidence_not_cited/retrieval_not_passed until a source-supported chunk is accepted in final context. Preserve row 6 clean source-reviewed Output Symbol Identifier evidence from retrieval_eval_20260901_045928.",
+      "severity": "watch",
+      "status": "partial_coverage_row6_clean_row5_open",
+      "timestamp": "2026-09-01T05:04:00Z"
+    },
     {
       "addressed_this_run": "Actual HTTP/API rows 3-4 were rerun after source review documented same-source row-group citation equivalence; retrieval_eval_20260901_042849 passed 2/2 retrieval and 2/2 answer grounding with manual citation inspection.",
       "evidence": [
@@ -15715,5 +15739,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T04:31:00Z"
+  "updated_at": "2026-09-01T05:04:00Z"
 }
