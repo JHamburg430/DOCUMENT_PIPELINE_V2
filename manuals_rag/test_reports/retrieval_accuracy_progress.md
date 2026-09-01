@@ -6539,3 +6539,17 @@ Next target:
 Next target:
 
 - Source-review sibling row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for `c7b00dfb`, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.
+
+## 2026-09-01 Cron 39262386 Worktree Hygiene Guardrail Containment
+
+- Target: addressed latest guardrail `needs_fix` at `2026-09-01T23:18:00Z` / guardrail commit `378f147`, which reported repeated accuracy temp-worktree leakage and required bounded reuse/removal discipline before optional retrieval or answer work.
+- Action: reused existing clean job-owned worktree `/tmp/manuals_rag_accuracy_cron_39262386` and detached it to `origin/main` `378f147`; no new worktree was created. Added a `Temporary Worktree Hygiene` section to the standing accuracy runbook requiring reuse of one clean owned worktree when safe, at most one new worktree per run, clean-state verification before removal, supported `git worktree remove` on the exact path, deregistration verification, and explicit blocker recording instead of serial throwaway creation.
+- Manifest integrity: added `latest_temp_worktree_hygiene_guardrail` as a required root/`question_bank` pair in the deterministic manifest checker and added equal-copy, missing-root, missing-`question_bank`, and unequal-copy unit controls. Updated root and `question_bank` manifest copies atomically with guardrail timestamp/commit, reused path, no-new-worktree evidence, and post-commit cleanup requirement.
+- Stack/guardrail check: direct guardrail cron history was available and reported latest summary as operational `needs_fix`; the local compose stack is running. This run made no production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior change.
+- Validation: `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` passed; focused Docker manifest tests passed with `39 passed`; real-manifest controls passed/fail as required for equal copy, missing root `latest_temp_worktree_hygiene_guardrail`, missing `question_bank.latest_temp_worktree_hygiene_guardrail`, and unequal copy; `git diff --check` passed; full Docker unit gate with ignored fixture dirs mounted read-only passed with `546 passed, 59 warnings`.
+- Tracking: current retrieval failures remain `{}`. Current answer failures remain `expected_evidence_not_cited: 1` for sibling troubleshooting row 17; cross-document rows 1-10 remain accepted clean; row 17 remains diagnostic/not-clean pending source review of exact atomic chunks versus same-source row-group citation `c7b00dfb`. Active exploratory coverage remains 208 questions total: 101 single-step and 107 multi-step; replacement debt remains 0.
+- Generalization check before commit: this operational containment is valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it preserves clean provenance and prevents local temp-worktree state from biasing or polluting future retrieval/answer evidence.
+
+Next target:
+
+- After this run's post-commit cleanup verification, continue row 17 source review for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for `c7b00dfb`, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.

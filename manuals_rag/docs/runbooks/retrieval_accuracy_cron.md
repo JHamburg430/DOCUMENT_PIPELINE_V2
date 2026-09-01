@@ -79,6 +79,12 @@ Each 30-minute run should do the smallest complete improvement cycle possible:
 11. Commit successful scoped changes with a clear message.
 12. Attempt to push; if credentials are unavailable, record that the local commit is ready.
 
+## Temporary Worktree Hygiene
+
+When the primary checkout is dirty or stale, prefer one known clean job-owned worktree over creating a fresh throwaway path. Before reusing it, verify `git status --short --branch` is clean and move it to the current `origin/main` with a normal non-destructive detach/switch. If no clean job-owned worktree exists, create at most one for the run and record its path.
+
+At the end of any run that used a job-owned temporary worktree, verify there are no uncommitted or untracked files before attempting cleanup. Use supported `git worktree remove <exact-path>` only on the worktree used by the current run when it is safe to remove, then verify it no longer appears in `git worktree list --porcelain`. If removal fails or ownership is uncertain, leave the path registered, record the exact blocker in the progress log and manifest, and reuse that known path on the next run rather than creating another serial throwaway worktree. Do not bulk-clean historical worktrees from this job.
+
 ## Question Bank Requirements
 
 Build toward 10000+ questions across retrieval and answer coverage. Quality matters, but count is also a coverage requirement: do not treat a smaller green eval as progress when coverage was reduced.

@@ -44,6 +44,7 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "answer_grounding_single_step_v2_rows_7_8",
     "answer_grounding_single_step_v2_rows_9_10",
     "latest_status_output_row2_diagnostic_experiment",
+    "latest_temp_worktree_hygiene_guardrail",
     "partial_claim_citation_pruning_containment",
     "llm_answer_judge_policy",
     "manifest_integrity_repairs",

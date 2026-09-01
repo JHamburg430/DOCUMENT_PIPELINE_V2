@@ -79,6 +79,10 @@ def _minimal_manifest():
         "latest_status_output_row2_diagnostic_experiment": {
             "status": "not_clean_no_production_change_accepted"
         },
+        "latest_temp_worktree_hygiene_guardrail": {
+            "status": "needs_fix_recorded",
+            "worktree_policy": "reuse_one_clean_job_owned_worktree",
+        },
         "partial_claim_citation_pruning_containment": {"status": "addressed_conservative_fallback"},
         "llm_answer_judge_policy": {"status": "diagnostic_only"},
         "manifest_integrity_repairs": [{"status": "current"}],
@@ -545,6 +549,32 @@ def test_manifest_checker_rejects_missing_or_unequal_row8_partial_side_containme
     )
     assert any(
         "latest_cross_document_row8_answer_partial_side_containment mismatch" in error
+        for error in module.check_manifest(unequal)
+    )
+
+
+def test_manifest_checker_rejects_missing_or_unequal_temp_worktree_hygiene_guardrail():
+    module = _load_manifest_check_module()
+    missing_root = _minimal_manifest()
+    del missing_root["latest_temp_worktree_hygiene_guardrail"]
+    missing_nested = _minimal_manifest()
+    del missing_nested["question_bank"]["latest_temp_worktree_hygiene_guardrail"]
+    unequal = _minimal_manifest()
+    unequal["question_bank"]["latest_temp_worktree_hygiene_guardrail"] = {
+        "status": "stale"
+    }
+
+    assert any(
+        "latest_temp_worktree_hygiene_guardrail missing required duplicate" in error
+        for error in module.check_manifest(missing_root)
+    )
+    assert any(
+        "question_bank.latest_temp_worktree_hygiene_guardrail" in error
+        and "missing required duplicate" in error
+        for error in module.check_manifest(missing_nested)
+    )
+    assert any(
+        "latest_temp_worktree_hygiene_guardrail mismatch" in error
         for error in module.check_manifest(unequal)
     )
 

@@ -9017,6 +9017,41 @@
     "target": "Fix guardrail 2026-09-01T00:58:00Z status-output comparator preservation bug.",
     "timestamp": "2026-09-01T01:34:00Z"
   },
+  "latest_temp_worktree_hygiene_guardrail": {
+    "checker_repair": {
+      "controls": [
+        "equal copy passes",
+        "missing root fails",
+        "missing question_bank fails",
+        "unequal copy fails"
+      ],
+      "required_pair_field": "latest_temp_worktree_hygiene_guardrail",
+      "validation": "passed: real manifest equal copy passed; missing root, missing question_bank, and unequal copy failed; focused test_manifest_check passed with 39 tests; full unit gate passed with 546 tests"
+    },
+    "classification": "operational_worktree_hygiene_containment",
+    "created_new_worktree": false,
+    "evidence": [
+      "Direct guardrail cron history reported the latest guardrail summary as operational needs_fix with 104 registered accuracy temp worktrees.",
+      "This run reused existing clean job-owned worktree /tmp/manuals_rag_accuracy_cron_39262386 and detached it to origin/main 378f147 before editing.",
+      "No production retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed."
+    ],
+    "guardrail_commit": "378f147",
+    "guardrail_finding_timestamp": "2026-09-01T23:18:00Z",
+    "policy_added": "docs/runbooks/retrieval_accuracy_cron.md now requires reusing one clean job-owned worktree when safe, creating at most one new worktree per run, verifying clean state before removal, using git worktree remove on the exact path, verifying deregistration, and recording blockers instead of serial throwaway creation.",
+    "remaining": "After commit/push, verify the reused worktree is clean, attempt git worktree remove on the exact path, and report any removal blocker. Then continue row 17 source review in a later run.",
+    "repo_subdir": "/tmp/manuals_rag_accuracy_cron_39262386/manuals_rag",
+    "reused_worktree": "/tmp/manuals_rag_accuracy_cron_39262386",
+    "severity": "needs_fix",
+    "status": "addressed_this_run_pending_guardrail_review",
+    "timestamp": "2026-09-01T23:25:59Z",
+    "validation": [
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 39 passed",
+      "real-manifest controls: equal copy passed; deleting root latest_temp_worktree_hygiene_guardrail failed; deleting question_bank copy failed; unequal status failed",
+      "git diff --check -> passed",
+      "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only -> 546 passed, 59 warnings"
+    ]
+  },
   "llm_answer_judge_policy": {
     "guardrail_timestamp": "2026-08-27T02:12:42Z / 2026-08-27T02:41:22Z",
     "production_evidence_rule": "Use deterministic retrieval/answer scoring, actual user-visible/API answer payloads, and source/chunk citation inspection for production evidence; ignore LLM judge green results for durable pass/fail tracking unless separately approved.",
@@ -12571,6 +12606,41 @@
       "target": "Fix guardrail 2026-09-01T00:58:00Z status-output comparator preservation bug.",
       "timestamp": "2026-09-01T01:34:00Z"
     },
+    "latest_temp_worktree_hygiene_guardrail": {
+      "checker_repair": {
+        "controls": [
+          "equal copy passes",
+          "missing root fails",
+          "missing question_bank fails",
+          "unequal copy fails"
+        ],
+        "required_pair_field": "latest_temp_worktree_hygiene_guardrail",
+        "validation": "passed: real manifest equal copy passed; missing root, missing question_bank, and unequal copy failed; focused test_manifest_check passed with 39 tests; full unit gate passed with 546 tests"
+      },
+      "classification": "operational_worktree_hygiene_containment",
+      "created_new_worktree": false,
+      "evidence": [
+        "Direct guardrail cron history reported the latest guardrail summary as operational needs_fix with 104 registered accuracy temp worktrees.",
+        "This run reused existing clean job-owned worktree /tmp/manuals_rag_accuracy_cron_39262386 and detached it to origin/main 378f147 before editing.",
+        "No production retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed."
+      ],
+      "guardrail_commit": "378f147",
+      "guardrail_finding_timestamp": "2026-09-01T23:18:00Z",
+      "policy_added": "docs/runbooks/retrieval_accuracy_cron.md now requires reusing one clean job-owned worktree when safe, creating at most one new worktree per run, verifying clean state before removal, using git worktree remove on the exact path, verifying deregistration, and recording blockers instead of serial throwaway creation.",
+      "remaining": "After commit/push, verify the reused worktree is clean, attempt git worktree remove on the exact path, and report any removal blocker. Then continue row 17 source review in a later run.",
+      "repo_subdir": "/tmp/manuals_rag_accuracy_cron_39262386/manuals_rag",
+      "reused_worktree": "/tmp/manuals_rag_accuracy_cron_39262386",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_pending_guardrail_review",
+      "timestamp": "2026-09-01T23:25:59Z",
+      "validation": [
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 39 passed",
+        "real-manifest controls: equal copy passed; deleting root latest_temp_worktree_hygiene_guardrail failed; deleting question_bank copy failed; unequal status failed",
+        "git diff --check -> passed",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps with tmp_eval_docs, tmp_eval_docs_small, and tmp_eval_docs_medium mounted read-only -> 546 passed, 59 warnings"
+      ]
+    },
     "llm_answer_judge_policy": {
       "guardrail_timestamp": "2026-08-27T02:12:42Z / 2026-08-27T02:41:22Z",
       "production_evidence_rule": "Use deterministic retrieval/answer scoring, actual user-visible/API answer payloads, and source/chunk citation inspection for production evidence; ignore LLM judge green results for durable pass/fail tracking unless separately approved.",
@@ -14685,7 +14755,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T22:35:00Z"
+    "updated_at": "2026-09-01T23:25:59Z"
   },
   "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
   "retrieval_current_failure_categories": {},
@@ -16711,5 +16781,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T22:35:00Z"
+  "updated_at": "2026-09-01T23:25:59Z"
 }
