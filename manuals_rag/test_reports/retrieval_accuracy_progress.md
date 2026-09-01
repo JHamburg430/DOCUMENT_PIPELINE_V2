@@ -6097,3 +6097,17 @@ Next target:
 Next target:
 
 - Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice. Preserve row 13 clean evidence from `retrieval_eval_20260901_062601`, contextual rows 15-16 clean evidence from `retrieval_eval_20260901_063040`, and diagnostic exclusion `retrieval_eval_20260901_062733`; keep requiring actual HTTP/API payload inspection before accepting clean evidence.
+
+## 2026-09-01 Cron 39262386 Row 15 Citation-Content Reclassification
+
+- Target: addressed latest guardrail `needs_fix` at `2026-09-01T06:56:00Z` / guardrail commit `bf88ba5`. The primary checkout remains stale/dirty with unrelated UI/retrieval/eval/test/compose/artifact changes, so this run used clean detached `origin/main` worktree `/tmp/manuals_rag_accuracy_20260901_025403/manuals_rag` and preserved the primary checkout.
+- Action: reclassified `retrieval_eval_20260901_063040` contextual row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean. Row 13 remains clean from `retrieval_eval_20260901_062601`, and contextual row 16 remains clean from `retrieval_eval_20260901_063040`.
+- Evidence: manually inspected `retrieval_eval_results_20260901_063040`. Row 15's visible answer states the LJ-V Continuous/Total Number of Lines 10-lines/two-overlap-lines example, but its citation `02767534` has `quote_span: null` and the returned `content` is only the procedure-step header; the answer-critical values appear in `metadata.content`, not the cited chunk content itself. Row 16 cites `450fca55`, whose returned `content` directly states the Asynchronous Trigger TRG1/CAM1 capture plus measurement processing behavior. This is an answer-grounding/citation-content failure, not a retrieval failure.
+- Tracking: updated root and `question_bank` manifest copies atomically for `updated_at`, `next_target`, `remaining`, retrieval/answer failure aliases, failure-source fields, `answer_grounding_status`, `answer_grounding_rotation`, `run_exclusions`, and `unresolved_guardrail_findings`. Current retrieval failures remain `{}`. Current answer failures are now `expected_evidence_not_cited: 1`. Active exploratory coverage remains 208 questions total: 101 single-step and 107 multi-step; replacement debt remains 0.
+- Scope/provenance: tracking-only correction. No production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed. No new clean answer evidence was claimed.
+- Validation: `python3 scripts/maintenance/check_retrieval_accuracy_manifest.py` passed; focused manifest tests passed; `python3 -m json.tool test_reports/retrieval_accuracy_question_bank_manifest.json` passed; `git diff --check HEAD` passed.
+- Generalization check before commit: this is valid for unseen manuals/vendors and realistic engineer, technician, support, manager, and salesperson questions because it enforces that accepted citations directly support material answer claims rather than relying on hidden expanded metadata.
+
+Next target:
+
+- Rerun contextual procedure row 15 only with citation content that directly contains the LJ-V Continuous/Total Number of Lines context and the 10-lines/two-overlap-lines values, or document an explicit product behavior that `metadata.content` is the user-visible citation text and validate it end to end. Preserve row 13 and row 16 clean evidence.

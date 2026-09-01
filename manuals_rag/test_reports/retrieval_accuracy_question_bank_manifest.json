@@ -1,5 +1,7 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "expected_evidence_not_cited": 1
+  },
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
@@ -182,27 +184,29 @@
     ]
   },
   "answer_grounding_rotation": {
-    "classification": "row13_rerun_and_contextual_rows_15_16_source_reviewed_clean",
+    "classification": "row15_reclassified_diagnostic_row13_row16_clean",
     "latest_run": "retrieval_eval_20260901_063040",
     "previous_row13_fresh_run": "retrieval_eval_20260901_062601",
-    "answer_result": "Fresh row 13 HTTP/API rerun passed 1/1 retrieval and 1/1 answer grounding. Contextual rows 15-16 initially failed exact expected-evidence citation scoring in retrieval_eval_20260901_062733; source review showed the cited row-group/procedure chunks directly support every expected evidence role, equivalent-citation annotations were added, and fresh HTTP/API rerun retrieval_eval_20260901_063040 passed 2/2 retrieval and 2/2 answer grounding.",
-    "retrieval_result": "Row 13 retrieved source evidence at rank 1. Contextual row 15 retrieved both expected evidence roles at ranks 3 and 4, and row 16 retrieved both expected evidence roles at rank 1.",
+    "answer_result": "Row 13 remains 1/1 clean and contextual row 16 remains clean. Contextual row 15 and the combined rows 15-16 clean claim are diagnostic/not-clean after guardrail citation-content audit; current answer failures expected_evidence_not_cited: 1.",
+    "retrieval_result": "Row 15 retrieval reached same-document evidence, but accepted citation content does not itself carry all expected roles. Row 16 retrieved and cited source-supporting content.",
     "current_retrieval_failures": {},
-    "current_answer_failures": {},
+    "current_answer_failures": {
+      "expected_evidence_not_cited": 1
+    },
     "artifacts": {
       "row13_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_062601.jsonl",
       "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
       "row13_clean_summary": "test_reports/retrieval_eval_summary_20260901_062601.json",
       "row13_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_062601.json",
       "contextual_rows_15_16_pre_annotation_diagnostic_results": "test_reports/retrieval_eval_results_20260901_062733.jsonl",
-      "contextual_rows_15_16_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
-      "contextual_rows_15_16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
-      "contextual_rows_15_16_clean_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
-      "contextual_rows_15_16_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
+      "contextual_rows_15_16_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
+      "contextual_rows_15_16_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
+      "contextual_rows_15_16_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
+      "contextual_rows_15_16_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
       "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl"
     },
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_062601 and retrieval_eval_results_20260901_063040. Row 13 visible answer states the Display Feature Course/Fine meanings and cites chunk 37d21822, whose returned content directly contains Display Feature, Course, Fine, course-search, and fine-search statements. Contextual row 15 visible answer states the LJ-V continuous/Total Number of Lines timing example with 10 lines and two overlap lines, citing chunk 02767534; its persisted metadata.content directly contains the procedure context plus the 10-line/two-overlap-line values. Contextual row 16 visible answer states that TRG1 for CAM 1 executes capture plus measurement processing for only the arbitrary one camera as one measurement, citing chunk 450fca55, whose returned content directly contains that asynchronous trigger procedure and behavior. All quote_span values were null, citation_fidelity passed, evidence_citation_support passed, and trace/summary telemetry agreed on fallback_validation.",
-    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean."
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_062601 and retrieval_eval_results_20260901_063040. Row 13 citation content directly supports Display Feature Course/Fine. Row 16 citation content directly supports TRG1/CAM1 asynchronous trigger behavior. Row 15 answer-critical values are not present in the cited chunk content and appear only in metadata.content, so row 15 is diagnostic/not-clean until a rerun cites content that directly contains those values or product citation semantics are explicitly validated.",
+    "remaining": "Rerun contextual procedure row 15 only with citation content that directly contains the LJ-V Continuous/Total Number of Lines context and the 10-lines/two-overlap-lines values, or document an explicit product behavior that metadata.content is the user-visible citation text and validate it end to end. Preserve retrieval_eval_20260901_062601 row 13 and retrieval_eval_20260901_063040 row 16 as clean evidence; treat retrieval_eval_20260901_063040 row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -669,39 +673,39 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
-    "classification": "row13_and_contextual_rows_15_16_source_reviewed_clean",
-    "answer_grounding_status": "Fresh source-reviewed HTTP/API answer evidence is clean for curated single-step v2 row 13 and contextual procedure rows 15-16. Rows 15-16 use bounded same-source equivalent citations only where the cited row-group/procedure chunks directly contain every expected evidence role; this avoids treating exact atomic chunk mismatch as a production answer failure.",
+    "classification": "row15_citation_content_guardrail_reclassified_diagnostic",
+    "answer_grounding_status": "Row 13 remains clean from retrieval_eval_20260901_062601 and contextual row 16 remains clean from retrieval_eval_20260901_063040. Contextual row 15 from retrieval_eval_20260901_063040 is reclassified diagnostic/not-clean because the cited result content is only a procedure-step header; answer-critical 10-lines/two-overlap-lines support appears only in metadata.content, not the cited chunk content itself.",
     "accepted_clean_runs": [
       "retrieval_eval_20260901_062601 row 13",
-      "retrieval_eval_20260901_063040 contextual rows 15-16"
+      "retrieval_eval_20260901_063040 contextual row 16"
     ],
     "diagnostic_runs": {
-      "retrieval_eval_20260901_062733": "pre-source-review exact-chunk scoring failed expected_evidence_not_cited; superseded by equivalent-citation annotations and clean rerun retrieval_eval_20260901_063040"
+      "retrieval_eval_20260901_062733": "pre-source-review exact-chunk scoring failed expected_evidence_not_cited; remains diagnostic/not-clean",
+      "retrieval_eval_20260901_063040 row 15": "guardrail 2026-09-01T06:56:00Z found cited chunk content does not directly contain the line-count/overlap values; not clean citation evidence",
+      "retrieval_eval_20260901_063040 combined rows 15-16": "not clean because row 15 is diagnostic/not-clean; row 16 alone remains clean"
     },
     "current_retrieval_failures": {},
-    "current_answer_failures": {},
+    "current_answer_failures": {
+      "expected_evidence_not_cited": 1
+    },
     "artifacts": {
       "row13_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_062601.jsonl",
       "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
       "row13_clean_summary": "test_reports/retrieval_eval_summary_20260901_062601.json",
       "row13_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_062601.json",
       "contextual_rows_15_16_pre_annotation_diagnostic_results": "test_reports/retrieval_eval_results_20260901_062733.jsonl",
-      "contextual_rows_15_16_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
-      "contextual_rows_15_16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
-      "contextual_rows_15_16_clean_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
-      "contextual_rows_15_16_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
+      "contextual_rows_15_16_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
+      "contextual_rows_15_16_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
+      "contextual_rows_15_16_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
+      "contextual_rows_15_16_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
       "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl"
     },
     "checks": [
-      "Clean side API manuals-rag-temp-api-39262386-20260901-row13-rerun served http://127.0.0.1:9016 and loaded code from /workspace/manuals_rag.",
-      "Runtime fingerprints: retriever.py d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc; generator.py 86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90; retrieval_eval.py 73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d; retrieve 7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab; score_answer_response 6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf; validate_answer 023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702.",
-      "Local model settings stayed OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
-      "retrieval_eval_20260901_062601 passed row 13 retrieval 1/1 at rank 1 and answer grounding 1/1 after actual HTTP/API rerun.",
-      "retrieval_eval_20260901_062733 preserved as diagnostic/not-clean before rows 15-16 equivalent-citation evidence annotations.",
-      "retrieval_eval_20260901_063040 passed contextual rows 15-16 retrieval 2/2 and answer grounding 2/2 after source-reviewed expected_evidence annotations.",
-      "Manual JSONL inspection verified every accepted citation chunk directly supports the expected evidence roles and all quote_span values were null."
+      "Manual JSONL inspection confirmed row 15 cites chunk 02767534 with quote_span null, but the result content is only the procedure-step header; the 10-lines/two-overlap support is present in metadata.content, not actual cited content.",
+      "Manual JSONL inspection confirmed row 16 cites chunk 450fca55 whose content directly states TRG1/CAM1 capture plus measurement processing as one measurement.",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed after atomic root/question_bank tracking update."
     ],
-    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean."
+    "remaining": "Rerun contextual procedure row 15 only with citation content that directly contains the LJ-V Continuous/Total Number of Lines context and the 10-lines/two-overlap-lines values, or document an explicit product behavior that metadata.content is the user-visible citation text and validate it end to end. Preserve retrieval_eval_20260901_062601 row 13 and retrieval_eval_20260901_063040 row 16 as clean evidence; treat retrieval_eval_20260901_063040 row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean."
   },
   "constraints": {
     "allowed_logic": [
@@ -719,11 +723,13 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
-  "current_answer_failure_source": "No current answer failure source remains. Fresh row 13 and contextual rows 15-16 HTTP/API reruns passed answer grounding after source-reviewed expected_evidence annotations; retrieval_eval_20260901_062733 remains diagnostic only.",
+  "current_answer_failure_categories": {
+    "expected_evidence_not_cited": 1
+  },
+  "current_answer_failure_source": "retrieval_eval_20260901_063040 row 15 is diagnostic/not-clean: the cited chunk content does not directly contain the LJ-V 10-lines/two-overlap-lines expected evidence; row 16 remains clean.",
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "No current retrieval failure source remains. Fresh row 13 and contextual rows 15-16 HTTP/API reruns retrieved all expected evidence; continue broader coverage from the next validated unresolved slice.",
+  "current_retrieval_failure_source": "No current retrieval failure source remains; row 15 citation-content issue is an answer-grounding/citation evidence failure, not a retrieval failure.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -8940,7 +8946,7 @@
       "type": "current_retrieval_failure_source_empty_state_reconciliation"
     }
   ],
-  "next_target": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean.",
+  "next_target": "Rerun contextual procedure row 15 only with citation content that directly contains the LJ-V Continuous/Total Number of Lines context and the 10-lines/two-overlap-lines values, or document an explicit product behavior that metadata.content is the user-visible citation text and validate it end to end. Preserve retrieval_eval_20260901_062601 row 13 and retrieval_eval_20260901_063040 row 16 as clean evidence; treat retrieval_eval_20260901_063040 row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9693,7 +9699,9 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 1
+    },
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
@@ -9876,27 +9884,29 @@
       ]
     },
     "answer_grounding_rotation": {
-      "classification": "row13_rerun_and_contextual_rows_15_16_source_reviewed_clean",
+      "classification": "row15_reclassified_diagnostic_row13_row16_clean",
       "latest_run": "retrieval_eval_20260901_063040",
       "previous_row13_fresh_run": "retrieval_eval_20260901_062601",
-      "answer_result": "Fresh row 13 HTTP/API rerun passed 1/1 retrieval and 1/1 answer grounding. Contextual rows 15-16 initially failed exact expected-evidence citation scoring in retrieval_eval_20260901_062733; source review showed the cited row-group/procedure chunks directly support every expected evidence role, equivalent-citation annotations were added, and fresh HTTP/API rerun retrieval_eval_20260901_063040 passed 2/2 retrieval and 2/2 answer grounding.",
-      "retrieval_result": "Row 13 retrieved source evidence at rank 1. Contextual row 15 retrieved both expected evidence roles at ranks 3 and 4, and row 16 retrieved both expected evidence roles at rank 1.",
+      "answer_result": "Row 13 remains 1/1 clean and contextual row 16 remains clean. Contextual row 15 and the combined rows 15-16 clean claim are diagnostic/not-clean after guardrail citation-content audit; current answer failures expected_evidence_not_cited: 1.",
+      "retrieval_result": "Row 15 retrieval reached same-document evidence, but accepted citation content does not itself carry all expected roles. Row 16 retrieved and cited source-supporting content.",
       "current_retrieval_failures": {},
-      "current_answer_failures": {},
+      "current_answer_failures": {
+        "expected_evidence_not_cited": 1
+      },
       "artifacts": {
         "row13_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_062601.jsonl",
         "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
         "row13_clean_summary": "test_reports/retrieval_eval_summary_20260901_062601.json",
         "row13_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_062601.json",
         "contextual_rows_15_16_pre_annotation_diagnostic_results": "test_reports/retrieval_eval_results_20260901_062733.jsonl",
-        "contextual_rows_15_16_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
-        "contextual_rows_15_16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
-        "contextual_rows_15_16_clean_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
-        "contextual_rows_15_16_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
+        "contextual_rows_15_16_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
+        "contextual_rows_15_16_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
+        "contextual_rows_15_16_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
+        "contextual_rows_15_16_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
         "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl"
       },
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_062601 and retrieval_eval_results_20260901_063040. Row 13 visible answer states the Display Feature Course/Fine meanings and cites chunk 37d21822, whose returned content directly contains Display Feature, Course, Fine, course-search, and fine-search statements. Contextual row 15 visible answer states the LJ-V continuous/Total Number of Lines timing example with 10 lines and two overlap lines, citing chunk 02767534; its persisted metadata.content directly contains the procedure context plus the 10-line/two-overlap-line values. Contextual row 16 visible answer states that TRG1 for CAM 1 executes capture plus measurement processing for only the arbitrary one camera as one measurement, citing chunk 450fca55, whose returned content directly contains that asynchronous trigger procedure and behavior. All quote_span values were null, citation_fidelity passed, evidence_citation_support passed, and trace/summary telemetry agreed on fallback_validation.",
-      "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean."
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_062601 and retrieval_eval_results_20260901_063040. Row 13 citation content directly supports Display Feature Course/Fine. Row 16 citation content directly supports TRG1/CAM1 asynchronous trigger behavior. Row 15 answer-critical values are not present in the cited chunk content and appear only in metadata.content, so row 15 is diagnostic/not-clean until a rerun cites content that directly contains those values or product citation semantics are explicitly validated.",
+      "remaining": "Rerun contextual procedure row 15 only with citation content that directly contains the LJ-V Continuous/Total Number of Lines context and the 10-lines/two-overlap-lines values, or document an explicit product behavior that metadata.content is the user-visible citation text and validate it end to end. Preserve retrieval_eval_20260901_062601 row 13 and retrieval_eval_20260901_063040 row 16 as clean evidence; treat retrieval_eval_20260901_063040 row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10152,45 +10162,47 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
-      "classification": "row13_and_contextual_rows_15_16_source_reviewed_clean",
-      "answer_grounding_status": "Fresh source-reviewed HTTP/API answer evidence is clean for curated single-step v2 row 13 and contextual procedure rows 15-16. Rows 15-16 use bounded same-source equivalent citations only where the cited row-group/procedure chunks directly contain every expected evidence role; this avoids treating exact atomic chunk mismatch as a production answer failure.",
+      "classification": "row15_citation_content_guardrail_reclassified_diagnostic",
+      "answer_grounding_status": "Row 13 remains clean from retrieval_eval_20260901_062601 and contextual row 16 remains clean from retrieval_eval_20260901_063040. Contextual row 15 from retrieval_eval_20260901_063040 is reclassified diagnostic/not-clean because the cited result content is only a procedure-step header; answer-critical 10-lines/two-overlap-lines support appears only in metadata.content, not the cited chunk content itself.",
       "accepted_clean_runs": [
         "retrieval_eval_20260901_062601 row 13",
-        "retrieval_eval_20260901_063040 contextual rows 15-16"
+        "retrieval_eval_20260901_063040 contextual row 16"
       ],
       "diagnostic_runs": {
-        "retrieval_eval_20260901_062733": "pre-source-review exact-chunk scoring failed expected_evidence_not_cited; superseded by equivalent-citation annotations and clean rerun retrieval_eval_20260901_063040"
+        "retrieval_eval_20260901_062733": "pre-source-review exact-chunk scoring failed expected_evidence_not_cited; remains diagnostic/not-clean",
+        "retrieval_eval_20260901_063040 row 15": "guardrail 2026-09-01T06:56:00Z found cited chunk content does not directly contain the line-count/overlap values; not clean citation evidence",
+        "retrieval_eval_20260901_063040 combined rows 15-16": "not clean because row 15 is diagnostic/not-clean; row 16 alone remains clean"
       },
       "current_retrieval_failures": {},
-      "current_answer_failures": {},
+      "current_answer_failures": {
+        "expected_evidence_not_cited": 1
+      },
       "artifacts": {
         "row13_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_062601.jsonl",
         "row13_clean_results": "test_reports/retrieval_eval_results_20260901_062601.jsonl",
         "row13_clean_summary": "test_reports/retrieval_eval_summary_20260901_062601.json",
         "row13_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_062601.json",
         "contextual_rows_15_16_pre_annotation_diagnostic_results": "test_reports/retrieval_eval_results_20260901_062733.jsonl",
-        "contextual_rows_15_16_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
-        "contextual_rows_15_16_clean_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
-        "contextual_rows_15_16_clean_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
-        "contextual_rows_15_16_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
+        "contextual_rows_15_16_dataset": "test_reports/retrieval_eval_dataset_20260901_063040.jsonl",
+        "contextual_rows_15_16_results": "test_reports/retrieval_eval_results_20260901_063040.jsonl",
+        "contextual_rows_15_16_summary": "test_reports/retrieval_eval_summary_20260901_063040.json",
+        "contextual_rows_15_16_manifest": "test_reports/retrieval_eval_manifest_20260901_063040.json",
         "contextual_rows_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl"
       },
       "checks": [
-        "Clean side API manuals-rag-temp-api-39262386-20260901-row13-rerun served http://127.0.0.1:9016 and loaded code from /workspace/manuals_rag.",
-        "Runtime fingerprints: retriever.py d083af6e809ca9a5ffc7d35bb398cecebbdb850423117e02f26f67d54ea82cfc; generator.py 86f62fe512bb25089a6a8e0fb3f87663991606b671245585db495e55dad7ad90; retrieval_eval.py 73a2de380a7d9d22f08e83bd51f7e39fbe1e85d3cd023881eea78dda27129a2d; retrieve 7f178387fd36eda2f40250c82af44c08942a478dccd469990c6b3110da4051ab; score_answer_response 6528ca4e64f430bc0f9b0e717e1db2be69064c5d12bb38e8bb0a6315fd8896bf; validate_answer 023776765c6b0b7d440474fe22d7b2222057262bd95d560e5a5808b4460f6702.",
-        "Local model settings stayed OLLAMA_URL=http://host.docker.internal:11434, OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b, OLLAMA_METADATA_MODEL=tinyllama:1.1b, OLLAMA_ANSWER_MODEL=qwen3.5:9b, HAYSTACK_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2, HAYSTACK_RERANK_DEVICE=cuda:0.",
-        "retrieval_eval_20260901_062601 passed row 13 retrieval 1/1 at rank 1 and answer grounding 1/1 after actual HTTP/API rerun.",
-        "retrieval_eval_20260901_062733 preserved as diagnostic/not-clean before rows 15-16 equivalent-citation evidence annotations.",
-        "retrieval_eval_20260901_063040 passed contextual rows 15-16 retrieval 2/2 and answer grounding 2/2 after source-reviewed expected_evidence annotations.",
-        "Manual JSONL inspection verified every accepted citation chunk directly supports the expected evidence roles and all quote_span values were null."
+        "Manual JSONL inspection confirmed row 15 cites chunk 02767534 with quote_span null, but the result content is only the procedure-step header; the 10-lines/two-overlap support is present in metadata.content, not actual cited content.",
+        "Manual JSONL inspection confirmed row 16 cites chunk 450fca55 whose content directly states TRG1/CAM1 capture plus measurement processing as one measurement.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed after atomic root/question_bank tracking update."
       ],
-      "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean."
+      "remaining": "Rerun contextual procedure row 15 only with citation content that directly contains the LJ-V Continuous/Total Number of Lines context and the 10-lines/two-overlap-lines values, or document an explicit product behavior that metadata.content is the user-visible citation text and validate it end to end. Preserve retrieval_eval_20260901_062601 row 13 and retrieval_eval_20260901_063040 row 16 as clean evidence; treat retrieval_eval_20260901_063040 row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean."
     },
-    "current_answer_failure_categories": {},
-    "current_answer_failure_source": "No current answer failure source remains. Fresh row 13 and contextual rows 15-16 HTTP/API reruns passed answer grounding after source-reviewed expected_evidence annotations; retrieval_eval_20260901_062733 remains diagnostic only.",
+    "current_answer_failure_categories": {
+      "expected_evidence_not_cited": 1
+    },
+    "current_answer_failure_source": "retrieval_eval_20260901_063040 row 15 is diagnostic/not-clean: the cited chunk content does not directly contain the LJ-V 10-lines/two-overlap-lines expected evidence; row 16 remains clean.",
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "No current retrieval failure source remains. Fresh row 13 and contextual rows 15-16 HTTP/API reruns retrieved all expected evidence; continue broader coverage from the next validated unresolved slice.",
+    "current_retrieval_failure_source": "No current retrieval failure source remains; row 15 citation-content issue is an answer-grounding/citation evidence failure, not a retrieval failure.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12369,7 +12381,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean.",
+    "next_target": "Rerun contextual procedure row 15 only with citation content that directly contains the LJ-V Continuous/Total Number of Lines context and the 10-lines/two-overlap-lines values, or document an explicit product behavior that metadata.content is the user-visible citation text and validate it end to end. Preserve retrieval_eval_20260901_062601 row 13 and retrieval_eval_20260901_063040 row 16 as clean evidence; treat retrieval_eval_20260901_063040 row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12406,7 +12418,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean.",
+    "remaining": "Rerun contextual procedure row 15 only with citation content that directly contains the LJ-V Continuous/Total Number of Lines context and the 10-lines/two-overlap-lines values, or document an explicit product behavior that metadata.content is the user-visible citation text and validate it end to end. Preserve retrieval_eval_20260901_062601 row 13 and retrieval_eval_20260901_063040 row 16 as clean evidence; treat retrieval_eval_20260901_063040 row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13024,11 +13036,29 @@
         "run_id": "retrieval_eval_20260901_062733",
         "scope": "contextual procedure rows 15-16 pre-source-review exact-chunk answer scoring",
         "reason": "Diagnostic/not-clean pre-annotation HTTP run: visible answers cited same-source row-group/procedure chunks that manual inspection found source-supported, but the dataset had not yet recorded equivalent-citation expected_evidence, so automated scoring failed expected_evidence_not_cited. Superseded by source-reviewed clean rerun retrieval_eval_20260901_063040."
+      },
+      {
+        "run_id": "retrieval_eval_20260901_063040",
+        "scope": "contextual procedure row 15 and combined rows 15-16 clean claim",
+        "reason": "guardrail 2026-09-01T06:56:00Z citation-content audit found row 15 cites chunk 02767534 whose actual content only contains a procedure-step header; the 10-lines/two-overlap-lines support appears only in metadata.content, so row 15 is not clean citation evidence while row 16 remains clean"
       }
     ],
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-09-01T06:56:00Z",
+        "severity": "needs_fix",
+        "finding": "retrieval_eval_20260901_063040 contextual row 15 was accepted as clean even though its cited chunk content does not directly contain the LJ-V 10-lines/two-overlap-lines support; the support appears only in metadata.content.",
+        "status": "addressed_by_tracking_reclassification_20260901_0704",
+        "addressed_this_run": "Reclassified row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean, preserved row 13 and row 16 clean evidence, and updated current answer failures to expected_evidence_not_cited: 1.",
+        "evidence": [
+          "Guardrail commit bf88ba5 / review 2026-09-01T06:56:00Z required reclassification before optional work.",
+          "Manual JSONL inspection of retrieval_eval_results_20260901_063040 confirmed row 15 cited content lacks Number of Lines 10 and Number of Overlapping Lines Two lines.",
+          "Manual JSONL inspection confirmed row 16 cited content directly supports its expected asynchronous-trigger role."
+        ],
+        "remaining": "Rerun contextual procedure row 15 only with citation content that directly contains the LJ-V Continuous/Total Number of Lines context and the 10-lines/two-overlap-lines values, or document an explicit product behavior that metadata.content is the user-visible citation text and validate it end to end. Preserve retrieval_eval_20260901_062601 row 13 and retrieval_eval_20260901_063040 row 16 as clean evidence; treat retrieval_eval_20260901_063040 row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean."
+      },
       {
         "addressed_this_run": "Suppressed safety-intent structured-table promotion, corrected source-only conjoined warning relation scoring, reran loaded HTTP/API row 5, and manually inspected the user-visible answer/cited chunk.",
         "evidence": [
@@ -14068,9 +14098,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T06:38:00Z"
+    "updated_at": "2026-09-01T07:04:00Z"
   },
-  "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Preserve retrieval_eval_20260901_062601 as fresh row-13 HTTP clean evidence and retrieval_eval_20260901_063040 as source-reviewed contextual rows 15-16 HTTP clean evidence; do not count pre-annotation retrieval_eval_20260901_062733 as clean.",
+  "remaining": "Rerun contextual procedure row 15 only with citation content that directly contains the LJ-V Continuous/Total Number of Lines context and the 10-lines/two-overlap-lines values, or document an explicit product behavior that metadata.content is the user-visible citation text and validate it end to end. Preserve retrieval_eval_20260901_062601 row 13 and retrieval_eval_20260901_063040 row 16 as clean evidence; treat retrieval_eval_20260901_063040 row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -14688,10 +14718,28 @@
       "run_id": "retrieval_eval_20260901_062733",
       "scope": "contextual procedure rows 15-16 pre-source-review exact-chunk answer scoring",
       "reason": "Diagnostic/not-clean pre-annotation HTTP run: visible answers cited same-source row-group/procedure chunks that manual inspection found source-supported, but the dataset had not yet recorded equivalent-citation expected_evidence, so automated scoring failed expected_evidence_not_cited. Superseded by source-reviewed clean rerun retrieval_eval_20260901_063040."
+    },
+    {
+      "run_id": "retrieval_eval_20260901_063040",
+      "scope": "contextual procedure row 15 and combined rows 15-16 clean claim",
+      "reason": "guardrail 2026-09-01T06:56:00Z citation-content audit found row 15 cites chunk 02767534 whose actual content only contains a procedure-step header; the 10-lines/two-overlap-lines support appears only in metadata.content, so row 15 is not clean citation evidence while row 16 remains clean"
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-09-01T06:56:00Z",
+      "severity": "needs_fix",
+      "finding": "retrieval_eval_20260901_063040 contextual row 15 was accepted as clean even though its cited chunk content does not directly contain the LJ-V 10-lines/two-overlap-lines support; the support appears only in metadata.content.",
+      "status": "addressed_by_tracking_reclassification_20260901_0704",
+      "addressed_this_run": "Reclassified row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean, preserved row 13 and row 16 clean evidence, and updated current answer failures to expected_evidence_not_cited: 1.",
+      "evidence": [
+        "Guardrail commit bf88ba5 / review 2026-09-01T06:56:00Z required reclassification before optional work.",
+        "Manual JSONL inspection of retrieval_eval_results_20260901_063040 confirmed row 15 cited content lacks Number of Lines 10 and Number of Overlapping Lines Two lines.",
+        "Manual JSONL inspection confirmed row 16 cited content directly supports its expected asynchronous-trigger role."
+      ],
+      "remaining": "Rerun contextual procedure row 15 only with citation content that directly contains the LJ-V Continuous/Total Number of Lines context and the 10-lines/two-overlap-lines values, or document an explicit product behavior that metadata.content is the user-visible citation text and validate it end to end. Preserve retrieval_eval_20260901_062601 row 13 and retrieval_eval_20260901_063040 row 16 as clean evidence; treat retrieval_eval_20260901_063040 row 15 and the combined rows 15-16 clean claim as diagnostic/not-clean."
+    },
     {
       "addressed_this_run": "Suppressed safety-intent structured-table promotion, corrected source-only conjoined warning relation scoring, reran loaded HTTP/API row 5, and manually inspected the user-visible answer/cited chunk.",
       "evidence": [
@@ -15731,5 +15779,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T06:38:00Z"
+  "updated_at": "2026-09-01T07:04:00Z"
 }
