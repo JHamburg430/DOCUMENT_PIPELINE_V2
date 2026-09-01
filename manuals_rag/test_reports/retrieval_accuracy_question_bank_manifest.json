@@ -2921,17 +2921,24 @@
     "timestamp": "2026-08-27T18:03:52-04:00"
   },
   "latest_no_change_validation": {
-    "baseline": "retrieval_eval_20260825_072839",
-    "dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-    "failure_categories": {
-      "eval_timeout": 2,
-      "ranking_or_context_loss": 1
+    "timestamp": "2026-09-01T02:05:00Z",
+    "status": "guardrail_manifest_state_preserved_no_production_change",
+    "target": "Cron-safe start-of-run guardrail and manifest review from clean origin/main after primary checkout divergence.",
+    "guardrail_review": "Checked-in guardrail findings include 2026-09-01T01:48:00Z ok audit for status-output comparator repair; direct guardrail cron history was restricted to the current job.",
+    "manifest_status": "Root and question_bank copies agree for current duplicated state; current retrieval and answer failure aliases are empty for the limited row-1/row-2 source-reviewed slice.",
+    "validation": [
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before tracking update.",
+      "docker compose -f infra/compose/docker-compose.yml ps --format json showed the local stack running, including API/UI on 8600/8601."
+    ],
+    "scope": "Tracking-only: no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, reranker, or eval artifact changes.",
+    "primary_checkout": "Preserved stale/dirty primary checkout main...origin/main [ahead 1, behind 158], local stale commit bb2ce10, unrelated dirty files, compose endpoint drift, and mass eval-artifact deletions without accepting, reverting, merging, or pushing them.",
+    "coverage": {
+      "active_total": 208,
+      "single_step": 101,
+      "multi_step": 107,
+      "replacement_debt": 0
     },
-    "manifest": "test_reports/retrieval_eval_manifest_20260826_005723.json",
-    "notes": "Run addressed guardrail 2026-08-26T00:44:00Z by reverting out-of-scope API/UI progress-surface and loose eval-generation changes, then rerunning saved direct retrieval gates. No production retrieval or answering change was attempted.",
-    "result": "7/10 direct retrieval with pass@1 60%, pass@3/pass@5 70%, candidate recall 80%, metadata document recall 100%.",
-    "status": "containment_regression_validation_after_b51a22c_revert",
-    "summary": "test_reports/retrieval_eval_summary_20260826_005723.json"
+    "next_target": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries."
   },
   "latest_rejected_experiment": {
     "baseline": "retrieval_eval_20260825_072839",
@@ -14063,7 +14070,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T01:34:00Z"
+    "updated_at": "2026-09-01T02:05:00Z"
   },
   "remaining": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries.",
   "retrieval_current_failure_categories": {},
@@ -15648,5 +15655,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T01:34:00Z"
+  "updated_at": "2026-09-01T02:05:00Z"
 }
