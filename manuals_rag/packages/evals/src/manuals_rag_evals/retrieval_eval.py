@@ -3437,11 +3437,9 @@ def _retrieved_chunk_texts(results: list[dict[str, Any]] | None) -> dict[str, st
         chunk_id = str(result.get("chunk_id") or result.get("id") or "")
         if not chunk_id:
             continue
-        text_parts = [
-            str(result.get("content") or ""),
-            str((result.get("metadata") or {}).get("content") or "") if isinstance(result.get("metadata"), dict) else "",
-        ]
-        chunk_texts[chunk_id] = "\n".join(part for part in text_parts if part)
+        # Citation scoring must use the returned chunk body. Hidden expanded metadata can
+        # help retrieval/reranking, but it is not user-visible cited evidence.
+        chunk_texts[chunk_id] = str(result.get("content") or "")
     return chunk_texts
 
 

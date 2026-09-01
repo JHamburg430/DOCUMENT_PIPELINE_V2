@@ -185,33 +185,28 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "retrieval_eval_20260901_155950 passed actual HTTP/API answer mode 1/1 in 62.538s with fallback_validation source and no answer failure reasons.",
-    "classification": "cross_document_row4_answer_grounding_clean_after_source_reviewed_equivalent_snippet_scorer",
-    "current_answer_failures": {},
-    "current_retrieval_failures": {},
+    "latest_run": "retrieval_eval_20260901_163118",
+    "classification": "cross_document_row4_answer_grounding_clean_after_visible_citation_content_scorer",
+    "answer_result": "retrieval_eval_20260901_163118 passed actual HTTP/API answer mode 1/1 in 63.715s with fallback_validation source and no answer failure reasons.",
+    "retrieval_result": "retrieval_eval_20260901_163118 passed row 4 retrieval 1/1 at rank 1; candidate recall and metadata document-selection recall were 1.0.",
     "dataset": "test_reports/retrieval_eval_dataset_20260901_1530_cross_document_row4_iv4_equivalence.jsonl",
-    "latest_run": "retrieval_eval_20260901_155950",
-    "manifest": "test_reports/retrieval_eval_manifest_20260901_155950.json",
-    "manual_jsonl_inspection": "retrieval_eval_20260901_155950 row 4 passed actual HTTP/API answer scoring 1/1 after source-reviewed equivalent_snippet scoring for the same-source IV4 cause row-group. Manual JSONL inspection confirmed the user-visible fallback answer cites exact IV-H cause chunk 1ddc77c5 and same-source IV4 cause chunk 4fa8937a, both with null quote_spans and cited chunk content directly supporting the expected cause roles.",
-    "max_queries": 1,
-    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only under source-reviewed same-source citation equivalence where the cited returned chunk itself directly supports the expected role; keep retrieval_eval_20260901_152819 diagnostic/not-clean because it used the same visible answer before the equivalent-snippet answer scorer repair.",
-    "response_mode": "answer_with_citations",
-    "results": "test_reports/retrieval_eval_results_20260901_155950.jsonl",
-    "retrieval_result": "retrieval_eval_20260901_155950 passed row 4 retrieval 1/1 at rank 1; candidate recall and metadata document-selection recall were 1.0.",
-    "runtime_load": {
-      "API_BASE": "http://127.0.0.1:9052 via host.docker.internal from eval container",
-      "HAYSTACK_RERANK_DEVICE": "cuda:0",
-      "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-      "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-      "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-      "OLLAMA_URL": "http://host.docker.internal:11434",
-      "eval_scorer_sha256": "b2804fa5b371212b5a67fcc718cd0e0c4521fadb32b673af8c3ed8daf63479fc",
-      "health": "ok at 2026-09-01T15:59:39Z",
-      "side_api_container": "manuals-rag-temp-api-39262386-20260901-row2-sidecode"
-    },
-    "search_mode": "http",
+    "results": "test_reports/retrieval_eval_results_20260901_163118.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260901_163118.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260901_163118.json",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260901_155950.json"
+    "search_mode": "http",
+    "response_mode": "answer_with_citations",
+    "max_queries": 1,
+    "current_retrieval_failures": {},
+    "current_answer_failures": {},
+    "manual_jsonl_inspection": "retrieval_eval_20260901_163118 row 4 passed after visible-content-only citation scoring. The user-visible fallback answer cites same-source IV4 chunk 4fa8937a and IV-H chunk 1ddc77c5; both cited returned content fields directly contain the expected cause roles, and no expected evidence is satisfied only by metadata.content.",
+    "runtime_load": {
+      "API_BASE": "http://api:8600 from eval container",
+      "eval_scorer_change": "run container used clean worktree scorer with visible returned content only for citation support",
+      "OLLAMA_URL": "unchanged configured local stack endpoint; production answer path was not changed in this run",
+      "note": "No production retrieval/answering code changed; this run validated actual API payload scoring under the repaired eval scorer."
+    },
+    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -682,29 +677,30 @@
       "retrieval_eval_20260901_085649 cross-document row 1",
       "retrieval_eval_20260901_131404 cross-document row 2",
       "retrieval_eval_20260901_135906 cross-document row 3",
-      "retrieval_eval_20260901_155950 cross-document row 4"
+      "retrieval_eval_20260901_163118 cross-document row 4 visible-content citation containment rerun"
     ],
-    "answer_grounding_status": "Cross-document rows 1-4 have accepted source-reviewed actual HTTP/API answer evidence. Row 4 is clean only after the scorer uses source-reviewed equivalent_snippet text for same-source equivalent citation support and table-cell binding; retrieval_eval_20260901_152819 remains diagnostic/not-clean under the pre-repair scorer.",
+    "answer_grounding_status": "Cross-document rows 1-4 have accepted source-reviewed actual HTTP/API answer evidence under the visible-citation-content scorer. Row 4 was rerun as retrieval_eval_20260901_163118 after the metadata-content citation containment; the accepted citations directly support the IV-H and IV4 cause roles in returned content.",
     "artifacts": {
-      "row4_clean_answer_results": "test_reports/retrieval_eval_results_20260901_155950.jsonl",
-      "row4_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_155950.json",
-      "row4_clean_summary": "test_reports/retrieval_eval_summary_20260901_155950.json",
+      "row4_visible_content_rerun_dataset": "test_reports/retrieval_eval_dataset_20260901_163118.jsonl",
+      "row4_visible_content_rerun_results": "test_reports/retrieval_eval_results_20260901_163118.jsonl",
+      "row4_visible_content_rerun_manifest": "test_reports/retrieval_eval_manifest_20260901_163118.json",
+      "row4_visible_content_rerun_summary": "test_reports/retrieval_eval_summary_20260901_163118.json",
       "row4_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260901_1530_cross_document_row4_iv4_equivalence.jsonl",
-      "row4_pre_repair_answer_results": "test_reports/retrieval_eval_results_20260901_152819.jsonl",
+      "row4_pre_metadata_containment_results": "test_reports/retrieval_eval_results_20260901_155950.jsonl",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl"
     },
     "checks": [
-      "Added equivalent_snippet to the row-4 IV4 expected evidence so answer scoring derives equivalent required terms from source-reviewed cited text, not generated answer text or quote spans.",
-      "retrieval_eval_20260901_155950 actual HTTP/API answer mode passed retrieval 1/1 at rank 1 and answer grounding 1/1; answer_source fallback_validation: 1 with consistent used_fallback true telemetry.",
-      "Manual JSONL inspection confirmed citation chunk 1ddc77c5 directly supports the IV-H sensor-program-damaged/initialization cause and citation chunk 4fa8937a directly supports the IV4 memory-read-at-startup cause with data error and power-off/noise while writing.",
-      "Focused eval scoring tests passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k source_reviewed_equivalent_citation_snippet or equivalent_citation_without_direct_source_support or same_document_equivalent_citation -> 3 passed.",
-      "Full test_retrieval_eval.py passed: 137 passed.",
-      "Full unit gate initially failed only because tmp_eval_docs fixture directories were absent from the clean detached worktree; rerun with the primary checkout fixture directories mounted read-only passed: 540 passed, 59 warnings."
+      "Changed _retrieved_chunk_texts so citation fidelity and expected-evidence citation support use only returned chunk content, not hidden metadata.content.",
+      "Added metadata-only equivalent-citation adverse regression control: same-document hidden metadata support is rejected with expected_evidence_not_cited.",
+      "Focused eval scorer tests passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'equivalent_citation or citation_fidelity or evidence_citation_support' -> 6 passed, 132 deselected.",
+      "Full Docker unit gate passed after copying ignored tmp_eval_docs* fixtures into the clean worktree: 541 passed, 59 warnings.",
+      "Actual HTTP/API row-4 rerun retrieval_eval_20260901_163118 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with fallback_validation.",
+      "Manual JSONL inspection confirmed cited returned chunks 4fa8937a and 1ddc77c5 directly contain the expected IV4 and IV-H cause evidence; quote_spans were null and citation/source support passed."
     ],
-    "classification": "cross_document_rows_1_4_clean_source_reviewed_equivalent_citations",
+    "classification": "cross_document_rows_1_4_clean_visible_citation_content_scorer",
     "current_answer_failures": {},
     "current_retrieval_failures": {},
-    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only under source-reviewed same-source citation equivalence where the cited returned chunk itself directly supports the expected role; keep retrieval_eval_20260901_152819 diagnostic/not-clean because it used the same visible answer before the equivalent-snippet answer scorer repair."
+    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support."
   },
   "constraints": {
     "allowed_logic": [
@@ -723,10 +719,10 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {},
-  "current_answer_failure_source": "retrieval_eval_20260901_155950 row 4 passed actual HTTP/API answer scoring 1/1 after source-reviewed equivalent_snippet scoring for the same-source IV4 cause row-group. Manual JSONL inspection confirmed the user-visible fallback answer cites exact IV-H cause chunk 1ddc77c5 and same-source IV4 cause chunk 4fa8937a, both with null quote_spans and cited chunk content directly supporting the expected cause roles.",
+  "current_answer_failure_source": "retrieval_eval_20260901_163118 row 4 passed after visible-content-only citation scoring. The user-visible fallback answer cites same-source IV4 chunk 4fa8937a and IV-H chunk 1ddc77c5; both cited returned content fields directly contain the expected cause roles, and no expected evidence is satisfied only by metadata.content.",
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "retrieval_eval_20260901_155950 row 4 passed retrieval 1/1 at rank 1 with candidate recall and metadata document-selection recall 1.0; current retrieval failure categories are empty.",
+  "current_retrieval_failure_source": "retrieval_eval_20260901_163118 passed row 4 retrieval 1/1 at rank 1; candidate recall and metadata document-selection recall were 1.0.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -9025,7 +9021,7 @@
       "type": "accepted_clean_run_artifact_presence_guard"
     }
   ],
-  "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only under source-reviewed same-source citation equivalence where the cited returned chunk itself directly supports the expected role; keep retrieval_eval_20260901_152819 diagnostic/not-clean because it used the same visible answer before the equivalent-snippet answer scorer repair.",
+  "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9964,33 +9960,28 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "retrieval_eval_20260901_155950 passed actual HTTP/API answer mode 1/1 in 62.538s with fallback_validation source and no answer failure reasons.",
-      "classification": "cross_document_row4_answer_grounding_clean_after_source_reviewed_equivalent_snippet_scorer",
-      "current_answer_failures": {},
-      "current_retrieval_failures": {},
+      "latest_run": "retrieval_eval_20260901_163118",
+      "classification": "cross_document_row4_answer_grounding_clean_after_visible_citation_content_scorer",
+      "answer_result": "retrieval_eval_20260901_163118 passed actual HTTP/API answer mode 1/1 in 63.715s with fallback_validation source and no answer failure reasons.",
+      "retrieval_result": "retrieval_eval_20260901_163118 passed row 4 retrieval 1/1 at rank 1; candidate recall and metadata document-selection recall were 1.0.",
       "dataset": "test_reports/retrieval_eval_dataset_20260901_1530_cross_document_row4_iv4_equivalence.jsonl",
-      "latest_run": "retrieval_eval_20260901_155950",
-      "manifest": "test_reports/retrieval_eval_manifest_20260901_155950.json",
-      "manual_jsonl_inspection": "retrieval_eval_20260901_155950 row 4 passed actual HTTP/API answer scoring 1/1 after source-reviewed equivalent_snippet scoring for the same-source IV4 cause row-group. Manual JSONL inspection confirmed the user-visible fallback answer cites exact IV-H cause chunk 1ddc77c5 and same-source IV4 cause chunk 4fa8937a, both with null quote_spans and cited chunk content directly supporting the expected cause roles.",
-      "max_queries": 1,
-      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only under source-reviewed same-source citation equivalence where the cited returned chunk itself directly supports the expected role; keep retrieval_eval_20260901_152819 diagnostic/not-clean because it used the same visible answer before the equivalent-snippet answer scorer repair.",
-      "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260901_155950.jsonl",
-      "retrieval_result": "retrieval_eval_20260901_155950 passed row 4 retrieval 1/1 at rank 1; candidate recall and metadata document-selection recall were 1.0.",
-      "runtime_load": {
-        "API_BASE": "http://127.0.0.1:9052 via host.docker.internal from eval container",
-        "HAYSTACK_RERANK_DEVICE": "cuda:0",
-        "HAYSTACK_RERANK_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "eval_scorer_sha256": "b2804fa5b371212b5a67fcc718cd0e0c4521fadb32b673af8c3ed8daf63479fc",
-        "health": "ok at 2026-09-01T15:59:39Z",
-        "side_api_container": "manuals-rag-temp-api-39262386-20260901-row2-sidecode"
-      },
-      "search_mode": "http",
+      "results": "test_reports/retrieval_eval_results_20260901_163118.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260901_163118.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260901_163118.json",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260901_155950.json"
+      "search_mode": "http",
+      "response_mode": "answer_with_citations",
+      "max_queries": 1,
+      "current_retrieval_failures": {},
+      "current_answer_failures": {},
+      "manual_jsonl_inspection": "retrieval_eval_20260901_163118 row 4 passed after visible-content-only citation scoring. The user-visible fallback answer cites same-source IV4 chunk 4fa8937a and IV-H chunk 1ddc77c5; both cited returned content fields directly contain the expected cause roles, and no expected evidence is satisfied only by metadata.content.",
+      "runtime_load": {
+        "API_BASE": "http://api:8600 from eval container",
+        "eval_scorer_change": "run container used clean worktree scorer with visible returned content only for citation support",
+        "OLLAMA_URL": "unchanged configured local stack endpoint; production answer path was not changed in this run",
+        "note": "No production retrieval/answering code changed; this run validated actual API payload scoring under the repaired eval scorer."
+      },
+      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10250,35 +10241,36 @@
         "retrieval_eval_20260901_085649 cross-document row 1",
         "retrieval_eval_20260901_131404 cross-document row 2",
         "retrieval_eval_20260901_135906 cross-document row 3",
-        "retrieval_eval_20260901_155950 cross-document row 4"
+        "retrieval_eval_20260901_163118 cross-document row 4 visible-content citation containment rerun"
       ],
-      "answer_grounding_status": "Cross-document rows 1-4 have accepted source-reviewed actual HTTP/API answer evidence. Row 4 is clean only after the scorer uses source-reviewed equivalent_snippet text for same-source equivalent citation support and table-cell binding; retrieval_eval_20260901_152819 remains diagnostic/not-clean under the pre-repair scorer.",
+      "answer_grounding_status": "Cross-document rows 1-4 have accepted source-reviewed actual HTTP/API answer evidence under the visible-citation-content scorer. Row 4 was rerun as retrieval_eval_20260901_163118 after the metadata-content citation containment; the accepted citations directly support the IV-H and IV4 cause roles in returned content.",
       "artifacts": {
-        "row4_clean_answer_results": "test_reports/retrieval_eval_results_20260901_155950.jsonl",
-        "row4_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_155950.json",
-        "row4_clean_summary": "test_reports/retrieval_eval_summary_20260901_155950.json",
+        "row4_visible_content_rerun_dataset": "test_reports/retrieval_eval_dataset_20260901_163118.jsonl",
+        "row4_visible_content_rerun_results": "test_reports/retrieval_eval_results_20260901_163118.jsonl",
+        "row4_visible_content_rerun_manifest": "test_reports/retrieval_eval_manifest_20260901_163118.json",
+        "row4_visible_content_rerun_summary": "test_reports/retrieval_eval_summary_20260901_163118.json",
         "row4_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260901_1530_cross_document_row4_iv4_equivalence.jsonl",
-        "row4_pre_repair_answer_results": "test_reports/retrieval_eval_results_20260901_152819.jsonl",
+        "row4_pre_metadata_containment_results": "test_reports/retrieval_eval_results_20260901_155950.jsonl",
         "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl"
       },
       "checks": [
-        "Added equivalent_snippet to the row-4 IV4 expected evidence so answer scoring derives equivalent required terms from source-reviewed cited text, not generated answer text or quote spans.",
-        "retrieval_eval_20260901_155950 actual HTTP/API answer mode passed retrieval 1/1 at rank 1 and answer grounding 1/1; answer_source fallback_validation: 1 with consistent used_fallback true telemetry.",
-        "Manual JSONL inspection confirmed citation chunk 1ddc77c5 directly supports the IV-H sensor-program-damaged/initialization cause and citation chunk 4fa8937a directly supports the IV4 memory-read-at-startup cause with data error and power-off/noise while writing.",
-        "Focused eval scoring tests passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k source_reviewed_equivalent_citation_snippet or equivalent_citation_without_direct_source_support or same_document_equivalent_citation -> 3 passed.",
-        "Full test_retrieval_eval.py passed: 137 passed.",
-        "Full unit gate initially failed only because tmp_eval_docs fixture directories were absent from the clean detached worktree; rerun with the primary checkout fixture directories mounted read-only passed: 540 passed, 59 warnings."
+        "Changed _retrieved_chunk_texts so citation fidelity and expected-evidence citation support use only returned chunk content, not hidden metadata.content.",
+        "Added metadata-only equivalent-citation adverse regression control: same-document hidden metadata support is rejected with expected_evidence_not_cited.",
+        "Focused eval scorer tests passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_retrieval_eval.py -q -k 'equivalent_citation or citation_fidelity or evidence_citation_support' -> 6 passed, 132 deselected.",
+        "Full Docker unit gate passed after copying ignored tmp_eval_docs* fixtures into the clean worktree: 541 passed, 59 warnings.",
+        "Actual HTTP/API row-4 rerun retrieval_eval_20260901_163118 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with fallback_validation.",
+        "Manual JSONL inspection confirmed cited returned chunks 4fa8937a and 1ddc77c5 directly contain the expected IV4 and IV-H cause evidence; quote_spans were null and citation/source support passed."
       ],
-      "classification": "cross_document_rows_1_4_clean_source_reviewed_equivalent_citations",
+      "classification": "cross_document_rows_1_4_clean_visible_citation_content_scorer",
       "current_answer_failures": {},
       "current_retrieval_failures": {},
-      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only under source-reviewed same-source citation equivalence where the cited returned chunk itself directly supports the expected role; keep retrieval_eval_20260901_152819 diagnostic/not-clean because it used the same visible answer before the equivalent-snippet answer scorer repair."
+      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support."
     },
     "current_answer_failure_categories": {},
-    "current_answer_failure_source": "retrieval_eval_20260901_155950 row 4 passed actual HTTP/API answer scoring 1/1 after source-reviewed equivalent_snippet scoring for the same-source IV4 cause row-group. Manual JSONL inspection confirmed the user-visible fallback answer cites exact IV-H cause chunk 1ddc77c5 and same-source IV4 cause chunk 4fa8937a, both with null quote_spans and cited chunk content directly supporting the expected cause roles.",
+    "current_answer_failure_source": "retrieval_eval_20260901_163118 row 4 passed after visible-content-only citation scoring. The user-visible fallback answer cites same-source IV4 chunk 4fa8937a and IV-H chunk 1ddc77c5; both cited returned content fields directly contain the expected cause roles, and no expected evidence is satisfied only by metadata.content.",
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "retrieval_eval_20260901_155950 row 4 passed retrieval 1/1 at rank 1 with candidate recall and metadata document-selection recall 1.0; current retrieval failure categories are empty.",
+    "current_retrieval_failure_source": "retrieval_eval_20260901_163118 passed row 4 retrieval 1/1 at rank 1; candidate recall and metadata document-selection recall were 1.0.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12539,7 +12531,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only under source-reviewed same-source citation equivalence where the cited returned chunk itself directly supports the expected role; keep retrieval_eval_20260901_152819 diagnostic/not-clean because it used the same visible answer before the equivalent-snippet answer scorer repair.",
+    "next_target": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12576,7 +12568,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only under source-reviewed same-source citation equivalence where the cited returned chunk itself directly supports the expected role; keep retrieval_eval_20260901_152819 diagnostic/not-clean because it used the same visible answer before the equivalent-snippet answer scorer repair.",
+    "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13260,6 +13252,22 @@
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-09-01T16:13:30Z",
+        "severity": "needs_fix",
+        "finding": "Equivalent-citation scoring accepted same-document support from hidden metadata.content even when the returned cited chunk content was only generic overview text.",
+        "status": "addressed_this_run_visible_citation_content_only",
+        "addressed_this_run": "Changed citation-fidelity/evidence-support scoring to use returned chunk content only, added metadata-only adverse coverage, ran focused/full tests, and reran row 4 through actual HTTP/API answer mode with manual citation inspection.",
+        "evidence": [
+          "packages/evals/src/manuals_rag_evals/retrieval_eval.py _retrieved_chunk_texts now returns only result.content for citation scoring.",
+          "tests/unit/test_retrieval_eval.py::test_answer_response_scoring_rejects_equivalent_citation_supported_only_by_metadata_content",
+          "Focused eval scorer tests: 6 passed, 132 deselected.",
+          "Full Docker unit gate: 541 passed, 59 warnings after fixture copy.",
+          "retrieval_eval_20260901_163118 actual HTTP/API answer mode passed retrieval 1/1 and answer 1/1.",
+          "Manual JSONL inspection confirmed cited returned content directly supports both expected row-4 cause roles."
+        ],
+        "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support."
+      },
       {
         "addressed_this_run": "Added source-reviewed equivalent_snippet scoring for same-source equivalent citations, reran row 4 through actual HTTP/API answer mode, and manually inspected the user-visible answer/citations.",
         "evidence": [
@@ -14407,9 +14415,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T16:08:00Z"
+    "updated_at": "2026-09-01T16:36:00Z"
   },
-  "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only under source-reviewed same-source citation equivalence where the cited returned chunk itself directly supports the expected role; keep retrieval_eval_20260901_152819 diagnostic/not-clean because it used the same visible answer before the equivalent-snippet answer scorer repair.",
+  "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -15092,6 +15100,22 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-09-01T16:13:30Z",
+      "severity": "needs_fix",
+      "finding": "Equivalent-citation scoring accepted same-document support from hidden metadata.content even when the returned cited chunk content was only generic overview text.",
+      "status": "addressed_this_run_visible_citation_content_only",
+      "addressed_this_run": "Changed citation-fidelity/evidence-support scoring to use returned chunk content only, added metadata-only adverse coverage, ran focused/full tests, and reran row 4 through actual HTTP/API answer mode with manual citation inspection.",
+      "evidence": [
+        "packages/evals/src/manuals_rag_evals/retrieval_eval.py _retrieved_chunk_texts now returns only result.content for citation scoring.",
+        "tests/unit/test_retrieval_eval.py::test_answer_response_scoring_rejects_equivalent_citation_supported_only_by_metadata_content",
+        "Focused eval scorer tests: 6 passed, 132 deselected.",
+        "Full Docker unit gate: 541 passed, 59 warnings after fixture copy.",
+        "retrieval_eval_20260901_163118 actual HTTP/API answer mode passed retrieval 1/1 and answer 1/1.",
+        "Manual JSONL inspection confirmed cited returned content directly supports both expected row-4 cause roles."
+      ],
+      "remaining": "Continue broader source-reviewed answer-grounding coverage on the next validated single-step or multi-step slice with loaded HTTP/API validation and manual citation-payload inspection. Preserve cross-document rows 1-4 as clean only when the cited returned chunk content itself directly supports the expected role; hidden metadata.content must not satisfy citation support."
+    },
     {
       "addressed_this_run": "Added source-reviewed equivalent_snippet scoring for same-source equivalent citations, reran row 4 through actual HTTP/API answer mode, and manually inspected the user-visible answer/citations.",
       "evidence": [
@@ -16239,5 +16263,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T16:08:00Z"
+  "updated_at": "2026-09-01T16:36:00Z"
 }

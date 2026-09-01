@@ -2364,6 +2364,82 @@ def test_answer_response_scoring_rejects_equivalent_citation_without_direct_sour
     assert "expected_evidence_not_cited" in scored["failure_reasons"]
 
 
+def test_answer_response_scoring_rejects_equivalent_citation_supported_only_by_metadata_content():
+    case = RetrievalEvalCase(
+        case_id="answer-equivalent-citation-hidden-metadata-negative",
+        query="What startup memory read error cause is listed for IV4-G600CA?",
+        source_document_id="doc-iv4",
+        document_version_id="ver-iv4",
+        source_chunk_id="iv4-atomic-cause",
+        source_title="IV4",
+        source_filename="iv4.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=532,
+        page_to=532,
+        expected_terms=["startup", "memory", "error", "occurred"],
+        expected_snippet=(
+            "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
+            "A data abnormality occurred due to noise or because the power switched OFF while writing"
+        ),
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "iv4-atomic-cause",
+                "source_document_id": "doc-iv4",
+                "allow_equivalent_citation": True,
+                "expected_terms": ["startup", "memory", "error", "occurred"],
+                "snippet": (
+                    "Column headers: Cause; Row headers: ON; Cell value: A startup memory read error occurred. "
+                    "A data abnormality occurred due to noise or because the power switched OFF while writing"
+                ),
+                "equivalent_snippet": (
+                    "Column headers: Cause; Row headers: Failed to read nonvolatile memory at sensor startup. "
+                    "Cell value: A memory read error occurred when the sensor started. "
+                    "A data error occurred. It is possible that the power was switched OFF during writing, "
+                    "or noise was picked up."
+                ),
+            }
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "A memory read error occurred when the sensor started. A data error occurred; "
+                "the power may have switched OFF during writing, or noise was picked up."
+            ),
+            "citations": [{"document_id": "doc-iv4", "chunk_id": "iv4-overview", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-iv4"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "iv4-overview",
+                "source_document_id": "doc-iv4",
+                "content": "Troubleshooting overview. Check the displayed error and follow the listed corrective action.",
+                "metadata": {
+                    "content": (
+                        "Column headers: Cause; Row headers: Failed to read nonvolatile memory at sensor startup. "
+                        "Cell value: A memory read error occurred when the sensor started. "
+                        "A data error occurred. It is possible that the power was switched OFF during writing, "
+                        "or noise was picked up."
+                    )
+                },
+            }
+        ],
+    )
+
+    assert scored["passed"] is False
+    assert scored["citation_fidelity"]["passed"] is True
+    assert scored["evidence_citation_support"]["passed"] is False
+    assert "expected_evidence_not_cited" in scored["failure_reasons"]
+
+
 def test_answer_response_scoring_accepts_equivalent_warning_with_conjoined_setting_state():
     case = RetrievalEvalCase(
         case_id="answer-equivalent-warning-conjoined-state",
