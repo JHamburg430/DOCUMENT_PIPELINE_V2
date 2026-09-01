@@ -3126,6 +3126,47 @@ def test_status_output_row_context_binds_cell_to_requested_source_row():
     assert retriever._status_output_matching_row_context(query, wrong_row_cell, context_rows) == ""
 
 
+def test_status_output_row_context_rejects_range_comparator_for_exact_query():
+    query = (
+        "For IV4-G120 status output settings, when ON equals Set value, Count value is 9, "
+        "previous count is 7, quantity counted at one time is 3, and current count is 0, "
+        "what output status is listed?"
+    )
+    expected_cell = {
+        "content": (
+            "Column headers: Output status; Row headers: ON when = Set value > Count value= 9; "
+            "Cell value: One-Shot output; Row: 4; Column: 5"
+        ),
+        "metadata_json": {
+            "chunk_type": "table_record",
+            "table_cell": True,
+            "table_column_headers": ["Output status"],
+            "table_row_headers": ["ON when = Set value", "Count value= 9"],
+        },
+    }
+    ascii_range_context = [
+        {
+            "content": "ON when >= Set value | Count value >= 9 | 7 | 3 | 0 | One-Shot output",
+        }
+    ]
+    unicode_range_context = [
+        {
+            "content": "ON when \u2265 Set value | Count value \u2265 9 | 7 | 3 | 0 | One-Shot output",
+        }
+    ]
+    exact_context = [
+        {
+            "content": "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output",
+        }
+    ]
+
+    assert retriever._status_output_matching_row_context(query, expected_cell, ascii_range_context) == ""
+    assert retriever._status_output_matching_row_context(query, expected_cell, unicode_range_context) == ""
+    assert retriever._status_output_matching_row_context(query, expected_cell, exact_context) == (
+        "ON when = Set value | Count value= 9 | 7 | 3 | 0 | One-Shot output"
+    )
+
+
 def test_structured_table_promotion_preserves_top_lexical_cell_after_rerank():
     analysis = analyze_query(
         "What value is listed for LumiTrax Capture Settings Track Moving Object: "

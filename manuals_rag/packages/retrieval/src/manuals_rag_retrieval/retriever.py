@@ -502,6 +502,16 @@ def _normalized_status_output_text(text: str) -> str:
     return re.sub(r"[^a-z0-9=]+", "", text.lower())
 
 
+def _status_output_line_uses_range_set_value(text: str) -> bool:
+    return bool(
+        re.search(
+            r"\bon\s+when\s*(?:>=|=>|\u2265)\s*set\s+value\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
 def _status_output_matching_row_context(query: str, row: dict[str, object], context_rows: list[dict[str, object]]) -> str:
     metadata = dict(row.get("metadata_json") or {})
     if not metadata.get("table_cell"):
@@ -531,7 +541,7 @@ def _status_output_matching_row_context(query: str, row: dict[str, object], cont
                 continue
             if query_requires_exact and "onwhen=setvalue" not in normalized:
                 continue
-            if query_requires_exact and "onwhen>=setvalue" in normalized:
+            if query_requires_exact and _status_output_line_uses_range_set_value(line):
                 continue
             line_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", line))
             if not required_numbers.issubset(line_numbers):
