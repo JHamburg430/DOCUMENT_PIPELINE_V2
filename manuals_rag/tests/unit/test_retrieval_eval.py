@@ -2301,6 +2301,99 @@ def test_answer_response_scoring_accepts_source_reviewed_equivalent_citation_sni
     assert scored["table_cell_binding"]["passed"] is True
 
 
+def test_answer_response_scoring_accepts_source_reviewed_equivalent_table_cell_label():
+    case = RetrievalEvalCase(
+        case_id="answer-equivalent-table-cell-label",
+        query="For MODEL-A and MODEL-B measurement outputs, compare what ALPHA and BETA represent.",
+        source_document_id="doc-a",
+        document_version_id="ver-a",
+        source_chunk_id="alpha-cell",
+        source_title="A",
+        source_filename="a.pdf",
+        chunk_type="table_record",
+        section_path="Output items",
+        page_from=10,
+        page_to=10,
+        expected_terms=["surrounded", "straight", "equivalent", "aspect"],
+        expected_snippet=(
+            "Column headers: Description of measurement item selection; Row headers: ALPHA; "
+            "Cell value: Area Surrounded by a Straight Line | "
+            "Column headers: Description of measurement item selection; Row headers: BETA; "
+            "Cell value: Equivalent Oval Aspect Ratio Min."
+        ),
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "alpha-cell",
+                "source_document_id": "doc-a",
+                "expected_terms": ["surrounded", "straight"],
+                "snippet": (
+                    "Column headers: Description of measurement item selection; Row headers: ALPHA; "
+                    "Cell value: Area Surrounded by a Straight Line"
+                ),
+            },
+            {
+                "chunk_id": "beta-cell-old-label",
+                "source_document_id": "doc-b",
+                "allow_equivalent_citation": True,
+                "expected_terms": ["equivalent", "aspect", "ratio"],
+                "snippet": (
+                    "Column headers: Description of measurement item selection; Row headers: BETA; "
+                    "Cell value: Equivalent Oval Aspect Ratio Min."
+                ),
+                "equivalent_snippet": (
+                    "Column headers: Description of measurement item selection; Row headers: BETA; "
+                    "Cell value: Oval Aspect ratio (Min.)"
+                ),
+            },
+        ],
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "Retrieved evidence:\n"
+                "- B, page 20: Column headers: Description of measurement item selection; Row headers: BETA; "
+                "Cell value: Oval Aspect ratio (Min.)\n"
+                "- A, page 10: Column headers: Description of measurement item selection; Row headers: ALPHA; "
+                "Cell value: Area Surrounded by a Straight Line"
+            ),
+            "citations": [
+                {"document_id": "doc-b", "chunk_id": "beta-visible-equivalent", "quote_span": None},
+                {"document_id": "doc-a", "chunk_id": "alpha-cell", "quote_span": None},
+            ],
+            "used_documents": [{"document_id": "doc-a"}, {"document_id": "doc-b"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "alpha-cell",
+                "source_document_id": "doc-a",
+                "content": (
+                    "Column headers: Description of measurement item selection; Row headers: ALPHA; "
+                    "Cell value: Area Surrounded by a Straight Line"
+                ),
+            },
+            {
+                "chunk_id": "beta-visible-equivalent",
+                "source_document_id": "doc-b",
+                "content": (
+                    "Column headers: Description of measurement item selection; Row headers: BETA; "
+                    "Cell value: Oval Aspect ratio (Min.)"
+                ),
+            },
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert scored["evidence_citation_support"]["passed"] is True
+    assert scored["table_cell_binding"]["passed"] is True
+
+
 def test_answer_response_scoring_rejects_equivalent_citation_without_direct_source_support():
     case = RetrievalEvalCase(
         case_id="answer-equivalent-citation-source-reviewed-snippet-negative",

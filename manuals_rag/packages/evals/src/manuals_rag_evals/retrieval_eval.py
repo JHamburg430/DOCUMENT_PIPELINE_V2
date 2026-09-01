@@ -3515,11 +3515,30 @@ def _equivalent_citation_item(item: dict[str, Any]) -> dict[str, Any]:
         return item
     equivalent_item = dict(item)
     equivalent_item["snippet"] = equivalent_snippet
+    equivalent_terms = [
+        term
+        for term in extract_anchor_terms(equivalent_snippet, limit=10)
+        if normalize_text(term)
+        and normalize_text(term)
+        not in {
+            "procedure",
+            "step",
+            "setting",
+            "item",
+            "settings",
+            "column",
+            "headers",
+            "row",
+            "cell",
+            "value",
+        }
+    ]
+    if equivalent_terms:
+        equivalent_item["expected_terms"] = equivalent_terms
     return equivalent_item
 
 
-def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text: str) -> bool:
-    item = _equivalent_citation_item(item)
+def _expected_evidence_item_supported_by_cited_text(item: dict[str, Any], cited_text: str) -> bool:
     text_lower = cited_text.lower()
     text_tokens = set(tokenize(text_lower))
     binding_check = _expected_evidence_binding_check(item, cited_text)
@@ -3550,6 +3569,15 @@ def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text:
     if len(matched_snippet_terms) < max(2, min(len(snippet_terms), len(snippet_terms) - 1)):
         return False
     return _expected_evidence_role_segments_supported(item, cited_text)
+
+
+def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text: str) -> bool:
+    if _expected_evidence_item_supported_by_cited_text(item, cited_text):
+        return True
+    equivalent_item = _equivalent_citation_item(item)
+    if equivalent_item == item:
+        return False
+    return _expected_evidence_item_supported_by_cited_text(equivalent_item, cited_text)
 
 
 def _expected_evidence_role_segments_supported(item: dict[str, Any], cited_text: str) -> bool:
