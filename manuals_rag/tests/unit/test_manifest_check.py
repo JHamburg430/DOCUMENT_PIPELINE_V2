@@ -40,7 +40,9 @@ def _minimal_manifest():
         },
         "run_exclusions": {"excluded": ["retrieval_eval_20260826_170130"]},
         "unresolved_guardrail_findings": ["source-first citation fidelity"],
-        "current_retrieval_failure_source": "retrieval_eval_20260826_005723",
+        "current_retrieval_failure_source": (
+            "retrieval_eval_20260830_201603 is the current retrieval failure source."
+        ),
         "latest_cross_document_validation": {"run": "retrieval_eval_20260827_042612"},
         "latest_cross_document_probe": {"status": "preserved"},
         "latest_contextual_row14_repair": {"run": "retrieval_eval_20260827_053144"},
@@ -181,6 +183,47 @@ def test_manifest_checker_rejects_nested_answer_grounding_rotation_artifact_run_
         "question_bank.answer_grounding_rotation.results run id mismatch" in error
         for error in errors
     )
+
+
+def test_manifest_checker_rejects_stale_current_retrieval_failure_source():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["current_retrieval_failure_source"] = (
+        "retrieval_eval_20260827_074631 is historical cross-document evidence."
+    )
+    manifest["question_bank"]["current_retrieval_failure_source"] = (
+        "retrieval_eval_20260827_074631 is historical cross-document evidence."
+    )
+
+    errors = module.check_manifest(manifest)
+
+    assert any("root.current_retrieval_failure_source stale" in error for error in errors)
+    assert any(
+        "question_bank.current_retrieval_failure_source stale" in error for error in errors
+    )
+
+
+def test_manifest_checker_allows_historical_source_when_no_current_retrieval_failures():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    for key in (
+        "failure_categories",
+        "current_failure_categories",
+        "current_retrieval_failure_categories",
+        "retrieval_current_failure_categories",
+    ):
+        manifest[key] = {}
+        manifest["question_bank"][key] = {}
+    manifest["current_retrieval_failure_source"] = (
+        "retrieval_eval_20260827_074631 is historical cross-document evidence."
+    )
+    manifest["question_bank"]["current_retrieval_failure_source"] = (
+        "retrieval_eval_20260827_074631 is historical cross-document evidence."
+    )
+
+    errors = module.check_manifest(manifest)
+
+    assert errors == []
 
 
 def test_manifest_checker_rejects_stale_remaining_row_target():

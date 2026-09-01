@@ -170,6 +170,29 @@ def _check_answer_grounding_rotation_artifacts(
             )
 
 
+def _check_current_retrieval_failure_source(
+    label: str, manifest: dict[str, Any], errors: list[str]
+) -> None:
+    failures = manifest.get("current_retrieval_failure_categories")
+    if not failures:
+        return
+    if not isinstance(failures, dict):
+        errors.append(f"{label}.current_retrieval_failure_categories must be an object")
+        return
+    rotation = manifest.get("answer_grounding_rotation")
+    if not isinstance(rotation, dict):
+        return
+    latest_run = rotation.get("latest_run")
+    if not isinstance(latest_run, str):
+        return
+    source = manifest.get("current_retrieval_failure_source")
+    if not isinstance(source, str) or latest_run not in source:
+        errors.append(
+            f"{label}.current_retrieval_failure_source stale: "
+            f"current retrieval failures are tracked on {latest_run!r}"
+        )
+
+
 def check_manifest(data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     question_bank = data.get("question_bank")
@@ -220,6 +243,8 @@ def check_manifest(data: dict[str, Any]) -> list[str]:
         _get_path(data, "question_bank.answer_grounding_rotation"),
         errors,
     )
+    _check_current_retrieval_failure_source("root", data, errors)
+    _check_current_retrieval_failure_source("question_bank", question_bank, errors)
 
     target_rows = _target_row_refs(data.get("next_target"))
     remaining_rows = _target_row_refs(data.get("remaining"))

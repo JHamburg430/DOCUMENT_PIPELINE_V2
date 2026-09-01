@@ -774,7 +774,7 @@
   "current_retrieval_failure_categories": {
     "eval_timeout": 2
   },
-  "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
+  "current_retrieval_failure_source": "retrieval_eval_20260901_022901 is the current retrieval failure source for the timeout-limited single-step v2 rows 3-4 answer-mode diagnostic: both cases timed out at the 120-second per-query limit before returning retrieved_results or api_answer payloads, so current retrieval and answer failure categories are eval_timeout: 2. Older cross-document runs such as retrieval_eval_20260827_074631 remain historical baseline evidence only, not the current failure source.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -10279,7 +10279,7 @@
     "current_retrieval_failure_categories": {
       "eval_timeout": 2
     },
-    "current_retrieval_failure_source": "retrieval_eval_20260827_074631 reran the full curated cross-document v2 bank after the compound multi-product spec retrieval fix: 10/10 direct retrieval passed under source-document-strict expected evidence matching, with failure_categories {}. Earlier diagnostic runs retrieval_eval_20260827_073211 and retrieval_eval_20260827_073505 still failed row 3; retrieval_eval_20260827_074313 fixed row 3 but regressed row 6, so those runs are diagnostic-only.",
+    "current_retrieval_failure_source": "retrieval_eval_20260901_022901 is the current retrieval failure source for the timeout-limited single-step v2 rows 3-4 answer-mode diagnostic: both cases timed out at the 120-second per-query limit before returning retrieved_results or api_answer payloads, so current retrieval and answer failure categories are eval_timeout: 2. Older cross-document runs such as retrieval_eval_20260827_074631 remain historical baseline evidence only, not the current failure source.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -14073,7 +14073,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T02:37:00Z"
+    "updated_at": "2026-09-01T02:56:14Z"
   },
   "remaining": "Investigate timeout-limited single-step v2 rows 3-4 answer-mode evaluation before broader coverage: source-reviewed expected evidence is now present, but retrieval_eval_20260901_022901 timed out both cases at 120s with no retrieved results or API answer payload. Rerun with a documented schedule/timeout adjustment or isolate the retrieval latency bottleneck before counting rows 3-4 clean.",
   "retrieval_current_failure_categories": {
@@ -15665,5 +15665,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T02:37:00Z"
+  "updated_at": "2026-09-01T02:56:14Z"
 }
