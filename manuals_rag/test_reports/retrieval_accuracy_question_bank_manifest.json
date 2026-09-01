@@ -182,8 +182,10 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "Row 5 final loaded HTTP/API rerun passed answer grounding 1/1; row 6 remains clean from retrieval_eval_20260901_045928.",
+    "answer_result": "Prior row 13 clean evidence is preserved; durable expected_evidence annotation added and prior JSONL answer re-scored clean with source-only expected evidence.",
     "artifacts": {
+      "row13_prior_clean_results": "test_reports/retrieval_eval_results_20260831_183111.jsonl",
+      "row13_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
       "row5_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_053438.jsonl",
       "row5_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_053438.json",
       "row5_clean_results": "test_reports/retrieval_eval_results_20260901_053438.jsonl",
@@ -195,14 +197,14 @@
       "row6_clean_summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
       "source_review_dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl"
     },
-    "classification": "rows_5_6_source_reviewed_clean",
+    "classification": "single_step_v2_row13_source_evidence_annotation_added",
     "current_answer_failures": {},
     "current_retrieval_failures": {},
-    "latest_run": "retrieval_eval_20260901_053438",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_053438 JSONL. Row 5 visible API answer states that when Limit Output is OFF and intensity is set to 512 or higher, the user should be careful not to damage the light through excessive heat generation. It cites returned same-document chunk 8b1efbb8 on page 841; that chunk directly contains the warning, quote_span is null, citation_fidelity.passed is true, evidence_citation_support.passed is true, and failure_reasons is empty. Row 6 remains clean from retrieval_eval_20260901_045928 with source-reviewed Output Symbol Identifier evidence.",
+    "latest_run": "retrieval_eval_20260831_183111",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_183111 row 13: visible fallback answer states Course displays course characteristics used by course search and Fine displays fine characteristics used by fine search. Citation chunk 37d21822 on page 250 directly contains those statements; quote_span is null and prior citation fidelity passed. This run only made the expected evidence durable in the dataset and did not claim new HTTP evidence. Re-scoring the same payload against the updated case passed with expected_evidence_specific_terms and checked source evidence support.",
     "previous_partial_run": "retrieval_eval_20260901_045928",
-    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 rows 5-6 are now source-reviewed clean evidence: row 5 from retrieval_eval_20260901_053438 and row 6 from retrieval_eval_20260901_045928. Do not count diagnostic pre-fix runs retrieval_eval_20260901_052637 or retrieval_eval_20260901_052740 as answer-clean evidence; preserve diagnostic exclusions and source-only citation safeguards.",
-    "retrieval_result": "Row 5 final loaded HTTP/API rerun passed at rank 1 after suppressing safety-intent structured table promotion; row 6 remains clean from retrieval_eval_20260901_045928."
+    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
+    "retrieval_result": "Prior row 13 run retrieved same-document evidence at rank 1; fresh HTTP rerun remains next target."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -669,9 +671,10 @@
     "timestamp": "2026-08-31T14:00:00Z"
   },
   "answer_grounding_status": {
-    "accepted_clean_run": "retrieval_eval_20260901_053438 row 5 and retrieval_eval_20260901_045928 row 6",
-    "answer_grounding_status": "Curated single-step v2 rows 5-6 are source-reviewed clean under loaded HTTP/API answer evidence for row 5 and prior source-reviewed clean evidence for row 6.",
+    "accepted_clean_run": "retrieval_eval_20260831_183111 row 13 prior clean evidence; no new clean API answer run claimed on 2026-09-01T06:02:00Z",
+    "answer_grounding_status": "Curated single-step v2 row 13 source-reviewed expected evidence is now durable in the active question bank. Existing clean evidence remains retrieval_eval_20260831_183111, where the visible answer cited same-page chunk 37d21822 that directly contains the Display Feature, Course, Fine, course-search, and fine-search statements.",
     "artifacts": {
+      "row13_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
       "row5_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_053438.jsonl",
       "row5_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_053438.json",
       "row5_clean_results": "test_reports/retrieval_eval_results_20260901_053438.jsonl",
@@ -692,7 +695,9 @@
       "Direct retrieval-only diagnostic retrieval_eval_20260901_052637 passed row 5 at rank 4 but is not answer evidence.",
       "Pre-scorer-fix HTTP diagnostic retrieval_eval_20260901_052740 passed retrieval but failed answer grounding with expected_evidence_not_cited.",
       "Final loaded HTTP/API answer run retrieval_eval_20260901_053438 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with answer_source fallback_validation and answer_failure_reasons {}.",
-      "Inspected retrieval_eval_results_20260901_053438 JSONL. Row 5 visible API answer states that when Limit Output is OFF and intensity is set to 512 or higher, the user should be careful not to damage the light through excessive heat generation. It cites returned same-document chunk 8b1efbb8 on page 841; that chunk directly contains the warning, quote_span is null, citation_fidelity.passed is true, evidence_citation_support.passed is true, and failure_reasons is empty. Row 6 remains clean from retrieval_eval_20260901_045928 with source-reviewed Output Symbol Identifier evidence."
+      "Inspected retrieval_eval_results_20260901_053438 JSONL. Row 5 visible API answer states that when Limit Output is OFF and intensity is set to 512 or higher, the user should be careful not to damage the light through excessive heat generation. It cites returned same-document chunk 8b1efbb8 on page 841; that chunk directly contains the warning, quote_span is null, citation_fidelity.passed is true, evidence_citation_support.passed is true, and failure_reasons is empty. Row 6 remains clean from retrieval_eval_20260901_045928 with source-reviewed Output Symbol Identifier evidence.",
+      "2026-09-01T06:02:00Z source-reviewed row 13 expected_evidence added to active curated single-step v2 dataset; manifest checker passed before commit.",
+      "2026-09-01T06:05:00Z rescore of retrieval_eval_results_20260831_183111 row 13 against the updated case passed with term_source expected_evidence_specific_terms, evidence_citation_support.checked true/passed true, citation_fidelity.checked true/passed true, and no failure reasons."
     ],
     "classification": "rows_5_6_source_reviewed_clean",
     "clean_rows": [
@@ -706,7 +711,7 @@
       "retrieval_eval_20260901_052637": "retrieval-only diagnostic; no answer/citation payload was scored",
       "retrieval_eval_20260901_052740": "pre-scorer-fix diagnostic; retrieval passed but same-source warning citation failed expected_evidence_not_cited"
     },
-    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 rows 5-6 are now source-reviewed clean evidence: row 5 from retrieval_eval_20260901_053438 and row 6 from retrieval_eval_20260901_045928. Do not count diagnostic pre-fix runs retrieval_eval_20260901_052637 or retrieval_eval_20260901_052740 as answer-clean evidence; preserve diagnostic exclusions and source-only citation safeguards."
+    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence."
   },
   "constraints": {
     "allowed_logic": [
@@ -725,10 +730,10 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {},
-  "current_answer_failure_source": "No current answer failure source remains after retrieval_eval_20260901_053438 passed row 5 answer grounding and row 6 remains clean from retrieval_eval_20260901_045928; older failures are preserved as diagnostic history only.",
+  "current_answer_failure_source": "No current answer failure source remains. Row 13 is tracked as source-reviewed dataset-strengthening evidence only; no new clean API answer run was claimed in this run.",
   "current_failure_categories": {},
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "No current retrieval failure source remains after retrieval_eval_20260901_053438 passed row 5 retrieval at rank 1 and row 6 remains clean from retrieval_eval_20260901_045928; older failures are preserved as diagnostic history only.",
+  "current_retrieval_failure_source": "No current retrieval failure source remains. Row 13 source-only expected_evidence was added from prior clean HTTP evidence, and a fresh HTTP rerun remains the next validation target.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -8945,7 +8950,7 @@
       "type": "current_retrieval_failure_source_empty_state_reconciliation"
     }
   ],
-  "next_target": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 rows 5-6 are now source-reviewed clean evidence: row 5 from retrieval_eval_20260901_053438 and row 6 from retrieval_eval_20260901_045928. Do not count diagnostic pre-fix runs retrieval_eval_20260901_052637 or retrieval_eval_20260901_052740 as answer-clean evidence; preserve diagnostic exclusions and source-only citation safeguards.",
+  "next_target": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9881,8 +9886,10 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "Row 5 final loaded HTTP/API rerun passed answer grounding 1/1; row 6 remains clean from retrieval_eval_20260901_045928.",
+      "answer_result": "Prior row 13 clean evidence is preserved; durable expected_evidence annotation added and prior JSONL answer re-scored clean with source-only expected evidence.",
       "artifacts": {
+        "row13_prior_clean_results": "test_reports/retrieval_eval_results_20260831_183111.jsonl",
+        "row13_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
         "row5_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_053438.jsonl",
         "row5_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_053438.json",
         "row5_clean_results": "test_reports/retrieval_eval_results_20260901_053438.jsonl",
@@ -9894,14 +9901,14 @@
         "row6_clean_summary": "test_reports/retrieval_eval_summary_20260901_045928.json",
         "source_review_dataset": "test_reports/retrieval_eval_dataset_20260901_0501_single_step_rows_5_6_equivalence.jsonl"
       },
-      "classification": "rows_5_6_source_reviewed_clean",
+      "classification": "single_step_v2_row13_source_evidence_annotation_added",
       "current_answer_failures": {},
       "current_retrieval_failures": {},
-      "latest_run": "retrieval_eval_20260901_053438",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_053438 JSONL. Row 5 visible API answer states that when Limit Output is OFF and intensity is set to 512 or higher, the user should be careful not to damage the light through excessive heat generation. It cites returned same-document chunk 8b1efbb8 on page 841; that chunk directly contains the warning, quote_span is null, citation_fidelity.passed is true, evidence_citation_support.passed is true, and failure_reasons is empty. Row 6 remains clean from retrieval_eval_20260901_045928 with source-reviewed Output Symbol Identifier evidence.",
+      "latest_run": "retrieval_eval_20260831_183111",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260831_183111 row 13: visible fallback answer states Course displays course characteristics used by course search and Fine displays fine characteristics used by fine search. Citation chunk 37d21822 on page 250 directly contains those statements; quote_span is null and prior citation fidelity passed. This run only made the expected evidence durable in the dataset and did not claim new HTTP evidence. Re-scoring the same payload against the updated case passed with expected_evidence_specific_terms and checked source evidence support.",
       "previous_partial_run": "retrieval_eval_20260901_045928",
-      "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 rows 5-6 are now source-reviewed clean evidence: row 5 from retrieval_eval_20260901_053438 and row 6 from retrieval_eval_20260901_045928. Do not count diagnostic pre-fix runs retrieval_eval_20260901_052637 or retrieval_eval_20260901_052740 as answer-clean evidence; preserve diagnostic exclusions and source-only citation safeguards.",
-      "retrieval_result": "Row 5 final loaded HTTP/API rerun passed at rank 1 after suppressing safety-intent structured table promotion; row 6 remains clean from retrieval_eval_20260901_045928."
+      "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
+      "retrieval_result": "Prior row 13 run retrieved same-document evidence at rank 1; fresh HTTP rerun remains next target."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10157,9 +10164,10 @@
       "timestamp": "2026-08-31T14:00:00Z"
     },
     "answer_grounding_status": {
-      "accepted_clean_run": "retrieval_eval_20260901_053438 row 5 and retrieval_eval_20260901_045928 row 6",
-      "answer_grounding_status": "Curated single-step v2 rows 5-6 are source-reviewed clean under loaded HTTP/API answer evidence for row 5 and prior source-reviewed clean evidence for row 6.",
+      "accepted_clean_run": "retrieval_eval_20260831_183111 row 13 prior clean evidence; no new clean API answer run claimed on 2026-09-01T06:02:00Z",
+      "answer_grounding_status": "Curated single-step v2 row 13 source-reviewed expected evidence is now durable in the active question bank. Existing clean evidence remains retrieval_eval_20260831_183111, where the visible answer cited same-page chunk 37d21822 that directly contains the Display Feature, Course, Fine, course-search, and fine-search statements.",
       "artifacts": {
+        "row13_source_reviewed_dataset": "test_reports/retrieval_eval_dataset_20260825_0153_curated_single_step_replacements_v2.jsonl",
         "row5_clean_dataset": "test_reports/retrieval_eval_dataset_20260901_053438.jsonl",
         "row5_clean_manifest": "test_reports/retrieval_eval_manifest_20260901_053438.json",
         "row5_clean_results": "test_reports/retrieval_eval_results_20260901_053438.jsonl",
@@ -10180,7 +10188,9 @@
         "Direct retrieval-only diagnostic retrieval_eval_20260901_052637 passed row 5 at rank 4 but is not answer evidence.",
         "Pre-scorer-fix HTTP diagnostic retrieval_eval_20260901_052740 passed retrieval but failed answer grounding with expected_evidence_not_cited.",
         "Final loaded HTTP/API answer run retrieval_eval_20260901_053438 passed retrieval 1/1 at rank 1 and answer grounding 1/1 with answer_source fallback_validation and answer_failure_reasons {}.",
-        "Inspected retrieval_eval_results_20260901_053438 JSONL. Row 5 visible API answer states that when Limit Output is OFF and intensity is set to 512 or higher, the user should be careful not to damage the light through excessive heat generation. It cites returned same-document chunk 8b1efbb8 on page 841; that chunk directly contains the warning, quote_span is null, citation_fidelity.passed is true, evidence_citation_support.passed is true, and failure_reasons is empty. Row 6 remains clean from retrieval_eval_20260901_045928 with source-reviewed Output Symbol Identifier evidence."
+        "Inspected retrieval_eval_results_20260901_053438 JSONL. Row 5 visible API answer states that when Limit Output is OFF and intensity is set to 512 or higher, the user should be careful not to damage the light through excessive heat generation. It cites returned same-document chunk 8b1efbb8 on page 841; that chunk directly contains the warning, quote_span is null, citation_fidelity.passed is true, evidence_citation_support.passed is true, and failure_reasons is empty. Row 6 remains clean from retrieval_eval_20260901_045928 with source-reviewed Output Symbol Identifier evidence.",
+        "2026-09-01T06:02:00Z source-reviewed row 13 expected_evidence added to active curated single-step v2 dataset; manifest checker passed before commit.",
+        "2026-09-01T06:05:00Z rescore of retrieval_eval_results_20260831_183111 row 13 against the updated case passed with term_source expected_evidence_specific_terms, evidence_citation_support.checked true/passed true, citation_fidelity.checked true/passed true, and no failure reasons."
       ],
       "classification": "rows_5_6_source_reviewed_clean",
       "clean_rows": [
@@ -10194,13 +10204,13 @@
         "retrieval_eval_20260901_052637": "retrieval-only diagnostic; no answer/citation payload was scored",
         "retrieval_eval_20260901_052740": "pre-scorer-fix diagnostic; retrieval passed but same-source warning citation failed expected_evidence_not_cited"
       },
-      "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 rows 5-6 are now source-reviewed clean evidence: row 5 from retrieval_eval_20260901_053438 and row 6 from retrieval_eval_20260901_045928. Do not count diagnostic pre-fix runs retrieval_eval_20260901_052637 or retrieval_eval_20260901_052740 as answer-clean evidence; preserve diagnostic exclusions and source-only citation safeguards."
+      "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence."
     },
     "current_answer_failure_categories": {},
-    "current_answer_failure_source": "No current answer failure source remains after retrieval_eval_20260901_053438 passed row 5 answer grounding and row 6 remains clean from retrieval_eval_20260901_045928; older failures are preserved as diagnostic history only.",
+    "current_answer_failure_source": "No current answer failure source remains. Row 13 is tracked as source-reviewed dataset-strengthening evidence only; no new clean API answer run was claimed in this run.",
     "current_failure_categories": {},
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "No current retrieval failure source remains after retrieval_eval_20260901_053438 passed row 5 retrieval at rank 1 and row 6 remains clean from retrieval_eval_20260901_045928; older failures are preserved as diagnostic history only.",
+    "current_retrieval_failure_source": "No current retrieval failure source remains. Row 13 source-only expected_evidence was added from prior clean HTTP evidence, and a fresh HTTP rerun remains the next validation target.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12379,7 +12389,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 rows 5-6 are now source-reviewed clean evidence: row 5 from retrieval_eval_20260901_053438 and row 6 from retrieval_eval_20260901_045928. Do not count diagnostic pre-fix runs retrieval_eval_20260901_052637 or retrieval_eval_20260901_052740 as answer-clean evidence; preserve diagnostic exclusions and source-only citation safeguards.",
+    "next_target": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12416,7 +12426,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 rows 5-6 are now source-reviewed clean evidence: row 5 from retrieval_eval_20260901_053438 and row 6 from retrieval_eval_20260901_045928. Do not count diagnostic pre-fix runs retrieval_eval_20260901_052637 or retrieval_eval_20260901_052740 as answer-clean evidence; preserve diagnostic exclusions and source-only citation safeguards.",
+    "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -14073,9 +14083,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T05:38:00Z"
+    "updated_at": "2026-09-01T06:02:00Z"
   },
-  "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 rows 5-6 are now source-reviewed clean evidence: row 5 from retrieval_eval_20260901_053438 and row 6 from retrieval_eval_20260901_045928. Do not count diagnostic pre-fix runs retrieval_eval_20260901_052637 or retrieval_eval_20260901_052740 as answer-clean evidence; preserve diagnostic exclusions and source-only citation safeguards.",
+  "remaining": "Continue broader source-reviewed single-step or multi-step answer-grounding coverage from the next validated unresolved slice. Curated single-step v2 row 13 now has source-only expected_evidence in the durable dataset, based on clean loaded HTTP evidence from retrieval_eval_20260831_183111; rerun rows 13 and the next selected slice through actual HTTP/API before accepting any new clean answer evidence.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -15731,5 +15741,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T05:38:00Z"
+  "updated_at": "2026-09-01T06:02:00Z"
 }
