@@ -6018,6 +6018,7 @@ def test_score_search_results_accepts_cross_document_same_field_equivalent_evide
                 "field": "power supply voltage",
                 "product_identifiers": ["ljx8000"],
                 "expected_terms": ["24", "vdc"],
+                "allow_equivalent_citation": True,
             },
         ],
     )
@@ -6040,6 +6041,66 @@ def test_score_search_results_accepts_cross_document_same_field_equivalent_evide
 
     assert evaluation["passed"] is True
     assert evaluation["matched_evidence"][1]["chunk_id"] == "lj-voltage"
+
+
+def test_multi_step_retrieval_scoring_rejects_same_document_sibling_without_equivalence_opt_in():
+    case = RetrievalEvalCase(
+        case_id="c-cross-sibling",
+        query="For LJ-S8000 and LJ-X8000, compare ERRC with the T1 Angle 1 MS/AB value.",
+        source_document_id="doc-ljs",
+        document_version_id="ver-ljs",
+        source_chunk_id="ljs-errc",
+        source_title="LJ-S",
+        source_filename="ljs.pdf",
+        chunk_type="table_record",
+        section_path="Measured data",
+        page_from=1,
+        page_to=1,
+        expected_terms=["integer", "digits", "decimal"],
+        expected_snippet="Measured data rows from both manuals",
+        generation_method="cross_document_same_field_evidence",
+        source_metadata={"product_family": "LJ-S8000"},
+        retrieval_task="multi_step_retrieval",
+        expected_source_chunk_ids=["ljs-errc", "ljx-t1"],
+        expected_evidence=[
+            {
+                "chunk_id": "ljs-errc",
+                "source_document_id": "doc-ljs",
+                "field": "form of measured data",
+                "product_identifiers": ["ljs8000"],
+                "expected_terms": ["integer", "digits"],
+            },
+            {
+                "chunk_id": "ljx-t1",
+                "source_document_id": "doc-ljx",
+                "field": "form of measured data",
+                "product_identifiers": ["ljx8000"],
+                "expected_terms": ["integer", "digits", "decimal"],
+            },
+        ],
+    )
+    results = [
+        {
+            "chunk_id": "ljs-errc",
+            "source_document_id": "doc-ljs",
+            "content": "Column headers: Form of measured data; Row headers: ERRC > Error Code; Cell value: Integer 7 digits",
+            "metadata": {"chunk_type": "table_record", "table_column_headers": ["Form of measured data"], "product_family": "LJ-S8000"},
+        },
+        {
+            "chunk_id": "ljx-t1hi",
+            "source_document_id": "doc-ljx",
+            "content": "Column headers: Form of measured data; Row headers: T1HI > Angle 1 (max) > MS,AB; Cell value: Sign, Integer 3 digits, 3 digits after the decimal point",
+            "metadata": {"chunk_type": "table_record", "table_column_headers": ["Form of measured data"], "product_family": "LJ-X8000"},
+        },
+    ]
+
+    evaluation = score_search_results(case, results)
+
+    assert evaluation["passed"] is False
+    assert evaluation["failure_category"] == "ranking_or_context_loss"
+    assert evaluation["missing_evidence"] == [
+        {"chunk_id": "ljx-t1", "matched": False, "rank": None, "overlap_terms": 3}
+    ]
 
 
 def test_score_search_results_categorizes_candidate_miss():

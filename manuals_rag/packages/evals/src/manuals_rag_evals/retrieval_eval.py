@@ -2455,6 +2455,8 @@ def _result_matches_cross_document_evidence_item(
 ) -> bool:
     if case.generation_method != "cross_document_same_field_evidence":
         return False
+    if not item.get("allow_equivalent_citation"):
+        return False
     expected_document_id = str(item.get("source_document_id") or "")
     if expected_document_id and str(result.get("source_document_id", "")) != expected_document_id:
         return False
@@ -2502,7 +2504,9 @@ def _score_multi_step_search_results(
         item_rank: int | None = None
         max_overlap = 0
         for rank, result in enumerate(considered, start=1):
-            same_chunk = chunk_id and str(result.get("chunk_id", "")) == chunk_id
+            result_chunk_id = str(result.get("chunk_id", ""))
+            same_chunk = chunk_id and result_chunk_id == chunk_id
+            result_is_expected_context = result_chunk_id in set(case.expected_source_chunk_ids or [])
             expected_document_id = str(item.get("source_document_id") or case.source_document_id)
             same_document = str(result.get("source_document_id", "")) == expected_document_id
             overlap = _result_term_overlap(result, terms)
@@ -2510,7 +2514,8 @@ def _score_multi_step_search_results(
             required_overlap = max(1, min(2, len(terms)))
             if (
                 same_chunk
-                or (same_document and overlap >= required_overlap)
+                or (result_is_expected_context and same_document and overlap >= required_overlap)
+                or (item.get("allow_equivalent_citation") and same_document and overlap >= required_overlap)
                 or _result_matches_cross_document_evidence_item(
                     case,
                     item,
