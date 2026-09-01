@@ -21,6 +21,10 @@ def _minimal_manifest():
     duplicate = {"run": "aa4d2bdc", "classification": "diagnostic"}
     failure_categories = {"expected_terms_missing": 1}
     retrieval_failures = {"candidate_miss": 1}
+    run_exclusions = [
+        {"run_id": f"retrieval_eval_20260830_{index:06d}", "reason": "diagnostic"}
+        for index in range(126)
+    ]
     paired = {
         "latest_false_negative_repair": duplicate,
         "updated_at": "2026-08-29T13:23:00Z",
@@ -38,7 +42,7 @@ def _minimal_manifest():
             "manifest": "test_reports/retrieval_eval_manifest_20260830_201603.json",
             "next": "rows 15-17",
         },
-        "run_exclusions": {"excluded": ["retrieval_eval_20260826_170130"]},
+        "run_exclusions": run_exclusions,
         "unresolved_guardrail_findings": ["source-first citation fidelity"],
         "current_retrieval_failure_source": (
             "retrieval_eval_20260830_201603 is the current retrieval failure source."
@@ -85,7 +89,18 @@ def _minimal_manifest():
         "answer_current_failure_categories": failure_categories,
         "current_answer_failure_categories": failure_categories,
     }
-    return {**copy.deepcopy(paired), "question_bank": copy.deepcopy(paired)}
+    return {
+        **copy.deepcopy(paired),
+        "quality_policy": {"active_counts_must_not_shrink": True},
+        "question_bank": {
+            **copy.deepcopy(paired),
+            "total_questions": 208,
+            "single_step_questions": 101,
+            "multi_step_questions": 107,
+            "exploratory_questions": 208,
+            "locked_regression_questions": 0,
+        },
+    }
 
 
 def test_manifest_checker_accepts_equal_required_pairs():
@@ -150,6 +165,37 @@ def test_manifest_checker_rejects_missing_or_unequal_remaining():
         for error in module.check_manifest(missing_nested)
     )
     assert any("remaining mismatch" in error for error in module.check_manifest(unequal))
+
+
+def test_manifest_checker_rejects_question_bank_count_reset():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["question_bank"]["total_questions"] = 0
+    manifest["question_bank"]["single_step_questions"] = 0
+    manifest["question_bank"]["multi_step_questions"] = 0
+    manifest["question_bank"]["exploratory_questions"] = 0
+
+    errors = module.check_manifest(manifest)
+
+    assert any("question_bank.total_questions dropped below monotonic floor" in error for error in errors)
+    assert any("question_bank.single_step_questions dropped below monotonic floor" in error for error in errors)
+    assert any("question_bank.multi_step_questions dropped below monotonic floor" in error for error in errors)
+    assert any("question_bank.exploratory_questions dropped below monotonic floor" in error for error in errors)
+
+
+def test_manifest_checker_rejects_run_exclusion_reset():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["run_exclusions"] = []
+    manifest["question_bank"]["run_exclusions"] = []
+
+    errors = module.check_manifest(manifest)
+
+    assert any("run_exclusions dropped below monotonic floor" in error for error in errors)
+    assert any(
+        "question_bank.run_exclusions dropped below monotonic floor" in error
+        for error in errors
+    )
 
 
 def test_manifest_checker_rejects_answer_grounding_rotation_artifact_run_mismatch():

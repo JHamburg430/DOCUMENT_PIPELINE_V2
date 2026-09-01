@@ -62,6 +62,14 @@ ANSWER_FAILURE_ALIASES = (
     "current_answer_failure_categories",
 )
 
+MINIMUM_ACTIVE_COUNTS = {
+    "total_questions": 208,
+    "single_step_questions": 101,
+    "multi_step_questions": 107,
+    "exploratory_questions": 208,
+}
+MINIMUM_RUN_EXCLUSIONS = 126
+
 _MISSING = object()
 _RUN_ID_RE = re.compile(
     r"retrieval_eval_(?:dataset_|results_|summary_|manifest_)?(\d{8}_\d{6})"
@@ -204,6 +212,50 @@ def _check_current_retrieval_failure_source(
         )
 
 
+def _run_exclusion_count(value: Any) -> int | None:
+    if isinstance(value, list):
+        return len(value)
+    if isinstance(value, dict):
+        excluded = value.get("excluded")
+        if isinstance(excluded, list):
+            return len(excluded)
+    return None
+
+
+def _check_monotonic_tracking_floors(
+    label: str, manifest: dict[str, Any], errors: list[str]
+) -> None:
+    policy = manifest.get("quality_policy")
+    if not isinstance(policy, dict) or not policy.get("active_counts_must_not_shrink"):
+        return
+
+    question_bank = manifest.get("question_bank")
+    if not isinstance(question_bank, dict):
+        return
+    for key, minimum in MINIMUM_ACTIVE_COUNTS.items():
+        value = question_bank.get(key)
+        if not isinstance(value, int):
+            errors.append(f"question_bank.{key} must be an integer count")
+        elif value < minimum:
+            errors.append(
+                f"question_bank.{key} dropped below monotonic floor: "
+                f"{value!r} < {minimum!r}"
+            )
+
+    for path, value in {
+        "run_exclusions": manifest.get("run_exclusions"),
+        "question_bank.run_exclusions": question_bank.get("run_exclusions"),
+    }.items():
+        count = _run_exclusion_count(value)
+        if count is None:
+            errors.append(f"{path} must be a list or object with an excluded list")
+        elif count < MINIMUM_RUN_EXCLUSIONS:
+            errors.append(
+                f"{path} dropped below monotonic floor: "
+                f"{count!r} < {MINIMUM_RUN_EXCLUSIONS!r}"
+            )
+
+
 def check_manifest(data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     question_bank = data.get("question_bank")
@@ -256,6 +308,7 @@ def check_manifest(data: dict[str, Any]) -> list[str]:
     )
     _check_current_retrieval_failure_source("root", data, errors)
     _check_current_retrieval_failure_source("question_bank", question_bank, errors)
+    _check_monotonic_tracking_floors("root", data, errors)
 
     target_rows = _target_row_refs(data.get("next_target"))
     remaining_rows = _target_row_refs(data.get("remaining"))

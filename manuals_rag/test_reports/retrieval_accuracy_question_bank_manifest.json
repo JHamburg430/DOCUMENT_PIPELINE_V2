@@ -8979,6 +8979,20 @@
       "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
       "timestamp": "2026-09-01T03:58:00Z",
       "type": "current_retrieval_failure_source_empty_state_reconciliation"
+    },
+    {
+      "timestamp": "2026-09-01T11:34:00Z",
+      "type": "monotonic_count_and_exclusion_floor_guard",
+      "guardrail_finding": "2026-09-01T11:27:32Z needs_fix / guardrail commit 4a3e8f8 found the primary checkout had an uncommitted manifest reset to 0 active questions and empty run exclusions while origin/main preserved 208 active questions and 126 exclusions; the checker still passed because duplicated copies agreed after the reset.",
+      "addressed": "Added deterministic manifest checker floors for the current active question counts and diagnostic run exclusions whenever active_counts_must_not_shrink is enabled. The clean origin/main manifest remains the source of truth with 208 active exploratory questions and 126 run exclusions; the dirty primary checkout was preserved untouched.",
+      "evidence": [
+        "origin/main manifest before this run had 208 active exploratory questions: 101 single-step and 107 multi-step.",
+        "origin/main root and question_bank run_exclusions already included retrieval_eval_20260830_005646 and retrieval_eval_20260830_010931 as diagnostic false-green row-5 exclusions.",
+        "tests/unit/test_manifest_check.py adds controls for question-bank count reset and root/question_bank run_exclusion reset.",
+        "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed on the real clean manifest.",
+        "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q passed."
+      ],
+      "remaining": "Continue from the current cross-document row 2 retrieval/context target after this tracking-integrity guard. Do not use the dirty primary checkout as clean eval evidence until it is reconciled or quarantined; preserve unrelated UI/retrieval/eval/test/compose/artifact changes."
     }
   ],
   "next_target": "Fix curated cross-document v2 row 2 retrieval/context selection under role-preserving exact expected-evidence scoring. retrieval_eval_20260901_095751 shows the LJ-S8000 ERRC row is retrieved/cited, but the exact LJ-X8000 T1 > Angle 1 > MS,AB row is still absent from top results/citations; the scorer now rejects sibling row/code, wrong model-side, and cross-chunk context substitutions unless an exact chunk, explicit row-bound context, or source-reviewed equivalent citation directly supports the expected role.",
@@ -12448,6 +12462,20 @@
         "remaining": "Run actual HTTP/API answer-mode validation for curated single-step v2 rows 3-4 with a documented timeout/schedule plan, then source-review whether row-group citations that directly contain the expected table row should be accepted as equivalent evidence or whether citation selection must prefer the exact atomic expected chunks. Direct diagnostics show retrieval is rank-1 clean and in-process answer fallbacks cite broader source-bearing chunks, but no clean user-visible API answer evidence is accepted yet.",
         "timestamp": "2026-09-01T03:58:00Z",
         "type": "current_retrieval_failure_source_empty_state_reconciliation"
+      },
+      {
+        "timestamp": "2026-09-01T11:34:00Z",
+        "type": "monotonic_count_and_exclusion_floor_guard",
+        "guardrail_finding": "2026-09-01T11:27:32Z needs_fix / guardrail commit 4a3e8f8 found the primary checkout had an uncommitted manifest reset to 0 active questions and empty run exclusions while origin/main preserved 208 active questions and 126 exclusions; the checker still passed because duplicated copies agreed after the reset.",
+        "addressed": "Added deterministic manifest checker floors for the current active question counts and diagnostic run exclusions whenever active_counts_must_not_shrink is enabled. The clean origin/main manifest remains the source of truth with 208 active exploratory questions and 126 run exclusions; the dirty primary checkout was preserved untouched.",
+        "evidence": [
+          "origin/main manifest before this run had 208 active exploratory questions: 101 single-step and 107 multi-step.",
+          "origin/main root and question_bank run_exclusions already included retrieval_eval_20260830_005646 and retrieval_eval_20260830_010931 as diagnostic false-green row-5 exclusions.",
+          "tests/unit/test_manifest_check.py adds controls for question-bank count reset and root/question_bank run_exclusion reset.",
+          "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py passed on the real clean manifest.",
+          "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q passed."
+        ],
+        "remaining": "Continue from the current cross-document row 2 retrieval/context target after this tracking-integrity guard. Do not use the dirty primary checkout as clean eval evidence until it is reconciled or quarantined; preserve unrelated UI/retrieval/eval/test/compose/artifact changes."
       }
     ],
     "multi_step_questions": 107,
@@ -14241,7 +14269,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T10:34:00Z"
+    "updated_at": "2026-09-01T11:34:00Z"
   },
   "remaining": "Fix curated cross-document v2 row 2 retrieval/context selection under role-preserving exact expected-evidence scoring. retrieval_eval_20260901_095751 shows the LJ-S8000 ERRC row is retrieved/cited, but the exact LJ-X8000 T1 > Angle 1 > MS,AB row is still absent from top results/citations; the scorer now rejects sibling row/code, wrong model-side, and cross-chunk context substitutions unless an exact chunk, explicit row-bound context, or source-reviewed equivalent citation directly supports the expected role.",
   "retrieval_current_failure_categories": {
@@ -15995,5 +16023,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T10:34:00Z"
+  "updated_at": "2026-09-01T11:34:00Z"
 }
