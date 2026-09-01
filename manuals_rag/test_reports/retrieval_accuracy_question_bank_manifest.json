@@ -1,8 +1,12 @@
 {
   "answer_current_failure_categories": {
-    "eval_timeout": 1
+    "expected_evidence_not_cited": 1,
+    "expected_table_cell_binding_missing": 1
   },
-  "answer_failure_categories": {},
+  "answer_failure_categories": {
+    "expected_evidence_not_cited": 1,
+    "expected_table_cell_binding_missing": 1
+  },
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
       "jq empty passed for the new source-equivalence dataset and rerun artifacts.",
@@ -184,22 +188,24 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "retrieval_eval_20260901_142929 timed out at 120s in actual HTTP/API answer mode before returning retrieved results, answer, citations, or quote spans.",
-    "classification": "cross_document_row4_source_review_repaired_question_retrieval_pending",
+    "answer_result": "retrieval_eval_20260901_152819 completed actual HTTP/API answer mode in 63.174s but failed answer grounding: expected_evidence_not_cited: 1 and expected_table_cell_binding_missing: 1. answer_source fallback_validation: 1; fallback count 1.",
+    "classification": "cross_document_row4_retrieval_clean_answer_grounding_pending",
     "current_answer_failures": {
-      "eval_timeout": 1
+      "expected_evidence_not_cited": 1,
+      "expected_table_cell_binding_missing": 1
     },
-    "current_retrieval_failures": {
-      "ranking_or_context_loss": 1
-    },
-    "dataset": "test_reports/retrieval_eval_dataset_20260901_1431_cross_document_row4_source_repair.jsonl",
-    "latest_run": "retrieval_eval_20260901_143153",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_142708, _142929, and _143153. The initial broad/equivalence answer cited an IV-H output-description row and omitted material IV4 cause detail, so it remains diagnostic. The repaired answer-mode run has no user-visible answer payload because it timed out. The repaired retrieval-only run has no answer payload by design and remains a retrieval/context failure.",
+    "current_retrieval_failures": {},
+    "dataset": "test_reports/retrieval_eval_dataset_20260901_1530_cross_document_row4_iv4_equivalence.jsonl",
+    "latest_run": "retrieval_eval_20260901_152819",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_152749 and _152819. Both runs retrieved same-source IV4 chunk 4fa8937a at rank 1 and exact IV-H chunk 1ddc77c5 at rank 2. The IV4 cited/retrieved chunk directly states a memory read error when the sensor started plus data error and power-off/noise while writing, so retrieval is clean under the explicit same-source IV4 cause equivalence policy. The actual answer payload in _152819 is fallback_validation with null quote_spans and cites 1ddc77c5 plus 4fa8937a, but current answer scoring still fails the IV4 expected evidence/table-cell binding, so row 4 is not accepted as clean answer evidence.",
     "max_queries": 1,
-    "remaining": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
-    "response_mode": "retrieval_only",
-    "results": "test_reports/retrieval_eval_results_20260901_143153.jsonl",
-    "retrieval_result": "retrieval_eval_20260901_143153 failed the repaired row 4 retrieval-only run with ranking_or_context_loss while candidate_recall stayed 1.0.",
+    "remaining": "Fix curated cross-document v2 row 4 answer-grounding/citation scoring for the source-scoped memory-read-error comparison. Source-reviewed same-source IV4 cause equivalence repaired retrieval in retrieval_eval_20260901_152749, but actual HTTP/API answer run retrieval_eval_20260901_152819 still failed expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 cause citation. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906, and do not count row 4 as clean answer evidence until the user-visible answer/citations satisfy both expected cause roles.",
+    "response_mode": "answer_with_citations",
+    "results": "test_reports/retrieval_eval_results_20260901_152819.jsonl",
+    "retrieval_clean_run": "retrieval_eval_20260901_152749",
+    "retrieval_result": "retrieval_eval_20260901_152749 passed the source-reviewed row 4 retrieval-only run 1/1 at rank 1; retrieval_eval_20260901_152819 also passed retrieval 1/1 at rank 1 before answer scoring.",
+    "retrieval_results": "test_reports/retrieval_eval_results_20260901_152749.jsonl",
+    "retrieval_summary": "test_reports/retrieval_eval_summary_20260901_152749.json",
     "runtime_load": {
       "API_BASE": "http://127.0.0.1:9052 via host.docker.internal from eval container",
       "HAYSTACK_RERANK_DEVICE": "cuda:0",
@@ -207,12 +213,12 @@
       "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
       "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
       "OLLAMA_URL": "http://host.docker.internal:11434",
-      "health": "ok at 2026-09-01T14:26:55Z",
+      "health": "ok at 2026-09-01T15:26:39Z",
       "side_api_container": "manuals-rag-temp-api-39262386-20260901-row2-sidecode"
     },
     "search_mode": "http",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260901_143153.json"
+    "summary": "test_reports/retrieval_eval_summary_20260901_152819.json"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -684,11 +690,14 @@
       "retrieval_eval_20260901_131404 cross-document row 2",
       "retrieval_eval_20260901_135906 cross-document row 3"
     ],
-    "answer_grounding_status": "Cross-document rows 1-3 have accepted source-reviewed actual HTTP/API answer evidence. Row 4 broad listed-causes wording was source-reviewed as dataset-quality/source-scope debt and replaced with a realistic question that names the IV-HG500CA sensor-program-damaged/initialization condition and the IV4-G600CA startup-memory-read cause. The repaired row remains not clean: actual HTTP/API answer mode retrieval_eval_20260901_142929 timed out at 120s with no answer payload, and retrieval-only retrieval_eval_20260901_143153 still failed ranking/context selection while candidate recall stayed 1.0.",
+    "answer_grounding_status": "Cross-document rows 1-3 have accepted source-reviewed actual HTTP/API answer evidence. Row 4 retrieval is now clean under explicit source-reviewed same-source IV4 cause equivalence from retrieval_eval_20260901_152749, but actual HTTP/API answer evidence remains not clean from retrieval_eval_20260901_152819 because the user-visible fallback answer failed expected_evidence_not_cited and expected_table_cell_binding_missing.",
     "artifacts": {
       "row4_answer_timeout_results": "test_reports/retrieval_eval_results_20260901_142929.jsonl",
       "row4_equivalence_attempt_dataset": "test_reports/retrieval_eval_dataset_20260901_1423_cross_document_row4_source_equivalence.jsonl",
       "row4_equivalence_attempt_results": "test_reports/retrieval_eval_results_20260901_142708.jsonl",
+      "row4_iv4_equivalence_answer_results": "test_reports/retrieval_eval_results_20260901_152819.jsonl",
+      "row4_iv4_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260901_1530_cross_document_row4_iv4_equivalence.jsonl",
+      "row4_iv4_equivalence_retrieval_results": "test_reports/retrieval_eval_results_20260901_152749.jsonl",
       "row4_repaired_dataset": "test_reports/retrieval_eval_dataset_20260901_1431_cross_document_row4_source_repair.jsonl",
       "row4_retrieval_only_results": "test_reports/retrieval_eval_results_20260901_143153.jsonl",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl"
@@ -699,16 +708,18 @@
       "retrieval_eval_20260901_142708 over a source-equivalence attempt passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited and expected_table_cell_binding_missing; preserved diagnostic only.",
       "retrieval_eval_20260901_142929 over the repaired row timed out at 120s in actual HTTP/API answer mode with no answer/citation payload; preserved diagnostic only.",
       "retrieval_eval_20260901_143153 retrieval-only over the repaired row failed ranking_or_context_loss in 14.927s while candidate_recall stayed 1.0; next target is retrieval/context selection, not answer acceptance.",
-      "2026-09-01T14:59:00Z artifact-presence repair: retrieval_eval_20260901_131404 dataset/results JSONL are now committed and the manifest checker fails accepted clean runs with missing dataset/results artifacts."
+      "2026-09-01T14:59:00Z artifact-presence repair: retrieval_eval_20260901_131404 dataset/results JSONL are now committed and the manifest checker fails accepted clean runs with missing dataset/results artifacts.",
+      "2026-09-01T15:31:00Z source review: retrieval_eval_20260901_143153 rank-1 IV4 chunk 4fa8937a is same-source IV4-G600CA cause evidence and directly states memory read error at sensor startup, data error, and power-off/noise while writing; added explicit allow_equivalent_citation only for the IV4 cause role.",
+      "retrieval_eval_20260901_152749 passed repaired row-4 retrieval-only 1/1 at rank 1 under that source-reviewed equivalence policy.",
+      "retrieval_eval_20260901_152819 completed actual HTTP/API answer mode and preserved consistent fallback telemetry, but failed expected_evidence_not_cited and expected_table_cell_binding_missing; not clean answer evidence."
     ],
-    "classification": "cross_document_rows_1_3_clean_row4_source_repaired_retrieval_pending",
+    "classification": "cross_document_rows_1_3_clean_row4_retrieval_clean_answer_pending",
     "current_answer_failures": {
-      "eval_timeout": 1
+      "expected_evidence_not_cited": 1,
+      "expected_table_cell_binding_missing": 1
     },
-    "current_retrieval_failures": {
-      "ranking_or_context_loss": 1
-    },
-    "remaining": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906."
+    "current_retrieval_failures": {},
+    "remaining": "Fix curated cross-document v2 row 4 answer-grounding/citation scoring for the source-scoped memory-read-error comparison. Source-reviewed same-source IV4 cause equivalence repaired retrieval in retrieval_eval_20260901_152749, but actual HTTP/API answer run retrieval_eval_20260901_152819 still failed expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 cause citation. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906, and do not count row 4 as clean answer evidence until the user-visible answer/citations satisfy both expected cause roles."
   },
   "constraints": {
     "allowed_logic": [
@@ -727,16 +738,13 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {
-    "eval_timeout": 1
+    "expected_evidence_not_cited": 1,
+    "expected_table_cell_binding_missing": 1
   },
-  "current_answer_failure_source": "retrieval_eval_20260901_142929 row 4 is the current answer failure source: actual HTTP/API answer mode timed out at 120s before returning a user-visible answer or citations for the repaired source-scoped question.",
-  "current_failure_categories": {
-    "ranking_or_context_loss": 1
-  },
-  "current_retrieval_failure_categories": {
-    "ranking_or_context_loss": 1
-  },
-  "current_retrieval_failure_source": "retrieval_eval_20260901_143153 row 4 is the current retrieval failure source: the repaired source-scoped memory-read comparison has candidate recall but exact IV-HG500CA and IV4-G600CA cause evidence did not both survive final top results.",
+  "current_answer_failure_source": "retrieval_eval_20260901_152819 row 4 is the current answer failure source: actual HTTP/API fallback answer cites IV-H 1ddc77c5 and IV4 same-source 4fa8937a but still fails expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 expected cause role.",
+  "current_failure_categories": {},
+  "current_retrieval_failure_categories": {},
+  "current_retrieval_failure_source": "retrieval_eval_20260901_152749 row 4 is retrieval-repair evidence only: source-reviewed same-source IV4 cause equivalence lets final top-k satisfy both expected cause roles at rank 1; current retrieval failure categories are empty. Answer grounding remains pending on retrieval_eval_20260901_152819.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -934,9 +942,7 @@
       "total_queries": 10
     }
   ],
-  "failure_categories": {
-    "ranking_or_context_loss": 1
-  },
+  "failure_categories": {},
   "goal": {
     "components": [
       "single_step_retrieval",
@@ -9037,7 +9043,7 @@
       "type": "accepted_clean_run_artifact_presence_guard"
     }
   ],
-  "next_target": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
+  "next_target": "Fix curated cross-document v2 row 4 answer-grounding/citation scoring for the source-scoped memory-read-error comparison. Source-reviewed same-source IV4 cause equivalence repaired retrieval in retrieval_eval_20260901_152749, but actual HTTP/API answer run retrieval_eval_20260901_152819 still failed expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 cause citation. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906, and do not count row 4 as clean answer evidence until the user-visible answer/citations satisfy both expected cause roles.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9791,9 +9797,13 @@
   },
   "question_bank": {
     "answer_current_failure_categories": {
-      "eval_timeout": 1
+      "expected_evidence_not_cited": 1,
+      "expected_table_cell_binding_missing": 1
     },
-    "answer_failure_categories": {},
+    "answer_failure_categories": {
+      "expected_evidence_not_cited": 1,
+      "expected_table_cell_binding_missing": 1
+    },
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
         "jq empty passed for the new source-equivalence dataset and rerun artifacts.",
@@ -9975,22 +9985,24 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "retrieval_eval_20260901_142929 timed out at 120s in actual HTTP/API answer mode before returning retrieved results, answer, citations, or quote spans.",
-      "classification": "cross_document_row4_source_review_repaired_question_retrieval_pending",
+      "answer_result": "retrieval_eval_20260901_152819 completed actual HTTP/API answer mode in 63.174s but failed answer grounding: expected_evidence_not_cited: 1 and expected_table_cell_binding_missing: 1. answer_source fallback_validation: 1; fallback count 1.",
+      "classification": "cross_document_row4_retrieval_clean_answer_grounding_pending",
       "current_answer_failures": {
-        "eval_timeout": 1
+        "expected_evidence_not_cited": 1,
+        "expected_table_cell_binding_missing": 1
       },
-      "current_retrieval_failures": {
-        "ranking_or_context_loss": 1
-      },
-      "dataset": "test_reports/retrieval_eval_dataset_20260901_1431_cross_document_row4_source_repair.jsonl",
-      "latest_run": "retrieval_eval_20260901_143153",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_142708, _142929, and _143153. The initial broad/equivalence answer cited an IV-H output-description row and omitted material IV4 cause detail, so it remains diagnostic. The repaired answer-mode run has no user-visible answer payload because it timed out. The repaired retrieval-only run has no answer payload by design and remains a retrieval/context failure.",
+      "current_retrieval_failures": {},
+      "dataset": "test_reports/retrieval_eval_dataset_20260901_1530_cross_document_row4_iv4_equivalence.jsonl",
+      "latest_run": "retrieval_eval_20260901_152819",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_152749 and _152819. Both runs retrieved same-source IV4 chunk 4fa8937a at rank 1 and exact IV-H chunk 1ddc77c5 at rank 2. The IV4 cited/retrieved chunk directly states a memory read error when the sensor started plus data error and power-off/noise while writing, so retrieval is clean under the explicit same-source IV4 cause equivalence policy. The actual answer payload in _152819 is fallback_validation with null quote_spans and cites 1ddc77c5 plus 4fa8937a, but current answer scoring still fails the IV4 expected evidence/table-cell binding, so row 4 is not accepted as clean answer evidence.",
       "max_queries": 1,
-      "remaining": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
-      "response_mode": "retrieval_only",
-      "results": "test_reports/retrieval_eval_results_20260901_143153.jsonl",
-      "retrieval_result": "retrieval_eval_20260901_143153 failed the repaired row 4 retrieval-only run with ranking_or_context_loss while candidate_recall stayed 1.0.",
+      "remaining": "Fix curated cross-document v2 row 4 answer-grounding/citation scoring for the source-scoped memory-read-error comparison. Source-reviewed same-source IV4 cause equivalence repaired retrieval in retrieval_eval_20260901_152749, but actual HTTP/API answer run retrieval_eval_20260901_152819 still failed expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 cause citation. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906, and do not count row 4 as clean answer evidence until the user-visible answer/citations satisfy both expected cause roles.",
+      "response_mode": "answer_with_citations",
+      "results": "test_reports/retrieval_eval_results_20260901_152819.jsonl",
+      "retrieval_clean_run": "retrieval_eval_20260901_152749",
+      "retrieval_result": "retrieval_eval_20260901_152749 passed the source-reviewed row 4 retrieval-only run 1/1 at rank 1; retrieval_eval_20260901_152819 also passed retrieval 1/1 at rank 1 before answer scoring.",
+      "retrieval_results": "test_reports/retrieval_eval_results_20260901_152749.jsonl",
+      "retrieval_summary": "test_reports/retrieval_eval_summary_20260901_152749.json",
       "runtime_load": {
         "API_BASE": "http://127.0.0.1:9052 via host.docker.internal from eval container",
         "HAYSTACK_RERANK_DEVICE": "cuda:0",
@@ -9998,12 +10010,12 @@
         "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
         "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
         "OLLAMA_URL": "http://host.docker.internal:11434",
-        "health": "ok at 2026-09-01T14:26:55Z",
+        "health": "ok at 2026-09-01T15:26:39Z",
         "side_api_container": "manuals-rag-temp-api-39262386-20260901-row2-sidecode"
       },
       "search_mode": "http",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260901_143153.json"
+      "summary": "test_reports/retrieval_eval_summary_20260901_152819.json"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10264,11 +10276,14 @@
         "retrieval_eval_20260901_131404 cross-document row 2",
         "retrieval_eval_20260901_135906 cross-document row 3"
       ],
-      "answer_grounding_status": "Cross-document rows 1-3 have accepted source-reviewed actual HTTP/API answer evidence. Row 4 broad listed-causes wording was source-reviewed as dataset-quality/source-scope debt and replaced with a realistic question that names the IV-HG500CA sensor-program-damaged/initialization condition and the IV4-G600CA startup-memory-read cause. The repaired row remains not clean: actual HTTP/API answer mode retrieval_eval_20260901_142929 timed out at 120s with no answer payload, and retrieval-only retrieval_eval_20260901_143153 still failed ranking/context selection while candidate recall stayed 1.0.",
+      "answer_grounding_status": "Cross-document rows 1-3 have accepted source-reviewed actual HTTP/API answer evidence. Row 4 retrieval is now clean under explicit source-reviewed same-source IV4 cause equivalence from retrieval_eval_20260901_152749, but actual HTTP/API answer evidence remains not clean from retrieval_eval_20260901_152819 because the user-visible fallback answer failed expected_evidence_not_cited and expected_table_cell_binding_missing.",
       "artifacts": {
         "row4_answer_timeout_results": "test_reports/retrieval_eval_results_20260901_142929.jsonl",
         "row4_equivalence_attempt_dataset": "test_reports/retrieval_eval_dataset_20260901_1423_cross_document_row4_source_equivalence.jsonl",
         "row4_equivalence_attempt_results": "test_reports/retrieval_eval_results_20260901_142708.jsonl",
+        "row4_iv4_equivalence_answer_results": "test_reports/retrieval_eval_results_20260901_152819.jsonl",
+        "row4_iv4_equivalence_dataset": "test_reports/retrieval_eval_dataset_20260901_1530_cross_document_row4_iv4_equivalence.jsonl",
+        "row4_iv4_equivalence_retrieval_results": "test_reports/retrieval_eval_results_20260901_152749.jsonl",
         "row4_repaired_dataset": "test_reports/retrieval_eval_dataset_20260901_1431_cross_document_row4_source_repair.jsonl",
         "row4_retrieval_only_results": "test_reports/retrieval_eval_results_20260901_143153.jsonl",
         "source_dataset": "test_reports/retrieval_eval_dataset_20260825_0528_curated_cross_document_v2.jsonl"
@@ -10279,28 +10294,27 @@
         "retrieval_eval_20260901_142708 over a source-equivalence attempt passed retrieval at rank 1 but failed answer grounding with expected_evidence_not_cited and expected_table_cell_binding_missing; preserved diagnostic only.",
         "retrieval_eval_20260901_142929 over the repaired row timed out at 120s in actual HTTP/API answer mode with no answer/citation payload; preserved diagnostic only.",
         "retrieval_eval_20260901_143153 retrieval-only over the repaired row failed ranking_or_context_loss in 14.927s while candidate_recall stayed 1.0; next target is retrieval/context selection, not answer acceptance.",
-        "2026-09-01T14:59:00Z artifact-presence repair: retrieval_eval_20260901_131404 dataset/results JSONL are now committed and the manifest checker fails accepted clean runs with missing dataset/results artifacts."
+        "2026-09-01T14:59:00Z artifact-presence repair: retrieval_eval_20260901_131404 dataset/results JSONL are now committed and the manifest checker fails accepted clean runs with missing dataset/results artifacts.",
+        "2026-09-01T15:31:00Z source review: retrieval_eval_20260901_143153 rank-1 IV4 chunk 4fa8937a is same-source IV4-G600CA cause evidence and directly states memory read error at sensor startup, data error, and power-off/noise while writing; added explicit allow_equivalent_citation only for the IV4 cause role.",
+        "retrieval_eval_20260901_152749 passed repaired row-4 retrieval-only 1/1 at rank 1 under that source-reviewed equivalence policy.",
+        "retrieval_eval_20260901_152819 completed actual HTTP/API answer mode and preserved consistent fallback telemetry, but failed expected_evidence_not_cited and expected_table_cell_binding_missing; not clean answer evidence."
       ],
-      "classification": "cross_document_rows_1_3_clean_row4_source_repaired_retrieval_pending",
+      "classification": "cross_document_rows_1_3_clean_row4_retrieval_clean_answer_pending",
       "current_answer_failures": {
-        "eval_timeout": 1
+        "expected_evidence_not_cited": 1,
+        "expected_table_cell_binding_missing": 1
       },
-      "current_retrieval_failures": {
-        "ranking_or_context_loss": 1
-      },
-      "remaining": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906."
+      "current_retrieval_failures": {},
+      "remaining": "Fix curated cross-document v2 row 4 answer-grounding/citation scoring for the source-scoped memory-read-error comparison. Source-reviewed same-source IV4 cause equivalence repaired retrieval in retrieval_eval_20260901_152749, but actual HTTP/API answer run retrieval_eval_20260901_152819 still failed expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 cause citation. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906, and do not count row 4 as clean answer evidence until the user-visible answer/citations satisfy both expected cause roles."
     },
     "current_answer_failure_categories": {
-      "eval_timeout": 1
+      "expected_evidence_not_cited": 1,
+      "expected_table_cell_binding_missing": 1
     },
-    "current_answer_failure_source": "retrieval_eval_20260901_142929 row 4 is the current answer failure source: actual HTTP/API answer mode timed out at 120s before returning a user-visible answer or citations for the repaired source-scoped question.",
-    "current_failure_categories": {
-      "ranking_or_context_loss": 1
-    },
-    "current_retrieval_failure_categories": {
-      "ranking_or_context_loss": 1
-    },
-    "current_retrieval_failure_source": "retrieval_eval_20260901_143153 row 4 is the current retrieval failure source: the repaired source-scoped memory-read comparison has candidate recall but exact IV-HG500CA and IV4-G600CA cause evidence did not both survive final top results.",
+    "current_answer_failure_source": "retrieval_eval_20260901_152819 row 4 is the current answer failure source: actual HTTP/API fallback answer cites IV-H 1ddc77c5 and IV4 same-source 4fa8937a but still fails expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 expected cause role.",
+    "current_failure_categories": {},
+    "current_retrieval_failure_categories": {},
+    "current_retrieval_failure_source": "retrieval_eval_20260901_152749 row 4 is retrieval-repair evidence only: source-reviewed same-source IV4 cause equivalence lets final top-k satisfy both expected cause roles at rank 1; current retrieval failure categories are empty. Answer grounding remains pending on retrieval_eval_20260901_152819.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -10645,9 +10659,7 @@
       }
     ],
     "exploratory_questions": 208,
-    "failure_categories": {
-      "ranking_or_context_loss": 1
-    },
+    "failure_categories": {},
     "latest_comparison_setting_side_binding_containment": {
       "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
       "actual_http_evidence": {
@@ -12563,7 +12575,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
+    "next_target": "Fix curated cross-document v2 row 4 answer-grounding/citation scoring for the source-scoped memory-read-error comparison. Source-reviewed same-source IV4 cause equivalence repaired retrieval in retrieval_eval_20260901_152749, but actual HTTP/API answer run retrieval_eval_20260901_152819 still failed expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 cause citation. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906, and do not count row 4 as clean answer evidence until the user-visible answer/citations satisfy both expected cause roles.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12600,10 +12612,8 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
-    "retrieval_current_failure_categories": {
-      "ranking_or_context_loss": 1
-    },
+    "remaining": "Fix curated cross-document v2 row 4 answer-grounding/citation scoring for the source-scoped memory-read-error comparison. Source-reviewed same-source IV4 cause equivalence repaired retrieval in retrieval_eval_20260901_152749, but actual HTTP/API answer run retrieval_eval_20260901_152819 still failed expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 cause citation. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906, and do not count row 4 as clean answer evidence until the user-visible answer/citations satisfy both expected cause roles.",
+    "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
         "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -13281,6 +13291,20 @@
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "addressed_this_run": "Added source-reviewed IV4 same-source cause equivalence dataset and reran retrieval-only plus answer-mode HTTP/API evals.",
+        "evidence": [
+          "test_reports/retrieval_eval_dataset_20260901_1530_cross_document_row4_iv4_equivalence.jsonl",
+          "retrieval_eval_20260901_152749 retrieval 1/1 at rank 1",
+          "retrieval_eval_20260901_152819 retrieval 1/1 at rank 1, answer failed expected_evidence_not_cited and expected_table_cell_binding_missing",
+          "Manual JSONL inspection confirmed cited/retrieved chunk 4fa8937a directly supports the IV4 startup-memory cause but current answer scoring did not accept the IV4 expected evidence binding."
+        ],
+        "finding": "Cross-document v2 row 4 retrieval/context failure from retrieval_eval_20260901_143153 was a source-equivalence gap for same-source IV4 cause evidence, while answer grounding remains unresolved.",
+        "remaining": "Fix curated cross-document v2 row 4 answer-grounding/citation scoring for the source-scoped memory-read-error comparison. Source-reviewed same-source IV4 cause equivalence repaired retrieval in retrieval_eval_20260901_152749, but actual HTTP/API answer run retrieval_eval_20260901_152819 still failed expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 cause citation. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906, and do not count row 4 as clean answer evidence until the user-visible answer/citations satisfy both expected cause roles.",
+        "severity": "watch",
+        "status": "retrieval_addressed_answer_grounding_pending",
+        "timestamp": "2026-09-01T15:31:00Z"
+      },
       {
         "addressed_this_run": "Committed the missing 131404 dataset/results JSONL artifacts and added a deterministic accepted_clean_runs artifact-presence check for root and question_bank answer_grounding_status.",
         "evidence": [
@@ -14414,12 +14438,10 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-01T14:59:00Z"
+    "updated_at": "2026-09-01T15:31:00Z"
   },
-  "remaining": "Fix curated cross-document v2 row 4 retrieval/context selection for the source-scoped memory-read-error comparison: the repaired question now distinguishes the IV-HG500CA sensor-program-damaged/initialization condition from the IV4-G600CA startup memory read error cause, but retrieval_eval_20260901_143153 still has ranking_or_context_loss despite candidate recall and retrieval_eval_20260901_142929 timed out in actual HTTP/API answer mode. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906.",
-  "retrieval_current_failure_categories": {
-    "ranking_or_context_loss": 1
-  },
+  "remaining": "Fix curated cross-document v2 row 4 answer-grounding/citation scoring for the source-scoped memory-read-error comparison. Source-reviewed same-source IV4 cause equivalence repaired retrieval in retrieval_eval_20260901_152749, but actual HTTP/API answer run retrieval_eval_20260901_152819 still failed expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 cause citation. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906, and do not count row 4 as clean answer evidence until the user-visible answer/citations satisfy both expected cause roles.",
+  "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
       "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -15096,6 +15118,20 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "addressed_this_run": "Added source-reviewed IV4 same-source cause equivalence dataset and reran retrieval-only plus answer-mode HTTP/API evals.",
+      "evidence": [
+        "test_reports/retrieval_eval_dataset_20260901_1530_cross_document_row4_iv4_equivalence.jsonl",
+        "retrieval_eval_20260901_152749 retrieval 1/1 at rank 1",
+        "retrieval_eval_20260901_152819 retrieval 1/1 at rank 1, answer failed expected_evidence_not_cited and expected_table_cell_binding_missing",
+        "Manual JSONL inspection confirmed cited/retrieved chunk 4fa8937a directly supports the IV4 startup-memory cause but current answer scoring did not accept the IV4 expected evidence binding."
+      ],
+      "finding": "Cross-document v2 row 4 retrieval/context failure from retrieval_eval_20260901_143153 was a source-equivalence gap for same-source IV4 cause evidence, while answer grounding remains unresolved.",
+      "remaining": "Fix curated cross-document v2 row 4 answer-grounding/citation scoring for the source-scoped memory-read-error comparison. Source-reviewed same-source IV4 cause equivalence repaired retrieval in retrieval_eval_20260901_152749, but actual HTTP/API answer run retrieval_eval_20260901_152819 still failed expected_evidence_not_cited and expected_table_cell_binding_missing for the IV4 cause citation. Preserve clean rows 1-3 evidence from retrieval_eval_20260901_085649, retrieval_eval_20260901_131404, and retrieval_eval_20260901_135906, and do not count row 4 as clean answer evidence until the user-visible answer/citations satisfy both expected cause roles.",
+      "severity": "watch",
+      "status": "retrieval_addressed_answer_grounding_pending",
+      "timestamp": "2026-09-01T15:31:00Z"
+    },
     {
       "addressed_this_run": "Committed the missing 131404 dataset/results JSONL artifacts and added a deterministic accepted_clean_runs artifact-presence check for root and question_bank answer_grounding_status.",
       "evidence": [
@@ -16229,5 +16265,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-01T14:59:00Z"
+  "updated_at": "2026-09-01T15:31:00Z"
 }
