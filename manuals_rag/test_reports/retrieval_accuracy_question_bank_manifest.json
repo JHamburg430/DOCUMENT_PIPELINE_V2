@@ -9011,16 +9011,16 @@
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
       "created_new_worktree": false,
-      "git_status_after_primary_commit": "after primary containment commit 6570037, git status --short --branch was clean and detached",
+      "git_status_before_final_commit": "dirty only with this run's progress and manifest tracking edits; detached from clean origin/main 781d129 before editing",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 6570037 in git worktree list --porcelain",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 781d129 before this final tracking commit in git worktree list --porcelain",
       "removal_command": "not attempted",
       "removal_result": "not attempted; the worktree is required for this final commit and no safe sequence can both remove this exact checkout and durably commit the post-removal result without modifying the unrelated primary checkout; prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
-      "post_removal_registry_check": "not removed; retained registered=true at 6570037 for mandatory reuse",
+      "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_git_status_check": "not removed; immediately after primary commit 6570037 git status --short --branch was clean and detached",
+      "post_removal_git_status_check": "not applicable; removal was intentionally not attempted",
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-      "timestamp": "2026-09-02T14:36:00Z"
+      "timestamp": "2026-09-02T15:00:00Z"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -9043,7 +9043,7 @@
       "guardrail_commit": "ecc7979",
       "guardrail_timestamp": "2026-09-02T10:41:28Z",
       "status": "addressed_this_run_validated",
-      "validation": "61 focused manifest tests passed; legitimate reactivation passes and the exact masked inactive-to-active adverse control fails closed; full environment-backed unit gate passed 591 tests with 59 warnings; real whole-manifest and parent-aware checks passed"
+      "validation": "Current upstream revalidation passed: 67 focused manifest tests; real whole-manifest and parent-aware checks against 8ec8ddb^; py_compile; and the fixture-mounted full unit gate at 601 passed with 59 warnings. Existing append-only extension, provenance, exact row/type delta, mixed-entry, count-rewrite, and inactive-activation controls remain intact."
     },
     "checker_repair": {
       "controls": [
@@ -12748,16 +12748,16 @@
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
         "created_new_worktree": false,
-        "git_status_after_primary_commit": "after primary containment commit 6570037, git status --short --branch was clean and detached",
+        "git_status_before_final_commit": "dirty only with this run's progress and manifest tracking edits; detached from clean origin/main 781d129 before editing",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 6570037 in git worktree list --porcelain",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 781d129 before this final tracking commit in git worktree list --porcelain",
         "removal_command": "not attempted",
         "removal_result": "not attempted; the worktree is required for this final commit and no safe sequence can both remove this exact checkout and durably commit the post-removal result without modifying the unrelated primary checkout; prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
-        "post_removal_registry_check": "not removed; retained registered=true at 6570037 for mandatory reuse",
+        "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-        "post_removal_git_status_check": "not removed; immediately after primary commit 6570037 git status --short --branch was clean and detached",
+        "post_removal_git_status_check": "not applicable; removal was intentionally not attempted",
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-        "timestamp": "2026-09-02T14:36:00Z"
+        "timestamp": "2026-09-02T15:00:00Z"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12780,7 +12780,7 @@
         "guardrail_commit": "ecc7979",
         "guardrail_timestamp": "2026-09-02T10:41:28Z",
         "status": "addressed_this_run_validated",
-        "validation": "61 focused manifest tests passed; legitimate reactivation passes and the exact masked inactive-to-active adverse control fails closed; full environment-backed unit gate passed 591 tests with 59 warnings; real whole-manifest and parent-aware checks passed"
+        "validation": "Current upstream revalidation passed: 67 focused manifest tests; real whole-manifest and parent-aware checks against 8ec8ddb^; py_compile; and the fixture-mounted full unit gate at 601 passed with 59 warnings. Existing append-only extension, provenance, exact row/type delta, mixed-entry, count-rewrite, and inactive-activation controls remain intact."
       },
       "checker_repair": {
         "controls": [
@@ -15188,7 +15188,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T14:36:00Z"
+    "updated_at": "2026-09-02T15:00:00Z"
   },
   "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
@@ -17376,5 +17376,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T14:36:00Z"
+  "updated_at": "2026-09-02T15:00:00Z"
 }

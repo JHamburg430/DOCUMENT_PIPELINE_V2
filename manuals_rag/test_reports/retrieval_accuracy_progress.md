@@ -6851,3 +6851,16 @@ Next target:
 Next target:
 
 - After guardrail review, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, `124857` as clean evidence, and `123026`/`112809` as diagnostics. Reuse `/tmp/manuals_rag_accuracy_20260901`.
+
+## 2026-09-02 Cron 39262386 Upstream Containment Revalidation
+
+- Target and freshness: reused registered `/tmp/manuals_rag_accuracy_20260901`, created no worktree, fetched `origin`, and confirmed the selected checkout was clean at `origin/main` `781d129`. The payload's interrupted dataset-ledger state was no longer present: the append-only extension/provenance containment and the newer Git-bound answer-provenance containment were already committed upstream.
+- Guardrail review: read the latest committed guardrail findings and queried the guardrail cron history. The newest completed finding available was `2026-09-02T14:16:21Z` / `f11b80c`; commits `6570037` and `781d129` already address it by requiring accepted-clean production commits to resolve in Git and every declared path to exist at and be changed by that commit. The guardrail audit session had no newer completed summary, so no unreviewed optional production change was started.
+- Dataset-ledger evidence: the current checker still requires real append-only JSONL content for `extended_registered_dataset`, exact active and single/multi deltas, complete generation/status/quality/review/replacement metadata, and existing result/summary/manifest artifacts. The registered Error 30109 diagnostic remains preserved at one active multi-step case; coverage remains 209 exploratory questions (101 single-step, 108 multi-step), replacement debt 0.
+- Validation: normal and parent-aware manifest checks against `8ec8ddb^` passed; `python3 -m py_compile` passed; focused Docker manifest controls passed `67 passed`; the fixture-mounted full Docker unit gate passed `601 passed, 59 warnings` in 222.39 seconds; `git diff --check` passed after tracking edits.
+- Scope/deferment: no safe new production retrieval or answering change was made because the required ledger and newest completed guardrail containments were already upstream and the next optional HTTP multi-error/two-row rotation awaits the in-progress guardrail review. No dataset, count, question, expected evidence, eval artifact, retrieval, answering, API/UI, ingestion/parser, infrastructure/Docker, schema, model/provider, embedding, or reranker behavior changed.
+- Cleanup ordering: selected worktree `/tmp/manuals_rag_accuracy_20260901`; removal command/result `not attempted`. It remains present and registered for mandatory reuse. Removing it before this final tracking commit would prevent durable post-removal recording from this detached checkout, and prior supported removals repeatedly deregistered worktrees before failing directory deletion with `Permission denied`. No force removal, recursive deletion, prune, reset, clean, primary-checkout mutation, or new worktree creation occurred.
+
+Next target:
+
+- After the guardrail audit publishes a completed review of `6570037`/`781d129`, take its newest unresolved finding first. Otherwise continue the source-backed actual HTTP multi-error/two-row positive with loaded-runtime and manual citation inspection, reusing `/tmp/manuals_rag_accuracy_20260901`.
