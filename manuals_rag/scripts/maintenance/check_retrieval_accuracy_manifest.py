@@ -171,8 +171,80 @@ def _run_id_from_value(value: Any) -> str | None:
     return f"retrieval_eval_{match.group(1)}"
 
 
+def _git_commit_changed_paths(
+    commit: str, artifact_base_dir: Path | None
+) -> tuple[str | None, set[str], str | None]:
+    """Resolve a commit and return its changed paths relative to the manifest root."""
+    git_dir = artifact_base_dir or Path.cwd()
+    try:
+        resolved = subprocess.run(
+            ["git", "-C", str(git_dir), "rev-parse", "--verify", f"{commit}^{{commit}}"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        prefix = subprocess.run(
+            ["git", "-C", str(git_dir), "rev-parse", "--show-prefix"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        changed = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(git_dir),
+                "diff-tree",
+                "--root",
+                "--no-commit-id",
+                "--name-only",
+                "-r",
+                resolved,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+    except (subprocess.CalledProcessError, OSError) as exc:
+        detail = exc.stderr.strip() if isinstance(exc, subprocess.CalledProcessError) and exc.stderr else str(exc)
+        return None, set(), detail
+
+    relative_paths: set[str] = set()
+    for path in changed:
+        if not prefix:
+            relative_paths.add(path)
+        elif path.startswith(prefix):
+            relative_paths.add(path[len(prefix) :])
+    return resolved, relative_paths, None
+
+
+def _git_path_exists_at_commit(
+    commit: str, path: str, artifact_base_dir: Path | None
+) -> bool:
+    git_dir = artifact_base_dir or Path.cwd()
+    try:
+        prefix = subprocess.run(
+            ["git", "-C", str(git_dir), "rev-parse", "--show-prefix"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        subprocess.run(
+            ["git", "-C", str(git_dir), "cat-file", "-e", f"{commit}:{prefix}{path}"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, OSError):
+        return False
+    return True
+
+
 def _check_answer_grounding_rotation_artifacts(
-    label: str, rotation: Any, errors: list[str]
+    label: str,
+    rotation: Any,
+    artifact_base_dir: Path | None,
+    errors: list[str],
 ) -> None:
     if not isinstance(rotation, dict):
         return
@@ -214,6 +286,78 @@ def _check_answer_grounding_rotation_artifacts(
     scope = rotation.get("scope")
     if not isinstance(scope, str) or latest_run not in scope:
         errors.append(f"{label}.scope stale: must identify latest_run={latest_run!r}")
+
+    classification = rotation.get("classification")
+    if isinstance(classification, str) and classification.startswith("accepted_clean"):
+        validated_changes = rotation.get("validated_production_changes")
+        if not isinstance(validated_changes, list) or not validated_changes:
+            errors.append(
+                f"{label}.validated_production_changes must identify the production "
+                "changes validated by an accepted clean run"
+            )
+            return
+
+        components: set[str] = set()
+        for index, change in enumerate(validated_changes):
+            change_label = f"{label}.validated_production_changes[{index}]"
+            if not isinstance(change, dict):
+                errors.append(f"{change_label} must be an object")
+                continue
+            commit = change.get("commit")
+            component = change.get("component")
+            paths = change.get("paths")
+            commit_valid = isinstance(commit, str) and bool(
+                re.fullmatch(r"[0-9a-f]{7,40}", commit)
+            )
+            if not commit_valid:
+                errors.append(f"{change_label}.commit must be a Git commit id")
+            if not isinstance(component, str) or not component.strip():
+                errors.append(f"{change_label}.component must be nonempty")
+            else:
+                components.add(component.strip().lower())
+            if not isinstance(paths, list) or not paths or not all(
+                isinstance(path, str) and path.strip() for path in paths
+            ):
+                errors.append(f"{change_label}.paths must contain nonempty paths")
+            elif commit_valid:
+                _resolved, changed_paths, git_error = _git_commit_changed_paths(
+                    commit, artifact_base_dir
+                )
+                if git_error is not None:
+                    errors.append(
+                        f"{change_label}.commit is not resolvable in Git: {commit!r}"
+                    )
+                else:
+                    for path in paths:
+                        normalized_path = path.strip().lstrip("./")
+                        if not _git_path_exists_at_commit(
+                            commit, normalized_path, artifact_base_dir
+                        ):
+                            errors.append(
+                                f"{change_label}.path does not exist at commit "
+                                f"{commit!r}: {normalized_path!r}"
+                            )
+                        elif normalized_path not in changed_paths:
+                            errors.append(
+                                f"{change_label}.path is not changed by commit "
+                                f"{commit!r}: {normalized_path!r}"
+                            )
+
+        scope_lower = scope.lower() if isinstance(scope, str) else ""
+        if re.match(
+            rf"^{re.escape(latest_run.lower())}\s+tracking[-\w ]{{0,40}}\bonly\b",
+            scope_lower,
+        ):
+            errors.append(
+                f"{label}.scope misleading: accepted clean evidence cannot be "
+                "described as tracking-only"
+            )
+        for component in components:
+            if component not in scope_lower:
+                errors.append(
+                    f"{label}.scope incomplete: validated production component "
+                    f"{component!r} is not named"
+                )
 
 
 def _check_accepted_clean_run_artifacts(
@@ -448,11 +592,13 @@ def check_manifest(
     _check_answer_grounding_rotation_artifacts(
         "answer_grounding_rotation",
         _get_path(data, "answer_grounding_rotation"),
+        artifact_base_dir,
         errors,
     )
     _check_answer_grounding_rotation_artifacts(
         "question_bank.answer_grounding_rotation",
         _get_path(data, "question_bank.answer_grounding_rotation"),
+        artifact_base_dir,
         errors,
     )
     _check_accepted_clean_run_artifacts(

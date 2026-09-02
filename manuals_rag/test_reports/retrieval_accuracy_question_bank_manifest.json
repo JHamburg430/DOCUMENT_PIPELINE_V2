@@ -216,7 +216,24 @@
     },
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against every expected evidence role. The user-visible retrieval-grounded fallback states both requested Error 30109 meanings and cites exactly chunks ffd4b1bd and be25fb78 with null quote spans; each returned cited chunk directly supports its assigned CV-X482 or VS claim. retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 remain diagnostic/not-clean one-sided answers.",
     "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
-    "scope": "retrieval_eval_20260902_124857 tracking-integrity repair only: reconcile latest-run runtime, manual citation inspection, and scope provenance and add deterministic stale-provenance rejection; no production retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model/provider, embedding, or reranker behavior changed"
+    "validated_production_changes": [
+      {
+        "commit": "a9d870a",
+        "component": "retrieval",
+        "paths": [
+          "packages/retrieval/src/manuals_rag_retrieval/query_analysis.py",
+          "packages/retrieval/src/manuals_rag_retrieval/retriever.py"
+        ]
+      },
+      {
+        "commit": "9ad25b1",
+        "component": "answering",
+        "paths": [
+          "packages/answering/src/manuals_rag_answering/generator.py"
+        ]
+      }
+    ],
+    "scope": "retrieval_eval_20260902_124857 validates the production exact diagnostic-code retrieval changes in a9d870a and the cross-product answering grounding and validation changes in 9ad25b1. Subsequent commits 0ac1dab and 7448a43 changed checker and tracking provenance only."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -8994,16 +9011,16 @@
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
       "created_new_worktree": false,
-      "git_status_after_primary_commit": "after pushed tracking-integrity commit 0ac1dab, git status --short --branch was clean and detached",
-      "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 0ac1dab in git worktree list --porcelain",
+      "git_status_before_final_commit": "dirty only with this run's checker, focused tests, manifest, and progress tracking changes; detached at origin/main e32b724",
+      "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at e32b724 before the final commit in git worktree list --porcelain",
       "removal_command": "not attempted",
-      "removal_result": "not attempted; no safe sequence could both remove this exact checkout and durably commit the post-removal result without modifying the unrelated primary checkout, and prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
-      "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true at 0ac1dab",
+      "removal_result": "not attempted; the worktree is required for this final commit and no safe sequence can both remove this exact checkout and durably commit the post-removal result without modifying the unrelated primary checkout; prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
+      "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_git_status_check": "not removed; after pushed commit 0ac1dab git status --short --branch was clean and detached",
+      "post_removal_git_status_check": "not applicable; removal was intentionally not attempted",
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-      "timestamp": "2026-09-02T13:38:00Z"
+      "timestamp": "2026-09-02T14:33:00Z"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -10178,7 +10195,24 @@
       },
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against every expected evidence role. The user-visible retrieval-grounded fallback states both requested Error 30109 meanings and cites exactly chunks ffd4b1bd and be25fb78 with null quote spans; each returned cited chunk directly supports its assigned CV-X482 or VS claim. retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 remain diagnostic/not-clean one-sided answers.",
       "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
-      "scope": "retrieval_eval_20260902_124857 tracking-integrity repair only: reconcile latest-run runtime, manual citation inspection, and scope provenance and add deterministic stale-provenance rejection; no production retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model/provider, embedding, or reranker behavior changed"
+      "validated_production_changes": [
+        {
+          "commit": "a9d870a",
+          "component": "retrieval",
+          "paths": [
+            "packages/retrieval/src/manuals_rag_retrieval/query_analysis.py",
+            "packages/retrieval/src/manuals_rag_retrieval/retriever.py"
+          ]
+        },
+        {
+          "commit": "9ad25b1",
+          "component": "answering",
+          "paths": [
+            "packages/answering/src/manuals_rag_answering/generator.py"
+          ]
+        }
+      ],
+      "scope": "retrieval_eval_20260902_124857 validates the production exact diagnostic-code retrieval changes in a9d870a and the cross-product answering grounding and validation changes in 9ad25b1. Subsequent commits 0ac1dab and 7448a43 changed checker and tracking provenance only."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -12714,16 +12748,16 @@
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
         "created_new_worktree": false,
-        "git_status_after_primary_commit": "after pushed tracking-integrity commit 0ac1dab, git status --short --branch was clean and detached",
-        "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 0ac1dab in git worktree list --porcelain",
+        "git_status_before_final_commit": "dirty only with this run's checker, focused tests, manifest, and progress tracking changes; detached at origin/main e32b724",
+        "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at e32b724 before the final commit in git worktree list --porcelain",
         "removal_command": "not attempted",
-        "removal_result": "not attempted; no safe sequence could both remove this exact checkout and durably commit the post-removal result without modifying the unrelated primary checkout, and prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
-        "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true at 0ac1dab",
+        "removal_result": "not attempted; the worktree is required for this final commit and no safe sequence can both remove this exact checkout and durably commit the post-removal result without modifying the unrelated primary checkout; prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
+        "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-        "post_removal_git_status_check": "not removed; after pushed commit 0ac1dab git status --short --branch was clean and detached",
+        "post_removal_git_status_check": "not applicable; removal was intentionally not attempted",
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-        "timestamp": "2026-09-02T13:38:00Z"
+        "timestamp": "2026-09-02T14:33:00Z"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -13733,6 +13767,20 @@
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-09-02T14:16:21Z",
+        "severity": "needs_fix",
+        "guardrail_commit": "f11b80c",
+        "finding": "The interrupted accepted-clean provenance checker accepted invented commit ids and nonexistent or unrelated production paths.",
+        "status": "addressed_this_run_validated",
+        "evidence": [
+          "Every validated_production_changes commit now must resolve through Git.",
+          "Every declared path must exist at that commit and appear in that commit's changed-path set, relative to the manifest repository root.",
+          "The legitimate a9d870a retrieval and 9ad25b1 answering bindings pass; real-Git nonexistent-commit, existing-commit/unrelated-path, and nonexistent-path controls fail closed.",
+          "Focused manifest suite passed 67 tests; real whole-manifest and parent-aware checks passed; fixture-mounted full unit gate passed 601 tests with 59 warnings."
+        ],
+        "required_next_action": "Preserve retrieval_eval_20260902_124857 as clean case evidence and 123026/112809 as diagnostic; continue the unresolved source-backed actual HTTP multi-error/two-row positive."
+      },
       {
         "timestamp": "2026-09-02T13:13:49Z",
         "severity": "needs_fix",
@@ -15140,7 +15188,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T13:38:00Z"
+    "updated_at": "2026-09-02T14:33:00Z"
   },
   "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
@@ -15907,6 +15955,20 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-09-02T14:16:21Z",
+      "severity": "needs_fix",
+      "guardrail_commit": "f11b80c",
+      "finding": "The interrupted accepted-clean provenance checker accepted invented commit ids and nonexistent or unrelated production paths.",
+      "status": "addressed_this_run_validated",
+      "evidence": [
+        "Every validated_production_changes commit now must resolve through Git.",
+        "Every declared path must exist at that commit and appear in that commit's changed-path set, relative to the manifest repository root.",
+        "The legitimate a9d870a retrieval and 9ad25b1 answering bindings pass; real-Git nonexistent-commit, existing-commit/unrelated-path, and nonexistent-path controls fail closed.",
+        "Focused manifest suite passed 67 tests; real whole-manifest and parent-aware checks passed; fixture-mounted full unit gate passed 601 tests with 59 warnings."
+      ],
+      "required_next_action": "Preserve retrieval_eval_20260902_124857 as clean case evidence and 123026/112809 as diagnostic; continue the unresolved source-backed actual HTTP multi-error/two-row positive."
+    },
     {
       "timestamp": "2026-09-02T13:13:49Z",
       "severity": "needs_fix",
@@ -17314,5 +17376,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T13:38:00Z"
+  "updated_at": "2026-09-02T14:33:00Z"
 }

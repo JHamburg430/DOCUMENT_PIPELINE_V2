@@ -700,6 +700,175 @@ def test_manifest_checker_rejects_stale_latest_rotation_provenance():
     assert any("scope stale" in error for error in errors)
 
 
+def test_manifest_checker_rejects_tracking_only_scope_for_clean_production_evidence():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    misleading_scope = (
+        "retrieval_eval_20260830_201603 tracking-integrity repair only: reconcile "
+        "latest-run provenance; no production retrieval or answering behavior changed"
+    )
+    validated_changes = [
+        {
+            "commit": "a9d870a",
+            "component": "retrieval",
+            "paths": [
+                "packages/retrieval/src/manuals_rag_retrieval/query_analysis.py"
+            ],
+        },
+        {
+            "commit": "9ad25b1",
+            "component": "answering",
+            "paths": ["packages/answering/src/manuals_rag_answering/generator.py"],
+        },
+    ]
+    for scope in (manifest, manifest["question_bank"]):
+        rotation = scope["answer_grounding_rotation"]
+        rotation["classification"] = "accepted_clean_grounded_answer"
+        rotation["validated_production_changes"] = copy.deepcopy(validated_changes)
+        rotation["scope"] = misleading_scope
+
+    errors = module.check_manifest(manifest)
+
+    assert any("scope misleading" in error for error in errors)
+
+
+def test_manifest_checker_accepts_structured_clean_production_scope(monkeypatch):
+    module = _load_manifest_check_module()
+    changed_paths = {
+        "packages/retrieval/src/manuals_rag_retrieval/query_analysis.py",
+        "packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+        "packages/answering/src/manuals_rag_answering/generator.py",
+    }
+    monkeypatch.setattr(
+        module,
+        "_git_commit_changed_paths",
+        lambda commit, base: (commit, changed_paths, None),
+    )
+    monkeypatch.setattr(
+        module, "_git_path_exists_at_commit", lambda commit, path, base: True
+    )
+    manifest = _minimal_manifest()
+    validated_changes = [
+        {
+            "commit": "a9d870a",
+            "component": "retrieval",
+            "paths": [
+                "packages/retrieval/src/manuals_rag_retrieval/query_analysis.py",
+                "packages/retrieval/src/manuals_rag_retrieval/retriever.py",
+            ],
+        },
+        {
+            "commit": "9ad25b1",
+            "component": "answering",
+            "paths": ["packages/answering/src/manuals_rag_answering/generator.py"],
+        },
+    ]
+    for scope in (manifest, manifest["question_bank"]):
+        rotation = scope["answer_grounding_rotation"]
+        rotation["classification"] = "accepted_clean_grounded_answer"
+        rotation["validated_production_changes"] = copy.deepcopy(validated_changes)
+        rotation["scope"] = (
+            "retrieval_eval_20260830_201603 validates production retrieval and "
+            "answering changes"
+        )
+
+    assert module.check_manifest(manifest) == []
+
+
+def test_manifest_checker_rejects_nonexistent_validated_production_commit(monkeypatch):
+    module = _load_manifest_check_module()
+    monkeypatch.setattr(
+        module,
+        "_git_commit_changed_paths",
+        lambda commit, base: (None, set(), "unknown revision"),
+    )
+    manifest = _minimal_manifest()
+    validated_changes = [
+        {
+            "commit": "dddddddddddddddddddddddddddddddddddddddd",
+            "component": "retrieval",
+            "paths": ["packages/retrieval/src/manuals_rag_retrieval/retriever.py"],
+        }
+    ]
+    for scope in (manifest, manifest["question_bank"]):
+        rotation = scope["answer_grounding_rotation"]
+        rotation["classification"] = "accepted_clean_grounded_answer"
+        rotation["validated_production_changes"] = copy.deepcopy(validated_changes)
+        rotation["scope"] = (
+            "retrieval_eval_20260830_201603 validates production retrieval changes"
+        )
+
+    errors = module.check_manifest(manifest, Path.cwd())
+
+    assert any("commit is not resolvable in Git" in error for error in errors)
+
+
+def test_manifest_checker_rejects_existing_commit_with_unrelated_path(monkeypatch):
+    module = _load_manifest_check_module()
+    monkeypatch.setattr(
+        module,
+        "_git_commit_changed_paths",
+        lambda commit, base: (
+            commit,
+            {"packages/retrieval/src/manuals_rag_retrieval/retriever.py"},
+            None,
+        ),
+    )
+    monkeypatch.setattr(
+        module, "_git_path_exists_at_commit", lambda commit, path, base: True
+    )
+    manifest = _minimal_manifest()
+    validated_changes = [
+        {
+            "commit": "a9d870a",
+            "component": "retrieval",
+            "paths": ["packages/answering/src/manuals_rag_answering/generator.py"],
+        }
+    ]
+    for scope in (manifest, manifest["question_bank"]):
+        rotation = scope["answer_grounding_rotation"]
+        rotation["classification"] = "accepted_clean_grounded_answer"
+        rotation["validated_production_changes"] = copy.deepcopy(validated_changes)
+        rotation["scope"] = (
+            "retrieval_eval_20260830_201603 validates production retrieval changes"
+        )
+
+    errors = module.check_manifest(manifest, Path.cwd())
+
+    assert any("path is not changed by commit" in error for error in errors)
+
+
+def test_manifest_checker_rejects_nonexistent_path_in_existing_commit(monkeypatch):
+    module = _load_manifest_check_module()
+    monkeypatch.setattr(
+        module,
+        "_git_commit_changed_paths",
+        lambda commit, base: (commit, set(), None),
+    )
+    monkeypatch.setattr(
+        module, "_git_path_exists_at_commit", lambda commit, path, base: False
+    )
+    manifest = _minimal_manifest()
+    validated_changes = [
+        {
+            "commit": "9ad25b1",
+            "component": "answering",
+            "paths": ["packages/answering/src/does_not_exist.py"],
+        }
+    ]
+    for scope in (manifest, manifest["question_bank"]):
+        rotation = scope["answer_grounding_rotation"]
+        rotation["classification"] = "accepted_clean_grounded_answer"
+        rotation["validated_production_changes"] = copy.deepcopy(validated_changes)
+        rotation["scope"] = (
+            "retrieval_eval_20260830_201603 validates production answering changes"
+        )
+
+    errors = module.check_manifest(manifest, Path.cwd())
+
+    assert any("path does not exist at commit" in error for error in errors)
+
+
 def test_manifest_checker_rejects_missing_accepted_clean_run_artifacts(tmp_path):
     module = _load_manifest_check_module()
     manifest = _minimal_manifest()
