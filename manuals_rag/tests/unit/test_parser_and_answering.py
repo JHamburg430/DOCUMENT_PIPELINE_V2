@@ -3959,7 +3959,7 @@ def test_troubleshooting_citations_bind_explicit_codes_without_surrounding_conte
             "Error Number: 10110; Error Messages: LumiTrax unsupported; Cause: Second cause; Remedy: Second remedy.\n"
             "Error Number: 10111; Error Messages: HDR unsupported; Cause: Unrequested cause; Remedy: Unrequested remedy."
         ),
-        metadata={"chunk_type": "table_record"},
+        metadata={"chunk_type": "table_record", "product_model": "CV-X482"},
     )
     unsupported = AnswerResponse(
         answer="The answer is unrelated.",
@@ -4011,6 +4011,48 @@ def test_validate_answer_fallback_keeps_exact_same_error_rows_for_both_model_sid
     assert {citation["chunk_id"] for citation in validated.citations} == {"cv", "vs"}
     assert "SD Card 1 is full" in validated.answer
     assert "multiple subtasks" in validated.answer
+
+
+def test_fallback_evidence_keeps_distinct_chunks_for_each_requested_error():
+    first = _troubleshooting_row("error-10101", "10101")
+    first.metadata["product_model"] = "CV-X482"
+    second = _troubleshooting_row("error-10115", "10115")
+    second.metadata["product_model"] = "CV-X482"
+
+    selected = _fallback_evidence_results(
+        "For CV-X482, compare Error 10101 with Error 10115: what causes each and what is the remedy?",
+        [second, first],
+    )
+
+    assert {result.chunk_id for result in selected} == {"error-10101", "error-10115"}
+
+
+def test_fallback_evidence_fails_closed_when_a_requested_error_is_missing():
+    first = _troubleshooting_row("error-10101", "10101")
+    first.metadata["product_model"] = "CV-X482"
+    unrequested = _troubleshooting_row("error-10116", "10116")
+    unrequested.metadata["product_model"] = "CV-X482"
+
+    selected = _fallback_evidence_results(
+        "For CV-X482, compare Error 10101 with Error 10115: what causes each and what is the remedy?",
+        [first, unrequested],
+    )
+
+    assert selected == []
+
+
+def test_fallback_evidence_does_not_fill_requested_error_from_wrong_product():
+    first = _troubleshooting_row("error-10101", "10101")
+    first.metadata["product_model"] = "CV-X482"
+    wrong_product = _troubleshooting_row("other-error-10115", "10115")
+    wrong_product.metadata["product_model"] = "OTHER-700"
+
+    selected = _fallback_evidence_results(
+        "For CV-X482, compare Error 10101 with Error 10115: what causes each and what is the remedy?",
+        [first, wrong_product],
+    )
+
+    assert selected == []
 
 
 def test_validate_answer_fallback_fails_closed_for_explicit_code_superstring():

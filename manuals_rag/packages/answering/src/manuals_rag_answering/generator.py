@@ -2405,6 +2405,32 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
     )
     requested_ids = _query_requested_troubleshooting_identifiers(query)
     requested_product_sides = _requested_product_sides(query)
+    requested_numeric_ids = {identifier for identifier in requested_ids if identifier.isdigit()}
+    if _is_comparison_query(query) and len(requested_numeric_ids) >= 2:
+        requested_rows: list[SearchResult] = []
+        seen_chunks: set[str] = set()
+        for requested_id in requested_numeric_ids:
+            match = next(
+                (
+                    result
+                    for result in ordered_results
+                    if requested_id in _troubleshooting_row_identifiers(result)
+                    and (
+                        not requested_product_sides
+                        or any(
+                            _result_matches_requested_product_side(result, side)
+                            for side in requested_product_sides
+                        )
+                    )
+                ),
+                None,
+            )
+            if match is None:
+                return []
+            if match.chunk_id not in seen_chunks:
+                requested_rows.append(match)
+                seen_chunks.add(match.chunk_id)
+        return requested_rows
     if (
         _is_comparison_query(query)
         and len(requested_ids) == 1

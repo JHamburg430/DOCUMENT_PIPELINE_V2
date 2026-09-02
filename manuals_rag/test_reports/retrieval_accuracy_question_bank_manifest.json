@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a66cbed",
@@ -705,9 +705,10 @@
       "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations",
       "retrieval_eval_20260902_013157 sibling troubleshooting row 17 source-reviewed visible row-group citation",
       "retrieval_eval_20260902_124857 Error 30109 cross-model exact-code grounded answer",
-      "retrieval_eval_20260902_161158 multi-error Error 10109/10110 row-group grounded answer"
+      "retrieval_eval_20260902_161158 multi-error Error 10109/10110 row-group grounded answer",
+      "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer"
     ],
-    "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_161158 are accepted under source-reviewed visible-citation-content scoring. The latest run states both requested Error 10109/10110 causes and remedies from the exact page-1274 row-group; the Error 99999 missing-side control failed closed.",
+    "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_180540 are accepted under source-reviewed visible-citation-content scoring. The latest positive states both requested Error 10101/10115 causes and remedies from two distinct page-1274/page-1275 chunks; the paired Error 10101/99999 missing-side control failed closed.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -725,12 +726,16 @@
       "multi_error_clean_dataset": "test_reports/retrieval_eval_dataset_20260902_161158.jsonl",
       "multi_error_clean_results": "test_reports/retrieval_eval_results_20260902_161158.jsonl",
       "multi_error_clean_summary": "test_reports/retrieval_eval_summary_20260902_161158.json",
-      "multi_error_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_161158.json"
+      "multi_error_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_161158.json",
+      "multi_error_distinct_chunks_source_dataset": "test_reports/retrieval_eval_dataset_20260902_1358_multi_error_distinct_chunks_validation.jsonl",
+      "multi_error_distinct_chunks_clean_results": "test_reports/retrieval_eval_results_20260902_180540.jsonl",
+      "multi_error_distinct_chunks_clean_summary": "test_reports/retrieval_eval_summary_20260902_180540.json",
+      "multi_error_distinct_chunks_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_180540.json"
     },
     "current_answer_failures": {},
-    "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
-    "latest_clean_run": "retrieval_eval_20260902_161158"
+    "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260902_180540.jsonl. The positive user-visible fallback cites exact chunks 423d72f0 page 1274 and 148e6e4f page 1275; each chunk directly supports its retained error cause and corrective action, and both quote_span values are null. The Error 10101/99999 control returned insufficient_evidence=true with no citations.",
+    "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "latest_clean_run": "retrieval_eval_20260902_180540"
   },
   "constraints": {
     "allowed_logic": [
@@ -749,7 +754,7 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {},
-  "current_answer_failure_source": "retrieval_eval_20260902_124857 passed actual HTTP answer grounding 1/1 after the exact-code fallback correction; retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 remain preserved diagnostic/not-clean one-sided answer evidence.",
+  "current_answer_failure_source": "retrieval_eval_20260902_180540 positive passed actual HTTP answer grounding 1/1 across two distinct cited chunks; its intentional Error 99999 missing-side control failed closed, while older diagnostic/not-clean runs remain preserved.",
   "current_failure_categories": {},
   "current_failure_sources": {
     "retrieval": "none",
@@ -9009,11 +9014,11 @@
     "current_run_worktree": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "created_new_worktree": false,
-      "timestamp": "2026-09-02T17:24:34Z",
-      "git_status_before_final_commit": "dirty only with this run progress/manifest tracking on origin/main guardrail commit b558d8c",
+      "timestamp": "2026-09-02T18:08:00Z",
+      "git_status_before_final_commit": "dirty only with this run answering/tests/eval artifacts/progress/manifest on origin/main guardrail commit f31493a",
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main guardrail commit b558d8c before final tracking commit",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main guardrail commit f31493a before final commit",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -9222,7 +9227,7 @@
       ]
     }
   ],
-  "next_target": "Broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10191,7 +10196,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a66cbed",
@@ -10470,9 +10475,10 @@
         "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations",
         "retrieval_eval_20260902_013157 sibling troubleshooting row 17 source-reviewed visible row-group citation",
         "retrieval_eval_20260902_124857 Error 30109 cross-model exact-code grounded answer",
-        "retrieval_eval_20260902_161158 multi-error Error 10109/10110 row-group grounded answer"
+        "retrieval_eval_20260902_161158 multi-error Error 10109/10110 row-group grounded answer",
+        "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer"
       ],
-      "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_161158 are accepted under source-reviewed visible-citation-content scoring. The latest run states both requested Error 10109/10110 causes and remedies from the exact page-1274 row-group; the Error 99999 missing-side control failed closed.",
+      "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_180540 are accepted under source-reviewed visible-citation-content scoring. The latest positive states both requested Error 10101/10115 causes and remedies from two distinct page-1274/page-1275 chunks; the paired Error 10101/99999 missing-side control failed closed.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10490,15 +10496,19 @@
         "multi_error_clean_dataset": "test_reports/retrieval_eval_dataset_20260902_161158.jsonl",
         "multi_error_clean_results": "test_reports/retrieval_eval_results_20260902_161158.jsonl",
         "multi_error_clean_summary": "test_reports/retrieval_eval_summary_20260902_161158.json",
-        "multi_error_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_161158.json"
+        "multi_error_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_161158.json",
+        "multi_error_distinct_chunks_source_dataset": "test_reports/retrieval_eval_dataset_20260902_1358_multi_error_distinct_chunks_validation.jsonl",
+        "multi_error_distinct_chunks_clean_results": "test_reports/retrieval_eval_results_20260902_180540.jsonl",
+        "multi_error_distinct_chunks_clean_summary": "test_reports/retrieval_eval_summary_20260902_180540.json",
+        "multi_error_distinct_chunks_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_180540.json"
       },
       "current_answer_failures": {},
-      "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
-      "latest_clean_run": "retrieval_eval_20260902_161158"
+      "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260902_180540.jsonl. The positive user-visible fallback cites exact chunks 423d72f0 page 1274 and 148e6e4f page 1275; each chunk directly supports its retained error cause and corrective action, and both quote_span values are null. The Error 10101/99999 control returned insufficient_evidence=true with no citations.",
+      "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "latest_clean_run": "retrieval_eval_20260902_180540"
     },
     "current_answer_failure_categories": {},
-    "current_answer_failure_source": "retrieval_eval_20260902_124857 passed actual HTTP answer grounding 1/1 after the exact-code fallback correction; retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 remain preserved diagnostic/not-clean one-sided answer evidence.",
+    "current_answer_failure_source": "retrieval_eval_20260902_180540 positive passed actual HTTP answer grounding 1/1 across two distinct cited chunks; its intentional Error 99999 missing-side control failed closed, while older diagnostic/not-clean runs remain preserved.",
     "current_failure_categories": {},
     "current_failure_sources": {
       "retrieval": "none",
@@ -12743,11 +12753,11 @@
       "current_run_worktree": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
         "created_new_worktree": false,
-        "timestamp": "2026-09-02T17:24:34Z",
-        "git_status_before_final_commit": "dirty only with this run progress/manifest tracking on origin/main guardrail commit b558d8c",
+        "timestamp": "2026-09-02T18:08:00Z",
+        "git_status_before_final_commit": "dirty only with this run answering/tests/eval artifacts/progress/manifest on origin/main guardrail commit f31493a",
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main guardrail commit b558d8c before final tracking commit",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main guardrail commit f31493a before final commit",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -12958,7 +12968,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12995,7 +13005,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -15205,9 +15215,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T17:24:34Z"
+    "updated_at": "2026-09-02T18:08:00Z"
   },
-  "remaining": "Broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -17416,5 +17426,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T17:24:34Z"
+  "updated_at": "2026-09-02T18:08:00Z"
 }
