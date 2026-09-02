@@ -1,7 +1,5 @@
 {
-  "answer_current_failure_categories": {
-    "unsupported_citation_quote": 1
-  },
+  "answer_current_failure_categories": {},
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
@@ -184,22 +182,42 @@
     ]
   },
   "answer_grounding_rotation": {
-    "answer_result": "0/1 actual HTTP/API answer grounding; evidence_citation_support passed under source-reviewed c7b00dfb row-group equivalence, but citation_fidelity failed unsupported_citation_quote because the answer retained sibling Error 10101 quote text under citation 966d7f14.",
-    "classification": "diagnostic_failed_row_group_equivalence_retry_not_clean",
-    "dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
-    "latest_run": "retrieval_eval_20260901_235625",
-    "manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_235625.jsonl. The user-visible API answer states the expected Error 10109 cause and FLASH-output timing remedies, but also adds unrelated 10101/10106 communication-error guidance. Citation c7b00dfb visibly contains the source-reviewed 10109 row-group error, cause, and remedy. Citation 966d7f14 carries an Error 10101 quote_span that is absent from that cited returned chunk, so the run remains diagnostic/not-clean with unsupported_citation_quote.",
-    "max_queries": 1,
-    "remaining": "Fix sibling troubleshooting row 17 row-group-equivalence answer citation pruning so unsupported sibling Error 10101/10106 quote spans and unrelated communication-error guidance are not retained; rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
-    "response_mode": "answer_with_citations",
-    "results": "test_reports/retrieval_eval_results_20260901_235625.jsonl",
-    "retrieval_result": "1/1 retrieval passed at rank 1; candidate recall 1.0; metadata document-selection recall 1.0; no retrieval failure categories.",
-    "scope": "tracking and failed-run artifact preservation only; no production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed",
-    "search_mode": "http",
+    "timestamp": "2026-09-02T01:36:00Z",
+    "latest_run": "retrieval_eval_20260902_013157",
+    "classification": "accepted_clean_sibling_row17_anchor_matched_validation_fallback",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260901_2355_sibling_row17_row_group_equivalence.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260901_235625.json",
-    "timestamp": "2026-09-02T00:31:00Z"
+    "dataset": "test_reports/retrieval_eval_dataset_20260902_013157.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260902_013157.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260902_013157.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260902_013157.json",
+    "search_mode": "http",
+    "response_mode": "answer_with_citations",
+    "max_queries": 1,
+    "retrieval_result": "1/1 retrieval passed at rank 1; candidate recall 1.0; metadata document-selection recall 1.0; no retrieval failure categories.",
+    "answer_result": "1/1 actual HTTP/API answer grounding passed with fallback_validation; answer_failure_reasons={}; fallback_count=1.",
+    "runtime_load_evidence": {
+      "api_url": "http://127.0.0.1:9140",
+      "container": "manuals-rag-temp-api-39262386-20260901-row17-anchor-citations",
+      "health": "ok at 2026-09-02T01:31:33Z",
+      "fingerprints": {
+        "generator.py": "b11c2d332e50c8a69d58c77e159d62e554c0bd78fadd24d43b3401853e48d0e5",
+        "retrieval_eval.py": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
+        "validate_answer": "69f7bd4c4571fd03a1c6857bc01e1b086fde6df8801d37bd668a0a8d846b7957",
+        "_troubleshooting_citations_match_query_anchor": "2cf729b0b8381b52c1c12af184d2e4fec492acba508aa3866b68d1e7956b9327",
+        "_citation_quotes_are_supported": "7914e2d1daa7d063ecb371ac20f640becad8f921e248a457a4633fea24dd4b82",
+        "_citation_evidence_text": "3445028e6c9c0cf537179099d55a4fa4a6a144f1b7531dcfa5a4e898a5787b28"
+      },
+      "model_settings": {
+        "OLLAMA_URL": "http://host.docker.internal:11434",
+        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+        "RERANKER_MODEL": null,
+        "RERANKER_DEVICE": null
+      }
+    },
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
+    "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+    "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -676,22 +694,25 @@
       "retrieval_eval_20260901_190821 cross-document row 7 source-reviewed visible table-cell equivalence",
       "retrieval_eval_20260901_193440 cross-document row 8 source-reviewed visible unsupported-SD equivalent citation",
       "retrieval_eval_20260901_205536 cross-document row 9 source-reviewed visible equivalent citations",
-      "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations"
+      "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations",
+      "retrieval_eval_20260902_013157 sibling troubleshooting row 17 source-reviewed visible row-group citation"
     ],
-    "answer_grounding_status": "Cross-document rows 1-10 remain accepted clean. Sibling troubleshooting row 17 source-reviewed row-group equivalence retry retrieval passed, but answer grounding remains diagnostic/not-clean because the API answer retained an unsupported sibling Error 10101 quote_span and unrelated 10101/10106 guidance.",
+    "answer_grounding_status": "Cross-document rows 1-10 and sibling troubleshooting row 17 are accepted clean under source-reviewed visible-citation-content scoring. Row 17 rerun retrieval_eval_20260902_013157 passed after troubleshooting citations were required to match the requested error/message anchor; the API answer used validation fallback, cited only c7b00dfb, and did not retain sibling Error 10101/10106 guidance.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
       "sibling_row17_failed_retry_results": "test_reports/retrieval_eval_results_20260901_235625.jsonl",
       "sibling_row17_failed_retry_summary": "test_reports/retrieval_eval_summary_20260901_235625.json",
-      "sibling_row17_row_group_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_2355_sibling_row17_row_group_equivalence.jsonl"
+      "sibling_row17_row_group_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_2355_sibling_row17_row_group_equivalence.jsonl",
+      "sibling_row17_clean_dataset": "test_reports/retrieval_eval_dataset_20260902_013157.jsonl",
+      "sibling_row17_clean_results": "test_reports/retrieval_eval_results_20260902_013157.jsonl",
+      "sibling_row17_clean_summary": "test_reports/retrieval_eval_summary_20260902_013157.json",
+      "sibling_row17_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_013157.json"
     },
-    "current_answer_failures": {
-      "unsupported_citation_quote": 1
-    },
-    "latest_diagnostic_run": "retrieval_eval_20260901_235625",
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_235625.jsonl. The user-visible API answer states the expected Error 10109 cause and FLASH-output timing remedies, but also adds unrelated 10101/10106 communication-error guidance. Citation c7b00dfb visibly contains the source-reviewed 10109 row-group error, cause, and remedy. Citation 966d7f14 carries an Error 10101 quote_span that is absent from that cited returned chunk, so the run remains diagnostic/not-clean with unsupported_citation_quote.",
-    "remaining": "Fix sibling troubleshooting row 17 row-group-equivalence answer citation pruning so unsupported sibling Error 10101/10106 quote spans and unrelated communication-error guidance are not retained; rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence."
+    "current_answer_failures": {},
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
+    "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+    "latest_clean_run": "retrieval_eval_20260902_013157"
   },
   "constraints": {
     "allowed_logic": [
@@ -709,17 +730,15 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {
-    "unsupported_citation_quote": 1
-  },
-  "current_answer_failure_source": "retrieval_eval_20260901_235625 is the current answer failure source: sibling troubleshooting row 17 answer grounding failed unsupported_citation_quote after manual JSONL inspection found an unrelated Error 10101 quote_span absent from the cited returned chunk.",
+  "current_answer_failure_categories": {},
+  "current_answer_failure_source": "No current answer failures after retrieval_eval_20260902_013157 passed row 17 with citation-visible row-group evidence.",
   "current_failure_categories": {},
   "current_failure_sources": {
     "answer": "retrieval_eval_20260901_235625",
     "retrieval": "none"
   },
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "retrieval_eval_20260901_223159 retrieval passed at rank 4 with candidate/document recall; no current retrieval failure.",
+  "current_retrieval_failure_source": "No current retrieval failures after retrieval_eval_20260902_013157.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -9113,7 +9132,7 @@
       ]
     }
   ],
-  "next_target": "Fix sibling troubleshooting row 17 row-group-equivalence answer citation pruning so unsupported sibling Error 10101/10106 quote spans and unrelated communication-error guidance are not retained; rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
+  "next_target": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9866,9 +9885,7 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {
-      "unsupported_citation_quote": 1
-    },
+    "answer_current_failure_categories": {},
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
@@ -10051,22 +10068,42 @@
       ]
     },
     "answer_grounding_rotation": {
-      "answer_result": "0/1 actual HTTP/API answer grounding; evidence_citation_support passed under source-reviewed c7b00dfb row-group equivalence, but citation_fidelity failed unsupported_citation_quote because the answer retained sibling Error 10101 quote text under citation 966d7f14.",
-      "classification": "diagnostic_failed_row_group_equivalence_retry_not_clean",
-      "dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
-      "latest_run": "retrieval_eval_20260901_235625",
-      "manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_235625.jsonl. The user-visible API answer states the expected Error 10109 cause and FLASH-output timing remedies, but also adds unrelated 10101/10106 communication-error guidance. Citation c7b00dfb visibly contains the source-reviewed 10109 row-group error, cause, and remedy. Citation 966d7f14 carries an Error 10101 quote_span that is absent from that cited returned chunk, so the run remains diagnostic/not-clean with unsupported_citation_quote.",
-      "max_queries": 1,
-      "remaining": "Fix sibling troubleshooting row 17 row-group-equivalence answer citation pruning so unsupported sibling Error 10101/10106 quote spans and unrelated communication-error guidance are not retained; rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
-      "response_mode": "answer_with_citations",
-      "results": "test_reports/retrieval_eval_results_20260901_235625.jsonl",
-      "retrieval_result": "1/1 retrieval passed at rank 1; candidate recall 1.0; metadata document-selection recall 1.0; no retrieval failure categories.",
-      "scope": "tracking and failed-run artifact preservation only; no production retrieval, answering, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker behavior changed",
-      "search_mode": "http",
+      "timestamp": "2026-09-02T01:36:00Z",
+      "latest_run": "retrieval_eval_20260902_013157",
+      "classification": "accepted_clean_sibling_row17_anchor_matched_validation_fallback",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260901_2355_sibling_row17_row_group_equivalence.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260901_235625.json",
-      "timestamp": "2026-09-02T00:31:00Z"
+      "dataset": "test_reports/retrieval_eval_dataset_20260902_013157.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260902_013157.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260902_013157.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260902_013157.json",
+      "search_mode": "http",
+      "response_mode": "answer_with_citations",
+      "max_queries": 1,
+      "retrieval_result": "1/1 retrieval passed at rank 1; candidate recall 1.0; metadata document-selection recall 1.0; no retrieval failure categories.",
+      "answer_result": "1/1 actual HTTP/API answer grounding passed with fallback_validation; answer_failure_reasons={}; fallback_count=1.",
+      "runtime_load_evidence": {
+        "api_url": "http://127.0.0.1:9140",
+        "container": "manuals-rag-temp-api-39262386-20260901-row17-anchor-citations",
+        "health": "ok at 2026-09-02T01:31:33Z",
+        "fingerprints": {
+          "generator.py": "b11c2d332e50c8a69d58c77e159d62e554c0bd78fadd24d43b3401853e48d0e5",
+          "retrieval_eval.py": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
+          "validate_answer": "69f7bd4c4571fd03a1c6857bc01e1b086fde6df8801d37bd668a0a8d846b7957",
+          "_troubleshooting_citations_match_query_anchor": "2cf729b0b8381b52c1c12af184d2e4fec492acba508aa3866b68d1e7956b9327",
+          "_citation_quotes_are_supported": "7914e2d1daa7d063ecb371ac20f640becad8f921e248a457a4633fea24dd4b82",
+          "_citation_evidence_text": "3445028e6c9c0cf537179099d55a4fa4a6a144f1b7531dcfa5a4e898a5787b28"
+        },
+        "model_settings": {
+          "OLLAMA_URL": "http://host.docker.internal:11434",
+          "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
+          "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
+          "RERANKER_MODEL": null,
+          "RERANKER_DEVICE": null
+        }
+      },
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+      "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10332,34 +10369,35 @@
         "retrieval_eval_20260901_190821 cross-document row 7 source-reviewed visible table-cell equivalence",
         "retrieval_eval_20260901_193440 cross-document row 8 source-reviewed visible unsupported-SD equivalent citation",
         "retrieval_eval_20260901_205536 cross-document row 9 source-reviewed visible equivalent citations",
-        "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations"
+        "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations",
+        "retrieval_eval_20260902_013157 sibling troubleshooting row 17 source-reviewed visible row-group citation"
       ],
-      "answer_grounding_status": "Cross-document rows 1-10 remain accepted clean. Sibling troubleshooting row 17 source-reviewed row-group equivalence retry retrieval passed, but answer grounding remains diagnostic/not-clean because the API answer retained an unsupported sibling Error 10101 quote_span and unrelated 10101/10106 guidance.",
+      "answer_grounding_status": "Cross-document rows 1-10 and sibling troubleshooting row 17 are accepted clean under source-reviewed visible-citation-content scoring. Row 17 rerun retrieval_eval_20260902_013157 passed after troubleshooting citations were required to match the requested error/message anchor; the API answer used validation fallback, cited only c7b00dfb, and did not retain sibling Error 10101/10106 guidance.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
         "sibling_row17_failed_retry_results": "test_reports/retrieval_eval_results_20260901_235625.jsonl",
         "sibling_row17_failed_retry_summary": "test_reports/retrieval_eval_summary_20260901_235625.json",
-        "sibling_row17_row_group_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_2355_sibling_row17_row_group_equivalence.jsonl"
+        "sibling_row17_row_group_equivalence_input_dataset": "test_reports/retrieval_eval_dataset_20260901_2355_sibling_row17_row_group_equivalence.jsonl",
+        "sibling_row17_clean_dataset": "test_reports/retrieval_eval_dataset_20260902_013157.jsonl",
+        "sibling_row17_clean_results": "test_reports/retrieval_eval_results_20260902_013157.jsonl",
+        "sibling_row17_clean_summary": "test_reports/retrieval_eval_summary_20260902_013157.json",
+        "sibling_row17_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_013157.json"
       },
-      "current_answer_failures": {
-        "unsupported_citation_quote": 1
-      },
-      "latest_diagnostic_run": "retrieval_eval_20260901_235625",
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260901_235625.jsonl. The user-visible API answer states the expected Error 10109 cause and FLASH-output timing remedies, but also adds unrelated 10101/10106 communication-error guidance. Citation c7b00dfb visibly contains the source-reviewed 10109 row-group error, cause, and remedy. Citation 966d7f14 carries an Error 10101 quote_span that is absent from that cited returned chunk, so the run remains diagnostic/not-clean with unsupported_citation_quote.",
-      "remaining": "Fix sibling troubleshooting row 17 row-group-equivalence answer citation pruning so unsupported sibling Error 10101/10106 quote spans and unrelated communication-error guidance are not retained; rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence."
+      "current_answer_failures": {},
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
+      "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+      "latest_clean_run": "retrieval_eval_20260902_013157"
     },
-    "current_answer_failure_categories": {
-      "unsupported_citation_quote": 1
-    },
-    "current_answer_failure_source": "retrieval_eval_20260901_235625 is the current answer failure source: sibling troubleshooting row 17 answer grounding failed unsupported_citation_quote after manual JSONL inspection found an unrelated Error 10101 quote_span absent from the cited returned chunk.",
+    "current_answer_failure_categories": {},
+    "current_answer_failure_source": "No current answer failures after retrieval_eval_20260902_013157 passed row 17 with citation-visible row-group evidence.",
     "current_failure_categories": {},
     "current_failure_sources": {
       "answer": "retrieval_eval_20260901_235625",
       "retrieval": "none"
     },
     "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "retrieval_eval_20260901_223159 retrieval passed at rank 4 with candidate/document recall; no current retrieval failure.",
+    "current_retrieval_failure_source": "No current retrieval failures after retrieval_eval_20260902_013157.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12715,7 +12753,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Fix sibling troubleshooting row 17 row-group-equivalence answer citation pruning so unsupported sibling Error 10101/10106 quote spans and unrelated communication-error guidance are not retained; rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
+    "next_target": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12752,7 +12790,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Fix sibling troubleshooting row 17 row-group-equivalence answer citation pruning so unsupported sibling Error 10101/10106 quote spans and unrelated communication-error guidance are not retained; rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
+    "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13558,13 +13596,17 @@
           "Production _citation_evidence_text now returns only result.content for quote support.",
           "Focused hidden-metadata quote regression passed and loaded adverse control returned metadata_only_quote_supported False.",
           "retrieval_eval_20260901_223159 cites only source-visible c7b00dfb and no longer includes unrelated 10101/10106 guidance.",
-          "Answer scoring still fails expected_evidence_not_cited because exact atomic cause/remedy chunks are not cited."
+          "Answer scoring still fails expected_evidence_not_cited because exact atomic cause/remedy chunks are not cited.",
+          "Added troubleshooting citation-anchor validation so cited troubleshooting rows must match the requested error/message anchor.",
+          "retrieval_eval_20260902_013157 passed retrieval 1/1 and answer grounding 1/1 with fallback_validation.",
+          "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained."
         ],
         "finding": "Row 17 direct API answer previously kept an unsupported sibling quote and unrelated communication-error guidance. Production citation validation now rejects metadata-only quote support; fresh loaded HTTP rerun cleared unsupported_citation_quote but still needs exact atomic citation or source-reviewed row-group equivalence.",
         "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
         "severity": "watch",
-        "status": "partially_addressed_this_run_not_clean",
-        "timestamp": "2026-09-01T22:35:00Z"
+        "status": "addressed_this_run_validated",
+        "timestamp": "2026-09-01T22:35:00Z",
+        "required_next_action": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
       },
       {
         "addressed_this_run": "Ran sibling troubleshooting row 17 through actual HTTP/API answer mode and preserved the failed answer as diagnostic/not-clean after manual JSONL inspection.",
@@ -14822,9 +14864,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T01:07:00Z"
+    "updated_at": "2026-09-02T01:36:00Z"
   },
-  "remaining": "Fix sibling troubleshooting row 17 row-group-equivalence answer citation pruning so unsupported sibling Error 10101/10106 quote spans and unrelated communication-error guidance are not retained; rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
+  "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -15629,13 +15671,17 @@
         "Production _citation_evidence_text now returns only result.content for quote support.",
         "Focused hidden-metadata quote regression passed and loaded adverse control returned metadata_only_quote_supported False.",
         "retrieval_eval_20260901_223159 cites only source-visible c7b00dfb and no longer includes unrelated 10101/10106 guidance.",
-        "Answer scoring still fails expected_evidence_not_cited because exact atomic cause/remedy chunks are not cited."
+        "Answer scoring still fails expected_evidence_not_cited because exact atomic cause/remedy chunks are not cited.",
+        "Added troubleshooting citation-anchor validation so cited troubleshooting rows must match the requested error/message anchor.",
+        "retrieval_eval_20260902_013157 passed retrieval 1/1 and answer grounding 1/1 with fallback_validation.",
+        "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained."
       ],
       "finding": "Row 17 direct API answer previously kept an unsupported sibling quote and unrelated communication-error guidance. Production citation validation now rejects metadata-only quote support; fresh loaded HTTP rerun cleared unsupported_citation_quote but still needs exact atomic citation or source-reviewed row-group equivalence.",
       "remaining": "Source-review row 17 for either exact atomic cell citation or a principled same-source row-group equivalent-citation policy for c7b00dfb, then rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
       "severity": "watch",
-      "status": "partially_addressed_this_run_not_clean",
-      "timestamp": "2026-09-01T22:35:00Z"
+      "status": "addressed_this_run_validated",
+      "timestamp": "2026-09-01T22:35:00Z",
+      "required_next_action": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence."
     },
     {
       "addressed_this_run": "Ran sibling troubleshooting row 17 through actual HTTP/API answer mode and preserved the failed answer as diagnostic/not-clean after manual JSONL inspection.",
@@ -16893,5 +16939,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T01:07:00Z"
+  "updated_at": "2026-09-02T01:36:00Z"
 }

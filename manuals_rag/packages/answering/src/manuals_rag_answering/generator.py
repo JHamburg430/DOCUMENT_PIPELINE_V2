@@ -2588,6 +2588,40 @@ def _answer_addresses_troubleshooting_anchor(
     return len(anchor_terms.intersection(text_terms)) >= required
 
 
+def _is_troubleshooting_row_evidence(result: SearchResult) -> bool:
+    text = _citation_evidence_text(result)
+    if str(result.metadata.get("chunk_type") or "") == "table_record" and re.search(
+        r"\b(error\s+(?:number|messages?)|cause|remedy|corrective action)\b",
+        text,
+        flags=re.IGNORECASE,
+    ):
+        return True
+    return bool(
+        re.search(r"\berror\s+(?:number|messages?)\b", text, flags=re.IGNORECASE)
+        and re.search(r"\b(cause|remedy|corrective action)\b", text, flags=re.IGNORECASE)
+    )
+
+
+def _troubleshooting_citations_match_query_anchor(
+    query: str,
+    citations: list[dict[str, Any]],
+    results: list[SearchResult],
+) -> bool:
+    if not _is_troubleshooting_query(query):
+        return True
+    anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
+    if len(anchor) < 10:
+        return True
+    result_by_chunk_id = {result.chunk_id: result for result in results}
+    for citation in citations:
+        result = result_by_chunk_id.get(str(citation.get("chunk_id") or ""))
+        if not result or not _is_troubleshooting_row_evidence(result):
+            continue
+        if anchor not in _normalized_phrase(_citation_evidence_text(result)):
+            return False
+    return True
+
+
 def _comparison_answer_covers_retrieved_model_sides(
     query: str,
     citations: list[dict[str, Any]],
@@ -2677,6 +2711,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         or _comparison_answer_is_overcautious(answer, query, results)
         or not _citation_quotes_are_supported(list(answer.citations), results)
         or not _answer_addresses_troubleshooting_anchor(answer.answer, query, list(answer.citations), results)
+        or not _troubleshooting_citations_match_query_anchor(query, list(answer.citations), results)
         or not _answer_uses_matching_troubleshooting_row(answer.answer, query, results)
         or not _answer_uses_comparison_troubleshooting_side_rows(answer.answer, query, results)
         or not _comparison_answer_covers_retrieved_model_sides(query, list(answer.citations), results)

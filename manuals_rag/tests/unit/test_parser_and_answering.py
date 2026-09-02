@@ -3850,6 +3850,70 @@ def test_validate_answer_keeps_troubleshooting_answer_with_matching_error_anchor
     assert validated.citations[0]["chunk_id"] == "light-row"
 
 
+def test_validate_answer_rejects_sibling_troubleshooting_citations_for_specific_anchor():
+    answer = AnswerResponse(
+        answer=(
+            "The light-controller communication error is caused by the next FLASH being input while the light is being emitted. "
+            "Set the FLASH output time to 0.1 msec. Also check the light-controller connection and power source for related errors."
+        ),
+        confidence="high",
+        used_documents=[],
+        citations=[
+            {"chunk_id": "light-row", "document_id": "d1", "pages": [10], "quote_span": None},
+            {"chunk_id": "disconnected-row", "document_id": "d1", "pages": [10], "quote_span": None},
+        ],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    results = [
+        SearchResult(
+            chunk_id="light-row",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Number: 10109; Error Messages: An error occurred in the communication with the light controller. "
+                "Cause: The next FLASH was input while the light was being emitted. "
+                "Remedy: Set the FLASH output time to 0.1 msec."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="disconnected-row",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Number: 10101; Error Messages: Light controller is disconnected. "
+                "Cause: The illumination expansion unit has been disconnected or the power is not turned on. "
+                "Remedy: Make sure the illumination expansion unit is attached correctly."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    validated = validate_answer(
+        answer,
+        results,
+        query=(
+            "What causes An error occurred in the communication with the light controller, "
+            "and how should it be corrected?"
+        ),
+    )
+
+    assert validated.answer.startswith("Error Number: 10109; Error Messages:")
+    assert [citation["chunk_id"] for citation in validated.citations] == ["light-row"]
+    assert "disconnected" not in validated.answer.lower()
+    assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
 def test_validate_answer_accepts_citation_quote_from_cited_chunk():
     answer = AnswerResponse(
         answer="Change to a trigger signal that can be used.",
