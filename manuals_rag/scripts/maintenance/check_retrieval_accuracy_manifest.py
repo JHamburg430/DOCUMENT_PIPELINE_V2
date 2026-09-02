@@ -21,6 +21,7 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "unresolved_guardrail_findings",
     "current_retrieval_failure_source",
     "current_answer_failure_source",
+    "current_failure_sources",
     "latest_cross_document_validation",
     "latest_cross_document_probe",
     "latest_contextual_row14_repair",
@@ -282,6 +283,50 @@ def _check_current_answer_failure_source(
             )
 
 
+def _check_current_failure_sources_alias(
+    label: str, manifest: dict[str, Any], errors: list[str]
+) -> None:
+    sources = manifest.get("current_failure_sources")
+    if not isinstance(sources, dict):
+        errors.append(f"{label}.current_failure_sources must be an object")
+        return
+    rotation = manifest.get("answer_grounding_rotation")
+    latest_run = rotation.get("latest_run") if isinstance(rotation, dict) else None
+    for kind, failure_key in (
+        ("retrieval", "current_retrieval_failure_categories"),
+        ("answer", "current_answer_failure_categories"),
+    ):
+        failures = manifest.get(failure_key)
+        source = sources.get(kind)
+        source_text = source.lower() if isinstance(source, str) else ""
+        if not failures:
+            if source not in (None, "", "none"):
+                errors.append(
+                    f"{label}.current_failure_sources.{kind} stale: "
+                    f"{failure_key} is empty"
+                )
+            continue
+        if not isinstance(failures, dict):
+            continue
+        if not isinstance(source, str) or source in ("", "none"):
+            errors.append(
+                f"{label}.current_failure_sources.{kind} stale: "
+                f"{failure_key} has failures but no current source"
+            )
+            continue
+        if isinstance(latest_run, str) and latest_run not in source:
+            errors.append(
+                f"{label}.current_failure_sources.{kind} stale: "
+                f"{failure_key} is tracked on {latest_run!r}"
+            )
+        for reason in failures:
+            if str(reason).lower() not in source_text:
+                errors.append(
+                    f"{label}.current_failure_sources.{kind} stale: "
+                    f"current failure reason {reason!r} is not named"
+                )
+
+
 def _run_exclusion_count(value: Any) -> int | None:
     if isinstance(value, list):
         return len(value)
@@ -394,6 +439,8 @@ def check_manifest(
     _check_current_retrieval_failure_source("question_bank", question_bank, errors)
     _check_current_answer_failure_source("root", data, errors)
     _check_current_answer_failure_source("question_bank", question_bank, errors)
+    _check_current_failure_sources_alias("root", data, errors)
+    _check_current_failure_sources_alias("question_bank", question_bank, errors)
     _check_monotonic_tracking_floors("root", data, errors)
 
     target_rows = _target_row_refs(data.get("next_target"))

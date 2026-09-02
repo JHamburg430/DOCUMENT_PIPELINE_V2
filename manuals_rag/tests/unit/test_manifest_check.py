@@ -51,6 +51,10 @@ def _minimal_manifest():
             "retrieval_eval_20260830_201603 is the current answer failure source: "
             "expected_terms_missing."
         ),
+        "current_failure_sources": {
+            "retrieval": "retrieval_eval_20260830_201603 candidate_miss",
+            "answer": "retrieval_eval_20260830_201603 expected_terms_missing",
+        },
         "latest_cross_document_validation": {"run": "retrieval_eval_20260827_042612"},
         "latest_cross_document_probe": {"status": "preserved"},
         "latest_contextual_row14_repair": {"run": "retrieval_eval_20260827_053144"},
@@ -316,6 +320,8 @@ def test_manifest_checker_allows_historical_source_when_no_current_retrieval_fai
     manifest["question_bank"]["current_retrieval_failure_source"] = (
         "retrieval_eval_20260827_074631 is historical cross-document evidence."
     )
+    manifest["current_failure_sources"]["retrieval"] = "none"
+    manifest["question_bank"]["current_failure_sources"]["retrieval"] = "none"
 
     errors = module.check_manifest(manifest)
 
@@ -412,6 +418,88 @@ def test_manifest_checker_rejects_current_source_when_retrieval_failures_empty()
     )
     assert any(
         "question_bank.current_retrieval_failure_source stale" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_current_failure_sources_when_failures_empty():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    for key in (
+        "answer_current_failure_categories",
+        "current_answer_failure_categories",
+    ):
+        manifest[key] = {}
+        manifest["question_bank"][key] = {}
+    manifest["current_answer_failure_source"] = (
+        "No current answer failures after retrieval_eval_20260902_013157 passed row 17."
+    )
+    manifest["question_bank"]["current_answer_failure_source"] = manifest[
+        "current_answer_failure_source"
+    ]
+    manifest["current_failure_sources"]["answer"] = "retrieval_eval_20260901_235625"
+    manifest["question_bank"]["current_failure_sources"]["answer"] = (
+        "retrieval_eval_20260901_235625"
+    )
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "root.current_failure_sources.answer stale" in error for error in errors
+    )
+    assert any(
+        "question_bank.current_failure_sources.answer stale" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_missing_or_unequal_current_failure_sources():
+    module = _load_manifest_check_module()
+    missing_root = _minimal_manifest()
+    del missing_root["current_failure_sources"]
+    missing_nested = _minimal_manifest()
+    del missing_nested["question_bank"]["current_failure_sources"]
+    unequal = _minimal_manifest()
+    unequal["question_bank"]["current_failure_sources"] = {
+        "retrieval": "retrieval_eval_20260830_201603 candidate_miss",
+        "answer": "retrieval_eval_20260827_074631 expected_terms_missing",
+    }
+
+    assert any(
+        "current_failure_sources missing required duplicate" in error
+        for error in module.check_manifest(missing_root)
+    )
+    assert any(
+        "question_bank.current_failure_sources" in error
+        and "missing required duplicate" in error
+        for error in module.check_manifest(missing_nested)
+    )
+    assert any(
+        "current_failure_sources mismatch" in error
+        for error in module.check_manifest(unequal)
+    )
+
+
+def test_manifest_checker_rejects_stale_current_failure_sources_reason():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["current_failure_sources"]["answer"] = (
+        "retrieval_eval_20260830_201603 expected_evidence_not_cited"
+    )
+    manifest["question_bank"]["current_failure_sources"]["answer"] = (
+        "retrieval_eval_20260830_201603 expected_evidence_not_cited"
+    )
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "root.current_failure_sources.answer stale" in error
+        and "expected_terms_missing" in error
+        for error in errors
+    )
+    assert any(
+        "question_bank.current_failure_sources.answer stale" in error
+        and "expected_terms_missing" in error
         for error in errors
     )
 
