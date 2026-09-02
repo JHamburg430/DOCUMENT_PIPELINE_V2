@@ -2602,6 +2602,22 @@ def _is_troubleshooting_row_evidence(result: SearchResult) -> bool:
     )
 
 
+def _troubleshooting_row_identifiers(result: SearchResult) -> set[str]:
+    """Return source-bound error identifiers that a user can explicitly request."""
+    text = _citation_evidence_text(result)
+    identifiers: set[str] = set()
+    for match in re.finditer(
+        r"\b(?:error\s+(?:number|messages?)|alarm|fault)\s*:\s*(.+?)"
+        r"(?=\s*(?:;|\n|\b(?:cause|remedy|corrective action)\s*:)|$)",
+        text,
+        flags=re.IGNORECASE,
+    ):
+        identifier = _normalized_phrase(match.group(1))
+        if identifier:
+            identifiers.add(identifier)
+    return identifiers
+
+
 def _troubleshooting_citations_match_query_anchor(
     query: str,
     citations: list[dict[str, Any]],
@@ -2609,17 +2625,29 @@ def _troubleshooting_citations_match_query_anchor(
 ) -> bool:
     if not _is_troubleshooting_query(query):
         return True
-    anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
-    if len(anchor) < 10:
-        return True
     result_by_chunk_id = {result.chunk_id: result for result in results}
+    normalized_query = _normalized_phrase(query)
+    requested_result_ids = {
+        result.chunk_id
+        for result in results
+        if _is_troubleshooting_row_evidence(result)
+        and any(identifier in normalized_query for identifier in _troubleshooting_row_identifiers(result))
+    }
+    cited_requested_ids: set[str] = set()
     for citation in citations:
         result = result_by_chunk_id.get(str(citation.get("chunk_id") or ""))
         if not result or not _is_troubleshooting_row_evidence(result):
             continue
-        if anchor not in _normalized_phrase(_citation_evidence_text(result)):
+        if requested_result_ids:
+            if result.chunk_id not in requested_result_ids:
+                return False
+            cited_requested_ids.add(result.chunk_id)
+            continue
+
+        anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
+        if len(anchor) >= 10 and anchor not in _normalized_phrase(_citation_evidence_text(result)):
             return False
-    return True
+    return not requested_result_ids or requested_result_ids.issubset(cited_requested_ids)
 
 
 def _comparison_answer_covers_retrieved_model_sides(

@@ -7,6 +7,7 @@ from manuals_rag_answering.generator import (
     _fallback_evidence_results,
     _is_comparison_query,
     _parse_relevance_response,
+    _troubleshooting_citations_match_query_anchor,
     generate_answer,
     generate_answer_with_trace,
     judge_retrieval_relevance,
@@ -3848,6 +3849,122 @@ def test_validate_answer_keeps_troubleshooting_answer_with_matching_error_anchor
 
     assert validated.answer == answer.answer
     assert validated.citations[0]["chunk_id"] == "light-row"
+
+
+def _troubleshooting_row(chunk_id: str, message: str) -> SearchResult:
+    return SearchResult(
+        chunk_id=chunk_id,
+        score=0.9,
+        title="Troubleshooting manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content=f"Error Messages: {message}; Cause: A source-backed cause. Remedy: Take the documented action.",
+        metadata={"chunk_type": "table_record"},
+    )
+
+
+def _citation(chunk_id: str) -> dict[str, object]:
+    return {"chunk_id": chunk_id, "document_id": "d1", "pages": [10], "quote_span": None}
+
+
+def test_troubleshooting_citations_accept_two_explicit_error_rows():
+    servo = _troubleshooting_row("servo", "Servo overload detected")
+    encoder = _troubleshooting_row("encoder", "Encoder communication lost")
+    query = (
+        "Compare the causes and remedies for the errors Servo overload detected "
+        "and Encoder communication lost."
+    )
+
+    assert _troubleshooting_citations_match_query_anchor(
+        query, [_citation("servo"), _citation("encoder")], [servo, encoder]
+    )
+
+
+def test_troubleshooting_citations_accept_reversed_requested_and_citation_order():
+    servo = _troubleshooting_row("servo", "Servo overload detected")
+    encoder = _troubleshooting_row("encoder", "Encoder communication lost")
+    query = (
+        "Compare the remedies for Encoder communication lost versus Servo overload detected."
+    )
+
+    assert _troubleshooting_citations_match_query_anchor(
+        query, [_citation("servo"), _citation("encoder")], [servo, encoder]
+    )
+
+
+def test_troubleshooting_citations_accept_second_requested_side_alone():
+    servo = _troubleshooting_row("servo", "Servo overload detected")
+    encoder = _troubleshooting_row("encoder", "Encoder communication lost")
+
+    assert _troubleshooting_citations_match_query_anchor(
+        "What is the remedy for Encoder communication lost?",
+        [_citation("encoder")],
+        [servo, encoder],
+    )
+
+
+def test_troubleshooting_citations_leave_short_no_anchor_query_unconstrained():
+    servo = _troubleshooting_row("servo", "Servo overload detected")
+
+    assert _troubleshooting_citations_match_query_anchor(
+        "How should this fault be corrected?", [_citation("servo")], [servo]
+    )
+
+
+def test_troubleshooting_citations_allow_mixed_structured_and_unstructured_support():
+    servo = _troubleshooting_row("servo", "Servo overload detected")
+    note = SearchResult(
+        chunk_id="note",
+        score=0.8,
+        title="Troubleshooting manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[11],
+        section_path=["Troubleshooting"],
+        content="After correcting the fault, cycle power and confirm normal operation.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    assert _troubleshooting_citations_match_query_anchor(
+        "What causes Servo overload detected, and how should it be corrected?",
+        [_citation("servo"), _citation("note")],
+        [servo, note],
+    )
+
+
+def test_troubleshooting_citations_reject_single_error_unrelated_sibling():
+    servo = _troubleshooting_row("servo", "Servo overload detected")
+    encoder = _troubleshooting_row("encoder", "Encoder communication lost")
+
+    assert not _troubleshooting_citations_match_query_anchor(
+        "What causes Servo overload detected, and how should it be corrected?",
+        [_citation("encoder")],
+        [servo, encoder],
+    )
+
+
+def test_troubleshooting_citations_reject_missing_requested_side():
+    servo = _troubleshooting_row("servo", "Servo overload detected")
+    encoder = _troubleshooting_row("encoder", "Encoder communication lost")
+
+    assert not _troubleshooting_citations_match_query_anchor(
+        "Compare the causes of Servo overload detected and Encoder communication lost.",
+        [_citation("servo")],
+        [servo, encoder],
+    )
+
+
+def test_troubleshooting_citations_reject_extra_unrequested_sibling():
+    servo = _troubleshooting_row("servo", "Servo overload detected")
+    encoder = _troubleshooting_row("encoder", "Encoder communication lost")
+
+    assert not _troubleshooting_citations_match_query_anchor(
+        "What is the remedy for Servo overload detected?",
+        [_citation("servo"), _citation("encoder")],
+        [servo, encoder],
+    )
 
 
 def test_validate_answer_rejects_sibling_troubleshooting_citations_for_specific_anchor():

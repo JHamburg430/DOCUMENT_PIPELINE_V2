@@ -13612,6 +13612,21 @@
     "total_questions": 208,
     "unresolved_guardrail_findings": [
       {
+        "timestamp": "2026-09-02T03:10:00Z",
+        "severity": "needs_fix",
+        "guardrail_commit": "ec4c769",
+        "finding": "The single-anchor troubleshooting citation validator over-rejected legitimate multi-error answers by requiring every structured cited row to contain the first extracted error phrase.",
+        "status": "partially_addressed_relation_preserving_row_binding_api_positive_not_clean",
+        "evidence": [
+          "Production validation now binds each structured troubleshooting citation to a source-visible error number/message explicitly present in the query and requires all available requested rows to be cited.",
+          "Focused controls passed: 11 passed; full environment-backed unit gate passed: 561 passed, 59 warnings.",
+          "Loaded runtime controls passed with generator.py sha256 7218738813e70920e5bf6cf1643487dd37884704c1c10596b656fc8ed81a76e8 and validator sha256 6ba59bd790098496344baf184eaddd1699c156c7a7d5cdc07947461a13aa490c.",
+          "Actual HTTP source-filtered control cited evidence supporting both requested Ethernet errors but validation fallback also retained unrelated troubleshooting rows, so it remains diagnostic/not-clean.",
+          "Actual HTTP missing-side control returned only Ethernet evidence for a light-controller-plus-Ethernet comparison and was not counted clean."
+        ],
+        "required_next_action": "Preserve the relation-preserving validator and gather a clean actual HTTP multi-error positive containing only requested sides; correct fallback evidence selection if unrelated troubleshooting rows remain."
+      },
+      {
         "timestamp": "2026-09-02T02:02:00Z",
         "severity": "needs_fix",
         "finding": "Post-run cleanup of reused worktree /tmp/manuals_rag_cron_39262386_1788283427 failed with Permission denied after successful push.",
@@ -14962,7 +14977,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T02:02:00Z"
+    "updated_at": "2026-09-02T03:10:00Z"
   },
   "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
   "retrieval_current_failure_categories": {},
@@ -15724,6 +15739,21 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-09-02T03:10:00Z",
+      "severity": "needs_fix",
+      "guardrail_commit": "ec4c769",
+      "finding": "The single-anchor troubleshooting citation validator over-rejected legitimate multi-error answers by requiring every structured cited row to contain the first extracted error phrase.",
+      "status": "partially_addressed_relation_preserving_row_binding_api_positive_not_clean",
+      "evidence": [
+        "Production validation now binds each structured troubleshooting citation to a source-visible error number/message explicitly present in the query and requires all available requested rows to be cited.",
+        "Focused controls passed: 11 passed; full environment-backed unit gate passed: 561 passed, 59 warnings.",
+        "Loaded runtime controls passed with generator.py sha256 7218738813e70920e5bf6cf1643487dd37884704c1c10596b656fc8ed81a76e8 and validator sha256 6ba59bd790098496344baf184eaddd1699c156c7a7d5cdc07947461a13aa490c.",
+        "Actual HTTP source-filtered control cited evidence supporting both requested Ethernet errors but validation fallback also retained unrelated troubleshooting rows, so it remains diagnostic/not-clean.",
+        "Actual HTTP missing-side control returned only Ethernet evidence for a light-controller-plus-Ethernet comparison and was not counted clean."
+      ],
+      "required_next_action": "Preserve the relation-preserving validator and gather a clean actual HTTP multi-error positive containing only requested sides; correct fallback evidence selection if unrelated troubleshooting rows remain."
+    },
     {
       "timestamp": "2026-09-02T02:02:00Z",
       "severity": "needs_fix",
@@ -17075,5 +17105,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T02:02:00Z"
+  "updated_at": "2026-09-02T03:10:00Z"
 }
