@@ -6988,3 +6988,16 @@ Next target:
 Next target:
 
 - Await guardrail review of the durable `184955` dataset-artifact repair; preserve all of `182758` as diagnostic/not-clean and reuse `/tmp/manuals_rag_accuracy_20260901`.
+
+## 2026-09-02 Cron 39262386 Guardrail-Acceptance Tracking Reconciliation
+
+- Freshness/worktree: fetched `origin`, enumerated registered worktrees before edits, queried guardrail cron `ca862d7a-e46f-4de3-870e-1cca28a3510c`, and reused exact registered accuracy-owned worktree `/tmp/manuals_rag_accuracy_20260901`. It was clean at `cb32639` and fast-forwarded to `origin/main` guardrail commit `0ef7bb1`; no worktree was created, reset, cleaned, stashed, or bypassed.
+- Guardrail target: the latest `2026-09-02T19:40:15Z` audit is `ok` and accepts the durable `retrieval_eval_20260902_184955` dataset-artifact repair, but all six current `next_target`/`remaining` aliases still said to await that review. Reconciled those duplicated aliases atomically to the accepted audit outcome and next source-reviewed distinct-document troubleshooting target.
+- Evidence preserved: all of `retrieval_eval_20260902_182758` remains diagnostic/not-clean. The already audited `184955` positive remains accepted source-faithful evidence, and its swapped/missing-side control remains fail-closed. Active coverage remains 209 exploratory questions (101 single-step, 108 multi-step), replacement debt 0; no dataset file, ledger entry, result classification, failure category, or expected evidence changed.
+- Validation/environment: the local compose stack is usable (API/UI and data services running; PostgreSQL healthy). Normal, `--parent-git-ref HEAD`, and historical `--parent-git-ref '8ec8ddb^'` manifest checks passed; JSON parsing passed; focused manifest/ledger controls passed `67 passed`. This tracking-only change does not alter shared production behavior, so no new retrieval/answer eval or full unit gate was claimed.
+- Scope: changed only this progress log and the question-bank manifest. No retrieval, answering, eval scoring/generation, API/UI, parser/ingestion, infrastructure/Docker, schema, deployment, model/provider, embedding, or reranker behavior changed.
+- Cleanup ordering: selected worktree `/tmp/manuals_rag_accuracy_20260901`; exact removal command/result `not attempted`. Accumulated permission-denied cleanup blockers remain, and the known registered worktree must stay available for mandatory reuse. Pre-final-commit status was dirty only with this run's progress/manifest tracking; the path remained present and registered. No force removal, recursive deletion, prune, reset, clean, or primary-checkout mutation occurred.
+
+Next target:
+
+- Investigate a realistic source-reviewed distinct-document troubleshooting comparison with loaded-runtime proof, positive and missing-side controls, and manual claim-level answer/citation inspection. Preserve all prior diagnostics, source-only scoring, product/code boundary, dataset-ledger, manifest-pair, runtime-load, and worktree constraints; reuse `/tmp/manuals_rag_accuracy_20260901`.
