@@ -196,16 +196,15 @@
     "retrieval_result": "1/1 retrieval passed at rank 1; candidate recall 1.0; metadata document-selection recall 1.0; no retrieval failure categories.",
     "answer_result": "1/1 actual HTTP/API answer grounding passed with fallback_validation; answer_failure_reasons={}; fallback_count=1.",
     "runtime_load_evidence": {
-      "api_url": "http://127.0.0.1:9140",
-      "container": "manuals-rag-temp-api-39262386-20260901-row17-anchor-citations",
-      "health": "ok at 2026-09-02T01:31:33Z",
+      "validated_run": "retrieval_eval_20260902_124857",
+      "api_url": "http://127.0.0.1:9193",
+      "container": "manuals-rag-temp-api-39262386-20260902-0726",
+      "health": "ok; container started at 2026-09-02T12:48:36Z and served the retrieval_eval_20260902_124857 requests",
       "fingerprints": {
-        "generator.py": "b11c2d332e50c8a69d58c77e159d62e554c0bd78fadd24d43b3401853e48d0e5",
+        "generator.py": "9da61c6191f4a85cd8be7f2488d4cfbeed9cd9eecba01fca1a21b9937c33be39",
         "retrieval_eval.py": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
-        "validate_answer": "69f7bd4c4571fd03a1c6857bc01e1b086fde6df8801d37bd668a0a8d846b7957",
-        "_troubleshooting_citations_match_query_anchor": "2cf729b0b8381b52c1c12af184d2e4fec492acba508aa3866b68d1e7956b9327",
-        "_citation_quotes_are_supported": "7914e2d1daa7d063ecb371ac20f640becad8f921e248a457a4633fea24dd4b82",
-        "_citation_evidence_text": "3445028e6c9c0cf537179099d55a4fa4a6a144f1b7531dcfa5a4e898a5787b28"
+        "query_analysis.py": "bcdc3bac33846b0a364ebec8f35b9b3a8d6518c54eb48ef131c2a2a4379f76d1",
+        "retriever.py": "93f01c9d9703ff5b8cd4d452c6ed631b4752d9cc10891c388f30b930045a90f7"
       },
       "model_settings": {
         "OLLAMA_URL": "http://host.docker.internal:11434",
@@ -215,9 +214,9 @@
         "RERANKER_DEVICE": null
       }
     },
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained. Inspected failed retrieval_eval_results_20260902_062955.jsonl: both exact Error 30109 evidence chunks were absent from final_top_k and every returned citation was unrelated CV-X overview/PLC content.",
-  "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
-    "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against every expected evidence role. The user-visible retrieval-grounded fallback states both requested Error 30109 meanings and cites exactly chunks ffd4b1bd and be25fb78 with null quote spans; each returned cited chunk directly supports its assigned CV-X482 or VS claim. retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 remain diagnostic/not-clean one-sided answers.",
+    "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "scope": "retrieval_eval_20260902_124857 tracking-integrity repair only: reconcile latest-run runtime, manual citation inspection, and scope provenance and add deterministic stale-provenance rejection; no production retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model/provider, embedding, or reranker behavior changed"
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -716,7 +715,7 @@
     },
     "current_answer_failures": {},
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against both expected evidence roles. The visible fallback answer cites exact chunks ffd4b1bd and be25fb78 with null quote spans; their returned content directly supports CV-X482 SD Card 1 full and VS multiple-subtasks-selected meanings. retrieval_eval_20260902_123026 remains diagnostic because it cited only CV-X482.",
-    "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
+    "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260902_124857"
   },
   "constraints": {
@@ -9209,7 +9208,7 @@
       ]
     }
   ],
-  "next_target": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
+  "next_target": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10159,16 +10158,15 @@
       "retrieval_result": "1/1 retrieval passed at rank 1; candidate recall 1.0; metadata document-selection recall 1.0; no retrieval failure categories.",
       "answer_result": "1/1 actual HTTP/API answer grounding passed with fallback_validation; answer_failure_reasons={}; fallback_count=1.",
       "runtime_load_evidence": {
-        "api_url": "http://127.0.0.1:9140",
-        "container": "manuals-rag-temp-api-39262386-20260901-row17-anchor-citations",
-        "health": "ok at 2026-09-02T01:31:33Z",
+        "validated_run": "retrieval_eval_20260902_124857",
+        "api_url": "http://127.0.0.1:9193",
+        "container": "manuals-rag-temp-api-39262386-20260902-0726",
+        "health": "ok; container started at 2026-09-02T12:48:36Z and served the retrieval_eval_20260902_124857 requests",
         "fingerprints": {
-          "generator.py": "b11c2d332e50c8a69d58c77e159d62e554c0bd78fadd24d43b3401853e48d0e5",
+          "generator.py": "9da61c6191f4a85cd8be7f2488d4cfbeed9cd9eecba01fca1a21b9937c33be39",
           "retrieval_eval.py": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
-          "validate_answer": "69f7bd4c4571fd03a1c6857bc01e1b086fde6df8801d37bd668a0a8d846b7957",
-          "_troubleshooting_citations_match_query_anchor": "2cf729b0b8381b52c1c12af184d2e4fec492acba508aa3866b68d1e7956b9327",
-          "_citation_quotes_are_supported": "7914e2d1daa7d063ecb371ac20f640becad8f921e248a457a4633fea24dd4b82",
-          "_citation_evidence_text": "3445028e6c9c0cf537179099d55a4fa4a6a144f1b7531dcfa5a4e898a5787b28"
+          "query_analysis.py": "bcdc3bac33846b0a364ebec8f35b9b3a8d6518c54eb48ef131c2a2a4379f76d1",
+          "retriever.py": "93f01c9d9703ff5b8cd4d452c6ed631b4752d9cc10891c388f30b930045a90f7"
         },
         "model_settings": {
           "OLLAMA_URL": "http://host.docker.internal:11434",
@@ -10178,9 +10176,9 @@
           "RERANKER_DEVICE": null
         }
       },
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained. Inspected failed retrieval_eval_results_20260902_062955.jsonl: both exact Error 30109 evidence chunks were absent from final_top_k and every returned citation was unrelated CV-X overview/PLC content.",
-      "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
-      "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against every expected evidence role. The user-visible retrieval-grounded fallback states both requested Error 30109 meanings and cites exactly chunks ffd4b1bd and be25fb78 with null quote spans; each returned cited chunk directly supports its assigned CV-X482 or VS claim. retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 remain diagnostic/not-clean one-sided answers.",
+      "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+      "scope": "retrieval_eval_20260902_124857 tracking-integrity repair only: reconcile latest-run runtime, manual citation inspection, and scope provenance and add deterministic stale-provenance rejection; no production retrieval, answering, eval scoring/generation, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model/provider, embedding, or reranker behavior changed"
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10468,7 +10466,7 @@
       },
       "current_answer_failures": {},
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against both expected evidence roles. The visible fallback answer cites exact chunks ffd4b1bd and be25fb78 with null quote spans; their returned content directly supports CV-X482 SD Card 1 full and VS multiple-subtasks-selected meanings. retrieval_eval_20260902_123026 remains diagnostic because it cited only CV-X482.",
-      "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
+      "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260902_124857"
     },
     "current_answer_failure_categories": {},
@@ -12932,7 +12930,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
+    "next_target": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12969,7 +12967,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
+    "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13735,6 +13733,19 @@
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-09-02T13:13:49Z",
+        "severity": "needs_fix",
+        "guardrail_commit": "208d5e2",
+        "finding": "Both answer_grounding_rotation copies named retrieval_eval_20260902_124857 as latest while retaining stale row-17 runtime, manual-inspection, and scope provenance.",
+        "status": "addressed_this_run_validated",
+        "evidence": [
+          "Both rotation copies now identify the 9193 exact-code container, 2026-09-02T12:48:36Z runtime start, committed generator/eval/query-analysis/retriever fingerprints, and retrieval_eval_20260902_124857 manual citation inspection.",
+          "A deterministic stale-provenance negative fails when validated_run, manual inspection, and scope point at an older run even when root and question_bank copies are equal.",
+          "Focused manifest suite passed 62 tests; real whole-manifest and parent-aware checks passed; fixture-mounted full unit gate passed 596 tests with 59 warnings."
+        ],
+        "required_next_action": "Preserve retrieval_eval_20260902_124857 as clean case evidence and 123026/112809 as diagnostic; after guardrail review continue the source-backed actual HTTP multi-error/two-row positive."
+      },
       {
         "timestamp": "2026-09-02T10:41:28Z",
         "severity": "needs_fix",
@@ -15129,9 +15140,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T13:07:00Z"
+    "updated_at": "2026-09-02T13:36:00Z"
   },
-  "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
+  "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -15896,6 +15907,19 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-09-02T13:13:49Z",
+      "severity": "needs_fix",
+      "guardrail_commit": "208d5e2",
+      "finding": "Both answer_grounding_rotation copies named retrieval_eval_20260902_124857 as latest while retaining stale row-17 runtime, manual-inspection, and scope provenance.",
+      "status": "addressed_this_run_validated",
+      "evidence": [
+        "Both rotation copies now identify the 9193 exact-code container, 2026-09-02T12:48:36Z runtime start, committed generator/eval/query-analysis/retriever fingerprints, and retrieval_eval_20260902_124857 manual citation inspection.",
+        "A deterministic stale-provenance negative fails when validated_run, manual inspection, and scope point at an older run even when root and question_bank copies are equal.",
+        "Focused manifest suite passed 62 tests; real whole-manifest and parent-aware checks passed; fixture-mounted full unit gate passed 596 tests with 59 warnings."
+      ],
+      "required_next_action": "Preserve retrieval_eval_20260902_124857 as clean case evidence and 123026/112809 as diagnostic; after guardrail review continue the source-backed actual HTTP multi-error/two-row positive."
+    },
     {
       "timestamp": "2026-09-02T10:41:28Z",
       "severity": "needs_fix",
@@ -17290,5 +17314,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T13:07:00Z"
+  "updated_at": "2026-09-02T13:36:00Z"
 }

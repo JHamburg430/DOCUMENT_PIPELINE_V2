@@ -41,6 +41,17 @@ def _minimal_manifest():
             "results": "test_reports/retrieval_eval_results_20260830_201603.jsonl",
             "summary": "test_reports/retrieval_eval_summary_20260830_201603.json",
             "manifest": "test_reports/retrieval_eval_manifest_20260830_201603.json",
+            "runtime_load_evidence": {
+                "validated_run": "retrieval_eval_20260830_201603",
+                "api_url": "http://127.0.0.1:9193",
+                "container": "manuals-rag-test-api",
+                "health": "ok at 2026-08-30T20:15:00Z",
+                "fingerprints": {"generator.py": "abc123"},
+            },
+            "manual_jsonl_inspection": (
+                "Inspected retrieval_eval_20260830_201603 user-visible answer and citations."
+            ),
+            "scope": "retrieval_eval_20260830_201603 tracking validation only",
             "next": "rows 15-17",
         },
         "run_exclusions": run_exclusions,
@@ -667,6 +678,26 @@ def test_manifest_checker_rejects_nested_answer_grounding_rotation_artifact_run_
         "question_bank.answer_grounding_rotation.results run id mismatch" in error
         for error in errors
     )
+
+
+def test_manifest_checker_rejects_stale_latest_rotation_provenance():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    for scope in (manifest, manifest["question_bank"]):
+        rotation = scope["answer_grounding_rotation"]
+        rotation["runtime_load_evidence"][
+            "validated_run"
+        ] = "retrieval_eval_20260830_194345"
+        rotation["manual_jsonl_inspection"] = (
+            "Inspected retrieval_eval_20260830_194345 user-visible answer and citations."
+        )
+        rotation["scope"] = "retrieval_eval_20260830_194345 tracking validation only"
+
+    errors = module.check_manifest(manifest)
+
+    assert any("runtime_load_evidence stale" in error for error in errors)
+    assert any("manual_jsonl_inspection stale" in error for error in errors)
+    assert any("scope stale" in error for error in errors)
 
 
 def test_manifest_checker_rejects_missing_accepted_clean_run_artifacts(tmp_path):

@@ -190,6 +190,31 @@ def _check_answer_grounding_rotation_artifacts(
                 f"but {key}={value!r}"
             )
 
+    runtime = rotation.get("runtime_load_evidence")
+    validated_run = runtime.get("validated_run") if isinstance(runtime, dict) else None
+    if validated_run != latest_run:
+        errors.append(
+            f"{label}.runtime_load_evidence stale: latest_run={latest_run!r} "
+            f"but validated_run={validated_run!r}"
+        )
+    for key in ("api_url", "container", "health", "fingerprints"):
+        value = runtime.get(key) if isinstance(runtime, dict) else None
+        if not value:
+            errors.append(f"{label}.runtime_load_evidence.{key} must be nonempty")
+
+    manual_inspection = rotation.get("manual_jsonl_inspection")
+    if not isinstance(manual_inspection, str) or (
+        latest_run not in manual_inspection
+        and _run_id_from_value(manual_inspection) != latest_run
+    ):
+        errors.append(
+            f"{label}.manual_jsonl_inspection stale: "
+            f"must identify latest_run={latest_run!r}"
+        )
+    scope = rotation.get("scope")
+    if not isinstance(scope, str) or latest_run not in scope:
+        errors.append(f"{label}.scope stale: must identify latest_run={latest_run!r}")
+
 
 def _check_accepted_clean_run_artifacts(
     label: str,
