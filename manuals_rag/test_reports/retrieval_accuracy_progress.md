@@ -6740,6 +6740,19 @@ Next target:
 
 - Correct general `final_top_k` context loss for source-visible same-error cross-model questions. Preserve explicit product sides and exact error-code binding, and require loaded HTTP retrieval plus claim-level citations for both sides before acceptance. Reuse `/tmp/manuals_rag_accuracy_20260901`; removal was intentionally not attempted.
 
+## 2026-09-02 Cron 39262386 Existing Dataset Count-Rewrite Containment
+
+- Target: addressed the latest `2026-09-02T09:41:50Z` / guardrail commit `2ad6f95` `needs_fix` finding before accepting the interrupted production retrieval experiment. One valid file-backed registered-dataset extension could previously mask a second already registered dataset whose total/single/multi counts were rewritten only in the manifest and whose JSONL stayed unchanged.
+- General checker correction: `check_manifest_change` now fails closed whenever an existing registered dataset changes any count-bearing field without `active_count_delta`; the existing extension path then also requires `ledger_change.kind=extended_registered_dataset`, exact parent/candidate artifacts, append-only nonblank rows, and matching row/type deltas. The legitimate append-only extension positive and all earlier new-entry, provenance, missing-file, replacement, and type-binding controls remain green.
+- Validation: focused manifest suite passed `59 passed`; the exact two-dataset adverse control now fails when dataset A appends one valid multi-step row while dataset B rewrites counts from one multi-step case to 99 single-step cases without a delta. The documented full container unit gate with all three fixture directories mounted read-only passed `589 passed, 59 warnings` in 197.58 seconds. `git diff --check` passed.
+- Evidence/coverage: active coverage remains 209 exploratory questions (101 single-step, 108 multi-step), replacement debt 0. The Error 30109 source-reviewed question and failed `retrieval_eval_20260902_062955` history remain preserved. No clean answer claim is made by this tracking-integrity correction.
+- Interrupted experiment provenance: reused registered `/tmp/manuals_rag_accuracy_20260901` and created no worktree. The pre-existing dirty Error 30109 retrieval experiment (`query_analysis.py`, `retriever.py`, `test_retriever.py`, manifest diagnostic tracking, and untracked `retrieval_eval_manifest_20260902_094552.json` / `retrieval_eval_summary_20260902_094552.json`) was inspected and preserved but is not included in this containment commit. Its retrieval result is diagnostic: retrieval passed 1/1, while actual answer grounding remained 0/1 because fallback used only one requested product side.
+- Cleanup ordering: selected worktree `/tmp/manuals_rag_accuracy_20260901`; removal command/result `not attempted`. The worktree remains registered and present because the interrupted experiment is dirty and supported removal is unsafe. No force removal, recursive deletion, prune, reset, clean, primary-checkout mutation, or new worktree creation occurred.
+
+Next target:
+
+- Resume the preserved interrupted Error 30109 experiment only after this ledger containment is merged. Validate multi-side fallback grounding with one directly supported claim and citation per available requested product side before accepting any production answer change. Reuse `/tmp/manuals_rag_accuracy_20260901`; do not create another worktree.
+
 ## 2026-09-02 Cron 39262386 Mixed Dataset-Ledger Entry Containment
 
 - Target: addressed the latest `2026-09-02T08:45:00Z` / guardrail commit `9f68fe8` `needs_fix` finding before optional production retrieval work. The prior checker could validate one legitimate registered-dataset extension while silently accepting a second new `status=active` ledger entry with arbitrary counts, no `active_count_delta`, no provenance/quality metadata, and no evidence artifacts.

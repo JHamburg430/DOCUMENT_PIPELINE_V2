@@ -437,6 +437,46 @@ def test_manifest_change_rejects_skeletal_active_entry_masked_by_valid_extension
     assert any("new active dataset is missing" in error for error in errors)
 
 
+def test_manifest_change_rejects_existing_count_rewrite_masked_by_valid_extension(tmp_path):
+    module = _load_manifest_check_module()
+    parent, current = _extension_manifests()
+    parent_root = tmp_path / "parent"
+    current_root = tmp_path / "current"
+    (parent_root / "test_reports").mkdir(parents=True)
+    (current_root / "test_reports").mkdir(parents=True)
+    first = json.dumps(_row(case_id="old")) + "\n"
+    (parent_root / "test_reports/registered_dataset.jsonl").write_text(
+        first, encoding="utf-8"
+    )
+    (current_root / "test_reports/registered_dataset.jsonl").write_text(
+        first + json.dumps(_row(case_id="new")) + "\n", encoding="utf-8"
+    )
+
+    unchanged_path = "test_reports/second_registered_dataset.jsonl"
+    parent["question_bank"]["datasets"].append(
+        {
+            **_registered_dataset_entry(),
+            "path": unchanged_path,
+        }
+    )
+    current["question_bank"]["datasets"].append(
+        {
+            **_registered_dataset_entry(total=99, single=99, multi=0),
+            "path": unchanged_path,
+        }
+    )
+
+    errors = module.check_manifest_change(
+        current, parent, current_root, parent_root
+    )
+
+    assert any(
+        "second_registered_dataset.jsonl changed count fields" in error
+        and "without active_count_delta" in error
+        for error in errors
+    )
+
+
 def test_manifest_checker_rejects_missing_root_false_negative_repair():
     module = _load_manifest_check_module()
     manifest = _minimal_manifest()

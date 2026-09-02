@@ -645,6 +645,19 @@ def check_manifest_change(
         path = entry["path"]
         declared = entry.get("active_count_delta")
         is_new_entry = path not in parent_by_path
+        if not is_new_entry:
+            parent_entry = parent_by_path[path]
+            changed_count_fields = [
+                field
+                for field in ("total_questions", "single_step_questions", "multi_step_questions")
+                if entry.get(field) != parent_entry.get(field)
+            ]
+            if changed_count_fields and not isinstance(declared, dict):
+                errors.append(
+                    f"existing dataset {path} changed count fields "
+                    f"{changed_count_fields!r} without active_count_delta and a verified "
+                    "registered-dataset extension"
+                )
         status = entry.get("status")
         is_new_active_entry = is_new_entry and (
             isinstance(declared, dict)

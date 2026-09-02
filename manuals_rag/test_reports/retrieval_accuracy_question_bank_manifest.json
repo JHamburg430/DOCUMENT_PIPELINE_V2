@@ -8990,16 +8990,16 @@
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
       "created_new_worktree": false,
-      "git_status_after_primary_commit": "clean detached worktree at pushed commit 3272f8d; git status --short --branch showed no uncommitted or untracked work",
-      "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 exists after primary push",
-      "registry_check_after_primary_commit": "registered=true at 3272f8d in git worktree list --porcelain after primary push",
+      "git_status_after_primary_commit": "tracking-only checker commit leaves the pre-existing interrupted retrieval experiment dirty by design: query_analysis.py, retriever.py, retrieval_accuracy_question_bank_manifest.json, test_retriever.py, and untracked retrieval_eval_manifest_20260902_094552.json plus retrieval_eval_summary_20260902_094552.json; no experiment file was reset, discarded, or included in this containment commit",
+      "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
+      "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 in git worktree list --porcelain",
       "removal_command": "not attempted",
-      "removal_result": "not attempted; retained registered for safe reuse because supported removal has repeatedly deregistered worktrees before Permission denied and would prevent this required tracking commit",
+      "removal_result": "not attempted; the selected worktree contains preserved interrupted accuracy-owned retrieval changes and is not clean, so supported removal is unsafe",
       "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_git_status_check": "not removed; clean at 3272f8d before this tracking-only follow-up",
+      "post_removal_git_status_check": "not removed; status remains intentionally dirty only with the preserved interrupted retrieval experiment and its diagnostic artifacts after the checker/tracking commit",
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-      "timestamp": "2026-09-02T09:04:30Z"
+      "timestamp": "2026-09-02T10:00:27Z"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -9013,13 +9013,14 @@
         "single-step/multi-step row classification mismatch fails",
         "missing generation/status/quality-review/replacement semantics fails",
         "missing manifest/results/summary evidence artifacts fails",
-        "valid extension plus a skeletal new active entry without active_count_delta fails"
+        "valid extension plus a skeletal new active entry without active_count_delta fails",
+        "valid extension plus a second existing dataset manifest-only count rewrite fails"
       ],
       "error_30109_evidence": "test_reports/retrieval_eval_dataset_20260902_0230_same_error_cross_model.jsonl remains one active multi-step diagnostic case; retrieval_eval_20260902_062955 remains 0/1 retrieval and 0/1 answer grounding",
-      "guardrail_commit": "9f68fe8",
-      "guardrail_timestamp": "2026-09-02T08:45:00Z",
+      "guardrail_commit": "2ad6f95",
+      "guardrail_timestamp": "2026-09-02T09:41:50Z",
       "status": "addressed_this_run_validated",
-      "validation": "58 focused manifest tests passed; exact mixed-entry adverse control fails closed; full environment-backed unit gate passed 584 tests with 59 warnings; real whole-manifest and parent-aware 8ec8ddb^ checks passed"
+      "validation": "59 focused manifest tests passed; exact two-existing-dataset adverse control fails closed; full environment-backed unit gate passed 589 tests with 59 warnings; staged whole-manifest and parent-aware checks passed"
     },
     "checker_repair": {
       "controls": [
@@ -12703,16 +12704,16 @@
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
         "created_new_worktree": false,
-        "git_status_after_primary_commit": "clean detached worktree at pushed commit 3272f8d; git status --short --branch showed no uncommitted or untracked work",
-        "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 exists after primary push",
-        "registry_check_after_primary_commit": "registered=true at 3272f8d in git worktree list --porcelain after primary push",
+        "git_status_after_primary_commit": "tracking-only checker commit leaves the pre-existing interrupted retrieval experiment dirty by design: query_analysis.py, retriever.py, retrieval_accuracy_question_bank_manifest.json, test_retriever.py, and untracked retrieval_eval_manifest_20260902_094552.json plus retrieval_eval_summary_20260902_094552.json; no experiment file was reset, discarded, or included in this containment commit",
+        "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
+        "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 in git worktree list --porcelain",
         "removal_command": "not attempted",
-        "removal_result": "not attempted; retained registered for safe reuse because supported removal has repeatedly deregistered worktrees before Permission denied and would prevent this required tracking commit",
+        "removal_result": "not attempted; the selected worktree contains preserved interrupted accuracy-owned retrieval changes and is not clean, so supported removal is unsafe",
         "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-        "post_removal_git_status_check": "not removed; clean at 3272f8d before this tracking-only follow-up",
+        "post_removal_git_status_check": "not removed; status remains intentionally dirty only with the preserved interrupted retrieval experiment and its diagnostic artifacts after the checker/tracking commit",
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-        "timestamp": "2026-09-02T09:04:30Z"
+        "timestamp": "2026-09-02T10:00:27Z"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12726,13 +12727,14 @@
           "single-step/multi-step row classification mismatch fails",
           "missing generation/status/quality-review/replacement semantics fails",
           "missing manifest/results/summary evidence artifacts fails",
-          "valid extension plus a skeletal new active entry without active_count_delta fails"
+          "valid extension plus a skeletal new active entry without active_count_delta fails",
+          "valid extension plus a second existing dataset manifest-only count rewrite fails"
         ],
         "error_30109_evidence": "test_reports/retrieval_eval_dataset_20260902_0230_same_error_cross_model.jsonl remains one active multi-step diagnostic case; retrieval_eval_20260902_062955 remains 0/1 retrieval and 0/1 answer grounding",
-        "guardrail_commit": "9f68fe8",
-        "guardrail_timestamp": "2026-09-02T08:45:00Z",
+        "guardrail_commit": "2ad6f95",
+        "guardrail_timestamp": "2026-09-02T09:41:50Z",
         "status": "addressed_this_run_validated",
-        "validation": "58 focused manifest tests passed; exact mixed-entry adverse control fails closed; full environment-backed unit gate passed 584 tests with 59 warnings; real whole-manifest and parent-aware 8ec8ddb^ checks passed"
+        "validation": "59 focused manifest tests passed; exact two-existing-dataset adverse control fails closed; full environment-backed unit gate passed 589 tests with 59 warnings; staged whole-manifest and parent-aware checks passed"
       },
       "checker_repair": {
         "controls": [
