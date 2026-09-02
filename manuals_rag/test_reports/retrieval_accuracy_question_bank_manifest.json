@@ -8990,16 +8990,16 @@
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
       "created_new_worktree": false,
-      "git_status_after_primary_commit": "pending primary containment commit; pre-commit status contains only this run's checker, test, progress, and manifest files",
-      "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 exists",
-      "registry_check_after_primary_commit": "registered=true at 9f68fe8 before primary containment commit",
+      "git_status_after_primary_commit": "clean detached worktree at pushed commit 3272f8d; git status --short --branch showed no uncommitted or untracked work",
+      "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 exists after primary push",
+      "registry_check_after_primary_commit": "registered=true at 3272f8d in git worktree list --porcelain after primary push",
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for safe reuse because supported removal has repeatedly deregistered worktrees before Permission denied and would prevent this required tracking commit",
       "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_git_status_check": "not removed; pre-commit status contains only this run's four accuracy-owned files",
+      "post_removal_git_status_check": "not removed; clean at 3272f8d before this tracking-only follow-up",
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-      "timestamp": "2026-09-02T09:02:36Z"
+      "timestamp": "2026-09-02T09:04:30Z"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -9019,7 +9019,7 @@
       "guardrail_commit": "9f68fe8",
       "guardrail_timestamp": "2026-09-02T08:45:00Z",
       "status": "addressed_this_run_validated",
-      "validation": "58 focused manifest tests passed; exact mixed-entry adverse control fails closed; full environment-backed unit gate passed 584 tests with 59 warnings; real whole-manifest and parent-aware 8ec8ddb^ checks pending final tracking update"
+      "validation": "58 focused manifest tests passed; exact mixed-entry adverse control fails closed; full environment-backed unit gate passed 584 tests with 59 warnings; real whole-manifest and parent-aware 8ec8ddb^ checks passed"
     },
     "checker_repair": {
       "controls": [
@@ -12703,16 +12703,16 @@
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
         "created_new_worktree": false,
-        "git_status_after_primary_commit": "pending primary containment commit; pre-commit status contains only this run's checker, test, progress, and manifest files",
-        "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 exists",
-        "registry_check_after_primary_commit": "registered=true at 9f68fe8 before primary containment commit",
+        "git_status_after_primary_commit": "clean detached worktree at pushed commit 3272f8d; git status --short --branch showed no uncommitted or untracked work",
+        "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 exists after primary push",
+        "registry_check_after_primary_commit": "registered=true at 3272f8d in git worktree list --porcelain after primary push",
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for safe reuse because supported removal has repeatedly deregistered worktrees before Permission denied and would prevent this required tracking commit",
         "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-        "post_removal_git_status_check": "not removed; pre-commit status contains only this run's four accuracy-owned files",
+        "post_removal_git_status_check": "not removed; clean at 3272f8d before this tracking-only follow-up",
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-        "timestamp": "2026-09-02T09:02:36Z"
+        "timestamp": "2026-09-02T09:04:30Z"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12732,7 +12732,7 @@
         "guardrail_commit": "9f68fe8",
         "guardrail_timestamp": "2026-09-02T08:45:00Z",
         "status": "addressed_this_run_validated",
-        "validation": "58 focused manifest tests passed; exact mixed-entry adverse control fails closed; full environment-backed unit gate passed 584 tests with 59 warnings; real whole-manifest and parent-aware 8ec8ddb^ checks pending final tracking update"
+        "validation": "58 focused manifest tests passed; exact mixed-entry adverse control fails closed; full environment-backed unit gate passed 584 tests with 59 warnings; real whole-manifest and parent-aware 8ec8ddb^ checks passed"
       },
       "checker_repair": {
         "controls": [
@@ -15094,7 +15094,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T09:02:36Z"
+    "updated_at": "2026-09-02T09:04:30Z"
   },
   "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_20260901; removal was intentionally not attempted.",
   "retrieval_current_failure_categories": {"ranking_or_context_loss": 1},
@@ -17236,5 +17236,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T09:02:36Z"
+  "updated_at": "2026-09-02T09:04:30Z"
 }
