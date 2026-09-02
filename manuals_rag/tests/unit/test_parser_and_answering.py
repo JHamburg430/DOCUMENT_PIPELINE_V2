@@ -3976,6 +3976,28 @@ def test_troubleshooting_citations_bind_explicit_codes_without_surrounding_conte
     assert "10111" not in fallback.answer
 
 
+def test_troubleshooting_citations_accept_same_error_across_two_models():
+    first = _troubleshooting_row("cvx482-error-10109", "10109")
+    second = _troubleshooting_row("cvx400-error-10109", "10109")
+
+    assert _troubleshooting_citations_match_query_anchor(
+        "Compare the cause and remedy for Error 10109 on CV-X482 versus CV-X400.",
+        [_citation("cvx482-error-10109"), _citation("cvx400-error-10109")],
+        [first, second],
+    )
+
+
+def test_troubleshooting_citations_accept_same_error_across_two_versions():
+    first = _troubleshooting_row("v2-error-10109", "10109")
+    second = _troubleshooting_row("v3-error-10109", "10109")
+
+    assert _troubleshooting_citations_match_query_anchor(
+        "Compare Error 10109 in version 2.0 versus version 3.0.",
+        [_citation("v2-error-10109"), _citation("v3-error-10109")],
+        [first, second],
+    )
+
+
 def test_troubleshooting_citations_reject_longer_error_code_superstring_collision():
     requested = _troubleshooting_row("error-1010", "1010")
     superstring = _troubleshooting_row("error-10109", "10109")

@@ -2693,6 +2693,18 @@ def _query_requested_troubleshooting_identifiers(query: str) -> set[str]:
     }
     if len(explicit_codes) >= 2:
         return explicit_codes
+    if len(explicit_codes) == 1:
+        explicit_models = _model_tokens(query)
+        explicit_versions = {
+            _normalized_phrase(match.group(0))
+            for match in re.finditer(
+                r"\b(?:version|revision|rev\.?)\s*[a-z0-9][a-z0-9._/-]*\b",
+                query,
+                flags=re.IGNORECASE,
+            )
+        }
+        if len(explicit_models) >= 2 or len(explicit_versions) >= 2:
+            return explicit_codes
 
     raw_sides = _comparison_side_clauses(query)
     if len(raw_sides) < 2:
