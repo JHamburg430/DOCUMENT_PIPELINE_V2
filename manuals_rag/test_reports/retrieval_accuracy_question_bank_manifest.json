@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against every expected evidence role. The user-visible retrieval-grounded fallback states both requested Error 30109 meanings and cites exactly chunks ffd4b1bd and be25fb78 with null quote spans; each returned cited chunk directly supports its assigned CV-X482 or VS claim. retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 remain diagnostic/not-clean one-sided answers.",
-    "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Investigate the validated multi-error Error 10109/10110 final-context loss from retrieval_eval_20260902_152902: candidate recall and document selection passed, but final_top_k omitted the requested two-row evidence and the API correctly failed closed with no citations. Preserve retrieval_eval_20260902_124857 as clean exact-code cross-model evidence and keep 152902, 123026, 112809, and 062955 diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a9d870a",
@@ -732,7 +732,7 @@
     },
     "current_answer_failures": {},
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against both expected evidence roles. The visible fallback answer cites exact chunks ffd4b1bd and be25fb78 with null quote spans; their returned content directly supports CV-X482 SD Card 1 full and VS multiple-subtasks-selected meanings. retrieval_eval_20260902_123026 remains diagnostic because it cited only CV-X482.",
-    "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Investigate the validated multi-error Error 10109/10110 final-context loss from retrieval_eval_20260902_152902: candidate recall and document selection passed, but final_top_k omitted the requested two-row evidence and the API correctly failed closed with no citations. Preserve retrieval_eval_20260902_124857 as clean exact-code cross-model evidence and keep 152902, 123026, 112809, and 062955 diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260902_124857"
   },
   "constraints": {
@@ -9010,17 +9010,17 @@
   },
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
+      "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "created_new_worktree": false,
-      "git_status_before_final_commit": "dirty only with this run's progress and manifest tracking edits; detached from clean origin/main 781d129 before editing",
-      "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 781d129 before this final tracking commit in git worktree list --porcelain",
+      "timestamp": "2026-09-02T15:34:00Z",
+      "git_status_before_final_commit": "dirty only with this run source-reviewed validation dataset, diagnostic eval artifacts, progress, and manifest tracking on origin/main 5c54fe7",
       "removal_command": "not attempted",
-      "removal_result": "not attempted; the worktree is required for this final commit and no safe sequence can both remove this exact checkout and durably commit the post-removal result without modifying the unrelated primary checkout; prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
+      "removal_result": "not attempted; prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied, and removing this selected checkout before the required final tracking commit would make durable cleanup-result recording unsafe",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 5c54fe7 before final tracking commit",
+      "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_git_status_check": "not applicable; removal was intentionally not attempted",
-      "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-      "timestamp": "2026-09-02T15:00:00Z"
+      "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -9225,7 +9225,7 @@
       ]
     }
   ],
-  "next_target": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Investigate the validated multi-error Error 10109/10110 final-context loss from retrieval_eval_20260902_152902: candidate recall and document selection passed, but final_top_k omitted the requested two-row evidence and the API correctly failed closed with no citations. Preserve retrieval_eval_20260902_124857 as clean exact-code cross-model evidence and keep 152902, 123026, 112809, and 062955 diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10161,14 +10161,14 @@
       ]
     },
     "answer_grounding_rotation": {
-    "timestamp": "2026-09-02T12:49:00Z",
+      "timestamp": "2026-09-02T12:49:00Z",
       "latest_run": "retrieval_eval_20260902_124857",
       "classification": "accepted_clean_exact_code_cross_model_grounded_fallback",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260902_0230_same_error_cross_model.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260902_124857.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260902_124857.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260902_124857.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260902_124857.json",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260902_0230_same_error_cross_model.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260902_124857.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260902_124857.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260902_124857.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260902_124857.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "max_queries": 1,
@@ -10194,7 +10194,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against every expected evidence role. The user-visible retrieval-grounded fallback states both requested Error 30109 meanings and cites exactly chunks ffd4b1bd and be25fb78 with null quote spans; each returned cited chunk directly supports its assigned CV-X482 or VS claim. retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 remain diagnostic/not-clean one-sided answers.",
-      "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Investigate the validated multi-error Error 10109/10110 final-context loss from retrieval_eval_20260902_152902: candidate recall and document selection passed, but final_top_k omitted the requested two-row evidence and the API correctly failed closed with no citations. Preserve retrieval_eval_20260902_124857 as clean exact-code cross-model evidence and keep 152902, 123026, 112809, and 062955 diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a9d870a",
@@ -10500,7 +10500,7 @@
       },
       "current_answer_failures": {},
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against both expected evidence roles. The visible fallback answer cites exact chunks ffd4b1bd and be25fb78 with null quote spans; their returned content directly supports CV-X482 SD Card 1 full and VS multiple-subtasks-selected meanings. retrieval_eval_20260902_123026 remains diagnostic because it cited only CV-X482.",
-      "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Investigate the validated multi-error Error 10109/10110 final-context loss from retrieval_eval_20260902_152902: candidate recall and document selection passed, but final_top_k omitted the requested two-row evidence and the API correctly failed closed with no citations. Preserve retrieval_eval_20260902_124857 as clean exact-code cross-model evidence and keep 152902, 123026, 112809, and 062955 diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260902_124857"
     },
     "current_answer_failure_categories": {},
@@ -10508,7 +10508,7 @@
     "current_failure_categories": {},
     "current_failure_sources": {
       "retrieval": "none",
-    "answer": "none"
+      "answer": "none"
     },
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "none; retrieval_eval_20260902_120951 passed 1/1 with both exact Error 30109 product-side chunks after loaded exact-code correction.",
@@ -12747,17 +12747,17 @@
     },
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
+        "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
         "created_new_worktree": false,
-        "git_status_before_final_commit": "dirty only with this run's progress and manifest tracking edits; detached from clean origin/main 781d129 before editing",
-        "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 781d129 before this final tracking commit in git worktree list --porcelain",
+        "timestamp": "2026-09-02T15:34:00Z",
+        "git_status_before_final_commit": "dirty only with this run source-reviewed validation dataset, diagnostic eval artifacts, progress, and manifest tracking on origin/main 5c54fe7",
         "removal_command": "not attempted",
-        "removal_result": "not attempted; the worktree is required for this final commit and no safe sequence can both remove this exact checkout and durably commit the post-removal result without modifying the unrelated primary checkout; prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
+        "removal_result": "not attempted; prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied, and removing this selected checkout before the required final tracking commit would make durable cleanup-result recording unsafe",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 5c54fe7 before final tracking commit",
+        "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-        "post_removal_git_status_check": "not applicable; removal was intentionally not attempted",
-        "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-        "timestamp": "2026-09-02T15:00:00Z"
+        "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12964,7 +12964,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Investigate the validated multi-error Error 10109/10110 final-context loss from retrieval_eval_20260902_152902: candidate recall and document selection passed, but final_top_k omitted the requested two-row evidence and the API correctly failed closed with no citations. Preserve retrieval_eval_20260902_124857 as clean exact-code cross-model evidence and keep 152902, 123026, 112809, and 062955 diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13001,7 +13001,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Investigate the validated multi-error Error 10109/10110 final-context loss from retrieval_eval_20260902_152902: candidate recall and document selection passed, but final_top_k omitted the requested two-row evidence and the API correctly failed closed with no citations. Preserve retrieval_eval_20260902_124857 as clean exact-code cross-model evidence and keep 152902, 123026, 112809, and 062955 diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13762,6 +13762,12 @@
         "reason": "diagnostic/not-clean failed-run artifact from reused temp worktree; retrieval passed and equivalent evidence support passed, but the user-visible API answer retained unsupported sibling Error 10101 quote_span and unrelated 10101/10106 communication guidance, so citation fidelity failed with unsupported_citation_quote",
         "run_id": "retrieval_eval_20260901_235625",
         "scope": "sibling troubleshooting row 17 source-reviewed row-group equivalence retry"
+      },
+      {
+        "run_id": "retrieval_eval_20260902_152902",
+        "scope": "source-reviewed validation-only CV-X482 Error 10109 versus Error 10110 multi-error/two-row actual HTTP answer path",
+        "recorded_at": "2026-09-02T15:34:00Z",
+        "reason": "diagnostic/not-clean: candidate recall and metadata document selection passed, but final_top_k omitted the requested troubleshooting row-group evidence; the user-visible API correctly returned insufficient evidence with no citations. Retrieval 0/1 and answer grounding 0/1; do not count as active-bank coverage or clean answer evidence."
       }
     ],
     "single_step_questions": 101,
@@ -15188,9 +15194,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T15:00:00Z"
+    "updated_at": "2026-09-02T15:34:00Z"
   },
-  "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Investigate the validated multi-error Error 10109/10110 final-context loss from retrieval_eval_20260902_152902: candidate recall and document selection passed, but final_top_k omitted the requested two-row evidence and the API correctly failed closed with no citations. Preserve retrieval_eval_20260902_124857 as clean exact-code cross-model evidence and keep 152902, 123026, 112809, and 062955 diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -15951,6 +15957,12 @@
       "reason": "diagnostic/not-clean failed-run artifact from reused temp worktree; retrieval passed and equivalent evidence support passed, but the user-visible API answer retained unsupported sibling Error 10101 quote_span and unrelated 10101/10106 communication guidance, so citation fidelity failed with unsupported_citation_quote",
       "run_id": "retrieval_eval_20260901_235625",
       "scope": "sibling troubleshooting row 17 source-reviewed row-group equivalence retry"
+    },
+    {
+      "run_id": "retrieval_eval_20260902_152902",
+      "scope": "source-reviewed validation-only CV-X482 Error 10109 versus Error 10110 multi-error/two-row actual HTTP answer path",
+      "recorded_at": "2026-09-02T15:34:00Z",
+      "reason": "diagnostic/not-clean: candidate recall and metadata document selection passed, but final_top_k omitted the requested troubleshooting row-group evidence; the user-visible API correctly returned insufficient evidence with no citations. Retrieval 0/1 and answer grounding 0/1; do not count as active-bank coverage or clean answer evidence."
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -17376,5 +17388,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T15:00:00Z"
+  "updated_at": "2026-09-02T15:34:00Z"
 }
