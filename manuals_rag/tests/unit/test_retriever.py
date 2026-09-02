@@ -1460,12 +1460,120 @@ def test_diagnostic_comparison_promotion_does_not_fabricate_missing_product_side
     assert promoted == []
 
 
+def test_diagnostic_multi_error_promotion_prefers_one_complete_row_group():
+    analysis = analyze_query(
+        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
+    )
+
+    def result(chunk_id: str, content: str) -> SearchResult:
+        return SearchResult(
+            chunk_id=chunk_id,
+            score=1.0,
+            title="Manual",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Troubleshooting"],
+            content=content,
+            metadata={"chunk_type": "table_record", "table_row_group": True},
+        )
+
+    complete = result(
+        "complete",
+        "Error Number: 10109; Cause: First.; Remedy: Fix first. Error Number: 10110; Cause: Second.; Remedy: Fix second.",
+    )
+    unrelated = result("unrelated", "Error Number: 10110; Cause: Different product.; Remedy: Different fix.")
+
+    promoted = retriever._promote_diagnostic_table_candidates([], [unrelated, complete], analysis, limit=5)
+
+    assert [item.chunk_id for item in promoted] == ["complete"]
+
+
+def test_retrieve_applies_exact_diagnostic_promotion_after_generic_promotions(monkeypatch):
+    query = (
+        "For MOD-600, compare Error 10109 and Error 10110: "
+        "what causes each one, and what corrective action applies to each?"
+    )
+
+    def result(chunk_id: str, content: str, **metadata: object) -> SearchResult:
+        return SearchResult(
+            chunk_id=chunk_id,
+            score=1.0,
+            title="Manual",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[1],
+            section_path=["Troubleshooting"],
+            content=content,
+            metadata={"chunk_type": "table_record", **metadata},
+        )
+
+    diagnostic = result(
+        "diagnostic",
+        (
+            "Error Number: 10109; Cause: First cause.; Corrective Action: First action. "
+            "Error Number: 10110; Cause: Second cause.; Corrective Action: Second action."
+        ),
+        table_row_group=True,
+        product_model="MOD-600",
+    )
+    generic_results = [
+        result(f"generic-{index}", f"Corrective action for unrelated condition {index}.")
+        for index in range(8)
+    ]
+
+    class FakeStore:
+        pass
+
+    monkeypatch.setattr(retriever, "QdrantStore", FakeStore)
+    monkeypatch.setattr(retriever, "select_documents_from_metadata", lambda *_args, **_kwargs: ({}, []))
+    monkeypatch.setattr(retriever, "run_dense_search", lambda *_args, **_kwargs: generic_results)
+    monkeypatch.setattr(retriever, "run_sparse_search", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(retriever, "run_table_search", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(retriever, "run_table_lexical_search", lambda *_args, **_kwargs: [diagnostic])
+    monkeypatch.setattr(retriever, "run_contextual_lexical_search", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(retriever, "run_special_search", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(retriever, "fuse_results", lambda *_args, **_kwargs: generic_results)
+    monkeypatch.setattr(retriever, "_apply_family_scoring", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "_annotate_completeness", lambda results: results)
+    monkeypatch.setattr(retriever, "_apply_query_alignment", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "_select_family_candidates", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "rerank_results", lambda *_args, **_kwargs: generic_results)
+    monkeypatch.setattr(
+        retriever,
+        "_promote_structured_table_candidates",
+        lambda primary, *_args, **_kwargs: [*generic_results[:3], *primary],
+    )
+    monkeypatch.setattr(retriever, "_promote_comparison_table_candidates", lambda primary, *_args, **_kwargs: primary)
+    monkeypatch.setattr(
+        retriever,
+        "_promote_direct_configuration_candidates",
+        lambda primary, *_args, **_kwargs: [*generic_results[3:6], *primary],
+    )
+    monkeypatch.setattr(retriever, "assemble_context", lambda results, *, limit: results[:limit])
+
+    retrieved = retriever.retrieve(query, ["corpus-1"], {}, limit=5)
+
+    assert retrieved[0].chunk_id == "diagnostic"
+    assert retrieved[0].metadata["retrieval_stage"] == "diagnostic_table_promoted"
+
+
 def test_diagnostic_code_matching_is_exact_and_separator_tolerant():
     assert retriever._text_contains_diagnostic_code("Error Code: 30109; Message: Exact.", "30109") is True
     assert retriever._text_contains_diagnostic_code("Fault E-123: Exact.", "E123") is True
     assert retriever._text_contains_diagnostic_code("Error Code: 301090; Message: Superstring.", "30109") is False
     assert retriever._text_contains_diagnostic_code("Error Code: 3010; Message: Prefix.", "30109") is False
     assert retriever._text_contains_diagnostic_code("Reference x30109y is not a code.", "30109") is False
+
+
+def test_diagnostic_table_code_terms_extract_multiple_labeled_numeric_errors():
+    analysis = analyze_query(
+        "For MOD-600, compare Error 10109 and Error 10110: what causes each one, and what corrective action applies?"
+    )
+
+    assert retriever._diagnostic_table_code_terms(analysis.raw_query, analysis) == ["10109", "10110"]
+    assert retriever._should_run_table_lexical_search(analysis) is True
 
 
 def test_diagnostic_table_support_score_rejects_code_superstrings():

@@ -246,7 +246,10 @@ def _should_run_extra_table_vector_search(analysis: QueryAnalysis) -> bool:
 
 
 def _should_run_table_lexical_search(analysis: QueryAnalysis) -> bool:
-    if analysis.error_code and _query_has_diagnostic_table_code(analysis.raw_query, analysis):
+    diagnostic_codes = _diagnostic_table_code_terms(analysis.raw_query, analysis)
+    if _query_has_diagnostic_table_code(analysis.raw_query, analysis) and (
+        analysis.error_code or len(diagnostic_codes) >= 2
+    ):
         return True
     if "structured_lookup" not in analysis.query_types:
         return True
@@ -419,6 +422,14 @@ def _diagnostic_table_code_terms(query: str, analysis: QueryAnalysis) -> list[st
         normalized_error = _compact_identifier(str(analysis.error_code))
         if normalized_error:
             codes.append(normalized_error)
+    for match in re.finditer(
+        r"\b(?:error|alarm|fault)\s*(?:number|no\.?\s*)?[:#-]?\s*(\d{2,6})\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        compact = _compact_identifier(match.group(1))
+        if compact and compact not in codes:
+            codes.append(compact)
     for match in re.finditer(r"\b[A-Z]{1,4}[- ]?\d{1,4}[A-Z]?\b", query, flags=re.IGNORECASE):
         if any(start <= match.start() and match.end() <= end for start, end in model_spans):
             continue
@@ -2662,6 +2673,31 @@ def _promote_diagnostic_table_candidates(
             selected.append(best)
             selected_ids.add(best.chunk_id)
         candidates = selected
+    else:
+        requested_codes = _diagnostic_table_code_terms(analysis.raw_query, analysis)
+        if len(requested_codes) >= 2:
+            uncovered_codes = set(requested_codes)
+            selected = []
+            remaining = list(candidates)
+            while uncovered_codes and remaining and len(selected) < 3:
+                best = max(
+                    remaining,
+                    key=lambda result: (
+                        sum(1 for code in uncovered_codes if _text_contains_diagnostic_code(str(result.content or ""), code)),
+                        _diagnostic_table_support_score(result, analysis),
+                    ),
+                )
+                covered = {
+                    code
+                    for code in uncovered_codes
+                    if _text_contains_diagnostic_code(str(best.content or ""), code)
+                }
+                if not covered:
+                    break
+                selected.append(best)
+                uncovered_codes.difference_update(covered)
+                remaining = [result for result in remaining if result.chunk_id != best.chunk_id]
+            candidates = selected
     promoted = [
         candidate.model_copy(
             update={
@@ -3135,7 +3171,6 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=chunk_search_filters, limit=12), "family_selected")
     enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=12)
     reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked")
-    reranked = _promote_diagnostic_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     reranked = _promote_structured_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     reranked = _promote_comparison_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     reranked = _promote_direct_configuration_candidates(
@@ -3144,6 +3179,7 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
         analysis,
         limit=12,
     )
+    reranked = _promote_diagnostic_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     deduped = _dedupe_results(reranked, analysis)
     assembled = assemble_context(deduped, limit=limit)
     if not metadata_document_hits:
