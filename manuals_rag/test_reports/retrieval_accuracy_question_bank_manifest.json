@@ -9018,13 +9018,13 @@
     "guardrail_commit": "3a0938a",
     "guardrail_finding_timestamp": "2026-09-02T00:08:00Z",
     "latest_accuracy_cleanup_attempt": {
-      "reused_worktree": "/tmp/manuals_rag_cron_39262386_1788283427",
-      "command": "git -C /home/john/Desktop/Programming/Document_Pipeline_V2 worktree remove /tmp/manuals_rag_cron_39262386_1788283427",
-      "result": "failed: error: failed to delete '/tmp/manuals_rag_cron_39262386_1788283427': Permission denied",
-      "pre_remove_status": "clean detached worktree at pushed commit b0d948d; git status --short --branch showed no uncommitted or untracked work",
-      "post_remove_registry_check": "git worktree list --porcelain no longer lists /tmp/manuals_rag_cron_39262386_1788283427",
-      "post_remove_path_check": "/tmp/manuals_rag_cron_39262386_1788283427 still exists",
-      "post_remove_git_status": "fatal: not a git repository: /home/john/Desktop/Programming/Document_Pipeline_V2/.git/worktrees/manuals_rag_cron_39262386_1788283427",
+      "reused_worktree": "/tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag",
+      "command": "git worktree remove /tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag",
+      "result": "failed: error: failed to delete '/tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag': Permission denied",
+      "pre_remove_status": "clean detached worktree at pushed commit 4408f2c; git status --short --branch showed no uncommitted or untracked work",
+      "post_remove_registry_check": "git worktree list --porcelain no longer lists /tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag",
+      "post_remove_path_check": "/tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag still exists",
+      "post_remove_git_status": "fatal: not a git repository: missing .git/worktrees/manuals_rag44 metadata",
       "next_run_instruction": "Do not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker. Do not manually delete or force-remove leftover paths."
     },
     "policy_added": "docs/runbooks/retrieval_accuracy_cron.md now requires reusing one clean job-owned worktree when safe, creating at most one new worktree per run, verifying clean state before removal, using git worktree remove on the exact path, verifying deregistration, and recording blockers instead of serial throwaway creation.",
@@ -9072,6 +9072,12 @@
         "status": "exists_unregistered_git_metadata_missing",
         "last_recorded": "2026-09-02T02:02:00Z",
         "evidence": "After commit b0d948d was pushed, git worktree remove failed with Permission denied; path still exists, git worktree list no longer registers it, and git status fails because .git/worktrees/manuals_rag_cron_39262386_1788283427 metadata is gone."
+      },
+      {
+        "path": "/tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag",
+        "status": "exists_unregistered_git_metadata_missing",
+        "last_recorded": "2026-09-02T03:34:00Z",
+        "evidence": "After commit 4408f2c was pushed, git worktree remove failed with Permission denied; path still exists, git worktree list no longer registers it, and git status fails because .git/worktrees/manuals_rag44 metadata is gone."
       }
     ]
   },
@@ -12667,13 +12673,13 @@
       "guardrail_commit": "3a0938a",
       "guardrail_finding_timestamp": "2026-09-02T00:08:00Z",
       "latest_accuracy_cleanup_attempt": {
-        "reused_worktree": "/tmp/manuals_rag_cron_39262386_1788283427",
-        "command": "git -C /home/john/Desktop/Programming/Document_Pipeline_V2 worktree remove /tmp/manuals_rag_cron_39262386_1788283427",
-        "result": "failed: error: failed to delete '/tmp/manuals_rag_cron_39262386_1788283427': Permission denied",
-        "pre_remove_status": "clean detached worktree at pushed commit b0d948d; git status --short --branch showed no uncommitted or untracked work",
-        "post_remove_registry_check": "git worktree list --porcelain no longer lists /tmp/manuals_rag_cron_39262386_1788283427",
-        "post_remove_path_check": "/tmp/manuals_rag_cron_39262386_1788283427 still exists",
-        "post_remove_git_status": "fatal: not a git repository: /home/john/Desktop/Programming/Document_Pipeline_V2/.git/worktrees/manuals_rag_cron_39262386_1788283427",
+        "reused_worktree": "/tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag",
+        "command": "git worktree remove /tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag",
+        "result": "failed: error: failed to delete '/tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag': Permission denied",
+        "pre_remove_status": "clean detached worktree at pushed commit 4408f2c; git status --short --branch showed no uncommitted or untracked work",
+        "post_remove_registry_check": "git worktree list --porcelain no longer lists /tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag",
+        "post_remove_path_check": "/tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag still exists",
+        "post_remove_git_status": "fatal: not a git repository: missing .git/worktrees/manuals_rag44 metadata",
         "next_run_instruction": "Do not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker. Do not manually delete or force-remove leftover paths."
       },
       "policy_added": "docs/runbooks/retrieval_accuracy_cron.md now requires reusing one clean job-owned worktree when safe, creating at most one new worktree per run, verifying clean state before removal, using git worktree remove on the exact path, verifying deregistration, and recording blockers instead of serial throwaway creation.",
@@ -12721,6 +12727,12 @@
           "status": "exists_unregistered_git_metadata_missing",
           "last_recorded": "2026-09-02T02:02:00Z",
           "evidence": "After commit b0d948d was pushed, git worktree remove failed with Permission denied; path still exists, git worktree list no longer registers it, and git status fails because .git/worktrees/manuals_rag_cron_39262386_1788283427 metadata is gone."
+        },
+        {
+          "path": "/tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag",
+          "status": "exists_unregistered_git_metadata_missing",
+          "last_recorded": "2026-09-02T03:34:00Z",
+          "evidence": "After commit 4408f2c was pushed, git worktree remove failed with Permission denied; path still exists, git worktree list no longer registers it, and git status fails because .git/worktrees/manuals_rag44 metadata is gone."
         }
       ]
     },
@@ -14977,7 +14989,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T03:31:00Z"
+    "updated_at": "2026-09-02T03:34:00Z"
   },
   "remaining": "Preserve exact troubleshooting identifier binding and duplicate collapse, then gather a clean loaded actual HTTP multi-error answer containing only the requested sides; if row-group fallback retains unrequested siblings, correct that fallback selection generally before optional coverage work.",
   "retrieval_current_failure_categories": {},
@@ -17105,5 +17117,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T03:31:00Z"
+  "updated_at": "2026-09-02T03:34:00Z"
 }

@@ -6653,3 +6653,5 @@ Next target:
 Next target:
 
 - Preserve exact identifier binding and duplicate collapse. Gather a clean loaded actual HTTP multi-error answer containing only requested sides; if row-group fallback retains unrequested siblings, correct fallback evidence selection generally before optional coverage work.
+
+Cleanup finalization: after `4408f2c` was pushed, `/tmp/manuals_rag_accuracy_20260901_cron_ZnrYw2/manuals_rag` was verified clean. Supported `git worktree remove` deregistered it but failed to delete the directory with `Permission denied`; the path still exists and `git status` fails because `.git/worktrees/manuals_rag44` metadata is absent. Both manifest copies now preserve this path in the accumulated cleanup-blocker list and classify it as the latest attempt. No force removal, recursive deletion, worktree prune, primary-checkout mutation, or new worktree creation was attempted.
