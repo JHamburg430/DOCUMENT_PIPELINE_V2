@@ -492,6 +492,8 @@ def check_manifest_change(
     current: dict[str, Any],
     parent: dict[str, Any],
     artifact_base_dir: Path | None = None,
+    parent_artifact_base_dir: Path | None = None,
+    parent_git_ref: str | None = None,
 ) -> list[str]:
     """Require active-count increases to be backed by an explicit dataset-ledger delta."""
     errors: list[str] = []
@@ -536,6 +538,109 @@ def check_manifest_change(
     ]
 
     ledger_delta = {field: 0 for field in ACTIVE_COUNT_FIELDS}
+
+    def artifact_lines(
+        path: str,
+        *,
+        base_dir: Path | None = None,
+        git_ref: str | None = None,
+        label: str,
+    ) -> list[str] | None:
+        try:
+            if git_ref is not None:
+                repo_root = Path(
+                    subprocess.run(
+                        ["git", "rev-parse", "--show-toplevel"],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    ).stdout.strip()
+                )
+                candidate_path = ((artifact_base_dir or Path.cwd()) / path).resolve()
+                relative_path = candidate_path.relative_to(repo_root)
+                payload = subprocess.run(
+                    ["git", "show", f"{git_ref}:{relative_path.as_posix()}"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout
+            elif base_dir is not None:
+                candidate_path = base_dir / path
+                if not candidate_path.is_file():
+                    errors.append(f"{label} dataset is missing: {path}")
+                    return None
+                payload = candidate_path.read_text(encoding="utf-8")
+            else:
+                errors.append(f"{label} dataset cannot be verified without an artifact source: {path}")
+                return None
+        except (subprocess.CalledProcessError, OSError, ValueError) as exc:
+            errors.append(f"{label} dataset is missing or unreadable: {path} ({exc})")
+            return None
+        return [line for line in payload.splitlines() if line.strip()]
+
+    def classify_active_rows(path: str, lines: list[str]) -> dict[str, int] | None:
+        counts = {
+            "total_questions": 0,
+            "single_step_questions": 0,
+            "multi_step_questions": 0,
+        }
+        for index, line in enumerate(lines, start=1):
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as exc:
+                errors.append(f"dataset {path} row {index} is not valid JSON: {exc}")
+                return None
+            if not isinstance(row, dict):
+                errors.append(f"dataset {path} row {index} must be a JSON object")
+                return None
+            if row.get("active") is False:
+                continue
+            task = row.get("retrieval_task")
+            if task == "single_step_retrieval":
+                counts["single_step_questions"] += 1
+            elif task == "multi_step_retrieval":
+                counts["multi_step_questions"] += 1
+            else:
+                errors.append(
+                    f"dataset {path} row {index} has unclassifiable retrieval_task={task!r}"
+                )
+                return None
+            counts["total_questions"] += 1
+        return counts
+
+    def require_new_entry_provenance(entry: dict[str, Any]) -> None:
+        path = entry["path"]
+        for field in ("generation", "status", "quality_review"):
+            value = entry.get(field)
+            if not isinstance(value, str) or not value.strip() or value.strip().lower() in {
+                "none",
+                "unknown",
+                "tbd",
+            }:
+                errors.append(f"new active dataset {path} requires nonempty valid {field}")
+        status = entry.get("status")
+        if isinstance(status, str) and "active" not in status.lower():
+            errors.append(f"new active dataset {path} status must identify active coverage")
+        if not any(
+            isinstance(entry.get(field), str) and entry[field].strip()
+            for field in ("replacement_status", "supersedes", "replacement_or_supersession")
+        ):
+            errors.append(
+                f"new active dataset {path} requires replacement or supersession semantics"
+            )
+        for field in ("results_path", "summary_path", "manifest_path"):
+            evidence_path = entry.get(field)
+            if not isinstance(evidence_path, str) or not evidence_path.strip():
+                errors.append(f"new active dataset {path} requires nonempty {field}")
+            elif artifact_base_dir is None:
+                errors.append(
+                    f"new active dataset {path} {field} cannot be verified without an artifact source"
+                )
+            elif not (artifact_base_dir / evidence_path).is_file():
+                errors.append(
+                    f"new active dataset {path} references missing {field}: {evidence_path}"
+                )
+
     for entry in changed_entries:
         path = entry["path"]
         declared = entry.get("active_count_delta")
@@ -572,21 +677,57 @@ def check_manifest_change(
                             f"extended dataset {path} {field} delta mismatch: "
                             f"entry={after - before} declared={declared_value}"
                         )
-        elif artifact_base_dir is not None:
-            dataset_path = artifact_base_dir / path
-            if not dataset_path.is_file():
-                errors.append(f"new active dataset is missing: {path}")
-            else:
-                line_count = sum(
-                    1
-                    for line in dataset_path.read_text(encoding="utf-8").splitlines()
-                    if line.strip()
+                current_lines = artifact_lines(
+                    path, base_dir=artifact_base_dir, label="current"
                 )
-                total = entry.get("total_questions")
-                if isinstance(total, int) and line_count != total:
-                    errors.append(
-                        f"new dataset {path} line count mismatch: file={line_count} entry={total}"
-                    )
+                parent_lines = artifact_lines(
+                    path,
+                    base_dir=parent_artifact_base_dir,
+                    git_ref=parent_git_ref,
+                    label="parent",
+                )
+                if current_lines is not None and parent_lines is not None:
+                    if len(current_lines) <= len(parent_lines):
+                        errors.append(
+                            f"extended dataset {path} must append a nonblank JSONL row"
+                        )
+                    elif current_lines[: len(parent_lines)] != parent_lines:
+                        errors.append(
+                            f"extended dataset {path} must be append-only; parent rows changed"
+                        )
+                    else:
+                        appended_counts = classify_active_rows(
+                            path, current_lines[len(parent_lines) :]
+                        )
+                        if appended_counts is not None:
+                            for field, actual in appended_counts.items():
+                                declared_value = declared.get(field)
+                                if declared_value != actual:
+                                    errors.append(
+                                        f"extended dataset {path} appended {field} mismatch: "
+                                        f"file={actual} declared={declared_value}"
+                                    )
+        else:
+            require_new_entry_provenance(entry)
+            current_lines = artifact_lines(
+                path, base_dir=artifact_base_dir, label="new active"
+            )
+            if current_lines is not None:
+                active_counts = classify_active_rows(path, current_lines)
+                if active_counts is not None:
+                    for field, actual in active_counts.items():
+                        entry_value = entry.get(field)
+                        declared_value = declared.get(field)
+                        if entry_value != actual:
+                            errors.append(
+                                f"new dataset {path} {field} mismatch: "
+                                f"file={actual} entry={entry_value}"
+                            )
+                        if declared_value != actual:
+                            errors.append(
+                                f"new dataset {path} active_count_delta.{field} mismatch: "
+                                f"file={actual} declared={declared_value}"
+                            )
 
     if any(delta > 0 for delta in count_delta.values()) and not any(
         isinstance(entry.get("active_count_delta"), dict) for entry in changed_entries
@@ -641,7 +782,14 @@ def main() -> int:
     errors = check_manifest(data, Path.cwd())
     if args.parent_git_ref:
         parent = _manifest_from_git_ref(path, args.parent_git_ref)
-        errors.extend(check_manifest_change(data, parent, Path.cwd()))
+        errors.extend(
+            check_manifest_change(
+                data,
+                parent,
+                Path.cwd(),
+                parent_git_ref=args.parent_git_ref,
+            )
+        )
     if errors:
         for error in errors:
             print(error, file=sys.stderr)

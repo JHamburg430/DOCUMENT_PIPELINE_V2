@@ -1,5 +1,6 @@
 import copy
 import importlib.util
+import json
 from pathlib import Path
 
 
@@ -125,6 +126,10 @@ def _active_dataset_entry():
         "status": "exploratory_active_diagnostic_retrieval_failure",
         "generation": "manual_source_reviewed",
         "quality_review": "Source reviewed and preserved as diagnostic evidence.",
+        "replacement_status": "new_active_case_no_replacement_debt",
+        "results_path": "test_reports/new_active_results.jsonl",
+        "summary_path": "test_reports/new_active_summary.json",
+        "manifest_path": "test_reports/new_active_manifest.json",
         "active_count_delta": {
             "total_questions": 1,
             "single_step_questions": 0,
@@ -132,6 +137,54 @@ def _active_dataset_entry():
             "exploratory_questions": 1,
         },
     }
+
+
+def _row(task="multi_step_retrieval", case_id="case-1"):
+    return {"case_id": case_id, "retrieval_task": task, "query": "Source-backed question?"}
+
+
+def _write_new_active_artifacts(root, row=None):
+    reports = root / "test_reports"
+    reports.mkdir(exist_ok=True)
+    (reports / "new_active_dataset.jsonl").write_text(
+        json.dumps(row or _row()) + "\n", encoding="utf-8"
+    )
+    (reports / "new_active_results.jsonl").write_text("{}\n", encoding="utf-8")
+    (reports / "new_active_summary.json").write_text("{}\n", encoding="utf-8")
+    (reports / "new_active_manifest.json").write_text("{}\n", encoding="utf-8")
+
+
+def _registered_dataset_entry(total=1, single=0, multi=1):
+    return {
+        "path": "test_reports/registered_dataset.jsonl",
+        "total_questions": total,
+        "single_step_questions": single,
+        "multi_step_questions": multi,
+        "status": "exploratory_active",
+        "generation": "manual_source_reviewed",
+        "quality_review": "Source reviewed.",
+        "replacement_status": "new_active_case_no_replacement_debt",
+    }
+
+
+def _extension_manifests():
+    parent = _minimal_manifest()
+    parent["question_bank"]["datasets"].append(_registered_dataset_entry())
+    current = copy.deepcopy(parent)
+    current["question_bank"]["total_questions"] += 1
+    current["question_bank"]["multi_step_questions"] += 1
+    current["question_bank"]["exploratory_questions"] += 1
+    entry = current["question_bank"]["datasets"][0]
+    entry["total_questions"] = 2
+    entry["multi_step_questions"] = 2
+    entry["active_count_delta"] = {
+        "total_questions": 1,
+        "single_step_questions": 0,
+        "multi_step_questions": 1,
+        "exploratory_questions": 1,
+    }
+    entry["ledger_change"] = {"kind": "extended_registered_dataset"}
+    return parent, current
 
 
 def test_manifest_checker_accepts_equal_required_pairs():
@@ -150,9 +203,7 @@ def test_manifest_change_accepts_count_increase_with_registered_dataset(tmp_path
     current["question_bank"]["multi_step_questions"] += 1
     current["question_bank"]["exploratory_questions"] += 1
     current["question_bank"]["datasets"].append(_active_dataset_entry())
-    reports = tmp_path / "test_reports"
-    reports.mkdir()
-    (reports / "new_active_dataset.jsonl").write_text("{}\n", encoding="utf-8")
+    _write_new_active_artifacts(tmp_path)
 
     assert module.check_manifest_change(current, parent, tmp_path) == []
 
@@ -178,14 +229,176 @@ def test_manifest_change_rejects_per_type_ledger_delta_mismatch(tmp_path):
     current["question_bank"]["single_step_questions"] += 1
     current["question_bank"]["exploratory_questions"] += 1
     current["question_bank"]["datasets"].append(_active_dataset_entry())
-    reports = tmp_path / "test_reports"
-    reports.mkdir()
-    (reports / "new_active_dataset.jsonl").write_text("{}\n", encoding="utf-8")
+    _write_new_active_artifacts(tmp_path)
 
     errors = module.check_manifest_change(current, parent, tmp_path)
 
     assert any("single_step_questions" in error for error in errors)
     assert any("multi_step_questions" in error for error in errors)
+
+
+def test_manifest_change_accepts_append_only_registered_dataset_extension(tmp_path):
+    module = _load_manifest_check_module()
+    parent, current = _extension_manifests()
+    parent_root = tmp_path / "parent"
+    current_root = tmp_path / "current"
+    (parent_root / "test_reports").mkdir(parents=True)
+    (current_root / "test_reports").mkdir(parents=True)
+    first = json.dumps(_row(case_id="old")) + "\n"
+    (parent_root / "test_reports/registered_dataset.jsonl").write_text(first, encoding="utf-8")
+    (current_root / "test_reports/registered_dataset.jsonl").write_text(
+        first + json.dumps(_row(case_id="new")) + "\n", encoding="utf-8"
+    )
+
+    assert module.check_manifest_change(
+        current, parent, current_root, parent_root
+    ) == []
+
+
+def test_manifest_change_rejects_unchanged_registered_dataset_extension(tmp_path):
+    module = _load_manifest_check_module()
+    parent, current = _extension_manifests()
+    parent_root = tmp_path / "parent"
+    current_root = tmp_path / "current"
+    for root in (parent_root, current_root):
+        (root / "test_reports").mkdir(parents=True)
+        (root / "test_reports/registered_dataset.jsonl").write_text(
+            json.dumps(_row(case_id="old")) + "\n", encoding="utf-8"
+        )
+
+    errors = module.check_manifest_change(current, parent, current_root, parent_root)
+
+    assert any("must append a nonblank JSONL row" in error for error in errors)
+
+
+def test_manifest_change_rejects_missing_extension_artifact(tmp_path):
+    module = _load_manifest_check_module()
+    parent, current = _extension_manifests()
+    parent_root = tmp_path / "parent"
+    current_root = tmp_path / "current"
+    (parent_root / "test_reports").mkdir(parents=True)
+    (parent_root / "test_reports/registered_dataset.jsonl").write_text(
+        json.dumps(_row(case_id="old")) + "\n", encoding="utf-8"
+    )
+
+    errors = module.check_manifest_change(current, parent, current_root, parent_root)
+
+    assert any("current dataset is missing" in error for error in errors)
+
+
+def test_manifest_change_rejects_missing_parent_extension_artifact(tmp_path):
+    module = _load_manifest_check_module()
+    parent, current = _extension_manifests()
+    parent_root = tmp_path / "parent"
+    current_root = tmp_path / "current"
+    (current_root / "test_reports").mkdir(parents=True)
+    (current_root / "test_reports/registered_dataset.jsonl").write_text(
+        json.dumps(_row(case_id="old")) + "\n"
+        + json.dumps(_row(case_id="new")) + "\n",
+        encoding="utf-8",
+    )
+
+    errors = module.check_manifest_change(current, parent, current_root, parent_root)
+
+    assert any("parent dataset is missing" in error for error in errors)
+
+
+def test_manifest_change_rejects_metadata_only_extension(tmp_path):
+    module = _load_manifest_check_module()
+    parent, current = _extension_manifests()
+    parent_root = tmp_path / "parent"
+    current_root = tmp_path / "current"
+    for root in (parent_root, current_root):
+        (root / "test_reports").mkdir(parents=True)
+        (root / "test_reports/registered_dataset.jsonl").write_text(
+            json.dumps(_row(case_id="old")) + "\n", encoding="utf-8"
+        )
+    current["question_bank"]["datasets"][0]["notes"] = "metadata-only edit"
+
+    errors = module.check_manifest_change(current, parent, current_root, parent_root)
+
+    assert any("must append a nonblank JSONL row" in error for error in errors)
+
+
+def test_manifest_change_rejects_replaced_rows_masquerading_as_extension(tmp_path):
+    module = _load_manifest_check_module()
+    parent, current = _extension_manifests()
+    parent_root = tmp_path / "parent"
+    current_root = tmp_path / "current"
+    (parent_root / "test_reports").mkdir(parents=True)
+    (current_root / "test_reports").mkdir(parents=True)
+    (parent_root / "test_reports/registered_dataset.jsonl").write_text(
+        json.dumps(_row(case_id="old")) + "\n", encoding="utf-8"
+    )
+    (current_root / "test_reports/registered_dataset.jsonl").write_text(
+        json.dumps(_row(case_id="rewritten")) + "\n"
+        + json.dumps(_row(case_id="new")) + "\n",
+        encoding="utf-8",
+    )
+
+    errors = module.check_manifest_change(current, parent, current_root, parent_root)
+
+    assert any("must be append-only; parent rows changed" in error for error in errors)
+
+
+def test_manifest_change_rejects_extension_row_type_mismatch(tmp_path):
+    module = _load_manifest_check_module()
+    parent, current = _extension_manifests()
+    parent_root = tmp_path / "parent"
+    current_root = tmp_path / "current"
+    (parent_root / "test_reports").mkdir(parents=True)
+    (current_root / "test_reports").mkdir(parents=True)
+    first = json.dumps(_row(case_id="old")) + "\n"
+    (parent_root / "test_reports/registered_dataset.jsonl").write_text(first, encoding="utf-8")
+    (current_root / "test_reports/registered_dataset.jsonl").write_text(
+        first + json.dumps(_row("single_step_retrieval", "new")) + "\n",
+        encoding="utf-8",
+    )
+
+    errors = module.check_manifest_change(current, parent, current_root, parent_root)
+
+    assert any("appended single_step_questions mismatch" in error for error in errors)
+    assert any("appended multi_step_questions mismatch" in error for error in errors)
+
+
+def test_manifest_change_rejects_new_active_dataset_missing_provenance(tmp_path):
+    module = _load_manifest_check_module()
+    parent = _minimal_manifest()
+    current = copy.deepcopy(parent)
+    current["question_bank"]["total_questions"] += 1
+    current["question_bank"]["multi_step_questions"] += 1
+    current["question_bank"]["exploratory_questions"] += 1
+    entry = _active_dataset_entry()
+    del entry["quality_review"]
+    del entry["replacement_status"]
+    current["question_bank"]["datasets"].append(entry)
+    _write_new_active_artifacts(tmp_path)
+
+    errors = module.check_manifest_change(current, parent, tmp_path)
+
+    assert any("requires nonempty valid quality_review" in error for error in errors)
+    assert any("requires replacement or supersession semantics" in error for error in errors)
+
+
+def test_manifest_change_rejects_new_active_dataset_missing_evidence_artifacts(tmp_path):
+    module = _load_manifest_check_module()
+    parent = _minimal_manifest()
+    current = copy.deepcopy(parent)
+    current["question_bank"]["total_questions"] += 1
+    current["question_bank"]["multi_step_questions"] += 1
+    current["question_bank"]["exploratory_questions"] += 1
+    current["question_bank"]["datasets"].append(_active_dataset_entry())
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    (reports / "new_active_dataset.jsonl").write_text(
+        json.dumps(_row()) + "\n", encoding="utf-8"
+    )
+
+    errors = module.check_manifest_change(current, parent, tmp_path)
+
+    assert any("references missing results_path" in error for error in errors)
+    assert any("references missing summary_path" in error for error in errors)
+    assert any("references missing manifest_path" in error for error in errors)
 
 
 def test_manifest_checker_rejects_missing_root_false_negative_repair():
