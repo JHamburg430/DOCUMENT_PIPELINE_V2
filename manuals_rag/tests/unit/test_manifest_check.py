@@ -111,6 +111,25 @@ def _minimal_manifest():
             "multi_step_questions": 107,
             "exploratory_questions": 208,
             "locked_regression_questions": 0,
+            "datasets": [],
+        },
+    }
+
+
+def _active_dataset_entry():
+    return {
+        "path": "test_reports/new_active_dataset.jsonl",
+        "total_questions": 1,
+        "single_step_questions": 0,
+        "multi_step_questions": 1,
+        "status": "exploratory_active_diagnostic_retrieval_failure",
+        "generation": "manual_source_reviewed",
+        "quality_review": "Source reviewed and preserved as diagnostic evidence.",
+        "active_count_delta": {
+            "total_questions": 1,
+            "single_step_questions": 0,
+            "multi_step_questions": 1,
+            "exploratory_questions": 1,
         },
     }
 
@@ -121,6 +140,52 @@ def test_manifest_checker_accepts_equal_required_pairs():
     errors = module.check_manifest(_minimal_manifest())
 
     assert errors == []
+
+
+def test_manifest_change_accepts_count_increase_with_registered_dataset(tmp_path):
+    module = _load_manifest_check_module()
+    parent = _minimal_manifest()
+    current = copy.deepcopy(parent)
+    current["question_bank"]["total_questions"] += 1
+    current["question_bank"]["multi_step_questions"] += 1
+    current["question_bank"]["exploratory_questions"] += 1
+    current["question_bank"]["datasets"].append(_active_dataset_entry())
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    (reports / "new_active_dataset.jsonl").write_text("{}\n", encoding="utf-8")
+
+    assert module.check_manifest_change(current, parent, tmp_path) == []
+
+
+def test_manifest_change_rejects_count_increase_without_registry_entry():
+    module = _load_manifest_check_module()
+    parent = _minimal_manifest()
+    current = copy.deepcopy(parent)
+    current["question_bank"]["total_questions"] += 1
+    current["question_bank"]["multi_step_questions"] += 1
+    current["question_bank"]["exploratory_questions"] += 1
+
+    errors = module.check_manifest_change(current, parent)
+
+    assert any("increased without a new dataset registry entry" in error for error in errors)
+
+
+def test_manifest_change_rejects_per_type_ledger_delta_mismatch(tmp_path):
+    module = _load_manifest_check_module()
+    parent = _minimal_manifest()
+    current = copy.deepcopy(parent)
+    current["question_bank"]["total_questions"] += 1
+    current["question_bank"]["single_step_questions"] += 1
+    current["question_bank"]["exploratory_questions"] += 1
+    current["question_bank"]["datasets"].append(_active_dataset_entry())
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    (reports / "new_active_dataset.jsonl").write_text("{}\n", encoding="utf-8")
+
+    errors = module.check_manifest_change(current, parent, tmp_path)
+
+    assert any("single_step_questions" in error for error in errors)
+    assert any("multi_step_questions" in error for error in errors)
 
 
 def test_manifest_checker_rejects_missing_root_false_negative_repair():

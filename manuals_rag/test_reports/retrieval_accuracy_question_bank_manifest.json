@@ -10775,6 +10775,31 @@
         "summary_path": "test_reports/retrieval_eval_summary_20260828_102649.json",
         "supersedes": "test_reports/retrieval_eval_dataset_20260824_080232.jsonl rows 5-6 clean answer-evidence claim only; original rows remain diagnostic history",
         "total_questions": 2
+      },
+      {
+        "active_count_delta": {
+          "exploratory_questions": 1,
+          "multi_step_questions": 1,
+          "single_step_questions": 0,
+          "total_questions": 1
+        },
+        "by_chunk_type": {
+          "table_record": 1
+        },
+        "corpus_id": "manuals_vendor_keyence",
+        "created_at": "2026-09-02T06:29:55Z",
+        "generation": "manual_source_reviewed_same_error_cross_model",
+        "manifest_path": "test_reports/retrieval_eval_manifest_20260902_062955.json",
+        "multi_step_questions": 1,
+        "notes": "Active diagnostic coverage added by 8ec8ddb. retrieval_eval_20260902_062955 failed 0/1 retrieval and 0/1 answer grounding: both exact expected chunks reached candidates but were omitted from final_top_k, and the fallback cited unrelated CV-X content. Preserve the failure as diagnostic evidence; it is not a clean answer claim.",
+        "path": "test_reports/retrieval_eval_dataset_20260902_0230_same_error_cross_model.jsonl",
+        "quality_review": "Manual source review verified a realistic user-style comparison and two explicit source roles: CV-X482 Error 30109 means SD Card 1 is full, while VS Series Error 30109 means a selected subtask cannot execute when multiple subtasks are selected. The question names both product sides and the shared error code without filename, chunk, or internal metadata artifacts.",
+        "replacement_status": "new_active_case_no_replacement_debt",
+        "results_path": "test_reports/retrieval_eval_results_20260902_062955.jsonl",
+        "single_step_questions": 0,
+        "status": "exploratory_active_diagnostic_retrieval_failure",
+        "summary_path": "test_reports/retrieval_eval_summary_20260902_062955.json",
+        "total_questions": 1
       }
     ],
     "exploratory_questions": 209,
@@ -14989,7 +15014,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T06:33:00Z"
+    "updated_at": "2026-09-02T07:29:33Z"
   },
   "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted.",
   "retrieval_current_failure_categories": {"ranking_or_context_loss": 1},
@@ -17117,5 +17142,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T06:33:00Z"
+  "updated_at": "2026-09-02T07:29:33Z"
 }

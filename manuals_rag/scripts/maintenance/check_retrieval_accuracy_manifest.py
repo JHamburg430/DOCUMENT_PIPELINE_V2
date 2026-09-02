@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -72,6 +73,12 @@ MINIMUM_ACTIVE_COUNTS = {
     "exploratory_questions": 208,
 }
 MINIMUM_RUN_EXCLUSIONS = 126
+ACTIVE_COUNT_FIELDS = (
+    "total_questions",
+    "single_step_questions",
+    "multi_step_questions",
+    "exploratory_questions",
+)
 
 _MISSING = object()
 _RUN_ID_RE = re.compile(
@@ -481,6 +488,141 @@ def check_manifest(
     return errors
 
 
+def check_manifest_change(
+    current: dict[str, Any],
+    parent: dict[str, Any],
+    artifact_base_dir: Path | None = None,
+) -> list[str]:
+    """Require active-count increases to be backed by an explicit dataset-ledger delta."""
+    errors: list[str] = []
+    current_bank = current.get("question_bank")
+    parent_bank = parent.get("question_bank")
+    if not isinstance(current_bank, dict) or not isinstance(parent_bank, dict):
+        return ["current and parent manifests must contain question_bank objects"]
+
+    count_delta: dict[str, int] = {}
+    for field in ACTIVE_COUNT_FIELDS:
+        current_value = current_bank.get(field)
+        parent_value = parent_bank.get(field)
+        if not isinstance(current_value, int) or not isinstance(parent_value, int):
+            errors.append(f"question_bank.{field} must be an integer in current and parent")
+            continue
+        count_delta[field] = current_value - parent_value
+
+    current_datasets = current_bank.get("datasets")
+    parent_datasets = parent_bank.get("datasets")
+    if not isinstance(current_datasets, list) or not isinstance(parent_datasets, list):
+        errors.append("question_bank.datasets must be a list in current and parent")
+        return errors
+
+    def by_path(entries: list[Any], label: str) -> dict[str, dict[str, Any]]:
+        indexed: dict[str, dict[str, Any]] = {}
+        for entry in entries:
+            if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+                errors.append(f"{label} dataset entry must contain a string path")
+                continue
+            path = entry["path"]
+            if path in indexed:
+                errors.append(f"{label} dataset path is duplicated: {path}")
+            indexed[path] = entry
+        return indexed
+
+    current_by_path = by_path(current_datasets, "current")
+    parent_by_path = by_path(parent_datasets, "parent")
+    changed_entries = [
+        entry
+        for path, entry in current_by_path.items()
+        if path not in parent_by_path or entry != parent_by_path[path]
+    ]
+
+    ledger_delta = {field: 0 for field in ACTIVE_COUNT_FIELDS}
+    for entry in changed_entries:
+        path = entry["path"]
+        declared = entry.get("active_count_delta")
+        if not isinstance(declared, dict):
+            continue
+        for field in ACTIVE_COUNT_FIELDS:
+            value = declared.get(field)
+            if not isinstance(value, int) or value < 0:
+                errors.append(
+                    f"dataset {path} active_count_delta.{field} must be a non-negative integer"
+                )
+                continue
+            ledger_delta[field] += value
+
+        if path in parent_by_path:
+            change = entry.get("ledger_change")
+            if not isinstance(change, dict) or change.get("kind") != "extended_registered_dataset":
+                errors.append(
+                    f"dataset {path} was modified without ledger_change.kind="
+                    "'extended_registered_dataset'"
+                )
+            else:
+                parent_entry = parent_by_path[path]
+                for field in ("total_questions", "single_step_questions", "multi_step_questions"):
+                    before = parent_entry.get(field)
+                    after = entry.get(field)
+                    declared_value = declared.get(field)
+                    if not isinstance(before, int) or not isinstance(after, int):
+                        errors.append(
+                            f"extended dataset {path} must retain integer {field} counts"
+                        )
+                    elif isinstance(declared_value, int) and after - before != declared_value:
+                        errors.append(
+                            f"extended dataset {path} {field} delta mismatch: "
+                            f"entry={after - before} declared={declared_value}"
+                        )
+        elif artifact_base_dir is not None:
+            dataset_path = artifact_base_dir / path
+            if not dataset_path.is_file():
+                errors.append(f"new active dataset is missing: {path}")
+            else:
+                line_count = sum(
+                    1
+                    for line in dataset_path.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                )
+                total = entry.get("total_questions")
+                if isinstance(total, int) and line_count != total:
+                    errors.append(
+                        f"new dataset {path} line count mismatch: file={line_count} entry={total}"
+                    )
+
+    if any(delta > 0 for delta in count_delta.values()) and not any(
+        isinstance(entry.get("active_count_delta"), dict) for entry in changed_entries
+    ):
+        errors.append(
+            "active question counts increased without a new dataset registry entry "
+            "or verified registered-dataset extension"
+        )
+    for field, delta in count_delta.items():
+        if delta != ledger_delta[field]:
+            errors.append(
+                f"active count delta mismatch for {field}: "
+                f"aggregate={delta} dataset_ledger={ledger_delta[field]}"
+            )
+    return errors
+
+
+def _manifest_from_git_ref(path: Path, git_ref: str) -> dict[str, Any]:
+    repo_root = Path(
+        subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+    )
+    relative_path = path.resolve().relative_to(repo_root)
+    payload = subprocess.run(
+        ["git", "show", f"{git_ref}:{relative_path.as_posix()}"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return json.loads(payload)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -488,11 +630,18 @@ def main() -> int:
         nargs="?",
         default="test_reports/retrieval_accuracy_question_bank_manifest.json",
     )
+    parser.add_argument(
+        "--parent-git-ref",
+        help="also validate active-count and dataset-ledger deltas against this Git revision",
+    )
     args = parser.parse_args()
 
     path = Path(args.manifest)
     data = json.loads(path.read_text(encoding="utf-8"))
     errors = check_manifest(data, Path.cwd())
+    if args.parent_git_ref:
+        parent = _manifest_from_git_ref(path, args.parent_git_ref)
+        errors.extend(check_manifest_change(data, parent, Path.cwd()))
     if errors:
         for error in errors:
             print(error, file=sys.stderr)
