@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Guardrail audit 0ef7bb1 accepted the durable 184955 artifact repair. Preserve all of 182758 as diagnostic/not-clean; next investigate a source-reviewed distinct-document troubleshooting comparison with loaded-runtime proof and claim-level citation validation; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Preserve retrieval_eval_20260902_202606 as diagnostic/not-clean: the source-reviewed distinct-document remedy positive failed candidate recall and the unsupported-side control failed closed. Next source-review the full atomic CV-X482 Error 13101 and IV4-G120 image-transfer remedy chunks/document identities, then diagnose the general mixed numeric-error plus prose-symptom retrieval path with loaded controls before any production change; reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a66cbed",
@@ -741,7 +741,7 @@
     },
     "current_answer_failures": {},
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_182758.jsonl and retrieval_eval_results_20260902_184955.jsonl. The 182758 positive is diagnostic/not-clean because its query requested a VS technician action absent from chunk be25fb78. The corrected 184955 positive asks only meaning/cause, cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans, and each cited returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
-    "remaining": "Guardrail audit 0ef7bb1 accepted the durable 184955 artifact repair. Preserve all of 182758 as diagnostic/not-clean; next investigate a source-reviewed distinct-document troubleshooting comparison with loaded-runtime proof and claim-level citation validation; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Preserve retrieval_eval_20260902_202606 as diagnostic/not-clean: the source-reviewed distinct-document remedy positive failed candidate recall and the unsupported-side control failed closed. Next source-review the full atomic CV-X482 Error 13101 and IV4-G120 image-transfer remedy chunks/document identities, then diagnose the general mixed numeric-error plus prose-symptom retrieval path with loaded controls before any production change; reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260902_184955 positive only"
   },
   "constraints": {
@@ -9021,12 +9021,12 @@
     "current_run_worktree": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "created_new_worktree": false,
-        "timestamp": "2026-09-02T19:53:00Z",
-        "git_status_before_final_commit": "dirty only with this run's progress/manifest tracking after fast-forwarding the clean reused worktree to origin/main guardrail commit 0ef7bb1",
+    "timestamp": "2026-09-02T20:27:00Z",
+    "git_status_before_final_commit": "dirty only with this run's validation datasets/results/summary/manifest plus progress/manifest tracking at 7ba255c; origin/main guardrail f42d533 was inspected directly and rated this base ok",
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 0ef7bb1 before final tracking commit",
-      "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
+    "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 7ba255c before final tracking commit; origin/main f42d533 is the inspected guardrail-only successor",
+    "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present before final tracking commit",
       "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -9234,7 +9234,7 @@
       ]
     }
   ],
-  "next_target": "Guardrail audit 0ef7bb1 accepted the durable 184955 artifact repair. Preserve all of 182758 as diagnostic/not-clean; next investigate a source-reviewed distinct-document troubleshooting comparison with loaded-runtime proof and claim-level citation validation; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Preserve retrieval_eval_20260902_202606 as diagnostic/not-clean: the source-reviewed distinct-document remedy positive failed candidate recall and the unsupported-side control failed closed. Next source-review the full atomic CV-X482 Error 13101 and IV4-G120 image-transfer remedy chunks/document identities, then diagnose the general mixed numeric-error plus prose-symptom retrieval path with loaded controls before any production change; reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10203,7 +10203,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Guardrail audit 0ef7bb1 accepted the durable 184955 artifact repair. Preserve all of 182758 as diagnostic/not-clean; next investigate a source-reviewed distinct-document troubleshooting comparison with loaded-runtime proof and claim-level citation validation; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Preserve retrieval_eval_20260902_202606 as diagnostic/not-clean: the source-reviewed distinct-document remedy positive failed candidate recall and the unsupported-side control failed closed. Next source-review the full atomic CV-X482 Error 13101 and IV4-G120 image-transfer remedy chunks/document identities, then diagnose the general mixed numeric-error plus prose-symptom retrieval path with loaded controls before any production change; reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a66cbed",
@@ -10518,7 +10518,7 @@
       },
       "current_answer_failures": {},
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_182758.jsonl and retrieval_eval_results_20260902_184955.jsonl. The 182758 positive is diagnostic/not-clean because its query requested a VS technician action absent from chunk be25fb78. The corrected 184955 positive asks only meaning/cause, cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans, and each cited returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
-      "remaining": "Guardrail audit 0ef7bb1 accepted the durable 184955 artifact repair. Preserve all of 182758 as diagnostic/not-clean; next investigate a source-reviewed distinct-document troubleshooting comparison with loaded-runtime proof and claim-level citation validation; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Preserve retrieval_eval_20260902_202606 as diagnostic/not-clean: the source-reviewed distinct-document remedy positive failed candidate recall and the unsupported-side control failed closed. Next source-review the full atomic CV-X482 Error 13101 and IV4-G120 image-transfer remedy chunks/document identities, then diagnose the general mixed numeric-error plus prose-symptom retrieval path with loaded controls before any production change; reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260902_184955 positive only"
     },
     "current_answer_failure_categories": {},
@@ -12767,12 +12767,12 @@
       "current_run_worktree": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
         "created_new_worktree": false,
-      "timestamp": "2026-09-02T19:53:00Z",
-      "git_status_before_final_commit": "dirty only with this run's progress/manifest tracking after fast-forwarding the clean reused worktree to origin/main guardrail commit 0ef7bb1",
+    "timestamp": "2026-09-02T20:27:00Z",
+    "git_status_before_final_commit": "dirty only with this run's validation datasets/results/summary/manifest plus progress/manifest tracking at 7ba255c; origin/main guardrail f42d533 was inspected directly and rated this base ok",
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 0ef7bb1 before final tracking commit",
-        "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
+    "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 7ba255c before final tracking commit; origin/main f42d533 is the inspected guardrail-only successor",
+    "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present before final tracking commit",
         "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -12982,7 +12982,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Guardrail audit 0ef7bb1 accepted the durable 184955 artifact repair. Preserve all of 182758 as diagnostic/not-clean; next investigate a source-reviewed distinct-document troubleshooting comparison with loaded-runtime proof and claim-level citation validation; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Preserve retrieval_eval_20260902_202606 as diagnostic/not-clean: the source-reviewed distinct-document remedy positive failed candidate recall and the unsupported-side control failed closed. Next source-review the full atomic CV-X482 Error 13101 and IV4-G120 image-transfer remedy chunks/document identities, then diagnose the general mixed numeric-error plus prose-symptom retrieval path with loaded controls before any production change; reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13019,9 +13019,14 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Guardrail audit 0ef7bb1 accepted the durable 184955 artifact repair. Preserve all of 182758 as diagnostic/not-clean; next investigate a source-reviewed distinct-document troubleshooting comparison with loaded-runtime proof and claim-level citation validation; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Preserve retrieval_eval_20260902_202606 as diagnostic/not-clean: the source-reviewed distinct-document remedy positive failed candidate recall and the unsupported-side control failed closed. Next source-review the full atomic CV-X482 Error 13101 and IV4-G120 image-transfer remedy chunks/document identities, then diagnose the general mixed numeric-error plus prose-symptom retrieval path with loaded controls before any production change; reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
+      {
+        "reason": "diagnostic/not-clean validation-only run: the realistic distinct-document remedy positive failed candidate recall and retrieved neither expected atomic remedy row; the Error 99999 unsupported-side control failed closed. Both API payloads returned insufficient evidence with no citations, so no retrieval or answer result is accepted clean.",
+        "run_id": "retrieval_eval_20260902_202606",
+        "scope": "distinct-document CV-X482 Error 13101 plus IV4-G120 image-transfer remedy validation positive and missing-side control"
+      },
       {
         "reason": "diagnostic/unproven runtime evidence: retrieval passed 1/1 and answer grounding failed 0/1, but the HTTP container was mounted from /tmp/manuals_rag_accuracy_wy74Sk/manuals_rag/manuals_rag and its loaded query-analysis/retriever hashes differed from the interrupted patch in /tmp/manuals_rag_accuracy_20260901/manuals_rag; loaded control did not extract numeric Error 30109",
         "run_id": "retrieval_eval_20260902_094552",
@@ -15258,11 +15263,16 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T19:53:00Z"
+    "updated_at": "2026-09-02T20:27:00Z"
   },
-  "remaining": "Guardrail audit 0ef7bb1 accepted the durable 184955 artifact repair. Preserve all of 182758 as diagnostic/not-clean; next investigate a source-reviewed distinct-document troubleshooting comparison with loaded-runtime proof and claim-level citation validation; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Preserve retrieval_eval_20260902_202606 as diagnostic/not-clean: the source-reviewed distinct-document remedy positive failed candidate recall and the unsupported-side control failed closed. Next source-review the full atomic CV-X482 Error 13101 and IV4-G120 image-transfer remedy chunks/document identities, then diagnose the general mixed numeric-error plus prose-symptom retrieval path with loaded controls before any production change; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
+    {
+      "reason": "diagnostic/not-clean validation-only run: the realistic distinct-document remedy positive failed candidate recall and retrieved neither expected atomic remedy row; the Error 99999 unsupported-side control failed closed. Both API payloads returned insufficient evidence with no citations, so no retrieval or answer result is accepted clean.",
+      "run_id": "retrieval_eval_20260902_202606",
+      "scope": "distinct-document CV-X482 Error 13101 plus IV4-G120 image-transfer remedy validation positive and missing-side control"
+    },
     {
       "reason": "diagnostic/unproven runtime evidence: retrieval passed 1/1 and answer grounding failed 0/1, but the HTTP container was mounted from /tmp/manuals_rag_accuracy_wy74Sk/manuals_rag/manuals_rag and its loaded query-analysis/retriever hashes differed from the interrupted patch in /tmp/manuals_rag_accuracy_20260901/manuals_rag; loaded control did not extract numeric Error 30109",
       "run_id": "retrieval_eval_20260902_094552",
@@ -17498,5 +17508,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T19:53:00Z"
+  "updated_at": "2026-09-02T20:27:00Z"
 }
