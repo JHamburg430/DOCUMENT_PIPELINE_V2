@@ -8995,14 +8995,14 @@
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
       "created_new_worktree": false,
-      "git_status_after_primary_commit": "before the answer-grounding finalization commit, the selected worktree contains only the scoped generator/test changes, progress/manifest tracking, and 123026/124857 eval manifest/summary artifacts described by guardrail 8de514a",
+      "git_status_after_primary_commit": "after rebased production/evidence commit 9ad25b1, git status --short --branch was clean and detached",
       "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 in git worktree list --porcelain",
       "removal_command": "not attempted",
       "removal_result": "not attempted; the selected verified reusable worktree is intentionally kept registered because prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
       "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_git_status_check": "not removed; pre-commit status contains only the scoped answer-grounding finalization files recorded by this run",
+      "post_removal_git_status_check": "not removed; after commit 9ad25b1 git status --short --branch was clean and detached",
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "timestamp": "2026-09-02T13:07:00Z"
     },
@@ -12716,14 +12716,14 @@
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
         "created_new_worktree": false,
-      "git_status_after_primary_commit": "before the answer-grounding finalization commit, the selected worktree contains only the scoped generator/test changes, progress/manifest tracking, and 123026/124857 eval manifest/summary artifacts described by guardrail 8de514a",
+      "git_status_after_primary_commit": "after rebased production/evidence commit 9ad25b1, git status --short --branch was clean and detached",
         "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 in git worktree list --porcelain",
         "removal_command": "not attempted",
       "removal_result": "not attempted; the selected verified reusable worktree is intentionally kept registered because prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
         "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_git_status_check": "not removed; pre-commit status contains only the scoped answer-grounding finalization files recorded by this run",
+      "post_removal_git_status_check": "not removed; after commit 9ad25b1 git status --short --branch was clean and detached",
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "timestamp": "2026-09-02T13:07:00Z"
       },
