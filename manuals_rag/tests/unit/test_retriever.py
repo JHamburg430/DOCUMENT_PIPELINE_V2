@@ -382,6 +382,29 @@ def test_query_analysis_extracts_explicit_numeric_error_and_comparison_scope():
     assert retriever._should_run_table_lexical_search(analysis) is True
 
 
+@pytest.mark.parametrize("family", ["VS Series", "XG-X Series"])
+def test_query_analysis_marks_repeated_product_side_clauses_as_comparison(family: str):
+    analysis = analyze_query(
+        "On a CV-X482, what should a technician check for Error 13101, "
+        f"and on the {family}, what should they check when image data cannot be transferred?"
+    )
+
+    assert "comparison" in analysis.query_types
+    assert analysis.product_identifiers == ["CV-X482", family.removesuffix(" Series")]
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "What address values apply for IV4-G120 and IV4-G600CA?",
+        "On a CV-X482, what should a technician check for Error 13101?",
+        "What Display Settings value applies to VS Series Vision System?",
+    ],
+)
+def test_query_analysis_does_not_broaden_ordinary_product_wording_to_comparison(query: str):
+    assert "comparison" not in analyze_query(query).query_types
+
+
 def test_query_analysis_does_not_treat_unlabeled_quantity_as_error_code():
     analysis = analyze_query("How do the CV-X482 and VS Series differ when storing 30109 images?")
 

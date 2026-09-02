@@ -224,9 +224,36 @@ def analyze_query(query: str) -> QueryAnalysis:
     explicit_identifier_count = int(bool(model_match)) + int(bool(error_match))
     filter_strictness = "strict" if explicit_identifier_count >= 2 else ("balanced" if explicit_identifier_count == 1 else "loose")
     product_identifiers: list[str] = []
-    for _start, identifier in sorted([*model_matches, *family_matches, *comparison_identifier_matches], key=lambda item: item[0]):
+    identifier_matches = sorted(
+        [*model_matches, *family_matches, *comparison_identifier_matches],
+        key=lambda item: item[0],
+    )
+    for _start, identifier in identifier_matches:
         if identifier and identifier not in product_identifiers:
             product_identifiers.append(identifier)
+    side_clause_matches: list[tuple[int, int, str]] = []
+    seen_side_identifiers: set[str] = set()
+    for start, identifier in identifier_matches:
+        if identifier in seen_side_identifiers:
+            continue
+        end = start + len(identifier)
+        prefix = query[max(0, start - 24) : start]
+        marker = re.search(r"\b(on|for|with)\s+(?:an?\s+|the\s+)?$", prefix, flags=re.IGNORECASE)
+        if marker:
+            side_clause_matches.append((start, end, marker.group(1).lower()))
+            seen_side_identifiers.add(identifier)
+    repeated_side_clause_comparison = any(
+        first_marker == second_marker
+        and re.search(r"\band\b", query[first_end:second_start], flags=re.IGNORECASE)
+        for (first_start, first_end, first_marker), (second_start, _second_end, second_marker) in zip(
+            side_clause_matches,
+            side_clause_matches[1:],
+            strict=False,
+        )
+    )
+    if len(product_identifiers) >= 2 and repeated_side_clause_comparison:
+        types.append("comparison")
+        preferred_chunk_types.extend(["spec_record", "datasheet_record", "table_record"])
     return QueryAnalysis(
         raw_query=query,
         query_types=sorted(set(types)),
