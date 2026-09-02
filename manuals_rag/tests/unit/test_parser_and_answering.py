@@ -3987,6 +3987,49 @@ def test_troubleshooting_citations_accept_same_error_across_two_models():
     )
 
 
+def test_validate_answer_fallback_keeps_exact_same_error_rows_for_both_model_sides():
+    def row(chunk_id: str, model: str, meaning: str) -> SearchResult:
+        return SearchResult(
+            chunk_id=chunk_id, score=1.0, title=f"{model} Manual",
+            document_version_id=f"v-{model}", source_document_id=f"d-{model}",
+            pages=[10], section_path=["Errors"],
+            content=f"Error Code: 30109; Message: {meaning}",
+            metadata={"chunk_type": "table_record", "product_model": model},
+        )
+
+    cv = row("cv", "CV-X482", "SD Card 1 is full.")
+    vs = row("vs", "VS", "Cannot execute when multiple subtasks are selected.")
+    generated = AnswerResponse(
+        answer="Unsupported generated comparison.", confidence="high", used_documents=[], citations=[],
+        warnings=[], followup_questions=[], insufficient_evidence=False,
+    )
+    validated = validate_answer(
+        generated, [cv, vs], query="How does Error 30109 differ between CV-X482 and VS Series?"
+    )
+
+    assert not validated.insufficient_evidence
+    assert {citation["chunk_id"] for citation in validated.citations} == {"cv", "vs"}
+    assert "SD Card 1 is full" in validated.answer
+    assert "multiple subtasks" in validated.answer
+
+
+def test_validate_answer_fallback_fails_closed_for_explicit_code_superstring():
+    sibling = SearchResult(
+        chunk_id="sibling", score=1.0, title="CV-X482 Manual", document_version_id="v1",
+        source_document_id="d1", pages=[10], section_path=["Errors"],
+        content="Error Number: 30109; Error Messages: SD Card 1 is full.",
+        metadata={"chunk_type": "table_record", "product_model": "CV-X482"},
+    )
+    generated = AnswerResponse(
+        answer="Error 301090 means the SD card is full.", confidence="high", used_documents=[],
+        citations=[_citation("sibling")], warnings=[], followup_questions=[], insufficient_evidence=False,
+    )
+    validated = validate_answer(generated, [sibling], query="What does Error 301090 mean on CV-X482?")
+
+    assert validated.insufficient_evidence
+    assert validated.citations == []
+
+
 def test_troubleshooting_citations_accept_same_error_across_two_versions():
     first = _troubleshooting_row("v2-error-10109", "10109")
     second = _troubleshooting_row("v3-error-10109", "10109")

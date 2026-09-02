@@ -1,5 +1,5 @@
 {
-  "answer_current_failure_categories": {"expected_document_not_cited_or_used": 1, "expected_evidence_not_cited": 1, "retrieval_not_passed": 1},
+  "answer_current_failure_categories": {},
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
@@ -182,14 +182,14 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-09-02T01:36:00Z",
-    "latest_run": "retrieval_eval_20260902_013157",
-    "classification": "accepted_clean_sibling_row17_anchor_matched_validation_fallback",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260901_2355_sibling_row17_row_group_equivalence.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260902_013157.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260902_013157.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260902_013157.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260902_013157.json",
+    "timestamp": "2026-09-02T12:49:00Z",
+    "latest_run": "retrieval_eval_20260902_124857",
+    "classification": "accepted_clean_exact_code_cross_model_grounded_fallback",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260902_0230_same_error_cross_model.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260902_124857.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260902_124857.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260902_124857.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260902_124857.json",
     "search_mode": "http",
     "response_mode": "answer_with_citations",
     "max_queries": 1,
@@ -216,7 +216,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained. Inspected failed retrieval_eval_results_20260902_062955.jsonl: both exact Error 30109 evidence chunks were absent from final_top_k and every returned citation was unrelated CV-X overview/PLC content.",
-  "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_20260901; removal was intentionally not attempted.",
+  "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
     "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -695,9 +695,10 @@
       "retrieval_eval_20260901_193440 cross-document row 8 source-reviewed visible unsupported-SD equivalent citation",
       "retrieval_eval_20260901_205536 cross-document row 9 source-reviewed visible equivalent citations",
       "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations",
-      "retrieval_eval_20260902_013157 sibling troubleshooting row 17 source-reviewed visible row-group citation"
+      "retrieval_eval_20260902_013157 sibling troubleshooting row 17 source-reviewed visible row-group citation",
+      "retrieval_eval_20260902_124857 Error 30109 cross-model exact-code grounded answer"
     ],
-    "answer_grounding_status": "Cross-document rows 1-10 and sibling troubleshooting row 17 are accepted clean under source-reviewed visible-citation-content scoring. Row 17 rerun retrieval_eval_20260902_013157 passed after troubleshooting citations were required to match the requested error/message anchor; the API answer used validation fallback, cited only c7b00dfb, and did not retain sibling Error 10101/10106 guidance.",
+    "answer_grounding_status": "Cross-document rows 1-10, sibling troubleshooting row 17, and the Error 30109 cross-model case are accepted clean under source-reviewed visible-citation-content scoring. retrieval_eval_20260902_124857 cited the exact CV-X482 and VS chunks and directly stated both requested meanings; the explicit Error 301090 API negative failed closed with no citations.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -707,12 +708,16 @@
       "sibling_row17_clean_dataset": "test_reports/retrieval_eval_dataset_20260902_013157.jsonl",
       "sibling_row17_clean_results": "test_reports/retrieval_eval_results_20260902_013157.jsonl",
       "sibling_row17_clean_summary": "test_reports/retrieval_eval_summary_20260902_013157.json",
-      "sibling_row17_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_013157.json"
+      "sibling_row17_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_013157.json",
+      "error_30109_pre_fix_results": "test_reports/retrieval_eval_results_20260902_123026.jsonl",
+      "error_30109_clean_results": "test_reports/retrieval_eval_results_20260902_124857.jsonl",
+      "error_30109_clean_summary": "test_reports/retrieval_eval_summary_20260902_124857.json",
+      "error_30109_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_124857.json"
     },
     "current_answer_failures": {},
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-    "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_20260901; removal was intentionally not attempted.",
-    "latest_clean_run": "retrieval_eval_20260902_013157"
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against both expected evidence roles. The visible fallback answer cites exact chunks ffd4b1bd and be25fb78 with null quote spans; their returned content directly supports CV-X482 SD Card 1 full and VS multiple-subtasks-selected meanings. retrieval_eval_20260902_123026 remains diagnostic because it cited only CV-X482.",
+    "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
+    "latest_clean_run": "retrieval_eval_20260902_124857"
   },
   "constraints": {
     "allowed_logic": [
@@ -730,15 +735,15 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {"expected_document_not_cited_or_used": 1, "expected_evidence_not_cited": 1, "retrieval_not_passed": 1},
-  "current_answer_failure_source": "After clean rotation retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed expected_document_not_cited_or_used, expected_evidence_not_cited, and retrieval_not_passed.",
-  "current_failure_categories": {"ranking_or_context_loss": 1},
+  "current_answer_failure_categories": {},
+  "current_answer_failure_source": "retrieval_eval_20260902_124857 passed actual HTTP answer grounding 1/1 after the exact-code fallback correction; retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 remain preserved diagnostic/not-clean one-sided answer evidence.",
+  "current_failure_categories": {},
   "current_failure_sources": {
-    "retrieval": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed ranking_or_context_loss.",
-    "answer": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed expected_document_not_cited_or_used, expected_evidence_not_cited, and retrieval_not_passed."
+    "retrieval": "none",
+    "answer": "none"
   },
-  "current_retrieval_failure_categories": {"ranking_or_context_loss": 1},
-  "current_retrieval_failure_source": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed ranking_or_context_loss.",
+  "current_retrieval_failure_categories": {},
+  "current_retrieval_failure_source": "none; retrieval_eval_20260902_120951 passed 1/1 with both exact Error 30109 product-side chunks after loaded exact-code correction.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -936,7 +941,7 @@
       "total_queries": 10
     }
   ],
-  "failure_categories": {"ranking_or_context_loss": 1},
+  "failure_categories": {},
   "goal": {
     "components": [
       "single_step_retrieval",
@@ -8990,16 +8995,16 @@
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
       "created_new_worktree": false,
-      "git_status_after_primary_commit": "checker/tracking commit leaves the pre-existing interrupted retrieval experiment dirty by design: query_analysis.py, retriever.py, test_retriever.py, and untracked retrieval_eval_manifest_20260902_094552.json plus retrieval_eval_summary_20260902_094552.json; no experiment file was reset, discarded, or included in this containment commit",
+      "git_status_after_primary_commit": "before the answer-grounding finalization commit, the selected worktree contains only the scoped generator/test changes, progress/manifest tracking, and 123026/124857 eval manifest/summary artifacts described by guardrail 8de514a",
       "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 in git worktree list --porcelain",
       "removal_command": "not attempted",
-      "removal_result": "not attempted; the selected worktree contains preserved interrupted accuracy-owned retrieval changes and is not clean, so supported removal is unsafe",
+      "removal_result": "not attempted; the selected verified reusable worktree is intentionally kept registered because prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
       "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_git_status_check": "not removed; status remains intentionally dirty only with the preserved interrupted retrieval experiment and its diagnostic artifacts after the checker/tracking commit",
+      "post_removal_git_status_check": "not removed; pre-commit status contains only the scoped answer-grounding finalization files recorded by this run",
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-      "timestamp": "2026-09-02T11:00:00Z"
+      "timestamp": "2026-09-02T13:07:00Z"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -9204,7 +9209,7 @@
       ]
     }
   ],
-  "next_target": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_20260901; removal was intentionally not attempted.",
+  "next_target": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9957,7 +9962,7 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {"expected_document_not_cited_or_used": 1, "expected_evidence_not_cited": 1, "retrieval_not_passed": 1},
+    "answer_current_failure_categories": {},
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
@@ -10140,14 +10145,14 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-09-02T01:36:00Z",
-      "latest_run": "retrieval_eval_20260902_013157",
-      "classification": "accepted_clean_sibling_row17_anchor_matched_validation_fallback",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260901_2355_sibling_row17_row_group_equivalence.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260902_013157.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260902_013157.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260902_013157.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260902_013157.json",
+    "timestamp": "2026-09-02T12:49:00Z",
+      "latest_run": "retrieval_eval_20260902_124857",
+      "classification": "accepted_clean_exact_code_cross_model_grounded_fallback",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260902_0230_same_error_cross_model.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260902_124857.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260902_124857.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260902_124857.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260902_124857.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "max_queries": 1,
@@ -10174,7 +10179,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained. Inspected failed retrieval_eval_results_20260902_062955.jsonl: both exact Error 30109 evidence chunks were absent from final_top_k and every returned citation was unrelated CV-X overview/PLC content.",
-      "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_20260901; removal was intentionally not attempted.",
+      "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
       "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10442,9 +10447,10 @@
         "retrieval_eval_20260901_193440 cross-document row 8 source-reviewed visible unsupported-SD equivalent citation",
         "retrieval_eval_20260901_205536 cross-document row 9 source-reviewed visible equivalent citations",
         "retrieval_eval_20260901_212610 cross-document row 10 source-reviewed visible exact citations",
-        "retrieval_eval_20260902_013157 sibling troubleshooting row 17 source-reviewed visible row-group citation"
+        "retrieval_eval_20260902_013157 sibling troubleshooting row 17 source-reviewed visible row-group citation",
+        "retrieval_eval_20260902_124857 Error 30109 cross-model exact-code grounded answer"
       ],
-      "answer_grounding_status": "Cross-document rows 1-10 and sibling troubleshooting row 17 are accepted clean under source-reviewed visible-citation-content scoring. Row 17 rerun retrieval_eval_20260902_013157 passed after troubleshooting citations were required to match the requested error/message anchor; the API answer used validation fallback, cited only c7b00dfb, and did not retain sibling Error 10101/10106 guidance.",
+      "answer_grounding_status": "Cross-document rows 1-10, sibling troubleshooting row 17, and the Error 30109 cross-model case are accepted clean under source-reviewed visible-citation-content scoring. retrieval_eval_20260902_124857 cited the exact CV-X482 and VS chunks and directly stated both requested meanings; the explicit Error 301090 API negative failed closed with no citations.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10454,22 +10460,26 @@
         "sibling_row17_clean_dataset": "test_reports/retrieval_eval_dataset_20260902_013157.jsonl",
         "sibling_row17_clean_results": "test_reports/retrieval_eval_results_20260902_013157.jsonl",
         "sibling_row17_clean_summary": "test_reports/retrieval_eval_summary_20260902_013157.json",
-        "sibling_row17_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_013157.json"
+        "sibling_row17_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_013157.json",
+        "error_30109_pre_fix_results": "test_reports/retrieval_eval_results_20260902_123026.jsonl",
+        "error_30109_clean_results": "test_reports/retrieval_eval_results_20260902_124857.jsonl",
+        "error_30109_clean_summary": "test_reports/retrieval_eval_summary_20260902_124857.json",
+        "error_30109_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_124857.json"
       },
       "current_answer_failures": {},
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-      "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_20260901; removal was intentionally not attempted.",
-      "latest_clean_run": "retrieval_eval_20260902_013157"
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_124857.jsonl against both expected evidence roles. The visible fallback answer cites exact chunks ffd4b1bd and be25fb78 with null quote spans; their returned content directly supports CV-X482 SD Card 1 full and VS multiple-subtasks-selected meanings. retrieval_eval_20260902_123026 remains diagnostic because it cited only CV-X482.",
+      "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
+      "latest_clean_run": "retrieval_eval_20260902_124857"
     },
-    "current_answer_failure_categories": {"expected_document_not_cited_or_used": 1, "expected_evidence_not_cited": 1, "retrieval_not_passed": 1},
-    "current_answer_failure_source": "After clean rotation retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed expected_document_not_cited_or_used, expected_evidence_not_cited, and retrieval_not_passed.",
-    "current_failure_categories": {"ranking_or_context_loss": 1},
+    "current_answer_failure_categories": {},
+    "current_answer_failure_source": "retrieval_eval_20260902_124857 passed actual HTTP answer grounding 1/1 after the exact-code fallback correction; retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 remain preserved diagnostic/not-clean one-sided answer evidence.",
+    "current_failure_categories": {},
     "current_failure_sources": {
-      "retrieval": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed ranking_or_context_loss.",
-      "answer": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed expected_document_not_cited_or_used, expected_evidence_not_cited, and retrieval_not_passed."
+      "retrieval": "none",
+    "answer": "none"
     },
-    "current_retrieval_failure_categories": {"ranking_or_context_loss": 1},
-    "current_retrieval_failure_source": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed ranking_or_context_loss.",
+    "current_retrieval_failure_categories": {},
+    "current_retrieval_failure_source": "none; retrieval_eval_20260902_120951 passed 1/1 with both exact Error 30109 product-side chunks after loaded exact-code correction.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -10839,7 +10849,7 @@
       }
     ],
     "exploratory_questions": 209,
-    "failure_categories": {"ranking_or_context_loss": 1},
+    "failure_categories": {},
     "latest_comparison_setting_side_binding_containment": {
       "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
       "actual_http_evidence": {
@@ -12706,16 +12716,16 @@
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
         "created_new_worktree": false,
-        "git_status_after_primary_commit": "checker/tracking commit leaves the pre-existing interrupted retrieval experiment dirty by design: query_analysis.py, retriever.py, test_retriever.py, and untracked retrieval_eval_manifest_20260902_094552.json plus retrieval_eval_summary_20260902_094552.json; no experiment file was reset, discarded, or included in this containment commit",
+      "git_status_after_primary_commit": "before the answer-grounding finalization commit, the selected worktree contains only the scoped generator/test changes, progress/manifest tracking, and 123026/124857 eval manifest/summary artifacts described by guardrail 8de514a",
         "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 in git worktree list --porcelain",
         "removal_command": "not attempted",
-        "removal_result": "not attempted; the selected worktree contains preserved interrupted accuracy-owned retrieval changes and is not clean, so supported removal is unsafe",
+      "removal_result": "not attempted; the selected verified reusable worktree is intentionally kept registered because prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
         "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-        "post_removal_git_status_check": "not removed; status remains intentionally dirty only with the preserved interrupted retrieval experiment and its diagnostic artifacts after the checker/tracking commit",
+      "post_removal_git_status_check": "not removed; pre-commit status contains only the scoped answer-grounding finalization files recorded by this run",
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-        "timestamp": "2026-09-02T11:00:00Z"
+      "timestamp": "2026-09-02T13:07:00Z"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12922,7 +12932,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_20260901; removal was intentionally not attempted.",
+    "next_target": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12959,8 +12969,8 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_20260901; removal was intentionally not attempted.",
-    "retrieval_current_failure_categories": {"ranking_or_context_loss": 1},
+    "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
+    "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
         "reason": "diagnostic/unproven runtime evidence: retrieval passed 1/1 and answer grounding failed 0/1, but the HTTP container was mounted from /tmp/manuals_rag_accuracy_wy74Sk/manuals_rag/manuals_rag and its loaded query-analysis/retriever hashes differed from the interrupted patch in /tmp/manuals_rag_accuracy_20260901/manuals_rag; loaded control did not extract numeric Error 30109",
@@ -15119,10 +15129,10 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T11:00:00Z"
+    "updated_at": "2026-09-02T13:07:00Z"
   },
-  "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_20260901; removal was intentionally not attempted.",
-  "retrieval_current_failure_categories": {"ranking_or_context_loss": 1},
+  "remaining": "Await guardrail review of retrieval_eval_20260902_124857 and the explicit Error 301090 fail-closed API control; preserve retrieval_eval_20260902_123026 and retrieval_eval_20260902_112809 as diagnostic/not-clean evidence. Reuse /tmp/manuals_rag_accuracy_20260901; removal remains intentionally not attempted.",
+  "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
       "reason": "diagnostic/unproven runtime evidence: retrieval passed 1/1 and answer grounding failed 0/1, but the HTTP container was mounted from /tmp/manuals_rag_accuracy_wy74Sk/manuals_rag/manuals_rag and its loaded query-analysis/retriever hashes differed from the interrupted patch in /tmp/manuals_rag_accuracy_20260901/manuals_rag; loaded control did not extract numeric Error 30109",
@@ -17280,5 +17290,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T11:00:00Z"
+  "updated_at": "2026-09-02T13:07:00Z"
 }

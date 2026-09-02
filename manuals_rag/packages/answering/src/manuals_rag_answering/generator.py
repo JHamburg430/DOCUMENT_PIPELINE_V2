@@ -213,6 +213,33 @@ def _result_mentions_requested_model_side(result: SearchResult, model: str) -> b
     return model.upper() in _model_tokens(_result_model_text(result))
 
 
+def _requested_product_sides(query: str) -> list[tuple[str, bool]]:
+    """Return explicit product/model sides, preserving declared family scope."""
+    sides: list[tuple[str, bool]] = [(model, False) for model in _ordered_model_tokens(query)]
+    seen = {model for model, _is_family in sides}
+    for match in re.finditer(r"\b([A-Z][A-Z0-9-]{1,14})\s+(?:Series|Family)\b", query):
+        label = match.group(1).upper()
+        if label not in seen:
+            sides.append((label, True))
+            seen.add(label)
+    return sides
+
+
+def _result_matches_requested_product_side(
+    result: SearchResult,
+    side: tuple[str, bool],
+) -> bool:
+    label, is_family = side
+    if not is_family:
+        return _result_mentions_requested_model_side(result, label)
+    result_text = _result_model_text(result)
+    if re.search(rf"\b{re.escape(label)}\s+(?:Series|Family)\b", result_text, flags=re.IGNORECASE):
+        return True
+    if re.search(rf"\b{re.escape(label)}\b", result_text, flags=re.IGNORECASE):
+        return True
+    return any(model.startswith(f"{label}-") for model in _model_tokens(result_text))
+
+
 def _table_model_scope_conflict(query: str, result: SearchResult) -> bool:
     if str(result.metadata.get("chunk_type") or "") != "table_record":
         return False
@@ -1474,7 +1501,14 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             for result in fallback_results
             if _troubleshooting_row_identifiers(result).intersection(requested_troubleshooting_ids)
         ]
-        if requested_results:
+        has_explicit_diagnostic_code = bool(
+            re.search(
+                r"\b(?:error|alarm|fault)(?:\s+(?:number|code))?\s*[:#-]?\s*[a-z]*\d[a-z0-9._/-]*\b",
+                query,
+                flags=re.IGNORECASE,
+            )
+        )
+        if requested_results or has_explicit_diagnostic_code:
             fallback_results = requested_results
     if not fallback_results:
         return AnswerResponse(
@@ -2369,6 +2403,32 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
         query,
         _focused_troubleshooting_results(query, _order_troubleshooting_results(query, results)),
     )
+    requested_ids = _query_requested_troubleshooting_identifiers(query)
+    requested_product_sides = _requested_product_sides(query)
+    if (
+        _is_comparison_query(query)
+        and len(requested_ids) == 1
+        and len(requested_product_sides) >= 2
+    ):
+        requested_id = next(iter(requested_ids))
+        side_results: list[SearchResult] = []
+        seen_chunks: set[str] = set()
+        for side in requested_product_sides:
+            match = next(
+                (
+                    result
+                    for result in ordered_results
+                    if result.chunk_id not in seen_chunks
+                    and requested_id in _troubleshooting_row_identifiers(result)
+                    and _result_matches_requested_product_side(result, side)
+                ),
+                None,
+            )
+            if match is None:
+                return []
+            side_results.append(match)
+            seen_chunks.add(match.chunk_id)
+        return side_results
     image_buffer_query_terms = _image_capture_buffer_query_terms(query)
     if image_buffer_results := _image_capture_buffer_evidence_results(query, ordered_results):
         return image_buffer_results
@@ -2611,13 +2671,13 @@ def _answer_addresses_troubleshooting_anchor(
 def _is_troubleshooting_row_evidence(result: SearchResult) -> bool:
     text = _citation_evidence_text(result)
     if str(result.metadata.get("chunk_type") or "") == "table_record" and re.search(
-        r"\b(error\s+(?:number|messages?)|cause|remedy|corrective action)\b",
+        r"\b(error\s+(?:number|code|messages?)|cause|remedy|corrective action)\b",
         text,
         flags=re.IGNORECASE,
     ):
         return True
     return bool(
-        re.search(r"\berror\s+(?:number|messages?)\b", text, flags=re.IGNORECASE)
+        re.search(r"\berror\s+(?:number|code|messages?)\b", text, flags=re.IGNORECASE)
         and re.search(r"\b(cause|remedy|corrective action)\b", text, flags=re.IGNORECASE)
     )
 
@@ -2627,7 +2687,7 @@ def _troubleshooting_row_identifiers(result: SearchResult) -> set[str]:
     text = _citation_evidence_text(result)
     identifiers: set[str] = set()
     for match in re.finditer(
-        r"\b(?:error\s+(?:number|messages?)|alarm|fault)\s*:\s*(.+?)"
+        r"\b(?:error\s+(?:number|code|messages?)|alarm|fault)\s*:\s*(.+?)"
         r"(?=\s*(?:;|\n|\b(?:cause|remedy|corrective action)\s*:)|$)",
         text,
         flags=re.IGNORECASE,
@@ -2645,8 +2705,8 @@ def _requested_troubleshooting_rows_text(query: str, result: SearchResult) -> st
     text = _citation_evidence_text(result)
     row_matches = list(
         re.finditer(
-            r"(?:^|\n)(?:error\s+(?:number|messages?)|alarm|fault)\s*:\s*(.+?)"
-            r"(?=\n(?:error\s+(?:number|messages?)|alarm|fault)\s*:|$)",
+            r"(?:^|\n)(?:error\s+(?:number|code|messages?)|alarm|fault)\s*:\s*(.+?)"
+            r"(?=\n(?:error\s+(?:number|code|messages?)|alarm|fault)\s*:|$)",
             text,
             flags=re.IGNORECASE | re.DOTALL,
         )
@@ -2657,7 +2717,7 @@ def _requested_troubleshooting_rows_text(query: str, result: SearchResult) -> st
         identifiers = {
             _normalized_phrase(identifier_match.group(1))
             for identifier_match in re.finditer(
-                r"\b(?:error\s+(?:number|messages?)|alarm|fault)\s*:\s*(.+?)"
+                r"\b(?:error\s+(?:number|code|messages?)|alarm|fault)\s*:\s*(.+?)"
                 r"(?=\s*(?:;|\n|\b(?:cause|remedy|corrective action)\s*:)|$)",
                 row,
                 flags=re.IGNORECASE,
@@ -2679,7 +2739,7 @@ def _query_requested_troubleshooting_identifiers(query: str) -> set[str]:
     These identifiers come from the user-visible query, so a requested side remains
     represented even when retrieval returned no row for it.
     """
-    if not (_is_troubleshooting_query(query) and _is_comparison_query(query)):
+    if not _is_troubleshooting_query(query):
         return set()
 
     explicit_codes = {
@@ -2691,10 +2751,19 @@ def _query_requested_troubleshooting_identifiers(query: str) -> set[str]:
             flags=re.IGNORECASE,
         )
     }
+    if not _is_comparison_query(query):
+        return explicit_codes
     if len(explicit_codes) >= 2:
         return explicit_codes
     if len(explicit_codes) == 1:
         explicit_models = _model_tokens(query)
+        named_series = {
+            match.group(1).upper()
+            for match in re.finditer(
+                r"\b([A-Z][A-Z0-9-]{1,14})\s+(?:Series|Family)\b",
+                query,
+            )
+        }
         explicit_versions = {
             _normalized_phrase(match.group(0))
             for match in re.finditer(
@@ -2703,7 +2772,7 @@ def _query_requested_troubleshooting_identifiers(query: str) -> set[str]:
                 flags=re.IGNORECASE,
             )
         }
-        if len(explicit_models) >= 2 or len(explicit_versions) >= 2:
+        if len(explicit_models.union(named_series)) >= 2 or len(explicit_versions) >= 2:
             return explicit_codes
 
     raw_sides = _comparison_side_clauses(query)
