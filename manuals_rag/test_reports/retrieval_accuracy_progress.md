@@ -6568,3 +6568,5 @@ Next target:
 Next target:
 
 - Fix sibling troubleshooting row 17 row-group-equivalence answer citation pruning so unsupported sibling Error 10101/10106 quote spans and unrelated communication-error guidance are not retained; rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence. Complete final worktree clean-state verification and `git worktree remove /tmp/manuals_rag_accuracy_20260901_current_4zTub8` before ending this run, recording any exact blocker.
+
+Cleanup finalization: after commit `db967a0` was pushed, `git worktree remove /tmp/manuals_rag_accuracy_20260901_current_4zTub8` failed with `Permission denied`. Follow-up verification showed the path still exists, but `git worktree list --porcelain` no longer lists it and `git -C /tmp/manuals_rag_accuracy_20260901_current_4zTub8 status` fails because the worktree metadata is gone. This exact blocker is recorded in both manifest copies; no force remove, recursive delete, primary-checkout cleanup, or new worktree creation was performed.

@@ -8981,10 +8981,13 @@
     },
     "classification": "operational_worktree_hygiene_containment",
     "cleanup_attempt": {
-      "command": "git worktree remove /tmp/manuals_rag_accuracy_20260901_current_4zTub8 after commit/push and clean-state verification",
-      "next_run_instruction": "Do not create another throwaway worktree unless this path is cleanly removed or a different known clean registered job-owned worktree is safely reused.",
-      "pre_remove_status": "pending final clean-state verification after commit",
-      "result": "pending finalization in this run"
+      "command": "git worktree remove /tmp/manuals_rag_accuracy_20260901_current_4zTub8",
+      "next_run_instruction": "Do not create another throwaway worktree until this blocker is resolved or a different known clean registered job-owned worktree is safely reused; do not manually delete or force-remove the leftover path.",
+      "post_remove_git_status": "fatal: not a git repository: missing .git/worktrees/manuals_rag_accuracy_20260901_current_4zTub8 metadata",
+      "post_remove_path_check": "/tmp/manuals_rag_accuracy_20260901_current_4zTub8 still exists",
+      "post_remove_registry_check": "git worktree list --porcelain no longer lists /tmp/manuals_rag_accuracy_20260901_current_4zTub8",
+      "pre_remove_status": "clean branch accuracy-cron-20260901-2023 at db967a0 after diagnostic artifact tracking commit and push; git status --short --branch showed no uncommitted or untracked work",
+      "result": "failed: error: failed to delete '/tmp/manuals_rag_accuracy_20260901_current_4zTub8': Permission denied"
     },
     "created_new_worktree": false,
     "evidence": [
@@ -8996,12 +8999,12 @@
     "guardrail_commit": "3a0938a",
     "guardrail_finding_timestamp": "2026-09-02T00:08:00Z",
     "policy_added": "docs/runbooks/retrieval_accuracy_cron.md now requires reusing one clean job-owned worktree when safe, creating at most one new worktree per run, verifying clean state before removal, using git worktree remove on the exact path, verifying deregistration, and recording blockers instead of serial throwaway creation.",
-    "remaining": "After committing and pushing this tracking repair, verify the reused worktree is clean, attempt supported git worktree remove on /tmp/manuals_rag_accuracy_20260901_current_4zTub8, and report the exact cleanup result.",
+    "remaining": "Cleanup deregistered but could not delete /tmp/manuals_rag_accuracy_20260901_current_4zTub8 due to Permission denied. Next run should not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker before optional row 17 work.",
     "repo_subdir": "/tmp/manuals_rag_accuracy_20260901_current_4zTub8/manuals_rag",
     "reused_worktree": "/tmp/manuals_rag_accuracy_20260901_current_4zTub8",
     "severity": "needs_fix",
-    "status": "addressed_failed_run_artifacts_preserved_pending_final_remove_attempt",
-    "timestamp": "2026-09-02T00:31:00Z",
+    "status": "addressed_failed_run_artifacts_preserved_cleanup_blocker_recorded",
+    "timestamp": "2026-09-02T00:37:00Z",
     "validation": [
       "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
       "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 39 passed",
@@ -12529,10 +12532,13 @@
       },
       "classification": "operational_worktree_hygiene_containment",
       "cleanup_attempt": {
-        "command": "git worktree remove /tmp/manuals_rag_accuracy_20260901_current_4zTub8 after commit/push and clean-state verification",
-        "next_run_instruction": "Do not create another throwaway worktree unless this path is cleanly removed or a different known clean registered job-owned worktree is safely reused.",
-        "pre_remove_status": "pending final clean-state verification after commit",
-        "result": "pending finalization in this run"
+        "command": "git worktree remove /tmp/manuals_rag_accuracy_20260901_current_4zTub8",
+        "next_run_instruction": "Do not create another throwaway worktree until this blocker is resolved or a different known clean registered job-owned worktree is safely reused; do not manually delete or force-remove the leftover path.",
+        "post_remove_git_status": "fatal: not a git repository: missing .git/worktrees/manuals_rag_accuracy_20260901_current_4zTub8 metadata",
+        "post_remove_path_check": "/tmp/manuals_rag_accuracy_20260901_current_4zTub8 still exists",
+        "post_remove_registry_check": "git worktree list --porcelain no longer lists /tmp/manuals_rag_accuracy_20260901_current_4zTub8",
+        "pre_remove_status": "clean branch accuracy-cron-20260901-2023 at db967a0 after diagnostic artifact tracking commit and push; git status --short --branch showed no uncommitted or untracked work",
+        "result": "failed: error: failed to delete '/tmp/manuals_rag_accuracy_20260901_current_4zTub8': Permission denied"
       },
       "created_new_worktree": false,
       "evidence": [
@@ -12544,12 +12550,12 @@
       "guardrail_commit": "3a0938a",
       "guardrail_finding_timestamp": "2026-09-02T00:08:00Z",
       "policy_added": "docs/runbooks/retrieval_accuracy_cron.md now requires reusing one clean job-owned worktree when safe, creating at most one new worktree per run, verifying clean state before removal, using git worktree remove on the exact path, verifying deregistration, and recording blockers instead of serial throwaway creation.",
-      "remaining": "After committing and pushing this tracking repair, verify the reused worktree is clean, attempt supported git worktree remove on /tmp/manuals_rag_accuracy_20260901_current_4zTub8, and report the exact cleanup result.",
+      "remaining": "Cleanup deregistered but could not delete /tmp/manuals_rag_accuracy_20260901_current_4zTub8 due to Permission denied. Next run should not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker before optional row 17 work.",
       "repo_subdir": "/tmp/manuals_rag_accuracy_20260901_current_4zTub8/manuals_rag",
       "reused_worktree": "/tmp/manuals_rag_accuracy_20260901_current_4zTub8",
       "severity": "needs_fix",
-      "status": "addressed_failed_run_artifacts_preserved_pending_final_remove_attempt",
-      "timestamp": "2026-09-02T00:31:00Z",
+      "status": "addressed_failed_run_artifacts_preserved_cleanup_blocker_recorded",
+      "timestamp": "2026-09-02T00:37:00Z",
       "validation": [
         "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
         "docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 39 passed",
@@ -13413,12 +13419,13 @@
         "evidence": [
           "Reused /tmp/manuals_rag_accuracy_20260901_current_4zTub8; no new worktree was created.",
           "Preserved retrieval_eval_20260901_235625 artifacts as diagnostic/not-clean and added durable run exclusions.",
-          "Manual inspection found retrieval 1/1 but answer 0/1 with unsupported_citation_quote from sibling Error 10101 quote text."
+          "Manual inspection found retrieval 1/1 but answer 0/1 with unsupported_citation_quote from sibling Error 10101 quote text.",
+          "After committing and pushing db967a0, git worktree remove failed with Permission denied; the path still exists but is no longer registered and no longer has usable git metadata."
         ],
         "finding": "Guardrail 2026-09-02T00:08:00Z reported the failed accuracy run left the reused registered worktree dirty with retrieval_eval_20260901_235625 artifacts.",
-        "remaining": "Final run step must verify clean worktree state after commit and attempt git worktree remove on the exact reused path; next answer work remains row 17 unsupported sibling quote/guidance cleanup.",
+        "remaining": "Cleanup deregistered but could not delete /tmp/manuals_rag_accuracy_20260901_current_4zTub8 due to Permission denied. Next run should not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker before optional row 17 work.",
         "severity": "needs_fix",
-        "status": "addressed_this_run_pending_final_remove_attempt",
+        "status": "addressed_this_run_cleanup_blocker_recorded",
         "timestamp": "2026-09-02T00:31:00Z"
       },
       {
@@ -14690,7 +14697,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T00:31:00Z"
+    "updated_at": "2026-09-02T00:37:00Z"
   },
   "remaining": "Fix sibling troubleshooting row 17 row-group-equivalence answer citation pruning so unsupported sibling Error 10101/10106 quote spans and unrelated communication-error guidance are not retained; rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
   "retrieval_current_failure_categories": {},
@@ -15456,12 +15463,13 @@
       "evidence": [
         "Reused /tmp/manuals_rag_accuracy_20260901_current_4zTub8; no new worktree was created.",
         "Preserved retrieval_eval_20260901_235625 artifacts as diagnostic/not-clean and added durable run exclusions.",
-        "Manual inspection found retrieval 1/1 but answer 0/1 with unsupported_citation_quote from sibling Error 10101 quote text."
+        "Manual inspection found retrieval 1/1 but answer 0/1 with unsupported_citation_quote from sibling Error 10101 quote text.",
+        "After committing and pushing db967a0, git worktree remove failed with Permission denied; the path still exists but is no longer registered and no longer has usable git metadata."
       ],
       "finding": "Guardrail 2026-09-02T00:08:00Z reported the failed accuracy run left the reused registered worktree dirty with retrieval_eval_20260901_235625 artifacts.",
-      "remaining": "Final run step must verify clean worktree state after commit and attempt git worktree remove on the exact reused path; next answer work remains row 17 unsupported sibling quote/guidance cleanup.",
+      "remaining": "Cleanup deregistered but could not delete /tmp/manuals_rag_accuracy_20260901_current_4zTub8 due to Permission denied. Next run should not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker before optional row 17 work.",
       "severity": "needs_fix",
-      "status": "addressed_this_run_pending_final_remove_attempt",
+      "status": "addressed_this_run_cleanup_blocker_recorded",
       "timestamp": "2026-09-02T00:31:00Z"
     },
     {
@@ -16733,5 +16741,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T00:31:00Z"
+  "updated_at": "2026-09-02T00:37:00Z"
 }
