@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Await independent guardrail review of the mixed product-family comparison classification correction for guardrail 6b66ec1. Preserve retrieval_eval_20260902_223222 as diagnostic answer evidence: retrieval passed 2/2, but both actual API answers failed closed without citations. Next, diagnose why the source-backed XG-X positive loses complete evidence during answer validation; preserve all prior diagnostics and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await independent guardrail review of production commit f527274 and guardrail ecbf302. Preserve retrieval_eval_20260902_232002 as pre-containment diagnostic/not-clean; preserve retrieval_eval_20260902_232718 positive as clean source-grounded evidence and its missing-side case as an intentional fail-closed control. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-clause role or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a66cbed",
@@ -707,7 +707,8 @@
       "retrieval_eval_20260902_124857 Error 30109 cross-model exact-code grounded answer",
       "retrieval_eval_20260902_161158 multi-error Error 10109/10110 row-group grounded answer",
       "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer",
-      "retrieval_eval_20260902_184955 source-faithful cross-product Error 10101/30109 relation-bound grounded answer"
+      "retrieval_eval_20260902_184955 source-faithful cross-product Error 10101/30109 relation-bound grounded answer",
+      "retrieval_eval_20260902_232718 positive repeated-side per-clause role-bound grounded answer"
     ],
     "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_184955 positive are accepted under source-reviewed visible-citation-content scoring. The earlier 182758 positive is diagnostic/not-clean because it requested an unsupported VS corrective-action role. The corrected positive asks only source-supported meaning/cause and binds CV-X482 Error 10101 to chunk 423d72f0 and VS Series Error 30109 to chunk be25fb78; the swapped/missing-side control failed closed.",
     "artifacts": {
@@ -741,12 +742,20 @@
       "mixed_series_validation_dataset": "test_reports/retrieval_eval_dataset_20260902_1830_mixed_series_comparison_validation.jsonl",
       "mixed_series_diagnostic_results": "test_reports/retrieval_eval_results_20260902_223222.jsonl",
       "mixed_series_diagnostic_summary": "test_reports/retrieval_eval_summary_20260902_223222.json",
-      "mixed_series_diagnostic_manifest": "test_reports/retrieval_eval_manifest_20260902_223222.json"
+      "mixed_series_diagnostic_manifest": "test_reports/retrieval_eval_manifest_20260902_223222.json",
+      "mixed_series_pre_role_containment_dataset": "test_reports/retrieval_eval_dataset_20260902_232002.jsonl",
+      "mixed_series_pre_role_containment_results": "test_reports/retrieval_eval_results_20260902_232002.jsonl",
+      "mixed_series_pre_role_containment_summary": "test_reports/retrieval_eval_summary_20260902_232002.json",
+      "mixed_series_pre_role_containment_manifest": "test_reports/retrieval_eval_manifest_20260902_232002.json",
+      "mixed_series_role_bound_dataset": "test_reports/retrieval_eval_dataset_20260902_232718.jsonl",
+      "mixed_series_role_bound_results": "test_reports/retrieval_eval_results_20260902_232718.jsonl",
+      "mixed_series_role_bound_summary": "test_reports/retrieval_eval_summary_20260902_232718.json",
+      "mixed_series_role_bound_manifest": "test_reports/retrieval_eval_manifest_20260902_232718.json"
     },
     "current_answer_failures": {},
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_182758.jsonl and retrieval_eval_results_20260902_184955.jsonl. The 182758 positive is diagnostic/not-clean because its query requested a VS technician action absent from chunk be25fb78. The corrected 184955 positive asks only meaning/cause, cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans, and each cited returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations. Inspected every row of retrieval_eval_results_20260902_223222: the XG-X positive retrieved exact CV-X482 chunk 5d3cb915 and XG-X chunk 435cd418 but returned insufficient_evidence=true with no citations; the VS missing-side control likewise returned insufficient evidence and no citations. Both are diagnostic/not-clean answer evidence.",
-    "remaining": "Await independent guardrail review of the mixed product-family comparison classification correction for guardrail 6b66ec1. Preserve retrieval_eval_20260902_223222 as diagnostic answer evidence: retrieval passed 2/2, but both actual API answers failed closed without citations. Next, diagnose why the source-backed XG-X positive loses complete evidence during answer validation; preserve all prior diagnostics and reuse /tmp/manuals_rag_accuracy_20260901.",
-    "latest_clean_run": "retrieval_eval_20260902_184955 positive only"
+    "remaining": "Await independent guardrail review of production commit f527274 and guardrail ecbf302. Preserve retrieval_eval_20260902_232002 as pre-containment diagnostic/not-clean; preserve retrieval_eval_20260902_232718 positive as clean source-grounded evidence and its missing-side case as an intentional fail-closed control. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-clause role or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "latest_clean_run": "retrieval_eval_20260902_232718 positive only"
   },
   "constraints": {
     "allowed_logic": [
@@ -9025,12 +9034,12 @@
     "current_run_worktree": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "created_new_worktree": false,
-      "timestamp": "2026-09-02T22:10:00Z",
-      "git_status_before_final_commit": "dirty only with the resumed job-owned retrieval/query-analysis changes, focused controls, preserved 212912/213259/214144 diagnostic artifacts, and current progress/manifest tracking after fast-forwarding to origin/main guardrail commit 6295644",
+      "timestamp": "2026-09-02T23:36:00Z",
+      "git_status_before_final_commit": "dirty only with this run progress/manifest tracking after rebased production/evidence commit f527274",
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 6295644 before final tracking commit",
-      "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present before final tracking commit",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at f527274 before final tracking commit",
+      "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -9156,9 +9165,9 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main guardrail commit 6b66ec1 before final tracking commit",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at f527274 before final tracking commit",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "dirty only with this run job-owned query-analysis/test/eval/tracking changes before final commit",
+      "git_status_check": "dirty only with this run progress/manifest tracking after rebased production/evidence commit f527274",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -9251,7 +9260,7 @@
       ]
     }
   ],
-  "next_target": "Await independent guardrail review of the mixed product-family comparison classification correction for guardrail 6b66ec1. Preserve retrieval_eval_20260902_223222 as diagnostic answer evidence: retrieval passed 2/2, but both actual API answers failed closed without citations. Next, diagnose why the source-backed XG-X positive loses complete evidence during answer validation; preserve all prior diagnostics and reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Await independent guardrail review of production commit f527274 and guardrail ecbf302. Preserve retrieval_eval_20260902_232002 as pre-containment diagnostic/not-clean; preserve retrieval_eval_20260902_232718 positive as clean source-grounded evidence and its missing-side case as an intentional fail-closed control. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-clause role or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10220,7 +10229,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Await independent guardrail review of the mixed product-family comparison classification correction for guardrail 6b66ec1. Preserve retrieval_eval_20260902_223222 as diagnostic answer evidence: retrieval passed 2/2, but both actual API answers failed closed without citations. Next, diagnose why the source-backed XG-X positive loses complete evidence during answer validation; preserve all prior diagnostics and reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Await independent guardrail review of production commit f527274 and guardrail ecbf302. Preserve retrieval_eval_20260902_232002 as pre-containment diagnostic/not-clean; preserve retrieval_eval_20260902_232718 positive as clean source-grounded evidence and its missing-side case as an intentional fail-closed control. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-clause role or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a66cbed",
@@ -10501,7 +10510,8 @@
         "retrieval_eval_20260902_124857 Error 30109 cross-model exact-code grounded answer",
         "retrieval_eval_20260902_161158 multi-error Error 10109/10110 row-group grounded answer",
         "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer",
-        "retrieval_eval_20260902_184955 source-faithful cross-product Error 10101/30109 relation-bound grounded answer"
+        "retrieval_eval_20260902_184955 source-faithful cross-product Error 10101/30109 relation-bound grounded answer",
+        "retrieval_eval_20260902_232718 positive repeated-side per-clause role-bound grounded answer"
       ],
       "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_184955 positive are accepted under source-reviewed visible-citation-content scoring. The earlier 182758 positive is diagnostic/not-clean because it requested an unsupported VS corrective-action role. The corrected positive asks only source-supported meaning/cause and binds CV-X482 Error 10101 to chunk 423d72f0 and VS Series Error 30109 to chunk be25fb78; the swapped/missing-side control failed closed.",
       "artifacts": {
@@ -10535,12 +10545,20 @@
         "mixed_series_validation_dataset": "test_reports/retrieval_eval_dataset_20260902_1830_mixed_series_comparison_validation.jsonl",
         "mixed_series_diagnostic_results": "test_reports/retrieval_eval_results_20260902_223222.jsonl",
         "mixed_series_diagnostic_summary": "test_reports/retrieval_eval_summary_20260902_223222.json",
-        "mixed_series_diagnostic_manifest": "test_reports/retrieval_eval_manifest_20260902_223222.json"
+        "mixed_series_diagnostic_manifest": "test_reports/retrieval_eval_manifest_20260902_223222.json",
+        "mixed_series_pre_role_containment_dataset": "test_reports/retrieval_eval_dataset_20260902_232002.jsonl",
+        "mixed_series_pre_role_containment_results": "test_reports/retrieval_eval_results_20260902_232002.jsonl",
+        "mixed_series_pre_role_containment_summary": "test_reports/retrieval_eval_summary_20260902_232002.json",
+        "mixed_series_pre_role_containment_manifest": "test_reports/retrieval_eval_manifest_20260902_232002.json",
+        "mixed_series_role_bound_dataset": "test_reports/retrieval_eval_dataset_20260902_232718.jsonl",
+        "mixed_series_role_bound_results": "test_reports/retrieval_eval_results_20260902_232718.jsonl",
+        "mixed_series_role_bound_summary": "test_reports/retrieval_eval_summary_20260902_232718.json",
+        "mixed_series_role_bound_manifest": "test_reports/retrieval_eval_manifest_20260902_232718.json"
       },
       "current_answer_failures": {},
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_182758.jsonl and retrieval_eval_results_20260902_184955.jsonl. The 182758 positive is diagnostic/not-clean because its query requested a VS technician action absent from chunk be25fb78. The corrected 184955 positive asks only meaning/cause, cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans, and each cited returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations. Inspected every row of retrieval_eval_results_20260902_223222: the XG-X positive retrieved exact CV-X482 chunk 5d3cb915 and XG-X chunk 435cd418 but returned insufficient_evidence=true with no citations; the VS missing-side control likewise returned insufficient evidence and no citations. Both are diagnostic/not-clean answer evidence.",
-      "remaining": "Await independent guardrail review of the mixed product-family comparison classification correction for guardrail 6b66ec1. Preserve retrieval_eval_20260902_223222 as diagnostic answer evidence: retrieval passed 2/2, but both actual API answers failed closed without citations. Next, diagnose why the source-backed XG-X positive loses complete evidence during answer validation; preserve all prior diagnostics and reuse /tmp/manuals_rag_accuracy_20260901.",
-      "latest_clean_run": "retrieval_eval_20260902_184955 positive only"
+      "remaining": "Await independent guardrail review of production commit f527274 and guardrail ecbf302. Preserve retrieval_eval_20260902_232002 as pre-containment diagnostic/not-clean; preserve retrieval_eval_20260902_232718 positive as clean source-grounded evidence and its missing-side case as an intentional fail-closed control. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-clause role or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "latest_clean_run": "retrieval_eval_20260902_232718 positive only"
     },
     "current_answer_failure_categories": {},
     "current_answer_failure_source": "retrieval_eval_20260902_180540 positive passed actual HTTP answer grounding 1/1 across two distinct cited chunks; its intentional Error 99999 missing-side control failed closed, while older diagnostic/not-clean runs remain preserved.",
@@ -12788,12 +12806,12 @@
       "current_run_worktree": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
         "created_new_worktree": false,
-        "timestamp": "2026-09-02T22:10:00Z",
-        "git_status_before_final_commit": "dirty only with the resumed job-owned retrieval/query-analysis changes, focused controls, preserved 212912/213259/214144 diagnostic artifacts, and current progress/manifest tracking after fast-forwarding to origin/main guardrail commit 6295644",
+        "timestamp": "2026-09-02T23:36:00Z",
+        "git_status_before_final_commit": "dirty only with this run progress/manifest tracking after rebased production/evidence commit f527274",
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 6295644 before final tracking commit",
-        "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present before final tracking commit",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at f527274 before final tracking commit",
+        "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -12919,9 +12937,9 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main guardrail commit 6b66ec1 before final tracking commit",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at f527274 before final tracking commit",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "git_status_check": "dirty only with this run job-owned query-analysis/test/eval/tracking changes before final commit",
+        "git_status_check": "dirty only with this run progress/manifest tracking after rebased production/evidence commit f527274",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -13016,7 +13034,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Await independent guardrail review of the mixed product-family comparison classification correction for guardrail 6b66ec1. Preserve retrieval_eval_20260902_223222 as diagnostic answer evidence: retrieval passed 2/2, but both actual API answers failed closed without citations. Next, diagnose why the source-backed XG-X positive loses complete evidence during answer validation; preserve all prior diagnostics and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Await independent guardrail review of production commit f527274 and guardrail ecbf302. Preserve retrieval_eval_20260902_232002 as pre-containment diagnostic/not-clean; preserve retrieval_eval_20260902_232718 positive as clean source-grounded evidence and its missing-side case as an intentional fail-closed control. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-clause role or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13053,7 +13071,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await independent guardrail review of the mixed product-family comparison classification correction for guardrail 6b66ec1. Preserve retrieval_eval_20260902_223222 as diagnostic answer evidence: retrieval passed 2/2, but both actual API answers failed closed without citations. Next, diagnose why the source-backed XG-X positive loses complete evidence during answer validation; preserve all prior diagnostics and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await independent guardrail review of production commit f527274 and guardrail ecbf302. Preserve retrieval_eval_20260902_232002 as pre-containment diagnostic/not-clean; preserve retrieval_eval_20260902_232718 positive as clean source-grounded evidence and its missing-side case as an intentional fail-closed control. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-clause role or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13835,17 +13853,37 @@
         "scope": "source-reviewed validation-only CV-X482 Error 10109 versus Error 10110 multi-error/two-row actual HTTP answer path",
         "recorded_at": "2026-09-02T15:34:00Z",
         "reason": "diagnostic/not-clean: candidate recall and metadata document selection passed, but final_top_k omitted the requested troubleshooting row-group evidence; the user-visible API correctly returned insufficient evidence with no citations. Retrieval 0/1 and answer grounding 0/1; do not count as active-bank coverage or clean answer evidence."
+      },
+      {
+        "run_id": "retrieval_eval_20260902_232002",
+        "scope": "pre-containment repeated-product-side answer run and combined two-case clean claim",
+        "recorded_at": "2026-09-02T23:36:00Z",
+        "reason": "diagnostic/not-clean: created before per-clause requested-role validation; the ordinary positive was source-supported, but the loaded path still accepted an injected cause-only row for an action request. Superseded by role-bound run retrieval_eval_20260902_232718."
       }
     ],
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
       {
+        "timestamp": "2026-09-02T23:11:35Z",
+        "severity": "needs_fix",
+        "guardrail_commit": "ecbf302",
+        "finding": "The uncommitted repeated-side selector bound product and symptom/code but could accept cause-only evidence for a clause requesting a technician action.",
+        "status": "addressed_this_run_pending_guardrail_review",
+        "evidence": [
+          "Each repeated troubleshooting clause now derives requested cause, message, and action/remedy roles and requires one selected source row/chunk to support every requested role; roles are not aggregated across chunks.",
+          "Focused complete, cause-only/action-missing, action-only/cause-requested, cross-chunk role-mixing, reversed-order, sibling, missing-side, and grounded-fallback controls passed 8/8; the fixture-mounted full unit gate passed 639 tests.",
+          "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901; host/container generator.py SHA-256 matched b77656b791c7be3f577a00955a104225d6349750b1c96b530646c61513decd1f and loaded role-helper fingerprint was 8efffa5b88138b779bad39565f18827218ffd4d1effff32778c5c3369d0b15e9.",
+          "Actual HTTP retrieval_eval_20260902_232718 positive passed retrieval and answer grounding 1/1 with citations to exact CV-X482 and XG-X corrective-action chunks; the VS missing-side control returned insufficient evidence with no citations."
+        ],
+        "required_next_action": "Await independent guardrail review; preserve retrieval_eval_20260902_232002 as diagnostic and the 232718 missing-side case as an intentional control."
+      },
+      {
         "timestamp": "2026-09-02T22:13:00Z",
         "severity": "needs_fix",
         "guardrail_commit": "6b66ec1",
         "finding": "Mixed numeric-code/prose troubleshooting comparisons using product-family wording were not classified as comparisons, so relation-preserving side retrieval did not run.",
-        "status": "addressed_this_run_pending_guardrail_review",
+        "status": "addressed_and_guardrail_validated",
         "evidence": [
           "Query analysis now derives comparison intent from two explicitly repeated same-preposition product-side clauses after extracting both model and family identifiers; it does not require two hyphenated model codes.",
           "Loaded VS Series and XG-X Series classification positives and three ordinary single/two-product negatives passed; focused retriever slice passed 11 tests and the fixture-mounted full gate passed 631 tests.",
@@ -15271,7 +15309,6 @@
         "status": "addressed_this_run_clean_loaded_http_row7_direct_configuration_evidence",
         "timestamp": "2026-08-30T16:47:30Z"
       },
-      "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids.",
       {
         "addressed": "The misleading PWR/ERR light-condition question was replaced with a source-backed user-style A-14 buffer-overrun/field-network settings question and rerun through actual HTTP answer mode. No clean answer evidence was claimed.",
         "finding": "Curated single-step v2 row 8 source-review target addressed as dataset-quality repair, but repaired row still exposes final_top_k ranking_or_context_loss from heading-only A-14 chunks over the exact A-14 table_record evidence.",
@@ -15321,9 +15358,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T22:36:00Z"
+    "updated_at": "2026-09-02T23:36:00Z"
   },
-  "remaining": "Await independent guardrail review of the mixed product-family comparison classification correction for guardrail 6b66ec1. Preserve retrieval_eval_20260902_223222 as diagnostic answer evidence: retrieval passed 2/2, but both actual API answers failed closed without citations. Next, diagnose why the source-backed XG-X positive loses complete evidence during answer validation; preserve all prior diagnostics and reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Await independent guardrail review of production commit f527274 and guardrail ecbf302. Preserve retrieval_eval_20260902_232002 as pre-containment diagnostic/not-clean; preserve retrieval_eval_20260902_232718 positive as clean source-grounded evidence and its missing-side case as an intentional fail-closed control. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-clause role or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -16105,16 +16142,36 @@
       "scope": "source-reviewed validation-only CV-X482 Error 10109 versus Error 10110 multi-error/two-row actual HTTP answer path",
       "recorded_at": "2026-09-02T15:34:00Z",
       "reason": "diagnostic/not-clean: candidate recall and metadata document selection passed, but final_top_k omitted the requested troubleshooting row-group evidence; the user-visible API correctly returned insufficient evidence with no citations. Retrieval 0/1 and answer grounding 0/1; do not count as active-bank coverage or clean answer evidence."
+    },
+    {
+      "run_id": "retrieval_eval_20260902_232002",
+      "scope": "pre-containment repeated-product-side answer run and combined two-case clean claim",
+      "recorded_at": "2026-09-02T23:36:00Z",
+      "reason": "diagnostic/not-clean: created before per-clause requested-role validation; the ordinary positive was source-supported, but the loaded path still accepted an injected cause-only row for an action request. Superseded by role-bound run retrieval_eval_20260902_232718."
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
     {
+      "timestamp": "2026-09-02T23:11:35Z",
+      "severity": "needs_fix",
+      "guardrail_commit": "ecbf302",
+      "finding": "The uncommitted repeated-side selector bound product and symptom/code but could accept cause-only evidence for a clause requesting a technician action.",
+      "status": "addressed_this_run_pending_guardrail_review",
+      "evidence": [
+        "Each repeated troubleshooting clause now derives requested cause, message, and action/remedy roles and requires one selected source row/chunk to support every requested role; roles are not aggregated across chunks.",
+        "Focused complete, cause-only/action-missing, action-only/cause-requested, cross-chunk role-mixing, reversed-order, sibling, missing-side, and grounded-fallback controls passed 8/8; the fixture-mounted full unit gate passed 639 tests.",
+        "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901; host/container generator.py SHA-256 matched b77656b791c7be3f577a00955a104225d6349750b1c96b530646c61513decd1f and loaded role-helper fingerprint was 8efffa5b88138b779bad39565f18827218ffd4d1effff32778c5c3369d0b15e9.",
+        "Actual HTTP retrieval_eval_20260902_232718 positive passed retrieval and answer grounding 1/1 with citations to exact CV-X482 and XG-X corrective-action chunks; the VS missing-side control returned insufficient evidence with no citations."
+      ],
+      "required_next_action": "Await independent guardrail review; preserve retrieval_eval_20260902_232002 as diagnostic and the 232718 missing-side case as an intentional control."
+    },
+    {
       "timestamp": "2026-09-02T22:13:00Z",
       "severity": "needs_fix",
       "guardrail_commit": "6b66ec1",
       "finding": "Mixed numeric-code/prose troubleshooting comparisons using product-family wording were not classified as comparisons, so relation-preserving side retrieval did not run.",
-      "status": "addressed_this_run_pending_guardrail_review",
+      "status": "addressed_and_guardrail_validated",
       "evidence": [
         "Query analysis now derives comparison intent from two explicitly repeated same-preposition product-side clauses after extracting both model and family identifiers; it does not require two hyphenated model codes.",
         "Loaded VS Series and XG-X Series classification positives and three ordinary single/two-product negatives passed; focused retriever slice passed 11 tests and the fixture-mounted full gate passed 631 tests.",
@@ -17540,7 +17597,6 @@
       "status": "addressed_this_run_clean_loaded_http_row7_direct_configuration_evidence",
       "timestamp": "2026-08-30T16:47:30Z"
     },
-    "2026-08-30T20:35:00Z needs_fix addressed: answer_grounding_rotation dataset provenance pointer corrected for retrieval_eval_20260830_201603; checker now rejects mismatched rotation artifact run ids.",
     {
       "addressed": "The misleading PWR/ERR light-condition question was replaced with a source-backed user-style A-14 buffer-overrun/field-network settings question and rerun through actual HTTP answer mode. No clean answer evidence was claimed.",
       "finding": "Curated single-step v2 row 8 source-review target addressed as dataset-quality repair, but repaired row still exposes final_top_k ranking_or_context_loss from heading-only A-14 chunks over the exact A-14 table_record evidence.",
@@ -17590,5 +17646,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T22:36:00Z"
+  "updated_at": "2026-09-02T23:36:00Z"
 }
