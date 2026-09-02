@@ -3905,6 +3905,39 @@ def test_troubleshooting_citations_accept_second_requested_side_alone():
     )
 
 
+def test_troubleshooting_citations_accept_one_source_equivalent_duplicate():
+    primary = _troubleshooting_row("servo-primary", "Servo overload detected")
+    duplicate = _troubleshooting_row("servo-duplicate", "Servo overload detected")
+
+    assert _troubleshooting_citations_match_query_anchor(
+        "What causes Servo overload detected, and how should it be corrected?",
+        [_citation("servo-primary")],
+        [primary, duplicate],
+    )
+
+
+def test_troubleshooting_citations_ignore_shorter_error_code_prefix_collision():
+    requested = _troubleshooting_row("error-10109", "10109")
+    prefix = _troubleshooting_row("error-1010", "1010")
+
+    assert _troubleshooting_citations_match_query_anchor(
+        "What causes Error 10109, and how should it be corrected?",
+        [_citation("error-10109")],
+        [requested, prefix],
+    )
+
+
+def test_troubleshooting_citations_reject_longer_error_code_superstring_collision():
+    requested = _troubleshooting_row("error-1010", "1010")
+    superstring = _troubleshooting_row("error-10109", "10109")
+
+    assert not _troubleshooting_citations_match_query_anchor(
+        "What causes Error 1010, and how should it be corrected?",
+        [_citation("error-10109")],
+        [requested, superstring],
+    )
+
+
 def test_troubleshooting_citations_leave_short_no_anchor_query_unconstrained():
     servo = _troubleshooting_row("servo", "Servo overload detected")
 

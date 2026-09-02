@@ -2618,6 +2618,11 @@ def _troubleshooting_row_identifiers(result: SearchResult) -> set[str]:
     return identifiers
 
 
+def _query_contains_troubleshooting_identifier(normalized_query: str, identifier: str) -> bool:
+    """Match a source identifier as a complete normalized token sequence."""
+    return bool(re.search(rf"(?:^| ){re.escape(identifier)}(?: |$)", normalized_query))
+
+
 def _troubleshooting_citations_match_query_anchor(
     query: str,
     citations: list[dict[str, Any]],
@@ -2627,27 +2632,29 @@ def _troubleshooting_citations_match_query_anchor(
         return True
     result_by_chunk_id = {result.chunk_id: result for result in results}
     normalized_query = _normalized_phrase(query)
-    requested_result_ids = {
-        result.chunk_id
+    requested_identifiers = {
+        identifier
         for result in results
         if _is_troubleshooting_row_evidence(result)
-        and any(identifier in normalized_query for identifier in _troubleshooting_row_identifiers(result))
+        for identifier in _troubleshooting_row_identifiers(result)
+        if _query_contains_troubleshooting_identifier(normalized_query, identifier)
     }
-    cited_requested_ids: set[str] = set()
+    cited_requested_identifiers: set[str] = set()
     for citation in citations:
         result = result_by_chunk_id.get(str(citation.get("chunk_id") or ""))
         if not result or not _is_troubleshooting_row_evidence(result):
             continue
-        if requested_result_ids:
-            if result.chunk_id not in requested_result_ids:
+        if requested_identifiers:
+            cited_identifiers = _troubleshooting_row_identifiers(result).intersection(requested_identifiers)
+            if not cited_identifiers:
                 return False
-            cited_requested_ids.add(result.chunk_id)
+            cited_requested_identifiers.update(cited_identifiers)
             continue
 
         anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
         if len(anchor) >= 10 and anchor not in _normalized_phrase(_citation_evidence_text(result)):
             return False
-    return not requested_result_ids or requested_result_ids.issubset(cited_requested_ids)
+    return not requested_identifiers or requested_identifiers.issubset(cited_requested_identifiers)
 
 
 def _comparison_answer_covers_retrieved_model_sides(

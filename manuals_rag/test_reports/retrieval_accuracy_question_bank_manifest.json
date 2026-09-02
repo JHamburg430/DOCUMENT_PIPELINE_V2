@@ -216,7 +216,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+  "remaining": "Preserve exact troubleshooting identifier binding and duplicate collapse, then gather a clean loaded actual HTTP multi-error answer containing only the requested sides; if row-group fallback retains unrequested siblings, correct that fallback selection generally before optional coverage work.",
     "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -711,7 +711,7 @@
     },
     "current_answer_failures": {},
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+    "remaining": "Preserve exact troubleshooting identifier binding and duplicate collapse, then gather a clean loaded actual HTTP multi-error answer containing only the requested sides; if row-group fallback retains unrequested siblings, correct that fallback selection generally before optional coverage work.",
     "latest_clean_run": "retrieval_eval_20260902_013157"
   },
   "constraints": {
@@ -9162,7 +9162,7 @@
       ]
     }
   ],
-  "next_target": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+  "next_target": "Preserve exact troubleshooting identifier binding and duplicate collapse, then gather a clean loaded actual HTTP multi-error answer containing only the requested sides; if row-group fallback retains unrequested siblings, correct that fallback selection generally before optional coverage work.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10132,7 +10132,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-      "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+      "remaining": "Preserve exact troubleshooting identifier binding and duplicate collapse, then gather a clean loaded actual HTTP multi-error answer containing only the requested sides; if row-group fallback retains unrequested siblings, correct that fallback selection generally before optional coverage work.",
       "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10416,7 +10416,7 @@
       },
       "current_answer_failures": {},
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-      "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+      "remaining": "Preserve exact troubleshooting identifier binding and duplicate collapse, then gather a clean loaded actual HTTP multi-error answer containing only the requested sides; if row-group fallback retains unrequested siblings, correct that fallback selection generally before optional coverage work.",
       "latest_clean_run": "retrieval_eval_20260902_013157"
     },
     "current_answer_failure_categories": {},
@@ -12813,7 +12813,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+  "next_target": "Preserve exact troubleshooting identifier binding and duplicate collapse, then gather a clean loaded actual HTTP multi-error answer containing only the requested sides; if row-group fallback retains unrequested siblings, correct that fallback selection generally before optional coverage work.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12850,7 +12850,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+    "remaining": "Preserve exact troubleshooting identifier binding and duplicate collapse, then gather a clean loaded actual HTTP multi-error answer containing only the requested sides; if row-group fallback retains unrequested siblings, correct that fallback selection generally before optional coverage work.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13612,19 +13612,19 @@
     "total_questions": 208,
     "unresolved_guardrail_findings": [
       {
-        "timestamp": "2026-09-02T03:10:00Z",
+        "timestamp": "2026-09-02T03:31:00Z",
         "severity": "needs_fix",
-        "guardrail_commit": "ec4c769",
-        "finding": "The single-anchor troubleshooting citation validator over-rejected legitimate multi-error answers by requiring every structured cited row to contain the first extracted error phrase.",
-        "status": "partially_addressed_relation_preserving_row_binding_api_positive_not_clean",
+        "guardrail_commit": "1b82d5b",
+        "finding": "The multi-error troubleshooting validator over-rejected source-equivalent duplicate rows and shorter error-code prefixes because it required every matching chunk id and used substring identifier matching.",
+        "status": "addressed_duplicate_equivalence_and_exact_identifier_binding_api_payloads_diagnostic",
         "evidence": [
-          "Production validation now binds each structured troubleshooting citation to a source-visible error number/message explicitly present in the query and requires all available requested rows to be cited.",
-          "Focused controls passed: 11 passed; full environment-backed unit gate passed: 561 passed, 59 warnings.",
-          "Loaded runtime controls passed with generator.py sha256 7218738813e70920e5bf6cf1643487dd37884704c1c10596b656fc8ed81a76e8 and validator sha256 6ba59bd790098496344baf184eaddd1699c156c7a7d5cdc07947461a13aa490c.",
-          "Actual HTTP source-filtered control cited evidence supporting both requested Ethernet errors but validation fallback also retained unrelated troubleshooting rows, so it remains diagnostic/not-clean.",
-          "Actual HTTP missing-side control returned only Ethernet evidence for a light-controller-plus-Ethernet comparison and was not counted clean."
+          "Production validation now groups requested troubleshooting sides by normalized source-visible identifier rather than chunk id and matches identifiers as complete normalized token sequences.",
+          "Focused troubleshooting-citation controls passed: 12 passed; full environment-backed unit gate passed: 564 passed, 59 warnings.",
+          "Loaded runtime controls passed for two-error, duplicate-equivalent, exact 10109-with-1010-prefix, missing-side, unrequested-sibling, and 1010-with-10109-superstring cases. Runtime fingerprints: generator.py 62998a125f2d371a8445143206bb6ee1e33ed1bbbd6313dcd9ee26caf27ab3cb; validator 0adafc7f0db8d6877fb306740d994d9a5fe2c8804732d6549088a3bb87660c2b.",
+          "Actual HTTP Error 10109 plus Error 10101 comparison exercised the loaded path but retrieval lacked 10101 and fallback retained unrelated rows, so the payload remains diagnostic/not-clean.",
+          "Actual HTTP Error 10109 single-error control cited only source-supported chunk c7b00dfb, but that chunk is a row group containing 10110-10112 sibling text; it remains a regression control rather than new clean multi-error proof."
         ],
-        "required_next_action": "Preserve the relation-preserving validator and gather a clean actual HTTP multi-error positive containing only requested sides; correct fallback evidence selection if unrelated troubleshooting rows remain."
+        "required_next_action": "Preserve exact identifier binding and duplicate collapse. Gather a clean actual HTTP multi-error positive containing only requested sides; if fallback still retains unrequested row-group siblings, correct fallback evidence selection generally before claiming clean multi-error production proof."
       },
       {
         "timestamp": "2026-09-02T02:02:00Z",
@@ -14977,9 +14977,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T03:10:00Z"
+    "updated_at": "2026-09-02T03:31:00Z"
   },
-  "remaining": "Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice, with loaded HTTP/API validation and manual citation-visible payload inspection before accepting clean evidence.",
+  "remaining": "Preserve exact troubleshooting identifier binding and duplicate collapse, then gather a clean loaded actual HTTP multi-error answer containing only the requested sides; if row-group fallback retains unrequested siblings, correct that fallback selection generally before optional coverage work.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -15740,19 +15740,19 @@
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
     {
-      "timestamp": "2026-09-02T03:10:00Z",
+      "timestamp": "2026-09-02T03:31:00Z",
       "severity": "needs_fix",
-      "guardrail_commit": "ec4c769",
-      "finding": "The single-anchor troubleshooting citation validator over-rejected legitimate multi-error answers by requiring every structured cited row to contain the first extracted error phrase.",
-      "status": "partially_addressed_relation_preserving_row_binding_api_positive_not_clean",
+      "guardrail_commit": "1b82d5b",
+      "finding": "The multi-error troubleshooting validator over-rejected source-equivalent duplicate rows and shorter error-code prefixes because it required every matching chunk id and used substring identifier matching.",
+      "status": "addressed_duplicate_equivalence_and_exact_identifier_binding_api_payloads_diagnostic",
       "evidence": [
-        "Production validation now binds each structured troubleshooting citation to a source-visible error number/message explicitly present in the query and requires all available requested rows to be cited.",
-        "Focused controls passed: 11 passed; full environment-backed unit gate passed: 561 passed, 59 warnings.",
-        "Loaded runtime controls passed with generator.py sha256 7218738813e70920e5bf6cf1643487dd37884704c1c10596b656fc8ed81a76e8 and validator sha256 6ba59bd790098496344baf184eaddd1699c156c7a7d5cdc07947461a13aa490c.",
-        "Actual HTTP source-filtered control cited evidence supporting both requested Ethernet errors but validation fallback also retained unrelated troubleshooting rows, so it remains diagnostic/not-clean.",
-        "Actual HTTP missing-side control returned only Ethernet evidence for a light-controller-plus-Ethernet comparison and was not counted clean."
+        "Production validation now groups requested troubleshooting sides by normalized source-visible identifier rather than chunk id and matches identifiers as complete normalized token sequences.",
+        "Focused troubleshooting-citation controls passed: 12 passed; full environment-backed unit gate passed: 564 passed, 59 warnings.",
+        "Loaded runtime controls passed for two-error, duplicate-equivalent, exact 10109-with-1010-prefix, missing-side, unrequested-sibling, and 1010-with-10109-superstring cases. Runtime fingerprints: generator.py 62998a125f2d371a8445143206bb6ee1e33ed1bbbd6313dcd9ee26caf27ab3cb; validator 0adafc7f0db8d6877fb306740d994d9a5fe2c8804732d6549088a3bb87660c2b.",
+        "Actual HTTP Error 10109 plus Error 10101 comparison exercised the loaded path but retrieval lacked 10101 and fallback retained unrelated rows, so the payload remains diagnostic/not-clean.",
+        "Actual HTTP Error 10109 single-error control cited only source-supported chunk c7b00dfb, but that chunk is a row group containing 10110-10112 sibling text; it remains a regression control rather than new clean multi-error proof."
       ],
-      "required_next_action": "Preserve the relation-preserving validator and gather a clean actual HTTP multi-error positive containing only requested sides; correct fallback evidence selection if unrelated troubleshooting rows remain."
+      "required_next_action": "Preserve exact identifier binding and duplicate collapse. Gather a clean actual HTTP multi-error positive containing only requested sides; if fallback still retains unrequested row-group siblings, correct fallback evidence selection generally before claiming clean multi-error production proof."
     },
     {
       "timestamp": "2026-09-02T02:02:00Z",
@@ -17105,5 +17105,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T03:10:00Z"
+  "updated_at": "2026-09-02T03:31:00Z"
 }
