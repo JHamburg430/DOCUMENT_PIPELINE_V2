@@ -216,7 +216,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-  "remaining": "Guardrail 2026-09-02T05:23:24Z same-error comparison parsing is corrected and unit/full/loaded controls pass, but the actual HTTP CV-X482-versus-CV-X400 request retrieved unrelated sibling rows and remains diagnostic. Gather a source-backed actual HTTP same-error cross-model or cross-version positive before treating the finding as fully resolved. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; this run intentionally left it registered for reuse and did not attempt removal.",
+  "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
     "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -711,7 +711,7 @@
     },
     "current_answer_failures": {},
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-    "remaining": "Guardrail 2026-09-02T05:23:24Z same-error comparison parsing is corrected and unit/full/loaded controls pass, but the actual HTTP CV-X482-versus-CV-X400 request retrieved unrelated sibling rows and remains diagnostic. Gather a source-backed actual HTTP same-error cross-model or cross-version positive before treating the finding as fully resolved. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; this run intentionally left it registered for reuse and did not attempt removal.",
+    "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
     "latest_clean_run": "retrieval_eval_20260902_013157"
   },
   "constraints": {
@@ -9168,7 +9168,7 @@
       ]
     }
   ],
-  "next_target": "Guardrail 2026-09-02T05:23:24Z same-error comparison parsing is corrected and unit/full/loaded controls pass, but the actual HTTP CV-X482-versus-CV-X400 request retrieved unrelated sibling rows and remains diagnostic. Gather a source-backed actual HTTP same-error cross-model or cross-version positive before treating the finding as fully resolved. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; this run intentionally left it registered for reuse and did not attempt removal.",
+  "next_target": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10138,7 +10138,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-      "remaining": "Guardrail 2026-09-02T05:23:24Z same-error comparison parsing is corrected and unit/full/loaded controls pass, but the actual HTTP CV-X482-versus-CV-X400 request retrieved unrelated sibling rows and remains diagnostic. Gather a source-backed actual HTTP same-error cross-model or cross-version positive before treating the finding as fully resolved. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; this run intentionally left it registered for reuse and did not attempt removal.",
+      "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
       "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10422,7 +10422,7 @@
       },
       "current_answer_failures": {},
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-      "remaining": "Guardrail 2026-09-02T05:23:24Z same-error comparison parsing is corrected and unit/full/loaded controls pass, but the actual HTTP CV-X482-versus-CV-X400 request retrieved unrelated sibling rows and remains diagnostic. Gather a source-backed actual HTTP same-error cross-model or cross-version positive before treating the finding as fully resolved. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; this run intentionally left it registered for reuse and did not attempt removal.",
+      "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
       "latest_clean_run": "retrieval_eval_20260902_013157"
     },
     "current_answer_failure_categories": {},
@@ -12825,7 +12825,7 @@
       }
     ],
     "multi_step_questions": 107,
-    "next_target": "Guardrail 2026-09-02T05:23:24Z same-error comparison parsing is corrected and unit/full/loaded controls pass, but the actual HTTP CV-X482-versus-CV-X400 request retrieved unrelated sibling rows and remains diagnostic. Gather a source-backed actual HTTP same-error cross-model or cross-version positive before treating the finding as fully resolved. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; this run intentionally left it registered for reuse and did not attempt removal.",
+    "next_target": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12862,7 +12862,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Guardrail 2026-09-02T05:23:24Z same-error comparison parsing is corrected and unit/full/loaded controls pass, but the actual HTTP CV-X482-versus-CV-X400 request retrieved unrelated sibling rows and remains diagnostic. Gather a source-backed actual HTTP same-error cross-model or cross-version positive before treating the finding as fully resolved. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; this run intentionally left it registered for reuse and did not attempt removal.",
+    "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -14989,9 +14989,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T05:34:00Z"
+    "updated_at": "2026-09-02T05:56:35Z"
   },
-  "remaining": "Guardrail 2026-09-02T05:23:24Z same-error comparison parsing is corrected and unit/full/loaded controls pass, but the actual HTTP CV-X482-versus-CV-X400 request retrieved unrelated sibling rows and remains diagnostic. Gather a source-backed actual HTTP same-error cross-model or cross-version positive before treating the finding as fully resolved. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; this run intentionally left it registered for reuse and did not attempt removal.",
+  "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -17117,5 +17117,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T05:34:00Z"
+  "updated_at": "2026-09-02T05:56:35Z"
 }
