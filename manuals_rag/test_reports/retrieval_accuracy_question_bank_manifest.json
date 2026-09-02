@@ -1,5 +1,5 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {"expected_document_not_cited_or_used": 1, "expected_evidence_not_cited": 1, "retrieval_not_passed": 1},
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
@@ -215,8 +215,8 @@
         "RERANKER_DEVICE": null
       }
     },
-    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-  "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
+    "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained. Inspected failed retrieval_eval_results_20260902_062955.jsonl: both exact Error 30109 evidence chunks were absent from final_top_k and every returned citation was unrelated CV-X overview/PLC content.",
+  "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted.",
     "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -711,7 +711,7 @@
     },
     "current_answer_failures": {},
     "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-    "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
+    "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted.",
     "latest_clean_run": "retrieval_eval_20260902_013157"
   },
   "constraints": {
@@ -730,15 +730,15 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
-  "current_answer_failure_source": "No current answer failures after retrieval_eval_20260902_013157 passed row 17 with citation-visible row-group evidence.",
-  "current_failure_categories": {},
+  "current_answer_failure_categories": {"expected_document_not_cited_or_used": 1, "expected_evidence_not_cited": 1, "retrieval_not_passed": 1},
+  "current_answer_failure_source": "After clean rotation retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed expected_document_not_cited_or_used, expected_evidence_not_cited, and retrieval_not_passed.",
+  "current_failure_categories": {"ranking_or_context_loss": 1},
   "current_failure_sources": {
-    "retrieval": "none",
-    "answer": "none"
+    "retrieval": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed ranking_or_context_loss.",
+    "answer": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed expected_document_not_cited_or_used, expected_evidence_not_cited, and retrieval_not_passed."
   },
-  "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "No current retrieval failures after retrieval_eval_20260902_013157.",
+  "current_retrieval_failure_categories": {"ranking_or_context_loss": 1},
+  "current_retrieval_failure_source": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed ranking_or_context_loss.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -936,7 +936,7 @@
       "total_queries": 10
     }
   ],
-  "failure_categories": {},
+  "failure_categories": {"ranking_or_context_loss": 1},
   "goal": {
     "components": [
       "single_step_retrieval",
@@ -9168,7 +9168,7 @@
       ]
     }
   ],
-  "next_target": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
+  "next_target": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -9921,7 +9921,7 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {"expected_document_not_cited_or_used": 1, "expected_evidence_not_cited": 1, "retrieval_not_passed": 1},
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
@@ -10137,8 +10137,8 @@
           "RERANKER_DEVICE": null
         }
       },
-      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-      "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
+      "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained. Inspected failed retrieval_eval_results_20260902_062955.jsonl: both exact Error 30109 evidence chunks were absent from final_top_k and every returned citation was unrelated CV-X overview/PLC content.",
+      "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted.",
       "scope": "production answer validation, focused answering test, progress/manifest tracking, and new row-17 eval artifacts; no production retrieval, eval scoring/generation, benchmark transport, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, or reranker logic changed"
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10422,18 +10422,18 @@
       },
       "current_answer_failures": {},
       "manual_jsonl_inspection": "Inspected retrieval_eval_results_20260902_013157.jsonl. The user-visible fallback answer states Error 10109, the next-FLASH-while-light-emitted cause, and the FLASH-output timing remedies. It cites only chunk c7b00dfb with quote_span null; the returned visible content directly contains the 10109 error message, cause, and remedies. No sibling 10101/10106 citation or guidance was retained.",
-      "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
+      "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted.",
       "latest_clean_run": "retrieval_eval_20260902_013157"
     },
-    "current_answer_failure_categories": {},
-    "current_answer_failure_source": "No current answer failures after retrieval_eval_20260902_013157 passed row 17 with citation-visible row-group evidence.",
-    "current_failure_categories": {},
+    "current_answer_failure_categories": {"expected_document_not_cited_or_used": 1, "expected_evidence_not_cited": 1, "retrieval_not_passed": 1},
+    "current_answer_failure_source": "After clean rotation retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed expected_document_not_cited_or_used, expected_evidence_not_cited, and retrieval_not_passed.",
+    "current_failure_categories": {"ranking_or_context_loss": 1},
     "current_failure_sources": {
-      "retrieval": "none",
-      "answer": "none"
+      "retrieval": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed ranking_or_context_loss.",
+      "answer": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed expected_document_not_cited_or_used, expected_evidence_not_cited, and retrieval_not_passed."
     },
-    "current_retrieval_failure_categories": {},
-    "current_retrieval_failure_source": "No current retrieval failures after retrieval_eval_20260902_013157.",
+    "current_retrieval_failure_categories": {"ranking_or_context_loss": 1},
+    "current_retrieval_failure_source": "After retrieval_eval_20260902_013157, retrieval_eval_20260902_062955 failed ranking_or_context_loss.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -10777,8 +10777,8 @@
         "total_questions": 2
       }
     ],
-    "exploratory_questions": 208,
-    "failure_categories": {},
+    "exploratory_questions": 209,
+    "failure_categories": {"ranking_or_context_loss": 1},
     "latest_comparison_setting_side_binding_containment": {
       "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
       "actual_http_evidence": {
@@ -12824,8 +12824,8 @@
         ]
       }
     ],
-    "multi_step_questions": 107,
-    "next_target": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
+    "multi_step_questions": 108,
+    "next_target": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12862,8 +12862,8 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
-    "retrieval_current_failure_categories": {},
+    "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted.",
+    "retrieval_current_failure_categories": {"ranking_or_context_loss": 1},
     "run_exclusions": [
       {
         "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -13621,7 +13621,7 @@
       }
     ],
     "single_step_questions": 101,
-    "total_questions": 208,
+    "total_questions": 209,
     "unresolved_guardrail_findings": [
       {
         "timestamp": "2026-09-02T03:31:00Z",
@@ -14989,10 +14989,10 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T05:56:35Z"
+    "updated_at": "2026-09-02T06:33:00Z"
   },
-  "remaining": "Source review classifies the CV-X482-versus-CV-X400 Error 10109 HTTP control as a dataset/corpus-limitation diagnostic: indexed evidence provides one Error 10109 row group and no source-visible model-side cause/remedy distinction. Preserve the parser and missing-side containment; next identify a validated same-error pair with explicit source-visible model or version bindings, or add a realistic source-backed replacement without tuning retrieval to unsupported side labels. Reuse registered clean worktree /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted so cleanup provenance remains durable.",
-  "retrieval_current_failure_categories": {},
+  "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted.",
+  "retrieval_current_failure_categories": {"ranking_or_context_loss": 1},
   "run_exclusions": [
     {
       "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
@@ -17117,5 +17117,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T05:56:35Z"
+  "updated_at": "2026-09-02T06:33:00Z"
 }
