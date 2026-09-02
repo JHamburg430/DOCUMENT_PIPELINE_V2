@@ -47,6 +47,10 @@ def _minimal_manifest():
         "current_retrieval_failure_source": (
             "retrieval_eval_20260830_201603 is the current retrieval failure source."
         ),
+        "current_answer_failure_source": (
+            "retrieval_eval_20260830_201603 is the current answer failure source: "
+            "expected_terms_missing."
+        ),
         "latest_cross_document_validation": {"run": "retrieval_eval_20260827_042612"},
         "latest_cross_document_probe": {"status": "preserved"},
         "latest_contextual_row14_repair": {"run": "retrieval_eval_20260827_053144"},
@@ -316,6 +320,77 @@ def test_manifest_checker_allows_historical_source_when_no_current_retrieval_fai
     errors = module.check_manifest(manifest)
 
     assert errors == []
+
+
+def test_manifest_checker_rejects_stale_current_answer_failure_source_run():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["current_answer_failure_source"] = (
+        "retrieval_eval_20260827_074631 is historical answer evidence."
+    )
+    manifest["question_bank"]["current_answer_failure_source"] = (
+        "retrieval_eval_20260827_074631 is historical answer evidence."
+    )
+
+    errors = module.check_manifest(manifest)
+
+    assert any("root.current_answer_failure_source stale" in error for error in errors)
+    assert any(
+        "question_bank.current_answer_failure_source stale" in error for error in errors
+    )
+
+
+def test_manifest_checker_rejects_stale_current_answer_failure_source_reason():
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    manifest["current_answer_failure_source"] = (
+        "retrieval_eval_20260830_201603 is the current answer failure source: "
+        "expected_evidence_not_cited."
+    )
+    manifest["question_bank"]["current_answer_failure_source"] = (
+        "retrieval_eval_20260830_201603 is the current answer failure source: "
+        "expected_evidence_not_cited."
+    )
+
+    errors = module.check_manifest(manifest)
+
+    assert any(
+        "root.current_answer_failure_source stale" in error
+        and "expected_terms_missing" in error
+        for error in errors
+    )
+    assert any(
+        "question_bank.current_answer_failure_source stale" in error
+        and "expected_terms_missing" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_rejects_missing_or_unequal_current_answer_failure_source():
+    module = _load_manifest_check_module()
+    missing_root = _minimal_manifest()
+    del missing_root["current_answer_failure_source"]
+    missing_nested = _minimal_manifest()
+    del missing_nested["question_bank"]["current_answer_failure_source"]
+    unequal = _minimal_manifest()
+    unequal["question_bank"]["current_answer_failure_source"] = (
+        "retrieval_eval_20260830_201603 stale answer failure source: "
+        "expected_terms_missing."
+    )
+
+    assert any(
+        "current_answer_failure_source missing required duplicate" in error
+        for error in module.check_manifest(missing_root)
+    )
+    assert any(
+        "question_bank.current_answer_failure_source" in error
+        and "missing required duplicate" in error
+        for error in module.check_manifest(missing_nested)
+    )
+    assert any(
+        "current_answer_failure_source mismatch" in error
+        for error in module.check_manifest(unequal)
+    )
 
 
 def test_manifest_checker_rejects_current_source_when_retrieval_failures_empty():

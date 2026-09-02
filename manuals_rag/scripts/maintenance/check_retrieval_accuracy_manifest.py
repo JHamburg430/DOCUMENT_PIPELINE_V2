@@ -20,6 +20,7 @@ REQUIRED_ROOT_TO_QUESTION_BANK_FIELDS = (
     "run_exclusions",
     "unresolved_guardrail_findings",
     "current_retrieval_failure_source",
+    "current_answer_failure_source",
     "latest_cross_document_validation",
     "latest_cross_document_probe",
     "latest_contextual_row14_repair",
@@ -241,6 +242,46 @@ def _check_current_retrieval_failure_source(
         )
 
 
+def _check_current_answer_failure_source(
+    label: str, manifest: dict[str, Any], errors: list[str]
+) -> None:
+    failures = manifest.get("current_answer_failure_categories")
+    rotation = manifest.get("answer_grounding_rotation")
+    latest_run = rotation.get("latest_run") if isinstance(rotation, dict) else None
+    source = manifest.get("current_answer_failure_source")
+    if not failures:
+        if isinstance(source, str) and (
+            " is the current answer failure source" in source.lower()
+            or "current retrieval and answer failure categories" in source.lower()
+        ):
+            errors.append(
+                f"{label}.current_answer_failure_source stale: "
+                "current answer failures are empty"
+            )
+        return
+    if not isinstance(failures, dict):
+        errors.append(f"{label}.current_answer_failure_categories must be an object")
+        return
+    if not isinstance(source, str):
+        errors.append(
+            f"{label}.current_answer_failure_source stale: "
+            "current answer failures have no source"
+        )
+        return
+    if isinstance(latest_run, str) and latest_run not in source:
+        errors.append(
+            f"{label}.current_answer_failure_source stale: "
+            f"current answer failures are tracked on {latest_run!r}"
+        )
+    source_lower = source.lower()
+    for reason in failures:
+        if str(reason).lower() not in source_lower:
+            errors.append(
+                f"{label}.current_answer_failure_source stale: "
+                f"current answer failure reason {reason!r} is not named"
+            )
+
+
 def _run_exclusion_count(value: Any) -> int | None:
     if isinstance(value, list):
         return len(value)
@@ -351,6 +392,8 @@ def check_manifest(
     )
     _check_current_retrieval_failure_source("root", data, errors)
     _check_current_retrieval_failure_source("question_bank", question_bank, errors)
+    _check_current_answer_failure_source("root", data, errors)
+    _check_current_answer_failure_source("question_bank", question_bank, errors)
     _check_monotonic_tracking_floors("root", data, errors)
 
     target_rows = _target_row_refs(data.get("next_target"))
