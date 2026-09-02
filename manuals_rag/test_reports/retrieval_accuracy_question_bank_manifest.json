@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Await guardrail review of production commit 983a737 and clean loaded rerun retrieval_eval_20260902_162903, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve wrong-product and missing-code fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of production commit 3e7f6ee and the loaded exact/near-product HTTP evidence, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a66cbed",
@@ -729,7 +729,7 @@
     },
     "current_answer_failures": {},
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Await guardrail review of production commit 983a737 and clean loaded rerun retrieval_eval_20260902_162903, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve wrong-product and missing-code fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of production commit 3e7f6ee and the loaded exact/near-product HTTP evidence, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260902_161158"
   },
   "constraints": {
@@ -9009,11 +9009,11 @@
     "current_run_worktree": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "created_new_worktree": false,
-      "timestamp": "2026-09-02T16:34:00Z",
-      "git_status_before_final_commit": "dirty only with this run progress/manifest tracking and validation-only 162903 artifacts on committed production fix 983a737",
+      "timestamp": "2026-09-02T17:06:00Z",
+      "git_status_before_final_commit": "dirty only with this run progress/manifest tracking on pushed production fix 3e7f6ee",
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at production commit 983a737 before final tracking commit",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed production commit 3e7f6ee before final tracking commit",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -9222,7 +9222,7 @@
       ]
     }
   ],
-  "next_target": "Await guardrail review of production commit 983a737 and clean loaded rerun retrieval_eval_20260902_162903, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve wrong-product and missing-code fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Await guardrail review of production commit 3e7f6ee and the loaded exact/near-product HTTP evidence, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10191,7 +10191,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Await guardrail review of production commit 983a737 and clean loaded rerun retrieval_eval_20260902_162903, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve wrong-product and missing-code fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Await guardrail review of production commit 3e7f6ee and the loaded exact/near-product HTTP evidence, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a66cbed",
@@ -10494,7 +10494,7 @@
       },
       "current_answer_failures": {},
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Await guardrail review of production commit 983a737 and clean loaded rerun retrieval_eval_20260902_162903, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve wrong-product and missing-code fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Await guardrail review of production commit 3e7f6ee and the loaded exact/near-product HTTP evidence, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260902_161158"
     },
     "current_answer_failure_categories": {},
@@ -12743,11 +12743,11 @@
       "current_run_worktree": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
         "created_new_worktree": false,
-        "timestamp": "2026-09-02T16:34:00Z",
-        "git_status_before_final_commit": "dirty only with this run progress/manifest tracking and validation-only 162903 artifacts on committed production fix 983a737",
+        "timestamp": "2026-09-02T17:06:00Z",
+        "git_status_before_final_commit": "dirty only with this run progress/manifest tracking on pushed production fix 3e7f6ee",
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at production commit 983a737 before final tracking commit",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed production commit 3e7f6ee before final tracking commit",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -12958,7 +12958,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Await guardrail review of production commit 983a737 and clean loaded rerun retrieval_eval_20260902_162903, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve wrong-product and missing-code fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Await guardrail review of production commit 3e7f6ee and the loaded exact/near-product HTTP evidence, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -12995,7 +12995,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await guardrail review of production commit 983a737 and clean loaded rerun retrieval_eval_20260902_162903, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve wrong-product and missing-code fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of production commit 3e7f6ee and the loaded exact/near-product HTTP evidence, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13768,19 +13768,20 @@
     "total_questions": 209,
     "unresolved_guardrail_findings": [
       {
-        "timestamp": "2026-09-02T16:16:19Z",
+        "timestamp": "2026-09-02T16:47:08Z",
         "severity": "needs_fix",
-        "guardrail_commit": "9cae303",
-        "finding": "Multi-code diagnostic promotion could prefer a complete row from an unrelated product over partial evidence for the explicitly requested product and could promote incomplete requested-code coverage.",
+        "guardrail_commit": "f0f0689",
+        "finding": "The 983a737 requested-product correction remained prefix/superstring unsafe because compact substring matching accepted near-name products such as MOD-6000 and XMOD-600 for MOD-600.",
         "status": "addressed_this_run_awaiting_guardrail_review",
         "evidence": [
-          "Production commit 983a737 filters multi-code promotion candidates by explicit product identifiers and fails closed unless every requested code is covered by compatible candidates.",
-          "Focused controls passed 5/5 for requested-product complete coverage, wrong-product both-codes, requested-product partial versus unrelated complete, exact prefix/superstring boundaries, and missing-code coverage.",
-          "Fixture-mounted full unit gate passed 608 tests with 59 warnings.",
-          "Loaded runtime host/container retriever hashes matched ed15a48da4923c8ab1f24d263700da4fd172ed191b441831e5c0dc58f0085845 before commit; retrieval_eval_20260902_162903 passed retrieval and actual HTTP answer grounding 1/1 at rank 1.",
-          "Manual JSONL inspection confirmed the only citation c7b00dfb page 1274 directly states both requested causes and remedies with quote_span null; wrong-product IV-HG500CA and missing-code CV-X482 controls both returned insufficient evidence with no citations."
+          "Production commit 3e7f6ee requires alphanumeric identifier boundaries while allowing punctuation and spacing variants, so exact MOD-600/MOD 600 evidence remains compatible but MOD-6000, XMOD-600, and unrelated products are rejected.",
+          "Focused multi-error promotion controls passed 8 tests, including exact product, product-prefix, product-superstring, wrong-product, missing-code, and exact diagnostic-code boundaries.",
+          "Fixture-mounted full unit gate passed 611 tests with 60 warnings. The initial unmounted run was diagnostic at 606 passed and five failures caused only by absent tmp_eval_docs fixture directories.",
+          "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901; health was OK, host/container retriever.py SHA-256 matched 75d89557e37e0e3c533d76d20e091d6455c14b571c9c915b403c172547863a39, and loaded helper SHA-256 was 45d76f4f6696bf6a4dc077b828dc4840b8bdf1fdec6503399f4cfc0d3e7881bb.",
+          "Loaded branch controls returned true only for exact MOD-600 and false for MOD-6000, XMOD-600, and OTHER-700.",
+          "Actual HTTP CV-X482 Error 10109/10110 returned the source-supported grounded fallback citing only c7b00dfb page 1274; the near-name CV-X4820 control returned insufficient evidence with no citations. A first negative /search attempt hit a transient Qdrant timeout and HTTP 500; the /query retry completed and failed closed."
         ],
-        "required_next_action": "Guardrail-review 983a737 and retrieval_eval_20260902_162903; preserve prior diagnostic exclusions, then continue a source-reviewed distinct-chunk multi-error case."
+        "required_next_action": "Guardrail-review 3e7f6ee and the loaded exact/near-product HTTP evidence; preserve both prior clean multi-error runs and all diagnostics, then continue a source-reviewed distinct-chunk multi-error case."
       },
       {
         "timestamp": "2026-09-02T14:16:21Z",
@@ -15205,7 +15206,7 @@
     ],
     "updated_at": "2026-09-02T15:34:00Z"
   },
-  "remaining": "Await guardrail review of production commit 983a737 and clean loaded rerun retrieval_eval_20260902_162903, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve wrong-product and missing-code fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Await guardrail review of production commit 3e7f6ee and the loaded exact/near-product HTTP evidence, then broaden source-reviewed multi-error troubleshooting coverage to a realistic distinct-chunk case. Preserve exact product and diagnostic-code boundaries, missing-code fail-closed behavior, both prior clean multi-error runs, and all diagnostics; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -15976,21 +15977,22 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
-    {
-      "timestamp": "2026-09-02T16:16:19Z",
-      "severity": "needs_fix",
-      "guardrail_commit": "9cae303",
-      "finding": "Multi-code diagnostic promotion could prefer a complete row from an unrelated product over partial evidence for the explicitly requested product and could promote incomplete requested-code coverage.",
-      "status": "addressed_this_run_awaiting_guardrail_review",
-      "evidence": [
-        "Production commit 983a737 filters multi-code promotion candidates by explicit product identifiers and fails closed unless every requested code is covered by compatible candidates.",
-        "Focused controls passed 5/5 for requested-product complete coverage, wrong-product both-codes, requested-product partial versus unrelated complete, exact prefix/superstring boundaries, and missing-code coverage.",
-        "Fixture-mounted full unit gate passed 608 tests with 59 warnings.",
-        "Loaded runtime host/container retriever hashes matched ed15a48da4923c8ab1f24d263700da4fd172ed191b441831e5c0dc58f0085845 before commit; retrieval_eval_20260902_162903 passed retrieval and actual HTTP answer grounding 1/1 at rank 1.",
-        "Manual JSONL inspection confirmed the only citation c7b00dfb page 1274 directly states both requested causes and remedies with quote_span null; wrong-product IV-HG500CA and missing-code CV-X482 controls both returned insufficient evidence with no citations."
-      ],
-      "required_next_action": "Guardrail-review 983a737 and retrieval_eval_20260902_162903; preserve prior diagnostic exclusions, then continue a source-reviewed distinct-chunk multi-error case."
-    },
+      {
+        "timestamp": "2026-09-02T16:47:08Z",
+        "severity": "needs_fix",
+        "guardrail_commit": "f0f0689",
+        "finding": "The 983a737 requested-product correction remained prefix/superstring unsafe because compact substring matching accepted near-name products such as MOD-6000 and XMOD-600 for MOD-600.",
+        "status": "addressed_this_run_awaiting_guardrail_review",
+        "evidence": [
+          "Production commit 3e7f6ee requires alphanumeric identifier boundaries while allowing punctuation and spacing variants, so exact MOD-600/MOD 600 evidence remains compatible but MOD-6000, XMOD-600, and unrelated products are rejected.",
+          "Focused multi-error promotion controls passed 8 tests, including exact product, product-prefix, product-superstring, wrong-product, missing-code, and exact diagnostic-code boundaries.",
+          "Fixture-mounted full unit gate passed 611 tests with 60 warnings. The initial unmounted run was diagnostic at 606 passed and five failures caused only by absent tmp_eval_docs fixture directories.",
+          "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901; health was OK, host/container retriever.py SHA-256 matched 75d89557e37e0e3c533d76d20e091d6455c14b571c9c915b403c172547863a39, and loaded helper SHA-256 was 45d76f4f6696bf6a4dc077b828dc4840b8bdf1fdec6503399f4cfc0d3e7881bb.",
+          "Loaded branch controls returned true only for exact MOD-600 and false for MOD-6000, XMOD-600, and OTHER-700.",
+          "Actual HTTP CV-X482 Error 10109/10110 returned the source-supported grounded fallback citing only c7b00dfb page 1274; the near-name CV-X4820 control returned insufficient evidence with no citations. A first negative /search attempt hit a transient Qdrant timeout and HTTP 500; the /query retry completed and failed closed."
+        ],
+        "required_next_action": "Guardrail-review 3e7f6ee and the loaded exact/near-product HTTP evidence; preserve both prior clean multi-error runs and all diagnostics, then continue a source-reviewed distinct-chunk multi-error case."
+      },
     {
       "timestamp": "2026-09-02T14:16:21Z",
       "severity": "needs_fix",
