@@ -8988,6 +8988,16 @@
     "timestamp": "2026-09-01T01:34:00Z"
   },
   "latest_temp_worktree_hygiene_guardrail": {
+    "current_run_worktree": {
+      "created_new_worktree": false,
+      "git_status_after_primary_commit": "clean at f8bc205",
+      "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag exists",
+      "registry_check_after_primary_commit": "registered=true in git worktree list --porcelain",
+      "removal_command": "not attempted",
+      "removal_result": "not attempted; retained registered for safe reuse because supported removal has repeatedly deregistered worktrees before Permission denied and would prevent this required tracking commit",
+      "selected_worktree": "/tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag",
+      "timestamp": "2026-09-02T07:35:00Z"
+    },
     "checker_repair": {
       "controls": [
         "equal copy passes",
@@ -12668,6 +12678,16 @@
       "timestamp": "2026-09-01T01:34:00Z"
     },
     "latest_temp_worktree_hygiene_guardrail": {
+      "current_run_worktree": {
+        "created_new_worktree": false,
+        "git_status_after_primary_commit": "clean at f8bc205",
+        "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag exists",
+        "registry_check_after_primary_commit": "registered=true in git worktree list --porcelain",
+        "removal_command": "not attempted",
+        "removal_result": "not attempted; retained registered for safe reuse because supported removal has repeatedly deregistered worktrees before Permission denied and would prevent this required tracking commit",
+        "selected_worktree": "/tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag",
+        "timestamp": "2026-09-02T07:35:00Z"
+      },
       "checker_repair": {
         "controls": [
           "equal copy passes",
@@ -15014,7 +15034,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T07:29:33Z"
+    "updated_at": "2026-09-02T07:35:00Z"
   },
   "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_cron_20260831_1853/manuals_rag; removal was intentionally not attempted.",
   "retrieval_current_failure_categories": {"ranking_or_context_loss": 1},
@@ -17142,5 +17162,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T07:29:33Z"
+  "updated_at": "2026-09-02T07:35:00Z"
 }
