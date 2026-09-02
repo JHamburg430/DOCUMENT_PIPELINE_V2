@@ -246,6 +246,8 @@ def _should_run_extra_table_vector_search(analysis: QueryAnalysis) -> bool:
 
 
 def _should_run_table_lexical_search(analysis: QueryAnalysis) -> bool:
+    if analysis.error_code and _query_has_diagnostic_table_code(analysis.raw_query, analysis):
+        return True
     if "structured_lookup" not in analysis.query_types:
         return True
     if analysis.product_model or analysis.product_family or analysis.part_number:
@@ -413,13 +415,30 @@ def _diagnostic_table_code_terms(query: str, analysis: QueryAnalysis) -> list[st
         )
     ]
     codes: list[str] = []
+    if analysis.error_code:
+        normalized_error = _compact_identifier(str(analysis.error_code))
+        if normalized_error:
+            codes.append(normalized_error)
     for match in re.finditer(r"\b[A-Z]{1,4}[- ]?\d{1,4}[A-Z]?\b", query, flags=re.IGNORECASE):
         if any(start <= match.start() and match.end() <= end for start, end in model_spans):
             continue
         compact = _compact_identifier(match.group(0))
         if len(compact) >= 2 and any(char.isdigit() for char in compact):
-            codes.append(compact)
+            if compact not in codes:
+                codes.append(compact)
     return codes[:4]
+
+
+def _diagnostic_code_pattern(code: str) -> str:
+    compact = _compact_identifier(code)
+    if not compact:
+        return r"(?!)"
+    separated = r"[^a-z0-9]*".join(re.escape(char) for char in compact)
+    return rf"(^|[^a-z0-9]){separated}([^a-z0-9]|$)"
+
+
+def _text_contains_diagnostic_code(text: str, code: str) -> bool:
+    return bool(re.search(_diagnostic_code_pattern(code), text, flags=re.IGNORECASE))
 
 
 def _comparison_term_variants(term: str) -> list[str]:
@@ -968,7 +987,21 @@ def run_table_lexical_search(
     diagnostic_code_terms = _diagnostic_table_code_terms(query, analysis)
     if diagnostic_code_terms:
         symbol_terms = diagnostic_code_terms
-    if is_comparison_lookup:
+    if is_comparison_lookup and diagnostic_code_terms:
+        where.append(
+            "("
+            + " or ".join(
+                [
+                    "lower(content) ~ %s or lower(metadata_json::text) ~ %s"
+                ]
+                * len(diagnostic_code_terms)
+            )
+            + ")"
+        )
+        for term in diagnostic_code_terms:
+            pattern = _diagnostic_code_pattern(term)
+            params.extend([pattern, pattern])
+    elif is_comparison_lookup:
         like_terms: list[str] = []
         for term in [*_comparison_table_content_terms(terms), *_lexical_table_symbol_terms(terms)]:
             if term not in like_terms:
@@ -2612,6 +2645,23 @@ def _promote_diagnostic_table_candidates(
     ]
     if not candidates:
         return primary_results
+    identifiers = [str(identifier) for identifier in (analysis.product_identifiers or []) if str(identifier)]
+    if "comparison" in analysis.query_types and len(identifiers) >= 2:
+        selected: list[SearchResult] = []
+        selected_ids: set[str] = set()
+        for identifier in identifiers:
+            side_candidates = [
+                result
+                for result in candidates
+                if result.chunk_id not in selected_ids
+                and _result_matches_primary_identifier(result, identifier)
+            ]
+            if not side_candidates:
+                continue
+            best = max(side_candidates, key=lambda result: _diagnostic_table_support_score(result, analysis))
+            selected.append(best)
+            selected_ids.add(best.chunk_id)
+        candidates = selected
     promoted = [
         candidate.model_copy(
             update={
@@ -2635,6 +2685,24 @@ def _promote_diagnostic_table_candidates(
         if len(deduped) >= limit:
             break
     return deduped
+
+
+def _diagnostic_table_support_score(result: SearchResult, analysis: QueryAnalysis) -> tuple[int, int, int, int, float]:
+    content = str(result.content or "").lower()
+    codes = _diagnostic_table_code_terms(analysis.raw_query, analysis)
+    exact_code_count = sum(1 for code in codes if _text_contains_diagnostic_code(content, code))
+    evidence_role_count = sum(
+        1
+        for label in ("error message", "message", "cause", "remedy", "corrective action")
+        if re.search(rf"\b{re.escape(label)}s?\s*:", content)
+    )
+    return (
+        exact_code_count,
+        evidence_role_count,
+        int(bool(result.metadata.get("table_key_value"))),
+        int(bool(result.metadata.get("table_row_group"))),
+        result.score,
+    )
 
 
 def _select_family_candidates(

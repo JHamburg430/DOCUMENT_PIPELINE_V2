@@ -368,6 +368,26 @@ def test_query_analysis_does_not_extract_model_suffix_as_error_code():
     assert analysis.error_code is None
 
 
+def test_query_analysis_extracts_explicit_numeric_error_and_comparison_scope():
+    analysis = analyze_query(
+        "How does Error 30109 differ between the CV-X482 and the VS Series, "
+        "and what does it indicate for each system?"
+    )
+
+    assert analysis.error_code == "30109"
+    assert "comparison" in analysis.query_types
+    assert "troubleshooting" in analysis.query_types
+    assert analysis.product_identifiers == ["CV-X482", "VS"]
+    assert retriever._diagnostic_table_code_terms(analysis.raw_query, analysis) == ["30109"]
+    assert retriever._should_run_table_lexical_search(analysis) is True
+
+
+def test_query_analysis_does_not_treat_unlabeled_quantity_as_error_code():
+    analysis = analyze_query("How do the CV-X482 and VS Series differ when storing 30109 images?")
+
+    assert analysis.error_code is None
+
+
 def test_table_search_route_skips_safety_procedure_questions():
     analysis = analyze_query(
         "When installing the controller for LJ-X8000, what warning or caution about controller mounting should be followed?"
@@ -1386,6 +1406,87 @@ def test_diagnostic_table_promotion_keeps_source_bearing_rows_before_headings():
 
     assert promoted[0].chunk_id == "table"
     assert promoted[0].metadata["retrieval_stage"] == "diagnostic_table_promoted"
+
+
+def test_diagnostic_comparison_promotion_preserves_one_complete_row_per_product_side():
+    analysis = analyze_query(
+        "How does Error 30109 differ between the MOD-100 and the SYS Series?"
+    )
+
+    def result(chunk_id: str, product: str, content: str, **metadata: object) -> SearchResult:
+        return SearchResult(
+            chunk_id=chunk_id,
+            score=1.0,
+            title=f"{product} Manual",
+            document_version_id=f"ver-{chunk_id}",
+            source_document_id=f"doc-{product}",
+            pages=[1],
+            section_path=["Errors"],
+            content=content,
+            metadata={"chunk_type": "table_record", "product_model": product, **metadata},
+        )
+
+    supplemental = [
+        result("mod-complete", "MOD-100", "Error Number: 30109; Error Messages: Storage is full.", table_row_group=True),
+        result("mod-code-only", "MOD-100", "Cell value: 30109", table_key_value=True),
+        result("sys-group", "SYS", "Error Code: 30109; Message: Task unavailable.; Cause: Busy.", table_row_group=True),
+        result("sys-row", "SYS", "Error Code: 30109; Message: Task unavailable.; Cause: Busy.", table_key_value=True),
+        result("other", "OTHER", "Error Code: 30109; Message: Unrelated.", table_key_value=True),
+    ]
+
+    promoted = retriever._promote_diagnostic_table_candidates([], supplemental, analysis, limit=5)
+
+    assert [item.chunk_id for item in promoted] == ["mod-complete", "sys-row"]
+
+
+def test_diagnostic_comparison_promotion_does_not_fabricate_missing_product_side():
+    analysis = analyze_query(
+        "How does Error 30109 differ between the MOD-100 and the SYS Series?"
+    )
+    only_other_side = SearchResult(
+        chunk_id="other",
+        score=1.0,
+        title="OTHER Manual",
+        document_version_id="ver-other",
+        source_document_id="doc-other",
+        pages=[1],
+        section_path=["Errors"],
+        content="Error Code: 30109; Message: Unrelated.",
+        metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": "OTHER"},
+    )
+
+    promoted = retriever._promote_diagnostic_table_candidates([], [only_other_side], analysis, limit=5)
+
+    assert promoted == []
+
+
+def test_diagnostic_code_matching_is_exact_and_separator_tolerant():
+    assert retriever._text_contains_diagnostic_code("Error Code: 30109; Message: Exact.", "30109") is True
+    assert retriever._text_contains_diagnostic_code("Fault E-123: Exact.", "E123") is True
+    assert retriever._text_contains_diagnostic_code("Error Code: 301090; Message: Superstring.", "30109") is False
+    assert retriever._text_contains_diagnostic_code("Error Code: 3010; Message: Prefix.", "30109") is False
+    assert retriever._text_contains_diagnostic_code("Reference x30109y is not a code.", "30109") is False
+
+
+def test_diagnostic_table_support_score_rejects_code_superstrings():
+    analysis = analyze_query("Compare Error 30109 between MOD-100 and SYS Series")
+    exact = SearchResult(
+        chunk_id="exact",
+        score=1.0,
+        title="Exact",
+        document_version_id="ver-exact",
+        source_document_id="doc-exact",
+        pages=[1],
+        section_path=["Errors"],
+        content="Error Code: 30109; Message: Exact fault.",
+        metadata={"chunk_type": "table_record"},
+    )
+    superstring = exact.model_copy(
+        update={"chunk_id": "superstring", "content": "Error Code: 301090; Message: Different fault."}
+    )
+
+    assert retriever._diagnostic_table_support_score(exact, analysis)[0] == 1
+    assert retriever._diagnostic_table_support_score(superstring, analysis)[0] == 0
 
 
 def test_direct_configuration_promotion_prefers_scoped_detail_candidate():

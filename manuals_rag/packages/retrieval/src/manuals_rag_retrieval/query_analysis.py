@@ -126,7 +126,7 @@ def analyze_query(query: str) -> QueryAnalysis:
         types.append("troubleshooting")
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "section_window"])
-    if re.search(r"\b(?:compare|difference|versus)\b", lowered) or re.search(r"\bvs\.?\b", lowered) and not re.search(
+    if re.search(r"\b(?:compare|difference|differ(?:s|ed|ing)?|versus)\b", lowered) or re.search(r"\bvs\.?\b", lowered) and not re.search(
         r"\bvs\.?\s+series\b", lowered
     ):
         types.append("comparison")
@@ -199,11 +199,19 @@ def analyze_query(query: str) -> QueryAnalysis:
         flags=re.IGNORECASE,
     )
     part_match = re.search(r"\b(?:OP|CA|SZ|GL|SR|IV|LJ|LR|KV|XG|VS|WM|VJ)-[A-Z0-9]{2,12}[A-Z0-9-]*\b", query)
-    error_match = re.search(r"\b[A-Z]\d{2,4}\b(?!\s+(?:series|family))", query, flags=re.IGNORECASE)
+    error_match = re.search(
+        r"\b[A-Z]\d{2,4}\b(?!\s+(?:series|family))"
+        r"|\b(?:error|fault|alarm)\s+(?:code\s+|number\s+|no\.?\s*)?(\d{2,6})\b",
+        query,
+        flags=re.IGNORECASE,
+    )
     if error_match and model_match:
         model_span = model_match.span()
         if model_span[0] <= error_match.start() and error_match.end() <= model_span[1]:
             error_match = None
+    if error_match and "troubleshooting" in types:
+        types.append("structured_lookup")
+        preferred_chunk_types.extend(["table_record", "section_window"])
     explicit_identifier_count = int(bool(model_match)) + int(bool(error_match))
     filter_strictness = "strict" if explicit_identifier_count >= 2 else ("balanced" if explicit_identifier_count == 1 else "loose")
     product_identifiers: list[str] = []
@@ -218,7 +226,7 @@ def analyze_query(query: str) -> QueryAnalysis:
         product_model=model_match.group(0) if model_match else None,
         product_identifiers=product_identifiers,
         part_number=part_match.group(0) if part_match else None,
-        error_code=error_match.group(0) if error_match and not part_match else None,
+        error_code=(error_match.group(1) or error_match.group(0)) if error_match and not part_match else None,
         requested_doc_kind=requested_doc_kind,
         safety_intent="safety" in types,
         latest_only=any(term in lowered for term in ["latest", "newest", "current revision", "most recent"]),
