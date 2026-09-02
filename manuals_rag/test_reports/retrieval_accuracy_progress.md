@@ -6963,3 +6963,15 @@ Next target:
 Next target:
 
 - Await independent guardrail review of the code-to-product relation binding correction. Preserve the mixed 182758 run as one source-grounded positive plus one intentional fail-closed diagnostic, and reuse `/tmp/manuals_rag_accuracy_20260901`.
+
+### Guardrail correction and source-faithful rerun
+
+- Concurrent guardrail commit `76d30bf` / `2026-09-02T18:43:41Z` correctly found that the `182758` positive was not clean: its visible query requested a technician action for VS Error 30109, but cited chunk `be25fb78` contains only the message and cause. Preserve the entire `182758` run as diagnostic/not-clean; its automated green does not satisfy the missing remedy role.
+- Rebased the local accuracy commit onto `76d30bf`, added source-reviewed validation-only dataset `test_reports/retrieval_eval_dataset_20260902_1450_cross_product_error_binding_source_faithful.jsonl`, and reran the loaded actual HTTP path as `retrieval_eval_20260902_184955`. The corrected user question asks only what each error indicates and what causes it.
+- Manual inspection of every `184955` result: the positive passed retrieval at rank 1 and answer grounding 1/1, cites exact chunks `423d72f0` and `be25fb78` with null quote spans, and both chunks directly support their assigned indication/cause roles. The swapped/missing-side control again returned `insufficient_evidence=true` with no citations. Only the positive case is accepted clean; the combined 1/2 validation run is not called clean.
+- Rechecked the dataset-ledger containment carried by `f31493a`: the real parent-aware manifest check passed and the focused manifest suite passed `26/26`, including append-only extension, unchanged/missing file, replaced-row, row/type mismatch, provenance, evidence-artifact, masked-count, and reactivation controls. Active coverage remains unchanged at 209 exploratory questions (101 single-step, 108 multi-step), so the source-faithful validation-only dataset creates no ledger delta.
+- Worktree hygiene: reused exact registered accuracy-owned worktree `/tmp/manuals_rag_accuracy_20260901`; created no worktree. Supported removal was intentionally not attempted because accumulated permission-denied blockers remain and removal before a durable follow-up tracking commit would be unsafe. The path remains present and registered; final commit should leave it clean for mandatory reuse.
+
+Next target:
+
+- Await independent guardrail review of the relation-binding correction and source-faithful `184955` evidence. Preserve all of `182758` as diagnostic/not-clean and reuse `/tmp/manuals_rag_accuracy_20260901`.

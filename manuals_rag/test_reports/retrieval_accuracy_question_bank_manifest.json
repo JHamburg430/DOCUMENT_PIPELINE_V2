@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a66cbed",
@@ -707,9 +707,9 @@
       "retrieval_eval_20260902_124857 Error 30109 cross-model exact-code grounded answer",
       "retrieval_eval_20260902_161158 multi-error Error 10109/10110 row-group grounded answer",
       "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer",
-      "retrieval_eval_20260902_182758 cross-product Error 10101/30109 relation-bound grounded answer"
+      "retrieval_eval_20260902_184955 source-faithful cross-product Error 10101/30109 relation-bound grounded answer"
     ],
-    "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_182758 positive are accepted under source-reviewed visible-citation-content scoring. The latest positive binds CV-X482 Error 10101 to chunk 423d72f0 and VS Series Error 30109 to chunk be25fb78; the swapped/missing-side control failed closed with no citations.",
+    "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_184955 positive are accepted under source-reviewed visible-citation-content scoring. The earlier 182758 positive is diagnostic/not-clean because it requested an unsupported VS corrective-action role. The corrected positive asks only source-supported meaning/cause and binds CV-X482 Error 10101 to chunk 423d72f0 and VS Series Error 30109 to chunk be25fb78; the swapped/missing-side control failed closed.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -733,14 +733,16 @@
       "multi_error_distinct_chunks_clean_summary": "test_reports/retrieval_eval_summary_20260902_180540.json",
       "multi_error_distinct_chunks_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_180540.json",
       "cross_product_error_binding_validation_dataset": "test_reports/retrieval_eval_dataset_20260902_1423_cross_product_error_binding_validation.jsonl",
-      "cross_product_error_binding_clean_results": "test_reports/retrieval_eval_results_20260902_182758.jsonl",
-      "cross_product_error_binding_clean_summary": "test_reports/retrieval_eval_summary_20260902_182758.json",
-      "cross_product_error_binding_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_182758.json"
+      "cross_product_error_binding_clean_results": "test_reports/retrieval_eval_results_20260902_184955.jsonl",
+      "cross_product_error_binding_clean_summary": "test_reports/retrieval_eval_summary_20260902_184955.json",
+      "cross_product_error_binding_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_184955.json",
+      "cross_product_error_binding_diagnostic_results": "test_reports/retrieval_eval_results_20260902_182758.jsonl",
+      "cross_product_error_binding_source_faithful_dataset": "test_reports/retrieval_eval_dataset_20260902_1450_cross_product_error_binding_source_faithful.jsonl"
     },
     "current_answer_failures": {},
-    "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260902_182758.jsonl. The positive user-visible fallback cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans; each returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
-    "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
-    "latest_clean_run": "retrieval_eval_20260902_182758 positive only"
+    "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_182758.jsonl and retrieval_eval_results_20260902_184955.jsonl. The 182758 positive is diagnostic/not-clean because its query requested a VS technician action absent from chunk be25fb78. The corrected 184955 positive asks only meaning/cause, cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans, and each cited returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
+    "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "latest_clean_run": "retrieval_eval_20260902_184955 positive only"
   },
   "constraints": {
     "allowed_logic": [
@@ -9019,11 +9021,11 @@
     "current_run_worktree": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "created_new_worktree": false,
-      "timestamp": "2026-09-02T18:08:00Z",
-      "git_status_before_final_commit": "dirty only with this run answering/tests/eval artifacts/progress/manifest on origin/main guardrail commit f31493a",
+      "timestamp": "2026-09-02T18:53:00Z",
+      "git_status_before_final_commit": "dirty only with this run's source-faithful eval artifacts and tracking on local production commit 70bae9a, which directly includes origin/main guardrail commit 76d30bf",
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main guardrail commit f31493a before final commit",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at local commit 70bae9a before final tracking commit",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -9232,7 +9234,7 @@
       ]
     }
   ],
-  "next_target": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10201,7 +10203,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a66cbed",
@@ -10482,9 +10484,9 @@
         "retrieval_eval_20260902_124857 Error 30109 cross-model exact-code grounded answer",
         "retrieval_eval_20260902_161158 multi-error Error 10109/10110 row-group grounded answer",
         "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer",
-        "retrieval_eval_20260902_182758 cross-product Error 10101/30109 relation-bound grounded answer"
+        "retrieval_eval_20260902_184955 source-faithful cross-product Error 10101/30109 relation-bound grounded answer"
       ],
-      "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_182758 positive are accepted under source-reviewed visible-citation-content scoring. The latest positive binds CV-X482 Error 10101 to chunk 423d72f0 and VS Series Error 30109 to chunk be25fb78; the swapped/missing-side control failed closed with no citations.",
+      "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_184955 positive are accepted under source-reviewed visible-citation-content scoring. The earlier 182758 positive is diagnostic/not-clean because it requested an unsupported VS corrective-action role. The corrected positive asks only source-supported meaning/cause and binds CV-X482 Error 10101 to chunk 423d72f0 and VS Series Error 30109 to chunk be25fb78; the swapped/missing-side control failed closed.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10508,14 +10510,16 @@
         "multi_error_distinct_chunks_clean_summary": "test_reports/retrieval_eval_summary_20260902_180540.json",
         "multi_error_distinct_chunks_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_180540.json",
         "cross_product_error_binding_validation_dataset": "test_reports/retrieval_eval_dataset_20260902_1423_cross_product_error_binding_validation.jsonl",
-        "cross_product_error_binding_clean_results": "test_reports/retrieval_eval_results_20260902_182758.jsonl",
-        "cross_product_error_binding_clean_summary": "test_reports/retrieval_eval_summary_20260902_182758.json",
-        "cross_product_error_binding_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_182758.json"
+        "cross_product_error_binding_clean_results": "test_reports/retrieval_eval_results_20260902_184955.jsonl",
+        "cross_product_error_binding_clean_summary": "test_reports/retrieval_eval_summary_20260902_184955.json",
+        "cross_product_error_binding_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_184955.json",
+        "cross_product_error_binding_diagnostic_results": "test_reports/retrieval_eval_results_20260902_182758.jsonl",
+        "cross_product_error_binding_source_faithful_dataset": "test_reports/retrieval_eval_dataset_20260902_1450_cross_product_error_binding_source_faithful.jsonl"
       },
       "current_answer_failures": {},
-      "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260902_182758.jsonl. The positive user-visible fallback cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans; each returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
-      "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
-      "latest_clean_run": "retrieval_eval_20260902_182758 positive only"
+      "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_182758.jsonl and retrieval_eval_results_20260902_184955.jsonl. The 182758 positive is diagnostic/not-clean because its query requested a VS technician action absent from chunk be25fb78. The corrected 184955 positive asks only meaning/cause, cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans, and each cited returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
+      "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+      "latest_clean_run": "retrieval_eval_20260902_184955 positive only"
     },
     "current_answer_failure_categories": {},
     "current_answer_failure_source": "retrieval_eval_20260902_180540 positive passed actual HTTP answer grounding 1/1 across two distinct cited chunks; its intentional Error 99999 missing-side control failed closed, while older diagnostic/not-clean runs remain preserved.",
@@ -12763,11 +12767,11 @@
       "current_run_worktree": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
         "created_new_worktree": false,
-        "timestamp": "2026-09-02T18:08:00Z",
-        "git_status_before_final_commit": "dirty only with this run answering/tests/eval artifacts/progress/manifest on origin/main guardrail commit f31493a",
+        "timestamp": "2026-09-02T18:53:00Z",
+        "git_status_before_final_commit": "dirty only with this run's source-faithful eval artifacts and tracking on local production commit 70bae9a, which directly includes origin/main guardrail commit 76d30bf",
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main guardrail commit f31493a before final commit",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at local commit 70bae9a before final tracking commit",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -12978,7 +12982,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13015,7 +13019,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13792,16 +13796,16 @@
         "severity": "needs_fix",
         "guardrail_commit": "ec14052",
         "finding": "The multi-error fallback selected each requested code from any requested product, allowing swapped code/product bindings or both codes from only one requested side.",
-        "status": "addressed_this_run_pending_guardrail_review",
+        "status": "addressed_this_run_after_guardrail_dataset_repair_pending_review",
         "evidence": [
           "Added general positional code-to-product binding for interleaved explicit relations; grouped multi-product/multi-code wording now requires complete side coverage rather than inventing a pairing.",
-          "Focused relation controls passed 8 tests, including correct, swapped, one-product-only, reversed-order, grouped ambiguity, grouped-row reuse, missing-code, and wrong-product behavior.",
-          "Loaded generator.py host/container SHA-256 matched fcd58f8c8beb61358f76ee37aef51ae06e3be641831d0e6b1fac81c3f2017b21; loaded binding controls mapped CV-X482/10101 and VS/30109 independently and expanded grouped wording to all sides.",
-          "retrieval_eval_20260902_182758 positive passed retrieval and actual HTTP answer grounding 1/1 with exact relation-bound citations 423d72f0 and be25fb78; manual inspection confirmed direct claim support and null quote spans.",
-          "The swapped/missing-side HTTP control failed closed with insufficient_evidence=true and no citations; preserve it as intentional diagnostic evidence, not a clean combined-run claim.",
-          "Full fixture-mounted CPU gate passed 619 tests with 59 warnings; the preceding GPU run passed 618 and had one unrelated Docling CUDA-OOM page-coverage failure."
+          "Focused relation controls passed 8 tests, and the complete fixture-mounted CPU unit gate passed 619 tests with 59 warnings.",
+          "Loaded generator.py host/container SHA-256 matched fcd58f8c8beb61358f76ee37aef51ae06e3be641831d0e6b1fac81c3f2017b21.",
+          "Guardrail commit 76d30bf correctly reclassified retrieval_eval_20260902_182758 positive as diagnostic/not-clean because its VS source contains no requested corrective action.",
+          "Source-faithful rerun retrieval_eval_20260902_184955 asks only meaning/cause, passed retrieval and actual HTTP answer grounding 1/1, and cites exact directly supporting chunks 423d72f0 and be25fb78 with null quote spans.",
+          "The paired swapped/missing-side control failed closed with insufficient_evidence=true and no citations; the combined run is not claimed clean."
         ],
-        "required_next_action": "Await independent guardrail review; preserve relation binding and the 182758 positive/negative classifications before optional work."
+        "required_next_action": "Await independent guardrail review of the relation-binding code and corrected source-faithful 184955 positive; preserve 182758 as diagnostic."
       },
       {
         "timestamp": "2026-09-02T16:47:08Z",
@@ -15241,9 +15245,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T18:47:00Z"
+    "updated_at": "2026-09-02T18:52:00Z"
   },
-  "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -16019,16 +16023,16 @@
       "severity": "needs_fix",
       "guardrail_commit": "ec14052",
       "finding": "The multi-error fallback selected each requested code from any requested product, allowing swapped code/product bindings or both codes from only one requested side.",
-      "status": "addressed_this_run_pending_guardrail_review",
+      "status": "addressed_this_run_after_guardrail_dataset_repair_pending_review",
       "evidence": [
         "Added general positional code-to-product binding for interleaved explicit relations; grouped multi-product/multi-code wording now requires complete side coverage rather than inventing a pairing.",
-        "Focused relation controls passed 8 tests, including correct, swapped, one-product-only, reversed-order, grouped ambiguity, grouped-row reuse, missing-code, and wrong-product behavior.",
-        "Loaded generator.py host/container SHA-256 matched fcd58f8c8beb61358f76ee37aef51ae06e3be641831d0e6b1fac81c3f2017b21; loaded binding controls mapped CV-X482/10101 and VS/30109 independently and expanded grouped wording to all sides.",
-        "retrieval_eval_20260902_182758 positive passed retrieval and actual HTTP answer grounding 1/1 with exact relation-bound citations 423d72f0 and be25fb78; manual inspection confirmed direct claim support and null quote spans.",
-        "The swapped/missing-side HTTP control failed closed with insufficient_evidence=true and no citations; preserve it as intentional diagnostic evidence, not a clean combined-run claim.",
-        "Full fixture-mounted CPU gate passed 619 tests with 59 warnings; the preceding GPU run passed 618 and had one unrelated Docling CUDA-OOM page-coverage failure."
+        "Focused relation controls passed 8 tests, and the complete fixture-mounted CPU unit gate passed 619 tests with 59 warnings.",
+        "Loaded generator.py host/container SHA-256 matched fcd58f8c8beb61358f76ee37aef51ae06e3be641831d0e6b1fac81c3f2017b21.",
+        "Guardrail commit 76d30bf correctly reclassified retrieval_eval_20260902_182758 positive as diagnostic/not-clean because its VS source contains no requested corrective action.",
+        "Source-faithful rerun retrieval_eval_20260902_184955 asks only meaning/cause, passed retrieval and actual HTTP answer grounding 1/1, and cites exact directly supporting chunks 423d72f0 and be25fb78 with null quote spans.",
+        "The paired swapped/missing-side control failed closed with insufficient_evidence=true and no citations; the combined run is not claimed clean."
       ],
-      "required_next_action": "Await independent guardrail review; preserve relation binding and the 182758 positive/negative classifications before optional work."
+      "required_next_action": "Await independent guardrail review of the relation-binding code and corrected source-faithful 184955 positive; preserve 182758 as diagnostic."
     },
     {
       "timestamp": "2026-09-02T16:47:08Z",
@@ -17468,5 +17472,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T18:47:00Z"
+  "updated_at": "2026-09-02T18:52:00Z"
 }
