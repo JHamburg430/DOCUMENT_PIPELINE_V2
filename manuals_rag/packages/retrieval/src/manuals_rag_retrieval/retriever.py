@@ -2676,6 +2676,12 @@ def _promote_diagnostic_table_candidates(
     else:
         requested_codes = _diagnostic_table_code_terms(analysis.raw_query, analysis)
         if len(requested_codes) >= 2:
+            if identifiers:
+                candidates = [
+                    result
+                    for result in candidates
+                    if any(_result_matches_primary_identifier(result, identifier) for identifier in identifiers)
+                ]
             uncovered_codes = set(requested_codes)
             selected = []
             remaining = list(candidates)
@@ -2697,7 +2703,7 @@ def _promote_diagnostic_table_candidates(
                 selected.append(best)
                 uncovered_codes.difference_update(covered)
                 remaining = [result for result in remaining if result.chunk_id != best.chunk_id]
-            candidates = selected
+            candidates = [] if uncovered_codes else selected
     promoted = [
         candidate.model_copy(
             update={

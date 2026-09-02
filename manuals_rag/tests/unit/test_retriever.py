@@ -1469,13 +1469,13 @@ def test_diagnostic_multi_error_promotion_prefers_one_complete_row_group():
         return SearchResult(
             chunk_id=chunk_id,
             score=1.0,
-            title="Manual",
+            title="MOD-600 Manual",
             document_version_id="ver-1",
             source_document_id="doc-1",
             pages=[1],
             section_path=["Troubleshooting"],
             content=content,
-            metadata={"chunk_type": "table_record", "table_row_group": True},
+            metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": "MOD-600"},
         )
 
     complete = result(
@@ -1487,6 +1487,113 @@ def test_diagnostic_multi_error_promotion_prefers_one_complete_row_group():
     promoted = retriever._promote_diagnostic_table_candidates([], [unrelated, complete], analysis, limit=5)
 
     assert [item.chunk_id for item in promoted] == ["complete"]
+
+
+def test_diagnostic_multi_error_promotion_rejects_wrong_product_with_both_codes():
+    analysis = analyze_query(
+        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
+    )
+
+    def result(chunk_id: str, product: str, content: str) -> SearchResult:
+        return SearchResult(
+            chunk_id=chunk_id,
+            score=1.0,
+            title=f"{product} Manual",
+            document_version_id=f"ver-{chunk_id}",
+            source_document_id=f"doc-{product}",
+            pages=[1],
+            section_path=["Troubleshooting"],
+            content=content,
+            metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": product},
+        )
+
+    wrong_complete = result(
+        "wrong-complete",
+        "OTHER-700",
+        "Error Number: 10109; Cause: Wrong first. Error Number: 10110; Cause: Wrong second.",
+    )
+
+    assert retriever._promote_diagnostic_table_candidates([], [wrong_complete], analysis, limit=5) == []
+
+
+def test_diagnostic_multi_error_promotion_rejects_unrelated_complete_over_requested_partial():
+    analysis = analyze_query(
+        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
+    )
+
+    requested_partial = SearchResult(
+        chunk_id="requested-partial",
+        score=1.0,
+        title="MOD-600 Manual",
+        document_version_id="ver-requested",
+        source_document_id="doc-mod-600",
+        pages=[1],
+        section_path=["Troubleshooting"],
+        content="Error Number: 10109; Cause: First.; Remedy: Fix first.",
+        metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": "MOD-600"},
+    )
+    wrong_complete = requested_partial.model_copy(
+        update={
+            "chunk_id": "wrong-complete",
+            "title": "OTHER-700 Manual",
+            "source_document_id": "doc-other-700",
+            "content": "Error Number: 10109; Cause: Wrong first. Error Number: 10110; Cause: Wrong second.",
+            "metadata": {"chunk_type": "table_record", "table_row_group": True, "product_model": "OTHER-700"},
+        }
+    )
+
+    assert retriever._promote_diagnostic_table_candidates([], [wrong_complete, requested_partial], analysis, limit=5) == []
+
+
+def test_diagnostic_multi_error_promotion_rejects_missing_requested_code():
+    analysis = analyze_query(
+        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
+    )
+    requested_partial = SearchResult(
+        chunk_id="requested-partial",
+        score=1.0,
+        title="MOD-600 Manual",
+        document_version_id="ver-requested",
+        source_document_id="doc-mod-600",
+        pages=[1],
+        section_path=["Troubleshooting"],
+        content="Error Number: 10109; Cause: First.; Remedy: Fix first.",
+        metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": "MOD-600"},
+    )
+
+    assert retriever._promote_diagnostic_table_candidates([], [requested_partial], analysis, limit=5) == []
+
+
+def test_diagnostic_multi_error_promotion_uses_exact_code_boundaries():
+    analysis = analyze_query(
+        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
+    )
+
+    def result(chunk_id: str, content: str) -> SearchResult:
+        return SearchResult(
+            chunk_id=chunk_id,
+            score=1.0,
+            title="MOD-600 Manual",
+            document_version_id=f"ver-{chunk_id}",
+            source_document_id="doc-mod-600",
+            pages=[1],
+            section_path=["Troubleshooting"],
+            content=content,
+            metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": "MOD-600"},
+        )
+
+    prefix_and_superstring = result(
+        "near-matches",
+        "Error Number: 1010; Cause: Prefix. Error Number: 101100; Cause: Superstring.",
+    )
+    exact = result(
+        "exact",
+        "Error Number: 10109; Cause: First. Error Number: 10110; Cause: Second.",
+    )
+
+    promoted = retriever._promote_diagnostic_table_candidates([], [prefix_and_superstring, exact], analysis, limit=5)
+
+    assert [item.chunk_id for item in promoted] == ["exact"]
 
 
 def test_retrieve_applies_exact_diagnostic_promotion_after_generic_promotions(monkeypatch):
