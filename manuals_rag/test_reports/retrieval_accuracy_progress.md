@@ -6619,3 +6619,5 @@ Cleanup finalization: after commit `f7d5a55` was pushed, the reused worktree `/t
 Next target:
 
 - Continue broader source-reviewed answer-grounding coverage from the next validated unresolved single-step or multi-step slice only from a verified clean registered job-owned worktree or after reporting the cleanup blocker; use loaded HTTP/API validation and manual citation-visible JSONL inspection before accepting clean evidence.
+
+Cleanup finalization: after commit `b0d948d` was pushed, the reused worktree `/tmp/manuals_rag_cron_39262386_1788283427` was clean, but `git worktree remove /tmp/manuals_rag_cron_39262386_1788283427` failed with `Permission denied`. Follow-up verification showed the path still exists, `git worktree list --porcelain` no longer lists it, and `git -C /tmp/manuals_rag_cron_39262386_1788283427 status` fails because `.git/worktrees/manuals_rag_cron_39262386_1788283427` metadata is gone. This exact blocker is recorded in both manifest copies by follow-up tracking commit; no force remove, recursive delete, primary-checkout cleanup, or new worktree creation was performed.
