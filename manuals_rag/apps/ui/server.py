@@ -4,6 +4,7 @@ import os
 import json
 import re
 import signal
+import shutil
 import subprocess
 import sys
 import time
@@ -31,6 +32,7 @@ MANUALS_ROOT = STATIC_DIR.parents[1]
 TEST_REPORTS_DIR = MANUALS_ROOT / "test_reports"
 DEFAULT_CORPUS_ID = os.getenv("MANUALS_RAG_DEFAULT_CORPUS", "manuals_vendor_keyence")
 MATRIX_JOB_TIMEOUT_SECONDS = int(os.getenv("MATRIX_JOB_TIMEOUT_SECONDS", "7200"))
+DEFAULT_QUESTION_GENERATION_TIMEOUT_SECONDS = int(os.getenv("OLLAMA_EVAL_QUESTION_TIMEOUT_SECONDS", "180"))
 
 MATRIX_JOBS: dict[str, dict] = {}
 MATRIX_PROCESSES: dict[str, subprocess.Popen] = {}
@@ -123,8 +125,17 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/local/question-matrix/run":
             self._start_local_question_matrix_run()
             return
+        if parsed.path == "/local/question-matrix/generate":
+            self._start_local_question_generation()
+            return
         if parsed.path == "/local/question-matrix/clear":
             self._clear_local_question_matrix_results()
+            return
+        if parsed.path == "/local/question-matrix/questions/clear":
+            self._clear_local_question_matrix_questions()
+            return
+        if parsed.path == "/local/question-matrix/bank/reset":
+            self._reset_local_question_matrix_bank()
             return
         if parsed.path.startswith("/local/question-matrix/jobs/") and parsed.path.endswith("/stop"):
             self._stop_local_question_matrix_job(parsed.path.split("/")[-2])
@@ -303,6 +314,33 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self._write(payload)
 
+    def _start_local_question_generation(self) -> None:
+        try:
+            content_length = int(self.headers.get("Content-Length") or "0")
+            body = self.rfile.read(content_length) if content_length else b"{}"
+            request_payload = json.loads(body.decode("utf-8") or "{}")
+            job = _start_question_generation_job(request_payload)
+            payload = json.dumps(job, default=str).encode("utf-8")
+            self.send_response(202)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except ValueError as error:
+            payload = dumps({"detail": str(error)}).encode("utf-8")
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except Exception as error:
+            payload = dumps({"detail": f"Question generation failed to start: {error.__class__.__name__}: {error}"}).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
     def _stop_local_question_matrix_job(self, job_id: str) -> None:
         try:
             job = _stop_question_matrix_job(job_id)
@@ -325,6 +363,40 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
     def _clear_local_question_matrix_results(self) -> None:
         try:
             result = _clear_question_matrix_results()
+            payload = json.dumps(result, default=str).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except ValueError as error:
+            payload = dumps({"detail": str(error)}).encode("utf-8")
+            self.send_response(409)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
+    def _clear_local_question_matrix_questions(self) -> None:
+        try:
+            result = _clear_question_matrix_generated_questions()
+            payload = json.dumps(result, default=str).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except ValueError as error:
+            payload = dumps({"detail": str(error)}).encode("utf-8")
+            self.send_response(409)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
+    def _reset_local_question_matrix_bank(self) -> None:
+        try:
+            result = _reset_question_matrix_bank()
             payload = json.dumps(result, default=str).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -392,6 +464,11 @@ def _case_key(case: dict) -> str:
     return str(case.get("case_id") or case.get("id") or case.get("source_chunk_id") or case.get("query") or "")
 
 
+def _matrix_row_key(dataset: str, case: dict | str) -> str:
+    case_key = case if isinstance(case, str) else _case_key(case)
+    return f"{dataset}::{case_key}"
+
+
 def _result_run_id(path: Path) -> str:
     name = path.name
     return name.removeprefix("retrieval_eval_results_").removesuffix(".jsonl")
@@ -410,7 +487,8 @@ def _load_result_index(excluded_run_ids: set[str]) -> dict[str, dict]:
             continue
         for row in rows:
             case = row.get("case") or {}
-            key = _case_key(case)
+            dataset = str(row.get("dataset") or "")
+            key = _matrix_row_key(dataset, case) if dataset else _case_key(case)
             if not key:
                 continue
             query_debug_result = row.get("query_debug_result") or {}
@@ -456,6 +534,7 @@ def _compact_stage_sample(sample: dict) -> dict:
         "source_document_id": sample.get("source_document_id") or metadata.get("source_document_id"),
         "document_version_id": sample.get("document_version_id") or metadata.get("document_version_id"),
         "title": sample.get("title"),
+        "pages": sample.get("pages") or metadata.get("pages") or [],
         "chunk_type": sample.get("chunk_type") or metadata.get("chunk_type"),
         "retrieval_stage": sample.get("retrieval_stage") or metadata.get("retrieval_stage"),
         "score": sample.get("score"),
@@ -466,14 +545,35 @@ def _expected_targets(case: dict) -> dict[str, set[str]]:
     expected_evidence = case.get("expected_evidence") if isinstance(case.get("expected_evidence"), list) else []
     document_ids = {str(case.get("source_document_id") or "")}
     chunk_ids = {str(case.get("source_chunk_id") or "")}
+    page_numbers: set[int] = set()
+    try:
+        page_from = int(case.get("page_from") or 0)
+        page_to = int(case.get("page_to") or 0)
+    except (TypeError, ValueError):
+        page_from = 0
+        page_to = 0
+    if page_from > 0:
+        if page_to < page_from:
+            page_to = page_from
+        page_numbers.update(range(page_from, page_to + 1))
     for item in expected_evidence:
         if not isinstance(item, dict):
             continue
         document_ids.add(str(item.get("source_document_id") or case.get("source_document_id") or ""))
         chunk_ids.add(str(item.get("chunk_id") or ""))
+        try:
+            item_page_from = int(item.get("page_from") or item.get("page") or 0)
+            item_page_to = int(item.get("page_to") or item_page_from or 0)
+        except (TypeError, ValueError):
+            item_page_from = 0
+            item_page_to = 0
+        if item_page_from > 0:
+            if item_page_to < item_page_from:
+                item_page_to = item_page_from
+            page_numbers.update(range(item_page_from, item_page_to + 1))
     document_ids.discard("")
     chunk_ids.discard("")
-    return {"document_ids": document_ids, "chunk_ids": chunk_ids}
+    return {"document_ids": document_ids, "page_numbers": page_numbers, "chunk_ids": chunk_ids}
 
 
 def _stage_samples_by_step(debug_result: dict) -> dict[str, list[dict]]:
@@ -484,10 +584,30 @@ def _stage_samples_by_step(debug_result: dict) -> dict[str, list[dict]]:
     }
 
 
-def _stage_target_counts(samples: list[dict], targets: dict[str, set[str]]) -> tuple[int, int]:
+def _sample_pages(sample: dict, metadata: dict) -> set[int]:
+    raw_pages = sample.get("pages") or metadata.get("pages") or []
+    if not raw_pages:
+        raw_page_from = sample.get("page_from") or metadata.get("page_from")
+        raw_page_to = sample.get("page_to") or metadata.get("page_to") or raw_page_from
+        if raw_page_from is not None:
+            raw_pages = [raw_page_from, raw_page_to]
+    pages: set[int] = set()
+    for page in raw_pages:
+        try:
+            page_number = int(page)
+        except (TypeError, ValueError):
+            continue
+        if page_number > 0:
+            pages.add(page_number)
+    return pages
+
+
+def _stage_target_counts(samples: list[dict], targets: dict[str, set[str]]) -> tuple[int, int, int]:
     matched_docs: set[str] = set()
+    matched_pages: set[int] = set()
     matched_chunks: set[str] = set()
     document_ids = targets["document_ids"]
+    page_numbers = targets["page_numbers"]
     chunk_ids = targets["chunk_ids"]
     for sample in samples:
         if not isinstance(sample, dict):
@@ -497,9 +617,10 @@ def _stage_target_counts(samples: list[dict], targets: dict[str, set[str]]) -> t
         chunk_id = str(sample.get("chunk_id") or sample.get("id") or "")
         if document_id in document_ids:
             matched_docs.add(document_id)
+            matched_pages.update(_sample_pages(sample, metadata).intersection(page_numbers))
         if chunk_id in chunk_ids:
             matched_chunks.add(chunk_id)
-    return len(matched_docs), len(matched_chunks)
+    return len(matched_docs), len(matched_pages), len(matched_chunks)
 
 
 def _result_stage_cell(
@@ -512,21 +633,25 @@ def _result_stage_cell(
     step_name = next((step for step, mapped_key in DEBUG_STEP_TO_MATRIX_KEY.items() if mapped_key == key), "")
     samples = samples_by_step.get(step_name) or []
     expected_doc_count = max(1, len(targets["document_ids"]))
+    expected_page_count = len(targets["page_numbers"])
     expected_chunk_count = len(targets["chunk_ids"])
-    matched_doc_count, matched_chunk_count = _stage_target_counts(samples, targets)
-    found = bool(matched_doc_count or matched_chunk_count)
+    matched_doc_count, matched_page_count, matched_chunk_count = _stage_target_counts(samples, targets)
+    found = bool(matched_doc_count or matched_page_count or matched_chunk_count)
     detail = (
         f"{matched_doc_count}/{expected_doc_count} expected document(s), "
+        f"{matched_page_count}/{expected_page_count or 1} expected page(s), "
         f"{matched_chunk_count}/{expected_chunk_count or 1} expected chunk(s) in stage sample window"
     )
     if expected_chunk_count and matched_chunk_count >= expected_chunk_count:
         return _matrix_cell("pass", detail, "YES"), True
-    if expected_chunk_count and matched_doc_count:
+    if expected_page_count and matched_page_count >= expected_page_count:
+        return _matrix_cell("pass", f"Expected page evidence found; {detail}", "YES"), True
+    if expected_page_count and matched_page_count:
+        return _matrix_cell("fail", detail, "PARTIAL"), True
+    if matched_doc_count:
         return _matrix_cell("fail", f"Expected document found, but expected chunk evidence is absent; {detail}", "DOC_ONLY"), True
     if expected_chunk_count and matched_chunk_count:
         return _matrix_cell("fail", detail, "PARTIAL"), True
-    if matched_doc_count >= expected_doc_count:
-        return _matrix_cell("pass", detail, "YES"), True
     if found:
         return _matrix_cell("fail", detail, "PARTIAL"), True
     if previously_found:
@@ -538,6 +663,23 @@ def _retrieval_retention_cell(cells: dict[str, dict[str, str]], retrieval: dict)
     context_cell = cells.get("assemble") or {}
     context_label = context_cell.get("label") or ""
     context_detail = context_cell.get("detail") or "final context was not recorded"
+    if retrieval.get("passed") and context_cell.get("status") == "pass":
+        return _matrix_cell("pass", f"Expected evidence retained in final context; {context_detail}", "PASS")
+    match_reason = str(retrieval.get("match_reason") or "")
+    equivalent_match_reasons = {
+        "same_section_term_overlap",
+        "same_document_term_overlap",
+        "same_document_answerable_evidence",
+        "same_document_snippet_evidence",
+        "applicable_equivalent_answer_evidence",
+        "cross_document_semantic_evidence",
+    }
+    if retrieval.get("passed") and match_reason in equivalent_match_reasons:
+        return _matrix_cell(
+            "pass",
+            f"Answer-bearing equivalent evidence retained in final context ({match_reason}); exact anchor retention: {context_detail}",
+            "EQUIV",
+        )
     if context_cell.get("status") == "pass":
         return _matrix_cell("pass", f"Expected evidence retained in final context; {context_detail}", "PASS")
     if context_label in {"DOC_ONLY"}:
@@ -611,6 +753,16 @@ def _question_type(case: dict) -> dict[str, object]:
         "expected_evidence_count": len(expected_evidence) or 1,
         "expected_document_count": len(expected_document_ids) or (1 if case.get("source_document_id") else 0),
     }
+
+
+def _generation_review_cell(case: dict) -> dict[str, str]:
+    generation_method = str(case.get("generation_method") or "")
+    benchmark_quality = str(case.get("benchmark_quality") or "")
+    if generation_method.startswith("reviewed_llm:") or benchmark_quality == "model_reviewed":
+        return _matrix_cell("pass", "accepted by generation reviewer", "ACCEPT")
+    if generation_method:
+        return _matrix_cell("blank", "generated without model review", "")
+    return _matrix_cell("blank", "not generated in the current live job", "")
 
 
 def _build_row_cells(item: dict | None, case: dict | None = None) -> dict[str, dict[str, str]]:
@@ -716,7 +868,7 @@ def _build_question_matrix() -> dict:
     manifest_path = TEST_REPORTS_DIR / "retrieval_accuracy_question_bank_manifest.json"
     manifest = _read_json(manifest_path)
     question_bank = manifest.get("question_bank") or {}
-    active_datasets = _active_question_datasets(question_bank)
+    question_view, active_datasets = _visible_question_matrix_datasets(question_bank)
     excluded_run_ids = {
         str(exclusion.get("run_id"))
         for exclusion in (question_bank.get("run_exclusions") or manifest.get("run_exclusions") or [])
@@ -729,8 +881,9 @@ def _build_question_matrix() -> dict:
         if not dataset_path.exists():
             continue
         for row_index, case in enumerate(_read_jsonl(dataset_path), start=1):
-            key = _case_key(case)
-            result = result_index.get(key)
+            case_key = _case_key(case)
+            key = _matrix_row_key(str(dataset_path.relative_to(MANUALS_ROOT)), case_key)
+            result = result_index.get(key) or result_index.get(case_key)
             item = result if result else None
             rows.append(
                 {
@@ -740,6 +893,7 @@ def _build_question_matrix() -> dict:
                     "question_number": row_index,
                     "case": case,
                     "question_type": _question_type(case),
+                    "generation_review": _generation_review_cell(case),
                     "latest_result": {
                         "run_id": result.get("run_id"),
                         "path": result.get("path"),
@@ -765,9 +919,17 @@ def _build_question_matrix() -> dict:
         "official_multi_step_questions": question_bank.get("multi_step_questions"),
         "loaded_questions": len(rows),
         "datasets": active_datasets,
+        "question_view": question_view,
         "active_job": active_job,
         "rows": rows,
     }
+
+
+def _visible_question_matrix_datasets(question_bank: dict) -> tuple[dict, list[dict]]:
+    question_view = _load_question_matrix_question_view()
+    active_datasets = [] if question_view.get("hide_bank_questions") else _active_question_datasets(question_bank)
+    active_datasets.extend(question_view.get("generated_datasets") or [])
+    return question_view, active_datasets
 
 
 def _question_matrix_job_snapshot(job_id: str) -> dict:
@@ -840,6 +1002,55 @@ def _question_matrix_job_events_path(job_id: str) -> Path:
     return TEST_REPORTS_DIR / f"question_matrix_job_{safe_job_id}_events.jsonl"
 
 
+def _question_matrix_question_view_path() -> Path:
+    return TEST_REPORTS_DIR / ".question_matrix_question_view.json"
+
+
+def _load_question_matrix_question_view() -> dict:
+    path = _question_matrix_question_view_path()
+    if not path.exists():
+        return {"hide_bank_questions": False, "generated_datasets": []}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"hide_bank_questions": False, "generated_datasets": []}
+    generated = payload.get("generated_datasets") if isinstance(payload, dict) else []
+    return {
+        "hide_bank_questions": bool(payload.get("hide_bank_questions")) if isinstance(payload, dict) else False,
+        "generated_datasets": [dict(item) for item in generated if isinstance(item, dict)],
+        "updated_at": payload.get("updated_at") if isinstance(payload, dict) else None,
+    }
+
+
+def _save_question_matrix_question_view(payload: dict) -> None:
+    payload = {
+        **payload,
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    _question_matrix_question_view_path().write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+
+
+def _add_generated_question_dataset_to_view(dataset_path: str, question_count: int | None = None) -> None:
+    if not dataset_path:
+        return
+    rel = dataset_path
+    try:
+        rel = str(Path(dataset_path).resolve().relative_to(MANUALS_ROOT.resolve()))
+    except (OSError, ValueError):
+        rel = dataset_path
+    view = _load_question_matrix_question_view()
+    generated = [item for item in (view.get("generated_datasets") or []) if item.get("path") != rel]
+    generated.append(
+        {
+            "path": rel,
+            "status": "generated_candidate",
+            "total_questions": question_count,
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+    )
+    _save_question_matrix_question_view({"hide_bank_questions": bool(view.get("hide_bank_questions", True)), "generated_datasets": generated})
+
+
 def _record_question_matrix_job_event(job_id: str, event_type: str, **fields: object) -> None:
     event = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -908,6 +1119,8 @@ def _refresh_recovered_question_matrix_jobs_locked() -> None:
         if pid and _pid_is_running(pid):
             job["recovered"] = True
             changed = True
+            continue
+        if not pid and not job.get("started_at"):
             continue
         job["status"] = "failed"
         job["error"] = "UI server restarted before this matrix job finished; no active worker process was found."
@@ -1009,6 +1222,464 @@ def _clear_question_matrix_results() -> dict:
     return {"deleted": deleted, "total_deleted": sum(deleted.values())}
 
 
+def _clear_question_matrix_generated_questions() -> dict:
+    _load_question_matrix_jobs_if_needed()
+    active_job_id = _active_question_matrix_job_id()
+    if active_job_id:
+        raise ValueError(f"Stop matrix job {active_job_id} before clearing generated questions.")
+
+    question_view = _load_question_matrix_question_view()
+    manifest_dataset_paths = {
+        (MANUALS_ROOT / str(dataset.get("path") or "")).resolve()
+        for dataset in (_read_json(TEST_REPORTS_DIR / "retrieval_accuracy_question_bank_manifest.json").get("question_bank", {}).get("datasets") or [])
+        if dataset.get("path")
+    }
+    candidate_paths = {
+        path.resolve()
+        for path in TEST_REPORTS_DIR.glob("retrieval_eval_dataset_*.jsonl")
+        if path.is_file() and path.resolve() not in manifest_dataset_paths
+    }
+    for dataset in question_view.get("generated_datasets") or []:
+        rel = str(dataset.get("path") or "")
+        if not rel:
+            continue
+        path = (MANUALS_ROOT / rel).resolve()
+        if path.is_file() and path not in manifest_dataset_paths:
+            candidate_paths.add(path)
+
+    deleted = 0
+    for path in sorted(candidate_paths):
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            continue
+        deleted += 1
+    _save_question_matrix_question_view({"hide_bank_questions": False, "generated_datasets": []})
+    cleared_jobs = 0
+    with MATRIX_JOBS_LOCK:
+        for job in MATRIX_JOBS.values():
+            if job.get("mode") != "generate_questions":
+                continue
+            if job.get("generated_questions") or job.get("generated_question_count"):
+                cleared_jobs += 1
+            job["generated_questions"] = []
+            job["generated_question_count"] = 0
+            job["current_dataset"] = None
+            job["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        if cleared_jobs:
+            _persist_question_matrix_jobs_locked()
+    return {
+        "deleted": {"generated_question_datasets": deleted, "generated_question_job_snapshots": cleared_jobs},
+        "total_deleted": deleted,
+        "hide_bank_questions": False,
+    }
+
+
+def _reset_question_matrix_bank() -> dict:
+    _load_question_matrix_jobs_if_needed()
+    active_job_id = _active_question_matrix_job_id()
+    if active_job_id:
+        raise ValueError(f"Stop matrix job {active_job_id} before resetting the question bank.")
+
+    manifest_path = TEST_REPORTS_DIR / "retrieval_accuracy_question_bank_manifest.json"
+    manifest = _read_json(manifest_path)
+    question_bank = manifest.get("question_bank")
+    if not isinstance(question_bank, dict):
+        question_bank = {}
+        manifest["question_bank"] = question_bank
+    datasets = [dict(dataset) for dataset in question_bank.get("datasets") or [] if isinstance(dataset, dict)]
+    timestamp = time.strftime("%Y%m%d_%H%M%S", time.gmtime())
+    backup_dir = TEST_REPORTS_DIR / f"question_bank_reset_{timestamp}_{uuid.uuid4().hex[:8]}"
+    backup_dir.mkdir(parents=True, exist_ok=False)
+    manifest_backup = backup_dir / manifest_path.name
+    shutil.copy2(manifest_path, manifest_backup)
+
+    moved: list[dict[str, str]] = []
+    skipped: list[dict[str, str]] = []
+    seen_paths: set[Path] = set()
+    root = MANUALS_ROOT.resolve()
+    for dataset in datasets:
+        rel = str(dataset.get("path") or "")
+        if not rel:
+            skipped.append({"path": rel, "reason": "missing path"})
+            continue
+        source_path = (MANUALS_ROOT / rel).resolve()
+        if source_path in seen_paths:
+            skipped.append({"path": rel, "reason": "duplicate manifest entry"})
+            continue
+        seen_paths.add(source_path)
+        try:
+            relative_source = source_path.relative_to(root)
+        except ValueError:
+            skipped.append({"path": rel, "reason": "outside manuals root"})
+            continue
+        if not source_path.is_file():
+            skipped.append({"path": rel, "reason": "file not found"})
+            continue
+        target_path = backup_dir / relative_source
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        source_path.rename(target_path)
+        moved.append({"from": str(relative_source), "to": str(target_path.relative_to(MANUALS_ROOT))})
+
+    question_bank["datasets"] = []
+    question_bank["total_questions"] = 0
+    question_bank["single_step_questions"] = 0
+    question_bank["multi_step_questions"] = 0
+    question_bank["run_exclusions"] = []
+    manifest["run_exclusions"] = []
+    manifest["reset_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    manifest["reset_backup"] = str(backup_dir.relative_to(MANUALS_ROOT))
+    manifest_path.write_text(json.dumps(manifest, indent=2, default=str) + "\n", encoding="utf-8")
+    _save_question_matrix_question_view({"hide_bank_questions": False, "generated_datasets": []})
+    return {
+        "backup_dir": str(backup_dir.relative_to(MANUALS_ROOT)),
+        "manifest_backup": str(manifest_backup.relative_to(MANUALS_ROOT)),
+        "moved": moved,
+        "skipped": skipped,
+        "total_moved": len(moved),
+    }
+
+
+def _as_positive_int(value: object, default: int, *, minimum: int = 1, maximum: int = 100000) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(minimum, min(parsed, maximum))
+
+
+def _as_nonnegative_int(value: object, default: int, *, maximum: int = 1000000) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(0, min(parsed, maximum))
+
+
+def _previous_question_dataset_paths(include_generated: bool = True) -> list[Path]:
+    paths: list[Path] = []
+    try:
+        manifest = _read_json(TEST_REPORTS_DIR / "retrieval_accuracy_question_bank_manifest.json")
+        for dataset in manifest.get("question_bank", {}).get("datasets") or []:
+            rel = str(dataset.get("path") or "")
+            if rel:
+                paths.append(MANUALS_ROOT / rel)
+    except (OSError, json.JSONDecodeError):
+        pass
+    if include_generated:
+        paths.extend(sorted(TEST_REPORTS_DIR.glob("retrieval_eval_dataset_*.jsonl"), key=lambda path: path.stat().st_mtime))
+    seen: set[Path] = set()
+    deduped: list[Path] = []
+    for path in paths:
+        if path in seen or not path.exists():
+            continue
+        seen.add(path)
+        deduped.append(path)
+    return deduped
+
+
+def _start_question_generation_job(payload: dict) -> dict:
+    _load_question_matrix_jobs_if_needed()
+    with MATRIX_JOBS_LOCK:
+        active_job_id = next(
+            (existing_id for existing_id, existing_job in MATRIX_JOBS.items() if existing_job.get("status") in {"queued", "running", "stopping"}),
+            None,
+        )
+        if active_job_id:
+            raise ValueError(f"Matrix job {active_job_id} is already running.")
+
+    retrieval_task = str(payload.get("retrieval_task") or "single_step_retrieval")
+    if retrieval_task not in {"single_step_retrieval", "multi_step_retrieval"}:
+        raise ValueError("retrieval_task must be single_step_retrieval or multi_step_retrieval")
+    case_family = str(payload.get("multi_step_case_family") or "all")
+    if case_family not in {"all", "sibling_table_rows", "contextual_section", "warning_step", "cross_document"}:
+        raise ValueError("Unsupported multi-step case family.")
+
+    max_questions = _as_positive_int(payload.get("max_questions"), 20, maximum=10000)
+    chunk_offset = _as_nonnegative_int(payload.get("chunk_offset"), 0)
+    chunk_window = _as_nonnegative_int(payload.get("chunk_window"), 0)
+    questions_per_window = _as_positive_int(payload.get("questions_per_window"), 1, maximum=20)
+    num_ctx = _as_nonnegative_int(payload.get("num_ctx"), 4096, maximum=262144)
+    per_query_timeout = _as_positive_int(payload.get("per_query_timeout_seconds"), 60, maximum=3600)
+    question_generation_timeout = _as_positive_int(
+        payload.get("question_generation_timeout_seconds"),
+        DEFAULT_QUESTION_GENERATION_TIMEOUT_SECONDS,
+        maximum=3600,
+    )
+    warmup_queries = _as_nonnegative_int(payload.get("warmup_queries"), 0, maximum=20)
+    prompt_guidance = str(payload.get("prompt_guidance") or "").strip()[:4000]
+    use_llm_generation = retrieval_task == "single_step_retrieval"
+    resume_previous_questions = bool(payload.get("resume_previous_questions", True))
+    clear_existing_generated = bool(payload.get("clear_existing_generated", False))
+    if retrieval_task != "single_step_retrieval":
+        resume_previous_questions = False
+        prompt_guidance = ""
+        num_ctx = 0
+
+    if clear_existing_generated:
+        _clear_question_matrix_generated_questions()
+
+    previous_paths = _previous_question_dataset_paths(include_generated=resume_previous_questions) if resume_previous_questions else []
+    job_id = f"matrix-generate-{uuid.uuid4().hex[:12]}"
+    cmd = [
+        sys.executable,
+        str(MANUALS_ROOT / "scripts" / "benchmark" / "run_large_retrieval_eval.py"),
+        "--existing-corpus-id",
+        DEFAULT_CORPUS_ID,
+        "--max-queries",
+        str(max_questions),
+        "--retrieval-task",
+        retrieval_task,
+        "--search-mode",
+        "direct",
+        "--response-mode",
+        "retrieval_only",
+        "--per-query-timeout-seconds",
+        str(per_query_timeout),
+        "--question-generation-timeout-seconds",
+        str(question_generation_timeout),
+        "--warmup-queries",
+        str(warmup_queries),
+        "--generation-chunk-offset",
+        str(chunk_offset),
+        "--generation-chunk-window",
+        str(chunk_window),
+        "--questions-per-window",
+        str(questions_per_window),
+        "--skip-evaluation",
+    ]
+    if retrieval_task == "multi_step_retrieval":
+        cmd.extend(["--multi-step-case-family", case_family])
+    if num_ctx:
+        cmd.extend(["--question-generation-num-ctx", str(num_ctx)])
+    if prompt_guidance:
+        cmd.extend(["--question-generation-guidance", prompt_guidance])
+    if not use_llm_generation:
+        cmd.append("--disable-llm-query-generation")
+    for path in previous_paths:
+        cmd.extend(["--previous-questions-dataset", str(path)])
+
+    job = {
+        "id": job_id,
+        "status": "queued",
+        "mode": "generate_questions",
+        "column": "questions",
+        "response_mode": "retrieval_only",
+        "use_model_judge": False,
+        "generation": {
+            "retrieval_task": retrieval_task,
+            "multi_step_case_family": case_family,
+            "max_questions": max_questions,
+            "chunk_offset": chunk_offset,
+            "chunk_window": chunk_window,
+            "questions_per_window": questions_per_window,
+            "num_ctx": num_ctx,
+            "question_generation_timeout_seconds": question_generation_timeout,
+            "prompt_guidance": prompt_guidance,
+            "use_llm_generation": use_llm_generation,
+            "resume_previous_questions": resume_previous_questions,
+            "previous_question_dataset_count": len(previous_paths),
+            "clear_existing_generated": clear_existing_generated,
+        },
+        "started_at": None,
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "completed_at": None,
+        "dataset_count": 1,
+        "completed_datasets": 0,
+        "current_dataset": None,
+        "current_case_id": None,
+        "current_row_key": None,
+        "current_question_number": None,
+        "current_stage_key": "questions",
+        "returncode": None,
+        "error": None,
+        "cancel_requested": False,
+        "live_cells": {},
+        "live_results": {},
+        "events": [],
+        "generated_questions": [],
+        "generated_question_count": 0,
+        "event_log_path": str(_question_matrix_job_events_path(job_id).relative_to(MANUALS_ROOT)),
+        "commands": [{"dataset": "generated_questions", "command": cmd}],
+        "outputs": [],
+    }
+    with MATRIX_JOBS_LOCK:
+        MATRIX_JOBS[job_id] = job
+        _persist_question_matrix_jobs_locked()
+    thread = Thread(target=_run_question_generation_job, args=(job_id, cmd), daemon=True)
+    thread.start()
+    _record_question_matrix_job_event(job_id, "job_queued", mode="generate_questions", generation=job["generation"])
+    return _question_matrix_job_snapshot(job_id)
+
+
+def _run_question_generation_job(job_id: str, cmd: list[str]) -> None:
+    _update_question_matrix_job(job_id, status="running", started_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+    _record_question_matrix_job_event(job_id, "job_started", response_mode="retrieval_only")
+    output_lines: list[str] = []
+    generated_dataset_path = ""
+    try:
+        process = subprocess.Popen(
+            cmd,
+            cwd=MANUALS_ROOT,
+            env={
+                **os.environ,
+                "API_BASE": API_BASE,
+                "LOCAL_ADMIN_TOKEN": os.getenv("LOCAL_ADMIN_TOKEN", "admin-token"),
+                "LOCAL_END_USER_TOKEN": os.getenv("LOCAL_END_USER_TOKEN", "user-token"),
+                "MANUALS_RAG_EVAL_QUESTION_TRACE": "1",
+            },
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        with MATRIX_JOBS_LOCK:
+            MATRIX_PROCESSES[job_id] = process
+            MATRIX_JOBS[job_id]["pid"] = getattr(process, "pid", None)
+            MATRIX_JOBS[job_id]["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            _persist_question_matrix_jobs_locked()
+        _record_question_matrix_job_event(job_id, "subprocess_started", pid=getattr(process, "pid", None), command=cmd)
+        assert process.stdout is not None
+        for line in process.stdout:
+            _raise_if_question_matrix_job_cancelled(job_id)
+            output_lines.append(line)
+            if len(output_lines) > 400:
+                output_lines = output_lines[-400:]
+            try:
+                event_payload = json.loads(line)
+            except json.JSONDecodeError:
+                event_payload = {}
+            if isinstance(event_payload, dict) and str(event_payload.get("event") or "").startswith("question_"):
+                _record_question_matrix_job_event(
+                    job_id,
+                    str(event_payload.get("event")),
+                    chunk_id=event_payload.get("chunk_id"),
+                    source_filename=event_payload.get("source_filename"),
+                    document_title=event_payload.get("document_title"),
+                    chunk_title=event_payload.get("chunk_title"),
+                    section_path=event_payload.get("section_path"),
+                    page_from=event_payload.get("page_from"),
+                    page_to=event_payload.get("page_to"),
+                    manufacturer=event_payload.get("manufacturer"),
+                    product_family=event_payload.get("product_family"),
+                    product_model=event_payload.get("product_model"),
+                    document_kind=event_payload.get("document_kind"),
+                    snippet_chars=event_payload.get("snippet_chars"),
+                    parent_context_chars=event_payload.get("parent_context_chars"),
+                    context_window_chars=event_payload.get("context_window_chars"),
+                    section_context_chars=event_payload.get("section_context_chars"),
+                    question=event_payload.get("question"),
+                    intent=event_payload.get("intent"),
+                    approved=event_payload.get("approved"),
+                    category=event_payload.get("category"),
+                    feedback=event_payload.get("feedback"),
+                    reason=event_payload.get("reason"),
+                    answer_in_snippet=event_payload.get("answer_in_snippet"),
+                    false_rejection_check=event_payload.get("false_rejection_check"),
+                    error=event_payload.get("error"),
+                    generated_count=event_payload.get("generated_count"),
+                    accepted_count=event_payload.get("accepted_count"),
+                    preview=event_payload.get("preview"),
+                    fragment=event_payload.get("fragment"),
+                    done=event_payload.get("done"),
+                    num_ctx=event_payload.get("num_ctx"),
+                )
+                if event_payload.get("event") == "question_generation_accepted" and event_payload.get("question"):
+                    accepted_question = {
+                        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "question": event_payload.get("question"),
+                        "chunk_id": event_payload.get("chunk_id"),
+                        "source_filename": event_payload.get("source_filename"),
+                        "document_title": event_payload.get("document_title"),
+                        "chunk_title": event_payload.get("chunk_title"),
+                        "section_path": event_payload.get("section_path"),
+                        "page_from": event_payload.get("page_from"),
+                        "page_to": event_payload.get("page_to"),
+                        "manufacturer": event_payload.get("manufacturer"),
+                        "product_family": event_payload.get("product_family"),
+                        "product_model": event_payload.get("product_model"),
+                        "document_kind": event_payload.get("document_kind"),
+                        "intent": event_payload.get("intent"),
+                        "review_status": "accepted",
+                        "review_label": "ACCEPT",
+                        "review_detail": "accepted by generation reviewer",
+                    }
+                    with MATRIX_JOBS_LOCK:
+                        if job_id in MATRIX_JOBS:
+                            generated_questions = list(MATRIX_JOBS[job_id].get("generated_questions") or [])
+                            generated_questions.append(accepted_question)
+                            generated_questions = generated_questions[-500:]
+                            MATRIX_JOBS[job_id]["generated_questions"] = generated_questions
+                            MATRIX_JOBS[job_id]["generated_question_count"] = len(generated_questions)
+                            MATRIX_JOBS[job_id]["updated_at"] = accepted_question["timestamp"]
+                            _persist_question_matrix_jobs_locked()
+            match = re.search(r'"case_id"\s*:\s*"([^"]+)"', line)
+            if match:
+                current_case_id = match.group(1)
+                _update_question_matrix_job(job_id, current_case_id=current_case_id)
+                _record_question_matrix_job_event(job_id, "generated_case_scored", case_id=current_case_id)
+            dataset_match = re.search(r'"dataset_path"\s*:\s*"([^"]+)"', line)
+            if dataset_match:
+                generated_dataset_path = dataset_match.group(1)
+                dataset_file = MANUALS_ROOT / generated_dataset_path
+                question_count = None
+                if dataset_file.exists():
+                    try:
+                        question_count = len(_read_jsonl(dataset_file))
+                    except (OSError, json.JSONDecodeError):
+                        question_count = None
+                _add_generated_question_dataset_to_view(generated_dataset_path, question_count)
+                _update_question_matrix_job(job_id, current_dataset=generated_dataset_path)
+                _record_question_matrix_job_event(job_id, "dataset_written", dataset=generated_dataset_path)
+        returncode = process.wait(timeout=MATRIX_JOB_TIMEOUT_SECONDS)
+        with MATRIX_JOBS_LOCK:
+            MATRIX_PROCESSES.pop(job_id, None)
+            if job_id in MATRIX_JOBS:
+                MATRIX_JOBS[job_id]["pid"] = None
+                _persist_question_matrix_jobs_locked()
+        _raise_if_question_matrix_job_cancelled(job_id)
+        stdout_tail = "".join(output_lines)[-8000:]
+        output = {
+            "dataset": generated_dataset_path or "generated_questions",
+            "returncode": returncode,
+            "stdout_tail": stdout_tail,
+            "stderr_tail": "",
+        }
+        if returncode != 0:
+            raise RuntimeError(f"Question generation failed with exit code {returncode}")
+        _update_question_matrix_job(
+            job_id,
+            status="completed",
+            outputs=[output],
+            completed_datasets=1,
+            returncode=returncode,
+            current_dataset=generated_dataset_path or None,
+            completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        )
+        _record_question_matrix_job_event(job_id, "job_completed", dataset=generated_dataset_path)
+    except MatrixJobCancelled as error:
+        with MATRIX_JOBS_LOCK:
+            MATRIX_PROCESSES.pop(job_id, None)
+        _update_question_matrix_job(
+            job_id,
+            status="cancelled",
+            error=str(error),
+            completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        )
+        _record_question_matrix_job_event(job_id, "job_cancelled", error=str(error))
+    except Exception as error:
+        with MATRIX_JOBS_LOCK:
+            MATRIX_PROCESSES.pop(job_id, None)
+        _update_question_matrix_job(
+            job_id,
+            status="failed",
+            outputs=[{"dataset": generated_dataset_path or "generated_questions", "returncode": 1, "stdout_tail": "".join(output_lines)[-8000:], "stderr_tail": ""}],
+            error=f"{error.__class__.__name__}: {error}",
+            completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        )
+        _record_question_matrix_job_event(job_id, "job_failed", error=f"{error.__class__.__name__}: {error}")
+
+
 def _start_question_matrix_job(payload: dict) -> dict:
     _load_question_matrix_jobs_if_needed()
     mode = str(payload.get("mode") or "all_bank")
@@ -1039,9 +1710,9 @@ def _start_question_matrix_job(payload: dict) -> dict:
         raise ValueError(f"Unsupported matrix column: {column}")
 
     manifest = _read_json(TEST_REPORTS_DIR / "retrieval_accuracy_question_bank_manifest.json")
-    datasets = _active_question_datasets(manifest.get("question_bank") or {})
+    _, datasets = _visible_question_matrix_datasets(manifest.get("question_bank") or {})
     if not datasets:
-        raise ValueError("No active question-bank datasets were found.")
+        raise ValueError("No visible question-bank datasets were found.")
 
     job_id = f"matrix-{uuid.uuid4().hex[:12]}"
     response_mode = "answer_with_citations" if mode == "all_bank" or column in ANSWER_STAGE_KEYS else "retrieval_only"
@@ -1058,6 +1729,7 @@ def _start_question_matrix_job(payload: dict) -> dict:
         "dataset_count": len(datasets),
         "current_dataset": None,
         "current_case_id": None,
+        "current_row_key": None,
         "current_question_number": None,
         "current_stage_key": "answer" if response_mode == "answer_with_citations" else "retrieval",
         "completed_datasets": 0,
@@ -1167,6 +1839,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
                     _update_question_matrix_job(
                         job_id,
                         current_case_id=current_case_id,
+                        current_row_key=_matrix_row_key(dataset_rel, current_case_id),
                         current_question_number=case_numbers.get(current_case_id),
                     )
                     _record_question_matrix_job_event(job_id, "case_progress", dataset=dataset_rel, case_id=current_case_id, question_number=case_numbers.get(current_case_id))
@@ -1198,6 +1871,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             status="completed",
             current_dataset=None,
             current_case_id=None,
+            current_row_key=None,
             current_question_number=None,
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
@@ -1211,6 +1885,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             error=str(error),
             current_dataset=None,
             current_case_id=None,
+            current_row_key=None,
             current_question_number=None,
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
@@ -1222,6 +1897,7 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             job_id,
             status="failed",
             error=f"{error.__class__.__name__}: {error}",
+            current_row_key=None,
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
         _record_question_matrix_job_event(job_id, "job_failed", error=f"{error.__class__.__name__}: {error}")
@@ -1248,6 +1924,7 @@ def _run_answer_matrix_dataset(
         job_id,
         current_dataset=dataset_rel,
         current_case_id=None,
+        current_row_key=None,
         current_question_number=1 if cases else None,
         current_stage_key="query_classify",
     )
@@ -1255,6 +1932,7 @@ def _run_answer_matrix_dataset(
         for case in cases:
             _raise_if_question_matrix_job_cancelled(job_id)
             case_id = _case_key(case)
+            matrix_row_key = _matrix_row_key(dataset_rel, case_id)
             eval_case = RetrievalEvalCase(**case)
             _record_question_matrix_job_event(
                 job_id,
@@ -1267,6 +1945,7 @@ def _run_answer_matrix_dataset(
             _update_question_matrix_job(
                 job_id,
                 current_case_id=case_id,
+                current_row_key=matrix_row_key,
                 current_question_number=case_numbers.get(case_id),
                 current_stage_key="query_classify",
             )
@@ -1276,6 +1955,7 @@ def _run_answer_matrix_dataset(
                 case_numbers.get(case_id),
                 case["query"],
                 eval_case=eval_case,
+                matrix_row_key=matrix_row_key,
             )
             _raise_if_question_matrix_job_cancelled(job_id)
             top_results = _debug_top_results(debug_result)
@@ -1315,6 +1995,7 @@ def _run_answer_matrix_dataset(
                     failure_reasons=evaluation.get("failure_reasons") or [],
                 )
             record = {
+                "dataset": dataset_rel,
                 "case": case,
                 "evaluation": evaluation,
                 "top_results": top_results[:5],
@@ -1322,8 +2003,8 @@ def _run_answer_matrix_dataset(
                 "answer_evaluation": answer_evaluation,
                 "query_debug_result": debug_result,
             }
-            _update_question_matrix_live_result(job_id, case_id, record)
-            _replace_question_matrix_live_cells(job_id, case_id, _build_row_cells(record))
+            _update_question_matrix_live_result(job_id, matrix_row_key, record)
+            _replace_question_matrix_live_cells(job_id, matrix_row_key, _build_row_cells(record))
             results.append(record)
             handle.write(json.dumps(record, default=str) + "\n")
             handle.flush()
@@ -1363,7 +2044,15 @@ def _run_answer_matrix_dataset(
     _record_question_matrix_job_event(job_id, "dataset_completed", dataset=dataset_rel, dataset_index=dataset_index, returncode=0, results_path=str(results_path))
 
 
-def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | None, query: str, *, eval_case: object) -> tuple[dict, dict | None]:
+def _run_query_debug_stream(
+    job_id: str,
+    case_id: str,
+    question_number: int | None,
+    query: str,
+    *,
+    eval_case: object,
+    matrix_row_key: str | None = None,
+) -> tuple[dict, dict | None]:
     from manuals_rag_evals.retrieval_eval import score_search_results
 
     eval_case_dict = eval_case.to_dict() if hasattr(eval_case, "to_dict") else dict(getattr(eval_case, "__dict__", {}))
@@ -1382,6 +2071,7 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
     completed_steps: list[str] = []
     step_timings_ms: dict = {}
     stages: list[dict] = []
+    live_key = matrix_row_key or case_id
     with urlopen(request, timeout=900) as response:
         for raw_line in response:
             _raise_if_question_matrix_job_cancelled(job_id)
@@ -1429,7 +2119,7 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                 live_cell = live_cells.get(DEBUG_STEP_TO_MATRIX_KEY[step], _matrix_cell("pass", "debug step completed", "DONE"))
                 _update_question_matrix_live_cell(
                     job_id,
-                    case_id,
+                    live_key,
                     DEBUG_STEP_TO_MATRIX_KEY[step],
                     live_cell.get("status", "pass"),
                     live_cell.get("detail", "debug step completed"),
@@ -1469,7 +2159,7 @@ def _run_query_debug_stream(job_id: str, case_id: str, question_number: int | No
                     )["retrieval"]
                     _update_question_matrix_live_cell(
                         job_id,
-                        case_id,
+                        live_key,
                         "retrieval",
                         retrieval_cell.get("status", "blank"),
                         retrieval_cell.get("detail", "retrieval scored"),

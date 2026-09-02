@@ -295,6 +295,8 @@ def _term_variants(terms: Iterable[str]) -> set[str]:
             for piece in re.split(r"[-/.]", token):
                 if piece:
                     variants.add(piece)
+                    if len(piece) > 4 and piece.endswith("s") and not piece.endswith("ss"):
+                        variants.add(piece[:-1])
     return variants
 
 
@@ -962,8 +964,6 @@ def run_table_lexical_search(
 def _lexical_context_terms(query: str, analysis: QueryAnalysis) -> list[str]:
     if "structured_lookup" in analysis.query_types:
         return []
-    if not {"how_to", "configuration", "operational_flow"}.intersection(analysis.query_types):
-        return []
     terms: list[str] = []
     for term in tokenize(query):
         normalized = re.sub(r"[^a-z0-9]+", "", term.lower())
@@ -971,6 +971,11 @@ def _lexical_context_terms(query: str, analysis: QueryAnalysis) -> list[str]:
             continue
         if normalized not in terms:
             terms.append(normalized)
+    query_tokens = set(tokenize(query.lower()))
+    if "when" in query_tokens and query_tokens.intersection({"start", "starts", "begin", "begins", "occur", "occurs"}):
+        for temporal_term in ("condition", "enabled", "trigger"):
+            if temporal_term not in terms:
+                terms.append(temporal_term)
     return terms[:18]
 
 
@@ -1017,6 +1022,8 @@ def _context_lexical_score(row: dict[str, object], terms: list[str]) -> float:
         score += 0.24
     elif chunk_type == "section_window":
         score += 0.2
+    elif chunk_type in {"spec_record", "datasheet_record"}:
+        score += 0.2
     elif chunk_type == "atomic_text":
         score += 0.14
     if local_context:
@@ -1040,7 +1047,10 @@ def run_contextual_lexical_search(
         "is_active = true",
         "metadata_json->>'corpus_id' = any(%s)",
     ]
-    params: list[object] = [["procedure_record", "atomic_text", "section_window"], corpus_ids]
+    params: list[object] = [
+        ["procedure_record", "atomic_text", "section_window", "spec_record", "datasheet_record"],
+        corpus_ids,
+    ]
     source_document_ids = filters.get("source_document_id")
     if source_document_ids:
         document_ids = source_document_ids if isinstance(source_document_ids, list) else [source_document_ids]
@@ -1414,7 +1424,43 @@ def _annotate_completeness(results: list[SearchResult]) -> list[SearchResult]:
 
 
 def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> float:
-    query_terms = _query_terms(analysis)
+    # Product names are scored separately below.  Counting question scaffolding
+    # and generic manual words here made title/TOC fragments such as "Overview
+    # of the VS Series Vision System" outrank prose that actually said when
+    # archiving starts.
+    query_terms = {
+        term
+        for term in _query_terms(analysis)
+        if term not in LEXICAL_CONTEXT_STOPWORDS
+        and term
+        not in {
+            "about",
+            "after",
+            "before",
+            "can",
+            "does",
+            "for",
+            "from",
+            "have",
+            "into",
+            "much",
+            "must",
+            "that",
+            "the",
+            "their",
+            "then",
+            "this",
+            "through",
+            "under",
+            "vs",
+            "with",
+            "which",
+            "where",
+            "will",
+            "would",
+            "your",
+        }
+    }
     if not query_terms:
         return 0.0
     content_terms = _text_terms(str(result.content or ""))
@@ -1495,7 +1541,75 @@ def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> flo
                 alignment += min(0.16, action_overlap * 0.04)
             elif chunk_type in {"section_window", "parent_section"} and action_overlap <= 1:
                 alignment -= 0.06
+    alignment += _mode_phrase_alignment_adjustment(result, analysis.raw_query)
     return alignment
+
+
+def _requested_mode_phrases(query: str) -> set[str]:
+    phrases: set[str] = set()
+    lowered = query.lower()
+    for token in tokenize(lowered):
+        if len(token) >= 4 and "-" in token:
+            phrases.add(_compact_identifier(token))
+    for match in re.finditer(
+        r"\b([a-z0-9][a-z0-9_\-./]*(?:\s+[a-z0-9][a-z0-9_\-./]*){0,3})\s+(?:mode|type)\b",
+        lowered,
+    ):
+        phrase = _compact_identifier(match.group(0))
+        if len(phrase) >= 5:
+            phrases.add(phrase)
+    for match in re.finditer(
+        r"\b(?:capture|trigger|lighting|processing)\s+(?:mode|type)\s*[:=]?\s*\[?([a-z0-9][a-z0-9_\-./ ]{2,50})\]?",
+        lowered,
+    ):
+        phrase = _compact_identifier(match.group(1))
+        if len(phrase) >= 5:
+            phrases.add(phrase)
+    return phrases
+
+
+def _declared_mode_phrases(text: str) -> set[str]:
+    phrases: set[str] = set()
+    for match in re.finditer(
+        r"\b(?:capture|trigger|lighting|processing)\s+(?:mode|type)\s*[:=]?\s*\(?\[?([A-Za-z0-9][A-Za-z0-9_\-./ ]{2,50}?)\]?\)?(?=[\n.;|)]|$)",
+        text,
+        flags=re.IGNORECASE,
+    ):
+        phrase = _compact_identifier(match.group(1))
+        if len(phrase) >= 5:
+            phrases.add(phrase)
+    return phrases
+
+
+def _mode_phrase_alignment_adjustment(result: SearchResult, query: str) -> float:
+    requested_phrases = {phrase for phrase in _requested_mode_phrases(query) if len(phrase) >= 5}
+    if not requested_phrases:
+        return 0.0
+    evidence_text = " ".join(
+        str(part)
+        for part in [
+            result.content,
+            " ".join(result.section_path),
+            result.metadata.get("rerank_document"),
+            result.metadata.get("content_for_rerank"),
+            result.metadata.get("context_window"),
+            result.metadata.get("parent_context"),
+        ]
+        if part
+    )
+    compact_evidence = _compact_identifier(evidence_text)
+    matching_phrases = {phrase for phrase in requested_phrases if phrase in compact_evidence}
+    score = min(0.7, len(matching_phrases) * 0.35)
+    if not matching_phrases:
+        score -= 0.25
+    declared_phrases = _declared_mode_phrases(evidence_text)
+    if declared_phrases and not any(
+        requested in declared or declared in requested
+        for requested in requested_phrases
+        for declared in declared_phrases
+    ):
+        score -= 0.45
+    return score
 
 
 def _safety_action_terms(query: str) -> set[str]:
@@ -1585,6 +1699,62 @@ def _result_matches_primary_identifier(result: SearchResult, identifier: str) ->
         )
     )
     return expected in primary_haystack
+
+
+def _preserve_identifier_dense_candidates(
+    fused_results: list[SearchResult],
+    dense_results: list[SearchResult],
+    analysis: QueryAnalysis,
+    *,
+    limit: int,
+    retained_limit: int = 3,
+) -> list[SearchResult]:
+    """Keep a few strong exact-model dense hits from being erased by RRF fan-out.
+
+    Queries can fan out into several correlated special/table routes. A chunk
+    that is first in dense search can otherwise fall outside the fused window
+    merely because sibling-manual results occur in more of those routes. Only
+    exact identifier matches with material query alignment are protected, and
+    they enter at the fused score floor so later scoring still decides rank.
+    """
+
+    identifiers = [
+        str(identifier)
+        for identifier in (
+            getattr(analysis, "product_identifiers", None)
+            or [analysis.product_model, analysis.part_number]
+        )
+        if identifier
+    ]
+    if not identifiers or not dense_results or limit <= 0:
+        return fused_results[:limit]
+
+    fused_ids = {result.chunk_id for result in fused_results}
+    retained: list[SearchResult] = []
+    score_floor = min((float(result.score) for result in fused_results), default=0.0)
+    for result in dense_results:
+        if result.chunk_id in fused_ids:
+            continue
+        if not any(_result_matches_primary_identifier(result, identifier) for identifier in identifiers):
+            continue
+        if _query_alignment_score(result, analysis) < 0.1:
+            continue
+        retained.append(
+            result.model_copy(
+                update={
+                    "score": score_floor,
+                    "metadata": {
+                        **result.metadata,
+                        "retrieval_stage": "identifier_dense_retained",
+                    },
+                }
+            )
+        )
+        if len(retained) >= retained_limit:
+            break
+    if not retained:
+        return fused_results[:limit]
+    return [*fused_results[: max(0, limit - len(retained))], *retained]
 
 
 def _comparison_row_code_terms(query: str, identifiers: list[str]) -> list[str]:
@@ -1937,6 +2107,22 @@ def _select_family_candidates(
     allowed_families = requested_families or _allowed_families(analysis)
     buckets: dict[str, list[SearchResult]] = {}
     chosen: list[SearchResult] = results[: min(3, limit)] if analysis.query_types == ["general"] else []
+    identifiers = [
+        str(identifier)
+        for identifier in (
+            getattr(analysis, "product_identifiers", None)
+            or [analysis.product_model, analysis.part_number]
+        )
+        if identifier
+    ]
+    if identifiers:
+        chosen.extend(
+            result
+            for result in results
+            if any(_result_matches_primary_identifier(result, identifier) for identifier in identifiers)
+            and _query_alignment_score(result, analysis) >= 0.1
+        )
+        chosen = chosen[:3]
     for result in results:
         family = str(result.metadata.get("family_bucket") or _family_bucket(result))
         if family not in allowed_families:
@@ -2022,7 +2208,8 @@ def rerank_results(results: list[SearchResult], query: str, *, limit: int = 12) 
                 continue
             rerank_score = float(document.score or result.score)
             alignment_score = _query_alignment_score(result, analysis)
-            blended_score = rerank_score + result.score * 0.35 + alignment_score * 7.0
+            completeness_score = float(result.metadata.get("semantic_completeness_score") or 0.0)
+            blended_score = rerank_score + result.score * 0.35 + alignment_score * 7.0 + completeness_score * 0.4
             reranked_results.append(
                 result.model_copy(
                     update={
@@ -2327,6 +2514,12 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
             limit=FUSED_CANDIDATE_POOL_LIMIT,
         ),
         "fused",
+    )
+    fused = _preserve_identifier_dense_candidates(
+        fused,
+        dense_results,
+        analysis,
+        limit=FUSED_CANDIDATE_POOL_LIMIT,
     )
     rescored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored")[:FUSED_CANDIDATE_POOL_LIMIT], "family_scored")
     completed = _annotate_stage_metadata(_annotate_completeness(rescored), "completeness_scored")

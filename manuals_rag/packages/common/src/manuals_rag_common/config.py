@@ -36,6 +36,7 @@ class Settings:
     ollama_metadata_model: str = os.getenv("OLLAMA_METADATA_MODEL", "tinyllama:1.1b")
     ollama_fast_model: str = os.getenv("OLLAMA_FAST_MODEL", "qwen3.5:4b")
     ollama_answer_model: str = os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b")
+    ollama_answer_num_predict: int = int(os.getenv("OLLAMA_ANSWER_NUM_PREDICT", "1024"))
     ollama_eval_model: str = os.getenv("OLLAMA_EVAL_MODEL", os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b"))
     ollama_eval_question_model: str = os.getenv("OLLAMA_EVAL_QUESTION_MODEL", "qwen3.5:27b")
     ollama_eval_question_num_ctx: int = int(os.getenv("OLLAMA_EVAL_QUESTION_NUM_CTX", "32768"))

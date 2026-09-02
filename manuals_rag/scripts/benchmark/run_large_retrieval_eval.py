@@ -6,6 +6,7 @@ import json
 import mimetypes
 import os
 import random
+import re
 import shutil
 import signal
 import subprocess
@@ -27,6 +28,7 @@ from manuals_rag_evals.retrieval_eval import (
     build_eval_cases_from_chunks,
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
+    extract_anchor_terms,
     score_answer_response,
     score_search_results,
 )
@@ -42,6 +44,11 @@ OUTPUT_DIR = MANUALS_ROOT / "test_reports"
 
 class QueryTimeoutError(TimeoutError):
     pass
+
+
+def _context_excerpt(value: object, *, limit: int) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    return text[:limit].rsplit(" ", 1)[0].strip() if len(text) > limit else text
 
 
 @contextmanager
@@ -241,28 +248,47 @@ def fetch_chunk_rows(document_ids: list[str]) -> list[dict[str, Any]]:
         return []
     id_list = ",".join(f"'{value}'" for value in document_ids)
     sql = f"""
+        WITH ordered_chunks AS (
+            SELECT
+                rc.*,
+                LAG(rc.content) OVER (
+                    PARTITION BY rc.source_document_id
+                    ORDER BY rc.page_from NULLS LAST, rc.page_to NULLS LAST, rc.title, rc.id
+                ) AS previous_chunk_content,
+                LEAD(rc.content) OVER (
+                    PARTITION BY rc.source_document_id
+                    ORDER BY rc.page_from NULLS LAST, rc.page_to NULLS LAST, rc.title, rc.id
+                ) AS next_chunk_content
+            FROM retrieval_chunks rc
+            WHERE rc.source_document_id::text IN ({id_list})
+              AND rc.chunk_level = 1
+        )
         SELECT
-            rc.id,
-            rc.source_document_id,
-            rc.document_version_id,
-            rc.chunk_type,
-            rc.chunk_level,
-            rc.title,
-            rc.section_path_text,
-            rc.page_from,
-            rc.page_to,
-            rc.content,
-            rc.metadata_json::text AS metadata_json,
+            oc.id,
+            oc.source_document_id,
+            oc.document_version_id,
+            oc.chunk_type,
+            oc.chunk_level,
+            oc.title,
+            oc.section_path_text,
+            oc.page_from,
+            oc.page_to,
+            oc.content,
+            oc.metadata_json::text AS metadata_json,
+            oc.previous_chunk_content,
+            oc.next_chunk_content,
+            sd.title AS document_title,
+            sd.document_kind,
+            sd.manufacturer,
+            sd.product_family,
             sd.source_filename,
-            COALESCE(sd.product_model, rc.metadata_json->>'product_model', '') AS product_model
-        FROM retrieval_chunks rc
-        JOIN source_documents sd ON sd.id = rc.source_document_id
-        WHERE rc.source_document_id::text IN ({id_list})
-          AND rc.chunk_level = 1
-          AND length(rc.content) >= 40
-          AND rc.chunk_type IN ('table_record','datasheet_record','spec_record','procedure_record','warning_record','atomic_text')
+            COALESCE(sd.product_model, oc.metadata_json->>'product_model', '') AS product_model
+        FROM ordered_chunks oc
+        JOIN source_documents sd ON sd.id = oc.source_document_id
+        WHERE length(oc.content) >= 40
+          AND oc.chunk_type IN ('table_record','datasheet_record','spec_record','procedure_record','warning_record','atomic_text')
         ORDER BY
-          CASE rc.chunk_type
+          CASE oc.chunk_type
             WHEN 'datasheet_record' THEN 1
             WHEN 'spec_record' THEN 2
             WHEN 'procedure_record' THEN 3
@@ -270,11 +296,33 @@ def fetch_chunk_rows(document_ids: list[str]) -> list[dict[str, Any]]:
             WHEN 'table_record' THEN 5
             ELSE 6
           END,
-          length(rc.content) DESC
+          length(oc.content) DESC
     """
     rows: list[dict[str, Any]] = []
     for row in _query_postgres_rows(sql):
         row["metadata_json"] = json.loads(row.get("metadata_json") or "{}")
+        if not row["metadata_json"].get("context_window"):
+            context_parts = [
+                ("Previous chunk", _context_excerpt(row.get("previous_chunk_content"), limit=1200)),
+                ("Current chunk", _context_excerpt(row.get("content"), limit=1200)),
+                ("Next chunk", _context_excerpt(row.get("next_chunk_content"), limit=1200)),
+            ]
+            row["metadata_json"]["context_window"] = "\n\n".join(
+                f"{label}: {text}"
+                for label, text in context_parts
+                if text
+            )
+        if not row["metadata_json"].get("parent_context") and row.get("section_path_text"):
+            row["metadata_json"]["parent_context"] = f"Section path: {row['section_path_text']}"
+        document_metadata = {
+            "document_title": row.get("document_title"),
+            "document_kind": row.get("document_kind"),
+            "manufacturer": row.get("manufacturer"),
+            "product_family": row.get("product_family"),
+            "product_model": row.get("product_model"),
+            "source_filename": row.get("source_filename"),
+        }
+        row["metadata_json"].update({key: value for key, value in document_metadata.items() if value and not row["metadata_json"].get(key)})
         row["page_from"] = int(row["page_from"])
         row["page_to"] = int(row["page_to"])
         rows.append(row)
@@ -493,6 +541,37 @@ def load_eval_cases_from_dataset(path: Path, *, max_cases: int, case_offset: int
     return cases
 
 
+def load_previous_questions_from_datasets(paths: list[Path]) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    from manuals_rag_evals.retrieval_eval import _section_context_key
+
+    by_chunk_id: dict[str, list[str]] = defaultdict(list)
+    by_section_key: dict[str, list[str]] = defaultdict(list)
+    seen_by_bucket: dict[str, set[str]] = defaultdict(set)
+    for path in paths:
+        if not path.exists():
+            continue
+        try:
+            records = read_jsonl(path)
+        except (OSError, ValueError):
+            continue
+        for record in records:
+            case = record.get("case") if isinstance(record.get("case"), dict) else record
+            if not isinstance(case, dict):
+                continue
+            query = str(case.get("query") or "").strip()
+            if not query:
+                continue
+            chunk_id = str(case.get("source_chunk_id") or "")
+            if chunk_id and query not in seen_by_bucket[f"chunk:{chunk_id}"]:
+                by_chunk_id[chunk_id].append(query)
+                seen_by_bucket[f"chunk:{chunk_id}"].add(query)
+            section_key = _section_context_key(case)
+            if section_key and query not in seen_by_bucket[f"section:{section_key}"]:
+                by_section_key[section_key].append(query)
+                seen_by_bucket[f"section:{section_key}"].add(query)
+    return dict(by_chunk_id), dict(by_section_key)
+
+
 def _source_chunk_from_saved_case(case: RetrievalEvalCase) -> dict[str, Any]:
     metadata = dict(case.source_metadata or {})
     return {
@@ -519,6 +598,119 @@ def saved_case_quality_rejection_reason(case: RetrievalEvalCase) -> str | None:
     if not chunk_is_queryworthy(chunk, anchors):
         return "not_queryworthy_source_chunk"
     return None
+
+
+def _generation_chunk_quality_score(chunk: dict[str, Any]) -> int:
+    content = str(chunk.get("content") or "")
+    metadata = dict(chunk.get("metadata_json") or {})
+    chunk_type = str(chunk.get("chunk_type") or "")
+    text = " ".join(
+        [
+            content,
+            str(chunk.get("title") or ""),
+            str(chunk.get("section_path_text") or ""),
+            " ".join(str(value) for value in metadata.get("table_row_headers") or []),
+            " ".join(str(value) for value in metadata.get("table_column_headers") or []),
+        ]
+    ).lower()
+    score = {
+        "warning_record": 90,
+        "procedure_record": 85,
+        "spec_record": 75,
+        "datasheet_record": 75,
+        "table_record": 55,
+        "atomic_text": 35,
+    }.get(chunk_type, 20)
+    if metadata.get("safety_flag") or "warning" in text or "caution" in text:
+        score += 20
+    if metadata.get("procedure_flag") or any(token in text for token in ("click", "select", "set ", "connect", "install", "configure", "register")):
+        score += 16
+    if metadata.get("spec_flag") or any(token in text for token in ("voltage", "current", "temperature", "accuracy", "resolution", "range", "speed", "torque", "pressure")):
+        score += 12
+    if metadata.get("unit_tokens") or any(token in content for token in (" mm", " V", " mA", " kg", " ms", " MHz", " deg", "°C")):
+        score += 10
+    if metadata.get("table_key_value") or metadata.get("table_row_group"):
+        score += 8
+    if metadata.get("table_cell"):
+        row_headers = metadata.get("table_row_headers") or []
+        column_headers = metadata.get("table_column_headers") or []
+        if row_headers and column_headers:
+            score += 8
+        if "number format" in text or "integer digits" in text or "decimal digits" in text:
+            score -= 35
+        if not column_headers and not re.search(r"\b(?:voltage|current|power|range|limit|threshold|compatibility|weight|length|width|height|diameter|temperature|speed|torque|pressure)\b", text):
+            score -= 18
+    if metadata.get("table_row_group") and str(chunk.get("section_path_text") or "").strip().lower() == "document":
+        score -= 24
+    if any(token in text for token in ("general precautions", "general cautions")):
+        score -= 12
+    if re.search(r"\(page\s+\d+-\d+\)|row:\s*\d+;\s*column:\s*\d+|/{0,1}l\d{4,}", text):
+        score -= 25
+    if re.search(r"[.&][a-z]{5,}\\s+'[a-z]{5,}", text):
+        score -= 30
+    if len(content.strip()) < 70:
+        score -= 12
+    return score
+
+
+def prepare_question_generation_chunks(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    ranked: list[tuple[int, str, dict[str, Any]]] = []
+    for chunk in chunks:
+        anchors = extract_anchor_terms(str(chunk.get("content") or ""))
+        if not chunk_is_queryworthy(chunk, anchors):
+            continue
+        score = _generation_chunk_quality_score(chunk)
+        if score < 45:
+            continue
+        ranked.append((-score, str(chunk.get("id") or ""), chunk))
+    ranked.sort()
+    return [chunk for _score, _chunk_id, chunk in ranked]
+
+
+def build_single_step_generation_cases_until_target(
+    chunks: list[dict[str, Any]],
+    *,
+    max_cases: int,
+    chunk_window: int,
+    per_chunk_limit: int,
+    use_llm_generation: bool,
+    previous_questions_by_chunk_id: dict[str, list[str]],
+    previous_questions_by_section_key: dict[str, list[str]],
+    prompt_guidance: str | None,
+    num_ctx: int | None,
+    timeout_seconds: float | None,
+) -> list[RetrievalEvalCase]:
+    from manuals_rag_evals.retrieval_eval import _section_context_key
+
+    accepted: list[RetrievalEvalCase] = []
+    window_size = chunk_window if chunk_window > 0 else len(chunks)
+    if window_size <= 0:
+        return accepted
+    cursor = 0
+    previous_by_chunk = {key: list(value) for key, value in previous_questions_by_chunk_id.items()}
+    previous_by_section = {key: list(value) for key, value in previous_questions_by_section_key.items()}
+    while cursor < len(chunks) and len(accepted) < max_cases:
+        window_chunks = chunks[cursor : cursor + window_size]
+        if not window_chunks:
+            break
+        remaining = max_cases - len(accepted)
+        batch = build_eval_cases_from_chunks(
+            window_chunks,
+            max_cases=remaining,
+            per_chunk_limit=per_chunk_limit,
+            use_llm_generation=use_llm_generation,
+            previous_questions_by_chunk_id=previous_by_chunk,
+            previous_questions_by_section_key=previous_by_section,
+            prompt_guidance=prompt_guidance,
+            num_ctx=num_ctx,
+            timeout_seconds=timeout_seconds,
+        )
+        accepted.extend(batch)
+        for case in batch:
+            previous_by_chunk.setdefault(str(case.source_chunk_id), []).append(case.query)
+            previous_by_section.setdefault(_section_context_key(case.to_dict()), []).append(case.query)
+        cursor += window_size
+    return accepted
 
 
 def load_eval_cases_and_rejections_from_dataset(
@@ -735,6 +927,54 @@ def main() -> int:
         help="Use deterministic eval question generation instead of local LLM rewrites.",
     )
     parser.add_argument(
+        "--generation-chunk-offset",
+        type=int,
+        default=0,
+        help="Skip this many ranked query-worthy source chunks before generating new eval questions.",
+    )
+    parser.add_argument(
+        "--generation-chunk-window",
+        type=int,
+        default=0,
+        help="Use this many ranked query-worthy source chunks per generation attempt window after --generation-chunk-offset. Single-step generation advances through additional windows until --max-queries are accepted or candidates run out. 0 uses all remaining chunks.",
+    )
+    parser.add_argument(
+        "--questions-per-window",
+        type=int,
+        default=3,
+        help="Maximum generated questions to accept per source chunk/window.",
+    )
+    parser.add_argument(
+        "--question-generation-num-ctx",
+        type=int,
+        default=0,
+        help="Override the Ollama eval-question context window for generation and review. 0 uses configured default.",
+    )
+    parser.add_argument(
+        "--question-generation-timeout-seconds",
+        type=float,
+        default=0,
+        help="Override the Ollama eval-question generation/review timeout. 0 uses configured default.",
+    )
+    parser.add_argument(
+        "--question-generation-guidance",
+        type=str,
+        default="",
+        help="Optional extra guidance included with the eval question generation input.",
+    )
+    parser.add_argument(
+        "--previous-questions-dataset",
+        type=Path,
+        action="append",
+        default=[],
+        help="Existing JSONL question dataset whose questions should be passed as prior section/chunk questions.",
+    )
+    parser.add_argument(
+        "--skip-evaluation",
+        action="store_true",
+        help="Write the generated dataset and exit before retrieval/answer scoring. Useful for question generation batches.",
+    )
+    parser.add_argument(
         "--retrieval-task",
         choices=["single_step_retrieval", "multi_step_retrieval"],
         default="single_step_retrieval",
@@ -804,8 +1044,13 @@ def main() -> int:
     else:
         rejected_cases = []
         chunk_rows = fetch_chunk_rows([item["document_id"] for item in ingested_docs])
-        random.shuffle(chunk_rows)
+        chunk_rows = prepare_question_generation_chunks(chunk_rows)
+        generation_chunk_offset = max(0, args.generation_chunk_offset)
+        if generation_chunk_offset:
+            chunk_rows = chunk_rows[generation_chunk_offset:]
         if args.retrieval_task == "multi_step_retrieval":
+            if args.generation_chunk_window and args.generation_chunk_window > 0:
+                chunk_rows = chunk_rows[: args.generation_chunk_window]
             cases = [
                 case.to_dict()
                 for case in build_multi_step_eval_cases_from_chunks(
@@ -815,12 +1060,26 @@ def main() -> int:
                 )
             ]
         else:
+            previous_questions_by_chunk_id, previous_questions_by_section_key = load_previous_questions_from_datasets(
+                args.previous_questions_dataset
+            )
             cases = [
                 case.to_dict()
-                for case in build_eval_cases_from_chunks(
+                for case in build_single_step_generation_cases_until_target(
                     chunk_rows,
                     max_cases=args.max_queries,
+                    chunk_window=args.generation_chunk_window,
+                    per_chunk_limit=max(1, args.questions_per_window),
                     use_llm_generation=not args.disable_llm_query_generation,
+                    previous_questions_by_chunk_id=previous_questions_by_chunk_id,
+                    previous_questions_by_section_key=previous_questions_by_section_key,
+                    prompt_guidance=args.question_generation_guidance.strip() or None,
+                    num_ctx=args.question_generation_num_ctx if args.question_generation_num_ctx > 0 else None,
+                    timeout_seconds=(
+                        args.question_generation_timeout_seconds
+                        if args.question_generation_timeout_seconds > 0
+                        else None
+                    ),
                 )
             ]
 
@@ -844,6 +1103,46 @@ def main() -> int:
     manifest_path = OUTPUT_DIR / f"retrieval_eval_manifest_{timestamp}.json"
 
     write_jsonl(dataset_path, cases)
+    if args.skip_evaluation:
+        summary = {
+            "total_questions": len(cases),
+            "retrieval_task": args.retrieval_task,
+            "evaluation_skipped": True,
+        }
+        summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "corpus_id": corpus_id,
+                    "documents": ingested_docs,
+                    "input_dataset_path": str(args.dataset_path) if args.dataset_path else None,
+                    "search_mode": args.search_mode,
+                    "response_mode": args.response_mode,
+                    "retrieval_task": args.retrieval_task,
+                    "multi_step_case_family": args.multi_step_case_family,
+                    "generation_chunk_offset": args.generation_chunk_offset if not args.dataset_path else None,
+                    "generation_chunk_window": args.generation_chunk_window if not args.dataset_path else None,
+                    "questions_per_window": args.questions_per_window if not args.dataset_path else None,
+                    "question_generation_num_ctx": args.question_generation_num_ctx if not args.dataset_path else None,
+                    "question_generation_timeout_seconds": (
+                        args.question_generation_timeout_seconds if not args.dataset_path else None
+                    ),
+                    "question_generation_guidance": args.question_generation_guidance if not args.dataset_path else "",
+                    "previous_questions_datasets": [str(path) for path in args.previous_questions_dataset] if not args.dataset_path else [],
+                    "dataset_path": str(dataset_path),
+                    "summary_path": str(summary_path),
+                    "results_path": None,
+                    "evaluation_skipped": True,
+                    "selected_documents": [str(path) for path in selected_docs],
+                },
+                indent=2,
+                default=str,
+            ),
+            encoding="utf-8",
+        )
+        print(json.dumps(summary, indent=2), flush=True)
+        print(json.dumps({"dataset_path": str(dataset_path), "summary_path": str(summary_path), "results_path": None}, indent=2), flush=True)
+        return 0
 
     results: list[dict[str, Any]] = []
     for case in cases:
@@ -936,6 +1235,17 @@ def main() -> int:
                 "warmup_queries": args.warmup_queries,
                 "warmup_timeout_seconds": warmup_timeout_seconds,
                 "warmups": warmups,
+                "retrieval_task": args.retrieval_task,
+                "multi_step_case_family": args.multi_step_case_family,
+                "generation_chunk_offset": args.generation_chunk_offset if not args.dataset_path else None,
+                "generation_chunk_window": args.generation_chunk_window if not args.dataset_path else None,
+                "questions_per_window": args.questions_per_window if not args.dataset_path else None,
+                "question_generation_num_ctx": args.question_generation_num_ctx if not args.dataset_path else None,
+                "question_generation_timeout_seconds": (
+                    args.question_generation_timeout_seconds if not args.dataset_path else None
+                ),
+                "question_generation_guidance": args.question_generation_guidance if not args.dataset_path else "",
+                "previous_questions_datasets": [str(path) for path in args.previous_questions_dataset] if not args.dataset_path else [],
                 "dropped_invalid_cases": len(rejected_cases),
                 "rejected_cases": rejected_cases,
                 "dataset_path": str(dataset_path),

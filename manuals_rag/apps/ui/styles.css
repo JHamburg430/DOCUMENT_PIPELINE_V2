@@ -349,6 +349,42 @@ summary {
   margin: 0;
 }
 
+.matrix-generation-controls {
+  margin: 0 0 12px;
+  border: 1px solid var(--line);
+  background: #fbfcfd;
+  padding: 8px 10px 10px;
+}
+
+.matrix-generation-controls summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.matrix-generation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.matrix-generation-grid label {
+  margin: 0;
+}
+
+.matrix-generation-prompt {
+  grid-column: 1 / -1;
+}
+
+.matrix-generation-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  grid-column: 1 / -1;
+}
+
 .matrix-view-controls {
   display: grid;
   grid-template-columns: minmax(220px, 1.3fr) minmax(220px, 1.1fr) minmax(130px, 0.6fr) minmax(130px, 0.6fr) auto;
@@ -608,6 +644,40 @@ summary {
 
 .matrix-event-tail small {
   color: var(--muted);
+}
+
+.generated-question-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.generated-question-list > strong {
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.generated-question-list ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.generated-question-list li {
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.generated-question-list span,
+.generated-question-list small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.generated-question-list small {
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .progress-list {

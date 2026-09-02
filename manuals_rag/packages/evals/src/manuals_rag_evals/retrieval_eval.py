@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import time
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -38,6 +40,72 @@ STOPWORDS = {
     "caution",
     "note",
 }
+
+
+def _trace_question_generation_enabled() -> bool:
+    return os.getenv("MANUALS_RAG_EVAL_QUESTION_TRACE", "").lower() in {"1", "true", "yes", "on"}
+
+
+def _trace_question_generation_event(event: str, **fields: object) -> None:
+    if not _trace_question_generation_enabled():
+        return
+    payload = {
+        "event": event,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        **fields,
+    }
+    print(json.dumps(payload, ensure_ascii=True, default=str), flush=True)
+
+
+def _post_ollama_generate_with_optional_trace(
+    *,
+    client: httpx.Client,
+    request_payload: dict[str, Any],
+    trace_event: str,
+    trace_fields: dict[str, object],
+) -> str:
+    if not _trace_question_generation_enabled():
+        response = client.post("/api/generate", json=request_payload)
+        response.raise_for_status()
+        payload: dict[str, Any] = response.json()
+        return str(payload.get("response") or payload.get("thinking") or "")
+
+    streaming_payload = {**request_payload, "stream": True}
+    parts: list[str] = []
+    last_emit = 0.0
+    with client.stream("POST", "/api/generate", json=streaming_payload) as response:
+        response.raise_for_status()
+        for line in response.iter_lines():
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            fragment = str(event.get("response") or event.get("thinking") or "")
+            if fragment:
+                parts.append(fragment)
+                now = time.monotonic()
+                if now - last_emit >= 0.5:
+                    _trace_question_generation_event(
+                        trace_event,
+                        **trace_fields,
+                        fragment=fragment,
+                        preview="".join(parts)[-500:],
+                    )
+                    last_emit = now
+            if event.get("done"):
+                break
+    text = "".join(parts)
+    if text:
+        _trace_question_generation_event(
+            trace_event,
+            **trace_fields,
+            fragment="",
+            preview=text[-500:],
+            done=True,
+        )
+    return text
 
 QUERY_DEDUPE_FILLER = STOPWORDS.union(
     {
@@ -307,12 +375,25 @@ NONE
 
 Rules:
 - Write concise question-form queries a real technician, engineer, operator, purchaser, or integrator might ask.
-- Base every query on the provided context, especially the source snippet, structured fields, labels, and extracted terms.
-- Make each query answerable from the source snippet itself, not merely from a surrounding section.
-- Use surrounding section context only to understand what would distinguish this source from nearby sibling rows or steps.
+- Optimize for useful retrieval questions, not exhaustive coverage of every parseable cell. A question should be something a user might actually ask to solve a task, compare a spec, understand a warning, or find a setting.
+- Before writing queries, identify for yourself: the device/product, the parent article or section, the exact answerable fact/action/constraint, and the anchors that distinguish this source from sibling rows or nearby steps.
+- Base every query on the provided context, especially document_context, source snippet, structured fields, labels, and extracted terms.
+- Make each query answerable from the source snippet itself; surrounding context may disambiguate, but it must not be required as the only evidence for the answer.
+- Use surrounding section context to understand the parent article, device, feature area, and what distinguishes this source from nearby sibling rows or steps. Do not use surrounding context as the owner of the answer.
+- Bind the question subject to the exact snippet-owned row, part, device, setting, warning, or procedure. If surrounding context mentions a different nearby part/model/step, do not ask about that other item.
+- If the snippet contains multiple identifiers, ask only about the identifier directly tied to the answer value or action. If that binding is unclear, return NONE.
 - Represent the kind of question a user would ask before seeing the answer text; do not turn source wording into a keyword query.
 - Include enough fair discriminators that the intended row, warning, step, or spec can be found without reading adjacent context.
-- Use product names, model numbers, protocol names, units, and standardized technical terms as anchors when needed.
+- Use product names, model numbers, feature names, protocol names, units, and standardized technical terms as anchors when needed.
+- Prefer the product/device identity from document_context over filename-like artifacts. If document_context does not identify a real product/device, use the feature/section/action anchors instead.
+- If the snippet is a table row or cell, include the row subject and the measured/configured field, not just "what value" or "which setting".
+- If a table row/cell only exposes storage format, display precision, parser coordinates, or internal representation, return NONE unless it is clearly a user-facing specification someone would search for.
+- If a table cell has a value but the headers do not clearly name the metric/setting/field that value belongs to, return NONE instead of inventing a metric such as accuracy, resolution, limit, or range.
+- If the snippet is a procedure, ask about the action, screen/setting, prerequisite, or result that the snippet actually states.
+- If the snippet is a warning/caution, ask about the unsafe condition, required precaution, or consequence that the snippet actually states.
+- If the snippet gives a limit/specification, include the entity being limited and the type of limit/specification.
+- If the snippet defines a mode/option rather than giving setup steps, ask what the mode/option means or controls; do not ask how to configure it.
+- If the snippet has a placeholder value such as Current Value, blank, dash, or a coordinate-only artifact, return NONE unless another concrete source-backed fact is present.
 - Treat source field labels, table headers, row headers, and UI labels as concepts to paraphrase, not text to copy verbatim.
 - If a label or snippet contains a compound phrase, break it apart, reorder it, or replace part of it with a natural synonym.
 - If the source uses bracketed UI labels like [Output Setting], rewrite them into natural user wording. Do not include square brackets in the query.
@@ -333,7 +414,10 @@ Rules:
 - Prefer concrete terms from the snippet such as field names, units, menu labels, protocol names, settings, or actions.
 - Avoid vague storage-only phrasing such as "stores number" unless the query also includes the specific field/action name, for example "command number" or "specified-command".
 - Previous questions are scoped to this section/context. Do not repeat them or make close paraphrases. Ask about a different concrete facet of the same snippet only when one is logical and fair.
-- If no additional logical, answerable, non-duplicative question is possible for this section/context, return exactly NONE and no JSON.
+- If review_feedback_for_rejected_questions is present, use each rejection category and feedback item directly: make vague questions concrete, remove invented procedures/facts, bind the product/setting/row correctly, avoid mechanical source copying, and do not repeat duplicate questions.
+- If you cannot identify a specific source-backed answer and at least one fair discriminator, return exactly NONE and no JSON.
+- If all remaining questions would be vague, duplicate, purely filename/document based, or answerable only by guessing from surrounding context, return exactly NONE and no JSON.
+- Prefer returning NONE over producing a question whose subject/value binding might be wrong.
 - Do not make a question so specific that it merely restates the full answer or exact table cell. Include enough context to disambiguate sibling rows, but keep it natural.
 - Do not invent facts not present in the input.
 - Return 2 or 3 diverse queries when the context is strong, otherwise return 1.
@@ -378,6 +462,16 @@ Input facts: Source says the tag PLC1: I.Data[0].1 is ON when the Command error 
 Bad query: Is PLC1: I.Data0.1 the correct indicator for Command errors?
 Good query: Which tag indicates whether a command error occurred?
 
+Example 8:
+Input facts: Table cell only says data length is "+9.3" for an internal C2D P distance value.
+Bad query: How many decimal digits are included in the C2D P Circles Distance value?
+Good output: NONE
+
+Example 9:
+Input facts: Warning says the sensor head must not be used in an explosive atmosphere.
+Bad query: What warning applies to sensor head use?
+Good query: Can this sensor head be used around explosive gas?
+
 Pattern:
 - The good query sounds like a person asking before they have seen the answer.
 - It keeps necessary anchors such as model names, protocols, units, and settings, but avoids copying exact addresses, tag prefixes, or code-like identifiers unless the user would already know that identifier.
@@ -385,6 +479,71 @@ Pattern:
 - It avoids reusing full source noun phrases such as "displayed detection coordinate" when shorter wording can ask the same thing.
 - It never uses "detail is needed", "is listed", "entry applies", "purpose does", or source-like grammar.
 """.strip()
+
+USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT = """
+You review generated retrieval benchmark questions for technical manuals.
+
+Return strict JSON with this shape:
+{"approved":true,"category":"approved","feedback":"","answer_in_snippet":true,"false_rejection_check":{"synonym_or_smoother_wording_only":false,"valid_context_anchor_only":false,"single_step_or_setting_how_question":false,"valid_yes_no_restriction_question":false}}
+or
+{"approved":false,"category":"too_vague","feedback":"short actionable feedback for rewriting","answer_in_snippet":false,"false_rejection_check":{"synonym_or_smoother_wording_only":false,"valid_context_anchor_only":false,"single_step_or_setting_how_question":false,"valid_yes_no_restriction_question":false}}
+
+Allowed rejection categories:
+- too_vague: the question asks for a generic value, item, detail, entry, applicability, or broad topic without a concrete source-backed target.
+- not_answerable_from_snippet: the snippet does not contain the answer, even after using document_context only for disambiguation.
+- invented_fact: the question asks for a procedure, cause, formula, value, setting, part, device, or condition not stated by the snippet/context.
+- wrong_product_or_context: the question binds the answer to the wrong row, product, part, model, warning, setting, or sibling context.
+- asks_for_steps_not_present: the question asks for multiple steps, a complete setup flow, a verification process, or a calculation not present in the snippet.
+- mechanical_source_copy: the question copies source/table/UI wording, file/page artifacts, parser coordinates, or benchmark-only phrasing.
+- duplicate_or_near_duplicate: the question repeats or closely paraphrases a previous accepted question.
+
+Approve only if the question:
+- Sounds like a natural question from a technician, engineer, operator, purchaser, or integrator.
+- Is answerable from the provided source snippet itself.
+- Targets a concrete source-backed answer, action, limit, warning, setting, field, table row, or procedure result.
+- Uses document_context only for fair disambiguation, such as product/device, parent article, feature area, section, or page context.
+- Includes enough context to distinguish the intended row, warning, step, setting, or spec from nearby or unrelated content.
+- Does not merely ask for a generic value, item, detail, entry, or applicability without saying what concrete thing the user needs.
+- Does not ask "how" or "why" unless the snippet actually provides a procedure, causal explanation, formula, or reason.
+- Does not use a product/model anchor if that anchor appears to be only a filename artifact rather than source-backed device context.
+- Does not copy source/table/UI wording mechanically.
+- Does not depend on file names, page/table coordinates, or benchmark-only phrasing.
+- Does not ask about storage format, display precision, parser coordinates, or internal representation unless that is clearly a user-facing spec someone would search for.
+
+Before rejecting, fill false_rejection_check for these conditions. If answer_in_snippet is true and any false_rejection_check value is true, approve unless there is a separate concrete defect covered by an allowed rejection category:
+- synonym_or_smoother_wording_only: the only issue is singular/plural wording, a natural synonym, broader user term, or smoother grammar.
+- valid_context_anchor_only: the only issue is that product/device/feature identity comes from document_context, product_models, section, parent context, or other non-filename context.
+- single_step_or_setting_how_question: the only issue is that the question says "how" while the snippet gives the needed action, control, tab, screen, setting, option, mode, or condition.
+- valid_yes_no_restriction_question: the only issue is that the question asks a yes/no safety, prohibition, or restriction question whose answer is directly stated.
+
+Do not reject solely because the question uses singular/plural variation, natural synonym, broader user term, or smoother grammar than the source. Natural terms like setting, settings, option, feature, item, function, field, mode, image count, number of images, base value, or reference value are acceptable when they clearly refer to the same source-backed concept. A question may ask "which setting..." when the source provides the setting name, or "what does X do..." when the source provides X's described behavior. Reject only when the paraphrase changes the source-backed meaning, makes the target ambiguous, invents a procedure/reason/formula, or binds the answer to the wrong row, part, model, setting, or warning.
+For procedure snippets or single-step instruction snippets, natural "how do I..." questions are acceptable when the source gives the specific action, control, tab, screen, or selection needed to answer the question. Do not require the snippet to contain a complete multi-step procedure.
+For setting and option snippets, natural task phrasing such as "How do I prevent X?", "How do I enable X?", or "What controls X?" is acceptable when the source names the setting, option, mode, or condition that accomplishes it. Do not reject these just because the snippet does not provide a step-by-step procedure; reject only if the question asks for steps that are not in the source.
+For safety, prohibition, or restriction snippets, natural yes/no questions such as "Can X be used for Y?", "Should X be installed in Y?", or "Is X rated for Y?" are acceptable when the source clearly states the allowed/prohibited use. Do not reject these just because the answer is negative.
+Do not claim the question uses a product, model, manufacturer, filename, page, or metadata anchor unless that text actually appears in the question. Hidden document_context is available to you for judging source fit, but it is not automatically part of the question wording.
+When the source defines one named conditional method among sibling methods (for example, "Refer to Vision Dashboard Cell"), reject a broad question such as "When does archiving start?" as too_vague. The question must retain enough of the named method to distinguish its trigger from Always Archive, task judgment, tool judgment, and other nearby conditions.
+
+Calibration examples:
+- Source says to check PLC-Link communication settings, connection cable, and status when connected by RS-232C. Question "What should I check when LJ-X8000 connects via RS-232C?" should be approved when document_context identifies LJ-X8000 as the product.
+- Source says a button selects the lighting color displayed on a VIEW bar. Question "How do I select a lighting color for the VIEW bar?" should be approved because the source provides the specific action/control.
+- Source says an LJ-V series head cannot register only grayscale images. Question "Can I register only grayscale images with an LJ-V series head?" should be approved because the yes/no restriction is directly stated.
+- Source says an RS-232C cable has part number OP-26487. Question "Which cable connects to the RS-232C port?" should be approved because the part number answers which cable.
+- Source only says to check a cable/status but gives no verification method. Question "How do I verify the cable status?" should be rejected as asks_for_steps_not_present.
+
+When rejecting, give concise feedback that the question generator can use directly. Do not rewrite the question yourself. Feedback must only criticize defects visible in the question text or concrete mismatches with the source snippet; never mention removing or changing a word, model, page, filename, manufacturer, or coordinate that is not literally present in the question.
+""".strip()
+
+REVIEW_REJECTION_CATEGORIES = {
+    "approved",
+    "too_vague",
+    "not_answerable_from_snippet",
+    "invented_fact",
+    "wrong_product_or_context",
+    "asks_for_steps_not_present",
+    "mechanical_source_copy",
+    "duplicate_or_near_duplicate",
+    "reviewer_rejected",
+}
 
 
 @dataclass(frozen=True)
@@ -412,6 +571,15 @@ class RetrievalEvalCase:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class GeneratedQueryReview:
+    approved: bool
+    category: str
+    feedback: str
+    answer_in_snippet: bool | None = None
+    false_rejection_check: dict[str, bool] | None = None
 
 
 def normalize_text(text: str) -> str:
@@ -607,6 +775,22 @@ def chunk_is_queryworthy(chunk: dict[str, Any], anchors: list[str]) -> bool:
         and not _meaningful_table_field_value_pairs(content)
     ):
         return False
+    if chunk_type == "table_record" and metadata.get("table_cell"):
+        column_headers = _metadata_list(metadata, "table_column_headers")
+        header_text = normalize_text(" ".join(column_headers))
+        field_pairs = _meaningful_table_field_value_pairs(content)
+        cell_value = _table_cell_value(content)
+        if (
+            not field_pairs
+            and cell_value.strip().startswith(("±", "+/-"))
+            and not re.search(r"\b(?:accuracy|repeatability|tolerance|deviation|error|precision)\b", header_text)
+        ):
+            return False
+        if not field_pairs and column_headers and not re.search(
+            r"\b(?:voltage|current|power|torque|range|distance|accuracy|resolution|repeatability|temperature|humidity|speed|time|count|limit|threshold|format|mode|setting|settings|output|input|type|status|error|cause|action|description|identifier|compatibility|approval|diameter|length|width|height|weight|pressure|frequency|wavelength)\b",
+            header_text,
+        ):
+            return False
     if (
         chunk_type == "table_record"
         and metadata.get("table_cell")
@@ -690,6 +874,22 @@ def _query_has_discriminating_source_term(query: str, chunk: dict[str, Any]) -> 
         if _is_high_signal_anchor(token) or token in GENERIC_TECHNICAL_TERMS or token in TECHNICAL_VERBS or len(token) >= 7:
             return True
     return False
+
+
+def _query_preserves_named_condition_scope(query: str, chunk: dict[str, Any]) -> bool:
+    content = str(chunk.get("content", "")).strip()
+    match = re.match(r"Refer\s+to\s+([^:\n]{3,100})\s*:", content, flags=re.I)
+    if not match:
+        return True
+    label_terms = [
+        token
+        for token in tokenize(match.group(1))
+        if token not in STOPWORDS and token not in GENERIC_ANCHORS
+    ]
+    if len(label_terms) < 2:
+        return True
+    query_terms = set(tokenize(query))
+    return sum(1 for term in label_terms if term in query_terms) >= 2
 
 
 def _filename_artifact_terms(chunk: dict[str, Any]) -> set[str]:
@@ -915,6 +1115,14 @@ def _query_looks_mechanical(query: str) -> bool:
         and not any(re.search(r"\d", token) for token in compact_tokens)
     ):
         return True
+    if re.fullmatch(r"what\s+[\w/-]+\s+[\w/-]+(?:\s+[\w/-]+)?\s+is\s+specified(?:\s+for\s+.+)?", compact):
+        return True
+    if re.fullmatch(r"what\s+[\w/-]+\s+[\w/-]+(?:\s+[\w/-]+)?\s+applies(?:\s+to\s+.+)?", compact):
+        return True
+    if re.fullmatch(r"what\s+[\w/-]+\s+[\w/-]+\s+steps\s+apply(?:\s+to\s+.+)?", compact):
+        return True
+    if re.fullmatch(r"how\s+do\s+you\s+(?:procedure|step|steps)(?:\s+for\s+.+)?", compact):
+        return True
     if re.search(r"\bwhat\s+\S+\s+is\s+described\s+for\b", compact):
         described_subject = compact.split(" is described for ", 1)[0].removeprefix("what ").strip()
         described_terms = [token for token in tokenize(described_subject) if token not in STOPWORDS and token not in GENERIC_ANCHORS]
@@ -1001,8 +1209,6 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "document_bound_query"
     if _query_looks_meta(query):
         return False, "meta_query"
-    if _query_looks_mechanical(query):
-        return False, "mechanical_query"
     if _query_uses_filename_artifact(query, chunk):
         return False, "filename_artifact_query"
     if _query_uses_bracketed_source_label(query, chunk):
@@ -1013,6 +1219,8 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "table_artifact_syntax_query"
     if _query_copies_unfair_source_phrase(query, chunk):
         return False, "copied_source_phrase"
+    if _query_looks_mechanical(query):
+        return False, "mechanical_query"
     if chunk_type == "atomic_text":
         if len(anchors) < 2:
             return False, "atomic_requires_two_anchors"
@@ -1028,6 +1236,8 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
         return False, "weak_source_affinity"
     if chunk_type in {"spec_record", "datasheet_record", "table_record"} and not _query_has_discriminating_source_term(query, chunk):
         return False, "weak_source_discriminator"
+    if not _query_preserves_named_condition_scope(query, chunk):
+        return False, "missing_condition_discriminator"
     return True, "validated"
 
 
@@ -1126,10 +1336,37 @@ def _structured_eval_input(chunk: dict[str, Any], anchors: list[str]) -> dict[st
         if value and value != content and value not in context_parts:
             context_parts.append(_unbracket_source_labels(value))
     field_matches = _field_value_pairs(content)
+    source_filename = str(chunk.get("source_filename") or "").strip()
+    product_model = _prompt_safe_metadata_value(str(chunk.get("product_model") or metadata.get("product_model") or "").strip(), chunk)
+    product_family = _prompt_safe_metadata_value(str(chunk.get("product_family") or metadata.get("product_family") or "").strip(), chunk)
+    manufacturer = _prompt_safe_grounded_metadata_value(str(chunk.get("manufacturer") or metadata.get("manufacturer") or "").strip(), chunk)
+    raw_document_title = str(chunk.get("document_title") or metadata.get("document_title") or "").strip()
+    document_title = "" if _looks_like_unhelpful_document_title(raw_document_title, source_filename) else raw_document_title
+    raw_chunk_title = str(chunk.get("title") or "").strip()
+    chunk_title = "" if _looks_like_unhelpful_document_title(raw_chunk_title, source_filename) else raw_chunk_title
+    raw_parent_article = str(metadata.get("parent_article") or metadata.get("parent_title") or raw_chunk_title).strip()
+    parent_article = "" if _looks_like_unhelpful_document_title(raw_parent_article, source_filename) else raw_parent_article
+    document_context = {
+        "document_title": document_title or chunk_title,
+        "chunk_title": chunk_title,
+        "document_kind": str(chunk.get("document_kind") or metadata.get("document_kind") or "").strip(),
+        "manufacturer": manufacturer,
+        "product_family": product_family,
+        "product_model": product_model,
+        "product_models": [_prompt_safe_metadata_value(value, chunk) for value in _metadata_list(metadata, "product_models")[:8] if _prompt_safe_metadata_value(value, chunk)],
+        "product_families": [_prompt_safe_metadata_value(value, chunk) for value in _metadata_list(metadata, "product_families")[:8] if _prompt_safe_metadata_value(value, chunk)],
+        "devices": [_prompt_safe_metadata_value(value, chunk) for value in _metadata_list(metadata, "devices")[:8] if _prompt_safe_metadata_value(value, chunk)],
+        "section_path": str(chunk.get("section_path_text", "")).strip(),
+        "parent_article": parent_article,
+        "parent_context_excerpt": content_preview(_unbracket_source_labels(str(metadata.get("parent_context") or "")), limit=1500),
+        "context_window_excerpt": content_preview(_unbracket_source_labels(str(metadata.get("context_window") or "")), limit=2500),
+    }
     return {
         "chunk_type": str(chunk.get("chunk_type", "")),
-        "title": _safe_query_label(chunk),
-        "product_model": _safe_query_label(chunk),
+        "title": chunk_title,
+        "document_context": {key: value for key, value in document_context.items() if value not in ("", [], [None, None])},
+        "product_model": product_model,
+        "product_family": product_family,
         "section_path": str(chunk.get("section_path_text", "")).strip(),
         "anchors": anchors[:6],
         "table_row_headers": _metadata_list(metadata, "table_row_headers")[:6],
@@ -1142,6 +1379,28 @@ def _structured_eval_input(chunk: dict[str, Any], anchors: list[str]) -> dict[st
         "expected_terms": anchors[:4],
         "snippet": content_preview(prompt_content, limit=900),
         "section_context_excerpt": content_preview("\n\n".join(context_parts), limit=6000) if context_parts else "",
+    }
+
+
+def _question_generation_trace_fields(chunk: dict[str, Any]) -> dict[str, object]:
+    metadata = dict(chunk.get("metadata_json", {}))
+    structured_input = _structured_eval_input(chunk, extract_anchor_terms(str(chunk.get("content") or "")))
+    structured_context = structured_input.get("document_context") or {}
+    return {
+        "source_filename": chunk.get("source_filename"),
+        "document_title": structured_context.get("document_title") or chunk.get("document_title") or metadata.get("document_title") or chunk.get("title"),
+        "chunk_title": structured_context.get("chunk_title") or chunk.get("title"),
+        "section_path": chunk.get("section_path_text") or chunk.get("section_path"),
+        "page_from": chunk.get("page_from"),
+        "page_to": chunk.get("page_to"),
+        "manufacturer": structured_context.get("manufacturer") or None,
+        "product_family": structured_context.get("product_family") or None,
+        "product_model": structured_context.get("product_model") or None,
+        "document_kind": chunk.get("document_kind") or metadata.get("document_kind"),
+        "snippet_chars": len(str(structured_input.get("snippet") or "")),
+        "parent_context_chars": len(str(structured_context.get("parent_context_excerpt") or "")),
+        "context_window_chars": len(str(structured_context.get("context_window_excerpt") or "")),
+        "section_context_chars": len(str(structured_input.get("section_context_excerpt") or "")),
     }
 
 
@@ -1245,6 +1504,77 @@ def _build_table_query_candidates(chunk: dict[str, Any], label: str) -> list[tup
     return candidates
 
 
+def _prompt_safe_metadata_value(value: str, chunk: dict[str, Any]) -> str:
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    if _query_uses_filename_artifact(value, chunk):
+        return ""
+    return value
+
+
+def _looks_like_unhelpful_document_title(value: str, source_filename: str) -> bool:
+    normalized = normalize_text(str(value or ""))
+    if not normalized:
+        return False
+    if normalized in {"user's manual", "users manual", "classify title", "document", "manual"}:
+        return True
+    if len(normalized.split()) > 10 and any(
+        phrase in normalized
+        for phrase in (
+            "hazardous situation",
+            "death or serious injury",
+            "failure to follow",
+            "indicates a",
+        )
+    ):
+        return True
+    return _looks_like_filename_derived_title(value, source_filename)
+
+
+def _looks_like_filename_derived_title(value: str, source_filename: str) -> bool:
+    value = str(value or "").strip()
+    source_filename = str(source_filename or "").strip()
+    if not value:
+        return False
+    if value.lower().endswith(".pdf"):
+        return True
+    if source_filename:
+        normalized_filename = re.sub(r"\.[A-Za-z0-9]+$", "", source_filename)
+        normalized_filename = re.sub(r"[_\W]+", " ", normalized_filename).strip().casefold()
+        normalized_value = re.sub(r"[_\W]+", " ", value).strip().casefold()
+        if normalized_value == normalized_filename:
+            return True
+    tokens = tokenize(value)
+    return bool(len(tokens) >= 5 and sum(1 for token in tokens if any(char.isdigit() for char in token)) >= 3)
+
+
+def _metadata_value_is_grounded(value: str, source: str) -> bool:
+    normalized_value = " ".join(str(value or "").casefold().split())
+    normalized_source = " ".join(str(source or "").casefold().split())
+    return bool(normalized_value) and normalized_value in normalized_source
+
+
+def _prompt_safe_grounded_metadata_value(value: str, chunk: dict[str, Any]) -> str:
+    value = _prompt_safe_metadata_value(value, chunk)
+    if not value:
+        return ""
+    metadata = dict(chunk.get("metadata_json", {}))
+    source = "\n".join(
+        str(item or "")
+        for item in (
+            chunk.get("content"),
+            chunk.get("title"),
+            chunk.get("document_title"),
+            chunk.get("section_path_text"),
+            metadata.get("parent_context"),
+            metadata.get("context_window"),
+            metadata.get("local_rerank_context"),
+        )
+    )
+    return value if _metadata_value_is_grounded(value, source) else ""
+
+
 def _parse_generated_queries(payload: str) -> list[dict[str, str]]:
     data = _loads_generated_query_payload(payload)
     if isinstance(data, list):
@@ -1266,6 +1596,31 @@ def _parse_generated_queries(payload: str) -> list[dict[str, str]]:
 def _generated_query_response_is_none(payload: str) -> bool:
     text = _strip_generated_json_wrappers(payload).strip()
     return text.upper() == "NONE"
+
+
+def _parse_query_review(payload: str) -> GeneratedQueryReview:
+    data = _loads_generated_query_payload(payload)
+    if not isinstance(data, dict) or "approved" not in data:
+        raise ValueError("Generated-query review response must be a JSON object")
+    approved = bool(data.get("approved"))
+    category = str(data.get("category") or ("approved" if approved else "reviewer_rejected")).strip()
+    if category not in REVIEW_REJECTION_CATEGORIES:
+        category = "reviewer_rejected"
+    false_rejection_check = data.get("false_rejection_check")
+    if isinstance(false_rejection_check, dict):
+        false_rejection_check = {str(key): bool(value) for key, value in false_rejection_check.items()}
+    else:
+        false_rejection_check = None
+    answer_in_snippet = data.get("answer_in_snippet")
+    if not isinstance(answer_in_snippet, bool):
+        answer_in_snippet = None
+    return GeneratedQueryReview(
+        approved=approved,
+        category=category,
+        feedback=str(data.get("feedback", "")).strip(),
+        answer_in_snippet=answer_in_snippet,
+        false_rejection_check=false_rejection_check,
+    )
 
 
 def _section_context_key(chunk: dict[str, Any]) -> str:
@@ -1333,89 +1688,277 @@ def _extract_balanced_json(text: str) -> str:
     raise ValueError("Generated-query response did not contain a valid JSON object")
 
 
-def generate_user_style_queries(
+def _request_generated_queries(
     chunk: dict[str, Any],
     *,
     anchors: list[str],
-    fallback_candidates: list[tuple[str, str]],
-    previous_questions: list[str] | None = None,
-    limit: int,
-) -> list[tuple[str, str]]:
-    previous_questions = previous_questions or []
+    previous_questions: list[str],
+    review_feedback: list[dict[str, str]] | None = None,
+    prompt_guidance: str | None = None,
+    num_ctx: int | None = None,
+    timeout_seconds: float | None = None,
+) -> tuple[list[dict[str, str]], bool]:
+    trace_fields = _question_generation_trace_fields(chunk)
+    structured_input = _structured_eval_input(chunk, anchors)
     prompt = {
-        "document_title": _safe_query_label(chunk),
+        "document_title": (structured_input.get("document_context") or {}).get("document_title") or _safe_query_label(chunk),
         "section_path": chunk.get("section_path_text") or chunk.get("section_path"),
-        "structured_input": _structured_eval_input(chunk, anchors),
+        "structured_input": structured_input,
         "previous_questions_for_this_section": previous_questions[:30],
     }
-    model_declared_none = False
+    if prompt_guidance:
+        prompt["generation_guidance"] = prompt_guidance
+    if review_feedback:
+        prompt["review_feedback_for_rejected_questions"] = review_feedback[-5:]
+    _trace_question_generation_event(
+        "question_generation_model_started",
+        chunk_id=chunk.get("id"),
+        **trace_fields,
+        previous_question_count=len(previous_questions),
+        feedback_count=len(review_feedback or []),
+        num_ctx=num_ctx or settings.ollama_eval_question_num_ctx,
+        timeout_seconds=timeout_seconds or settings.ollama_eval_question_timeout_seconds,
+    )
+    with httpx.Client(base_url=settings.ollama_url, timeout=timeout_seconds or settings.ollama_eval_question_timeout_seconds) as client:
+        response_text = _post_ollama_generate_with_optional_trace(
+            client=client,
+            request_payload={
+                "model": settings.ollama_eval_question_model,
+                "prompt": (
+                    f"{USER_STYLE_QUERY_SYSTEM_PROMPT}\n\n"
+                    f"{USER_STYLE_QUERY_FEW_SHOT_EXAMPLES}\n\n"
+                    f"Current input: {json.dumps(prompt, ensure_ascii=True)}"
+                ),
+                "stream": False,
+                "think": False,
+                "options": {
+                    "temperature": 0.15,
+                    "top_p": 0.85,
+                    "top_k": 30,
+                    "num_ctx": num_ctx or settings.ollama_eval_question_num_ctx,
+                    "num_predict": 700,
+                    "presence_penalty": 1.3,
+                },
+            },
+            trace_event="question_generation_model_stream",
+            trace_fields={
+                "chunk_id": chunk.get("id"),
+                **trace_fields,
+            },
+        )
+    if _generated_query_response_is_none(response_text):
+        _trace_question_generation_event(
+            "question_generation_model_declared_none",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+        )
+        return [], True
+    parsed = _parse_generated_queries(response_text)
+    _trace_question_generation_event(
+        "question_generation_model_completed",
+        chunk_id=chunk.get("id"),
+        **trace_fields,
+        generated_count=len(parsed),
+        preview=[item.get("query") for item in parsed[:3]],
+    )
+    return parsed, False
+
+
+def _review_generated_query(
+    query: str,
+    chunk: dict[str, Any],
+    anchors: list[str],
+    *,
+    num_ctx: int | None = None,
+    timeout_seconds: float | None = None,
+) -> GeneratedQueryReview:
+    trace_fields = _question_generation_trace_fields(chunk)
+    structured_input = _structured_eval_input(chunk, anchors)
+    review_input = {
+        "question": query,
+        "structured_input": structured_input,
+    }
     try:
-        with httpx.Client(base_url=settings.ollama_url, timeout=settings.ollama_eval_question_timeout_seconds) as client:
-            response = client.post(
-                "/api/generate",
-                json={
+        _trace_question_generation_event(
+            "question_review_started",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+            question=query,
+            num_ctx=num_ctx or settings.ollama_eval_question_num_ctx,
+            timeout_seconds=timeout_seconds or settings.ollama_eval_question_timeout_seconds,
+        )
+        with httpx.Client(base_url=settings.ollama_url, timeout=timeout_seconds or settings.ollama_eval_question_timeout_seconds) as client:
+            response_text = _post_ollama_generate_with_optional_trace(
+                client=client,
+                request_payload={
                     "model": settings.ollama_eval_question_model,
                     "prompt": (
-                        f"{USER_STYLE_QUERY_SYSTEM_PROMPT}\n\n"
-                        f"{USER_STYLE_QUERY_FEW_SHOT_EXAMPLES}\n\n"
-                        f"Current input: {json.dumps(prompt, ensure_ascii=True)}"
+                        f"{USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT}\n\n"
+                        f"Review input: {json.dumps(review_input, ensure_ascii=True)}"
                     ),
                     "stream": False,
                     "think": False,
                     "options": {
-                        "temperature": 0.15,
-                        "top_p": 0.85,
-                        "top_k": 30,
-                        "num_ctx": settings.ollama_eval_question_num_ctx,
-                        "num_predict": 700,
-                        "presence_penalty": 1.3,
+                        "temperature": 0.0,
+                        "top_p": 0.5,
+                        "top_k": 10,
+                        "num_ctx": num_ctx or settings.ollama_eval_question_num_ctx,
+                        "num_predict": 180,
                     },
                 },
+                trace_event="question_review_stream",
+                trace_fields={
+                    "chunk_id": chunk.get("id"),
+                    **trace_fields,
+                    "question": query,
+                },
             )
-            response.raise_for_status()
-            payload: dict[str, Any] = response.json()
-            response_text = str(payload.get("response") or payload.get("thinking") or "")
-            if _generated_query_response_is_none(response_text):
-                model_declared_none = True
-                generated = []
-            else:
-                generated = _parse_generated_queries(response_text)
+        review = _parse_query_review(response_text)
+        _trace_question_generation_event(
+            "question_review_completed",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+            question=query,
+            approved=review.approved,
+            category=review.category,
+            feedback=review.feedback,
+            answer_in_snippet=review.answer_in_snippet,
+            false_rejection_check=review.false_rejection_check,
+        )
+        return review
     except Exception:
-        generated = []
+        _trace_question_generation_event(
+            "question_review_failed",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+            question=query,
+        )
+        return GeneratedQueryReview(
+            approved=False,
+            category="reviewer_rejected",
+            feedback="Review model failed; question was not accepted.",
+        )
+
+
+def generate_user_style_queries(
+    chunk: dict[str, Any],
+    *,
+    anchors: list[str],
+    previous_questions: list[str] | None = None,
+    limit: int,
+    prompt_guidance: str | None = None,
+    num_ctx: int | None = None,
+    timeout_seconds: float | None = None,
+) -> list[tuple[str, str]]:
+    previous_questions = previous_questions or []
+    trace_fields = _question_generation_trace_fields(chunk)
+    _trace_question_generation_event(
+        "question_generation_chunk_started",
+        chunk_id=chunk.get("id"),
+        **trace_fields,
+        limit=limit,
+    )
+    model_declared_none = False
+    try:
+        generated, model_declared_none = _request_generated_queries(
+            chunk,
+            anchors=anchors,
+            previous_questions=previous_questions,
+            prompt_guidance=prompt_guidance,
+            num_ctx=num_ctx,
+            timeout_seconds=timeout_seconds,
+        )
+    except Exception as error:
+        _trace_question_generation_event(
+            "question_generation_model_failed",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+            error=f"{error.__class__.__name__}: {error}",
+        )
+        return []
     if model_declared_none:
         return []
 
     queries: list[tuple[str, str]] = []
     seen: set[str] = {_normalized_query_key(question) for question in previous_questions}
     accepted_query_texts: list[str] = list(previous_questions)
-    for item in generated:
-        normalized = _normalized_query_key(item["query"])
-        if normalized in seen:
-            continue
-        if _has_near_duplicate_query(item["query"], accepted_query_texts):
-            continue
-        is_valid, _ = validate_eval_case(item["query"], chunk, anchors)
-        if not is_valid:
-            continue
-        seen.add(normalized)
-        accepted_query_texts.append(item["query"])
-        queries.append((item["query"], item["intent"]))
-        if len(queries) >= limit:
-            return queries
-    for query, method in fallback_candidates:
-        normalized = _normalized_query_key(query)
-        if normalized in seen:
-            continue
-        if _has_near_duplicate_query(query, accepted_query_texts):
-            continue
-        is_valid, _ = validate_eval_case(query, chunk, anchors)
-        if not is_valid:
-            continue
-        seen.add(normalized)
-        accepted_query_texts.append(query)
-        queries.append((query, method))
-        if len(queries) >= limit:
-            break
+    review_feedback: list[dict[str, str]] = []
+
+    def accept_generated_items(items: list[dict[str, str]]) -> None:
+        for item in items:
+            normalized = _normalized_query_key(item["query"])
+            if normalized in seen:
+                continue
+            if _has_near_duplicate_query(item["query"], accepted_query_texts):
+                continue
+            review = _review_generated_query(item["query"], chunk, anchors, num_ctx=num_ctx, timeout_seconds=timeout_seconds)
+            if not review.approved:
+                review_feedback.append(
+                    {
+                        "question": item["query"],
+                        "category": review.category,
+                        "feedback": review.feedback or "Reviewer rejected the question.",
+                        "answer_in_snippet": review.answer_in_snippet,
+                    }
+                )
+                _trace_question_generation_event(
+                    "question_generation_rejected",
+                    chunk_id=chunk.get("id"),
+                    **trace_fields,
+                    question=item["query"],
+                    category=review.category,
+                    reason=review.feedback or "Reviewer rejected the question.",
+                    answer_in_snippet=review.answer_in_snippet,
+                    false_rejection_check=review.false_rejection_check,
+                )
+                continue
+            seen.add(normalized)
+            accepted_query_texts.append(item["query"])
+            queries.append((item["query"], f"reviewed_llm:{item['intent']}"))
+            _trace_question_generation_event(
+                "question_generation_accepted",
+                chunk_id=chunk.get("id"),
+                **trace_fields,
+                question=item["query"],
+                intent=item.get("intent"),
+                accepted_count=len(queries),
+            )
+            if len(queries) >= limit:
+                return
+
+    accept_generated_items(generated)
+    if len(queries) >= limit:
+        return queries
+    if not queries and review_feedback:
+        try:
+            regenerated, retry_declared_none = _request_generated_queries(
+                chunk,
+                anchors=anchors,
+                previous_questions=previous_questions,
+                review_feedback=review_feedback,
+                prompt_guidance=prompt_guidance,
+                num_ctx=num_ctx,
+                timeout_seconds=timeout_seconds,
+            )
+            if not retry_declared_none:
+                accept_generated_items(regenerated)
+                if len(queries) >= limit:
+                    return queries
+        except Exception as error:
+            _trace_question_generation_event(
+                "question_generation_retry_failed",
+                chunk_id=chunk.get("id"),
+                **trace_fields,
+                error=f"{error.__class__.__name__}: {error}",
+            )
+    if not queries:
+        _trace_question_generation_event(
+            "question_generation_no_accepted_questions",
+            chunk_id=chunk.get("id"),
+            **trace_fields,
+            rejected_count=len(review_feedback),
+            review_feedback=review_feedback[-5:],
+        )
     return queries
 
 
@@ -1427,6 +1970,9 @@ def build_eval_cases_from_chunks(
     use_llm_generation: bool = True,
     previous_questions_by_chunk_id: dict[str, list[str]] | None = None,
     previous_questions_by_section_key: dict[str, list[str]] | None = None,
+    prompt_guidance: str | None = None,
+    num_ctx: int | None = None,
+    timeout_seconds: float | None = None,
 ) -> list[RetrievalEvalCase]:
     cases: list[RetrievalEvalCase] = []
     previous_questions_by_chunk_id = previous_questions_by_chunk_id or {}
@@ -1446,17 +1992,18 @@ def build_eval_cases_from_chunks(
             *generated_questions_by_section_key.get(section_key, []),
             *previous_questions_by_chunk_id.get(str(chunk.get("id")), []),
         ]
-        fallback_candidates = build_query_candidates(chunk)[: max(per_chunk_limit * 4, per_chunk_limit)]
         candidates = (
             generate_user_style_queries(
                 chunk,
                 anchors=anchors,
-                fallback_candidates=fallback_candidates,
                 previous_questions=previous_questions,
                 limit=per_chunk_limit,
+                prompt_guidance=prompt_guidance,
+                num_ctx=num_ctx,
+                timeout_seconds=timeout_seconds,
             )
             if use_llm_generation
-            else fallback_candidates
+            else []
         )
         if len(anchors) < 1:
             continue
@@ -1464,11 +2011,16 @@ def build_eval_cases_from_chunks(
         for index, (query, method) in enumerate(candidates, start=1):
             if _has_near_duplicate_query(query, accepted_query_texts):
                 continue
-            is_valid, quality = validate_eval_case(query, chunk, anchors)
-            if not is_valid:
-                continue
+            if method.startswith("reviewed_llm:"):
+                quality = "model_reviewed"
+            else:
+                is_valid, quality = validate_eval_case(query, chunk, anchors)
+                if not is_valid:
+                    continue
             accepted_query_texts.append(query)
             generated_questions_by_section_key.setdefault(section_key, []).append(query)
+            source_metadata = dict(chunk.get("metadata_json", {}))
+            source_metadata["generation_document_context"] = _structured_eval_input(chunk, anchors).get("document_context") or {}
             cases.append(
                 RetrievalEvalCase(
                     case_id=f"{chunk['id']}::{index}",
@@ -1485,7 +2037,7 @@ def build_eval_cases_from_chunks(
                     expected_terms=anchors[:4],
                     expected_snippet=content_preview(str(chunk["content"])),
                     generation_method=method,
-                    source_metadata=dict(chunk.get("metadata_json", {})),
+                    source_metadata=source_metadata,
                     benchmark_quality=quality,
                     anchor_terms=anchors[:4],
                 )
@@ -1612,6 +2164,8 @@ def _multi_step_expected_evidence(*cells: dict[str, Any]) -> list[dict[str, Any]
             {
                 "chunk_id": str(cell.get("id", "")),
                 "source_document_id": str(cell.get("source_document_id", "")),
+                "page_from": int(cell.get("page_from", 0) or 0),
+                "page_to": int(cell.get("page_to", 0) or 0),
                 "field": _column_field(cell),
                 "label": _safe_query_label(cell),
                 "product_identifiers": sorted(_metadata_product_identifiers(metadata)),
@@ -2357,7 +2911,12 @@ def _result_evidence_text(result: dict[str, Any]) -> str:
     return " ".join(
         str(part)
         for part in [
-            result.get("content", ""),
+            # Older matrix artifacts and intermediate debug-stage samples only
+            # contain content_preview.  Falling back keeps those artifacts
+            # replayable while current runs use the complete content payload.
+            result.get("content") or result.get("content_preview", ""),
+            result.get("context_window", ""),
+            result.get("parent_context", ""),
             result.get("title", ""),
             section_text,
             *metadata_values,
@@ -2540,6 +3099,45 @@ def _query_evidence_overlap(query: str, result: dict[str, Any]) -> int:
     return sum(1 for term in query_terms if _term_matches_evidence(term, evidence_text))
 
 
+def _expected_snippet_evidence_overlap(case: RetrievalEvalCase, result: dict[str, Any]) -> int:
+    """Count material answer tokens shared by the anchor and retrieved evidence.
+
+    Generated anchor lists are intentionally short and sometimes retain generic
+    parser labels.  The source snippet is the stronger fallback, but only
+    material (non-question/non-layout) tokens count so a same-document heading
+    cannot pass merely because it repeats the product name.
+    """
+    expected_tokens = _answer_overlap_tokens(case.expected_snippet)
+    evidence_tokens = _answer_overlap_tokens(_result_evidence_text(result))
+    return len(expected_tokens.intersection(evidence_tokens))
+
+
+def _cross_document_semantic_evidence_is_applicable(
+    case: RetrievalEvalCase,
+    result: dict[str, Any],
+    *,
+    snippet_overlap: int,
+    query_overlap: int,
+) -> bool:
+    if str(result.get("source_document_id", "")) == case.source_document_id:
+        return False
+    # Require substantially stronger textual agreement than the same-document
+    # fallback.  This covers duplicated manual content without treating a loose
+    # topical match in another product manual as evidence.
+    if snippet_overlap < 4 or query_overlap < 2:
+        return False
+    explicit_case_identifiers = {
+        identifier
+        for identifier in _case_product_identifiers(case)
+        if identifier and identifier in _compact_eval_identifier(case.query)
+    }
+    if not explicit_case_identifiers:
+        return True
+    result_identifiers = _result_product_identifiers(result)
+    result_text = _compact_eval_identifier(_result_evidence_text(result))
+    return any(identifier in result_identifiers or identifier in result_text for identifier in explicit_case_identifiers)
+
+
 def score_document_selection(
     case: RetrievalEvalCase,
     results: list[dict[str, Any]],
@@ -2600,14 +3198,17 @@ def score_search_results(
     found_chunk_family = False
     max_overlap = 0
     max_query_overlap = 0
+    max_snippet_overlap = 0
     for rank, result in enumerate(considered, start=1):
         same_document = str(result.get("source_document_id", "")) == case.source_document_id
         same_chunk = str(result.get("chunk_id", "")) == case.source_chunk_id
         same_section = " / ".join(result.get("section_path", [])) == case.section_path
         overlap = _result_term_overlap(result, case.expected_terms)
         query_overlap = _query_evidence_overlap(case.query, result)
+        snippet_overlap = _expected_snippet_evidence_overlap(case, result)
         max_overlap = max(max_overlap, overlap)
         max_query_overlap = max(max_query_overlap, query_overlap)
+        max_snippet_overlap = max(max_snippet_overlap, snippet_overlap)
         result_chunk_type = str(result.get("metadata", {}).get("chunk_type") or result.get("chunk_type", ""))
         if same_document:
             found_same_document = True
@@ -2635,7 +3236,11 @@ def score_search_results(
                 "candidate_recall": True,
                 "metadata_document_selection": document_selection,
             }
-        if same_document and overlap >= max(2, min(3, len(case.expected_terms))):
+        if (
+            same_document
+            and overlap >= max(2, min(3, len(case.expected_terms)))
+            and snippet_overlap >= 2
+        ):
             return {
                 "passed": True,
                 "rank": rank,
@@ -2658,6 +3263,19 @@ def score_search_results(
                 "candidate_recall": True,
                 "metadata_document_selection": document_selection,
             }
+        if same_document and snippet_overlap >= 2 and query_overlap >= 2:
+            return {
+                "passed": True,
+                "rank": rank,
+                "match_reason": "same_document_snippet_evidence",
+                "overlap_terms": overlap,
+                "query_overlap_terms": query_overlap,
+                "snippet_overlap_terms": snippet_overlap,
+                "failure_category": None,
+                "retrieval_stage": "final_top_k",
+                "candidate_recall": True,
+                "metadata_document_selection": document_selection,
+            }
         if _result_is_applicable_equivalent(case, result, overlap, query_overlap):
             return {
                 "passed": True,
@@ -2668,6 +3286,24 @@ def score_search_results(
                 "failure_category": None,
                 "retrieval_stage": "final_top_k",
                 "candidate_recall": True,
+                "metadata_document_selection": document_selection,
+            }
+        if _cross_document_semantic_evidence_is_applicable(
+            case,
+            result,
+            snippet_overlap=snippet_overlap,
+            query_overlap=query_overlap,
+        ):
+            return {
+                "passed": True,
+                "rank": rank,
+                "match_reason": "cross_document_semantic_evidence",
+                "overlap_terms": overlap,
+                "query_overlap_terms": query_overlap,
+                "snippet_overlap_terms": snippet_overlap,
+                "failure_category": None,
+                "retrieval_stage": "final_top_k",
+                "candidate_recall": found_same_document,
                 "metadata_document_selection": document_selection,
             }
     failure_category = "candidate_miss"
@@ -2681,6 +3317,7 @@ def score_search_results(
         "match_reason": "no_match",
         "overlap_terms": max_overlap,
         "query_overlap_terms": max_query_overlap,
+        "snippet_overlap_terms": max_snippet_overlap,
         "failure_category": failure_category,
         "retrieval_stage": "final_top_k",
         "candidate_recall": found_same_document,
@@ -2746,6 +3383,15 @@ def _answer_contains_expected_terms(
 
 def _answer_scoring_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
     if not case.expected_evidence:
+        if _is_quantity_answer_query(case.query):
+            specific_terms = _scorable_answer_terms(case.expected_terms, case.expected_snippet)
+            material_terms = _material_answer_terms_from_sentence(case.expected_snippet)
+            combined_terms = [*specific_terms]
+            for term in material_terms:
+                if term.lower() not in {item.lower() for item in combined_terms}:
+                    combined_terms.append(term)
+            if combined_terms:
+                return combined_terms, "case_expected_snippet_quantity_terms"
         specific_terms = _scorable_answer_terms(case.expected_terms, case.expected_snippet)
         if specific_terms:
             return specific_terms, "case_expected_terms"
@@ -2815,7 +3461,22 @@ def _source_address_terms(text: str) -> set[str]:
 
 def _is_quantity_answer_query(query: str) -> bool:
     normalized = normalize_text(query)
-    return any(term in normalized for term in ANSWER_SCORING_QUANTITY_QUERY_TERMS)
+    query_tokens = set(tokenize(normalized))
+    measurement_roles = {
+        "angle",
+        "distance",
+        "height",
+        "interval",
+        "pressure",
+        "range",
+        "speed",
+        "temperature",
+        "voltage",
+        "width",
+    }
+    return any(term in normalized for term in ANSWER_SCORING_QUANTITY_QUERY_TERMS) or bool(
+        query_tokens.intersection(measurement_roles)
+    )
 
 
 def _answer_material_term_key(term: str) -> str:
@@ -3398,6 +4059,45 @@ def _llm_required_information_judgment(
     }
 
 
+def _single_step_equivalent_citation_support(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+    retrieved_results: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    if case.expected_evidence or not retrieved_results:
+        return {"passed": False, "checked": False, "chunk_ids": [], "document_ids": []}
+    cited_chunk_ids = {
+        str(item.get("chunk_id") or "")
+        for item in answer.get("citations", []) or []
+        if isinstance(item, dict) and item.get("chunk_id")
+    }
+    matched_chunks: list[str] = []
+    matched_documents: list[str] = []
+    for result in retrieved_results:
+        chunk_id = str(result.get("chunk_id") or "")
+        if not chunk_id or chunk_id not in cited_chunk_ids:
+            continue
+        snippet_overlap = _expected_snippet_evidence_overlap(case, result)
+        query_overlap = _query_evidence_overlap(case.query, result)
+        if not _cross_document_semantic_evidence_is_applicable(
+            case,
+            result,
+            snippet_overlap=snippet_overlap,
+            query_overlap=query_overlap,
+        ):
+            continue
+        matched_chunks.append(chunk_id)
+        document_id = str(result.get("source_document_id") or "")
+        if document_id and document_id not in matched_documents:
+            matched_documents.append(document_id)
+    return {
+        "passed": bool(matched_chunks),
+        "checked": bool(cited_chunk_ids),
+        "chunk_ids": matched_chunks,
+        "document_ids": matched_documents,
+    }
+
+
 def score_answer_response(
     case: RetrievalEvalCase,
     answer: dict[str, Any],
@@ -3411,6 +4111,9 @@ def score_answer_response(
     answer_document_ids = citation_document_ids.union(used_document_ids)
     expected_document_ids = _expected_answer_document_ids(case)
     missing_document_ids = sorted(expected_document_ids.difference(answer_document_ids))
+    equivalent_citation_support = _single_step_equivalent_citation_support(case, answer, retrieved_results)
+    if len(expected_document_ids) == 1 and missing_document_ids and equivalent_citation_support["passed"]:
+        missing_document_ids = []
     expected_terms, term_source = _answer_scoring_terms(case)
     material_terms, material_source = _answer_required_material_terms(case, answer)
     terms = _answer_contains_expected_terms(answer, expected_terms, required_terms=material_terms)
@@ -3468,5 +4171,6 @@ def score_answer_response(
         "term_check": terms,
         "citation_fidelity": citation_fidelity,
         "evidence_citation_support": evidence_citation_support,
+        "equivalent_citation_support": equivalent_citation_support,
         "llm_required_information": llm_required_info,
     }

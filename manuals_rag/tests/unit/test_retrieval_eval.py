@@ -3,6 +3,7 @@ import pytest
 from manuals_rag_evals.retrieval_eval import (
     RetrievalEvalCase,
     USER_STYLE_QUERY_FEW_SHOT_EXAMPLES,
+    USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT,
     build_eval_cases_from_chunks,
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
@@ -11,6 +12,9 @@ from manuals_rag_evals.retrieval_eval import (
     score_search_results,
     validate_eval_case,
     _parse_generated_queries,
+    _parse_query_review,
+    _question_generation_trace_fields,
+    _structured_eval_input,
 )
 
 
@@ -58,6 +62,203 @@ def test_large_retrieval_eval_loads_saved_dataset(tmp_path):
     assert len(cases) == 1
     assert cases[0]["case_id"] == "case-1"
     assert cases[0]["retrieval_task"] == "single_step_retrieval"
+
+
+def test_large_retrieval_eval_fetch_chunks_merges_document_metadata(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    monkeypatch.setattr(
+        module,
+        "_query_postgres_rows",
+        lambda _sql: [
+            {
+                "id": "chunk-1",
+                "source_document_id": "doc-1",
+                "document_version_id": "ver-1",
+                "chunk_type": "procedure_record",
+                "chunk_level": 1,
+                "title": "Setting OK range",
+                "section_path_text": "Inspection settings > Height",
+                "page_from": 32,
+                "page_to": 33,
+                "content": "Set the OK range for average height.",
+                "metadata_json": "{}",
+                "document_title": "CV-X Series User Manual",
+                "document_kind": "manual",
+                "manufacturer": "KEYENCE",
+                "product_family": "CV-X Series",
+                "source_filename": "cvx.pdf",
+                "product_model": "CV-X482",
+            }
+        ],
+    )
+
+    rows = module.fetch_chunk_rows(["doc-1"])
+
+    assert rows[0]["document_title"] == "CV-X Series User Manual"
+    assert rows[0]["metadata_json"]["document_title"] == "CV-X Series User Manual"
+    assert rows[0]["metadata_json"]["manufacturer"] == "KEYENCE"
+    assert rows[0]["metadata_json"]["product_family"] == "CV-X Series"
+    assert rows[0]["metadata_json"]["product_model"] == "CV-X482"
+
+
+def test_large_retrieval_eval_fetch_chunks_adds_fallback_context_window(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    monkeypatch.setattr(
+        module,
+        "_query_postgres_rows",
+        lambda _sql: [
+            {
+                "id": "chunk-1",
+                "source_document_id": "doc-1",
+                "document_version_id": "ver-1",
+                "chunk_type": "procedure_record",
+                "chunk_level": 1,
+                "title": "Disconnect devices",
+                "section_path_text": "PLC > EtherNet/IP setup",
+                "page_from": 3,
+                "page_to": 3,
+                "content": "Disconnect all other devices before connecting the LJ-X8000 controller.",
+                "previous_chunk_content": "Turn off controller power before wiring the Ethernet cable.",
+                "next_chunk_content": "Reconnect the PLC after the communication check is complete.",
+                "metadata_json": "{}",
+                "document_title": "LJ-X8000 Setup Guide",
+                "document_kind": "manual",
+                "manufacturer": "KEYENCE",
+                "product_family": "LJ-X8000",
+                "source_filename": "ljx.pdf",
+                "product_model": "LJ-X8000",
+            }
+        ],
+    )
+
+    row = module.fetch_chunk_rows(["doc-1"])[0]
+    context_window = row["metadata_json"]["context_window"]
+    structured = _structured_eval_input(row, ["disconnect", "devices"])
+
+    assert "Previous chunk: Turn off controller power" in context_window
+    assert "Current chunk: Disconnect all other devices" in context_window
+    assert "Next chunk: Reconnect the PLC" in context_window
+    assert row["metadata_json"]["parent_context"] == "Section path: PLC > EtherNet/IP setup"
+    assert "Turn off controller power" in structured["document_context"]["context_window_excerpt"]
+    assert "Reconnect the PLC" in structured["section_context_excerpt"]
+
+
+def test_large_retrieval_eval_prepares_ranked_queryworthy_generation_chunks():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    weak_format_cell = {
+        "id": "weak-format",
+        "chunk_type": "table_record",
+        "title": "Table",
+        "section_path_text": "Results",
+        "content": "Column headers: Number Format > Integer Digits; Row headers: Position Y Maximum; Cell value: 5; Row: 19; Column: 3",
+        "metadata_json": {
+            "table_cell": True,
+            "table_row_headers": ["Position Y Maximum"],
+            "table_column_headers": ["Number Format", "Integer Digits"],
+        },
+    }
+    procedure = {
+        "id": "procedure",
+        "chunk_type": "procedure_record",
+        "title": "Register image",
+        "section_path_text": "Setup",
+        "content": "Select Register reference image when no reference image is available for CV-X inspection setup.",
+        "metadata_json": {"procedure_flag": True, "product_model": "CV-X482"},
+    }
+    spec = {
+        "id": "spec",
+        "chunk_type": "spec_record",
+        "title": "Power",
+        "section_path_text": "Specifications",
+        "content": "Power supply voltage: 24 VDC for the LJ-X8080 controller.",
+        "metadata_json": {"spec_flag": True, "unit_tokens": ["24 VDC"], "product_model": "LJ-X8080"},
+    }
+
+    ranked = module.prepare_question_generation_chunks([weak_format_cell, procedure, spec])
+
+    assert [chunk["id"] for chunk in ranked] == ["procedure", "spec"]
+
+
+def test_large_retrieval_eval_generation_windows_continue_until_target(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    chunks = [{"id": "empty"}, {"id": "accepted-1"}, {"id": "accepted-2"}]
+    calls = []
+
+    def fake_build_eval_cases_from_chunks(window_chunks, **kwargs):
+        calls.append([chunk["id"] for chunk in window_chunks])
+        if window_chunks[0]["id"] == "empty":
+            return []
+        index = len(calls)
+        return [
+            RetrievalEvalCase(
+                case_id=f"case-{index}",
+                query=f"What accepted question {index}?",
+                source_document_id="doc-1",
+                document_version_id="ver-1",
+                source_chunk_id=window_chunks[0]["id"],
+                source_title="Manual",
+                source_filename="manual.pdf",
+                chunk_type="spec_record",
+                section_path="Specs",
+                page_from=1,
+                page_to=1,
+                expected_terms=["accepted"],
+                expected_snippet="Accepted source.",
+                generation_method="reviewed_llm:test",
+                source_metadata={},
+                benchmark_quality="model_reviewed",
+            )
+        ]
+
+    monkeypatch.setattr(module, "build_eval_cases_from_chunks", fake_build_eval_cases_from_chunks)
+
+    cases = module.build_single_step_generation_cases_until_target(
+        chunks,
+        max_cases=2,
+        chunk_window=1,
+        per_chunk_limit=1,
+        use_llm_generation=True,
+        previous_questions_by_chunk_id={},
+        previous_questions_by_section_key={},
+        prompt_guidance=None,
+        num_ctx=None,
+        timeout_seconds=None,
+    )
+
+    assert [case.source_chunk_id for case in cases] == ["accepted-1", "accepted-2"]
+    assert calls == [["empty"], ["accepted-1"], ["accepted-2"]]
 
 
 def test_large_retrieval_eval_offsets_saved_dataset_after_validation(tmp_path):
@@ -367,6 +568,96 @@ def test_answer_response_scoring_requires_terms_and_expected_document():
     assert scored["passed"] is True
     assert scored["missing_document_ids"] == []
     assert scored["term_check"]["matched_terms"] == ["24", "vdc"]
+
+
+def test_answer_response_scoring_accepts_strong_cited_duplicate_manual_evidence():
+    case = RetrievalEvalCase(
+        case_id="case-duplicate-device-warning",
+        query="What happens if I connect a 12V light to the CA-DC40E set for 24V?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="chunk-cvx",
+        source_title="CV-X Manual",
+        source_filename="cvx.pdf",
+        chunk_type="warning_record",
+        section_path="CAUTION",
+        page_from=4,
+        page_to=4,
+        expected_terms=["set", "voltage"],
+        expected_snippet=(
+            "Connecting a 12 V DC illumination unit to a CA-DC40E whose voltage output is set "
+            "to 24 V DC may cause fire, electric shock, or damage."
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_family": "CV-X Series"},
+    )
+    duplicate = {
+        "chunk_id": "chunk-xgx",
+        "source_document_id": "doc-xgx",
+        "section_path": ["CAUTION"],
+        "content": (
+            "Connecting a 12 V DC illumination unit when the CA-DC40E Voltage Output is set at "
+            "24 V DC may cause fire, electric shock, or damage."
+        ),
+        "metadata": {"product_family": "XG-X Series", "chunk_type": "warning_record"},
+    }
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "A 12 V light connected while voltage output is set to 24 V may cause fire or damage.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "chunk-xgx", "pages": [4]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [duplicate],
+    )
+
+    assert scored["passed"] is True
+    assert scored["missing_document_ids"] == []
+    assert scored["equivalent_citation_support"]["chunk_ids"] == ["chunk-xgx"]
+
+
+def test_answer_response_scoring_uses_quantity_from_single_step_expected_snippet():
+    case = RetrievalEvalCase(
+        case_id="case-ca-en100u-voltage",
+        query="What voltage must I supply to the CA-EN100U?",
+        source_document_id="doc-ca",
+        document_version_id="ver-ca",
+        source_chunk_id="chunk-warning",
+        source_title="CA-EN100U",
+        source_filename="ca-en100u.pdf",
+        chunk_type="warning_record",
+        section_path="Safety",
+        page_from=1,
+        page_to=1,
+        expected_terms=["en100u", "voltage", "other", "cause"],
+        expected_snippet="Do not use the CA-EN100U with a voltage other than 24 VDC.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "CA-EN100U"},
+    )
+    result = {
+        "chunk_id": "chunk-voltage",
+        "source_document_id": "doc-ca",
+        "content": "Power-supply voltage: 24 VDC +/-10%.",
+    }
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Supply the CA-EN100U with 24 VDC.",
+            "citations": [{"document_id": "doc-ca", "chunk_id": "chunk-voltage"}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [result],
+    )
+
+    assert scored["passed"] is True
+    assert scored["term_check"]["term_source"] == "case_expected_snippet_quantity_terms"
+    assert "24" in scored["term_check"]["matched_terms"]
 
 
 def test_answer_response_scoring_rejects_cases_without_scorable_answer_terms():
@@ -2185,7 +2476,7 @@ def test_large_retrieval_eval_scores_answer_against_current_search_results(monke
     assert calls == [search_payload["top_results"]]
 
 
-def test_build_eval_cases_from_chunks_creates_queries():
+def test_build_eval_cases_from_chunks_requires_llm_generation():
     chunks = [
         {
             "id": "chunk-1",
@@ -2203,16 +2494,7 @@ def test_build_eval_cases_from_chunks_creates_queries():
         }
     ]
     cases = build_eval_cases_from_chunks(chunks, max_cases=3, use_llm_generation=False)
-    assert cases
-    assert all(case.benchmark_quality == "validated" for case in cases)
-    assert all("this document" not in case.query.lower() for case in cases)
-    assert all(case.query.endswith("?") for case in cases)
-    assert any(
-        "ca-en100u" in case.query.lower()
-        and ("power" in case.query.lower() or "voltage" in case.query.lower())
-        for case in cases
-    )
-    assert all(case.retrieval_task == "single_step_retrieval" for case in cases)
+    assert cases == []
 
 
 def test_table_eval_queries_use_row_column_and_cell_context():
@@ -2241,13 +2523,7 @@ def test_table_eval_queries_use_row_column_and_cell_context():
     ]
 
     cases = build_eval_cases_from_chunks(chunks, max_cases=3, use_llm_generation=False)
-    queries = [case.query.lower() for case in cases]
-
-    assert cases
-    assert all("measurement range" in query for query in queries)
-    assert any("lj-x8200" in query for query in queries)
-    assert all(query not in {"lj-x8000 column", "column headers lj-x8000"} for query in queries)
-    assert any("2.83" in case.expected_terms or "2.83" in (case.anchor_terms or []) for case in cases)
+    assert cases == []
 
 
 def test_eval_queries_avoid_unwieldy_product_list_labels():
@@ -2272,10 +2548,7 @@ def test_eval_queries_avoid_unwieldy_product_list_labels():
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
 
-    assert cases
-    assert all("vs-l160mx/" not in case.query.lower() for case in cases)
-    assert any("capture settings" in case.query.lower() for case in cases)
-    assert any("88ms" in case.expected_terms or "88ms" in (case.anchor_terms or []) for case in cases)
+    assert cases == []
 
 
 def test_eval_queries_fall_back_to_product_family_for_long_model_lists():
@@ -2305,9 +2578,7 @@ def test_eval_queries_fall_back_to_product_family_for_long_model_lists():
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
 
-    assert cases
-    assert all("vs-l160mx/" not in case.query.lower() for case in cases)
-    assert all("vs series vision system" in case.query.lower() for case in cases)
+    assert cases == []
 
 
 def test_table_key_value_queries_include_disambiguating_adjacent_value():
@@ -2330,11 +2601,7 @@ def test_table_key_value_queries_include_disambiguating_adjacent_value():
     }
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
-    queries = [case.query.lower() for case in cases]
-
-    assert cases
-    assert all("1041" in query for query in queries)
-    assert all("address" in query for query in queries)
+    assert cases == []
 
 
 def test_table_cell_without_row_context_is_not_single_step_queryworthy():
@@ -3074,7 +3341,7 @@ def test_validate_eval_case_rejects_mechanical_source_dump_query():
     )
 
     assert not valid
-    assert reason == "mechanical_query"
+    assert reason in {"mechanical_query", "table_artifact_syntax_query"}
 
 
 def test_validate_eval_case_rejects_toc_and_file_list_questions():
@@ -3111,7 +3378,32 @@ def test_validate_eval_case_rejects_toc_and_file_list_questions():
     assert not toc_valid
     assert toc_reason == "mechanical_query"
     assert not file_valid
-    assert file_reason == "mechanical_query"
+    assert file_reason in {"mechanical_query", "source_address_syntax_query"}
+
+
+def test_validate_eval_case_requires_named_condition_scope():
+    chunk = {
+        "chunk_type": "spec_record",
+        "content": 'Refer to Vision Dashboard Cell: Archiving is performed when the cell selected in [Target] is "TRUE".',
+        "section_path_text": "Archive Condition Settings",
+        "title": "User Manual",
+        "metadata_json": {
+            "product_family": "VS Series Vision System",
+            "product_model": "VS-L160MX",
+        },
+    }
+    anchors = ["refer", "vision", "dashboard", "archiving"]
+
+    assert validate_eval_case(
+        "When does archiving start for the VS Series Vision System?",
+        chunk,
+        anchors,
+    ) == (False, "missing_condition_discriminator")
+    assert validate_eval_case(
+        "How must a vision target change before the dashboard begins its archive?",
+        chunk,
+        anchors,
+    ) == (True, "validated")
 
 
 def test_validate_eval_case_rejects_generic_short_item_queries():
@@ -3141,7 +3433,7 @@ def test_validate_eval_case_rejects_generic_short_item_queries():
     )
 
     assert not valid
-    assert reason == "mechanical_query"
+    assert reason in {"mechanical_query", "copied_source_phrase"}
 
 
 def test_validate_eval_case_rejects_source_shaped_table_coordinate_queries():
@@ -3171,7 +3463,7 @@ def test_validate_eval_case_rejects_source_shaped_table_coordinate_queries():
     )
 
     assert not valid
-    assert reason == "mechanical_query"
+    assert reason in {"mechanical_query", "copied_source_phrase"}
 
 
 def test_validate_eval_case_rejects_toc_like_described_queries():
@@ -3196,7 +3488,7 @@ def test_validate_eval_case_rejects_toc_like_described_queries():
     )
 
     assert not valid
-    assert reason == "mechanical_query"
+    assert reason in {"mechanical_query", "copied_source_phrase"}
 
 
 def test_validate_eval_case_rejects_generic_applies_phrasing():
@@ -3226,7 +3518,7 @@ def test_validate_eval_case_rejects_generic_applies_phrasing():
     )
 
     assert not valid
-    assert reason == "mechanical_query"
+    assert reason in {"mechanical_query", "copied_source_phrase"}
 
 
 def test_numbered_click_step_fragments_are_not_single_step_queryworthy():
@@ -3247,7 +3539,7 @@ def test_numbered_click_step_fragments_are_not_single_step_queryworthy():
     assert not chunk_is_queryworthy(chunk, ["10after", "completing", "left-click", "11restart"])
 
 
-def test_table_fallback_queries_are_user_style_not_table_coordinate_dumps():
+def test_table_query_generation_disabled_does_not_create_template_questions():
     chunk = {
         "id": "chunk-table",
         "source_document_id": "doc-1",
@@ -3269,28 +3561,26 @@ def test_table_fallback_queries_are_user_style_not_table_coordinate_dumps():
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
 
-    assert cases
-    assert all(" value applies " not in case.query.lower() for case in cases)
-    assert any("symbol identifier" in case.query.lower() for case in cases)
-    assert all("output symbol identifier" not in case.query.lower() for case in cases)
+    assert cases == []
 
 
 def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
     call_count = 0
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What power supply voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"natural spec lookup"},'
+                '{"query":"What voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"alternate phrasing"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What power supply voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"natural spec lookup"},'
-                    '{"query":"What voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"alternate phrasing"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -3304,6 +3594,11 @@ def test_build_eval_cases_prefers_llm_rewritten_queries(monkeypatch):
 
         def post(self, *args, **kwargs):
             nonlocal call_count
+            prompt = kwargs["json"]["prompt"]
+            if "Review input:" in prompt:
+                if "What power supply voltage is required for CA-EN100U?" in prompt:
+                    return FakeResponse('{"approved":true,"feedback":""}')
+                return FakeResponse('{"approved":false,"feedback":"Too close to an existing accepted question."}')
             call_count += 1
             return FakeResponse()
 
@@ -3336,17 +3631,18 @@ def test_build_eval_cases_allows_repeated_content_but_dedupes_questions(monkeypa
     call_count = 0
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What power supply voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"natural spec lookup"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What power supply voltage is required for CA-EN100U?","intent":"spec_lookup","reason":"natural spec lookup"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -3360,6 +3656,8 @@ def test_build_eval_cases_allows_repeated_content_but_dedupes_questions(monkeypa
 
         def post(self, *args, **kwargs):
             nonlocal call_count
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse('{"approved":true,"feedback":""}')
             call_count += 1
             return FakeResponse()
 
@@ -3393,6 +3691,8 @@ def test_build_eval_cases_allows_repeated_content_but_dedupes_questions(monkeypa
     cases = build_eval_cases_from_chunks([base_chunk, duplicate_chunk], max_cases=4)
 
     assert [case.source_chunk_id for case in cases] == ["chunk-llm-1", "chunk-llm-2"]
+    assert cases[0].source_metadata["generation_document_context"]["product_model"] == "CA-EN100U"
+    assert "page_range" not in cases[0].source_metadata["generation_document_context"]
     assert call_count == 2
 
 
@@ -3400,17 +3700,18 @@ def test_build_eval_cases_passes_previous_chunk_questions_to_generator(monkeypat
     prompts = []
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What current draw is specified for CA-EN100U?","intent":"spec_lookup","reason":"new facet"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What current draw is specified for CA-EN100U?","intent":"spec_lookup","reason":"new facet"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -3423,6 +3724,8 @@ def test_build_eval_cases_passes_previous_chunk_questions_to_generator(monkeypat
             return False
 
         def post(self, *args, **kwargs):
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse('{"approved":true,"feedback":""}')
             prompts.append(kwargs["json"]["prompt"])
             return FakeResponse()
 
@@ -3460,17 +3763,18 @@ def test_build_eval_cases_passes_previous_section_questions_to_generator(monkeyp
     prompts = []
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What current draw is specified for CA-EN100U?","intent":"spec_lookup","reason":"new facet"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What current draw is specified for CA-EN100U?","intent":"spec_lookup","reason":"new facet"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -3483,6 +3787,8 @@ def test_build_eval_cases_passes_previous_section_questions_to_generator(monkeyp
             return False
 
         def post(self, *args, **kwargs):
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse('{"approved":true,"feedback":""}')
             prompts.append(kwargs["json"]["prompt"])
             return FakeResponse()
 
@@ -3520,20 +3826,14 @@ def test_build_eval_cases_tracks_questions_generated_for_same_section(monkeypatc
     prompts = []
 
     class FakeResponse:
-        def __init__(self, query):
-            self.query = query
+        def __init__(self, response):
+            self.response = response
 
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    f'{{"query":"{self.query}","intent":"spec_lookup","reason":"new facet"}}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         calls = 0
@@ -3548,14 +3848,21 @@ def test_build_eval_cases_tracks_questions_generated_for_same_section(monkeypatc
             return False
 
         def post(self, *args, **kwargs):
-            prompts.append(kwargs["json"]["prompt"])
+            prompt = kwargs["json"]["prompt"]
+            if "Review input:" in prompt:
+                return FakeResponse('{"approved":true,"feedback":""}')
+            prompts.append(prompt)
             self.__class__.calls += 1
             query = (
                 "What current draw is specified for CA-EN100U?"
                 if self.__class__.calls == 1
                 else "What operating temperature applies to CA-EN100U?"
             )
-            return FakeResponse(query)
+            return FakeResponse(
+                '{"queries":['
+                f'{{"query":"{query}","intent":"spec_lookup","reason":"new facet"}}'
+                ']}'
+            )
 
     monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
 
@@ -3612,6 +3919,8 @@ def test_build_eval_cases_honors_none_from_llm_generation(monkeypatch):
             return False
 
         def post(self, *args, **kwargs):
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse()
             return FakeResponse()
 
     monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
@@ -3642,17 +3951,18 @@ def test_llm_generation_prompt_uses_generic_few_shot_examples(monkeypatch):
     request_bodies = []
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What voltage does CA-EN100U need for power?","intent":"spec_lookup","reason":"natural user wording"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What voltage does CA-EN100U need for power?","intent":"spec_lookup","reason":"natural user wording"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -3665,6 +3975,8 @@ def test_llm_generation_prompt_uses_generic_few_shot_examples(monkeypatch):
             return False
 
         def post(self, *args, **kwargs):
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse('{"approved":true,"feedback":""}')
             request_bodies.append(kwargs["json"])
             prompts.append(kwargs["json"]["prompt"])
             return FakeResponse()
@@ -3697,6 +4009,10 @@ def test_llm_generation_prompt_uses_generic_few_shot_examples(monkeypatch):
     assert "Good query: What voltage does MODEL-A need for power?" in prompts[0]
     assert "Bad query: Which disconnect all other devices detail is needed?" in prompts[0]
     assert "section_context_excerpt" in prompts[0]
+    assert "Before writing queries, identify for yourself" in prompts[0]
+    assert "document_context" in prompts[0]
+    assert "return exactly NONE" in prompts[0]
+    assert "review_feedback_for_rejected_questions" in prompts[0]
     assert "current draw and operating temperature" in prompts[0]
     assert request_bodies[0]["think"] is False
     assert request_bodies[0]["model"] == "qwen3.5:27b"
@@ -3740,6 +4056,134 @@ def test_parse_generated_queries_accepts_top_level_query_arrays():
 def test_parse_generated_queries_rejects_empty_model_response():
     with pytest.raises(ValueError, match="empty generated-query response"):
         _parse_generated_queries("")
+
+
+def test_parse_query_review_accepts_structured_categories():
+    review = _parse_query_review(
+        '{"approved":false,"category":"too_vague","feedback":"Name the concrete setting.","answer_in_snippet":true,'
+        '"false_rejection_check":{"synonym_or_smoother_wording_only":false}}'
+    )
+
+    assert review.approved is False
+    assert review.category == "too_vague"
+    assert review.feedback == "Name the concrete setting."
+    assert review.answer_in_snippet is True
+    assert review.false_rejection_check == {"synonym_or_smoother_wording_only": False}
+
+
+def test_parse_query_review_keeps_old_reviewer_responses_compatible():
+    accepted = _parse_query_review('{"approved":true,"feedback":""}')
+    rejected = _parse_query_review('{"approved":false,"feedback":"Needs a concrete source target."}')
+
+    assert accepted.approved is True
+    assert accepted.category == "approved"
+    assert rejected.approved is False
+    assert rejected.category == "reviewer_rejected"
+
+
+def test_review_prompt_requires_category_and_false_rejection_self_check():
+    assert '"category":"too_vague"' in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "Allowed rejection categories" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "wrong_product_or_context" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "mechanical_source_copy" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "false_rejection_check" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "synonym_or_smoother_wording_only" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "valid_context_anchor_only" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "single_step_or_setting_how_question" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "valid_yes_no_restriction_question" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "If answer_in_snippet is true and any false_rejection_check value is true, approve" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "What should I check when LJ-X8000 connects via RS-232C?" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "How do I select a lighting color for the VIEW bar?" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "Can I register only grayscale images with an LJ-V series head?" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "How do I verify the cable status?" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+    assert "asks_for_steps_not_present" in USER_STYLE_QUERY_REVIEW_SYSTEM_PROMPT
+
+
+def test_structured_eval_input_includes_document_context_metadata():
+    chunk = {
+        "id": "chunk-1",
+        "chunk_type": "procedure_record",
+        "title": "Setting OK range",
+        "document_title": "CV-X Series User Manual",
+        "document_kind": "manual",
+        "manufacturer": "KEYENCE",
+        "product_family": "CV-X Series",
+        "product_model": "CV-X482",
+        "source_filename": "cvx.pdf",
+        "section_path_text": "Inspection settings > Height",
+        "page_from": 32,
+        "page_to": 33,
+        "content": "KEYENCE setup note: Set the OK range for average height using the upper and lower limits.",
+        "metadata_json": {
+            "parent_context": "This article explains height inspection settings for the CV-X Series.",
+            "context_window": "The surrounding section covers average height measurement setup.",
+            "devices": ["CV-X482"],
+        },
+    }
+    structured = _structured_eval_input(chunk, ["average", "height", "limits"])
+
+    context = structured["document_context"]
+    assert context["document_title"] == "CV-X Series User Manual"
+    assert context["chunk_title"] == "Setting OK range"
+    assert "source_filename" not in context
+    assert context["manufacturer"] == "KEYENCE"
+    assert context["product_family"] == "CV-X Series"
+    assert context["product_model"] == "CV-X482"
+    assert context["document_kind"] == "manual"
+    assert context["section_path"] == "Inspection settings > Height"
+    assert "page_range" not in context
+    assert context["devices"] == ["CV-X482"]
+    assert "height inspection settings" in context["parent_context_excerpt"]
+    assert structured["product_model"] == "CV-X482"
+    trace_fields = _question_generation_trace_fields(chunk)
+    assert trace_fields["snippet_chars"] > 0
+    assert trace_fields["parent_context_chars"] > 0
+    assert trace_fields["context_window_chars"] > 0
+    assert trace_fields["section_context_chars"] > 0
+
+
+def test_structured_eval_input_omits_filename_derived_document_titles():
+    structured = _structured_eval_input(
+        {
+            "id": "chunk-1",
+            "chunk_type": "table_record",
+            "title": "AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf",
+            "document_title": "AS 149551 IV4 UM K80GB WW GB 2124 1",
+            "source_filename": "AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf",
+            "section_path_text": "9-68",
+            "page_from": 354,
+            "page_to": 354,
+            "content": "Items: Tool upper threshold; Data content: 0 to 9999.",
+            "metadata_json": {"product_model": "IV4-G600CA"},
+            "product_model": "IV4-G600CA",
+        },
+        ["tool", "upper", "threshold"],
+    )
+
+    context = structured["document_context"]
+    assert "document_title" not in context
+    assert "chunk_title" not in context
+    assert "parent_article" not in context
+
+    placeholder_title = _structured_eval_input(
+        {
+            "id": "chunk-2",
+            "chunk_type": "table_record",
+            "title": "Classify Title",
+            "document_title": "Classify Title",
+            "source_filename": "xgx.pdf",
+            "section_path_text": "Settings",
+            "page_from": 1,
+            "page_to": 1,
+            "content": "Setting: Grouping Range; Value: 0 to 255 pixels.",
+            "metadata_json": {"parent_article": "Classify Title"},
+        },
+        ["grouping", "range", "pixels"],
+    )
+    placeholder_context = placeholder_title["document_context"]
+    assert "document_title" not in placeholder_context
+    assert "chunk_title" not in placeholder_context
+    assert "parent_article" not in placeholder_context
 
 
 def test_validate_eval_case_rejects_source_address_syntax_queries():
@@ -3823,7 +4267,7 @@ def test_validate_eval_case_rejects_table_artifact_queries():
     assert validate_eval_case("What XYT measurement does CV-X482 report?", chunk, anchors) == (True, "validated")
 
 
-def test_build_eval_cases_falls_back_when_llm_generation_fails(monkeypatch):
+def test_build_eval_cases_returns_no_questions_when_llm_generation_fails(monkeypatch):
     class FakeClient:
         def __init__(self, *args, **kwargs):
             pass
@@ -3858,28 +4302,24 @@ def test_build_eval_cases_falls_back_when_llm_generation_fails(monkeypatch):
 
     cases = build_eval_cases_from_chunks(chunks, max_cases=2)
 
-    assert cases
-    assert any(
-        "ca-en100u" in case.query.lower()
-        and ("power" in case.query.lower() or "voltage" in case.query.lower())
-        for case in cases
-    )
+    assert cases == []
 
 
 def test_build_eval_cases_filters_meta_llm_queries(monkeypatch):
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What specification does LJ-X8000 give for laser?","intent":"spec_lookup","reason":"bad meta phrasing"},'
+                '{"query":"What laser wavelength applies to LJ-X8000?","intent":"spec_lookup","reason":"good question phrasing"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What specification does LJ-X8000 give for laser?","intent":"spec_lookup","reason":"bad meta phrasing"},'
-                    '{"query":"What laser wavelength applies to LJ-X8000?","intent":"spec_lookup","reason":"good question phrasing"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -3892,6 +4332,11 @@ def test_build_eval_cases_filters_meta_llm_queries(monkeypatch):
             return False
 
         def post(self, *args, **kwargs):
+            prompt = kwargs["json"]["prompt"]
+            if "Review input:" in prompt:
+                if "What specification does LJ-X8000 give for laser?" in prompt:
+                    return FakeResponse('{"approved":false,"feedback":"Meta phrasing; ask for the concrete laser value."}')
+                return FakeResponse('{"approved":true,"feedback":""}')
             return FakeResponse()
 
     monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
@@ -3921,6 +4366,98 @@ def test_build_eval_cases_filters_meta_llm_queries(monkeypatch):
     assert all(query.endswith("?") for query in queries)
 
 
+def test_eval_generation_uses_reviewer_feedback_for_vague_llm_queries(monkeypatch):
+    prompts = []
+    generation_calls = 0
+
+    class FakeResponse:
+        def __init__(self, response):
+            self.response = response
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"response": self.response}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            nonlocal generation_calls
+            prompt = kwargs["json"]["prompt"]
+            prompts.append(prompt)
+            if "Review input:" in prompt:
+                if "Which controllers work with XG-X2702?" in prompt:
+                    return FakeResponse('{"approved":true,"category":"approved","feedback":"","answer_in_snippet":true}')
+                return FakeResponse(
+                    '{"approved":false,"category":"too_vague","feedback":"The question is too vague; say what compatibility or setting the user needs to identify.","answer_in_snippet":true}'
+                )
+            generation_calls += 1
+            if generation_calls == 1:
+                return FakeResponse(
+                    '{"queries":['
+                    '{"query":"What xg-x2702 controlled applies?","intent":"bad_vague","reason":"underspecified"}'
+                    ']}'
+                )
+            return FakeResponse(
+                '{"queries":['
+                '{"query":"Which controllers work with XG-X2702?","intent":"fair_user_question","reason":"clear target"}'
+                ']}'
+            )
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+
+    chunk = {
+        "id": "chunk-xgx-compatible",
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "chunk_type": "table_record",
+        "title": "XG-X Series",
+        "source_filename": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf",
+        "section_path_text": "Controller compatibility",
+        "page_from": 4,
+        "page_to": 4,
+        "content": "Row headers: XG-X2702; Column headers: Controller compatibility; Cell value: XG-X2702 is compatible with XG-X controllers.",
+        "metadata_json": {
+            "product_model": "XG-X Series",
+            "table_cell": True,
+            "table_row_headers": ["XG-X2702"],
+            "table_column_headers": ["Controller compatibility"],
+        },
+        "product_model": "XG-X Series",
+    }
+
+    cases = build_eval_cases_from_chunks([chunk], max_cases=1)
+
+    assert cases
+    assert cases[0].query == "Which controllers work with XG-X2702?"
+    assert cases[0].generation_method == "reviewed_llm:fair_user_question"
+    assert cases[0].benchmark_quality == "model_reviewed"
+    assert any("Review input:" in prompt for prompt in prompts)
+    assert any("Targets a concrete source-backed answer" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("Does not ask \"how\" or \"why\"" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("unless that text actually appears in the question" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("never mention removing or changing a word" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("single-step instruction snippets" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("How do I prevent X?" in prompt for prompt in prompts if "Review input:" in prompt)
+    retry_prompts = [
+        prompt
+        for prompt in prompts
+        if "review_feedback_for_rejected_questions" in prompt and "What xg-x2702 controlled applies?" in prompt
+    ]
+    assert retry_prompts
+    assert "too vague" in retry_prompts[0]
+    assert '"category": "too_vague"' in retry_prompts[0]
+
+
 def test_validate_eval_case_rejects_query_not_specific_to_source_context():
     chunk = {
         "chunk_type": "spec_record",
@@ -3936,7 +4473,36 @@ def test_validate_eval_case_rejects_query_not_specific_to_source_context():
     valid, reason = validate_eval_case("What detail applies to New LJ-X8000 Series?", chunk, anchors)
     assert valid is False
     assert reason in {"mechanical_query", "low_specificity", "weak_source_affinity", "weak_source_discriminator"}
-    assert validate_eval_case("What 3200 points/profile applies to LJ-X8000?", chunk, anchors) == (True, "validated")
+    assert validate_eval_case("What 3200 points/profile applies to LJ-X8000?", chunk, anchors) == (
+        False,
+        "mechanical_query",
+    )
+
+
+def test_validate_eval_case_rejects_recent_mechanical_fallback_queries():
+    chunk = {
+        "chunk_type": "spec_record",
+        "title": "CV-X482",
+        "source_filename": "cv-x482.pdf",
+        "section_path_text": "Output item settings",
+        "content": "Program Time: The measurement time is output in the form of integer 7 digits + decimal number 1 digit (Unit: ms).",
+        "metadata_json": {"product_model": "CV-X482"},
+        "product_model": "CV-X482",
+    }
+
+    bad_queries = [
+        "What program measurement is specified for CV-X482?",
+        "What measured select is specified for CV-X482?",
+        "What current displays is specified for VS Series Vision System with Built: in AI?",
+        "What point set applies to CV-X482?",
+        "How do you procedure for CV-X482?",
+    ]
+
+    for query in bad_queries:
+        assert validate_eval_case(query, chunk, ["program", "measurement", "integer", "digits"]) == (
+            False,
+            "mechanical_query",
+        )
 
 
 def test_table_header_chunks_are_not_queryworthy_as_standalone_questions():
@@ -3967,7 +4533,38 @@ def test_table_header_chunks_are_not_queryworthy_as_standalone_questions():
     assert build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False) == []
 
 
-def test_fallback_eval_queries_include_context_anchors_for_compact_specs():
+def test_ambiguous_signed_table_cells_are_not_queryworthy_without_metric_header():
+    chunk = {
+        "id": "ambiguous-signed-cell",
+        "source_document_id": "doc-lrt",
+        "document_version_id": "ver-lrt",
+        "chunk_type": "table_record",
+        "title": "LR-T table",
+        "section_path_text": "16.4'",
+        "page_from": 16,
+        "page_to": 16,
+        "content": (
+            'Column headers: LR-TB5000/TB5000C (Class 2 laser) Unit: mm inch > '
+            'White Paper (Reflectivity: 90%) > Response Time [ms] > 100; '
+            'Row headers: 200 7.87"; Cell value: ±3 ±0.12"; Row: 5; Column: 5'
+        ),
+        "metadata_json": {
+            "table_cell": True,
+            "table_row_headers": ['200 7.87"'],
+            "table_column_headers": [
+                "LR-TB5000/TB5000C (Class 2 laser) Unit: mm inch",
+                "White Paper (Reflectivity: 90%)",
+                "Response Time [ms]",
+                "100",
+            ],
+        },
+    }
+
+    assert chunk_is_queryworthy(chunk, ["lr-tb5000", "200", "0.12"]) is False
+    assert build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False) == []
+
+
+def test_generation_disabled_does_not_create_compact_spec_template_questions():
     chunks = [
         {
             "id": "chunk-specific",
@@ -3987,10 +4584,7 @@ def test_fallback_eval_queries_include_context_anchors_for_compact_specs():
 
     cases = build_eval_cases_from_chunks(chunks, max_cases=3, use_llm_generation=False)
 
-    assert cases
-    assert all("points/profile" in case.query.lower() or "capture" in case.query.lower() for case in cases)
-    assert all(case.query != "New LJ-X8000 Series 3200" for case in cases)
-    assert all(case.query.endswith("?") for case in cases)
+    assert cases == []
 
 
 def test_eval_queries_reject_ambiguous_storage_only_phrasing():
@@ -4014,14 +4608,7 @@ def test_eval_queries_reject_ambiguous_storage_only_phrasing():
     assert reason == "filename_artifact_query"
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
-    queries = [case.query.lower() for case in cases]
-
-    assert cases
-    assert all(query != "d48gb stores number" for query in queries)
-    assert all(query.endswith("?") for query in queries)
-    assert all("d48gb" not in query for query in queries)
-    assert all("command" in query for query in queries)
-    assert any("specified-command" in query for query in queries)
+    assert cases == []
 
 
 def test_eval_queries_create_question_form_for_disconnect_guidance():
@@ -4048,29 +4635,25 @@ def test_eval_queries_create_question_form_for_disconnect_guidance():
     assert reason == "not_question_form"
 
     cases = build_eval_cases_from_chunks([chunk], max_cases=3, use_llm_generation=False)
-    queries = [case.query for case in cases]
-
-    assert queries
-    assert "Which other devices should be disconnected?" in queries
-    assert "Which devices should be disconnected before checking the EtherNet/IP connection?" in queries
-    assert all("D48GB" not in query for query in queries)
+    assert cases == []
 
 
 def test_eval_generation_does_not_prompt_with_source_filename_artifacts(monkeypatch):
     prompts = []
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What specified-command number does the PLC store?","intent":"spec_lookup","reason":"snippet-grounded"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What specified-command number does the PLC store?","intent":"spec_lookup","reason":"snippet-grounded"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -4083,6 +4666,8 @@ def test_eval_generation_does_not_prompt_with_source_filename_artifacts(monkeypa
             return False
 
         def post(self, *args, **kwargs):
+            if "Review input:" in kwargs["json"]["prompt"]:
+                return FakeResponse('{"approved":true,"feedback":""}')
             prompts.append(kwargs["json"]["prompt"])
             return FakeResponse()
 
@@ -4117,18 +4702,19 @@ def test_eval_generation_rejects_copied_source_phrasing(monkeypatch):
     prompts = []
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What obtained authentication is specified for XG-X Series?","intent":"bad_copy","reason":"copied"},'
+                '{"query":"Which controller combination has CSA approval for XG-X Series?","intent":"fair_user_question","reason":"paraphrased"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What obtained authentication is specified for XG-X Series?","intent":"bad_copy","reason":"copied"},'
-                    '{"query":"Which controller combination has CSA approval for XG-X Series?","intent":"fair_user_question","reason":"paraphrased"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -4141,7 +4727,12 @@ def test_eval_generation_rejects_copied_source_phrasing(monkeypatch):
             return False
 
         def post(self, *args, **kwargs):
-            prompts.append(kwargs["json"]["prompt"])
+            prompt = kwargs["json"]["prompt"]
+            if "Review input:" in prompt:
+                if "What obtained authentication is specified for XG-X Series?" in prompt:
+                    return FakeResponse('{"approved":false,"feedback":"Copied source phrasing; ask for the controller combination instead."}')
+                return FakeResponse('{"approved":true,"feedback":""}')
+            prompts.append(prompt)
             return FakeResponse()
 
     monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
@@ -4182,18 +4773,19 @@ def test_eval_generation_rejects_bracketed_source_label_queries(monkeypatch):
     prompts = []
 
     class FakeResponse:
+        def __init__(self, response=None):
+            self.response = response or (
+                '{"queries":['
+                '{"query":"What is [Luminance Output Type] for VS Series?","intent":"bad_brackets","reason":"copied label"},'
+                '{"query":"Which luminance signal should the VS Series output?","intent":"fair_user_question","reason":"natural phrasing"}'
+                ']}'
+            )
+
         def raise_for_status(self):
             return None
 
         def json(self):
-            return {
-                "response": (
-                    '{"queries":['
-                    '{"query":"What is [Luminance Output Type] for VS Series?","intent":"bad_brackets","reason":"copied label"},'
-                    '{"query":"Which luminance signal should the VS Series output?","intent":"fair_user_question","reason":"natural phrasing"}'
-                    ']}'
-                )
-            }
+            return {"response": self.response}
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -4206,7 +4798,12 @@ def test_eval_generation_rejects_bracketed_source_label_queries(monkeypatch):
             return False
 
         def post(self, *args, **kwargs):
-            prompts.append(kwargs["json"]["prompt"])
+            prompt = kwargs["json"]["prompt"]
+            if "Review input:" in prompt:
+                if "What is [Luminance Output Type] for VS Series?" in prompt:
+                    return FakeResponse('{"approved":false,"feedback":"Do not include bracketed source labels."}')
+                return FakeResponse('{"approved":true,"feedback":""}')
+            prompts.append(prompt)
             return FakeResponse()
 
     monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
@@ -4242,7 +4839,7 @@ def test_eval_generation_rejects_bracketed_source_label_queries(monkeypatch):
     cases = build_eval_cases_from_chunks([chunk], max_cases=1)
 
     assert cases
-    assert cases[0].query == "Which analog signal voltage should VS Series output?"
+    assert cases[0].query == "Which luminance signal should the VS Series output?"
     assert prompts
     assert "[Luminance Output Type]" not in prompts[0]
     assert "Do not include square brackets" in prompts[0]
@@ -4269,6 +4866,113 @@ def test_validate_eval_case_accepts_access_control_user_question():
     )
 
     assert (valid, reason) == (True, "validated")
+
+
+def test_score_search_results_replays_preview_only_matrix_evidence():
+    case = RetrievalEvalCase(
+        case_id="preview-case",
+        query="What is the default grouping range in pixels?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="expected-chunk",
+        source_title="XG-X Manual",
+        source_filename="xgx.pdf",
+        chunk_type="spec_record",
+        section_path="Grouping",
+        page_from=111,
+        page_to=111,
+        expected_terms=["grouping", "range", "pixel", "pixels"],
+        expected_snippet="Grouping Range (Pixel), default setting: 20",
+        generation_method="unit",
+        source_metadata={"product_family": "XG-X Series"},
+    )
+
+    evaluation = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "equivalent-chunk",
+                "source_document_id": "doc-1",
+                "section_path": ["Grouping"],
+                "content_preview": "Grouping Range (Pixel): range in pixels; default setting: 20.",
+            }
+        ],
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["rank"] == 1
+
+
+def test_score_search_results_uses_material_snippet_evidence_when_anchor_terms_are_generic():
+    case = RetrievalEvalCase(
+        case_id="snippet-case",
+        query="When should I cut power before connecting cables?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="expected-chunk",
+        source_title="Controller Manual",
+        source_filename="controller.pdf",
+        chunk_type="table_record",
+        section_path="Safety",
+        page_from=1,
+        page_to=1,
+        expected_terms=["notice", "power", "supply"],
+        expected_snippet="Turn the main power supply off when performing cable connection or maintenance work.",
+        generation_method="unit",
+        source_metadata={},
+    )
+
+    evaluation = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "answer-chunk",
+                "source_document_id": "doc-1",
+                "section_path": ["Cable connection"],
+                "content": "Make sure there is no power to the controller before connecting the cables.",
+            }
+        ],
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["match_reason"] == "same_document_snippet_evidence"
+    assert evaluation["snippet_overlap_terms"] >= 2
+
+
+def test_score_search_results_accepts_strong_duplicate_manual_evidence_for_unscoped_query():
+    case = RetrievalEvalCase(
+        case_id="duplicate-manual-case",
+        query="How do I set the message for an unexecuted Judged Value?",
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="expected-chunk",
+        source_title="CV-X Manual",
+        source_filename="cvx.pdf",
+        chunk_type="spec_record",
+        section_path="Output Condition",
+        page_from=1,
+        page_to=1,
+        expected_terms=["unexecuted", "specify", "string", "selected"],
+        expected_snippet="Unexecuted: Specify the string displayed when the selected Judged Value is unexecuted.",
+        generation_method="unit",
+        source_metadata={"product_family": "CV-X Series"},
+    )
+
+    evaluation = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "duplicate-answer",
+                "source_document_id": "doc-xgx",
+                "section_path": ["Output Condition"],
+                "content": "Unexecuted: Specify the string displayed when the selected Judged Value is unexecuted.",
+                "metadata": {"product_family": "XG-X Series", "chunk_type": "section_window"},
+            }
+        ],
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["match_reason"] == "cross_document_semantic_evidence"
 
 
 def test_score_search_results_passes_on_same_document_term_overlap():
@@ -4302,6 +5006,45 @@ def test_score_search_results_passes_on_same_document_term_overlap():
     assert evaluation["rank"] == 1
     assert evaluation["candidate_recall"] is True
     assert evaluation["metadata_document_selection"]["attempted"] is False
+
+
+def test_score_search_results_rejects_related_but_different_archive_condition():
+    case = RetrievalEvalCase(
+        case_id="archive-trigger",
+        query="When does archiving start for the VS Series Vision System?",
+        source_document_id="doc-vs",
+        document_version_id="ver-vs",
+        source_chunk_id="chunk-target-true",
+        source_title="VS Manual",
+        source_filename="vs.pdf",
+        chunk_type="spec_record",
+        section_path="#J005",
+        page_from=1277,
+        page_to=1277,
+        expected_terms=["refer", "vision", "dashboard", "archiving"],
+        expected_snippet='Refer to Vision Dashboard Cell: Archiving is performed when the selected Target is "TRUE".',
+        generation_method="unit_test",
+        source_metadata={"product_family": "VS Series Vision System"},
+    )
+
+    evaluation = score_search_results(
+        case,
+        [
+            {
+                "chunk_id": "chunk-no-condition",
+                "source_document_id": "doc-vs",
+                "section_path": ["#J002"],
+                "content": (
+                    'If no archive condition is enabled, the message "There is no archive condition enabled" '
+                    "is displayed and archiving is disabled."
+                ),
+                "metadata": {"product_family": "VS Series Vision System", "chunk_type": "atomic_text"},
+            }
+        ],
+    )
+
+    assert evaluation["passed"] is False
+    assert evaluation["failure_category"] == "ranking_or_context_loss"
 
 
 def test_score_search_results_rejects_same_page_without_source_terms():

@@ -1458,6 +1458,45 @@ def test_prioritize_results_preserves_comparison_evidence_before_model_pruning(m
     ]
 
 
+def test_prioritize_results_promotes_distinctive_query_evidence_over_generic_model_relevance(monkeypatch):
+    generic = SearchResult(
+        chunk_id="generic",
+        score=0.9,
+        title="XG-X Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[1],
+        section_path=["Overview"],
+        content="The XG-X Series sends data logs to a connected PC.",
+        metadata={"chunk_type": "spec_record"},
+    )
+    cable = SearchResult(
+        chunk_id="cable",
+        score=0.8,
+        title="XG-X Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[2],
+        section_path=["VisionDataStorage"],
+        content="Connect VisionDataStorage with the dedicated USB cable OP-88263.",
+        metadata={"chunk_type": "spec_record"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.judge_retrieval_relevance",
+        lambda _query, _results: [
+            {"chunk_id": "generic", "verdict": "relevant", "reason": "model false positive"},
+            {"chunk_id": "cable", "verdict": "potentially_relevant", "reason": "contains the answer"},
+        ],
+    )
+
+    prioritized = prioritize_results_for_answer(
+        "Which cable connects the XG-X Series to VisionDataStorage?",
+        [generic, cable],
+    )
+
+    assert prioritized["prioritized_results"][0].chunk_id == "cable"
+
+
 def test_prioritize_results_preserves_procedure_rule_evidence_before_model_pruning(monkeypatch):
     results = [
         SearchResult(
@@ -2496,7 +2535,7 @@ def test_generate_answer_uses_fast_model_for_relevance_and_summaries_then_answer
     assert answer.answer
     assert [call["model"] for call in calls[:-1]] == ["qwen3.5:4b", "qwen3.5:4b", "qwen3.5:4b"]
     assert calls[-1]["model"] == "qwen3.5:9b"
-    assert calls[-1]["num_predict"] == -1
+    assert calls[-1]["num_predict"] == 1024
     assert calls[-1]["think"] is False
 
 
@@ -2611,7 +2650,7 @@ def test_generate_answer_with_trace_exposes_summary_input_and_fallback_state(mon
 
     assert answer.answer == "Use the Defect Tool for setup."
     assert trace["final_answer"]["model"] == "qwen3.5:9b"
-    assert trace["final_answer"]["num_predict"] == -1
+    assert trace["final_answer"]["num_predict"] == 1024
     assert trace["final_answer"]["used_fallback"] is False
     assert trace["final_answer"]["summarized_evidence"][0]["summary"] == "Use the Defect Tool for setup."
 

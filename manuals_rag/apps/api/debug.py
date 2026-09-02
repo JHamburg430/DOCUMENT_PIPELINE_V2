@@ -167,7 +167,11 @@ def _stream_step_payload(step_name: str, state: dict[str, Any], *, sample_limit:
         return {
             "count": len(results),
             "total_content_chars": sum(len(str(result.get("content") or "")) for result in results),
-            "samples": [_serialize_step_result_sample(result) for result in results[:sample_limit]],
+            # The eval matrix scores this payload directly.  Keep the complete
+            # retrieval evidence here; the compact step serializer intentionally
+            # drops content/context/metadata and made answer-bearing results look
+            # like misses whenever the expected anchor was outside its preview.
+            "samples": [_serialize_search_result(result) for result in results[:sample_limit]],
         }
     if step_name == "judge_answer_inputs":
         prioritized = state.get("prioritized") or {}
@@ -836,7 +840,7 @@ def _stream_generate_answer_with_trace(
             "model": settings.ollama_answer_model,
             "prompt_kind": "final_answer",
             "think": False,
-            "num_predict": -1,
+            "num_predict": settings.ollama_answer_num_predict,
             "used_fallback": False,
             "answer_source": "model",
             "fallback_reason": None,
@@ -869,7 +873,7 @@ def _stream_generate_answer_with_trace(
             think=False,
             timeout=90.0,
             purpose="final_answer",
-            num_predict=-1,
+            num_predict=settings.ollama_answer_num_predict,
         )
         from manuals_rag_schemas.documents import AnswerResponse
 

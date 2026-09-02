@@ -531,7 +531,13 @@ def test_contextual_lexical_search_scores_local_section_context(monkeypatch):
     def fake_fetch_all(query, params):
         assert "local_rerank_context" in query
         assert "order by" in query.lower()
-        assert params[0] == ["procedure_record", "atomic_text", "section_window"]
+        assert params[0] == [
+            "procedure_record",
+            "atomic_text",
+            "section_window",
+            "spec_record",
+            "datasheet_record",
+        ]
         return [
             {
                 "id": "procedure",
@@ -658,6 +664,91 @@ def test_family_scoring_demotes_spec_chunks_for_general_prose_queries():
     )
     rescored = retriever._apply_family_scoring([spec, prose], analysis, stage="family_scored")
     assert rescored[0].chunk_id == "prose"
+
+
+def test_contextual_lexical_terms_cover_general_answer_seeking_queries():
+    analysis = analyze_query("When does archiving start for the VS Series Vision System?")
+
+    terms = retriever._lexical_context_terms(analysis.raw_query, analysis)
+
+    assert "archiving" in terms
+    assert "start" in terms
+    assert "condition" in terms
+    assert "enabled" in terms
+    assert "trigger" in terms
+    assert "vision" not in terms
+    assert "system" not in terms
+
+
+def test_contextual_lexical_search_includes_answer_bearing_spec_records(monkeypatch):
+    analysis = analyze_query("When does archiving start for the VS Series Vision System?")
+
+    def fake_fetch_all(query, params):
+        assert "spec_record" in params[0]
+        return [
+            {
+                "id": "generic-atomic",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "User Manual",
+                "section_path_text": "Archive Conditions",
+                "page_from": 1,
+                "page_to": 1,
+                "content": "If no archive condition is enabled, archiving is disabled.",
+                "chunk_type": "atomic_text",
+                "metadata_json": {"product_family": "VS Series Vision System"},
+                "priority_score": 0.9,
+            },
+            {
+                "id": "trigger-spec",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "User Manual",
+                "section_path_text": "Archive Target",
+                "page_from": 2,
+                "page_to": 2,
+                "content": 'Archiving is performed when the cell selected in [Target] is "TRUE".',
+                "chunk_type": "spec_record",
+                "metadata_json": {"product_family": "VS Series Vision System"},
+                "priority_score": 0.99,
+            },
+        ]
+
+    monkeypatch.setattr(retriever, "fetch_all", fake_fetch_all)
+
+    results = retriever.run_contextual_lexical_search(analysis.raw_query, ["corpus-1"], {}, analysis)
+
+    assert {result.chunk_id for result in results} == {"generic-atomic", "trigger-spec"}
+
+
+def test_query_alignment_ignores_generic_manual_title_words():
+    analysis = analyze_query("When does archiving start for the VS Series Vision System?")
+    heading = SearchResult(
+        chunk_id="heading",
+        score=0.5,
+        title="VS Series Vision System",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Overview"],
+        content="Overview of the VS Series Vision System",
+        metadata={"chunk_type": "atomic_text"},
+    )
+    evidence = SearchResult(
+        chunk_id="evidence",
+        score=0.49,
+        title="VS Series Vision System",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[2],
+        section_path=["Archive conditions"],
+        content='Archiving starts when the referenced Vision Dashboard cell is "TRUE".',
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    rescored = retriever._apply_query_alignment([heading, evidence], analysis, stage="query_aligned")
+
+    assert rescored[0].chunk_id == "evidence"
 
 
 def test_query_alignment_promotes_candidate_with_better_query_term_coverage():
@@ -870,6 +961,43 @@ def test_query_alignment_keeps_generic_procedure_search_ahead_of_unrelated_spec_
     assert rescored[0].chunk_id == "procedure"
 
 
+def test_query_alignment_prefers_requested_capture_type_over_sibling_type():
+    analysis = analyze_query("For Multi-Capture trigger input timing, what operation does the section describe?")
+    sibling_type = SearchResult(
+        chunk_id="asynchronous-trigger",
+        score=0.6,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[1],
+        section_path=["Timing chart"],
+        content=(
+            "Timing chart Control/data output via I/O terminals. "
+            "Typical operations at trigger input (Capture Type: Asynchronous Trigger)."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    requested_type = SearchResult(
+        chunk_id="multi-capture",
+        score=0.5,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[2],
+        section_path=["Timing chart"],
+        content=(
+            "Timing chart Control/data output via I/O terminals. "
+            "Typical operations at trigger input (Capture Type: Multi-Capture). "
+            "Performs multiple image captures at the same location and processes them as a single measurement."
+        ),
+        metadata={"chunk_type": "procedure_record"},
+    )
+
+    rescored = retriever._apply_query_alignment([sibling_type, requested_type], analysis, stage="query_aligned")
+
+    assert rescored[0].chunk_id == "multi-capture"
+
+
 def test_family_selection_keeps_preferred_family_for_general_queries():
     analysis = analyze_query("Where does the manual discuss command completion and successful execution?")
     candidates = [
@@ -1045,6 +1173,81 @@ def test_select_family_candidates_prefers_procedure_family_for_how_to_queries():
     )
     chosen = retriever._select_family_candidates([section, procedure], analysis, limit=4)
     assert chosen[0].chunk_id == "proc"
+
+
+def test_identifier_dense_retention_keeps_exact_model_evidence_in_fused_window():
+    analysis = analyze_query("Where should I avoid installing the IV-500C sensor?")
+    fused = [
+        SearchResult(
+            chunk_id=f"fused-{index}",
+            score=0.04 - index * 0.005,
+            title="IV-H Manual",
+            document_version_id="ver-sibling",
+            source_document_id="doc-sibling",
+            pages=[1],
+            section_path=["Installation"],
+            content="Mount the IV-H sensor away from vibration.",
+            metadata={"chunk_type": "atomic_text", "product_model": "IV-H500CA"},
+        )
+        for index in range(4)
+    ]
+    exact_model = SearchResult(
+        chunk_id="iv-500c-installation-locations",
+        score=0.83,
+        title="IV-500C Installation Manual",
+        document_version_id="ver-exact",
+        source_document_id="doc-exact",
+        pages=[2],
+        section_path=["Installation"],
+        content="Avoid installing the IV-500C outdoors or above 2000 m.",
+        metadata={
+            "chunk_type": "table_record",
+            "product_model": "IV-500C",
+            "product_models": ["IV-500C"],
+        },
+    )
+
+    retained = retriever._preserve_identifier_dense_candidates(
+        fused,
+        [exact_model],
+        analysis,
+        limit=4,
+    )
+
+    assert [result.chunk_id for result in retained] == ["fused-0", "fused-1", "fused-2", exact_model.chunk_id]
+    assert retained[-1].score == fused[-1].score
+    assert retained[-1].metadata["retrieval_stage"] == "identifier_dense_retained"
+
+
+def test_how_to_family_selection_keeps_aligned_exact_model_table_evidence():
+    analysis = analyze_query("Where should I avoid installing the IV-500C sensor?")
+    sibling_context = SearchResult(
+        chunk_id="sibling-context",
+        score=0.9,
+        title="IV-H Manual",
+        document_version_id="ver-sibling",
+        source_document_id="doc-sibling",
+        pages=[1],
+        section_path=["Installation"],
+        content="Mount the IV-H sensor away from vibration.",
+        metadata={"chunk_type": "section_window", "family_bucket": "context", "product_model": "IV-H500CA"},
+    )
+    exact_table = SearchResult(
+        chunk_id="exact-table",
+        score=0.5,
+        title="IV-500C Installation Manual",
+        document_version_id="ver-exact",
+        source_document_id="doc-exact",
+        pages=[2],
+        section_path=["Installation"],
+        content="Avoid installing the IV-500C outdoors or above 2000 m.",
+        metadata={"chunk_type": "table_record", "family_bucket": "table", "product_model": "IV-500C"},
+    )
+
+    selected = retriever._select_family_candidates([sibling_context, exact_table], analysis, limit=4)
+
+    assert selected[0].chunk_id == "exact-table"
+    assert any(result.chunk_id == "sibling-context" for result in selected)
 
 
 def test_select_family_candidates_prefers_spec_family_for_spec_lookup():

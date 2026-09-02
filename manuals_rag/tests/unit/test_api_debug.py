@@ -65,6 +65,35 @@ def test_stream_step_payload_includes_retrieval_samples():
     assert payload["samples"][0]["content_preview"] == "Use 24 VDC power and verify the status LED."
 
 
+def test_assemble_stream_payload_preserves_complete_evidence_for_eval_scoring():
+    content = "A" * 300 + " expected answer-bearing evidence"
+    state = {
+        "retrieval_results": [
+            {
+                "chunk_id": "chunk-1",
+                "score": 0.91,
+                "title": "Sensor Manual",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "pages": [4],
+                "section_path": ["Setup"],
+                "content": content,
+                "metadata": {
+                    "chunk_type": "procedure_record",
+                    "context_window": "neighboring evidence",
+                    "parent_context": "setup procedure",
+                },
+            }
+        ]
+    }
+
+    payload = api_debug._stream_step_payload("assemble_context", state)
+
+    assert payload["samples"][0]["content"] == content
+    assert payload["samples"][0]["context_window"] == "neighboring evidence"
+    assert payload["samples"][0]["metadata"]["chunk_type"] == "procedure_record"
+
+
 def test_stream_step_payload_includes_answer_step_details():
     result = {
         "chunk_id": "chunk-1",

@@ -2,7 +2,15 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260827-ingestion-width-1";
+const ASSET_VERSION = "20260830-clear-question-list-2";
+const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
+const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
+const MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"]);
+const MATRIX_GENERATION_DEFAULT_PROMPT = "Generate realistic engineer, technician, sales, support, or manager questions that are specific to the supplied source content. First use the document context to identify the product/device, parent article, feature area, and source-backed answer. Prefer concrete procedures, specs, limits, warnings, settings, table row subjects, units, symptoms, and user-visible product anchors when the source supports them. Optimize for useful retrieval questions, not exhaustive coverage of every parseable cell. Avoid vague questions, filename/document artifacts, and questions about storage format, display precision, parser coordinates, or internal representation unless clearly user-facing. If the source window cannot support a specific non-duplicative user-style question, return NONE.";
+const MATRIX_GENERATION_LEGACY_DEFAULT_PROMPTS = new Set([
+  "Generate realistic engineer, technician, sales, support, or manager questions that are specific to the supplied source content. First use the document context to identify the product/device, parent article, feature area, and source-backed answer. Prefer concrete procedures, specs, limits, warnings, settings, table row subjects, units, symptoms, and user-visible product anchors when the source supports them. Avoid vague questions that could match many places or nothing, and avoid filename/document artifacts. If the source window cannot support a specific non-duplicative user-style question, return NONE.",
+  "Generate realistic engineer, technician, sales, support, or manager questions that are specific to the supplied source content. Avoid vague prompts that could match many places or nothing. Prefer concrete models, symptoms, procedures, specs, limits, warnings, table row subjects, and user-visible product anchors when the source supports them. If the source window cannot support a specific user-style question, return NONE.",
+]);
 const FETCH_RETRY_DELAYS_MS = [500, 1500, 3000];
 const MATRIX_JOB_POLL_MS = 1000;
 
@@ -41,42 +49,42 @@ const MATRIX_STAGES = [
   {
     key: "dense",
     label: "Dense",
-    description: "YES when the expected document is present in the dense sample window; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when the expected page or chunk evidence is present in the dense sample window. DOC_ONLY means only the manual matched and counts as fail.",
   },
   {
     key: "sparse",
     label: "Sparse",
-    description: "YES when the expected document is present in the sparse sample window; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when the expected page or chunk evidence is present in the sparse sample window. DOC_ONLY means only the manual matched and counts as fail.",
   },
   {
     key: "special",
     label: "Special",
-    description: "YES when the expected document is present in specialized/table search; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when the expected page or chunk evidence is present in specialized/table search. DOC_ONLY means only the manual matched and counts as fail.",
   },
   {
     key: "fuse",
     label: "Fuse",
-    description: "YES when fusion still contains the expected document; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when fusion still contains the expected page or chunk evidence. DOC_ONLY means only the manual matched and counts as fail.",
   },
   {
     key: "rerank",
     label: "Rerank",
-    description: "YES when reranking still contains the expected document; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when reranking still contains the expected page or chunk evidence; it does not mean merely the correct manual survived.",
   },
   {
     key: "assemble",
     label: "Context",
-    description: "YES when final context contains the expected document; NO/PARTIAL/DROPPED when it is missing or lost; blank when not recorded.",
+    description: "YES when final context contains the expected page or chunk evidence; DOC_ONLY means the answer context is still too broad and counts as fail.",
   },
   {
     key: "metadata",
     label: "Doc Select",
-    description: "Pass when metadata document selection ranked the expected source document in the scored top window; fail when a different document was selected; blank when metadata selection was not attempted.",
+    description: "Pass when metadata document selection ranked the expected manual in the scored top window. This is a routing diagnostic, not retrieval success by itself.",
   },
   {
     key: "retrieval",
     label: "Retrieval",
-    description: "PASS when the expected document survives to final context; FAIL when retrieval loses it. Evidence/answer checks decide whether the right content was actually sufficient.",
+    description: "PASS only when final context retained the expected page or chunk evidence. The correct manual alone is DOC_ONLY upstream and FAIL here.",
   },
   {
     key: "relevance",
@@ -118,12 +126,14 @@ const MATRIX_STAGES = [
 const MATRIX_COLUMN_HINTS = {
   number: "Question number within the loaded matrix.",
   question: "Generated eval question and source dataset/run. The text is formed from source-backed chunks, not written by the answer agent.",
+  generation_review: "Live question-generation reviewer status. Accepted questions pass, rejected questions fail, and generated candidates remain blank until review completes.",
   type: "Single means one evidence target; multi-step means several evidence targets; multi-doc means expected evidence spans more than one source document.",
 };
 
 const MATRIX_BASE_COLUMNS = [
   { key: "number", label: "#", description: MATRIX_COLUMN_HINTS.number },
   { key: "question", label: "Question", description: MATRIX_COLUMN_HINTS.question },
+  { key: "generation_review", label: "Review", description: MATRIX_COLUMN_HINTS.generation_review },
   { key: "type", label: "Type", description: MATRIX_COLUMN_HINTS.type },
   { key: "dataset", label: "Dataset", description: "Question-bank dataset or analysis file that supplied this row." },
   { key: "run", label: "Run", description: "Latest saved run id, or the active live matrix job id while this row is being evaluated." },
@@ -283,8 +293,8 @@ function itemRetrievalEvaluation(item = {}) {
   return item.retrieval_evaluation || item.evaluation || {};
 }
 
-function matrixCell(status, detail = "") {
-  return { status, detail };
+function matrixCell(status, detail = "", label = "") {
+  return { status, detail, label };
 }
 
 function questionTypeInfo(item = {}) {
@@ -335,11 +345,11 @@ function buildMatrixCells(item = {}) {
     cells.retrieval = matrixCell("blank");
   } else if (metadata.attempted) {
     cells.metadata = matrixCell(metadata.passed ? "pass" : "fail", metadata.passed ? `rank ${metadata.rank ?? "?"}` : metadata.failure_category || "expected document not selected");
-    cells.retrieval = matrixCell(retrieval.candidate_recall ? "pass" : "fail", retrieval.candidate_recall ? "expected document present in final retrieval" : retrieval.failure_category || "expected document missing from retrieval");
+    cells.retrieval = matrixCell(retrieval.passed ? "pass" : "fail", retrieval.passed ? `retrieval passed: ${retrieval.match_reason || "expected evidence found"}` : retrieval.failure_category || "expected page/chunk evidence missing from retrieval");
     blocked = !retrieval.passed;
   } else {
     cells.metadata = matrixCell("blank", "not attempted");
-    cells.retrieval = matrixCell(retrieval.candidate_recall ? "pass" : "fail", retrieval.candidate_recall ? "expected document present in final retrieval" : retrieval.failure_category || "expected document missing from retrieval");
+    cells.retrieval = matrixCell(retrieval.passed ? "pass" : "fail", retrieval.passed ? `retrieval passed: ${retrieval.match_reason || "expected evidence found"}` : retrieval.failure_category || "expected page/chunk evidence missing from retrieval");
     blocked = !retrieval.passed;
   }
 
@@ -404,6 +414,173 @@ function summarizeMatrixRows(items = []) {
   return { rows, totals };
 }
 
+function blankGeneratedQuestionCells() {
+  return Object.fromEntries(
+    MATRIX_STAGES.map((stage) => [
+      stage.key,
+      stage.key === "question"
+        ? matrixCell("pass", "accepted during live question generation")
+        : matrixCell("blank", "waiting for evaluation"),
+    ]),
+  );
+}
+
+function generatedCandidateCells(status, detail = "") {
+  const cells = blankGeneratedQuestionCells();
+  if (status === "accepted") {
+    cells.question = matrixCell("pass", detail || "accepted by generation reviewer");
+  } else if (status === "rejected") {
+    cells.question = matrixCell("fail", detail || "rejected by generation reviewer");
+  } else if (status === "reviewing") {
+    cells.question = matrixCell("blank", detail || "under generation reviewer review");
+  } else {
+    cells.question = matrixCell("blank", detail || "generated candidate awaiting review");
+  }
+  return cells;
+}
+
+function generationReviewCell(status, detail = "") {
+  if (status === "accepted") return matrixCell("pass", detail || "accepted by generation reviewer", "ACCEPT");
+  if (status === "rejected") return matrixCell("fail", detail || "rejected by generation reviewer", "REJECT");
+  if (status === "reviewing") return matrixCell("blank", detail || "under generation reviewer review", "REVIEW");
+  if (status === "generated") return matrixCell("blank", detail || "generated candidate awaiting review", "PENDING");
+  return matrixCell("blank", "not generated in the current live job", "");
+}
+
+function candidateKeyForQuestion(chunkId, question) {
+  return `${chunkId || "chunk"}::${question || ""}`;
+}
+
+function liveGeneratedQuestionCandidatesFromEvents(job = {}) {
+  const candidates = new Map();
+  const events = Array.isArray(job.events) ? job.events : [];
+  for (const event of events) {
+    if (event.event === "question_generation_model_completed" && Array.isArray(event.preview)) {
+      for (const question of event.preview) {
+        const key = candidateKeyForQuestion(event.chunk_id, question);
+        if (!candidates.has(key)) {
+          candidates.set(key, {
+            question,
+            chunk_id: event.chunk_id,
+            source_filename: event.source_filename,
+            document_title: event.document_title,
+            chunk_title: event.chunk_title,
+            section_path: event.section_path,
+            page_from: event.page_from,
+            page_to: event.page_to,
+            manufacturer: event.manufacturer,
+            product_family: event.product_family,
+            product_model: event.product_model,
+            document_kind: event.document_kind,
+            intent: event.intent,
+            status: "generated",
+            detail: "generated candidate awaiting review",
+            timestamp: event.timestamp,
+          });
+        }
+      }
+      continue;
+    }
+    if (!event.question) continue;
+    const key = candidateKeyForQuestion(event.chunk_id, event.question);
+    const current = candidates.get(key) || {
+      question: event.question,
+      chunk_id: event.chunk_id,
+      source_filename: event.source_filename,
+      document_title: event.document_title,
+      chunk_title: event.chunk_title,
+      section_path: event.section_path,
+      page_from: event.page_from,
+      page_to: event.page_to,
+      manufacturer: event.manufacturer,
+      product_family: event.product_family,
+      product_model: event.product_model,
+      document_kind: event.document_kind,
+      intent: event.intent,
+      status: "generated",
+      detail: "generated candidate awaiting review",
+      timestamp: event.timestamp,
+    };
+    current.source_filename ||= event.source_filename;
+    current.document_title ||= event.document_title;
+    current.chunk_title ||= event.chunk_title;
+    current.section_path ||= event.section_path;
+    current.page_from ||= event.page_from;
+    current.page_to ||= event.page_to;
+    current.manufacturer ||= event.manufacturer;
+    current.product_family ||= event.product_family;
+    current.product_model ||= event.product_model;
+    current.document_kind ||= event.document_kind;
+    current.intent ||= event.intent;
+    current.timestamp = event.timestamp || current.timestamp;
+    if (event.event === "question_review_started") {
+      current.status = "reviewing";
+      current.detail = "under generation reviewer review";
+    } else if (event.event === "question_review_completed") {
+      current.status = event.approved ? "accepted" : "rejected";
+      current.detail = event.feedback || (event.approved ? "accepted by generation reviewer" : "rejected by generation reviewer");
+    } else if (event.event === "question_generation_rejected") {
+      current.status = "rejected";
+      current.detail = event.reason || "rejected by generation reviewer";
+    } else if (event.event === "question_generation_accepted") {
+      current.status = "accepted";
+      current.detail = "accepted by generation reviewer";
+    }
+    candidates.set(key, current);
+  }
+  return Array.from(candidates.values());
+}
+
+function liveGeneratedQuestionRows() {
+  const job = state.matrixJob || {};
+  if (job.mode !== "generate_questions") return [];
+  const acceptedQuestions = Array.isArray(job.generated_questions) ? job.generated_questions : [];
+  const candidates = liveGeneratedQuestionCandidatesFromEvents(job);
+  for (const question of acceptedQuestions) {
+    const key = candidateKeyForQuestion(question.chunk_id, question.question);
+    if (!candidates.some((candidate) => candidateKeyForQuestion(candidate.chunk_id, candidate.question) === key)) {
+      candidates.push({ ...question, status: "accepted", detail: "accepted by generation reviewer" });
+    }
+  }
+  return candidates.map((question, index) => ({
+    key: `live-generated-question-${index + 1}-${question.chunk_id || "chunk"}`,
+    dataset: "live question generation",
+    dataset_status: "live",
+    question_number: index + 1,
+    case: {
+      query: question.question || "",
+      retrieval_task: job.generation?.retrieval_task || "single_step_retrieval",
+      generation_method: question.intent || "live_question_generation",
+      source_chunk_id: question.chunk_id || "",
+      source_filename: question.source_filename || "",
+      document_title: question.document_title || "",
+      chunk_title: question.chunk_title || "",
+      section_path: question.section_path || "",
+      page_from: question.page_from,
+      page_to: question.page_to,
+      manufacturer: question.manufacturer || "",
+      product_family: question.product_family || "",
+      product_model: question.product_model || "",
+      document_kind: question.document_kind || "",
+    },
+    question_type: {
+      multi_step: job.generation?.retrieval_task === "multi_step_retrieval",
+      multi_document: question.intent === "cross_document",
+      expected_evidence_count: job.generation?.retrieval_task === "multi_step_retrieval" ? 2 : 1,
+    },
+    latest_result: null,
+    cells: generatedCandidateCells(question.status, question.detail),
+    live_generated: true,
+    live_generation_status: question.status,
+    generation_review: generationReviewCell(question.status, question.detail),
+  }));
+}
+
+function matrixItemsWithLiveGeneratedQuestions(payload) {
+  const items = payload?.rows || [];
+  return [...items, ...liveGeneratedQuestionRows()];
+}
+
 function matrixCellsForItem(item = {}) {
   const baseCells = item.cells || buildMatrixCells(item);
   const liveCells = state.matrixJob?.live_cells?.[item.key];
@@ -444,7 +621,13 @@ function normalizedMatrixText(row) {
     item.dataset,
     latest.run_id,
     caseData.source_filename,
+    caseData.document_title,
+    caseData.product_model,
+    caseData.product_family,
+    caseData.section_path,
     answer,
+    item.generation_review?.label,
+    item.generation_review?.detail,
   ].join(" ").toLowerCase();
 }
 
@@ -480,6 +663,7 @@ function matrixSortValue(row, key) {
   const typeInfo = questionTypeInfo(item);
   if (key === "number") return row.index + 1;
   if (key === "question") return String(caseData.query || item.query || "").toLowerCase();
+  if (key === "generation_review") return `${item.generation_review?.status || ""}:${item.generation_review?.label || ""}:${item.generation_review?.detail || ""}`.toLowerCase();
   if (key === "type") return typeInfo.label.toLowerCase();
   if (key === "dataset") return String(item.dataset || "").toLowerCase();
   if (key === "run") return String(item.latest_result?.run_id || (state.matrixJob?.live_cells?.[item.key] ? state.matrixJob?.id : "") || "").toLowerCase();
@@ -591,8 +775,10 @@ function renderMatrixSummary(totals = {}, totalRows = 0) {
 }
 
 function renderQuestionMatrix(payload) {
-  const items = payload?.rows || [];
-  const loaded = Number(payload?.loaded_questions || items.length || 0);
+  const baseItems = payload?.rows || [];
+  const liveItems = liveGeneratedQuestionRows();
+  const items = [...baseItems, ...liveItems];
+  const loaded = Number(payload?.loaded_questions || baseItems.length || 0) + liveItems.length;
   const official = Number(payload?.official_total_questions || 0);
   const countText = official && official !== loaded
     ? `${loaded} loaded / ${official} official`
@@ -637,10 +823,22 @@ function renderQuestionMatrix(payload) {
               ${columns.map((column) => {
                 if (column.key === "number") return `<td data-label="#">${index + 1}</td>`;
                 if (column.key === "question") {
+                  const questionContext = [
+                    caseData.product_model,
+                    caseData.product_family,
+                    caseData.document_title || caseData.chunk_title,
+                    caseData.section_path,
+                    caseData.page_from ? `p. ${caseData.page_from}${caseData.page_to && caseData.page_to !== caseData.page_from ? `-${caseData.page_to}` : ""}` : "",
+                    caseData.source_filename,
+                  ].filter(Boolean).join(" | ");
                   return `<td class="matrix-text-cell" data-label="Question">
                     <strong>${escapeHtml(shortText(caseData.query || item.query, 160))}</strong>
-                    <small>${escapeHtml(caseData.source_filename || "")}</small>
+                    <small>${escapeHtml(questionContext)}</small>
                   </td>`;
+                }
+                if (column.key === "generation_review") {
+                  const cell = item.generation_review || matrixCell("blank", "not generated in the current live job");
+                  return `<td data-label="Review" title="${escapeHtml(cell.detail || MATRIX_COLUMN_HINTS.generation_review)}"><span class="matrix-cell ${escapeHtml(cell.status)}">${escapeHtml(cell.label || matrixStatusLabel(cell))}</span></td>`;
                 }
                 if (column.key === "type") {
                   return `<td data-label="Type" title="${escapeHtml(typeInfo.detail || MATRIX_COLUMN_HINTS.type)}"><span class="question-type ${escapeHtml(typeInfo.className)}">${escapeHtml(typeInfo.label)}</span></td>`;
@@ -690,8 +888,12 @@ function matrixRowElementForKey(key) {
 }
 
 function updateQuestionMatrixLiveState() {
-  const items = state.questionMatrix?.rows || [];
-  if (!items.length || !$("matrix-table")?.querySelector(".matrix-grid")) return;
+  const items = matrixItemsWithLiveGeneratedQuestions(state.questionMatrix);
+  if (!items.length) return;
+  if (!$("matrix-table")?.querySelector(".matrix-grid")) {
+    renderQuestionMatrix(state.questionMatrix);
+    return;
+  }
   const { rows, totals } = getMatrixViewRows(items);
   const renderedKeys = Array.from(document.querySelectorAll("[data-matrix-key]")).map((row) => row.dataset.matrixKey);
   const nextKeys = rows.map((row) => String(row.item.key || ""));
@@ -736,7 +938,86 @@ function isCurrentMatrixJobRow(item = {}) {
     return Number(item.question_number) === Number(job.current_question_number);
   }
   if (!job.current_case_id) return false;
-  return item.key === job.current_case_id;
+  return item.key === (job.current_row_key || `${job.current_dataset}::${job.current_case_id}`);
+}
+
+const MATRIX_GENERATION_CONTROL_IDS = [
+  "matrix-generation-task",
+  "matrix-generation-family",
+  "matrix-generation-count",
+  "matrix-generation-offset",
+  "matrix-generation-window",
+  "matrix-generation-per-window",
+  "matrix-generation-num-ctx",
+  "matrix-generation-timeout",
+  "matrix-generation-resume",
+  "matrix-generation-prompt",
+];
+
+function readSavedMatrixGenerationDefaults() {
+  try {
+    const payload = JSON.parse(localStorage.getItem(MATRIX_GENERATION_DEFAULTS_KEY) || "{}");
+    const defaults = payload && typeof payload === "object" ? payload : {};
+    const savedPrompt = String(defaults["matrix-generation-prompt"] || "").trim();
+    if (!savedPrompt || MATRIX_GENERATION_LEGACY_DEFAULT_PROMPTS.has(savedPrompt)) {
+      defaults["matrix-generation-prompt"] = MATRIX_GENERATION_DEFAULT_PROMPT;
+    }
+    const savedNumCtx = String(defaults["matrix-generation-num-ctx"] || "").trim();
+    if (!savedNumCtx || MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX.has(savedNumCtx)) {
+      defaults["matrix-generation-num-ctx"] = MATRIX_GENERATION_DEFAULT_NUM_CTX;
+    }
+    return defaults;
+  } catch {
+    return { "matrix-generation-prompt": MATRIX_GENERATION_DEFAULT_PROMPT, "matrix-generation-num-ctx": MATRIX_GENERATION_DEFAULT_NUM_CTX };
+  }
+}
+
+function applyMatrixGenerationDefaults() {
+  const defaults = readSavedMatrixGenerationDefaults();
+  for (const id of MATRIX_GENERATION_CONTROL_IDS) {
+    const node = $(id);
+    if (!node || !(id in defaults)) continue;
+    if (node.type === "checkbox") {
+      node.checked = Boolean(defaults[id]);
+    } else {
+      node.value = String(defaults[id] ?? "");
+    }
+  }
+}
+
+function collectMatrixGenerationDefaults() {
+  const defaults = {};
+  for (const id of MATRIX_GENERATION_CONTROL_IDS) {
+    const node = $(id);
+    if (!node) continue;
+    defaults[id] = node.type === "checkbox" ? Boolean(node.checked) : node.value;
+  }
+  return defaults;
+}
+
+function saveMatrixGenerationDefaults() {
+  localStorage.setItem(MATRIX_GENERATION_DEFAULTS_KEY, JSON.stringify(collectMatrixGenerationDefaults()));
+}
+
+function setGenerationFieldEnabled(wrapper, enabled) {
+  wrapper.hidden = !enabled;
+  wrapper.querySelectorAll("input, select, textarea").forEach((control) => {
+    control.disabled = !enabled;
+  });
+}
+
+function updateMatrixGenerationControlVisibility() {
+  const task = $("matrix-generation-task")?.value || "single_step_retrieval";
+  const isSingleStep = task === "single_step_retrieval";
+  document.querySelectorAll("[data-generation-field]").forEach((wrapper) => {
+    const mode = wrapper.dataset.generationField;
+    const enabled =
+      mode === "always" ||
+      (mode === "single" && isSingleStep) ||
+      (mode === "multi" && !isSingleStep) ||
+      (mode === "single-llm" && isSingleStep);
+    setGenerationFieldEnabled(wrapper, enabled);
+  });
 }
 
 function setupMatrixControls() {
@@ -745,10 +1026,25 @@ function setupMatrixControls() {
     select.innerHTML = MATRIX_STAGES.map((stage) => `<option value="${escapeHtml(stage.key)}">${escapeHtml(stage.label)}</option>`).join("");
     select.value = "retrieval";
   }
+  applyMatrixGenerationDefaults();
+  MATRIX_GENERATION_CONTROL_IDS.forEach((id) => {
+    $(id)?.addEventListener("input", () => {
+      saveMatrixGenerationDefaults();
+      updateMatrixGenerationControlVisibility();
+    });
+    $(id)?.addEventListener("change", () => {
+      saveMatrixGenerationDefaults();
+      updateMatrixGenerationControlVisibility();
+    });
+  });
+  updateMatrixGenerationControlVisibility();
   state.matrixVisibleColumns = { ...MATRIX_DEFAULT_VISIBLE_COLUMNS };
   renderMatrixColumnControls();
   $("matrix-run-all-bank")?.addEventListener("click", () => startMatrixJob({ mode: "all_bank" }));
   $("matrix-run-column")?.addEventListener("click", () => startMatrixJob({ mode: "column", column: $("matrix-column")?.value || "retrieval" }));
+  $("matrix-generate-questions")?.addEventListener("click", startQuestionGenerationJob);
+  $("matrix-clear-questions")?.addEventListener("click", clearGeneratedQuestions);
+  $("matrix-reset-bank")?.addEventListener("click", resetQuestionBank);
   $("matrix-refresh")?.addEventListener("click", loadQuestionMatrix);
   $("matrix-clear-results")?.addEventListener("click", clearMatrixResults);
   $("matrix-stop")?.addEventListener("click", stopMatrixJob);
@@ -785,7 +1081,7 @@ function setupMatrixControls() {
 }
 
 function setMatrixControlsBusy(busy) {
-  ["matrix-run-all-bank", "matrix-run-column", "matrix-clear-results"].forEach((id) => {
+  ["matrix-run-all-bank", "matrix-run-column", "matrix-clear-results", "matrix-generate-questions", "matrix-clear-questions", "matrix-reset-bank"].forEach((id) => {
     const button = $(id);
     if (button) button.disabled = busy;
   });
@@ -804,15 +1100,36 @@ function renderMatrixJobStatus(job) {
   }
   const completed = Number(job.completed_datasets || 0);
   const total = Number(job.dataset_count || 0);
-  const modeLabel = job.mode === "column" ? `Column: ${MATRIX_STAGES.find((stage) => stage.key === job.column)?.label || job.column}` : "All bank";
+  const modeLabel = job.mode === "generate_questions"
+    ? "Generate questions"
+    : (job.mode === "column" ? `Column: ${MATRIX_STAGES.find((stage) => stage.key === job.column)?.label || job.column}` : "All bank");
   const judgeText = job.use_model_judge ? "model judge on" : "model judge off";
+  const generationText = job.generation
+    ? `${job.generation.retrieval_task === "multi_step_retrieval" ? "multi-step" : "single-step"} | ${job.generation.max_questions || 0} questions | offset ${job.generation.chunk_offset || 0} | attempt window ${job.generation.chunk_window || "all"} | ${job.generation.previous_question_dataset_count || 0} history files`
+    : "";
   const questionText = job.current_question_number ? `question ${job.current_question_number}` : "";
   const recoveredText = job.recovered ? "recovered after UI restart" : "";
   const recentEvents = Array.isArray(job.events) ? job.events.slice(-6) : [];
+  const generatedQuestions = Array.isArray(job.generated_questions) ? job.generated_questions : [];
+  const visibleQuestions = generatedQuestions.slice(-25).reverse();
+  const eventDetailText = (event) => {
+    const preview = Array.isArray(event.preview) ? event.preview.join(" | ") : String(event.preview || "");
+    return [
+      event.matrix_key || event.step,
+      event.label || event.status,
+      event.question_number ? `q${event.question_number}` : "",
+      event.generated_count != null ? `${event.generated_count} generated` : "",
+      event.accepted_count != null ? `${event.accepted_count} accepted` : "",
+      event.approved != null ? `approved: ${Boolean(event.approved)}` : "",
+      event.done ? "done" : "",
+      event.question || preview || event.feedback || event.reason,
+      event.source_filename,
+    ].filter(Boolean).join(" | ");
+  };
   node.className = job.status === "failed" ? "error-box" : "empty-state";
   node.innerHTML = `
     <strong>${escapeHtml(modeLabel)} ${escapeHtml(job.status || "queued")}</strong>
-    <span>${escapeHtml(`${completed}/${total} datasets | ${job.response_mode || ""} | ${judgeText}`)}</span>
+    <span>${escapeHtml(generationText || `${completed}/${total} datasets | ${job.response_mode || ""} | ${judgeText}`)}</span>
     ${job.current_dataset ? `<small>${escapeHtml([job.current_dataset, questionText].filter(Boolean).join(" | "))}</small>` : ""}
     ${job.event_log_path ? `<small>${escapeHtml(`history: ${job.event_log_path}`)}</small>` : ""}
     ${recoveredText ? `<small>${escapeHtml(recoveredText)}</small>` : ""}
@@ -823,10 +1140,26 @@ function renderMatrixJobStatus(job) {
           <li>
             <span>${escapeHtml(event.timestamp || "")}</span>
             <strong>${escapeHtml(event.event || "")}</strong>
-            <small>${escapeHtml([event.matrix_key || event.step, event.label || event.status, event.question_number ? `q${event.question_number}` : ""].filter(Boolean).join(" | "))}</small>
+            <small>${escapeHtml(eventDetailText(event))}</small>
           </li>
         `).join("")}
       </ol>
+    ` : ""}
+    ${visibleQuestions.length ? `
+      <div class="generated-question-list">
+        <strong>Generated questions (${Number(job.generated_question_count || generatedQuestions.length)})</strong>
+        <ol>
+          ${visibleQuestions.map((item) => `
+            <li>
+              <span>
+                <span class="matrix-cell ${escapeHtml(item.review_status === "accepted" || item.status === "accepted" ? "pass" : "blank")}">${escapeHtml(item.review_label || (item.review_status === "accepted" || item.status === "accepted" ? "ACCEPT" : "PENDING"))}</span>
+                ${escapeHtml(item.question || "")}
+              </span>
+              <small>${escapeHtml([item.source_filename, item.section_path, item.chunk_id, item.intent].filter(Boolean).join(" | "))}</small>
+            </li>
+          `).join("")}
+        </ol>
+      </div>
     ` : ""}
   `;
   const busy = ["queued", "running", "stopping"].includes(job.status);
@@ -867,6 +1200,48 @@ async function startMatrixJob({ mode, column = "retrieval" }) {
   }
 }
 
+function intFromControl(id, fallback) {
+  const value = Number.parseInt($(id)?.value || "", 10);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function questionGenerationPayload() {
+  const retrievalTask = $("matrix-generation-task")?.value || "single_step_retrieval";
+  const isSingleStep = retrievalTask === "single_step_retrieval";
+  return {
+    retrieval_task: retrievalTask,
+    multi_step_case_family: isSingleStep ? "all" : ($("matrix-generation-family")?.value || "all"),
+    max_questions: intFromControl("matrix-generation-count", 20),
+    chunk_offset: intFromControl("matrix-generation-offset", 0),
+    chunk_window: intFromControl("matrix-generation-window", 0),
+    questions_per_window: isSingleStep ? intFromControl("matrix-generation-per-window", 1) : 1,
+    num_ctx: isSingleStep ? intFromControl("matrix-generation-num-ctx", Number(MATRIX_GENERATION_DEFAULT_NUM_CTX)) : 0,
+    per_query_timeout_seconds: intFromControl("matrix-generation-timeout", 60),
+    warmup_queries: 0,
+    resume_previous_questions: isSingleStep && Boolean($("matrix-generation-resume")?.checked),
+    use_llm_generation: isSingleStep,
+    prompt_guidance: isSingleStep ? ($("matrix-generation-prompt")?.value || "") : "",
+  };
+}
+
+async function startQuestionGenerationJob() {
+  if (state.matrixJob && ["queued", "running", "stopping"].includes(state.matrixJob.status)) {
+    renderMatrixJobStatus(state.matrixJob);
+    return;
+  }
+  if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
+  const payload = questionGenerationPayload();
+  renderMatrixJobStatus({ status: "queued", mode: "generate_questions", generation: payload, dataset_count: 1, completed_datasets: 0 });
+  try {
+    const job = await localPostJson("/local/question-matrix/generate", payload);
+    state.matrixJob = job;
+    renderMatrixJobStatus(job);
+    pollMatrixJob(job.id);
+  } catch (error) {
+    renderMatrixJobStatus({ status: "failed", mode: "generate_questions", generation: payload, error: error.message, dataset_count: 1, completed_datasets: 0 });
+  }
+}
+
 async function stopMatrixJob() {
   const jobId = state.matrixJob?.id;
   if (!jobId || !["queued", "running", "stopping"].includes(state.matrixJob?.status)) return;
@@ -894,6 +1269,54 @@ async function clearMatrixResults() {
     renderMatrixJobStatus(null);
     await loadQuestionMatrix();
     $("matrix-action-status").textContent = `Cleared ${result.total_deleted || 0} saved result file(s).`;
+  } catch (error) {
+    renderMatrixJobStatus({ status: "failed", error: error.message, dataset_count: 0, completed_datasets: 0 });
+  }
+}
+
+async function clearGeneratedQuestions() {
+  if (state.matrixJob && ["queued", "running", "stopping"].includes(state.matrixJob.status)) {
+    renderMatrixJobStatus(state.matrixJob);
+    return;
+  }
+  if (!window.confirm("Clear all questions from the matrix view? Question-bank files and the manifest will be kept.")) return;
+  try {
+    const result = await localPostJson("/local/question-matrix/questions/clear", {});
+    if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
+    state.matrixJobTimer = null;
+    state.matrixJob = null;
+    state.selectedMatrixKey = null;
+    state.selectedMatrixIndex = 0;
+    const resumeControl = $("matrix-generation-resume");
+    if (resumeControl) {
+      resumeControl.checked = false;
+      saveMatrixGenerationDefaults();
+    }
+    renderMatrixJobStatus(null);
+    await loadQuestionMatrix();
+    $("matrix-action-status").textContent = `Cleared question list. Removed ${result.total_deleted || 0} generated question dataset(s).`;
+  } catch (error) {
+    renderMatrixJobStatus({ status: "failed", error: error.message, dataset_count: 0, completed_datasets: 0 });
+  }
+}
+
+async function resetQuestionBank() {
+  if (state.matrixJob && ["queued", "running", "stopping"].includes(state.matrixJob.status)) {
+    renderMatrixJobStatus(state.matrixJob);
+    return;
+  }
+  const confirmation = window.prompt("This will reset the official question bank and move listed bank files into a timestamped backup folder. Type RESET BANK to continue.");
+  if (confirmation !== "RESET BANK") return;
+  try {
+    const result = await localPostJson("/local/question-matrix/bank/reset", {});
+    if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
+    state.matrixJobTimer = null;
+    state.matrixJob = null;
+    state.selectedMatrixKey = null;
+    state.selectedMatrixIndex = 0;
+    renderMatrixJobStatus(null);
+    await loadQuestionMatrix();
+    $("matrix-action-status").textContent = `Reset question bank. Moved ${result.total_moved || 0} file(s) to ${result.backup_dir || "backup"}.`;
   } catch (error) {
     renderMatrixJobStatus({ status: "failed", error: error.message, dataset_count: 0, completed_datasets: 0 });
   }

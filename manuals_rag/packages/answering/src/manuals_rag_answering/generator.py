@@ -1328,7 +1328,7 @@ def generate_answer_with_trace(
             "model": settings.ollama_answer_model,
             "prompt_kind": "final_answer",
             "think": False,
-            "num_predict": -1,
+            "num_predict": settings.ollama_answer_num_predict,
             "used_fallback": False,
             "answer_source": "model",
             "fallback_reason": None,
@@ -1364,7 +1364,7 @@ def generate_answer_with_trace(
             messages=messages,
             json_schema=ANSWER_SCHEMA,
             think=False,
-            num_predict=-1,
+            num_predict=settings.ollama_answer_num_predict,
             timeout=90.0,
             purpose="final_answer",
         )
@@ -1433,10 +1433,47 @@ def prioritize_results_for_answer(query: str, candidate_results: list[SearchResu
     if not prioritized_results:
         prioritized_results = candidate_results
     prioritized_results = _focused_troubleshooting_results(query, _order_troubleshooting_results(query, prioritized_results))
+    protected_chunk_ids = {
+        result.chunk_id
+        for result in [*anchored_results, *comparison_evidence, *procedure_evidence]
+    }
+    original_rank = {result.chunk_id: index for index, result in enumerate(prioritized_results)}
+    verdict_priority = {"relevant": 2, "potentially_relevant": 1, "not_relevant": 0}
+    prioritized_results.sort(
+        key=lambda result: (
+            result.chunk_id in protected_chunk_ids,
+            _distinctive_query_coverage(query, result),
+            verdict_priority.get(judgment_by_chunk_id.get(result.chunk_id, {}).get("verdict", ""), 0),
+            _query_evidence_overlap_score(query, result),
+            -original_rank[result.chunk_id],
+        ),
+        reverse=True,
+    )
     return {
         "judgments": judgments,
         "prioritized_results": prioritized_results,
     }
+
+
+def _distinctive_query_coverage(query: str, result: SearchResult) -> int:
+    distinctive_terms = {
+        term
+        for term in _answer_terms(query)
+        if len(term) >= 10 or any(char.isdigit() for char in term) or "-" in term or "/" in term
+    }
+    if not distinctive_terms:
+        return 0
+    evidence_terms = _answer_terms(
+        " ".join([_evidence_text(result), result.title, " ".join(result.section_path)])
+    )
+    return len(distinctive_terms.intersection(evidence_terms))
+
+
+def _query_evidence_overlap_score(query: str, result: SearchResult) -> int:
+    ignored = {"which", "series", "system", "manual", "does", "what", "when", "where"}
+    query_terms = _answer_terms(query).difference(ignored)
+    evidence_terms = _answer_terms(_evidence_text(result))
+    return len(query_terms.intersection(evidence_terms))
 
 
 def _fallback_relevance_judgments(query: str, results: list[SearchResult]) -> list[dict[str, str]]:

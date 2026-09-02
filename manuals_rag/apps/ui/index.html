@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260827-ingestion-width-1" />
+    <link rel="stylesheet" href="/styles.css?v=20260830-clear-question-list-2" />
   </head>
   <body>
     <main class="app-shell">
@@ -121,6 +121,65 @@
             <button id="matrix-clear-results" type="button">Clear Results</button>
             <button id="matrix-stop" type="button" disabled>Stop</button>
           </div>
+          <details class="matrix-generation-controls" open>
+            <summary>Question generation</summary>
+            <div class="matrix-generation-grid">
+              <label data-generation-field="always">
+                Type
+                <select id="matrix-generation-task">
+                  <option value="single_step_retrieval">Single-step</option>
+                  <option value="multi_step_retrieval">Multi-step</option>
+                </select>
+              </label>
+              <label data-generation-field="multi">
+                Multi-step family
+                <select id="matrix-generation-family">
+                  <option value="all">All</option>
+                  <option value="contextual_section">Contextual section</option>
+                  <option value="warning_step">Warning + step</option>
+                  <option value="cross_document">Cross-document</option>
+                  <option value="sibling_table_rows">Sibling table rows</option>
+                </select>
+              </label>
+              <label data-generation-field="always">
+                Questions
+                <input id="matrix-generation-count" type="number" min="1" max="10000" value="20" />
+              </label>
+              <label data-generation-field="always">
+                Chunk offset
+                <input id="matrix-generation-offset" type="number" min="0" value="0" />
+              </label>
+              <label data-generation-field="always">
+                Attempt window
+                <input id="matrix-generation-window" type="number" min="0" value="0" />
+              </label>
+              <label data-generation-field="single">
+                Questions per window
+                <input id="matrix-generation-per-window" type="number" min="1" max="20" value="1" />
+              </label>
+              <label data-generation-field="single-llm">
+                Model context
+                <input id="matrix-generation-num-ctx" type="number" min="0" max="262144" value="4096" />
+              </label>
+              <label data-generation-field="always">
+                Query timeout
+                <input id="matrix-generation-timeout" type="number" min="1" max="3600" value="60" />
+              </label>
+              <label class="inline-check" data-generation-field="single">
+                <input id="matrix-generation-resume" type="checkbox" checked />
+                <span>Use prior questions as generation history</span>
+              </label>
+              <label class="matrix-generation-prompt" data-generation-field="single-llm">
+                Prompt guidance
+                <textarea id="matrix-generation-prompt" rows="3">Generate realistic engineer, technician, sales, support, or manager questions that are specific to the supplied source content. First use the document context to identify the product/device, parent article, feature area, and source-backed answer. Prefer concrete procedures, specs, limits, warnings, settings, table row subjects, units, symptoms, and user-visible product anchors when the source supports them. Optimize for useful retrieval questions, not exhaustive coverage of every parseable cell. Avoid vague questions, filename/document artifacts, and questions about storage format, display precision, parser coordinates, or internal representation unless clearly user-facing. If the source window cannot support a specific non-duplicative user-style question, return NONE.</textarea>
+              </label>
+              <div class="matrix-generation-buttons">
+                <button id="matrix-generate-questions" type="button">Generate Questions</button>
+                <button id="matrix-clear-questions" type="button">Clear Questions</button>
+                <button id="matrix-reset-bank" type="button">Reset Bank</button>
+              </div>
+            </div>
+          </details>
           <div id="matrix-action-status" class="empty-state">No matrix job running.</div>
           <div class="matrix-view-controls">
             <label>
@@ -213,6 +272,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260827-ingestion-width-1"></script>
+    <script src="/app.js?v=20260830-clear-question-list-2"></script>
   </body>
 </html>
