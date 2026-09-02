@@ -225,6 +225,73 @@ def _requested_product_sides(query: str) -> list[tuple[str, bool]]:
     return sides
 
 
+def _requested_troubleshooting_identifier_side_bindings(
+    query: str,
+) -> dict[str, list[tuple[str, bool]]]:
+    """Bind explicit diagnostic codes to the product sides stated with them.
+
+    Interleaved product/code wording (``MODEL Error 1 and OTHER Error 2`` or
+    ``Error 1 on MODEL versus Error 2 on OTHER``) preserves the nearest stated
+    relation.  When multiple products and codes are grouped separately, the
+    wording does not establish one-to-one pairs, so every code must be supported
+    for every product rather than manufacturing a pairing from token order.
+    """
+    code_matches = list(
+        re.finditer(
+            r"\b(?:error|alarm|fault)(?:\s+(?:number|code))?\s*[:#-]?\s*"
+            r"([a-z]*\d[a-z0-9._/-]*)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    requested_ids = {
+        identifier
+        for match in code_matches
+        if (identifier := _normalized_phrase(match.group(1)))
+    }
+    if len(requested_ids) < 2:
+        return {}
+
+    side_occurrences: list[tuple[int, int, tuple[str, bool]]] = [
+        (match.start(), match.end(), (match.group(0).upper(), False))
+        for match in MODEL_TOKEN_RE.finditer(query)
+    ]
+    model_spans = {(start, end) for start, end, _side in side_occurrences}
+    for match in re.finditer(r"\b([A-Z][A-Z0-9-]{1,14})\s+(?:Series|Family)\b", query):
+        label_span = (match.start(1), match.end(1))
+        if label_span not in model_spans:
+            side_occurrences.append((match.start(), match.end(), (match.group(1).upper(), True)))
+
+    unique_sides = list(dict.fromkeys(side for _start, _end, side in side_occurrences))
+    if not unique_sides:
+        return {}
+    if len(unique_sides) == 1:
+        return {identifier: unique_sides.copy() for identifier in requested_ids}
+
+    code_starts = [match.start() for match in code_matches]
+    side_starts = [start for start, _end, _side in side_occurrences]
+    if max(side_starts) < min(code_starts) or max(code_starts) < min(side_starts):
+        return {identifier: unique_sides.copy() for identifier in requested_ids}
+
+    bindings: dict[str, list[tuple[str, bool]]] = {}
+    for match in code_matches:
+        identifier = _normalized_phrase(match.group(1))
+        nearest = min(
+            side_occurrences,
+            key=lambda item: (
+                match.start() - item[1]
+                if item[1] <= match.start()
+                else item[0] - match.end()
+                if match.end() <= item[0]
+                else 0
+            ),
+        )[2]
+        bindings.setdefault(identifier, [])
+        if nearest not in bindings[identifier]:
+            bindings[identifier].append(nearest)
+    return bindings
+
+
 def _result_matches_requested_product_side(
     result: SearchResult,
     side: tuple[str, bool],
@@ -2407,29 +2474,31 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
     requested_product_sides = _requested_product_sides(query)
     requested_numeric_ids = {identifier for identifier in requested_ids if identifier.isdigit()}
     if _is_comparison_query(query) and len(requested_numeric_ids) >= 2:
+        side_bindings = _requested_troubleshooting_identifier_side_bindings(query)
         requested_rows: list[SearchResult] = []
         seen_chunks: set[str] = set()
         for requested_id in requested_numeric_ids:
-            match = next(
-                (
-                    result
-                    for result in ordered_results
-                    if requested_id in _troubleshooting_row_identifiers(result)
-                    and (
-                        not requested_product_sides
-                        or any(
-                            _result_matches_requested_product_side(result, side)
-                            for side in requested_product_sides
-                        )
-                    )
-                ),
-                None,
-            )
-            if match is None:
+            required_sides = side_bindings.get(requested_id, [])
+            if requested_product_sides and not required_sides:
                 return []
-            if match.chunk_id not in seen_chunks:
-                requested_rows.append(match)
-                seen_chunks.add(match.chunk_id)
+            for required_side in required_sides or [None]:
+                match = next(
+                    (
+                        result
+                        for result in ordered_results
+                        if requested_id in _troubleshooting_row_identifiers(result)
+                        and (
+                            required_side is None
+                            or _result_matches_requested_product_side(result, required_side)
+                        )
+                    ),
+                    None,
+                )
+                if match is None:
+                    return []
+                if match.chunk_id not in seen_chunks:
+                    requested_rows.append(match)
+                    seen_chunks.add(match.chunk_id)
         return requested_rows
     if (
         _is_comparison_query(query)

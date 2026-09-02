@@ -6949,3 +6949,17 @@ Next target:
 Next target:
 
 - Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse `/tmp/manuals_rag_accuracy_20260901`.
+
+## 2026-09-02 Cron 39262386 Cross-Product Multi-Error Grounding Containment
+
+- Freshness/worktree: fetched `origin`, enumerated registered worktrees before edits, and reused the mandated clean registered accuracy worktree `/tmp/manuals_rag_accuracy_20260901`. It was fast-forwarded from `3ddc77e` to guardrail commit `ec14052`; no new worktree was created, reset, cleaned, stashed, or bypassed.
+- Guardrail target: addressed `ec14052` / `2026-09-02T18:11:50Z` `needs_fix`. Multi-error fallback no longer accepts each requested diagnostic code from any requested product. Explicit interleaved code/product relations are bound positionally; grouped multi-product/multi-code wording requires complete product-side coverage instead of inventing pairs.
+- Controls: focused answering controls passed `8 passed, 135 deselected`, covering legitimate relation binding, swapped bindings, both codes from one product, reversed order, grouped ambiguity, grouped-row reuse, missing code, and wrong product. The complete fixture-mounted CPU unit gate passed `619 passed, 59 warnings` in 437.92s. A prior GPU gate passed 618 tests and had one unrelated Docling CUDA-OOM page-coverage failure; it is diagnostic only.
+- Runtime load: restarted existing job-owned `manuals-rag-temp-api-39262386-20260902-0726` on `http://127.0.0.1:9193`; health returned OK. Host/container `generator.py` SHA-256 matched `fcd58f8c8beb61358f76ee37aef51ae06e3be641831d0e6b1fac81c3f2017b21`; loaded `_fallback_evidence_results` SHA-256 was `12585f2687e5bab8b828c9bae1f462c623105f4162843a0afc58ec6f3fe42406`. Existing local model/provider/embedding/reranker settings were unchanged.
+- Actual HTTP evidence: validation-only `retrieval_eval_20260902_182758` positive passed retrieval at rank 1 and answer grounding 1/1 with `fallback_validation`. Manual inspection confirmed its user-visible answer cites exact CV-X482 Error 10101 chunk `423d72f0` and VS Series Error 30109 chunk `be25fb78`, both with null quote spans; each cited returned chunk directly supports its assigned claim. The swapped/missing-side control returned `insufficient_evidence=true` with no citations and remains an intentional diagnostic failure, so the combined 1/2 run is not claimed clean.
+- Coverage/ledger: active coverage remains 209 total (101 single-step, 108 multi-step), exploratory 209, replacement debt 0. The new source-reviewed dataset and generated 182758 artifacts are validation-only and do not increase active bank counts or require a new active dataset-ledger entry.
+- Cleanup ordering: selected worktree `/tmp/manuals_rag_accuracy_20260901`; removal command/result: `not attempted`. Existing permission-blocked cleanup history makes deregistration unsafe, and this known clean registered worktree must remain available for mandatory reuse. The exact path remains registered and present; no force removal, recursive deletion, prune, or primary-checkout mutation was attempted.
+
+Next target:
+
+- Await independent guardrail review of the code-to-product relation binding correction. Preserve the mixed 182758 run as one source-grounded positive plus one intentional fail-closed diagnostic, and reuse `/tmp/manuals_rag_accuracy_20260901`.

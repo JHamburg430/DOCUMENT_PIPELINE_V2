@@ -4055,6 +4055,78 @@ def test_fallback_evidence_does_not_fill_requested_error_from_wrong_product():
     assert selected == []
 
 
+def test_fallback_evidence_binds_each_requested_error_to_its_product_side():
+    cv = _troubleshooting_row("cv-error-10101", "10101")
+    cv.metadata["product_model"] = "CV-X482"
+    vs = _troubleshooting_row("vs-error-10115", "10115")
+    vs.metadata["product_family"] = "VS"
+
+    selected = _fallback_evidence_results(
+        "For CV-X482 Error 10101 and VS Series Error 10115, compare causes and remedies.",
+        [vs, cv],
+    )
+
+    assert {result.chunk_id for result in selected} == {"cv-error-10101", "vs-error-10115"}
+
+
+def test_fallback_evidence_rejects_swapped_error_product_bindings():
+    cv_wrong = _troubleshooting_row("cv-error-10115", "10115")
+    cv_wrong.metadata["product_model"] = "CV-X482"
+    vs_wrong = _troubleshooting_row("vs-error-10101", "10101")
+    vs_wrong.metadata["product_family"] = "VS"
+
+    selected = _fallback_evidence_results(
+        "For CV-X482 Error 10101 and VS Series Error 10115, compare causes and remedies.",
+        [cv_wrong, vs_wrong],
+    )
+
+    assert selected == []
+
+
+def test_fallback_evidence_rejects_two_codes_from_only_one_requested_product():
+    first = _troubleshooting_row("cv-error-10101", "10101")
+    first.metadata["product_model"] = "CV-X482"
+    second = _troubleshooting_row("cv-error-10115", "10115")
+    second.metadata["product_model"] = "CV-X482"
+
+    selected = _fallback_evidence_results(
+        "For CV-X482 Error 10101 and VS Series Error 10115, compare causes and remedies.",
+        [first, second],
+    )
+
+    assert selected == []
+
+
+def test_fallback_evidence_preserves_reversed_error_product_order():
+    cv = _troubleshooting_row("cv-error-10101", "10101")
+    cv.metadata["product_model"] = "CV-X482"
+    vs = _troubleshooting_row("vs-error-10115", "10115")
+    vs.metadata["product_family"] = "VS"
+
+    selected = _fallback_evidence_results(
+        "Compare Error 10115 on VS Series with Error 10101 on CV-X482.",
+        [cv, vs],
+    )
+
+    assert {result.chunk_id for result in selected} == {"cv-error-10101", "vs-error-10115"}
+
+
+def test_fallback_evidence_requires_all_sides_for_grouped_codes_and_products():
+    cv_first = _troubleshooting_row("cv-error-10101", "10101")
+    cv_first.metadata["product_model"] = "CV-X482"
+    vs_first = _troubleshooting_row("vs-error-10101", "10101")
+    vs_first.metadata["product_family"] = "VS"
+    cv_second = _troubleshooting_row("cv-error-10115", "10115")
+    cv_second.metadata["product_model"] = "CV-X482"
+
+    selected = _fallback_evidence_results(
+        "For CV-X482 and VS Series, compare Error 10101 and Error 10115.",
+        [cv_first, vs_first, cv_second],
+    )
+
+    assert selected == []
+
+
 def test_validate_answer_fallback_fails_closed_for_explicit_code_superstring():
     sibling = SearchResult(
         chunk_id="sibling", score=1.0, title="CV-X482 Manual", document_version_id="v1",

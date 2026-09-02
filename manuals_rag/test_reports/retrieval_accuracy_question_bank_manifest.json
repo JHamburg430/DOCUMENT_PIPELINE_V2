@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a66cbed",
@@ -706,9 +706,10 @@
       "retrieval_eval_20260902_013157 sibling troubleshooting row 17 source-reviewed visible row-group citation",
       "retrieval_eval_20260902_124857 Error 30109 cross-model exact-code grounded answer",
       "retrieval_eval_20260902_161158 multi-error Error 10109/10110 row-group grounded answer",
-      "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer"
+      "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer",
+      "retrieval_eval_20260902_182758 cross-product Error 10101/30109 relation-bound grounded answer"
     ],
-    "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_180540 are accepted under source-reviewed visible-citation-content scoring. The latest positive states both requested Error 10101/10115 causes and remedies from two distinct page-1274/page-1275 chunks; the paired Error 10101/99999 missing-side control failed closed.",
+    "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_182758 positive are accepted under source-reviewed visible-citation-content scoring. The latest positive binds CV-X482 Error 10101 to chunk 423d72f0 and VS Series Error 30109 to chunk be25fb78; the swapped/missing-side control failed closed with no citations.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -730,12 +731,16 @@
       "multi_error_distinct_chunks_source_dataset": "test_reports/retrieval_eval_dataset_20260902_1358_multi_error_distinct_chunks_validation.jsonl",
       "multi_error_distinct_chunks_clean_results": "test_reports/retrieval_eval_results_20260902_180540.jsonl",
       "multi_error_distinct_chunks_clean_summary": "test_reports/retrieval_eval_summary_20260902_180540.json",
-      "multi_error_distinct_chunks_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_180540.json"
+      "multi_error_distinct_chunks_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_180540.json",
+      "cross_product_error_binding_validation_dataset": "test_reports/retrieval_eval_dataset_20260902_1423_cross_product_error_binding_validation.jsonl",
+      "cross_product_error_binding_clean_results": "test_reports/retrieval_eval_results_20260902_182758.jsonl",
+      "cross_product_error_binding_clean_summary": "test_reports/retrieval_eval_summary_20260902_182758.json",
+      "cross_product_error_binding_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_182758.json"
     },
     "current_answer_failures": {},
-    "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260902_180540.jsonl. The positive user-visible fallback cites exact chunks 423d72f0 page 1274 and 148e6e4f page 1275; each chunk directly supports its retained error cause and corrective action, and both quote_span values are null. The Error 10101/99999 control returned insufficient_evidence=true with no citations.",
-    "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
-    "latest_clean_run": "retrieval_eval_20260902_180540"
+    "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260902_182758.jsonl. The positive user-visible fallback cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans; each returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
+    "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "latest_clean_run": "retrieval_eval_20260902_182758 positive only"
   },
   "constraints": {
     "allowed_logic": [
@@ -9227,7 +9232,7 @@
       ]
     }
   ],
-  "next_target": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10196,7 +10201,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a66cbed",
@@ -10476,9 +10481,10 @@
         "retrieval_eval_20260902_013157 sibling troubleshooting row 17 source-reviewed visible row-group citation",
         "retrieval_eval_20260902_124857 Error 30109 cross-model exact-code grounded answer",
         "retrieval_eval_20260902_161158 multi-error Error 10109/10110 row-group grounded answer",
-        "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer"
+        "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer",
+        "retrieval_eval_20260902_182758 cross-product Error 10101/30109 relation-bound grounded answer"
       ],
-      "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_180540 are accepted under source-reviewed visible-citation-content scoring. The latest positive states both requested Error 10101/10115 causes and remedies from two distinct page-1274/page-1275 chunks; the paired Error 10101/99999 missing-side control failed closed.",
+      "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260902_182758 positive are accepted under source-reviewed visible-citation-content scoring. The latest positive binds CV-X482 Error 10101 to chunk 423d72f0 and VS Series Error 30109 to chunk be25fb78; the swapped/missing-side control failed closed with no citations.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10500,12 +10506,16 @@
         "multi_error_distinct_chunks_source_dataset": "test_reports/retrieval_eval_dataset_20260902_1358_multi_error_distinct_chunks_validation.jsonl",
         "multi_error_distinct_chunks_clean_results": "test_reports/retrieval_eval_results_20260902_180540.jsonl",
         "multi_error_distinct_chunks_clean_summary": "test_reports/retrieval_eval_summary_20260902_180540.json",
-        "multi_error_distinct_chunks_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_180540.json"
+        "multi_error_distinct_chunks_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_180540.json",
+        "cross_product_error_binding_validation_dataset": "test_reports/retrieval_eval_dataset_20260902_1423_cross_product_error_binding_validation.jsonl",
+        "cross_product_error_binding_clean_results": "test_reports/retrieval_eval_results_20260902_182758.jsonl",
+        "cross_product_error_binding_clean_summary": "test_reports/retrieval_eval_summary_20260902_182758.json",
+        "cross_product_error_binding_clean_manifest": "test_reports/retrieval_eval_manifest_20260902_182758.json"
       },
       "current_answer_failures": {},
-      "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260902_180540.jsonl. The positive user-visible fallback cites exact chunks 423d72f0 page 1274 and 148e6e4f page 1275; each chunk directly supports its retained error cause and corrective action, and both quote_span values are null. The Error 10101/99999 control returned insufficient_evidence=true with no citations.",
-      "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
-      "latest_clean_run": "retrieval_eval_20260902_180540"
+      "manual_jsonl_inspection": "Inspected both cases in retrieval_eval_results_20260902_182758.jsonl. The positive user-visible fallback cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans; each returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
+      "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
+      "latest_clean_run": "retrieval_eval_20260902_182758 positive only"
     },
     "current_answer_failure_categories": {},
     "current_answer_failure_source": "retrieval_eval_20260902_180540 positive passed actual HTTP answer grounding 1/1 across two distinct cited chunks; its intentional Error 99999 missing-side control failed closed, while older diagnostic/not-clean runs remain preserved.",
@@ -12968,7 +12978,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13005,7 +13015,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13777,6 +13787,22 @@
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-09-02T18:11:50Z",
+        "severity": "needs_fix",
+        "guardrail_commit": "ec14052",
+        "finding": "The multi-error fallback selected each requested code from any requested product, allowing swapped code/product bindings or both codes from only one requested side.",
+        "status": "addressed_this_run_pending_guardrail_review",
+        "evidence": [
+          "Added general positional code-to-product binding for interleaved explicit relations; grouped multi-product/multi-code wording now requires complete side coverage rather than inventing a pairing.",
+          "Focused relation controls passed 8 tests, including correct, swapped, one-product-only, reversed-order, grouped ambiguity, grouped-row reuse, missing-code, and wrong-product behavior.",
+          "Loaded generator.py host/container SHA-256 matched fcd58f8c8beb61358f76ee37aef51ae06e3be641831d0e6b1fac81c3f2017b21; loaded binding controls mapped CV-X482/10101 and VS/30109 independently and expanded grouped wording to all sides.",
+          "retrieval_eval_20260902_182758 positive passed retrieval and actual HTTP answer grounding 1/1 with exact relation-bound citations 423d72f0 and be25fb78; manual inspection confirmed direct claim support and null quote spans.",
+          "The swapped/missing-side HTTP control failed closed with insufficient_evidence=true and no citations; preserve it as intentional diagnostic evidence, not a clean combined-run claim.",
+          "Full fixture-mounted CPU gate passed 619 tests with 59 warnings; the preceding GPU run passed 618 and had one unrelated Docling CUDA-OOM page-coverage failure."
+        ],
+        "required_next_action": "Await independent guardrail review; preserve relation binding and the 182758 positive/negative classifications before optional work."
+      },
       {
         "timestamp": "2026-09-02T16:47:08Z",
         "severity": "needs_fix",
@@ -15215,9 +15241,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T18:08:00Z"
+    "updated_at": "2026-09-02T18:47:00Z"
   },
-  "remaining": "Await guardrail review of the general explicit-numeric multi-error distinct-chunk fallback selection, then broaden to a source-reviewed distinct-document troubleshooting comparison while preserving product/code boundaries and missing-side fail-closed behavior; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Await guardrail review of the general code-to-product relation binding correction; preserve the mixed 182758 run as one clean positive plus one intentional fail-closed diagnostic, then continue only from the newest unresolved finding. Reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -15988,23 +16014,39 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
-      {
-        "timestamp": "2026-09-02T16:47:08Z",
-        "severity": "needs_fix",
-        "guardrail_commit": "f0f0689",
-        "finding": "The 983a737 requested-product correction remained prefix/superstring unsafe because compact substring matching accepted near-name products such as MOD-6000 and XMOD-600 for MOD-600.",
-        "status": "addressed_and_guardrail_validated",
-        "evidence": [
-          "Production commit 3e7f6ee requires alphanumeric identifier boundaries while allowing punctuation and spacing variants, so exact MOD-600/MOD 600 evidence remains compatible but MOD-6000, XMOD-600, and unrelated products are rejected.",
-          "Focused multi-error promotion controls passed 8 tests, including exact product, product-prefix, product-superstring, wrong-product, missing-code, and exact diagnostic-code boundaries.",
-          "Fixture-mounted full unit gate passed 611 tests with 60 warnings. The initial unmounted run was diagnostic at 606 passed and five failures caused only by absent tmp_eval_docs fixture directories.",
-          "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901; health was OK, host/container retriever.py SHA-256 matched 75d89557e37e0e3c533d76d20e091d6455c14b571c9c915b403c172547863a39, and loaded helper SHA-256 was 45d76f4f6696bf6a4dc077b828dc4840b8bdf1fdec6503399f4cfc0d3e7881bb.",
-          "Loaded branch controls returned true only for exact MOD-600 and false for MOD-6000, XMOD-600, and OTHER-700.",
-          "Actual HTTP CV-X482 Error 10109/10110 returned the source-supported grounded fallback citing only c7b00dfb page 1274; the near-name CV-X4820 control returned insufficient evidence with no citations. A first negative /search attempt hit a transient Qdrant timeout and HTTP 500; the /query retry completed and failed closed.",
-          "Guardrail review 2026-09-02T17:16:26Z in commits 7de9551 and b558d8c independently accepted 3e7f6ee and the loaded exact/near-product controls as severity ok."
-        ],
-        "required_next_action": "Preserve both prior clean multi-error runs and all diagnostics, then continue a source-reviewed distinct-chunk multi-error case."
-      },
+    {
+      "timestamp": "2026-09-02T18:11:50Z",
+      "severity": "needs_fix",
+      "guardrail_commit": "ec14052",
+      "finding": "The multi-error fallback selected each requested code from any requested product, allowing swapped code/product bindings or both codes from only one requested side.",
+      "status": "addressed_this_run_pending_guardrail_review",
+      "evidence": [
+        "Added general positional code-to-product binding for interleaved explicit relations; grouped multi-product/multi-code wording now requires complete side coverage rather than inventing a pairing.",
+        "Focused relation controls passed 8 tests, including correct, swapped, one-product-only, reversed-order, grouped ambiguity, grouped-row reuse, missing-code, and wrong-product behavior.",
+        "Loaded generator.py host/container SHA-256 matched fcd58f8c8beb61358f76ee37aef51ae06e3be641831d0e6b1fac81c3f2017b21; loaded binding controls mapped CV-X482/10101 and VS/30109 independently and expanded grouped wording to all sides.",
+        "retrieval_eval_20260902_182758 positive passed retrieval and actual HTTP answer grounding 1/1 with exact relation-bound citations 423d72f0 and be25fb78; manual inspection confirmed direct claim support and null quote spans.",
+        "The swapped/missing-side HTTP control failed closed with insufficient_evidence=true and no citations; preserve it as intentional diagnostic evidence, not a clean combined-run claim.",
+        "Full fixture-mounted CPU gate passed 619 tests with 59 warnings; the preceding GPU run passed 618 and had one unrelated Docling CUDA-OOM page-coverage failure."
+      ],
+      "required_next_action": "Await independent guardrail review; preserve relation binding and the 182758 positive/negative classifications before optional work."
+    },
+    {
+      "timestamp": "2026-09-02T16:47:08Z",
+      "severity": "needs_fix",
+      "guardrail_commit": "f0f0689",
+      "finding": "The 983a737 requested-product correction remained prefix/superstring unsafe because compact substring matching accepted near-name products such as MOD-6000 and XMOD-600 for MOD-600.",
+      "status": "addressed_and_guardrail_validated",
+      "evidence": [
+        "Production commit 3e7f6ee requires alphanumeric identifier boundaries while allowing punctuation and spacing variants, so exact MOD-600/MOD 600 evidence remains compatible but MOD-6000, XMOD-600, and unrelated products are rejected.",
+        "Focused multi-error promotion controls passed 8 tests, including exact product, product-prefix, product-superstring, wrong-product, missing-code, and exact diagnostic-code boundaries.",
+        "Fixture-mounted full unit gate passed 611 tests with 60 warnings. The initial unmounted run was diagnostic at 606 passed and five failures caused only by absent tmp_eval_docs fixture directories.",
+        "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901; health was OK, host/container retriever.py SHA-256 matched 75d89557e37e0e3c533d76d20e091d6455c14b571c9c915b403c172547863a39, and loaded helper SHA-256 was 45d76f4f6696bf6a4dc077b828dc4840b8bdf1fdec6503399f4cfc0d3e7881bb.",
+        "Loaded branch controls returned true only for exact MOD-600 and false for MOD-6000, XMOD-600, and OTHER-700.",
+        "Actual HTTP CV-X482 Error 10109/10110 returned the source-supported grounded fallback citing only c7b00dfb page 1274; the near-name CV-X4820 control returned insufficient evidence with no citations. A first negative /search attempt hit a transient Qdrant timeout and HTTP 500; the /query retry completed and failed closed.",
+        "Guardrail review 2026-09-02T17:16:26Z in commits 7de9551 and b558d8c independently accepted 3e7f6ee and the loaded exact/near-product controls as severity ok."
+      ],
+      "required_next_action": "Preserve both prior clean multi-error runs and all diagnostics, then continue a source-reviewed distinct-chunk multi-error case."
+    },
     {
       "timestamp": "2026-09-02T14:16:21Z",
       "severity": "needs_fix",
@@ -17426,5 +17468,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T18:08:00Z"
+  "updated_at": "2026-09-02T18:47:00Z"
 }
