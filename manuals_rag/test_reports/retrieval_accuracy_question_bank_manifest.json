@@ -8994,16 +8994,16 @@
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
       "created_new_worktree": false,
-      "git_status_after_primary_commit": "after rebased production/evidence commit 9ad25b1, git status --short --branch was clean and detached",
+      "git_status_after_primary_commit": "after pushed tracking-integrity commit 0ac1dab, git status --short --branch was clean and detached",
       "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 in git worktree list --porcelain",
+      "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 0ac1dab in git worktree list --porcelain",
       "removal_command": "not attempted",
-      "removal_result": "not attempted; the selected verified reusable worktree is intentionally kept registered because prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
-      "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true",
+      "removal_result": "not attempted; no safe sequence could both remove this exact checkout and durably commit the post-removal result without modifying the unrelated primary checkout, and prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
+      "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true at 0ac1dab",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_git_status_check": "not removed; after commit 9ad25b1 git status --short --branch was clean and detached",
+      "post_removal_git_status_check": "not removed; after pushed commit 0ac1dab git status --short --branch was clean and detached",
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-      "timestamp": "2026-09-02T13:07:00Z"
+      "timestamp": "2026-09-02T13:38:00Z"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12714,16 +12714,16 @@
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
         "created_new_worktree": false,
-      "git_status_after_primary_commit": "after rebased production/evidence commit 9ad25b1, git status --short --branch was clean and detached",
+        "git_status_after_primary_commit": "after pushed tracking-integrity commit 0ac1dab, git status --short --branch was clean and detached",
         "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 in git worktree list --porcelain",
+        "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 0ac1dab in git worktree list --porcelain",
         "removal_command": "not attempted",
-      "removal_result": "not attempted; the selected verified reusable worktree is intentionally kept registered because prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
-        "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true",
+        "removal_result": "not attempted; no safe sequence could both remove this exact checkout and durably commit the post-removal result without modifying the unrelated primary checkout, and prior supported removals repeatedly deregistered worktrees before failing directory deletion with Permission denied",
+        "post_removal_registry_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains registered=true at 0ac1dab",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_git_status_check": "not removed; after commit 9ad25b1 git status --short --branch was clean and detached",
+        "post_removal_git_status_check": "not removed; after pushed commit 0ac1dab git status --short --branch was clean and detached",
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-      "timestamp": "2026-09-02T13:07:00Z"
+        "timestamp": "2026-09-02T13:38:00Z"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -15140,7 +15140,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T13:36:00Z"
+    "updated_at": "2026-09-02T13:38:00Z"
   },
   "remaining": "After guardrail review of this provenance repair, continue the unresolved source-backed actual HTTP multi-error/two-row positive while preserving single-error sibling rejection, exact identifier binding, retrieval_eval_20260902_124857 as clean case evidence, and retrieval_eval_20260902_123026 plus retrieval_eval_20260902_112809 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
@@ -17314,5 +17314,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T13:36:00Z"
+  "updated_at": "2026-09-02T13:38:00Z"
 }
