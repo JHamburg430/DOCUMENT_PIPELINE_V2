@@ -448,6 +448,118 @@ def _diagnostic_code_pattern(code: str) -> str:
     return rf"(^|[^a-z0-9]){separated}([^a-z0-9]|$)"
 
 
+def _diagnostic_side_requirements(query: str, identifiers: list[str]) -> dict[str, tuple[list[str], list[str]]]:
+    """Bind explicit diagnostic codes and prose symptoms to their product clauses."""
+    spans: list[tuple[int, int, str]] = []
+    for identifier in identifiers:
+        match = re.search(re.escape(identifier), query, flags=re.IGNORECASE)
+        if match:
+            spans.append((match.start(), match.end(), identifier))
+    spans.sort()
+    requirements: dict[str, tuple[list[str], list[str]]] = {}
+    ignored = LEXICAL_TABLE_STOPWORDS.union(
+        {"check", "should", "technician", "error", "fault", "alarm", "what", "when", "they"}
+    )
+    for index, (_start, end, identifier) in enumerate(spans):
+        clause_end = spans[index + 1][0] if index + 1 < len(spans) else len(query)
+        clause = query[end:clause_end]
+        codes: list[str] = []
+        for match in re.finditer(
+            r"\b(?:error|alarm|fault)\s*(?:number|no\.?\s*)?[:#-]?\s*(\d{2,6})\b",
+            clause,
+            flags=re.IGNORECASE,
+        ):
+            code = _compact_identifier(match.group(1))
+            if code and code not in codes:
+                codes.append(code)
+        context_terms: list[str] = []
+        for raw_term in tokenize(clause):
+            term = re.sub(r"[^a-z0-9]+", "", raw_term.lower())
+            if term in ignored or any(char.isdigit() for char in term) or len(term) < 3:
+                continue
+            if term not in context_terms:
+                context_terms.append(term)
+        requirements[identifier] = (codes, context_terms)
+    global_codes = [
+        _compact_identifier(match.group(1))
+        for match in re.finditer(
+            r"\b(?:error|alarm|fault)\s*(?:number|no\.?\s*)?[:#-]?\s*(\d{2,6})\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    ]
+    list_connector_terms = {
+        "a",
+        "an",
+        "and",
+        "model",
+        "models",
+        "or",
+        "series",
+        "system",
+        "systems",
+        "the",
+        "versus",
+        "vs",
+        "with",
+    }
+    identifiers_form_compact_list = len(spans) >= 2 and all(
+        all(
+            re.sub(r"[^a-z0-9]+", "", term.lower()) in list_connector_terms
+            for term in tokenize(query[spans[index - 1][1] : spans[index][0]])
+            if re.sub(r"[^a-z0-9]+", "", term.lower())
+        )
+        for index in range(1, len(spans))
+    )
+    if (
+        len(set(global_codes)) == 1
+        and requirements
+        and (
+            not any(codes for codes, _terms in requirements.values())
+            or identifiers_form_compact_list
+        )
+    ):
+        shared_code = global_codes[0]
+        requirements = {
+            identifier: ([shared_code], context_terms)
+            for identifier, (_codes, context_terms) in requirements.items()
+        }
+    return requirements
+
+
+def _diagnostic_prose_context_score(result: SearchResult, context_terms: list[str]) -> int:
+    if not context_terms:
+        return 0
+    evidence_terms = [re.sub(r"[^a-z0-9]+", "", term.lower()) for term in tokenize(str(result.content or ""))]
+    positions: list[int] = []
+    cursor = 0
+    for required in context_terms:
+        try:
+            position = evidence_terms.index(required, cursor)
+        except ValueError:
+            return 0
+        positions.append(position)
+        cursor = position + 1
+    if positions[-1] - positions[0] > max(12, len(context_terms) * 3):
+        return 0
+    return len(context_terms)
+
+
+def _diagnostic_action_field_score(result: SearchResult, query: str) -> int:
+    if not re.search(r"\b(?:what|which)\b.{0,80}\bshould\b.{0,80}\b(?:check|do)\b", query, flags=re.IGNORECASE):
+        return 0
+    content = str(result.content or "").lower()
+    column_headers = " ".join(str(item) for item in result.metadata.get("table_column_headers") or []).lower()
+    compact_headers = re.sub(r"[^a-z0-9]+", "", f"{column_headers} {content.split(';', 1)[0]}")
+    if "checkpoint" in compact_headers:
+        return 3
+    if "remedy" in compact_headers or "correctiveaction" in compact_headers:
+        return 2
+    if re.search(r"\b(?:check point|remedy|corrective action)\s*:", content):
+        return 1
+    return 0
+
+
 def _text_contains_diagnostic_code(text: str, code: str) -> bool:
     return bool(re.search(_diagnostic_code_pattern(code), text, flags=re.IGNORECASE))
 
@@ -1121,6 +1233,40 @@ def run_table_lexical_search(
         """,
         tuple([*params, *order_params]),
     )
+    if is_comparison_lookup and diagnostic_code_terms and len(analysis.product_identifiers) >= 2:
+        side_requirements = _diagnostic_side_requirements(
+            query,
+            [str(identifier) for identifier in analysis.product_identifiers],
+        )
+        for identifier, (side_codes, context_terms) in side_requirements.items():
+            if side_codes or not context_terms:
+                continue
+            distinctive_terms = sorted(context_terms, key=lambda term: (len(term), term), reverse=True)[:8]
+            side_where = [*base_where]
+            side_params = [*base_params]
+            product_pattern = f"%{identifier}%"
+            side_where.append(
+                "(metadata_json->>'product_model' ilike %s "
+                "or metadata_json->>'product_family' ilike %s "
+                "or metadata_json->>'product_models' ilike %s "
+                "or title ilike %s)"
+            )
+            side_params.extend([product_pattern] * 4)
+            side_where.extend(["content ilike %s"] * len(distinctive_terms))
+            side_params.extend([f"%{term}%" for term in distinctive_terms])
+            rows.extend(
+                fetch_all(
+                    f"""
+                    select id, document_version_id, source_document_id, title, section_path_text,
+                           page_from, page_to, content, metadata_json, priority_score
+                    from retrieval_chunks
+                    where {" and ".join(side_where)}
+                    order by priority_score desc, id
+                    limit 120
+                    """,
+                    tuple(side_params),
+                )
+            )
     if not is_comparison_lookup and _is_status_output_table_lookup(query):
         numeric_terms = _status_output_numeric_terms(query)
         if numeric_terms:
@@ -1346,6 +1492,34 @@ def run_table_lexical_search(
                     continue
                 deduped.append(result)
             results = deduped
+        if diagnostic_code_terms:
+            side_requirements = _diagnostic_side_requirements(query, identifiers)
+            prose_promoted: list[SearchResult] = []
+            for identifier, (side_codes, context_terms) in side_requirements.items():
+                if side_codes or not context_terms:
+                    continue
+                candidates = [
+                    result
+                    for result in results
+                    if _result_matches_primary_identifier(result, identifier)
+                    and _diagnostic_prose_context_score(result, context_terms) >= len(context_terms)
+                ]
+                if candidates:
+                    prose_promoted.append(
+                        max(
+                            candidates,
+                            key=lambda result: (
+                                _diagnostic_action_field_score(result, query),
+                                _diagnostic_prose_context_score(result, context_terms),
+                                int(bool(result.metadata.get("table_key_value"))),
+                                -len(str(result.content or "")),
+                                result.score,
+                            ),
+                        )
+                    )
+            if prose_promoted:
+                promoted_ids = {result.chunk_id for result in prose_promoted}
+                results = [*prose_promoted, *(result for result in results if result.chunk_id not in promoted_ids)]
     return results[:limit]
 
 
@@ -2654,18 +2828,33 @@ def _promote_diagnostic_table_candidates(
         return primary_results
     identifiers = [str(identifier) for identifier in (analysis.product_identifiers or []) if str(identifier)]
     if "comparison" in analysis.query_types and len(identifiers) >= 2:
+        side_requirements = _diagnostic_side_requirements(analysis.raw_query, identifiers)
         selected: list[SearchResult] = []
         selected_ids: set[str] = set()
         for identifier in identifiers:
+            side_codes, context_terms = side_requirements.get(identifier, ([], []))
             side_candidates = [
                 result
                 for result in candidates
                 if result.chunk_id not in selected_ids
                 and _result_matches_primary_identifier(result, identifier)
+                and (
+                    all(_text_contains_diagnostic_code(str(result.content or ""), code) for code in side_codes)
+                    if side_codes
+                    else bool(context_terms)
+                    and _diagnostic_prose_context_score(result, context_terms) >= len(context_terms)
+                )
             ]
             if not side_candidates:
                 continue
-            best = max(side_candidates, key=lambda result: _diagnostic_table_support_score(result, analysis))
+            best = max(
+                side_candidates,
+                key=lambda result: (
+                    _diagnostic_action_field_score(result, analysis.raw_query),
+                    _diagnostic_prose_context_score(result, context_terms),
+                    _diagnostic_table_support_score(result, analysis),
+                ),
+            )
             selected.append(best)
             selected_ids.add(best.chunk_id)
         candidates = selected

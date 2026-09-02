@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Implement and validate a general relation-preserving retrieval path for comparisons that mix an explicit numeric troubleshooting code on one product side with a source-visible prose symptom on another. Require exact product-to-side binding; positive, wrong-symptom, wrong-product, and missing-side controls; the full unit gate; loaded-runtime fingerprints; actual HTTP positive/negative evidence; and manual claim-level citation inspection. Preserve retrieval_eval_20260902_202606 and retrieval_eval_20260902_205759 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await independent guardrail review of the shared diagnostic-code placement correction for guardrail 6295644. Preserve retrieval_eval_20260902_202606, retrieval_eval_20260902_205759, retrieval_eval_20260902_212912, retrieval_eval_20260902_213259, and retrieval_eval_20260902_214144 classifications; continue the mixed numeric-code/prose-symptom answer-evidence target and reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a66cbed",
@@ -741,7 +741,7 @@
     },
     "current_answer_failures": {},
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_182758.jsonl and retrieval_eval_results_20260902_184955.jsonl. The 182758 positive is diagnostic/not-clean because its query requested a VS technician action absent from chunk be25fb78. The corrected 184955 positive asks only meaning/cause, cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans, and each cited returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
-    "remaining": "Implement and validate a general relation-preserving retrieval path for comparisons that mix an explicit numeric troubleshooting code on one product side with a source-visible prose symptom on another. Require exact product-to-side binding; positive, wrong-symptom, wrong-product, and missing-side controls; the full unit gate; loaded-runtime fingerprints; actual HTTP positive/negative evidence; and manual claim-level citation inspection. Preserve retrieval_eval_20260902_202606 and retrieval_eval_20260902_205759 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await independent guardrail review of the shared diagnostic-code placement correction for guardrail 6295644. Preserve retrieval_eval_20260902_202606, retrieval_eval_20260902_205759, retrieval_eval_20260902_212912, retrieval_eval_20260902_213259, and retrieval_eval_20260902_214144 classifications; continue the mixed numeric-code/prose-symptom answer-evidence target and reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260902_184955 positive only"
   },
   "constraints": {
@@ -9021,11 +9021,11 @@
     "current_run_worktree": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "created_new_worktree": false,
-    "timestamp": "2026-09-02T21:00:00Z",
-    "git_status_before_final_commit": "dirty only with this run's source-reviewed validation-dataset correction, 205759 diagnostic artifacts, and progress/manifest tracking after fast-forwarding to origin/main guardrail commit 2afc9ed",
+    "timestamp": "2026-09-02T22:10:00Z",
+    "git_status_before_final_commit": "dirty only with the resumed job-owned retrieval/query-analysis changes, focused controls, preserved 212912/213259/214144 diagnostic artifacts, and current progress/manifest tracking after fast-forwarding to origin/main guardrail commit 6295644",
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-    "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 2afc9ed before final tracking commit",
+    "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 6295644 before final tracking commit",
     "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present before final tracking commit",
       "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -9234,7 +9234,7 @@
       ]
     }
   ],
-  "next_target": "Implement and validate a general relation-preserving retrieval path for comparisons that mix an explicit numeric troubleshooting code on one product side with a source-visible prose symptom on another. Require exact product-to-side binding; positive, wrong-symptom, wrong-product, and missing-side controls; the full unit gate; loaded-runtime fingerprints; actual HTTP positive/negative evidence; and manual claim-level citation inspection. Preserve retrieval_eval_20260902_202606 and retrieval_eval_20260902_205759 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Await independent guardrail review of the shared diagnostic-code placement correction for guardrail 6295644. Preserve retrieval_eval_20260902_202606, retrieval_eval_20260902_205759, retrieval_eval_20260902_212912, retrieval_eval_20260902_213259, and retrieval_eval_20260902_214144 classifications; continue the mixed numeric-code/prose-symptom answer-evidence target and reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10203,7 +10203,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Implement and validate a general relation-preserving retrieval path for comparisons that mix an explicit numeric troubleshooting code on one product side with a source-visible prose symptom on another. Require exact product-to-side binding; positive, wrong-symptom, wrong-product, and missing-side controls; the full unit gate; loaded-runtime fingerprints; actual HTTP positive/negative evidence; and manual claim-level citation inspection. Preserve retrieval_eval_20260902_202606 and retrieval_eval_20260902_205759 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Await independent guardrail review of the shared diagnostic-code placement correction for guardrail 6295644. Preserve retrieval_eval_20260902_202606, retrieval_eval_20260902_205759, retrieval_eval_20260902_212912, retrieval_eval_20260902_213259, and retrieval_eval_20260902_214144 classifications; continue the mixed numeric-code/prose-symptom answer-evidence target and reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a66cbed",
@@ -10518,7 +10518,7 @@
       },
       "current_answer_failures": {},
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_182758.jsonl and retrieval_eval_results_20260902_184955.jsonl. The 182758 positive is diagnostic/not-clean because its query requested a VS technician action absent from chunk be25fb78. The corrected 184955 positive asks only meaning/cause, cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans, and each cited returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
-      "remaining": "Implement and validate a general relation-preserving retrieval path for comparisons that mix an explicit numeric troubleshooting code on one product side with a source-visible prose symptom on another. Require exact product-to-side binding; positive, wrong-symptom, wrong-product, and missing-side controls; the full unit gate; loaded-runtime fingerprints; actual HTTP positive/negative evidence; and manual claim-level citation inspection. Preserve retrieval_eval_20260902_202606 and retrieval_eval_20260902_205759 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Await independent guardrail review of the shared diagnostic-code placement correction for guardrail 6295644. Preserve retrieval_eval_20260902_202606, retrieval_eval_20260902_205759, retrieval_eval_20260902_212912, retrieval_eval_20260902_213259, and retrieval_eval_20260902_214144 classifications; continue the mixed numeric-code/prose-symptom answer-evidence target and reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260902_184955 positive only"
     },
     "current_answer_failure_categories": {},
@@ -12767,11 +12767,11 @@
       "current_run_worktree": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
         "created_new_worktree": false,
-    "timestamp": "2026-09-02T21:00:00Z",
-    "git_status_before_final_commit": "dirty only with this run's source-reviewed validation-dataset correction, 205759 diagnostic artifacts, and progress/manifest tracking after fast-forwarding to origin/main guardrail commit 2afc9ed",
+    "timestamp": "2026-09-02T22:10:00Z",
+    "git_status_before_final_commit": "dirty only with the resumed job-owned retrieval/query-analysis changes, focused controls, preserved 212912/213259/214144 diagnostic artifacts, and current progress/manifest tracking after fast-forwarding to origin/main guardrail commit 6295644",
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-    "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 2afc9ed before final tracking commit",
+    "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at 6295644 before final tracking commit",
     "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present before final tracking commit",
         "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -12982,7 +12982,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Implement and validate a general relation-preserving retrieval path for comparisons that mix an explicit numeric troubleshooting code on one product side with a source-visible prose symptom on another. Require exact product-to-side binding; positive, wrong-symptom, wrong-product, and missing-side controls; the full unit gate; loaded-runtime fingerprints; actual HTTP positive/negative evidence; and manual claim-level citation inspection. Preserve retrieval_eval_20260902_202606 and retrieval_eval_20260902_205759 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Await independent guardrail review of the shared diagnostic-code placement correction for guardrail 6295644. Preserve retrieval_eval_20260902_202606, retrieval_eval_20260902_205759, retrieval_eval_20260902_212912, retrieval_eval_20260902_213259, and retrieval_eval_20260902_214144 classifications; continue the mixed numeric-code/prose-symptom answer-evidence target and reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13017,9 +13017,9 @@
         "loaded-runtime adverse controls after API restart with the same -k selection -> 5 passed, 35 deselected, 5 warnings",
         "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> passed after duplicated tracking update"
       ],
-      "updated_at": "2026-08-27T05:00:54Z"
+    "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Implement and validate a general relation-preserving retrieval path for comparisons that mix an explicit numeric troubleshooting code on one product side with a source-visible prose symptom on another. Require exact product-to-side binding; positive, wrong-symptom, wrong-product, and missing-side controls; the full unit gate; loaded-runtime fingerprints; actual HTTP positive/negative evidence; and manual claim-level citation inspection. Preserve retrieval_eval_20260902_202606 and retrieval_eval_20260902_205759 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await independent guardrail review of the shared diagnostic-code placement correction for guardrail 6295644. Preserve retrieval_eval_20260902_202606, retrieval_eval_20260902_205759, retrieval_eval_20260902_212912, retrieval_eval_20260902_213259, and retrieval_eval_20260902_214144 classifications; continue the mixed numeric-code/prose-symptom answer-evidence target and reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -15268,9 +15268,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T21:00:00Z"
+    "updated_at": "2026-09-02T22:10:00Z"
   },
-  "remaining": "Implement and validate a general relation-preserving retrieval path for comparisons that mix an explicit numeric troubleshooting code on one product side with a source-visible prose symptom on another. Require exact product-to-side binding; positive, wrong-symptom, wrong-product, and missing-side controls; the full unit gate; loaded-runtime fingerprints; actual HTTP positive/negative evidence; and manual claim-level citation inspection. Preserve retrieval_eval_20260902_202606 and retrieval_eval_20260902_205759 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Await independent guardrail review of the shared diagnostic-code placement correction for guardrail 6295644. Preserve retrieval_eval_20260902_202606, retrieval_eval_20260902_205759, retrieval_eval_20260902_212912, retrieval_eval_20260902_213259, and retrieval_eval_20260902_214144 classifications; continue the mixed numeric-code/prose-symptom answer-evidence target and reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -17518,5 +17518,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T21:00:00Z"
+  "updated_at": "2026-09-02T22:10:00Z"
 }

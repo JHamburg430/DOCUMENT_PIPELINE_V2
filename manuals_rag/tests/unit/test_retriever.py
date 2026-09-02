@@ -1460,6 +1460,163 @@ def test_diagnostic_comparison_promotion_does_not_fabricate_missing_product_side
     assert promoted == []
 
 
+@pytest.mark.parametrize(
+    ("query", "expected_order"),
+    [
+        ("How does Error 30109 differ between the MOD-100 and the SYS-200?", ["MOD-100", "SYS-200"]),
+        ("Between the MOD-100 and the SYS-200, how does Error 30109 differ?", ["MOD-100", "SYS-200"]),
+        ("For the SYS-200 and the MOD-100, compare Error 30109 causes and remedies.", ["SYS-200", "MOD-100"]),
+        ("For the VS Series and the CV-X482, compare Error 30109 causes and remedies.", ["VS", "CV-X482"]),
+    ],
+)
+def test_shared_diagnostic_code_binds_to_every_compared_product_regardless_of_word_order(
+    query: str,
+    expected_order: list[str],
+):
+    analysis = analyze_query(query)
+
+    assert analysis.product_identifiers == expected_order
+    assert retriever._diagnostic_side_requirements(query, analysis.product_identifiers) == {
+        identifier: (["30109"], requirements[1])
+        for identifier, requirements in retriever._diagnostic_side_requirements(
+            query, analysis.product_identifiers
+        ).items()
+    }
+
+    rows = [
+        SearchResult(
+            chunk_id=identifier.lower(),
+            score=1.0,
+            title=f"{identifier} Manual",
+            document_version_id=f"ver-{identifier}",
+            source_document_id=f"doc-{identifier}",
+            pages=[1],
+            section_path=["Errors"],
+            content="Error Number: 30109; Cause: Storage unavailable; Remedy: Check storage.",
+            metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": identifier},
+        )
+        for identifier in expected_order
+    ]
+    rows.extend(
+        [
+            SearchResult(
+                chunk_id="wrong-product",
+                score=2.0,
+                title="OTHER-300 Manual",
+                document_version_id="ver-other",
+                source_document_id="doc-other",
+                pages=[1],
+                section_path=["Errors"],
+                content="Error Number: 30109; Cause: Unrelated; Remedy: Unrelated.",
+                metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": "OTHER-300"},
+            ),
+            SearchResult(
+                chunk_id="wrong-code",
+                score=2.0,
+                title=f"{expected_order[0]} Manual",
+                document_version_id="ver-wrong-code",
+                source_document_id="doc-wrong-code",
+                pages=[1],
+                section_path=["Errors"],
+                content="Error Number: 30110; Cause: Unrelated; Remedy: Unrelated.",
+                metadata={
+                    "chunk_type": "table_record",
+                    "table_key_value": True,
+                    "product_model": expected_order[0],
+                },
+            ),
+        ]
+    )
+
+    promoted = retriever._promote_diagnostic_table_candidates([], rows, analysis, limit=5)
+
+    assert [item.metadata["product_model"] for item in promoted] == expected_order
+
+
+def test_shared_diagnostic_code_comparison_preserves_a_missing_requested_side():
+    query = "Between the MOD-100 and the SYS-200, how does Error 30109 differ?"
+    analysis = analyze_query(query)
+    one_side = SearchResult(
+        chunk_id="mod-only",
+        score=1.0,
+        title="MOD-100 Manual",
+        document_version_id="ver-mod",
+        source_document_id="doc-mod",
+        pages=[1],
+        section_path=["Errors"],
+        content="Error Number: 30109; Cause: Storage unavailable; Remedy: Check storage.",
+        metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": "MOD-100"},
+    )
+
+    promoted = retriever._promote_diagnostic_table_candidates([], [one_side], analysis, limit=5)
+
+    assert [item.chunk_id for item in promoted] == ["mod-only"]
+
+
+def test_mixed_diagnostic_and_prose_troubleshooting_binds_each_product_side():
+    query = (
+        "On a MOD-100, what should a technician check for Error 13101, and on a SYS-200, "
+        "what should they check when image data cannot be transferred to the SD card?"
+    )
+    analysis = analyze_query(query)
+
+    assert "comparison" in analysis.query_types
+    assert retriever._diagnostic_side_requirements(query, analysis.product_identifiers) == {
+        "MOD-100": (["13101"], []),
+        "SYS-200": ([], ["image", "data", "cannot", "transferred", "card"]),
+    }
+
+    def row(chunk_id: str, product: str, content: str) -> SearchResult:
+        return SearchResult(
+            chunk_id=chunk_id,
+            score=1.0,
+            title=f"{product} Manual",
+            document_version_id=f"ver-{chunk_id}",
+            source_document_id=f"doc-{product}",
+            pages=[1],
+            section_path=["Troubleshooting"],
+            content=content,
+            metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": product},
+        )
+
+    promoted = retriever._promote_diagnostic_table_candidates(
+        [],
+        [
+            row("code", "MOD-100", "Error Number: 13101; Remedy: Check flow control."),
+            row("prose", "SYS-200", "Image data cannot be transferred to the SD card. Remedy: Check the settings."),
+            row("wrong-symptom", "SYS-200", "Image brightness is unstable. Remedy: Check exposure."),
+            row("wrong-product", "OTHER-300", "Image data cannot be transferred to the SD card."),
+        ],
+        analysis,
+        limit=5,
+    )
+
+    assert [item.chunk_id for item in promoted] == ["code", "prose"]
+
+
+def test_mixed_diagnostic_and_prose_troubleshooting_preserves_missing_side():
+    query = (
+        "On a MOD-100, what should a technician check for Error 13101, and on a SYS-200, "
+        "what should they check when image data cannot be transferred to the SD card?"
+    )
+    analysis = analyze_query(query)
+    code_only = SearchResult(
+        chunk_id="code",
+        score=1.0,
+        title="MOD-100 Manual",
+        document_version_id="ver-code",
+        source_document_id="doc-mod",
+        pages=[1],
+        section_path=["Troubleshooting"],
+        content="Error Number: 13101; Remedy: Check flow control.",
+        metadata={"chunk_type": "table_record", "table_key_value": True, "product_model": "MOD-100"},
+    )
+
+    promoted = retriever._promote_diagnostic_table_candidates([], [code_only], analysis, limit=5)
+
+    assert [item.chunk_id for item in promoted] == ["code"]
+
+
 def test_diagnostic_multi_error_promotion_prefers_one_complete_row_group():
     analysis = analyze_query(
         "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"

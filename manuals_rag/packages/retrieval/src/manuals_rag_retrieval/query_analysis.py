@@ -158,12 +158,21 @@ def analyze_query(query: str) -> QueryAnalysis:
             continue
         model_matches.append((match.start(), match.group(0)))
         model_match_spans.append(match.span())
+    explicit_model_check_comparison = re.search(
+        r"\bon\s+(?:an?\s+)?[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b.+"
+        r"\band\s+on\s+(?:an?\s+)?[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b",
+        query,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
     if (
         len(model_matches) >= 2
         and re.search(r"\b(?:and|with)\b", lowered)
-        and re.search(
-            r"\b(?:listed|value|rating|resistance|format|cause|remedy|corrective|setting|specifications?|specs?)\b",
-            lowered,
+        and (
+            explicit_model_check_comparison
+            or re.search(
+                r"\b(?:listed|value|rating|resistance|format|cause|remedy|corrective|setting|specifications?|specs?)\b",
+                lowered,
+            )
         )
     ):
         types.append("comparison")
