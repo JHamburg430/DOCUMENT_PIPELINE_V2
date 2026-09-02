@@ -8990,7 +8990,7 @@
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
       "created_new_worktree": false,
-      "git_status_after_primary_commit": "tracking-only checker commit leaves the pre-existing interrupted retrieval experiment dirty by design: query_analysis.py, retriever.py, retrieval_accuracy_question_bank_manifest.json, test_retriever.py, and untracked retrieval_eval_manifest_20260902_094552.json plus retrieval_eval_summary_20260902_094552.json; no experiment file was reset, discarded, or included in this containment commit",
+      "git_status_after_primary_commit": "checker/tracking commit leaves the pre-existing interrupted retrieval experiment dirty by design: query_analysis.py, retriever.py, test_retriever.py, and untracked retrieval_eval_manifest_20260902_094552.json plus retrieval_eval_summary_20260902_094552.json; no experiment file was reset, discarded, or included in this containment commit",
       "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 in git worktree list --porcelain",
       "removal_command": "not attempted",
@@ -8999,7 +8999,7 @@
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_git_status_check": "not removed; status remains intentionally dirty only with the preserved interrupted retrieval experiment and its diagnostic artifacts after the checker/tracking commit",
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-      "timestamp": "2026-09-02T10:00:27Z"
+      "timestamp": "2026-09-02T11:00:00Z"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -9014,13 +9014,15 @@
         "missing generation/status/quality-review/replacement semantics fails",
         "missing manifest/results/summary evidence artifacts fails",
         "valid extension plus a skeletal new active entry without active_count_delta fails",
-        "valid extension plus a second existing dataset manifest-only count rewrite fails"
+        "valid extension plus a second existing dataset manifest-only count rewrite fails",
+        "legitimate inactive-to-active registered-dataset transition with complete provenance and exact file-backed deltas passes",
+        "valid extension plus a masked inactive-to-active transition without active_count_delta fails"
       ],
       "error_30109_evidence": "test_reports/retrieval_eval_dataset_20260902_0230_same_error_cross_model.jsonl remains one active multi-step diagnostic case; retrieval_eval_20260902_062955 remains 0/1 retrieval and 0/1 answer grounding",
-      "guardrail_commit": "2ad6f95",
-      "guardrail_timestamp": "2026-09-02T09:41:50Z",
+      "guardrail_commit": "ecc7979",
+      "guardrail_timestamp": "2026-09-02T10:41:28Z",
       "status": "addressed_this_run_validated",
-      "validation": "59 focused manifest tests passed; exact two-existing-dataset adverse control fails closed; full environment-backed unit gate passed 589 tests with 59 warnings; staged whole-manifest and parent-aware checks passed"
+      "validation": "61 focused manifest tests passed; legitimate reactivation passes and the exact masked inactive-to-active adverse control fails closed; full environment-backed unit gate passed 591 tests with 59 warnings; real whole-manifest and parent-aware checks passed"
     },
     "checker_repair": {
       "controls": [
@@ -12704,7 +12706,7 @@
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
         "created_new_worktree": false,
-        "git_status_after_primary_commit": "tracking-only checker commit leaves the pre-existing interrupted retrieval experiment dirty by design: query_analysis.py, retriever.py, retrieval_accuracy_question_bank_manifest.json, test_retriever.py, and untracked retrieval_eval_manifest_20260902_094552.json plus retrieval_eval_summary_20260902_094552.json; no experiment file was reset, discarded, or included in this containment commit",
+        "git_status_after_primary_commit": "checker/tracking commit leaves the pre-existing interrupted retrieval experiment dirty by design: query_analysis.py, retriever.py, test_retriever.py, and untracked retrieval_eval_manifest_20260902_094552.json plus retrieval_eval_summary_20260902_094552.json; no experiment file was reset, discarded, or included in this containment commit",
         "path_check_after_primary_commit": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "registry_check_after_primary_commit": "registered=true for /tmp/manuals_rag_accuracy_20260901 in git worktree list --porcelain",
         "removal_command": "not attempted",
@@ -12713,7 +12715,7 @@
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_git_status_check": "not removed; status remains intentionally dirty only with the preserved interrupted retrieval experiment and its diagnostic artifacts after the checker/tracking commit",
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-        "timestamp": "2026-09-02T10:00:27Z"
+        "timestamp": "2026-09-02T11:00:00Z"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12728,13 +12730,15 @@
           "missing generation/status/quality-review/replacement semantics fails",
           "missing manifest/results/summary evidence artifacts fails",
           "valid extension plus a skeletal new active entry without active_count_delta fails",
-          "valid extension plus a second existing dataset manifest-only count rewrite fails"
+          "valid extension plus a second existing dataset manifest-only count rewrite fails",
+          "legitimate inactive-to-active registered-dataset transition with complete provenance and exact file-backed deltas passes",
+          "valid extension plus a masked inactive-to-active transition without active_count_delta fails"
         ],
         "error_30109_evidence": "test_reports/retrieval_eval_dataset_20260902_0230_same_error_cross_model.jsonl remains one active multi-step diagnostic case; retrieval_eval_20260902_062955 remains 0/1 retrieval and 0/1 answer grounding",
-        "guardrail_commit": "2ad6f95",
-        "guardrail_timestamp": "2026-09-02T09:41:50Z",
+        "guardrail_commit": "ecc7979",
+        "guardrail_timestamp": "2026-09-02T10:41:28Z",
         "status": "addressed_this_run_validated",
-        "validation": "59 focused manifest tests passed; exact two-existing-dataset adverse control fails closed; full environment-backed unit gate passed 589 tests with 59 warnings; staged whole-manifest and parent-aware checks passed"
+        "validation": "61 focused manifest tests passed; legitimate reactivation passes and the exact masked inactive-to-active adverse control fails closed; full environment-backed unit gate passed 591 tests with 59 warnings; real whole-manifest and parent-aware checks passed"
       },
       "checker_repair": {
         "controls": [
@@ -12958,6 +12962,11 @@
     "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_20260901; removal was intentionally not attempted.",
     "retrieval_current_failure_categories": {"ranking_or_context_loss": 1},
     "run_exclusions": [
+      {
+        "reason": "diagnostic/unproven runtime evidence: retrieval passed 1/1 and answer grounding failed 0/1, but the HTTP container was mounted from /tmp/manuals_rag_accuracy_wy74Sk/manuals_rag/manuals_rag and its loaded query-analysis/retriever hashes differed from the interrupted patch in /tmp/manuals_rag_accuracy_20260901/manuals_rag; loaded control did not extract numeric Error 30109",
+        "run_id": "retrieval_eval_20260902_094552",
+        "scope": "same-error cross-model retrieval and combined answer claim; preserve artifacts but do not supersede retrieval_eval_20260902_062955 or count as changed-path proof"
+      },
       {
         "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
         "run_id": "retrieval_eval_20260826_142837",
@@ -13716,6 +13725,20 @@
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-09-02T10:41:28Z",
+        "severity": "needs_fix",
+        "guardrail_commit": "ecc7979",
+        "finding": "Existing inactive dataset entries could transition to active coverage without active_count_delta, artifact validation, provenance, or aggregate reconciliation when another valid extension supplied the visible count delta.",
+        "status": "addressed_this_run_validated",
+        "evidence": [
+          "Active status matching excludes inactive labels and detects explicit active status tokens.",
+          "Inactive-to-active transitions require complete generation, source/quality review, replacement/supersession, and result/summary/manifest provenance.",
+          "Reactivation requires ledger_change.kind=activated_registered_dataset, unchanged parent/current JSONL, and file-derived total/single/multi/exploratory deltas.",
+          "Focused manifest suite passed 61 tests; exact masked activation fails; full fixture-mounted unit gate passed 591 tests with 59 warnings."
+        ],
+        "required_next_action": "Preserve this containment and resume the dirty Error 30109 final_top_k experiment only with selected-worktree runtime fingerprints and claim-level citation support for both requested product sides."
+      },
       {
         "evidence": [
           "Candidate and Git-parent JSONL artifacts are now compared directly for registered-dataset extensions.",
@@ -15096,11 +15119,16 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T09:04:30Z"
+    "updated_at": "2026-09-02T11:00:00Z"
   },
   "remaining": "Correct general final_top_k context loss for source-visible same-error cross-model questions: retrieval_eval_20260902_062955 had candidate recall 1.0 but omitted both exact Error 30109 product-side chunks and the fallback cited unrelated CV-X content. Preserve explicit product sides and exact error-code binding; require loaded HTTP retrieval and claim-level citations for both sides before acceptance. Reuse /tmp/manuals_rag_accuracy_20260901; removal was intentionally not attempted.",
   "retrieval_current_failure_categories": {"ranking_or_context_loss": 1},
   "run_exclusions": [
+    {
+      "reason": "diagnostic/unproven runtime evidence: retrieval passed 1/1 and answer grounding failed 0/1, but the HTTP container was mounted from /tmp/manuals_rag_accuracy_wy74Sk/manuals_rag/manuals_rag and its loaded query-analysis/retriever hashes differed from the interrupted patch in /tmp/manuals_rag_accuracy_20260901/manuals_rag; loaded control did not extract numeric Error 30109",
+      "run_id": "retrieval_eval_20260902_094552",
+      "scope": "same-error cross-model retrieval and combined answer claim; preserve artifacts but do not supersede retrieval_eval_20260902_062955 or count as changed-path proof"
+    },
     {
       "reason": "false-green before corrective-state scoring; row 13 API answer omitted Offline and recommended sibling camera-model remedy",
       "run_id": "retrieval_eval_20260826_142837",
@@ -15858,6 +15886,20 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-09-02T10:41:28Z",
+      "severity": "needs_fix",
+      "guardrail_commit": "ecc7979",
+      "finding": "Existing inactive dataset entries could transition to active coverage without active_count_delta, artifact validation, provenance, or aggregate reconciliation when another valid extension supplied the visible count delta.",
+      "status": "addressed_this_run_validated",
+      "evidence": [
+        "Active status matching excludes inactive labels and detects explicit active status tokens.",
+        "Inactive-to-active transitions require complete generation, source/quality review, replacement/supersession, and result/summary/manifest provenance.",
+        "Reactivation requires ledger_change.kind=activated_registered_dataset, unchanged parent/current JSONL, and file-derived total/single/multi/exploratory deltas.",
+        "Focused manifest suite passed 61 tests; exact masked activation fails; full fixture-mounted unit gate passed 591 tests with 59 warnings."
+      ],
+      "required_next_action": "Preserve this containment and resume the dirty Error 30109 final_top_k experiment only with selected-worktree runtime fingerprints and claim-level citation support for both requested product sides."
+    },
     {
       "evidence": [
         "Candidate and Git-parent JSONL artifacts are now compared directly for registered-dataset extensions.",
@@ -17238,5 +17280,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T09:04:30Z"
+  "updated_at": "2026-09-02T11:00:00Z"
 }

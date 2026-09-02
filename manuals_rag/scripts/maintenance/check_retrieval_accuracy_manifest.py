@@ -608,7 +608,15 @@ def check_manifest_change(
             counts["total_questions"] += 1
         return counts
 
-    def require_new_entry_provenance(entry: dict[str, Any]) -> None:
+    def status_identifies_active_coverage(value: Any) -> bool:
+        if not isinstance(value, str):
+            return False
+        normalized = value.strip().lower()
+        if "inactive" in normalized:
+            return False
+        return bool(re.search(r"(?:^|[_\-\s])active(?:$|[_\-\s])", normalized))
+
+    def require_active_entry_provenance(entry: dict[str, Any], label: str) -> None:
         path = entry["path"]
         for field in ("generation", "status", "quality_review"):
             value = entry.get(field)
@@ -617,36 +625,42 @@ def check_manifest_change(
                 "unknown",
                 "tbd",
             }:
-                errors.append(f"new active dataset {path} requires nonempty valid {field}")
+                errors.append(f"{label} dataset {path} requires nonempty valid {field}")
         status = entry.get("status")
-        if isinstance(status, str) and "active" not in status.lower():
-            errors.append(f"new active dataset {path} status must identify active coverage")
+        if not status_identifies_active_coverage(status):
+            errors.append(f"{label} dataset {path} status must identify active coverage")
         if not any(
             isinstance(entry.get(field), str) and entry[field].strip()
             for field in ("replacement_status", "supersedes", "replacement_or_supersession")
         ):
             errors.append(
-                f"new active dataset {path} requires replacement or supersession semantics"
+                f"{label} dataset {path} requires replacement or supersession semantics"
             )
         for field in ("results_path", "summary_path", "manifest_path"):
             evidence_path = entry.get(field)
             if not isinstance(evidence_path, str) or not evidence_path.strip():
-                errors.append(f"new active dataset {path} requires nonempty {field}")
+                errors.append(f"{label} dataset {path} requires nonempty {field}")
             elif artifact_base_dir is None:
                 errors.append(
-                    f"new active dataset {path} {field} cannot be verified without an artifact source"
+                    f"{label} dataset {path} {field} cannot be verified without an artifact source"
                 )
             elif not (artifact_base_dir / evidence_path).is_file():
                 errors.append(
-                    f"new active dataset {path} references missing {field}: {evidence_path}"
+                    f"{label} dataset {path} references missing {field}: {evidence_path}"
                 )
 
     for entry in changed_entries:
         path = entry["path"]
         declared = entry.get("active_count_delta")
         is_new_entry = path not in parent_by_path
+        parent_entry = parent_by_path.get(path)
+        is_activation = bool(
+            parent_entry
+            and not status_identifies_active_coverage(parent_entry.get("status"))
+            and status_identifies_active_coverage(entry.get("status"))
+        )
         if not is_new_entry:
-            parent_entry = parent_by_path[path]
+            assert parent_entry is not None
             changed_count_fields = [
                 field
                 for field in ("total_questions", "single_step_questions", "multi_step_questions")
@@ -661,14 +675,14 @@ def check_manifest_change(
         status = entry.get("status")
         is_new_active_entry = is_new_entry and (
             isinstance(declared, dict)
-            or (isinstance(status, str) and "active" in status.lower())
+            or status_identifies_active_coverage(status)
         )
 
         # Validate every newly active registry entry before considering its
         # declared aggregate contribution. Otherwise one legitimate extension
         # can mask an additional skeletal active entry that omits its delta.
         if is_new_active_entry:
-            require_new_entry_provenance(entry)
+            require_active_entry_provenance(entry, "new active")
             current_lines = artifact_lines(
                 path, base_dir=artifact_base_dir, label="new active"
             )
@@ -692,6 +706,55 @@ def check_manifest_change(
                                     f"file={actual} declared={declared_value}"
                                 )
 
+        if is_activation:
+            require_active_entry_provenance(entry, "reactivated")
+            current_lines = artifact_lines(
+                path, base_dir=artifact_base_dir, label="reactivated current"
+            )
+            parent_lines = artifact_lines(
+                path,
+                base_dir=parent_artifact_base_dir,
+                git_ref=parent_git_ref,
+                label="reactivated parent",
+            )
+            if not isinstance(declared, dict):
+                errors.append(f"reactivated dataset {path} requires active_count_delta")
+            if current_lines is not None and parent_lines is not None:
+                if current_lines != parent_lines:
+                    errors.append(
+                        f"reactivated dataset {path} must use the unchanged registered dataset; "
+                        "use a separate extension ledger change for appended rows"
+                    )
+                active_counts = classify_active_rows(path, current_lines)
+                if active_counts is not None:
+                    expected_delta = {
+                        **active_counts,
+                        "exploratory_questions": (
+                            active_counts["total_questions"]
+                            if "exploratory" in str(status).lower()
+                            else 0
+                        ),
+                        "locked_regression_questions": (
+                            active_counts["total_questions"]
+                            if "locked" in str(status).lower()
+                            or "regression" in str(status).lower()
+                            else 0
+                        ),
+                    }
+                    for field, actual in active_counts.items():
+                        if entry.get(field) != actual:
+                            errors.append(
+                                f"reactivated dataset {path} {field} mismatch: "
+                                f"file={actual} entry={entry.get(field)}"
+                            )
+                    if isinstance(declared, dict):
+                        for field, actual in expected_delta.items():
+                            if declared.get(field) != actual:
+                                errors.append(
+                                    f"reactivated dataset {path} active_count_delta.{field} "
+                                    f"mismatch: file/status={actual} declared={declared.get(field)}"
+                                )
+
         if not isinstance(declared, dict):
             continue
         for field in ACTIVE_COUNT_FIELDS:
@@ -703,7 +766,14 @@ def check_manifest_change(
                 continue
             ledger_delta[field] += value
 
-        if path in parent_by_path:
+        if path in parent_by_path and is_activation:
+            change = entry.get("ledger_change")
+            if not isinstance(change, dict) or change.get("kind") != "activated_registered_dataset":
+                errors.append(
+                    f"reactivated dataset {path} requires ledger_change.kind="
+                    "'activated_registered_dataset'"
+                )
+        elif path in parent_by_path:
             change = entry.get("ledger_change")
             if not isinstance(change, dict) or change.get("kind") != "extended_registered_dataset":
                 errors.append(

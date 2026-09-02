@@ -477,6 +477,74 @@ def test_manifest_change_rejects_existing_count_rewrite_masked_by_valid_extensio
     )
 
 
+def test_manifest_change_accepts_registered_dataset_reactivation(tmp_path):
+    module = _load_manifest_check_module()
+    parent = _minimal_manifest()
+    entry = {
+        **_active_dataset_entry(),
+        "status": "inactive_diagnostic",
+        "active_count_delta": None,
+        "ledger_change": None,
+    }
+    parent["question_bank"]["datasets"].append(entry)
+    current = copy.deepcopy(parent)
+    current["question_bank"]["total_questions"] += 1
+    current["question_bank"]["multi_step_questions"] += 1
+    current["question_bank"]["exploratory_questions"] += 1
+    activated = current["question_bank"]["datasets"][0]
+    activated["status"] = "exploratory_active_diagnostic"
+    activated["active_count_delta"] = {
+        "total_questions": 1,
+        "single_step_questions": 0,
+        "multi_step_questions": 1,
+        "exploratory_questions": 1,
+        "locked_regression_questions": 0,
+    }
+    activated["ledger_change"] = {"kind": "activated_registered_dataset"}
+    parent_root = tmp_path / "parent"
+    current_root = tmp_path / "current"
+    parent_root.mkdir()
+    current_root.mkdir()
+    _write_new_active_artifacts(parent_root)
+    _write_new_active_artifacts(current_root)
+
+    assert module.check_manifest_change(current, parent, current_root, parent_root) == []
+
+
+def test_manifest_change_rejects_inactive_activation_masked_by_valid_extension(tmp_path):
+    module = _load_manifest_check_module()
+    parent, current = _extension_manifests()
+    parent_root = tmp_path / "parent"
+    current_root = tmp_path / "current"
+    (parent_root / "test_reports").mkdir(parents=True)
+    (current_root / "test_reports").mkdir(parents=True)
+    first = json.dumps(_row(case_id="old")) + "\n"
+    (parent_root / "test_reports/registered_dataset.jsonl").write_text(
+        first, encoding="utf-8"
+    )
+    (current_root / "test_reports/registered_dataset.jsonl").write_text(
+        first + json.dumps(_row(case_id="new")) + "\n", encoding="utf-8"
+    )
+
+    inactive_path = "test_reports/inactive_registered_dataset.jsonl"
+    inactive = {
+        **_active_dataset_entry(),
+        "path": inactive_path,
+        "status": "inactive_diagnostic",
+    }
+    inactive.pop("active_count_delta")
+    parent["question_bank"]["datasets"].append(inactive)
+    activated = copy.deepcopy(inactive)
+    activated["status"] = "exploratory_active_diagnostic"
+    current["question_bank"]["datasets"].append(activated)
+    (parent_root / inactive_path).write_text(first, encoding="utf-8")
+    (current_root / inactive_path).write_text(first, encoding="utf-8")
+
+    errors = module.check_manifest_change(current, parent, current_root, parent_root)
+
+    assert any("reactivated dataset" in error and "requires active_count_delta" in error for error in errors)
+
+
 def test_manifest_checker_rejects_missing_root_false_negative_repair():
     module = _load_manifest_check_module()
     manifest = _minimal_manifest()
