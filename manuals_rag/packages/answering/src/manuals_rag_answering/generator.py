@@ -225,6 +225,30 @@ def _requested_product_sides(query: str) -> list[tuple[str, bool]]:
     return sides
 
 
+def _repeated_product_side_clauses(query: str) -> list[str]:
+    """Split explicit ``on/for/with PRODUCT ... and ... PRODUCT`` requests."""
+    normalized = re.sub(r"\s+", " ", query).strip(" .?")
+    parts = [
+        part.strip(" ,.;:?")
+        for part in re.split(
+            r"\s*,?\s+and\s+(?=(?:on|for|with)\s+)",
+            normalized,
+            flags=re.IGNORECASE,
+        )
+        if part.strip(" ,.;:?")
+    ]
+    if len(parts) < 2:
+        return []
+    if not all(
+        re.search(r"\b(?:on|for|with)\s+(?:an?\s+|the\s+)?", part, flags=re.IGNORECASE)
+        and len(_requested_product_sides(part)) == 1
+        for part in parts
+    ):
+        return []
+    sides = [side for part in parts for side in _requested_product_sides(part)]
+    return parts if len(set(sides)) == len(parts) else []
+
+
 def _requested_troubleshooting_identifier_side_bindings(
     query: str,
 ) -> dict[str, list[tuple[str, bool]]]:
@@ -1111,6 +1135,7 @@ def _is_comparison_query(query: str) -> bool:
             flags=re.IGNORECASE,
         )
         or re.search(r"\bvs\.?\b", query)
+        or _repeated_product_side_clauses(query)
     )
 
 
@@ -1210,6 +1235,8 @@ def _focused_troubleshooting_results(query: str, results: list[SearchResult]) ->
 def _comparison_side_clauses(query: str) -> list[str]:
     if not _is_comparison_query(query):
         return []
+    if repeated_clauses := _repeated_product_side_clauses(query):
+        return repeated_clauses
     normalized = re.sub(r"\s+", " ", query).strip(" .?")
     normalized = re.sub(r"^\s*compare\s+", "", normalized, flags=re.IGNORECASE)
     parts = [
@@ -1220,6 +1247,117 @@ def _comparison_side_clauses(query: str) -> list[str]:
     if len(parts) < 2:
         return []
     return parts
+
+
+def _repeated_side_clause_anchor(clause: str) -> str:
+    match = re.search(r"\b(?:when|if)\s+(.+)$", clause, flags=re.IGNORECASE)
+    if not match:
+        return ""
+    return _normalized_phrase(match.group(1).strip(" .?\"'"))
+
+
+def _requested_troubleshooting_evidence_roles(clause: str) -> set[str]:
+    """Return source roles explicitly requested by one troubleshooting clause."""
+    roles: set[str] = set()
+    if re.search(r"\b(?:cause|causes|caused|why)\b", clause, flags=re.IGNORECASE):
+        roles.add("cause")
+    if re.search(r"\b(?:error\s+message|message\s+(?:is|says|shown|displayed))\b", clause, flags=re.IGNORECASE):
+        roles.add("message")
+    if re.search(
+        r"\b(?:corrective\s+action|remed(?:y|ies)|fix|what\s+should\b|what\s+(?:do|does|can)\b)\b",
+        clause,
+        flags=re.IGNORECASE,
+    ):
+        roles.add("action")
+    return roles
+
+
+def _troubleshooting_evidence_supports_roles(evidence: str, roles: set[str]) -> bool:
+    """Require each requested role to be stated in one source-bound row/chunk."""
+    if not roles:
+        return True
+    supported: set[str] = set()
+    if re.search(r"\b(?:cause|caused\s+by)\s*:", evidence, flags=re.IGNORECASE) or re.search(
+        r"\b(?:because|due\s+to)\b", evidence, flags=re.IGNORECASE
+    ):
+        supported.add("cause")
+    if re.search(r"\b(?:error\s+message|message)\s*:", evidence, flags=re.IGNORECASE):
+        supported.add("message")
+    if re.search(r"\b(?:corrective\s+action|remed(?:y|ies))\s*:", evidence, flags=re.IGNORECASE) or re.search(
+        r"\b(?:cell\s+value\s*:\s*)?(?:disable|enable|execute|set|select|change|check|connect|replace|delete|move|restart|reset|inspect)\b",
+        evidence,
+        flags=re.IGNORECASE,
+    ):
+        supported.add("action")
+    return roles.issubset(supported)
+
+
+def _repeated_side_answer_text(clause: str, result: SearchResult) -> str:
+    citation_evidence = _citation_evidence_text(result)
+    requested_ids = _query_requested_troubleshooting_identifiers(clause)
+    anchor = _repeated_side_clause_anchor(clause)
+    records = [
+        record.strip()
+        for record in re.split(
+            r"\n+|(?=\b(?:Error Message|Error Number|Alarm|Fault)\s*:)",
+            citation_evidence,
+            flags=re.IGNORECASE,
+        )
+        if record.strip()
+    ]
+    for record in records:
+        normalized = _normalized_phrase(record)
+        identifiers = {
+            _normalized_phrase(match.group(0))
+            for match in re.finditer(r"\b[a-z]*\d[a-z0-9._/-]*\b", record, flags=re.IGNORECASE)
+        }
+        if requested_ids and requested_ids.intersection(identifiers):
+            return record
+        if not requested_ids and len(anchor) >= 6 and anchor in normalized:
+            return record
+    return _focused_diagnostic_table_answer_text(clause, result) or citation_evidence
+
+
+def _repeated_side_troubleshooting_results(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[bool, list[SearchResult]]:
+    """Bind each repeated product clause to its own troubleshooting evidence."""
+    clauses = _repeated_product_side_clauses(query)
+    if len(clauses) < 2 or not _is_troubleshooting_query(query):
+        return False, []
+
+    selected: list[SearchResult] = []
+    seen_chunks: set[str] = set()
+    for clause in clauses:
+        side = _requested_product_sides(clause)[0]
+        requested_ids = _query_requested_troubleshooting_identifiers(clause)
+        anchor = _repeated_side_clause_anchor(clause)
+        requested_roles = _requested_troubleshooting_evidence_roles(clause)
+        candidates: list[tuple[float, int, SearchResult]] = []
+        for index, result in enumerate(results):
+            if result.chunk_id in seen_chunks or not _result_matches_requested_product_side(result, side):
+                continue
+            citation_evidence = _citation_evidence_text(result)
+            evidence = _normalized_phrase(citation_evidence)
+            if not _troubleshooting_evidence_supports_roles(citation_evidence, requested_roles):
+                continue
+            if requested_ids:
+                evidence_identifiers = {
+                    _normalized_phrase(match.group(0))
+                    for match in re.finditer(r"\b[a-z]*\d[a-z0-9._/-]*\b", citation_evidence, flags=re.IGNORECASE)
+                }
+                if not requested_ids.intersection(evidence_identifiers):
+                    continue
+            elif len(anchor) < 6 or anchor not in evidence:
+                continue
+            candidates.append((_troubleshooting_evidence_score(clause, result), index, result))
+        if not candidates:
+            return True, []
+        _score, _index, best = max(candidates, key=lambda item: (item[0], -item[1]))
+        selected.append(best)
+        seen_chunks.add(best.chunk_id)
+    return True, selected
 
 
 def _meaningful_comparison_clause_terms(clause: str) -> set[str]:
@@ -1412,6 +1550,9 @@ def _result_matches_comparison_side_clause(result: SearchResult, clause: str) ->
 def _comparison_troubleshooting_side_matches(query: str, results: list[SearchResult]) -> list[SearchResult]:
     if not (_is_comparison_query(query) and _is_troubleshooting_query(query)):
         return []
+    repeated_applies, repeated_results = _repeated_side_troubleshooting_results(query, results)
+    if repeated_applies:
+        return repeated_results
     clauses = _comparison_side_clauses(query)
     if len(clauses) < 2:
         return []
@@ -1550,7 +1691,11 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             followup_questions=[],
             insufficient_evidence=True,
         )
-    if not _requested_troubleshooting_identifiers_are_available(query, results):
+    repeated_applies, repeated_results = _repeated_side_troubleshooting_results(query, results)
+    if (
+        not _requested_troubleshooting_identifiers_are_available(query, results)
+        and not (repeated_applies and repeated_results)
+    ):
         return AnswerResponse(
             answer="I could not answer from the available evidence.",
             confidence="low",
@@ -1562,7 +1707,7 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
         )
     fallback_results = _fallback_evidence_results(query, results)
     requested_troubleshooting_ids = _query_requested_troubleshooting_identifiers(query)
-    if requested_troubleshooting_ids:
+    if requested_troubleshooting_ids and not repeated_applies:
         requested_results = [
             result
             for result in fallback_results
@@ -1610,6 +1755,13 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             or _focused_table_like_answer_text(query, top)
             or _focused_program_setting_protection_answer_text(query, top)
             or _fallback_answer_text(top)
+        )
+    elif repeated_applies:
+        clauses = _repeated_product_side_clauses(query)
+        answer_text = "Retrieved evidence:\n" + "\n".join(
+            f"- {result.title}, page(s) {', '.join(str(page) for page in result.pages) or 'unknown'}: "
+            f"{_repeated_side_answer_text(clause, result)}"
+            for clause, result in zip(clauses, fallback_results, strict=True)
         )
     else:
         answer_text = "Retrieved evidence:\n" + "\n".join(
@@ -2473,6 +2625,9 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
     requested_ids = _query_requested_troubleshooting_identifiers(query)
     requested_product_sides = _requested_product_sides(query)
     requested_numeric_ids = {identifier for identifier in requested_ids if identifier.isdigit()}
+    repeated_applies, repeated_results = _repeated_side_troubleshooting_results(query, ordered_results)
+    if repeated_applies:
+        return repeated_results
     if _is_comparison_query(query) and len(requested_numeric_ids) >= 2:
         side_bindings = _requested_troubleshooting_identifier_side_bindings(query)
         requested_rows: list[SearchResult] = []

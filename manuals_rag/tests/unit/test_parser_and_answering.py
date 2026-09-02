@@ -4,6 +4,7 @@ import fitz
 
 from manuals_rag_answering.generator import (
     _comparison_answer_covers_retrieved_model_sides,
+    _fallback_answer,
     _fallback_evidence_results,
     _is_comparison_query,
     _parse_relevance_response,
@@ -1690,6 +1691,170 @@ def test_validate_answer_comparison_fallback_uses_multiple_structured_rows():
         "shock-row",
     ]
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def _repeated_side_troubleshooting_results_fixture() -> list[SearchResult]:
+    return [
+        SearchResult(
+            chunk_id="controller-error",
+            score=0.9,
+            title="Controller Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[40],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Remedy; Row headers: 43101 communication timeout; "
+                "Cell value: Set flow control to None and inspect the serial cable."
+            ),
+            metadata={"chunk_type": "table_record", "product_model": "CTRL-900"},
+        ),
+        SearchResult(
+            chunk_id="family-card-full",
+            score=0.8,
+            title="Vision Family Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[85],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Message: Storage Card 2 is full.; Cause: There is not enough free space.; "
+                "Corrective Action: Make space by deleting or moving unnecessary files.; Error Code: 85\n"
+                "Error Message: Storage Card 2 is write-protected.; Cause: The switch is enabled.; "
+                "Corrective Action: Disable the write-protection switch.; Error Code: 86"
+            ),
+            metadata={"chunk_type": "table_record", "product_family": "VSN Series"},
+        ),
+    ]
+
+
+def test_repeated_product_side_troubleshooting_fallback_binds_each_clause():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+    results = _repeated_side_troubleshooting_results_fixture()
+
+    selected = _fallback_evidence_results(query, results)
+
+    assert _is_comparison_query(query)
+    assert [result.chunk_id for result in selected] == ["controller-error", "family-card-full"]
+
+
+def test_repeated_product_side_troubleshooting_fallback_rejects_missing_side():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+
+    assert _fallback_evidence_results(query, _repeated_side_troubleshooting_results_fixture()[:1]) == []
+
+
+def test_repeated_product_side_troubleshooting_fallback_rejects_sibling_symptom():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+    results = _repeated_side_troubleshooting_results_fixture()
+    results[1] = results[1].model_copy(
+        update={
+            "chunk_id": "family-card-protected",
+            "content": (
+                "Error Message: Storage Card 2 is write-protected.; Cause: The switch is enabled.; "
+                "Corrective Action: Disable the write-protection switch.; Error Code: 86"
+            ),
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+
+
+def test_repeated_product_side_troubleshooting_rejects_cause_only_for_requested_action():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+    results = _repeated_side_troubleshooting_results_fixture()
+    results[0] = results[0].model_copy(
+        update={"content": "Error Code: 43101; Message: Communication timeout; Cause: Cable disconnected."}
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+    assert _fallback_answer(query, results).insufficient_evidence is True
+
+
+def test_repeated_product_side_troubleshooting_rejects_action_only_for_requested_cause():
+    query = (
+        "On a CTRL-900, what causes Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+    results = _repeated_side_troubleshooting_results_fixture()
+    results[0] = results[0].model_copy(
+        update={"content": "Error Code: 43101; Remedy: Set flow control to None and inspect the serial cable."}
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+
+
+def test_repeated_product_side_troubleshooting_does_not_mix_roles_across_chunks():
+    query = (
+        "On a CTRL-900, what causes Error 43101 and what should a technician check, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+    results = _repeated_side_troubleshooting_results_fixture()
+    results[0] = results[0].model_copy(
+        update={"chunk_id": "controller-cause", "content": "Error Code: 43101; Cause: Cable disconnected."}
+    )
+    results.insert(
+        1,
+        results[0].model_copy(
+            update={
+                "chunk_id": "controller-remedy",
+                "content": "Error Code: 43101; Remedy: Set flow control to None and inspect the serial cable.",
+            }
+        ),
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+
+
+def test_repeated_product_side_troubleshooting_preserves_clause_order_when_results_are_reversed():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+
+    selected = _fallback_evidence_results(query, list(reversed(_repeated_side_troubleshooting_results_fixture())))
+
+    assert [result.chunk_id for result in selected] == ["controller-error", "family-card-full"]
+
+
+def test_repeated_product_side_troubleshooting_validation_uses_grounded_fallback():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+    generated = AnswerResponse(
+        answer="Restart both devices.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+    validated = validate_answer(generated, _repeated_side_troubleshooting_results_fixture(), query=query)
+
+    assert validated.insufficient_evidence is False
+    assert [citation["chunk_id"] for citation in validated.citations] == [
+        "controller-error",
+        "family-card-full",
+    ]
+    assert "flow control" in validated.answer
+    assert "deleting or moving" in validated.answer
+    assert "write-protected" not in validated.answer
+    assert "Restart both" not in validated.answer
 
 
 def test_comparison_troubleshooting_fallback_prefers_side_specific_symptom_rows():
