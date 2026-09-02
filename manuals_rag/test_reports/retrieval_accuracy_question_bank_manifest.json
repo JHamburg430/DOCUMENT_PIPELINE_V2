@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of the durable 184955 dataset-artifact repair; preserve all of 182758 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a66cbed",
@@ -741,7 +741,7 @@
     },
     "current_answer_failures": {},
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_182758.jsonl and retrieval_eval_results_20260902_184955.jsonl. The 182758 positive is diagnostic/not-clean because its query requested a VS technician action absent from chunk be25fb78. The corrected 184955 positive asks only meaning/cause, cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans, and each cited returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
-    "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of the durable 184955 dataset-artifact repair; preserve all of 182758 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260902_184955 positive only"
   },
   "constraints": {
@@ -9021,11 +9021,11 @@
     "current_run_worktree": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "created_new_worktree": false,
-      "timestamp": "2026-09-02T18:53:00Z",
-      "git_status_before_final_commit": "dirty only with this run's source-faithful eval artifacts and tracking on local production commit 70bae9a, which directly includes origin/main guardrail commit 76d30bf",
+        "timestamp": "2026-09-02T19:29:00Z",
+        "git_status_before_final_commit": "dirty only with this run's force-added exact generated 184955 dataset artifact plus progress/manifest tracking on origin/main guardrail commit 005d9af",
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at local commit 70bae9a before final tracking commit",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 005d9af before final tracking commit",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -9234,7 +9234,7 @@
       ]
     }
   ],
-  "next_target": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Await guardrail review of the durable 184955 dataset-artifact repair; preserve all of 182758 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10203,7 +10203,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Await guardrail review of the durable 184955 dataset-artifact repair; preserve all of 182758 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a66cbed",
@@ -10518,7 +10518,7 @@
       },
       "current_answer_failures": {},
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_182758.jsonl and retrieval_eval_results_20260902_184955.jsonl. The 182758 positive is diagnostic/not-clean because its query requested a VS technician action absent from chunk be25fb78. The corrected 184955 positive asks only meaning/cause, cites exact chunks 423d72f0 page 1274 and be25fb78 page 1972 with null quote spans, and each cited returned chunk directly supports its assigned product/error claim. The swapped/missing-side control returned insufficient_evidence=true with no citations.",
-      "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Await guardrail review of the durable 184955 dataset-artifact repair; preserve all of 182758 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260902_184955 positive only"
     },
     "current_answer_failure_categories": {},
@@ -12767,11 +12767,11 @@
       "current_run_worktree": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
         "created_new_worktree": false,
-        "timestamp": "2026-09-02T18:53:00Z",
-        "git_status_before_final_commit": "dirty only with this run's source-faithful eval artifacts and tracking on local production commit 70bae9a, which directly includes origin/main guardrail commit 76d30bf",
+      "timestamp": "2026-09-02T19:29:00Z",
+      "git_status_before_final_commit": "dirty only with this run's force-added exact generated 184955 dataset artifact plus progress/manifest tracking on origin/main guardrail commit 005d9af",
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at local commit 70bae9a before final tracking commit",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 005d9af before final tracking commit",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -12982,7 +12982,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Await guardrail review of the durable 184955 dataset-artifact repair; preserve all of 182758 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13019,7 +13019,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of the durable 184955 dataset-artifact repair; preserve all of 182758 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13791,6 +13791,19 @@
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-09-02T19:17:51Z",
+        "severity": "needs_fix",
+        "guardrail_commit": "005d9af",
+        "finding": "Accepted-clean retrieval_eval_20260902_184955 referenced an ignored worktree-local generated dataset that was absent from commit 708f862, so clean-checkout manifest validation failed.",
+        "status": "addressed_this_run_pending_guardrail_review",
+        "evidence": [
+          "Preserved the exact generated two-row dataset from the mandated reusable accuracy worktree and force-added it despite the broad test_reports JSONL ignore rule.",
+          "The generated dataset differs from the committed source-faithful validation input only in JSON whitespace and preserves the same case ids, queries, expected evidence, and diagnostic missing-side control.",
+          "Normal and parent-aware real-manifest checks plus focused manifest tests validate the now-committed artifact; active coverage remains 209 total, 101 single-step, and 108 multi-step."
+        ],
+        "required_next_action": "Await independent guardrail review of the durable 184955 artifact repair; preserve all of 182758 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901."
+      },
       {
         "timestamp": "2026-09-02T18:11:50Z",
         "severity": "needs_fix",
@@ -15245,9 +15258,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T18:52:00Z"
+    "updated_at": "2026-09-02T19:29:00Z"
   },
-  "remaining": "Await guardrail review of the general code-to-product relation binding correction and source-faithful 184955 evidence; preserve all of 182758 as diagnostic/not-clean. Reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Await guardrail review of the durable 184955 dataset-artifact repair; preserve all of 182758 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -16018,6 +16031,19 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-09-02T19:17:51Z",
+      "severity": "needs_fix",
+      "guardrail_commit": "005d9af",
+      "finding": "Accepted-clean retrieval_eval_20260902_184955 referenced an ignored worktree-local generated dataset that was absent from commit 708f862, so clean-checkout manifest validation failed.",
+      "status": "addressed_this_run_pending_guardrail_review",
+      "evidence": [
+        "Preserved the exact generated two-row dataset from the mandated reusable accuracy worktree and force-added it despite the broad test_reports JSONL ignore rule.",
+        "The generated dataset differs from the committed source-faithful validation input only in JSON whitespace and preserves the same case ids, queries, expected evidence, and diagnostic missing-side control.",
+        "Normal and parent-aware real-manifest checks plus focused manifest tests validate the now-committed artifact; active coverage remains 209 total, 101 single-step, and 108 multi-step."
+      ],
+      "required_next_action": "Await independent guardrail review of the durable 184955 artifact repair; preserve all of 182758 as diagnostic/not-clean and reuse /tmp/manuals_rag_accuracy_20260901."
+    },
     {
       "timestamp": "2026-09-02T18:11:50Z",
       "severity": "needs_fix",
@@ -17472,5 +17498,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T18:52:00Z"
+  "updated_at": "2026-09-02T19:29:00Z"
 }

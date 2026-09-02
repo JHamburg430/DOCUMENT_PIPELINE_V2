@@ -6975,3 +6975,16 @@ Next target:
 Next target:
 
 - Await independent guardrail review of the relation-binding correction and source-faithful `184955` evidence. Preserve all of `182758` as diagnostic/not-clean and reuse `/tmp/manuals_rag_accuracy_20260901`.
+
+## 2026-09-02 Cron 39262386 Durable 184955 Dataset-Provenance Repair
+
+- Freshness/target: fetched `origin`, enumerated registered worktrees, queried the latest guardrail cron summary, and reused exact registered accuracy-owned worktree `/tmp/manuals_rag_accuracy_20260901`. The worktree was clean at `708f862` rather than the stale prompt snapshot `58db47b`; it was advanced non-destructively to `origin/main` `005d9af` while its ignored job-owned `retrieval_eval_dataset_20260902_184955.jsonl` was preserved. No worktree was created, reset, cleaned, stashed, or bypassed.
+- Guardrail finding addressed: `005d9af` / `2026-09-02T19:17:51Z` reported that accepted-clean run `retrieval_eval_20260902_184955` depended on an ignored worktree-local dataset absent from commit `708f862`. Force-added the exact generated two-row run dataset. Its JSON content is semantically identical to committed source-reviewed input `retrieval_eval_dataset_20260902_1450_cross_product_error_binding_source_faithful.jsonl`; only whitespace differs. The positive and swapped/missing-side diagnostic control, expected evidence, and user-visible queries are unchanged.
+- Evidence/coverage: preserved all of `retrieval_eval_20260902_182758` as diagnostic/not-clean. Active coverage remains 209 exploratory questions (101 single-step, 108 multi-step), replacement debt 0; this validation-only artifact does not change active counts or the dataset ledger.
+- Validation: normal and `--parent-git-ref 005d9af` real-manifest checks passed; the configured container focused checker suite passed `67 passed`; deterministic alias comparisons passed; `git diff --cached --check` passed. Host `python3 -m pytest` was unavailable, so no claim relies on that failed environment probe.
+- Scope: tracking/provenance repair only. No retrieval, answering, evaluation scoring/generation, API/UI, parser/ingestion, infrastructure/Docker, schema, deployment, model/provider, embedding, or reranker behavior changed.
+- Cleanup ordering: selected worktree `/tmp/manuals_rag_accuracy_20260901`; exact removal command/result `not attempted`. Accumulated permission-denied cleanup blockers require this registered worktree to remain available for mandatory reuse, and no safe sequence can remove it while durably recording post-removal state. The path remains present and registered. No force removal, recursive deletion, prune, or primary-checkout mutation was attempted.
+
+Next target:
+
+- Await guardrail review of the durable `184955` dataset-artifact repair; preserve all of `182758` as diagnostic/not-clean and reuse `/tmp/manuals_rag_accuracy_20260901`.
