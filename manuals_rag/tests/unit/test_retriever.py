@@ -1516,6 +1516,49 @@ def test_diagnostic_multi_error_promotion_rejects_wrong_product_with_both_codes(
     assert retriever._promote_diagnostic_table_candidates([], [wrong_complete], analysis, limit=5) == []
 
 
+@pytest.mark.parametrize("near_product", ["MOD-6000", "XMOD-600"])
+def test_diagnostic_multi_error_promotion_rejects_product_prefix_and_superstring(near_product: str):
+    analysis = analyze_query(
+        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
+    )
+    near_match = SearchResult(
+        chunk_id="near-match",
+        score=1.0,
+        title=f"{near_product} Manual",
+        document_version_id="ver-near",
+        source_document_id="doc-near",
+        pages=[1],
+        section_path=["Troubleshooting"],
+        content="Error Number: 10109; Cause: First. Error Number: 10110; Cause: Second.",
+        metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": near_product},
+    )
+
+    assert retriever._result_matches_primary_identifier(near_match, "MOD-600") is False
+    assert retriever._promote_diagnostic_table_candidates([], [near_match], analysis, limit=5) == []
+
+
+def test_diagnostic_multi_error_promotion_accepts_exact_product_identifier_boundaries():
+    analysis = analyze_query(
+        "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"
+    )
+    exact = SearchResult(
+        chunk_id="exact",
+        score=1.0,
+        title="MOD-600 Controller Manual",
+        document_version_id="ver-exact",
+        source_document_id="doc-exact",
+        pages=[1],
+        section_path=["Troubleshooting"],
+        content="Error Number: 10109; Cause: First. Error Number: 10110; Cause: Second.",
+        metadata={"chunk_type": "table_record", "table_row_group": True, "product_model": "MOD 600"},
+    )
+
+    assert retriever._result_matches_primary_identifier(exact, "MOD-600") is True
+    assert [item.chunk_id for item in retriever._promote_diagnostic_table_candidates([], [exact], analysis, limit=5)] == [
+        "exact"
+    ]
+
+
 def test_diagnostic_multi_error_promotion_rejects_unrelated_complete_over_requested_partial():
     analysis = analyze_query(
         "For MOD-600, compare Error 10109 and Error 10110: what causes each one and what corrective action applies?"

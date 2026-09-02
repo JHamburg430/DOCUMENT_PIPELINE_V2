@@ -2222,21 +2222,17 @@ def _result_matches_primary_identifier(result: SearchResult, identifier: str) ->
     expected = _compact_identifier(identifier)
     if not expected:
         return False
-    primary_haystack = _compact_identifier(
-        " ".join(
-            str(part)
-            for part in [
-                result.metadata.get("product_model"),
-                result.metadata.get("product_family"),
-                " ".join(str(item) for item in result.metadata.get("product_models") or []),
-                " ".join(str(item) for item in result.metadata.get("product_families") or []),
-                " ".join(str(item) for item in result.metadata.get("part_numbers") or []),
-                result.title,
-            ]
-            if part
-        )
-    )
-    return expected in primary_haystack
+    separated = r"[^a-z0-9]*".join(re.escape(char) for char in expected)
+    bounded_pattern = re.compile(rf"(?<![a-z0-9]){separated}(?![a-z0-9])", flags=re.IGNORECASE)
+    primary_values = [
+        result.metadata.get("product_model"),
+        result.metadata.get("product_family"),
+        *(result.metadata.get("product_models") or []),
+        *(result.metadata.get("product_families") or []),
+        *(result.metadata.get("part_numbers") or []),
+        result.title,
+    ]
+    return any(bounded_pattern.search(str(value)) for value in primary_values if value)
 
 
 def _comparison_row_code_terms(query: str, identifiers: list[str]) -> list[str]:
