@@ -8998,12 +8998,24 @@
     ],
     "guardrail_commit": "3a0938a",
     "guardrail_finding_timestamp": "2026-09-02T00:08:00Z",
+    "latest_accuracy_cleanup_attempt": {
+      "command": "git worktree remove /tmp/manuals_rag_accuracy_20260831",
+      "next_run_instruction": "Do not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker. Do not manually delete or force-remove the leftover path.",
+      "post_remove_git_status": "fatal: not a git repository: /home/john/Desktop/Programming/Document_Pipeline_V2/.git/worktrees/manuals_rag_accuracy_20260831",
+      "post_remove_path_check": "/tmp/manuals_rag_accuracy_20260831 still exists",
+      "post_remove_registry_check": "git worktree list --porcelain no longer lists exact path /tmp/manuals_rag_accuracy_20260831; grep also matched only other similarly prefixed 20260831_* worktrees",
+      "pre_remove_status": "clean after commit 08d2231 was pushed; git status --short --branch showed no uncommitted or untracked work",
+      "repo_subdir": "/tmp/manuals_rag_accuracy_20260831/manuals_rag",
+      "result": "failed: error: failed to delete '/tmp/manuals_rag_accuracy_20260831': Permission denied",
+      "reused_worktree": "/tmp/manuals_rag_accuracy_20260831",
+      "timestamp": "2026-09-02T01:07:00Z"
+    },
     "policy_added": "docs/runbooks/retrieval_accuracy_cron.md now requires reusing one clean job-owned worktree when safe, creating at most one new worktree per run, verifying clean state before removal, using git worktree remove on the exact path, verifying deregistration, and recording blockers instead of serial throwaway creation.",
-    "remaining": "Cleanup deregistered but could not delete /tmp/manuals_rag_accuracy_20260901_current_4zTub8 due to Permission denied. Next run should not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker before optional row 17 work.",
+    "remaining": "Cleanup failed for /tmp/manuals_rag_accuracy_20260831 with Permission denied after successful push; the exact path is no longer registered but still exists without usable Git metadata. Next run should reuse a known clean registered job-owned worktree and avoid creating another throwaway worktree.",
     "repo_subdir": "/tmp/manuals_rag_accuracy_20260901_current_4zTub8/manuals_rag",
     "reused_worktree": "/tmp/manuals_rag_accuracy_20260901_current_4zTub8",
     "severity": "needs_fix",
-    "status": "addressed_failed_run_artifacts_preserved_cleanup_blocker_recorded",
+    "status": "addressed_with_additional_cleanup_blocker_recorded",
     "timestamp": "2026-09-02T00:37:00Z",
     "validation": [
       "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
@@ -9066,6 +9078,18 @@
     {
       "addressed_this_run": "Reconciled root and question_bank current_answer_failure_source to the current retrieval_eval_20260901_235625 unsupported_citation_quote failure and added deterministic checker coverage requiring current answer failure source to name the current run and active failure reason.",
       "classification": "manifest_current_answer_failure_source_provenance_repair",
+      "cleanup_attempt": {
+        "command": "git worktree remove /tmp/manuals_rag_accuracy_20260831",
+        "next_run_instruction": "Do not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker. Do not manually delete or force-remove the leftover path.",
+        "post_remove_git_status": "fatal: not a git repository: /home/john/Desktop/Programming/Document_Pipeline_V2/.git/worktrees/manuals_rag_accuracy_20260831",
+        "post_remove_path_check": "/tmp/manuals_rag_accuracy_20260831 still exists",
+        "post_remove_registry_check": "git worktree list --porcelain no longer lists exact path /tmp/manuals_rag_accuracy_20260831; grep also matched only other similarly prefixed 20260831_* worktrees",
+        "pre_remove_status": "clean after commit 08d2231 was pushed; git status --short --branch showed no uncommitted or untracked work",
+        "repo_subdir": "/tmp/manuals_rag_accuracy_20260831/manuals_rag",
+        "result": "failed: error: failed to delete '/tmp/manuals_rag_accuracy_20260831': Permission denied",
+        "reused_worktree": "/tmp/manuals_rag_accuracy_20260831",
+        "timestamp": "2026-09-02T01:07:00Z"
+      },
       "evidence": [
         "Negative control before manifest update: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py failed on stale root and question_bank current_answer_failure_source.",
         "Focused manifest tests after checker change passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 42 passed.",
@@ -9075,8 +9099,8 @@
       "finding": "current_answer_failure_source still described retrieval_eval_20260901_223159 expected_evidence_not_cited after current answer failures moved to retrieval_eval_20260901_235625 unsupported_citation_quote.",
       "guardrail_commit": "4fd3731",
       "guardrail_finding_timestamp": "2026-09-02T00:50:00Z",
-      "remaining": "Continue row 17 citation/answer pruning after guardrail audit; do not accept retrieval_eval_20260901_235625 as clean answer evidence.",
-      "status": "addressed_this_run_validated",
+      "remaining": "Continue row 17 citation/answer pruning after guardrail audit; do not accept retrieval_eval_20260901_235625 as clean answer evidence. Preserve cleanup blocker for /tmp/manuals_rag_accuracy_20260831.",
+      "status": "addressed_this_run_validated_cleanup_blocker_recorded",
       "timestamp": "2026-09-02T00:56:00Z",
       "validation": [
         "Negative control before manifest update: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py failed on stale root and question_bank current_answer_failure_source.",
@@ -12574,12 +12598,24 @@
       ],
       "guardrail_commit": "3a0938a",
       "guardrail_finding_timestamp": "2026-09-02T00:08:00Z",
+      "latest_accuracy_cleanup_attempt": {
+        "command": "git worktree remove /tmp/manuals_rag_accuracy_20260831",
+        "next_run_instruction": "Do not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker. Do not manually delete or force-remove the leftover path.",
+        "post_remove_git_status": "fatal: not a git repository: /home/john/Desktop/Programming/Document_Pipeline_V2/.git/worktrees/manuals_rag_accuracy_20260831",
+        "post_remove_path_check": "/tmp/manuals_rag_accuracy_20260831 still exists",
+        "post_remove_registry_check": "git worktree list --porcelain no longer lists exact path /tmp/manuals_rag_accuracy_20260831; grep also matched only other similarly prefixed 20260831_* worktrees",
+        "pre_remove_status": "clean after commit 08d2231 was pushed; git status --short --branch showed no uncommitted or untracked work",
+        "repo_subdir": "/tmp/manuals_rag_accuracy_20260831/manuals_rag",
+        "result": "failed: error: failed to delete '/tmp/manuals_rag_accuracy_20260831': Permission denied",
+        "reused_worktree": "/tmp/manuals_rag_accuracy_20260831",
+        "timestamp": "2026-09-02T01:07:00Z"
+      },
       "policy_added": "docs/runbooks/retrieval_accuracy_cron.md now requires reusing one clean job-owned worktree when safe, creating at most one new worktree per run, verifying clean state before removal, using git worktree remove on the exact path, verifying deregistration, and recording blockers instead of serial throwaway creation.",
-      "remaining": "Cleanup deregistered but could not delete /tmp/manuals_rag_accuracy_20260901_current_4zTub8 due to Permission denied. Next run should not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker before optional row 17 work.",
+      "remaining": "Cleanup failed for /tmp/manuals_rag_accuracy_20260831 with Permission denied after successful push; the exact path is no longer registered but still exists without usable Git metadata. Next run should reuse a known clean registered job-owned worktree and avoid creating another throwaway worktree.",
       "repo_subdir": "/tmp/manuals_rag_accuracy_20260901_current_4zTub8/manuals_rag",
       "reused_worktree": "/tmp/manuals_rag_accuracy_20260901_current_4zTub8",
       "severity": "needs_fix",
-      "status": "addressed_failed_run_artifacts_preserved_cleanup_blocker_recorded",
+      "status": "addressed_with_additional_cleanup_blocker_recorded",
       "timestamp": "2026-09-02T00:37:00Z",
       "validation": [
         "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK",
@@ -12643,6 +12679,18 @@
       {
         "addressed_this_run": "Reconciled root and question_bank current_answer_failure_source to the current retrieval_eval_20260901_235625 unsupported_citation_quote failure and added deterministic checker coverage requiring current answer failure source to name the current run and active failure reason.",
         "classification": "manifest_current_answer_failure_source_provenance_repair",
+        "cleanup_attempt": {
+          "command": "git worktree remove /tmp/manuals_rag_accuracy_20260831",
+          "next_run_instruction": "Do not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker. Do not manually delete or force-remove the leftover path.",
+          "post_remove_git_status": "fatal: not a git repository: /home/john/Desktop/Programming/Document_Pipeline_V2/.git/worktrees/manuals_rag_accuracy_20260831",
+          "post_remove_path_check": "/tmp/manuals_rag_accuracy_20260831 still exists",
+          "post_remove_registry_check": "git worktree list --porcelain no longer lists exact path /tmp/manuals_rag_accuracy_20260831; grep also matched only other similarly prefixed 20260831_* worktrees",
+          "pre_remove_status": "clean after commit 08d2231 was pushed; git status --short --branch showed no uncommitted or untracked work",
+          "repo_subdir": "/tmp/manuals_rag_accuracy_20260831/manuals_rag",
+          "result": "failed: error: failed to delete '/tmp/manuals_rag_accuracy_20260831': Permission denied",
+          "reused_worktree": "/tmp/manuals_rag_accuracy_20260831",
+          "timestamp": "2026-09-02T01:07:00Z"
+        },
         "evidence": [
           "Negative control before manifest update: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py failed on stale root and question_bank current_answer_failure_source.",
           "Focused manifest tests after checker change passed: docker compose -f infra/compose/docker-compose.yml run --rm --no-deps api python -m pytest tests/unit/test_manifest_check.py -q -> 42 passed.",
@@ -12652,8 +12700,8 @@
         "finding": "current_answer_failure_source still described retrieval_eval_20260901_223159 expected_evidence_not_cited after current answer failures moved to retrieval_eval_20260901_235625 unsupported_citation_quote.",
         "guardrail_commit": "4fd3731",
         "guardrail_finding_timestamp": "2026-09-02T00:50:00Z",
-        "remaining": "Continue row 17 citation/answer pruning after guardrail audit; do not accept retrieval_eval_20260901_235625 as clean answer evidence.",
-        "status": "addressed_this_run_validated",
+        "remaining": "Continue row 17 citation/answer pruning after guardrail audit; do not accept retrieval_eval_20260901_235625 as clean answer evidence. Preserve cleanup blocker for /tmp/manuals_rag_accuracy_20260831.",
+        "status": "addressed_this_run_validated_cleanup_blocker_recorded",
         "timestamp": "2026-09-02T00:56:00Z",
         "validation": [
           "Negative control before manifest update: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py failed on stale root and question_bank current_answer_failure_source.",
@@ -13465,6 +13513,19 @@
     "single_step_questions": 101,
     "total_questions": 208,
     "unresolved_guardrail_findings": [
+      {
+        "evidence": [
+          "clean after commit 08d2231 was pushed; git status --short --branch showed no uncommitted or untracked work",
+          "failed: error: failed to delete '/tmp/manuals_rag_accuracy_20260831': Permission denied",
+          "git worktree list --porcelain no longer lists exact path /tmp/manuals_rag_accuracy_20260831; grep also matched only other similarly prefixed 20260831_* worktrees",
+          "fatal: not a git repository: /home/john/Desktop/Programming/Document_Pipeline_V2/.git/worktrees/manuals_rag_accuracy_20260831"
+        ],
+        "finding": "Post-run cleanup of reused worktree /tmp/manuals_rag_accuracy_20260831 failed with Permission denied after successful push.",
+        "required_next_action": "Do not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker. Do not manually delete or force-remove the leftover path.",
+        "severity": "needs_fix",
+        "status": "cleanup_blocker_recorded_this_run",
+        "timestamp": "2026-09-02T01:07:00Z"
+      },
       {
         "evidence": [
           "Negative control before manifest update: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py failed on stale root and question_bank current_answer_failure_source.",
@@ -14761,7 +14822,7 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-02T00:56:00Z"
+    "updated_at": "2026-09-02T01:07:00Z"
   },
   "remaining": "Fix sibling troubleshooting row 17 row-group-equivalence answer citation pruning so unsupported sibling Error 10101/10106 quote spans and unrelated communication-error guidance are not retained; rerun loaded actual HTTP/API answer mode and manually inspect JSONL before accepting clean evidence.",
   "retrieval_current_failure_categories": {},
@@ -15523,6 +15584,19 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "evidence": [
+        "clean after commit 08d2231 was pushed; git status --short --branch showed no uncommitted or untracked work",
+        "failed: error: failed to delete '/tmp/manuals_rag_accuracy_20260831': Permission denied",
+        "git worktree list --porcelain no longer lists exact path /tmp/manuals_rag_accuracy_20260831; grep also matched only other similarly prefixed 20260831_* worktrees",
+        "fatal: not a git repository: /home/john/Desktop/Programming/Document_Pipeline_V2/.git/worktrees/manuals_rag_accuracy_20260831"
+      ],
+      "finding": "Post-run cleanup of reused worktree /tmp/manuals_rag_accuracy_20260831 failed with Permission denied after successful push.",
+      "required_next_action": "Do not create another throwaway worktree; use a known clean registered job-owned worktree if available, or report the blocker. Do not manually delete or force-remove the leftover path.",
+      "severity": "needs_fix",
+      "status": "cleanup_blocker_recorded_this_run",
+      "timestamp": "2026-09-02T01:07:00Z"
+    },
     {
       "evidence": [
         "Negative control before manifest update: python3 scripts/maintenance/check_retrieval_accuracy_manifest.py failed on stale root and question_bank current_answer_failure_source.",
@@ -16819,5 +16893,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-02T00:56:00Z"
+  "updated_at": "2026-09-02T01:07:00Z"
 }
