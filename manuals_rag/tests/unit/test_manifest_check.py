@@ -401,6 +401,42 @@ def test_manifest_change_rejects_new_active_dataset_missing_evidence_artifacts(t
     assert any("references missing manifest_path" in error for error in errors)
 
 
+def test_manifest_change_rejects_skeletal_active_entry_masked_by_valid_extension(tmp_path):
+    module = _load_manifest_check_module()
+    parent, current = _extension_manifests()
+    parent_root = tmp_path / "parent"
+    current_root = tmp_path / "current"
+    (parent_root / "test_reports").mkdir(parents=True)
+    (current_root / "test_reports").mkdir(parents=True)
+    first = json.dumps(_row(case_id="old")) + "\n"
+    (parent_root / "test_reports/registered_dataset.jsonl").write_text(
+        first, encoding="utf-8"
+    )
+    (current_root / "test_reports/registered_dataset.jsonl").write_text(
+        first + json.dumps(_row(case_id="new")) + "\n", encoding="utf-8"
+    )
+
+    current["question_bank"]["datasets"].append(
+        {
+            "path": "test_reports/skeletal_active_dataset.jsonl",
+            "total_questions": 99,
+            "single_step_questions": 99,
+            "multi_step_questions": 0,
+            "status": "active",
+        }
+    )
+
+    errors = module.check_manifest_change(
+        current, parent, current_root, parent_root
+    )
+
+    assert any("requires active_count_delta" in error for error in errors)
+    assert any("requires nonempty valid generation" in error for error in errors)
+    assert any("requires nonempty valid quality_review" in error for error in errors)
+    assert any("requires replacement or supersession semantics" in error for error in errors)
+    assert any("new active dataset is missing" in error for error in errors)
+
+
 def test_manifest_checker_rejects_missing_root_false_negative_repair():
     module = _load_manifest_check_module()
     manifest = _minimal_manifest()

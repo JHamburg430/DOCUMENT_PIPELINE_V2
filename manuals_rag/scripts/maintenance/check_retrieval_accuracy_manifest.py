@@ -644,6 +644,41 @@ def check_manifest_change(
     for entry in changed_entries:
         path = entry["path"]
         declared = entry.get("active_count_delta")
+        is_new_entry = path not in parent_by_path
+        status = entry.get("status")
+        is_new_active_entry = is_new_entry and (
+            isinstance(declared, dict)
+            or (isinstance(status, str) and "active" in status.lower())
+        )
+
+        # Validate every newly active registry entry before considering its
+        # declared aggregate contribution. Otherwise one legitimate extension
+        # can mask an additional skeletal active entry that omits its delta.
+        if is_new_active_entry:
+            require_new_entry_provenance(entry)
+            current_lines = artifact_lines(
+                path, base_dir=artifact_base_dir, label="new active"
+            )
+            if not isinstance(declared, dict):
+                errors.append(f"new active dataset {path} requires active_count_delta")
+            if current_lines is not None:
+                active_counts = classify_active_rows(path, current_lines)
+                if active_counts is not None:
+                    for field, actual in active_counts.items():
+                        entry_value = entry.get(field)
+                        if entry_value != actual:
+                            errors.append(
+                                f"new dataset {path} {field} mismatch: "
+                                f"file={actual} entry={entry_value}"
+                            )
+                        if isinstance(declared, dict):
+                            declared_value = declared.get(field)
+                            if declared_value != actual:
+                                errors.append(
+                                    f"new dataset {path} active_count_delta.{field} mismatch: "
+                                    f"file={actual} declared={declared_value}"
+                                )
+
         if not isinstance(declared, dict):
             continue
         for field in ACTIVE_COUNT_FIELDS:
@@ -707,27 +742,6 @@ def check_manifest_change(
                                         f"extended dataset {path} appended {field} mismatch: "
                                         f"file={actual} declared={declared_value}"
                                     )
-        else:
-            require_new_entry_provenance(entry)
-            current_lines = artifact_lines(
-                path, base_dir=artifact_base_dir, label="new active"
-            )
-            if current_lines is not None:
-                active_counts = classify_active_rows(path, current_lines)
-                if active_counts is not None:
-                    for field, actual in active_counts.items():
-                        entry_value = entry.get(field)
-                        declared_value = declared.get(field)
-                        if entry_value != actual:
-                            errors.append(
-                                f"new dataset {path} {field} mismatch: "
-                                f"file={actual} entry={entry_value}"
-                            )
-                        if declared_value != actual:
-                            errors.append(
-                                f"new dataset {path} active_count_delta.{field} mismatch: "
-                                f"file={actual} declared={declared_value}"
-                            )
 
     if any(delta > 0 for delta in count_delta.values()) and not any(
         isinstance(entry.get("active_count_delta"), dict) for entry in changed_entries
