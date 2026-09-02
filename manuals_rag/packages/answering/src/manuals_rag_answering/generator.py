@@ -1456,7 +1456,26 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             followup_questions=[],
             insufficient_evidence=True,
         )
+    if not _requested_troubleshooting_identifiers_are_available(query, results):
+        return AnswerResponse(
+            answer="I could not answer from the available evidence.",
+            confidence="low",
+            used_documents=[],
+            citations=[],
+            warnings=["Retrieved evidence did not cover every requested troubleshooting side."],
+            followup_questions=[],
+            insufficient_evidence=True,
+        )
     fallback_results = _fallback_evidence_results(query, results)
+    requested_troubleshooting_ids = _query_requested_troubleshooting_identifiers(query)
+    if requested_troubleshooting_ids:
+        requested_results = [
+            result
+            for result in fallback_results
+            if _troubleshooting_row_identifiers(result).intersection(requested_troubleshooting_ids)
+        ]
+        if requested_results:
+            fallback_results = requested_results
     if not fallback_results:
         return AnswerResponse(
             answer="I could not answer from the available evidence.",
@@ -1482,7 +1501,8 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
         )
     if len(fallback_results) == 1:
         answer_text = (
-            _matching_troubleshooting_row_text(query, top)
+            _requested_troubleshooting_rows_text(query, top)
+            or _matching_troubleshooting_row_text(query, top)
             or _focused_diagnostic_table_answer_text(query, top)
             or _focused_signal_description_answer_text(query, top)
             or _focused_table_record_answer_text(query, top)
@@ -1493,7 +1513,7 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     else:
         answer_text = "Retrieved evidence:\n" + "\n".join(
             f"- {result.title}, page(s) {', '.join(str(page) for page in result.pages) or 'unknown'}: "
-            f"{_focused_diagnostic_table_answer_text(query, result) or _focused_signal_description_answer_text(query, result) or _focused_table_record_answer_text(query, result) or _focused_table_like_answer_text(query, result) or _focused_program_setting_protection_answer_text(query, result) or _fallback_answer_text(result)}"
+            f"{_requested_troubleshooting_rows_text(query, result) or _focused_diagnostic_table_answer_text(query, result) or _focused_signal_description_answer_text(query, result) or _focused_table_record_answer_text(query, result) or _focused_table_like_answer_text(query, result) or _focused_program_setting_protection_answer_text(query, result) or _fallback_answer_text(result)}"
             for result in fallback_results
         )
     return AnswerResponse(
@@ -2618,9 +2638,135 @@ def _troubleshooting_row_identifiers(result: SearchResult) -> set[str]:
     return identifiers
 
 
+def _requested_troubleshooting_rows_text(query: str, result: SearchResult) -> str:
+    requested_identifiers = _query_requested_troubleshooting_identifiers(query)
+    if not requested_identifiers:
+        return ""
+    text = _citation_evidence_text(result)
+    row_matches = list(
+        re.finditer(
+            r"(?:^|\n)(?:error\s+(?:number|messages?)|alarm|fault)\s*:\s*(.+?)"
+            r"(?=\n(?:error\s+(?:number|messages?)|alarm|fault)\s*:|$)",
+            text,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+    )
+    selected_rows: list[str] = []
+    for match in row_matches:
+        row = match.group(0).strip()
+        identifiers = {
+            _normalized_phrase(identifier_match.group(1))
+            for identifier_match in re.finditer(
+                r"\b(?:error\s+(?:number|messages?)|alarm|fault)\s*:\s*(.+?)"
+                r"(?=\s*(?:;|\n|\b(?:cause|remedy|corrective action)\s*:)|$)",
+                row,
+                flags=re.IGNORECASE,
+            )
+        }
+        if identifiers.intersection(requested_identifiers):
+            selected_rows.append(row)
+    return "\n".join(selected_rows)
+
+
 def _query_contains_troubleshooting_identifier(normalized_query: str, identifier: str) -> bool:
     """Match a source identifier as a complete normalized token sequence."""
     return bool(re.search(rf"(?:^| ){re.escape(identifier)}(?: |$)", normalized_query))
+
+
+def _query_requested_troubleshooting_identifiers(query: str) -> set[str]:
+    """Return distinct troubleshooting sides explicitly named by a comparison query.
+
+    These identifiers come from the user-visible query, so a requested side remains
+    represented even when retrieval returned no row for it.
+    """
+    if not (_is_troubleshooting_query(query) and _is_comparison_query(query)):
+        return set()
+
+    explicit_codes = {
+        _normalized_phrase(match.group(1))
+        for match in re.finditer(
+            r"\b(?:error|alarm|fault)(?:\s+(?:number|code))?\s*[:#-]?\s*"
+            r"([a-z]*\d[a-z0-9._/-]*)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    }
+    if len(explicit_codes) >= 2:
+        return explicit_codes
+
+    raw_sides = _comparison_side_clauses(query)
+    if len(raw_sides) < 2:
+        plural = re.search(
+            r"\b(?:errors?|alarms?|faults?)\s+(.+?)(?:[.?]|$)",
+            query,
+            flags=re.IGNORECASE,
+        )
+        if plural:
+            raw_sides = [
+                side.strip(" ,.;:?")
+                for side in re.split(r"\s+and\s+", plural.group(1), flags=re.IGNORECASE)
+                if side.strip(" ,.;:?")
+            ]
+
+    identifiers: set[str] = set()
+    for side in raw_sides:
+        cleaned = re.sub(
+            r"^(?:the\s+)?(?:causes?|remedies?|causes?\s+and\s+remedies?)\s+(?:for|of)\s+",
+            "",
+            side,
+            flags=re.IGNORECASE,
+        )
+        cleaned = re.sub(
+            r"^(?:the\s+)?(?:errors?|alarms?|faults?)(?:\s+(?:number|code|message))?\s*[:#-]?\s*",
+            "",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+        cleaned = re.sub(
+            r"\s+(?:causes?(?:\s+and\s+remed(?:y|ies))?|remed(?:y|ies)|corrective\s+actions?)$",
+            "",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+        identifier = _normalized_phrase(cleaned)
+        terms = set(identifier.split())
+        if identifier and terms.difference(
+            {"and", "cause", "causes", "compare", "corrective", "error", "errors", "remedy", "remedies"}
+        ):
+            identifiers.add(identifier)
+    return identifiers if len(identifiers) >= 2 else set()
+
+
+def _requested_troubleshooting_identifiers_are_available(
+    query: str,
+    results: list[SearchResult],
+) -> bool:
+    requested_identifiers = _query_requested_troubleshooting_identifiers(query)
+    if not requested_identifiers:
+        return True
+    available_identifiers = {
+        identifier
+        for result in results
+        if _is_troubleshooting_row_evidence(result)
+        for identifier in _troubleshooting_row_identifiers(result)
+    }
+    explicitly_labeled_codes = re.findall(
+        r"\b(?:error|alarm|fault)(?:\s+(?:number|code))?\s*[:#-]?\s*[a-z]*\d[a-z0-9._/-]*\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    explicitly_labeled_list = bool(
+        re.search(
+            r"\b(?:errors|alarms|faults)\s+(?!(?:on|for|in|of)\b).+\band\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    if not requested_identifiers.intersection(available_identifiers) and not (
+        len(explicitly_labeled_codes) >= 2 or explicitly_labeled_list
+    ):
+        return True
+    return requested_identifiers.issubset(available_identifiers)
 
 
 def _troubleshooting_citations_match_query_anchor(
@@ -2632,13 +2778,16 @@ def _troubleshooting_citations_match_query_anchor(
         return True
     result_by_chunk_id = {result.chunk_id: result for result in results}
     normalized_query = _normalized_phrase(query)
-    requested_identifiers = {
+    source_requested_identifiers = {
         identifier
         for result in results
         if _is_troubleshooting_row_evidence(result)
         for identifier in _troubleshooting_row_identifiers(result)
         if _query_contains_troubleshooting_identifier(normalized_query, identifier)
     }
+    requested_identifiers = (
+        _query_requested_troubleshooting_identifiers(query) or source_requested_identifiers
+    )
     cited_requested_identifiers: set[str] = set()
     for citation in citations:
         result = result_by_chunk_id.get(str(citation.get("chunk_id") or ""))

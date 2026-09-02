@@ -3927,6 +3927,55 @@ def test_troubleshooting_citations_ignore_shorter_error_code_prefix_collision():
     )
 
 
+def test_troubleshooting_citations_bind_explicit_codes_without_surrounding_context():
+    first = _troubleshooting_row("error-10109", "10109")
+    second = _troubleshooting_row("error-10110", "10110")
+    query = (
+        "For CV-X482, compare Error 10109, the light-controller communication error, "
+        "with Error 10110, where the light controller does not support LumiTrax."
+    )
+
+    assert _troubleshooting_citations_match_query_anchor(
+        query,
+        [_citation("error-10109"), _citation("error-10110")],
+        [first, second],
+    )
+    assert not _troubleshooting_citations_match_query_anchor(
+        query,
+        [_citation("error-10109")],
+        [first],
+    )
+
+    grouped = SearchResult(
+        chunk_id="grouped",
+        score=0.9,
+        title="Doc",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content=(
+            "Error Number: 10109; Error Messages: Communication failed; Cause: First cause; Remedy: First remedy.\n"
+            "Error Number: 10110; Error Messages: LumiTrax unsupported; Cause: Second cause; Remedy: Second remedy.\n"
+            "Error Number: 10111; Error Messages: HDR unsupported; Cause: Unrequested cause; Remedy: Unrequested remedy."
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+    unsupported = AnswerResponse(
+        answer="The answer is unrelated.",
+        confidence="high",
+        used_documents=[],
+        citations=[_citation("grouped")],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+    fallback = validate_answer(unsupported, [grouped], query=query)
+    assert "10109" in fallback.answer and "10110" in fallback.answer
+    assert "10111" not in fallback.answer
+
+
 def test_troubleshooting_citations_reject_longer_error_code_superstring_collision():
     requested = _troubleshooting_row("error-1010", "1010")
     superstring = _troubleshooting_row("error-10109", "10109")
@@ -3986,6 +4035,67 @@ def test_troubleshooting_citations_reject_missing_requested_side():
         "Compare the causes of Servo overload detected and Encoder communication lost.",
         [_citation("servo")],
         [servo, encoder],
+    )
+
+
+def test_troubleshooting_citations_reject_requested_side_absent_from_results():
+    servo = _troubleshooting_row("servo", "Servo overload detected")
+
+    assert not _troubleshooting_citations_match_query_anchor(
+        "Compare the causes of Servo overload detected versus Encoder communication lost.",
+        [_citation("servo")],
+        [servo],
+    )
+
+
+def test_troubleshooting_citations_reject_and_joined_requested_side_absent_from_results():
+    servo = _troubleshooting_row("servo", "Servo overload detected")
+
+    assert not _troubleshooting_citations_match_query_anchor(
+        "Compare the causes and remedies for the errors Servo overload detected and Encoder communication lost.",
+        [_citation("servo")],
+        [servo],
+    )
+
+
+def test_validate_answer_fails_closed_when_requested_troubleshooting_side_is_absent():
+    servo = _troubleshooting_row("servo", "Servo overload detected")
+    answer = AnswerResponse(
+        answer="Servo overload is caused by an excessive load; take the documented action.",
+        confidence="high",
+        used_documents=[],
+        citations=[_citation("servo")],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+    validated = validate_answer(
+        answer,
+        [servo],
+        query="Compare the causes and remedies for the errors Servo overload detected and Encoder communication lost.",
+    )
+
+    assert validated.insufficient_evidence
+    assert not validated.citations
+    assert "Encoder communication lost" not in validated.answer
+    assert any("every requested troubleshooting side" in warning for warning in validated.warnings)
+
+
+def test_troubleshooting_citations_bind_alarm_sides_without_comparison_suffix():
+    first = _troubleshooting_row("alarm-a14", "A-14")
+    second = _troubleshooting_row("alarm-e42", "E-42")
+    query = "Compare Alarm A-14 with Alarm E-42 causes and remedies."
+
+    assert _troubleshooting_citations_match_query_anchor(
+        query,
+        [_citation("alarm-a14"), _citation("alarm-e42")],
+        [first, second],
+    )
+    assert not _troubleshooting_citations_match_query_anchor(
+        query,
+        [_citation("alarm-a14")],
+        [first],
     )
 
 
