@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Await independent guardrail review of production commit 557502c and guardrail adce38e. Preserve retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming mixed anchor-family record boundaries remain relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a66cbed",
@@ -769,7 +769,7 @@
     },
     "current_answer_failures": {},
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_005643.jsonl and every returned citation payload. The XG-X positive user-visible fallback states the CV-X482 Error 13101 flow-control/serial-cable checks and XG-X SD Card 2 delete/move corrective action; citations are exact returned chunks 5d3cb915 page 1280 and 435cd418 page 1263 with null quote spans, and each cited chunk directly supports its assigned remedy. The VS missing-side control returned insufficient_evidence=true with no citations and fabricated no remedy. The positive is clean case-level evidence; the combined two-case run is not clean.",
-    "remaining": "Await independent guardrail review of production commit 557502c and guardrail adce38e. Preserve retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming mixed anchor-family record boundaries remain relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260903_005643 XG-X positive only"
   },
   "constraints": {
@@ -9275,7 +9275,7 @@
       ]
     }
   ],
-  "next_target": "Await independent guardrail review of production commit 557502c and guardrail adce38e. Preserve retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming mixed anchor-family record boundaries remain relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10244,7 +10244,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Await independent guardrail review of production commit 557502c and guardrail adce38e. Preserve retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming mixed anchor-family record boundaries remain relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a66cbed",
@@ -10587,7 +10587,7 @@
       },
       "current_answer_failures": {},
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_005643.jsonl and every returned citation payload. The XG-X positive user-visible fallback states the CV-X482 Error 13101 flow-control/serial-cable checks and XG-X SD Card 2 delete/move corrective action; citations are exact returned chunks 5d3cb915 page 1280 and 435cd418 page 1263 with null quote spans, and each cited chunk directly supports its assigned remedy. The VS missing-side control returned insufficient_evidence=true with no citations and fabricated no remedy. The positive is clean case-level evidence; the combined two-case run is not clean.",
-      "remaining": "Await independent guardrail review of production commit 557502c and guardrail adce38e. Preserve retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming mixed anchor-family record boundaries remain relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260903_005643 XG-X positive only"
     },
     "current_answer_failure_categories": {},
@@ -13064,7 +13064,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Await independent guardrail review of production commit 557502c and guardrail adce38e. Preserve retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming mixed anchor-family record boundaries remain relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13101,7 +13101,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await independent guardrail review of production commit 557502c and guardrail adce38e. Preserve retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming mixed anchor-family record boundaries remain relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13917,15 +13917,16 @@
         "severity": "needs_fix",
         "guardrail_commit": "adce38e",
         "finding": "The label-aware troubleshooting parser merged adjacent sibling rows when a Row headers anchor transitioned to an Error Code/Message anchor, allowing the target row to borrow the sibling corrective action.",
-        "status": "addressed_this_run_pending_guardrail_review",
+        "status": "addressed_and_guardrail_validated",
         "evidence": [
           "Production commit 557502c treats row-header serializers and diagnostic-label serializers as distinct record shapes while preserving complementary Error Code/Message labels in one diagnostic row.",
           "Focused parser/repeated-side controls passed 22 tests; both-order mixed-family parser and fallback negatives fail closed while legitimate wrapped, compact diagnostic, row-header, pipe-table, reversed, cross-chunk, missing-side, and unrelated-sibling controls remain green.",
           "The fixture-mounted full unit gate passed 653 tests with 59 warnings; git diff --check passed.",
           "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901; health was OK and host/container generator.py SHA-256 matched 15570f53dd2f7d67030a7d4ecc5a36ca3190b3c5a63937b35492ed514ed71d75. Six loaded focused branch controls passed.",
-          "Actual HTTP retrieval_eval_20260903_005643 passed retrieval 2/2 at rank 1. The XG-X positive passed answer grounding and cited exact returned CV-X482 5d3cb915 and XG-X 435cd418 chunks; each chunk directly states its assigned action and quote_span is null. The VS missing-side control returned insufficient_evidence=true with no citations."
+          "Actual HTTP retrieval_eval_20260903_005643 passed retrieval 2/2 at rank 1. The XG-X positive passed answer grounding and cited exact returned CV-X482 5d3cb915 and XG-X 435cd418 chunks; each chunk directly states its assigned action and quote_span is null. The VS missing-side control returned insufficient_evidence=true with no citations.",
+          "Independent guardrail review 2026-09-03T01:20:28Z in commit 42bdac0 rated the mixed-label correction ok after loaded controls, manual payload/citation inspection, manifest checks, and all 653 unit tests."
         ],
-        "required_next_action": "Await independent guardrail review of 557502c; preserve the 005643 positive as clean case-level evidence, the missing-side row as an intentional control, and the combined run as not clean."
+        "required_next_action": "Preserve guardrail-validated 557502c and the 005643 row-level classifications; continue source-reviewed distinct-document troubleshooting coverage with claim-level citation inspection."
       },
       {
         "timestamp": "2026-09-03T00:10:49Z",
@@ -15436,9 +15437,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-03T01:00:00Z"
+    "updated_at": "2026-09-03T01:24:03Z"
   },
-  "remaining": "Await independent guardrail review of production commit 557502c and guardrail adce38e. Preserve retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming mixed anchor-family record boundaries remain relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -16253,15 +16254,16 @@
       "severity": "needs_fix",
       "guardrail_commit": "adce38e",
       "finding": "The label-aware troubleshooting parser merged adjacent sibling rows when a Row headers anchor transitioned to an Error Code/Message anchor, allowing the target row to borrow the sibling corrective action.",
-      "status": "addressed_this_run_pending_guardrail_review",
+      "status": "addressed_and_guardrail_validated",
       "evidence": [
         "Production commit 557502c treats row-header serializers and diagnostic-label serializers as distinct record shapes while preserving complementary Error Code/Message labels in one diagnostic row.",
         "Focused parser/repeated-side controls passed 22 tests; both-order mixed-family parser and fallback negatives fail closed while legitimate wrapped, compact diagnostic, row-header, pipe-table, reversed, cross-chunk, missing-side, and unrelated-sibling controls remain green.",
         "The fixture-mounted full unit gate passed 653 tests with 59 warnings; git diff --check passed.",
         "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901; health was OK and host/container generator.py SHA-256 matched 15570f53dd2f7d67030a7d4ecc5a36ca3190b3c5a63937b35492ed514ed71d75. Six loaded focused branch controls passed.",
-        "Actual HTTP retrieval_eval_20260903_005643 passed retrieval 2/2 at rank 1. The XG-X positive passed answer grounding and cited exact returned CV-X482 5d3cb915 and XG-X 435cd418 chunks; each chunk directly states its assigned action and quote_span is null. The VS missing-side control returned insufficient_evidence=true with no citations."
+        "Actual HTTP retrieval_eval_20260903_005643 passed retrieval 2/2 at rank 1. The XG-X positive passed answer grounding and cited exact returned CV-X482 5d3cb915 and XG-X 435cd418 chunks; each chunk directly states its assigned action and quote_span is null. The VS missing-side control returned insufficient_evidence=true with no citations.",
+        "Independent guardrail review 2026-09-03T01:20:28Z in commit 42bdac0 rated the mixed-label correction ok after loaded controls, manual payload/citation inspection, manifest checks, and all 653 unit tests."
       ],
-      "required_next_action": "Await independent guardrail review of 557502c; preserve the 005643 positive as clean case-level evidence, the missing-side row as an intentional control, and the combined run as not clean."
+      "required_next_action": "Preserve guardrail-validated 557502c and the 005643 row-level classifications; continue source-reviewed distinct-document troubleshooting coverage with claim-level citation inspection."
     },
         {
           "timestamp": "2026-09-03T00:10:49Z",
@@ -17772,5 +17774,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-03T01:00:00Z"
+  "updated_at": "2026-09-03T01:24:03Z"
 }
