@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Await independent guardrail review of production commit 6f72ae4 and guardrail a138059. Preserve retrieval_eval_20260903_000449's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-record role, product-side, or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await independent guardrail review of production commit d0d1ed3 and guardrail 900cb88. Preserve retrieval_eval_20260903_003115's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming label-aware record parsing remains relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a66cbed",
@@ -709,9 +709,10 @@
       "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer",
       "retrieval_eval_20260902_184955 source-faithful cross-product Error 10101/30109 relation-bound grounded answer",
       "retrieval_eval_20260902_232718 positive repeated-side per-clause role-bound grounded answer",
-      "retrieval_eval_20260903_000449 XG-X positive repeated-side per-record role-bound grounded answer"
+      "retrieval_eval_20260903_000449 XG-X positive repeated-side per-record role-bound grounded answer",
+      "retrieval_eval_20260903_003115 XG-X positive label-aware record-bound grounded answer"
     ],
-    "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260903_000449 XG-X positive are accepted under source-reviewed visible-citation-content scoring. The same run's VS row is an intentional missing-side fail-closed control, so the combined run is not clean. Sibling records in one cited troubleshooting chunk can no longer supply a requested role for the target record.",
+    "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260903_003115 XG-X positive are accepted under source-reviewed visible-citation-content scoring. The same run's VS row is an intentional missing-side fail-closed control, so the combined run is not clean. Label-aware parsing preserves wrapped records while preventing compact sibling records from supplying a requested role.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -756,11 +757,15 @@
       "mixed_series_record_bound_results": "test_reports/retrieval_eval_results_20260903_000449.jsonl",
       "mixed_series_record_bound_summary": "test_reports/retrieval_eval_summary_20260903_000449.json",
       "mixed_series_record_bound_manifest": "test_reports/retrieval_eval_manifest_20260903_000449.json"
+      ,"mixed_series_label_aware_dataset": "test_reports/retrieval_eval_dataset_20260903_003115.jsonl"
+      ,"mixed_series_label_aware_results": "test_reports/retrieval_eval_results_20260903_003115.jsonl"
+      ,"mixed_series_label_aware_summary": "test_reports/retrieval_eval_summary_20260903_003115.json"
+      ,"mixed_series_label_aware_manifest": "test_reports/retrieval_eval_manifest_20260903_003115.json"
     },
     "current_answer_failures": {},
-    "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_000449.jsonl and every returned citation payload. The XG-X positive user-visible fallback states the CV-X482 Error 13101 flow-control/serial-cable checks and XG-X SD Card 2 delete/move corrective action; citations are exact chunks 5d3cb915 page 1280 and 435cd418 page 1263 with null quote spans, and each cited chunk directly supports its assigned remedy. The VS missing-side control returned insufficient_evidence=true with no citations and fabricated no remedy. The positive is clean case-level evidence; the combined two-case run is not clean.",
-    "remaining": "Await independent guardrail review of production commit 6f72ae4 and guardrail a138059. Preserve retrieval_eval_20260903_000449's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-record role, product-side, or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
-    "latest_clean_run": "retrieval_eval_20260903_000449 XG-X positive only"
+    "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_003115.jsonl and every returned citation payload. The XG-X positive user-visible fallback states the CV-X482 Error 13101 flow-control/serial-cable checks and XG-X SD Card 2 delete/move corrective action; citations are exact chunks 5d3cb915 page 1280 and 435cd418 page 1263 with null quote spans, and each cited chunk directly supports its assigned remedy. The VS missing-side control returned insufficient_evidence=true with no citations and fabricated no remedy. The positive is clean case-level evidence; the combined two-case run is not clean.",
+    "remaining": "Await independent guardrail review of production commit d0d1ed3 and guardrail 900cb88. Preserve retrieval_eval_20260903_003115's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming label-aware record parsing remains relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "latest_clean_run": "retrieval_eval_20260903_003115 XG-X positive only"
   },
   "constraints": {
     "allowed_logic": [
@@ -9039,11 +9044,11 @@
     "current_run_worktree": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "created_new_worktree": false,
-      "timestamp": "2026-09-02T23:36:00Z",
-      "git_status_before_final_commit": "dirty only with this run progress/manifest tracking after rebased production/evidence commit f527274",
+      "timestamp": "2026-09-03T00:35:00Z",
+      "git_status_before_final_commit": "dirty only with this run's generated HTTP artifacts plus progress/manifest tracking after production commit d0d1ed3",
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at f527274 before final tracking commit",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at d0d1ed3 before final tracking commit",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -9170,9 +9175,9 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at f527274 before final tracking commit",
+    "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at d0d1ed3 before final tracking commit",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "dirty only with this run progress/manifest tracking after rebased production/evidence commit f527274",
+    "git_status_check": "dirty only with this run's generated HTTP artifacts plus progress/manifest tracking after production commit d0d1ed3",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -9265,7 +9270,7 @@
       ]
     }
   ],
-  "next_target": "Await independent guardrail review of production commit 6f72ae4 and guardrail a138059. Preserve retrieval_eval_20260903_000449's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-record role, product-side, or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Await independent guardrail review of production commit d0d1ed3 and guardrail 900cb88. Preserve retrieval_eval_20260903_003115's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming label-aware record parsing remains relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10234,7 +10239,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Await independent guardrail review of production commit 6f72ae4 and guardrail a138059. Preserve retrieval_eval_20260903_000449's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-record role, product-side, or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Await independent guardrail review of production commit d0d1ed3 and guardrail 900cb88. Preserve retrieval_eval_20260903_003115's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming label-aware record parsing remains relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a66cbed",
@@ -10517,9 +10522,10 @@
         "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer",
         "retrieval_eval_20260902_184955 source-faithful cross-product Error 10101/30109 relation-bound grounded answer",
       "retrieval_eval_20260902_232718 positive repeated-side per-clause role-bound grounded answer",
-      "retrieval_eval_20260903_000449 XG-X positive repeated-side per-record role-bound grounded answer"
+        "retrieval_eval_20260903_000449 XG-X positive repeated-side per-record role-bound grounded answer",
+        "retrieval_eval_20260903_003115 XG-X positive label-aware record-bound grounded answer"
       ],
-    "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260903_000449 XG-X positive are accepted under source-reviewed visible-citation-content scoring. The same run's VS row is an intentional missing-side fail-closed control, so the combined run is not clean. Sibling records in one cited troubleshooting chunk can no longer supply a requested role for the target record.",
+      "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260903_003115 XG-X positive are accepted under source-reviewed visible-citation-content scoring. The same run's VS row is an intentional missing-side fail-closed control, so the combined run is not clean. Label-aware parsing preserves wrapped records while preventing compact sibling records from supplying a requested role.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10563,12 +10569,16 @@
       "mixed_series_record_bound_dataset": "test_reports/retrieval_eval_dataset_20260903_000449.jsonl",
       "mixed_series_record_bound_results": "test_reports/retrieval_eval_results_20260903_000449.jsonl",
       "mixed_series_record_bound_summary": "test_reports/retrieval_eval_summary_20260903_000449.json",
-      "mixed_series_record_bound_manifest": "test_reports/retrieval_eval_manifest_20260903_000449.json"
+        "mixed_series_record_bound_manifest": "test_reports/retrieval_eval_manifest_20260903_000449.json"
+        ,"mixed_series_label_aware_dataset": "test_reports/retrieval_eval_dataset_20260903_003115.jsonl"
+        ,"mixed_series_label_aware_results": "test_reports/retrieval_eval_results_20260903_003115.jsonl"
+        ,"mixed_series_label_aware_summary": "test_reports/retrieval_eval_summary_20260903_003115.json"
+        ,"mixed_series_label_aware_manifest": "test_reports/retrieval_eval_manifest_20260903_003115.json"
       },
       "current_answer_failures": {},
-    "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_000449.jsonl and every returned citation payload. The XG-X positive user-visible fallback states the CV-X482 Error 13101 flow-control/serial-cable checks and XG-X SD Card 2 delete/move corrective action; citations are exact chunks 5d3cb915 page 1280 and 435cd418 page 1263 with null quote spans, and each cited chunk directly supports its assigned remedy. The VS missing-side control returned insufficient_evidence=true with no citations and fabricated no remedy. The positive is clean case-level evidence; the combined two-case run is not clean.",
-      "remaining": "Await independent guardrail review of production commit 6f72ae4 and guardrail a138059. Preserve retrieval_eval_20260903_000449's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-record role, product-side, or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
-    "latest_clean_run": "retrieval_eval_20260903_000449 XG-X positive only"
+      "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_003115.jsonl and every returned citation payload. The XG-X positive user-visible fallback states the CV-X482 Error 13101 flow-control/serial-cable checks and XG-X SD Card 2 delete/move corrective action; citations are exact chunks 5d3cb915 page 1280 and 435cd418 page 1263 with null quote spans, and each cited chunk directly supports its assigned remedy. The VS missing-side control returned insufficient_evidence=true with no citations and fabricated no remedy. The positive is clean case-level evidence; the combined two-case run is not clean.",
+      "remaining": "Await independent guardrail review of production commit d0d1ed3 and guardrail 900cb88. Preserve retrieval_eval_20260903_003115's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming label-aware record parsing remains relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "latest_clean_run": "retrieval_eval_20260903_003115 XG-X positive only"
     },
     "current_answer_failure_categories": {},
     "current_answer_failure_source": "retrieval_eval_20260902_180540 positive passed actual HTTP answer grounding 1/1 across two distinct cited chunks; its intentional Error 99999 missing-side control failed closed, while older diagnostic/not-clean runs remain preserved.",
@@ -12816,11 +12826,11 @@
       "current_run_worktree": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
         "created_new_worktree": false,
-        "timestamp": "2026-09-02T23:36:00Z",
-        "git_status_before_final_commit": "dirty only with this run progress/manifest tracking after rebased production/evidence commit f527274",
+        "timestamp": "2026-09-03T00:35:00Z",
+        "git_status_before_final_commit": "dirty only with this run's generated HTTP artifacts plus progress/manifest tracking after production commit d0d1ed3",
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at f527274 before final tracking commit",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at d0d1ed3 before final tracking commit",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -12947,9 +12957,9 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at f527274 before final tracking commit",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at d0d1ed3 before final tracking commit",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "git_status_check": "dirty only with this run progress/manifest tracking after rebased production/evidence commit f527274",
+      "git_status_check": "dirty only with this run's generated HTTP artifacts plus progress/manifest tracking after production commit d0d1ed3",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -13044,7 +13054,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Await independent guardrail review of production commit 6f72ae4 and guardrail a138059. Preserve retrieval_eval_20260903_000449's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-record role, product-side, or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Await independent guardrail review of production commit d0d1ed3 and guardrail 900cb88. Preserve retrieval_eval_20260903_003115's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming label-aware record parsing remains relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13081,7 +13091,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await independent guardrail review of production commit 6f72ae4 and guardrail a138059. Preserve retrieval_eval_20260903_000449's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-record role, product-side, or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await independent guardrail review of production commit d0d1ed3 and guardrail 900cb88. Preserve retrieval_eval_20260903_003115's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming label-aware record parsing remains relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13875,25 +13885,31 @@
         "scope": "post-containment repeated-product-side two-case HTTP run as a combined clean-answer claim",
         "recorded_at": "2026-09-03T00:10:00Z",
         "reason": "combined run is not clean: the source-grounded XG-X positive passed answer grounding, while the intentionally unsupported VS side correctly failed closed with insufficient evidence and no citations. Preserve both row-level outcomes."
+      },
+      {
+        "run_id": "retrieval_eval_20260903_003115",
+        "scope": "label-aware troubleshooting-record parser loaded HTTP two-case run as a combined clean-answer claim",
+        "recorded_at": "2026-09-03T00:35:00Z",
+        "reason": "combined run is not clean: the source-grounded XG-X positive passed answer grounding, while the intentionally unsupported VS side correctly failed closed with insufficient evidence and no citations. Preserve both row-level outcomes."
       }
     ],
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
       {
-        "timestamp": "2026-09-03T00:10:00Z",
+        "timestamp": "2026-09-03T00:10:49Z",
         "severity": "needs_fix",
-        "guardrail_commit": "a138059",
-        "finding": "Repeated-side troubleshooting role validation could borrow a requested remedy or cause from a sibling record in the same cited chunk.",
+        "guardrail_commit": "900cb88",
+        "finding": "The record parser rejected valid line-wrapped troubleshooting rows and allowed compact same-line or row-header sibling records to lend unsupported remedies.",
         "status": "addressed_this_run_pending_guardrail_review",
         "evidence": [
-          "Production commit 6f72ae4 splits structured troubleshooting evidence into records and requires the identifier/symptom-matching record itself to support every requested evidence role; unrelated sibling rows cannot supply a remedy, cause, or action verb.",
-          "Focused repeated-side controls passed 12 tests, including legitimate multi-record evidence, target-cause/sibling-remedy, target-remedy/sibling-cause, sibling action verb, reversed row order, cross-chunk role mixing, missing-side, and unrelated-sibling cases.",
-          "The fixture-mounted full unit gate passed 643 tests with 59 warnings; the initial unmounted diagnostic run passed 638 and failed only five absent tmp_eval_docs fixture checks.",
-          "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901 at 2026-09-03T00:03:59Z; health was OK and host/container generator.py SHA-256 matched 64f5a5c61861798dc0984216ae67e77f73d4dc2cb82b1b27daa3ce6b6d8d420a.",
-          "Actual HTTP retrieval_eval_20260903_000449 passed retrieval 2/2 at rank 1. The XG-X positive passed answer grounding and cited exact CV-X482 5d3cb915 and XG-X 435cd418 chunks, whose returned content directly states both requested corrective actions; quote_span is null. The VS missing-side control returned insufficient_evidence=true with no citations."
+          "Production commit d0d1ed3 replaces newline-only splitting with label-aware record binding: wrapped fields remain one record, repeated identifier/message/row anchors start a sibling record, and pipe-table rows remain isolated.",
+          "Focused parser/answer controls passed 18 tests, including line-wrapped and semicolon positives plus compact same-line, row-header, pipe-table, sibling-role, reversed-order, cross-chunk, missing-side, and unrelated-sibling adversarial cases.",
+          "The fixture-mounted full unit gate passed 649 tests with 59 warnings; git diff --check passed.",
+          "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901 at 2026-09-03T00:30:57Z; health was OK and host/container generator.py SHA-256 matched 3594c384e5b4d6440af6647fe1fa567f5bac4826f441d2a80bdf233eb9c32835. Five loaded parser branch controls passed.",
+          "Actual HTTP retrieval_eval_20260903_003115 passed retrieval 2/2 at rank 1. The XG-X positive passed answer grounding and cited exact CV-X482 5d3cb915 and XG-X 435cd418 chunks; returned content directly states both requested corrective actions and quote_span is null. The VS missing-side control returned insufficient_evidence=true with no citations."
         ],
-        "required_next_action": "Await independent guardrail review; preserve the 000449 positive as clean case-level evidence, the missing-side row as an intentional control, and the combined run as not clean."
+        "required_next_action": "Await independent guardrail review of d0d1ed3; preserve the 003115 positive as clean case-level evidence, the missing-side row as an intentional control, and the combined run as not clean."
       },
       {
         "timestamp": "2026-09-02T23:11:35Z",
@@ -15389,9 +15405,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-03T00:10:00Z"
+    "updated_at": "2026-09-03T00:35:00Z"
   },
-  "remaining": "Await independent guardrail review of production commit 6f72ae4 and guardrail a138059. Preserve retrieval_eval_20260903_000449's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Next, continue source-reviewed distinct-document troubleshooting coverage without weakening per-record role, product-side, or citation binding; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Await independent guardrail review of production commit d0d1ed3 and guardrail 900cb88. Preserve retrieval_eval_20260903_003115's XG-X positive as clean case-level source-grounded evidence and its VS missing-side row as an intentional fail-closed control; do not claim the combined run clean. Continue only after confirming label-aware record parsing remains relation-preserving for unseen manuals; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -16185,24 +16201,30 @@
       "scope": "post-containment repeated-product-side two-case HTTP run as a combined clean-answer claim",
       "recorded_at": "2026-09-03T00:10:00Z",
       "reason": "combined run is not clean: the source-grounded XG-X positive passed answer grounding, while the intentionally unsupported VS side correctly failed closed with insufficient evidence and no citations. Preserve both row-level outcomes."
+    },
+    {
+      "run_id": "retrieval_eval_20260903_003115",
+      "scope": "label-aware troubleshooting-record parser loaded HTTP two-case run as a combined clean-answer claim",
+      "recorded_at": "2026-09-03T00:35:00Z",
+      "reason": "combined run is not clean: the source-grounded XG-X positive passed answer grounding, while the intentionally unsupported VS side correctly failed closed with insufficient evidence and no citations. Preserve both row-level outcomes."
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
         {
-          "timestamp": "2026-09-03T00:10:00Z",
+          "timestamp": "2026-09-03T00:10:49Z",
           "severity": "needs_fix",
-          "guardrail_commit": "a138059",
-          "finding": "Repeated-side troubleshooting role validation could borrow a requested remedy or cause from a sibling record in the same cited chunk.",
+          "guardrail_commit": "900cb88",
+          "finding": "The record parser rejected valid line-wrapped troubleshooting rows and allowed compact same-line or row-header sibling records to lend unsupported remedies.",
           "status": "addressed_this_run_pending_guardrail_review",
           "evidence": [
-            "Production commit 6f72ae4 splits structured troubleshooting evidence into records and requires the identifier/symptom-matching record itself to support every requested evidence role; unrelated sibling rows cannot supply a remedy, cause, or action verb.",
-            "Focused repeated-side controls passed 12 tests, including legitimate multi-record evidence, target-cause/sibling-remedy, target-remedy/sibling-cause, sibling action verb, reversed row order, cross-chunk role mixing, missing-side, and unrelated-sibling cases.",
-            "The fixture-mounted full unit gate passed 643 tests with 59 warnings; the initial unmounted diagnostic run passed 638 and failed only five absent tmp_eval_docs fixture checks.",
-            "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901 at 2026-09-03T00:03:59Z; health was OK and host/container generator.py SHA-256 matched 64f5a5c61861798dc0984216ae67e77f73d4dc2cb82b1b27daa3ce6b6d8d420a.",
-            "Actual HTTP retrieval_eval_20260903_000449 passed retrieval 2/2 at rank 1. The XG-X positive passed answer grounding and cited exact CV-X482 5d3cb915 and XG-X 435cd418 chunks, whose returned content directly states both requested corrective actions; quote_span is null. The VS missing-side control returned insufficient_evidence=true with no citations."
+            "Production commit d0d1ed3 replaces newline-only splitting with label-aware record binding: wrapped fields remain one record, repeated identifier/message/row anchors start a sibling record, and pipe-table rows remain isolated.",
+            "Focused parser/answer controls passed 18 tests, including line-wrapped and semicolon positives plus compact same-line, row-header, pipe-table, sibling-role, reversed-order, cross-chunk, missing-side, and unrelated-sibling adversarial cases.",
+            "The fixture-mounted full unit gate passed 649 tests with 59 warnings; git diff --check passed.",
+            "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901 at 2026-09-03T00:30:57Z; health was OK and host/container generator.py SHA-256 matched 3594c384e5b4d6440af6647fe1fa567f5bac4826f441d2a80bdf233eb9c32835. Five loaded parser branch controls passed.",
+            "Actual HTTP retrieval_eval_20260903_003115 passed retrieval 2/2 at rank 1. The XG-X positive passed answer grounding and cited exact CV-X482 5d3cb915 and XG-X 435cd418 chunks; returned content directly states both requested corrective actions and quote_span is null. The VS missing-side control returned insufficient_evidence=true with no citations."
           ],
-          "required_next_action": "Await independent guardrail review; preserve the 000449 positive as clean case-level evidence, the missing-side row as an intentional control, and the combined run as not clean."
+          "required_next_action": "Await independent guardrail review of d0d1ed3; preserve the 003115 positive as clean case-level evidence, the missing-side row as an intentional control, and the combined run as not clean."
         },
     {
       "timestamp": "2026-09-02T23:11:35Z",
@@ -17698,5 +17720,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-03T00:10:00Z"
+  "updated_at": "2026-09-03T00:35:00Z"
 }
