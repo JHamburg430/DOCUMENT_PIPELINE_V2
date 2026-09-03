@@ -1769,6 +1769,81 @@ def test_repeated_product_side_troubleshooting_fallback_rejects_sibling_symptom(
     assert _fallback_evidence_results(query, results) == []
 
 
+def test_repeated_product_side_troubleshooting_does_not_borrow_sibling_remedy_in_same_chunk():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+    results = _repeated_side_troubleshooting_results_fixture()
+    results[1] = results[1].model_copy(
+        update={
+            "content": (
+                "Error Message: Storage Card 2 is full.; Cause: There is not enough free space.; Error Code: 85\n"
+                "Error Message: Storage Card 2 is write-protected.; Cause: The switch is enabled.; "
+                "Corrective Action: Disable the write-protection switch.; Error Code: 86"
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+    assert _fallback_answer(query, results).insufficient_evidence is True
+
+
+def test_repeated_product_side_troubleshooting_does_not_borrow_sibling_cause_in_same_chunk():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what causes Storage Card 2 to be full?"
+    )
+    results = _repeated_side_troubleshooting_results_fixture()
+    results[1] = results[1].model_copy(
+        update={
+            "content": (
+                "Error Message: Storage Card 2 is full.; Corrective Action: Delete unnecessary files.; Error Code: 85\n"
+                "Error Message: Storage Card 2 is write-protected.; Cause: The switch is enabled.; Error Code: 86"
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+
+
+def test_repeated_product_side_troubleshooting_ignores_sibling_action_verb():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+    results = _repeated_side_troubleshooting_results_fixture()
+    results[1] = results[1].model_copy(
+        update={
+            "content": (
+                "Error Message: Storage Card 2 is full.; Cause: There is not enough free space.; Error Code: 85\n"
+                "Error Message: Storage Card 2 is write-protected.; Cause: Check the protection switch.; Error Code: 86"
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+
+
+def test_repeated_product_side_troubleshooting_rejects_sibling_remedy_when_rows_are_reversed():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+    results = _repeated_side_troubleshooting_results_fixture()
+    results[1] = results[1].model_copy(
+        update={
+            "content": (
+                "Error Message: Storage Card 2 is write-protected.; Cause: The switch is enabled.; "
+                "Corrective Action: Disable the write-protection switch.; Error Code: 86\n"
+                "Error Message: Storage Card 2 is full.; Cause: There is not enough free space.; Error Code: 85"
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+
+
 def test_repeated_product_side_troubleshooting_rejects_cause_only_for_requested_action():
     query = (
         "On a CTRL-900, what should a technician check for Error 43101, "

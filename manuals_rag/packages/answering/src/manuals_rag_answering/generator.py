@@ -1292,29 +1292,41 @@ def _troubleshooting_evidence_supports_roles(evidence: str, roles: set[str]) -> 
     return roles.issubset(supported)
 
 
-def _repeated_side_answer_text(clause: str, result: SearchResult) -> str:
-    citation_evidence = _citation_evidence_text(result)
-    requested_ids = _query_requested_troubleshooting_identifiers(clause)
-    anchor = _repeated_side_clause_anchor(clause)
-    records = [
+def _troubleshooting_evidence_records(evidence: str) -> list[str]:
+    """Split structured troubleshooting evidence without merging sibling rows."""
+    return [
         record.strip()
         for record in re.split(
             r"\n+|(?=\b(?:Error Message|Error Number|Alarm|Fault)\s*:)",
-            citation_evidence,
+            evidence,
             flags=re.IGNORECASE,
         )
         if record.strip()
     ]
-    for record in records:
+
+
+def _repeated_side_matching_records(clause: str, evidence: str) -> list[str]:
+    """Return only records bound to the identifier or symptom requested by a side."""
+    requested_ids = _query_requested_troubleshooting_identifiers(clause)
+    anchor = _repeated_side_clause_anchor(clause)
+    matching: list[str] = []
+    for record in _troubleshooting_evidence_records(evidence):
         normalized = _normalized_phrase(record)
         identifiers = {
             _normalized_phrase(match.group(0))
             for match in re.finditer(r"\b[a-z]*\d[a-z0-9._/-]*\b", record, flags=re.IGNORECASE)
         }
         if requested_ids and requested_ids.intersection(identifiers):
-            return record
-        if not requested_ids and len(anchor) >= 6 and anchor in normalized:
-            return record
+            matching.append(record)
+        elif not requested_ids and len(anchor) >= 6 and anchor in normalized:
+            matching.append(record)
+    return matching
+
+
+def _repeated_side_answer_text(clause: str, result: SearchResult) -> str:
+    citation_evidence = _citation_evidence_text(result)
+    for record in _repeated_side_matching_records(clause, citation_evidence):
+        return record
     return _focused_diagnostic_table_answer_text(clause, result) or citation_evidence
 
 
@@ -1339,17 +1351,11 @@ def _repeated_side_troubleshooting_results(
             if result.chunk_id in seen_chunks or not _result_matches_requested_product_side(result, side):
                 continue
             citation_evidence = _citation_evidence_text(result)
-            evidence = _normalized_phrase(citation_evidence)
-            if not _troubleshooting_evidence_supports_roles(citation_evidence, requested_roles):
-                continue
-            if requested_ids:
-                evidence_identifiers = {
-                    _normalized_phrase(match.group(0))
-                    for match in re.finditer(r"\b[a-z]*\d[a-z0-9._/-]*\b", citation_evidence, flags=re.IGNORECASE)
-                }
-                if not requested_ids.intersection(evidence_identifiers):
-                    continue
-            elif len(anchor) < 6 or anchor not in evidence:
+            matching_records = _repeated_side_matching_records(clause, citation_evidence)
+            if not matching_records or not any(
+                _troubleshooting_evidence_supports_roles(record, requested_roles)
+                for record in matching_records
+            ):
                 continue
             candidates.append((_troubleshooting_evidence_score(clause, result), index, result))
         if not candidates:
