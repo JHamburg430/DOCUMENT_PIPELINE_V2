@@ -1299,8 +1299,10 @@ def _troubleshooting_evidence_records(evidence: str) -> list[str]:
     line, a single row wrapped across field lines, compact semicolon-delimited
     rows, or pipe tables.  Newlines alone therefore cannot define records.  A
     repeated row anchor (identifier, message, or row header) starts a sibling
-    record, while distinct fields on following lines remain attached to the
-    current record.
+    record. Row-header serializers and diagnostic-label serializers are also
+    distinct record shapes, so crossing between those shapes starts a sibling;
+    complementary identifier/message labels remain part of one diagnostic row.
+    Distinct fields on following lines remain attached to the current record.
     """
     text = str(evidence or "").strip()
     if not text:
@@ -1347,7 +1349,12 @@ def _troubleshooting_evidence_records(evidence: str) -> list[str]:
         end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
         part = text[match.start() : end].strip(" \t\r\n;")
         family = label_family(match.group("label"))
-        if family in anchor_families and family in current_anchor_families:
+        crosses_record_shape = (
+            family in anchor_families
+            and bool(current_anchor_families)
+            and ((family == "row") != ("row" in current_anchor_families))
+        )
+        if family in anchor_families and (family in current_anchor_families or crosses_record_shape):
             record = "; ".join(item for item in current_parts if item).strip()
             if record:
                 records.append(record)

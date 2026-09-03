@@ -1972,6 +1972,30 @@ def test_troubleshooting_records_split_compact_row_header_siblings():
     assert "Disable the switch" in records[1]
 
 
+def test_troubleshooting_records_split_row_header_then_error_code_siblings():
+    records = _troubleshooting_evidence_records(
+        "Row headers: Storage Card 2 is full; Cause: No space; "
+        "Error Code: 86; Message: Storage Card 2 is write-protected.; "
+        "Corrective Action: Disable the switch."
+    )
+
+    assert len(records) == 2
+    assert "Disable the switch" not in records[0]
+    assert "Disable the switch" in records[1]
+
+
+def test_troubleshooting_records_split_error_code_then_row_header_siblings():
+    records = _troubleshooting_evidence_records(
+        "Error Code: 86; Message: Storage Card 2 is write-protected.; "
+        "Corrective Action: Disable the switch.; "
+        "Row headers: Storage Card 2 is full; Cause: No space"
+    )
+
+    assert len(records) == 2
+    assert "Disable the switch" in records[0]
+    assert "Disable the switch" not in records[1]
+
+
 def test_repeated_product_side_troubleshooting_accepts_line_wrapped_complete_row():
     query = (
         "On a CTRL-900, what should a technician check for Error 43101, "
@@ -2007,6 +2031,46 @@ def test_repeated_product_side_troubleshooting_rejects_compact_sibling_remedy():
                 "Error Code: 85; Message: Storage Card 2 is full.; Cause: No space.; "
                 "Error Code: 86; Message: Storage Card 2 is write-protected.; "
                 "Corrective Action: Disable the switch."
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+    assert _fallback_answer(query, results).insufficient_evidence is True
+
+
+def test_repeated_product_side_troubleshooting_rejects_mixed_label_sibling_remedy():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+    results = _repeated_side_troubleshooting_results_fixture()
+    results[1] = results[1].model_copy(
+        update={
+            "content": (
+                "Row headers: Storage Card 2 is full; Cause: No space; "
+                "Error Code: 86; Message: Storage Card 2 is write-protected.; "
+                "Corrective Action: Disable the switch."
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+    assert _fallback_answer(query, results).insufficient_evidence is True
+
+
+def test_repeated_product_side_troubleshooting_rejects_reversed_mixed_label_sibling_remedy():
+    query = (
+        "On a CTRL-900, what should a technician check for Error 43101, "
+        "and on the VSN Series, what corrective action applies when Storage Card 2 is full?"
+    )
+    results = _repeated_side_troubleshooting_results_fixture()
+    results[1] = results[1].model_copy(
+        update={
+            "content": (
+                "Error Code: 86; Message: Storage Card 2 is write-protected.; "
+                "Corrective Action: Disable the switch.; "
+                "Row headers: Storage Card 2 is full; Cause: No space"
             )
         }
     )
