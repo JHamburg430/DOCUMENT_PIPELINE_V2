@@ -9074,7 +9074,7 @@
       "git_status_before_final_commit": "dirty only with this run's scoped query-analysis/retrieval changes, tests, HTTP eval artifacts, and tracking",
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 02f6a40 before final tracking commit",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 3b7c1bf before tracking follow-up commit",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -9201,7 +9201,7 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-    "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 02f6a40 before final tracking commit",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 3b7c1bf before tracking follow-up commit",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
     "git_status_check": "dirty only with this run's scoped query-analysis/retrieval changes, tests, HTTP eval artifacts, and tracking",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
@@ -12882,7 +12882,7 @@
       "git_status_before_final_commit": "dirty only with this run's scoped query-analysis/retrieval changes, tests, HTTP eval artifacts, and tracking",
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-    "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 02f6a40 before final tracking commit",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 3b7c1bf before tracking follow-up commit",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -13009,7 +13009,7 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 02f6a40 before final tracking commit",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 3b7c1bf before tracking follow-up commit",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
     "git_status_check": "dirty only with this run's scoped query-analysis/retrieval changes, tests, HTTP eval artifacts, and tracking",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
@@ -15489,9 +15489,23 @@
         "severity": "ok",
         "status": "addressed_this_run_pending_guardrail_audit",
         "timestamp": "2026-08-31T14:00:00Z"
+      },
+      {
+        "finding": "Guardrail found the active uncommitted retrieval_eval_20260903_030603 manifest snapshot inconsistent across root and question_bank current-state aliases.",
+        "guardrail_commit": "3b7c1bf",
+        "guardrail_timestamp": "2026-09-03T03:10:45Z",
+        "severity": "needs_fix",
+        "status": "addressed_before_production_commit_and_revalidated",
+        "evidence": [
+          "root and question_bank answer_grounding_status, answer_grounding_rotation, next target, failure-category, and scope aliases agree",
+          "normal and parent-aware deterministic manifest checks passed",
+          "fixture-mounted full unit gate passed 658 tests",
+          "production commit 3155283 was rebased onto guardrail commit 3b7c1bf"
+        ],
+        "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-03T02:28:00Z"
+    "updated_at": "2026-09-03T03:16:00Z"
   },
     "remaining": "Diagnose the answer-grounding failure in retrieval_eval_20260903_030603: retrieval returns both exact requested chunks for the positive, but validation fallback returns insufficient evidence with no citations. Preserve 030216 as diagnostic incidental-number evidence, the 030603 Error 99999 control as fail-closed, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
@@ -17838,7 +17852,21 @@
       "severity": "ok",
       "status": "addressed_this_run_pending_guardrail_audit",
       "timestamp": "2026-08-31T14:00:00Z"
+    },
+    {
+      "finding": "Guardrail found the active uncommitted retrieval_eval_20260903_030603 manifest snapshot inconsistent across root and question_bank current-state aliases.",
+      "guardrail_commit": "3b7c1bf",
+      "guardrail_timestamp": "2026-09-03T03:10:45Z",
+      "severity": "needs_fix",
+      "status": "addressed_before_production_commit_and_revalidated",
+      "evidence": [
+        "root and question_bank answer_grounding_status, answer_grounding_rotation, next target, failure-category, and scope aliases agree",
+        "normal and parent-aware deterministic manifest checks passed",
+        "fixture-mounted full unit gate passed 658 tests",
+        "production commit 3155283 was rebased onto guardrail commit 3b7c1bf"
+      ],
+      "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-03T02:28:00Z"
+  "updated_at": "2026-09-03T03:16:00Z"
 }
