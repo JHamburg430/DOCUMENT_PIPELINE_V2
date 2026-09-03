@@ -254,6 +254,25 @@ def analyze_query(query: str) -> QueryAnalysis:
     if len(product_identifiers) >= 2 and repeated_side_clause_comparison:
         types.append("comparison")
         preferred_chunk_types.extend(["spec_record", "datasheet_record", "table_record"])
+    compound_field_side = re.search(
+        r"\b(?:and|while|whereas)\s+(?:what|which|how)\b[^?]{0,100}"
+        r"\b(?:caus(?:e|es|ed)|remed(?:y|ies)|correct(?:ed|ive|ion)?|"
+        r"settings?|specifications?|specs?|values?|ratings?)\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    compound_product_identifiers = [
+        identifier
+        for start, identifier in identifier_matches
+        if not re.search(
+            r"\b(?:error|alarm|fault)\s*(?:code\s+|number\s+|no\.?\s*)?$",
+            query[max(0, start - 24) : start],
+            flags=re.IGNORECASE,
+        )
+    ]
+    if len(set(compound_product_identifiers)) >= 2 and compound_field_side:
+        types.append("comparison")
+        preferred_chunk_types.extend(["spec_record", "datasheet_record", "table_record"])
     return QueryAnalysis(
         raw_query=query,
         query_types=sorted(set(types)),

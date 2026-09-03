@@ -396,6 +396,36 @@ def test_query_analysis_marks_repeated_product_side_clauses_as_comparison(family
 @pytest.mark.parametrize(
     "query",
     [
+        (
+            "For MOD1-A reporting a damaged program, what caused the condition, "
+            "and what causes SYS Series Error 30109?"
+        ),
+        (
+            "What causes SYS Series Error 30109, and what caused the damaged-program "
+            "condition for MOD1-A?"
+        ),
+    ],
+)
+def test_query_analysis_marks_compound_field_requests_across_product_sides_as_comparison(query: str):
+    analysis = analyze_query(query)
+
+    expected_identifiers = ["MOD1-A", "SYS"] if query.startswith("For") else ["SYS", "MOD1-A"]
+    assert analysis.product_identifiers == expected_identifiers
+    assert "comparison" in analysis.query_types
+
+
+def test_query_analysis_does_not_mark_single_side_followup_as_comparison():
+    analysis = analyze_query(
+        "For MOD1-A reporting a damaged program, what caused the condition and how should it be corrected?"
+    )
+
+    assert analysis.product_identifiers == ["MOD1-A"]
+    assert "comparison" not in analysis.query_types
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
         "What address values apply for IV4-G120 and IV4-G600CA?",
         "On a CV-X482, what should a technician check for Error 13101?",
         "What Display Settings value applies to VS Series Vision System?",
@@ -480,6 +510,17 @@ def test_structured_lookup_with_product_family_skips_table_lexical_search():
     assert analysis.product_family == "XG-X"
     assert retriever._should_run_extra_table_vector_search(analysis) is True
     assert retriever._should_run_table_lexical_search(analysis) is False
+
+
+def test_compound_product_sides_with_one_explicit_error_keep_table_lexical_search():
+    analysis = analyze_query(
+        "For MOD1-A reporting a damaged program, what caused the condition, "
+        "and what causes SYS Series Error 30109?"
+    )
+
+    assert "comparison" in analysis.query_types
+    assert retriever._diagnostic_table_code_terms(analysis.raw_query, analysis) == ["30109"]
+    assert retriever._should_run_table_lexical_search(analysis) is True
 
 
 def test_structured_lookup_without_explicit_identifier_keeps_table_lexical_search():
@@ -1429,6 +1470,32 @@ def test_diagnostic_table_promotion_keeps_source_bearing_rows_before_headings():
 
     assert promoted[0].chunk_id == "table"
     assert promoted[0].metadata["retrieval_stage"] == "diagnostic_table_promoted"
+
+
+def test_diagnostic_table_promotion_rejects_incidental_numeric_setting_value():
+    analysis = analyze_query(
+        "For MOD1-A reporting a damaged program, what caused the condition, "
+        "and what causes SYS Series Error 99999?"
+    )
+    incidental = SearchResult(
+        chunk_id="numeric-limit",
+        score=4.0,
+        title="SYS Series Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[5],
+        section_path=["Settings"],
+        content="Setting Items: Upper Limit; Initial Value: 99999.999; Lower Limit Value: -99999.999",
+        metadata={
+            "chunk_type": "table_record",
+            "table_key_value": True,
+            "product_family": "SYS Series",
+        },
+    )
+
+    promoted = retriever._promote_diagnostic_table_candidates([], [incidental], analysis, limit=4)
+
+    assert promoted == []
 
 
 def test_diagnostic_comparison_promotion_preserves_one_complete_row_per_product_side():

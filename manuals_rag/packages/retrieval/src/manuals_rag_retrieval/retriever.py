@@ -248,7 +248,13 @@ def _should_run_extra_table_vector_search(analysis: QueryAnalysis) -> bool:
 def _should_run_table_lexical_search(analysis: QueryAnalysis) -> bool:
     diagnostic_codes = _diagnostic_table_code_terms(analysis.raw_query, analysis)
     if _query_has_diagnostic_table_code(analysis.raw_query, analysis) and (
-        analysis.error_code or len(diagnostic_codes) >= 2
+        analysis.error_code
+        or len(diagnostic_codes) >= 2
+        or (
+            bool(diagnostic_codes)
+            and "comparison" in analysis.query_types
+            and len(analysis.product_identifiers) >= 2
+        )
     ):
         return True
     if "structured_lookup" not in analysis.query_types:
@@ -2823,6 +2829,7 @@ def _promote_diagnostic_table_candidates(
         for result in supplemental_results
         if str(result.metadata.get("chunk_type") or "") == "table_record"
         and _is_structured_comparison_table_result(result)
+        and _diagnostic_table_support_score(result, analysis)[1] > 0
     ]
     if not candidates:
         return primary_results
