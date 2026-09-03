@@ -215,7 +215,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on a different product/manual pair. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_015447's CV-X/XG-X positive as clean case-level source-grounded evidence, its VS Error 99999 row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "validated_production_changes": [
       {
         "commit": "a66cbed",
@@ -711,9 +711,10 @@
       "retrieval_eval_20260902_232718 positive repeated-side per-clause role-bound grounded answer",
       "retrieval_eval_20260903_000449 XG-X positive repeated-side per-record role-bound grounded answer",
       "retrieval_eval_20260903_003115 XG-X positive label-aware record-bound grounded answer",
-      "retrieval_eval_20260903_005643 XG-X positive mixed-anchor-family record-bound grounded answer"
+      "retrieval_eval_20260903_005643 XG-X positive mixed-anchor-family record-bound grounded answer",
+      "retrieval_eval_20260903_015447 CV-X482 Error 10101 plus XG-X SD Card 2-full distinct-document grounded answer"
     ],
-    "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260903_005643 XG-X positive are accepted under source-reviewed visible-citation-content scoring. The same run's VS row is an intentional missing-side fail-closed control, so the combined run is not clean. Mixed row-header/diagnostic anchor transitions now split sibling records while complementary identifier/message labels stay bound within one diagnostic row.",
+    "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260903_015447's CV-X/XG-X positive are accepted under source-reviewed visible-citation-content scoring. The same run's VS Error 99999 row is an intentional missing-side fail-closed control, so the combined run is not clean.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -766,11 +767,16 @@
       ,"mixed_series_mixed_family_results": "test_reports/retrieval_eval_results_20260903_005643.jsonl"
       ,"mixed_series_mixed_family_summary": "test_reports/retrieval_eval_summary_20260903_005643.json"
       ,"mixed_series_mixed_family_manifest": "test_reports/retrieval_eval_manifest_20260903_005643.json"
+      ,"distinct_document_10101_xgx_source_dataset": "test_reports/retrieval_eval_dataset_20260902_2158_distinct_document_troubleshooting_validation.jsonl"
+      ,"distinct_document_10101_xgx_run_dataset": "test_reports/retrieval_eval_dataset_20260903_015447.jsonl"
+      ,"distinct_document_10101_xgx_results": "test_reports/retrieval_eval_results_20260903_015447.jsonl"
+      ,"distinct_document_10101_xgx_summary": "test_reports/retrieval_eval_summary_20260903_015447.json"
+      ,"distinct_document_10101_xgx_manifest": "test_reports/retrieval_eval_manifest_20260903_015447.json"
     },
     "current_answer_failures": {},
-    "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_005643.jsonl and every returned citation payload. The XG-X positive user-visible fallback states the CV-X482 Error 13101 flow-control/serial-cable checks and XG-X SD Card 2 delete/move corrective action; citations are exact returned chunks 5d3cb915 page 1280 and 435cd418 page 1263 with null quote spans, and each cited chunk directly supports its assigned remedy. The VS missing-side control returned insufficient_evidence=true with no citations and fabricated no remedy. The positive is clean case-level evidence; the combined two-case run is not clean.",
-    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
-    "latest_clean_run": "retrieval_eval_20260903_005643 XG-X positive only"
+    "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_015447.jsonl and every returned citation payload. The positive user-visible fallback states the CV-X482 Error 10101 disconnected/unpowered cause and attach/check-damage remedy plus the XG-X SD Card 2 delete/move corrective action; citations are exact returned chunks 423d72f0 page 1274 and 435cd418 page 1263 with null quote spans, and each cited chunk directly supports its assigned remedy. The VS Error 99999 control returned insufficient_evidence=true with no citations and fabricated no remedy. The positive is clean case-level evidence; the combined two-case run is not clean.",
+    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on a different product/manual pair. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_015447's CV-X/XG-X positive as clean case-level source-grounded evidence, its VS Error 99999 row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "latest_clean_run": "retrieval_eval_20260903_015447 CV-X/XG-X positive only"
   },
   "constraints": {
     "allowed_logic": [
@@ -9275,7 +9281,7 @@
       ]
     }
   ],
-  "next_target": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Continue source-reviewed distinct-document troubleshooting coverage on a different product/manual pair. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_015447's CV-X/XG-X positive as clean case-level source-grounded evidence, its VS Error 99999 row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10244,7 +10250,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260902_161158.jsonl. The user-visible fallback states distinct Error 10109 and 10110 causes and remedies and cites only c7b00dfb page 1274 with quote_span null; that returned chunk directly contains both rows and all corrective actions. The loaded Error 10109/99999 control failed closed with insufficient_evidence=true and no citations.",
-      "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on a different product/manual pair. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_015447's CV-X/XG-X positive as clean case-level source-grounded evidence, its VS Error 99999 row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
       "validated_production_changes": [
         {
           "commit": "a66cbed",
@@ -10529,9 +10535,10 @@
       "retrieval_eval_20260902_232718 positive repeated-side per-clause role-bound grounded answer",
         "retrieval_eval_20260903_000449 XG-X positive repeated-side per-record role-bound grounded answer",
         "retrieval_eval_20260903_003115 XG-X positive label-aware record-bound grounded answer",
-        "retrieval_eval_20260903_005643 XG-X positive mixed-anchor-family record-bound grounded answer"
+        "retrieval_eval_20260903_005643 XG-X positive mixed-anchor-family record-bound grounded answer",
+        "retrieval_eval_20260903_015447 CV-X482 Error 10101 plus XG-X SD Card 2-full distinct-document grounded answer"
       ],
-      "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260903_005643 XG-X positive are accepted under source-reviewed visible-citation-content scoring. The same run's VS row is an intentional missing-side fail-closed control, so the combined run is not clean. Mixed row-header/diagnostic anchor transitions now split sibling records while complementary identifier/message labels stay bound within one diagnostic row.",
+      "answer_grounding_status": "Prior accepted clean runs plus retrieval_eval_20260903_015447's CV-X/XG-X positive are accepted under source-reviewed visible-citation-content scoring. The same run's VS Error 99999 row is an intentional missing-side fail-closed control, so the combined run is not clean.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10584,11 +10591,16 @@
         ,"mixed_series_mixed_family_results": "test_reports/retrieval_eval_results_20260903_005643.jsonl"
         ,"mixed_series_mixed_family_summary": "test_reports/retrieval_eval_summary_20260903_005643.json"
         ,"mixed_series_mixed_family_manifest": "test_reports/retrieval_eval_manifest_20260903_005643.json"
+        ,"distinct_document_10101_xgx_source_dataset": "test_reports/retrieval_eval_dataset_20260902_2158_distinct_document_troubleshooting_validation.jsonl"
+        ,"distinct_document_10101_xgx_run_dataset": "test_reports/retrieval_eval_dataset_20260903_015447.jsonl"
+        ,"distinct_document_10101_xgx_results": "test_reports/retrieval_eval_results_20260903_015447.jsonl"
+        ,"distinct_document_10101_xgx_summary": "test_reports/retrieval_eval_summary_20260903_015447.json"
+        ,"distinct_document_10101_xgx_manifest": "test_reports/retrieval_eval_manifest_20260903_015447.json"
       },
       "current_answer_failures": {},
-      "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_005643.jsonl and every returned citation payload. The XG-X positive user-visible fallback states the CV-X482 Error 13101 flow-control/serial-cable checks and XG-X SD Card 2 delete/move corrective action; citations are exact returned chunks 5d3cb915 page 1280 and 435cd418 page 1263 with null quote spans, and each cited chunk directly supports its assigned remedy. The VS missing-side control returned insufficient_evidence=true with no citations and fabricated no remedy. The positive is clean case-level evidence; the combined two-case run is not clean.",
-      "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
-      "latest_clean_run": "retrieval_eval_20260903_005643 XG-X positive only"
+      "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_015447.jsonl and every returned citation payload. The positive user-visible fallback states the CV-X482 Error 10101 disconnected/unpowered cause and attach/check-damage remedy plus the XG-X SD Card 2 delete/move corrective action; citations are exact returned chunks 423d72f0 page 1274 and 435cd418 page 1263 with null quote spans, and each cited chunk directly supports its assigned remedy. The VS Error 99999 control returned insufficient_evidence=true with no citations and fabricated no remedy. The positive is clean case-level evidence; the combined two-case run is not clean.",
+      "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on a different product/manual pair. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_015447's CV-X/XG-X positive as clean case-level source-grounded evidence, its VS Error 99999 row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "latest_clean_run": "retrieval_eval_20260903_015447 CV-X/XG-X positive only"
     },
     "current_answer_failure_categories": {},
     "current_answer_failure_source": "retrieval_eval_20260902_180540 positive passed actual HTTP answer grounding 1/1 across two distinct cited chunks; its intentional Error 99999 missing-side control failed closed, while older diagnostic/not-clean runs remain preserved.",
@@ -13064,7 +13076,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Continue source-reviewed distinct-document troubleshooting coverage on a different product/manual pair. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_015447's CV-X/XG-X positive as clean case-level source-grounded evidence, its VS Error 99999 row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13101,7 +13113,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on a different product/manual pair. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_015447's CV-X/XG-X positive as clean case-level source-grounded evidence, its VS Error 99999 row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -13907,6 +13919,12 @@
         "scope": "mixed-anchor-family troubleshooting-record parser loaded HTTP two-case run as a combined clean-answer claim",
         "recorded_at": "2026-09-03T01:00:00Z",
         "reason": "combined run is not clean: the source-grounded XG-X positive passed answer grounding, while the intentionally unsupported VS side correctly failed closed with insufficient evidence and no citations. Preserve both row-level outcomes."
+      },
+      {
+        "run_id": "retrieval_eval_20260903_015447",
+        "scope": "source-reviewed CV-X482 Error 10101 plus XG-X SD Card 2-full two-case HTTP run as a combined clean-answer claim",
+        "recorded_at": "2026-09-03T01:57:49Z",
+        "reason": "combined run is not clean: the distinct-document CV-X/XG-X positive passed answer grounding with both exact cited chunks, while the intentionally unsupported VS Error 99999 side correctly failed closed with insufficient evidence and no citations. Preserve both row-level outcomes."
       }
     ],
     "single_step_questions": 101,
@@ -15437,9 +15455,9 @@
         "timestamp": "2026-08-31T14:00:00Z"
       }
     ],
-    "updated_at": "2026-09-03T01:24:03Z"
+    "updated_at": "2026-09-03T01:57:49Z"
   },
-  "remaining": "Continue source-reviewed distinct-document troubleshooting coverage with a realistic positive and missing-side control. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_005643's XG-X positive as clean case-level source-grounded evidence, its VS missing-side row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on a different product/manual pair. Preserve guardrail-validated commit 557502c, retrieval_eval_20260903_015447's CV-X/XG-X positive as clean case-level source-grounded evidence, its VS Error 99999 row as an intentional fail-closed control, and the combined run as not clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -16245,6 +16263,12 @@
       "scope": "mixed-anchor-family troubleshooting-record parser loaded HTTP two-case run as a combined clean-answer claim",
       "recorded_at": "2026-09-03T01:00:00Z",
       "reason": "combined run is not clean: the source-grounded XG-X positive passed answer grounding, while the intentionally unsupported VS side correctly failed closed with insufficient evidence and no citations. Preserve both row-level outcomes."
+    },
+    {
+      "run_id": "retrieval_eval_20260903_015447",
+      "scope": "source-reviewed CV-X482 Error 10101 plus XG-X SD Card 2-full two-case HTTP run as a combined clean-answer claim",
+      "recorded_at": "2026-09-03T01:57:49Z",
+      "reason": "combined run is not clean: the distinct-document CV-X/XG-X positive passed answer grounding with both exact cited chunks, while the intentionally unsupported VS Error 99999 side correctly failed closed with insufficient evidence and no citations. Preserve both row-level outcomes."
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
@@ -17774,5 +17798,5 @@
       "timestamp": "2026-08-31T14:00:00Z"
     }
   ],
-  "updated_at": "2026-09-03T01:24:03Z"
+  "updated_at": "2026-09-03T01:57:49Z"
 }
