@@ -1,18 +1,6 @@
 {
-  "answer_current_failure_categories": {
-    "expected_document_not_cited_or_used": 1,
-    "expected_evidence_not_cited": 1,
-    "expected_table_cell_binding_missing": 1,
-    "expected_terms_missing": 1,
-    "insufficient_evidence": 1
-  },
-  "answer_failure_categories": {
-    "expected_document_not_cited_or_used": 1,
-    "expected_evidence_not_cited": 1,
-    "expected_table_cell_binding_missing": 1,
-    "expected_terms_missing": 1,
-    "insufficient_evidence": 1
-  },
+  "answer_current_failure_categories": {},
+  "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
       "jq empty passed for the new source-equivalence dataset and rerun artifacts.",
@@ -194,26 +182,26 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-09-03T03:06:00Z",
-    "latest_run": "retrieval_eval_20260903_030603",
-    "classification": "retrieval_side_loss_corrected_answer_grounding_still_diagnostic",
+    "timestamp": "2026-09-03T03:37:00Z",
+    "latest_run": "retrieval_eval_20260903_033304",
+    "classification": "positive_grounded_answer_clean_missing_side_fail_closed",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260902_2228_distinct_document_ivhg_vs_validation.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260903_030603.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260903_030603.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260903_030603.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260903_030603.json",
+    "dataset": "test_reports/retrieval_eval_dataset_20260903_033304.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260903_033304.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260903_033304.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260903_033304.json",
     "search_mode": "http",
     "response_mode": "answer_with_citations",
     "max_queries": 2,
     "retrieval_result": "2/2 retrieval passed at rank 1. The positive returned exact VS Error 30109 chunk be25fb78 plus exact IV-HG cause chunk 1ddc77c5; the Error 99999 control retained only the available IV-HG side and did not promote incidental numeric settings.",
-    "answer_result": "0/2 actual HTTP/API answers passed. Both returned fallback_validation insufficient-evidence responses with no citations; retrieval is corrected, but the positive remains a current answer-grounding failure and the unsupported-side control is intentionally fail-closed.",
+    "answer_result": "1/2 actual HTTP/API answers passed. The source-backed positive returned a fallback_validation grounded answer with both exact citations; the unsupported Error 99999 side returned insufficient evidence with no citations as intended. The combined run is not claimed clean.",
     "runtime_load_evidence": {
-      "validated_run": "retrieval_eval_20260903_030603",
+      "validated_run": "retrieval_eval_20260903_033304",
       "api_url": "http://127.0.0.1:9193",
       "container": "manuals-rag-temp-api-39262386-20260902-0726",
-      "health": "ok at 2026-09-03T03:02:10Z after restart; existing worktree-mounted container loaded and served both changed-path cases",
+      "health": "ok at 2026-09-03T03:32:54Z after restart; existing worktree-mounted container loaded and served both changed-path cases",
       "fingerprints": {
-        "generator.py": "15570f53dd2f7d67030a7d4ecc5a36ca3190b3c5a63937b35492ed514ed71d75",
+        "generator.py": "795fe9fe4b1cb6bf561a3850a3a080664bc7b2a94d9edb8f10a0eaca3dae567d",
         "retrieval_eval.py": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
         "query_analysis.py": "6aba38f3d797836a2ab573a11605c0d2c9d017724502d480b2466a7b48fb6ac7",
         "retriever.py": "e1de7c392e0d5ccad9d2fb881c6459acf847a80aaaf489f861cdb42028b78b6e"
@@ -226,10 +214,10 @@
         "RERANKER_DEVICE": "cuda:0"
       }
     },
-    "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_030603.jsonl. The positive final results include diagnostic_table_promoted exact VS Error 30109 chunk be25fb78 at rank 1 and exact IV-HG cause chunk 1ddc77c5 at rank 2. The Error 99999 control returned only IV-HG evidence; the earlier diagnostic 030216 incidental VS numeric-limit promotion was corrected and remains diagnostic. Both API answers returned insufficient evidence with no citations, so this is clean retrieval evidence but not clean answer evidence.",
-    "remaining": "Diagnose the answer-grounding failure in retrieval_eval_20260903_030603: retrieval returns both exact requested chunks for the positive, but validation fallback returns insufficient evidence with no citations. Preserve 030216 as diagnostic incidental-number evidence, the 030603 Error 99999 control as fail-closed, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
-    "validated_production_changes": ["compound multi-product field requests retain comparison intent", "single explicit diagnostic code across compared products enables table lexical retrieval", "diagnostic promotion rejects non-diagnostic incidental numeric table values"],
-    "scope": "retrieval_eval_20260903_030603 validates general query-analysis and retrieval routing/promotion corrections only; no document/vendor/file/query hardcoding and no answering, eval-scoring/generation, API, UI, ingestion, parser, infrastructure, schema, model, embedding, or reranker configuration change."
+    "manual_jsonl_inspection": "Inspected every case, returned chunk, user-visible answer, and citation in retrieval_eval_results_20260903_033304.jsonl. The positive answer states both requested causes and cites exact chunks 1ddc77c5 and be25fb78 with null quote spans; each cited chunk directly supports its assigned product/symptom or product/error clause. The Error 99999 control returns insufficient evidence with no citations and does not expose the supported IV-HG clause as a complete answer. The positive alone is clean; the combined run is excluded.",
+    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on another realistic product/manual pair while preserving retrieval_eval_20260903_033304's positive as clean case-level evidence, its Error 99999 row as an intentional fail-closed control, all prior diagnostics/exclusions, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "validated_production_changes": ["compound multi-product field requests retain comparison intent", "single explicit diagnostic code across compared products enables table lexical retrieval", "diagnostic promotion rejects non-diagnostic incidental numeric table values", "reported symptom and explicit error clauses bind independently to their requested product sides"],
+    "scope": "retrieval_eval_20260903_033304 validates the general relation-preserving answer fallback correction on the actual API; no document/vendor/file/query hardcoding and no retrieval, eval-scoring/generation, API, UI, ingestion, parser, infrastructure, schema, model, embedding, or reranker configuration change."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -716,9 +704,10 @@
       "retrieval_eval_20260903_000449 XG-X positive repeated-side per-record role-bound grounded answer",
       "retrieval_eval_20260903_003115 XG-X positive label-aware record-bound grounded answer",
       "retrieval_eval_20260903_005643 XG-X positive mixed-anchor-family record-bound grounded answer",
-      "retrieval_eval_20260903_015447 CV-X482 Error 10101 plus XG-X SD Card 2-full distinct-document grounded answer"
+      "retrieval_eval_20260903_015447 CV-X482 Error 10101 plus XG-X SD Card 2-full distinct-document grounded answer",
+      "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive"
     ],
-    "answer_grounding_status": "retrieval_eval_20260903_030603 is clean retrieval but diagnostic/not-clean answer evidence: its IV-HG/VS positive returns both exact expected chunks, yet validation fallback returns insufficient evidence with no citations; its Error 99999 control fails closed without incidental numeric-setting promotion. The latest accepted clean answer evidence remains retrieval_eval_20260903_015447's CV-X/XG-X positive.",
+    "answer_grounding_status": "retrieval_eval_20260903_033304 positive is clean grounded answer evidence: it states both source-backed causes and cites exact chunks 1ddc77c5 and be25fb78. Its Error 99999 row intentionally fails closed with no citations, so the combined run remains excluded.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -780,12 +769,16 @@
       ,"distinct_document_ivhg_vs_run_dataset": "test_reports/retrieval_eval_dataset_20260903_022525.jsonl"
       ,"distinct_document_ivhg_vs_results": "test_reports/retrieval_eval_results_20260903_022525.jsonl"
       ,"distinct_document_ivhg_vs_summary": "test_reports/retrieval_eval_summary_20260903_022525.json"
-      ,"distinct_document_ivhg_vs_manifest": "test_reports/retrieval_eval_manifest_20260903_022525.json"
+      ,"distinct_document_ivhg_vs_manifest": "test_reports/retrieval_eval_manifest_20260903_022525.json",
+      "distinct_document_ivhg_vs_grounded_run_dataset": "test_reports/retrieval_eval_dataset_20260903_033304.jsonl",
+      "distinct_document_ivhg_vs_grounded_results": "test_reports/retrieval_eval_results_20260903_033304.jsonl",
+      "distinct_document_ivhg_vs_grounded_summary": "test_reports/retrieval_eval_summary_20260903_033304.json",
+      "distinct_document_ivhg_vs_grounded_manifest": "test_reports/retrieval_eval_manifest_20260903_033304.json"
     },
     "current_answer_failures": {},
-      "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_030603.jsonl, every returned result, the user-visible answer, and citations. The positive returned exact VS Error 30109 chunk be25fb78 and IV-HG cause chunk 1ddc77c5; the Error 99999 control returned only IV-HG evidence after the diagnostic 030216 incidental numeric-limit promotion was corrected. Both API answers returned insufficient evidence with no citations, so retrieval is clean but answer evidence remains diagnostic/not-clean.",
-    "remaining": "Diagnose the answer-grounding failure in retrieval_eval_20260903_030603: retrieval returns both exact requested chunks for the positive, but validation fallback returns insufficient evidence with no citations. Preserve 030216 as diagnostic incidental-number evidence, the 030603 Error 99999 control as fail-closed, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
-    "latest_clean_run": "retrieval_eval_20260903_015447 CV-X/XG-X positive only"
+      "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_033304.jsonl. The positive cites exact returned chunks 1ddc77c5 and be25fb78 with null quote spans, and each chunk directly supports its assigned clause. The Error 99999 row returns insufficient evidence with no citations. The positive alone is accepted clean; the combined run is excluded.",
+    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on another realistic product/manual pair while preserving retrieval_eval_20260903_033304's positive as clean case-level evidence, its Error 99999 row as an intentional fail-closed control, all prior diagnostics/exclusions, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "latest_clean_run": "retrieval_eval_20260903_033304 IV-HG/VS positive only"
   },
   "constraints": {
     "allowed_logic": [
@@ -803,21 +796,15 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {
-    "expected_document_not_cited_or_used": 1,
-    "expected_evidence_not_cited": 1,
-    "expected_table_cell_binding_missing": 1,
-    "expected_terms_missing": 1,
-    "insufficient_evidence": 1
-  },
-  "current_answer_failure_source": "retrieval_eval_20260903_030603 positive categories: insufficient_evidence, expected_document_not_cited_or_used, expected_terms_missing, expected_evidence_not_cited, expected_table_cell_binding_missing. Both exact expected chunks reached final_top_k, but validation fallback returned no answer or citations. The paired Error 99999 control failed closed and is not counted as a production answer miss.",
+  "current_answer_failure_categories": {},
+  "current_answer_failure_source": "none; retrieval_eval_20260903_033304 positive passed actual HTTP answer grounding, and the Error 99999 row is an intentional unsupported-side fail-closed control",
   "current_failure_categories": {},
   "current_failure_sources": {
     "retrieval": "none",
-    "answer": "retrieval_eval_20260903_030603 positive categories: insufficient_evidence, expected_document_not_cited_or_used, expected_terms_missing, expected_evidence_not_cited, expected_table_cell_binding_missing; failed closed with no citations despite complete retrieval"
+    "answer": "none"
   },
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "none in retrieval_eval_20260903_030603: both source-backed chunks reached final_top_k for the positive, and the Error 99999 control retained only available IV-HG evidence.",
+  "current_retrieval_failure_source": "none in retrieval_eval_20260903_033304: both source-backed chunks reached final_top_k for the positive, and the Error 99999 control retained only available IV-HG evidence.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -9070,11 +9057,11 @@
     "current_run_worktree": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "created_new_worktree": false,
-    "timestamp": "2026-09-03T03:06:00Z",
-      "git_status_before_final_commit": "dirty only with this run's scoped query-analysis/retrieval changes, tests, HTTP eval artifacts, and tracking",
+    "timestamp": "2026-09-03T03:37:00Z",
+      "git_status_before_final_commit": "dirty only with this run's scoped answering change, tests, HTTP eval artifacts, and tracking",
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 3b7c1bf before tracking follow-up commit",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8ba8bd before final commit",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
       "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -9296,7 +9283,7 @@
       ]
     }
   ],
-  "next_target": "Diagnose the answer-grounding failure in retrieval_eval_20260903_030603: retrieval returns both exact requested chunks for the positive, but validation fallback returns insufficient evidence with no citations. Preserve 030216 as diagnostic incidental-number evidence, the 030603 Error 99999 control as fail-closed, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Continue source-reviewed distinct-document troubleshooting coverage on another realistic product/manual pair while preserving retrieval_eval_20260903_033304's positive as clean case-level evidence, its Error 99999 row as an intentional fail-closed control, all prior diagnostics/exclusions, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10049,20 +10036,8 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-  "answer_current_failure_categories": {
-    "expected_document_not_cited_or_used": 1,
-    "expected_evidence_not_cited": 1,
-    "expected_table_cell_binding_missing": 1,
-    "expected_terms_missing": 1,
-    "insufficient_evidence": 1
-  },
-  "answer_failure_categories": {
-    "expected_document_not_cited_or_used": 1,
-    "expected_evidence_not_cited": 1,
-    "expected_table_cell_binding_missing": 1,
-    "expected_terms_missing": 1,
-    "insufficient_evidence": 1
-  },
+    "answer_current_failure_categories": {},
+    "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
         "jq empty passed for the new source-equivalence dataset and rerun artifacts.",
@@ -10244,26 +10219,26 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-09-03T03:06:00Z",
-    "latest_run": "retrieval_eval_20260903_030603",
-    "classification": "retrieval_side_loss_corrected_answer_grounding_still_diagnostic",
+      "timestamp": "2026-09-03T03:37:00Z",
+      "latest_run": "retrieval_eval_20260903_033304",
+      "classification": "positive_grounded_answer_clean_missing_side_fail_closed",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260902_2228_distinct_document_ivhg_vs_validation.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260903_030603.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260903_030603.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260903_030603.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260903_030603.json",
+      "dataset": "test_reports/retrieval_eval_dataset_20260903_033304.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260903_033304.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260903_033304.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260903_033304.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "max_queries": 2,
     "retrieval_result": "2/2 retrieval passed at rank 1. The positive returned exact VS Error 30109 chunk be25fb78 plus exact IV-HG cause chunk 1ddc77c5; the Error 99999 control retained only the available IV-HG side and did not promote incidental numeric settings.",
-    "answer_result": "0/2 actual HTTP/API answers passed. Both returned fallback_validation insufficient-evidence responses with no citations; retrieval is corrected, but the positive remains a current answer-grounding failure and the unsupported-side control is intentionally fail-closed.",
+      "answer_result": "1/2 actual HTTP/API answers passed. The source-backed positive returned a fallback_validation grounded answer with both exact citations; the unsupported Error 99999 side returned insufficient evidence with no citations as intended. The combined run is not claimed clean.",
       "runtime_load_evidence": {
-      "validated_run": "retrieval_eval_20260903_030603",
+        "validated_run": "retrieval_eval_20260903_033304",
         "api_url": "http://127.0.0.1:9193",
         "container": "manuals-rag-temp-api-39262386-20260902-0726",
-      "health": "ok at 2026-09-03T03:02:10Z after restart; existing worktree-mounted container loaded and served both changed-path cases",
+        "health": "ok at 2026-09-03T03:32:54Z after restart; existing worktree-mounted container loaded and served both changed-path cases",
         "fingerprints": {
-          "generator.py": "15570f53dd2f7d67030a7d4ecc5a36ca3190b3c5a63937b35492ed514ed71d75",
+          "generator.py": "795fe9fe4b1cb6bf561a3850a3a080664bc7b2a94d9edb8f10a0eaca3dae567d",
           "retrieval_eval.py": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
         "query_analysis.py": "6aba38f3d797836a2ab573a11605c0d2c9d017724502d480b2466a7b48fb6ac7",
         "retriever.py": "e1de7c392e0d5ccad9d2fb881c6459acf847a80aaaf489f861cdb42028b78b6e"
@@ -10276,10 +10251,10 @@
           "RERANKER_DEVICE": "cuda:0"
         }
       },
-    "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_030603.jsonl. The positive final results include diagnostic_table_promoted exact VS Error 30109 chunk be25fb78 at rank 1 and exact IV-HG cause chunk 1ddc77c5 at rank 2. The Error 99999 control returned only IV-HG evidence; the earlier diagnostic 030216 incidental VS numeric-limit promotion was corrected and remains diagnostic. Both API answers returned insufficient evidence with no citations, so this is clean retrieval evidence but not clean answer evidence.",
-      "remaining": "Diagnose the answer-grounding failure in retrieval_eval_20260903_030603: retrieval returns both exact requested chunks for the positive, but validation fallback returns insufficient evidence with no citations. Preserve 030216 as diagnostic incidental-number evidence, the 030603 Error 99999 control as fail-closed, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
-    "validated_production_changes": ["compound multi-product field requests retain comparison intent", "single explicit diagnostic code across compared products enables table lexical retrieval", "diagnostic promotion rejects non-diagnostic incidental numeric table values"],
-    "scope": "retrieval_eval_20260903_030603 validates general query-analysis and retrieval routing/promotion corrections only; no document/vendor/file/query hardcoding and no answering, eval-scoring/generation, API, UI, ingestion, parser, infrastructure, schema, model, embedding, or reranker configuration change."
+      "manual_jsonl_inspection": "Inspected every case, returned chunk, user-visible answer, and citation in retrieval_eval_results_20260903_033304.jsonl. The positive answer states both requested causes and cites exact chunks 1ddc77c5 and be25fb78 with null quote spans; each cited chunk directly supports its assigned product/symptom or product/error clause. The Error 99999 control returns insufficient evidence with no citations and does not expose the supported IV-HG clause as a complete answer. The positive alone is clean; the combined run is excluded.",
+      "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on another realistic product/manual pair while preserving retrieval_eval_20260903_033304's positive as clean case-level evidence, its Error 99999 row as an intentional fail-closed control, all prior diagnostics/exclusions, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+      "validated_production_changes": ["compound multi-product field requests retain comparison intent", "single explicit diagnostic code across compared products enables table lexical retrieval", "diagnostic promotion rejects non-diagnostic incidental numeric table values", "reported symptom and explicit error clauses bind independently to their requested product sides"],
+      "scope": "retrieval_eval_20260903_033304 validates the general relation-preserving answer fallback correction on the actual API; no document/vendor/file/query hardcoding and no retrieval, eval-scoring/generation, API, UI, ingestion, parser, infrastructure, schema, model, embedding, or reranker configuration change."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10555,9 +10530,10 @@
         "retrieval_eval_20260903_000449 XG-X positive repeated-side per-record role-bound grounded answer",
         "retrieval_eval_20260903_003115 XG-X positive label-aware record-bound grounded answer",
         "retrieval_eval_20260903_005643 XG-X positive mixed-anchor-family record-bound grounded answer",
-        "retrieval_eval_20260903_015447 CV-X482 Error 10101 plus XG-X SD Card 2-full distinct-document grounded answer"
+        "retrieval_eval_20260903_015447 CV-X482 Error 10101 plus XG-X SD Card 2-full distinct-document grounded answer",
+        "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive"
       ],
-    "answer_grounding_status": "retrieval_eval_20260903_030603 is clean retrieval but diagnostic/not-clean answer evidence: its IV-HG/VS positive returns both exact expected chunks, yet validation fallback returns insufficient evidence with no citations; its Error 99999 control fails closed without incidental numeric-setting promotion. The latest accepted clean answer evidence remains retrieval_eval_20260903_015447's CV-X/XG-X positive.",
+    "answer_grounding_status": "retrieval_eval_20260903_033304 positive is clean grounded answer evidence: it states both source-backed causes and cites exact chunks 1ddc77c5 and be25fb78. Its Error 99999 row intentionally fails closed with no citations, so the combined run remains excluded.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10619,28 +10595,26 @@
         ,"distinct_document_ivhg_vs_run_dataset": "test_reports/retrieval_eval_dataset_20260903_022525.jsonl"
         ,"distinct_document_ivhg_vs_results": "test_reports/retrieval_eval_results_20260903_022525.jsonl"
         ,"distinct_document_ivhg_vs_summary": "test_reports/retrieval_eval_summary_20260903_022525.json"
-        ,"distinct_document_ivhg_vs_manifest": "test_reports/retrieval_eval_manifest_20260903_022525.json"
+        ,"distinct_document_ivhg_vs_manifest": "test_reports/retrieval_eval_manifest_20260903_022525.json",
+        "distinct_document_ivhg_vs_grounded_run_dataset": "test_reports/retrieval_eval_dataset_20260903_033304.jsonl",
+        "distinct_document_ivhg_vs_grounded_results": "test_reports/retrieval_eval_results_20260903_033304.jsonl",
+        "distinct_document_ivhg_vs_grounded_summary": "test_reports/retrieval_eval_summary_20260903_033304.json",
+        "distinct_document_ivhg_vs_grounded_manifest": "test_reports/retrieval_eval_manifest_20260903_033304.json"
       },
       "current_answer_failures": {},
-      "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_030603.jsonl, every returned result, the user-visible answer, and citations. The positive returned exact VS Error 30109 chunk be25fb78 and IV-HG cause chunk 1ddc77c5; the Error 99999 control returned only IV-HG evidence after the diagnostic 030216 incidental numeric-limit promotion was corrected. Both API answers returned insufficient evidence with no citations, so retrieval is clean but answer evidence remains diagnostic/not-clean.",
-      "remaining": "Diagnose the answer-grounding failure in retrieval_eval_20260903_030603: retrieval returns both exact requested chunks for the positive, but validation fallback returns insufficient evidence with no citations. Preserve 030216 as diagnostic incidental-number evidence, the 030603 Error 99999 control as fail-closed, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
-      "latest_clean_run": "retrieval_eval_20260903_015447 CV-X/XG-X positive only"
+      "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260903_033304.jsonl. The positive cites exact returned chunks 1ddc77c5 and be25fb78 with null quote spans, and each chunk directly supports its assigned clause. The Error 99999 row returns insufficient evidence with no citations. The positive alone is accepted clean; the combined run is excluded.",
+      "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on another realistic product/manual pair while preserving retrieval_eval_20260903_033304's positive as clean case-level evidence, its Error 99999 row as an intentional fail-closed control, all prior diagnostics/exclusions, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+      "latest_clean_run": "retrieval_eval_20260903_033304 IV-HG/VS positive only"
     },
-  "current_answer_failure_categories": {
-    "expected_document_not_cited_or_used": 1,
-    "expected_evidence_not_cited": 1,
-    "expected_table_cell_binding_missing": 1,
-    "expected_terms_missing": 1,
-    "insufficient_evidence": 1
-  },
-  "current_answer_failure_source": "retrieval_eval_20260903_030603 positive categories: insufficient_evidence, expected_document_not_cited_or_used, expected_terms_missing, expected_evidence_not_cited, expected_table_cell_binding_missing. Both exact expected chunks reached final_top_k, but validation fallback returned no answer or citations. The paired Error 99999 control failed closed and is not counted as a production answer miss.",
+  "current_answer_failure_categories": {},
+  "current_answer_failure_source": "none; retrieval_eval_20260903_033304 positive passed actual HTTP answer grounding, and the Error 99999 row is an intentional unsupported-side fail-closed control",
   "current_failure_categories": {},
     "current_failure_sources": {
     "retrieval": "none",
-    "answer": "retrieval_eval_20260903_030603 positive categories: insufficient_evidence, expected_document_not_cited_or_used, expected_terms_missing, expected_evidence_not_cited, expected_table_cell_binding_missing; failed closed with no citations despite complete retrieval"
+    "answer": "none"
     },
   "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "none in retrieval_eval_20260903_030603: both source-backed chunks reached final_top_k for the positive, and the Error 99999 control retained only available IV-HG evidence.",
+  "current_retrieval_failure_source": "none in retrieval_eval_20260903_033304: both source-backed chunks reached final_top_k for the positive, and the Error 99999 control retained only available IV-HG evidence.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12878,11 +12852,11 @@
       "current_run_worktree": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
         "created_new_worktree": false,
-      "timestamp": "2026-09-03T03:06:00Z",
-      "git_status_before_final_commit": "dirty only with this run's scoped query-analysis/retrieval changes, tests, HTTP eval artifacts, and tracking",
+      "timestamp": "2026-09-03T03:37:00Z",
+      "git_status_before_final_commit": "dirty only with this run's scoped answering change, tests, HTTP eval artifacts, and tracking",
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 3b7c1bf before tracking follow-up commit",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8ba8bd before final commit",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
         "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
@@ -13106,7 +13080,7 @@
       }
     ],
     "multi_step_questions": 108,
-  "next_target": "Diagnose the answer-grounding failure in retrieval_eval_20260903_030603: retrieval returns both exact requested chunks for the positive, but validation fallback returns insufficient evidence with no citations. Preserve 030216 as diagnostic incidental-number evidence, the 030603 Error 99999 control as fail-closed, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Continue source-reviewed distinct-document troubleshooting coverage on another realistic product/manual pair while preserving retrieval_eval_20260903_033304's positive as clean case-level evidence, its Error 99999 row as an intentional fail-closed control, all prior diagnostics/exclusions, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13143,9 +13117,14 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Diagnose the answer-grounding failure in retrieval_eval_20260903_030603: retrieval returns both exact requested chunks for the positive, but validation fallback returns insufficient evidence with no citations. Preserve 030216 as diagnostic incidental-number evidence, the 030603 Error 99999 control as fail-closed, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on another realistic product/manual pair while preserving retrieval_eval_20260903_033304's positive as clean case-level evidence, its Error 99999 row as an intentional fail-closed control, all prior diagnostics/exclusions, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
     "run_exclusions": [
+      {
+        "reason": "combined positive/control run is not a clean answer run: the source-backed IV-HG/VS Error 30109 positive passed with exact citations, while the intentionally unsupported VS Error 99999 side failed closed with insufficient evidence and no citations",
+        "run_id": "retrieval_eval_20260903_033304",
+        "scope": "combined run only; preserve the positive row as accepted clean case-level answer evidence and the Error 99999 row as an intentional fail-closed control"
+      },
       {
         "reason": "diagnostic/not-clean answer evidence after mixed product-family comparison classification correction: retrieval passed 2/2 at rank 1, including both source-backed CV-X482 and XG-X chunks for the positive; both user-visible API answers failed closed with insufficient evidence and no citations, and the VS missing-side control did not fabricate evidence",
         "run_id": "retrieval_eval_20260902_223222",
@@ -15505,11 +15484,16 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-03T03:16:00Z"
+    "updated_at": "2026-09-03T03:37:00Z"
   },
-    "remaining": "Diagnose the answer-grounding failure in retrieval_eval_20260903_030603: retrieval returns both exact requested chunks for the positive, but validation fallback returns insufficient evidence with no citations. Preserve 030216 as diagnostic incidental-number evidence, the 030603 Error 99999 control as fail-closed, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Continue source-reviewed distinct-document troubleshooting coverage on another realistic product/manual pair while preserving retrieval_eval_20260903_033304's positive as clean case-level evidence, its Error 99999 row as an intentional fail-closed control, all prior diagnostics/exclusions, active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
+    {
+      "reason": "combined positive/control run is not a clean answer run: the source-backed IV-HG/VS Error 30109 positive passed with exact citations, while the intentionally unsupported VS Error 99999 side failed closed with insufficient evidence and no citations",
+      "run_id": "retrieval_eval_20260903_033304",
+      "scope": "combined run only; preserve the positive row as accepted clean case-level answer evidence and the Error 99999 row as an intentional fail-closed control"
+    },
     {
       "reason": "diagnostic/not-clean answer evidence after mixed product-family comparison classification correction: retrieval passed 2/2 at rank 1, including both source-backed CV-X482 and XG-X chunks for the positive; both user-visible API answers failed closed with insufficient evidence and no citations, and the VS missing-side control did not fabricate evidence",
       "run_id": "retrieval_eval_20260902_223222",
@@ -17868,5 +17852,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-03T03:16:00Z"
+  "updated_at": "2026-09-03T03:37:00Z"
 }

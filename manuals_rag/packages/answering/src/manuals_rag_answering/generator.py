@@ -226,22 +226,30 @@ def _requested_product_sides(query: str) -> list[tuple[str, bool]]:
 
 
 def _repeated_product_side_clauses(query: str) -> list[str]:
-    """Split explicit ``on/for/with PRODUCT ... and ... PRODUCT`` requests."""
+    """Split explicit multi-product troubleshooting clauses."""
     normalized = re.sub(r"\s+", " ", query).strip(" .?")
-    parts = [
+    candidate_parts = [
         part.strip(" ,.;:?")
         for part in re.split(
-            r"\s*,?\s+and\s+(?=(?:on|for|with)\s+)",
+            r"\s*,?\s+and\s+(?=(?:(?:on|for|with)\s+|(?:what|which|how|why)\b))",
             normalized,
             flags=re.IGNORECASE,
         )
         if part.strip(" ,.;:?")
     ]
+    parts: list[str] = []
+    for part in candidate_parts:
+        if parts and not _requested_product_sides(part):
+            parts[-1] = f"{parts[-1]} and {part}"
+        else:
+            parts.append(part)
     if len(parts) < 2:
+        return []
+    if not all(len(_requested_product_sides(part)) == 1 for part in parts):
         return []
     if not all(
         re.search(r"\b(?:on|for|with)\s+(?:an?\s+|the\s+)?", part, flags=re.IGNORECASE)
-        and len(_requested_product_sides(part)) == 1
+        or re.search(r"\b(?:what|which|how|why)\b", part, flags=re.IGNORECASE)
         for part in parts
     ):
         return []
@@ -1252,8 +1260,16 @@ def _comparison_side_clauses(query: str) -> list[str]:
 def _repeated_side_clause_anchor(clause: str) -> str:
     match = re.search(r"\b(?:when|if)\s+(.+)$", clause, flags=re.IGNORECASE)
     if not match:
+        match = re.search(
+            r"\b(?:reporting|showing|indicating|displaying)(?:\s+that)?\s+(.+?)"
+            r"(?=,\s*(?:what|which|how|why)\b|$)",
+            clause,
+            flags=re.IGNORECASE,
+        )
+    if not match:
         return ""
-    return _normalized_phrase(match.group(1).strip(" .?\"'"))
+    anchor = re.sub(r"^(?:its|their|the|an?)\s+", "", match.group(1).strip(" .?\"'"), flags=re.IGNORECASE)
+    return _normalized_phrase(anchor)
 
 
 def _requested_troubleshooting_evidence_roles(clause: str) -> set[str]:
@@ -1278,6 +1294,8 @@ def _troubleshooting_evidence_supports_roles(evidence: str, roles: set[str]) -> 
         return True
     supported: set[str] = set()
     if re.search(r"\b(?:cause|caused\s+by)\s*:", evidence, flags=re.IGNORECASE) or re.search(
+        r"\bcolumn\s+headers?\s*:\s*[^;\n]*\bcause\b", evidence, flags=re.IGNORECASE
+    ) or re.search(
         r"\b(?:because|due\s+to)\b", evidence, flags=re.IGNORECASE
     ):
         supported.add("cause")
@@ -1386,8 +1404,13 @@ def _repeated_side_matching_records(clause: str, evidence: str) -> list[str]:
         }
         if requested_ids and requested_ids.intersection(identifiers):
             matching.append(record)
-        elif not requested_ids and len(anchor) >= 6 and anchor in normalized:
-            matching.append(record)
+        elif not requested_ids and len(anchor) >= 6:
+            anchor_terms = _material_claim_terms(anchor).difference(
+                {"condition", "reported", "reporting", "shown", "showing"}
+            )
+            record_terms = _material_claim_terms(normalized)
+            if len(anchor_terms) >= 2 and anchor_terms.issubset(record_terms):
+                matching.append(record)
     return matching
 
 
@@ -1405,6 +1428,12 @@ def _repeated_side_troubleshooting_results(
     """Bind each repeated product clause to its own troubleshooting evidence."""
     clauses = _repeated_product_side_clauses(query)
     if len(clauses) < 2 or not _is_troubleshooting_query(query):
+        return False, []
+    if any(
+        not _query_requested_troubleshooting_identifiers(clause)
+        and not _repeated_side_clause_anchor(clause)
+        for clause in clauses
+    ):
         return False, []
 
     selected: list[SearchResult] = []

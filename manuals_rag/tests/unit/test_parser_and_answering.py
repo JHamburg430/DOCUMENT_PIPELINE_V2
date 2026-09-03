@@ -1742,6 +1742,95 @@ def test_repeated_product_side_troubleshooting_fallback_binds_each_clause():
     assert [result.chunk_id for result in selected] == ["controller-error", "family-card-full"]
 
 
+def _reported_symptom_comparison_results_fixture() -> list[SearchResult]:
+    return [
+        SearchResult(
+            chunk_id="controller-damaged-program",
+            score=0.9,
+            title="Controller Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[40],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Sensor program damaged. Initialization necessary.; "
+                "Cell value: A memory read error occurred at startup or noise was picked up during writing."
+            ),
+            metadata={"chunk_type": "table_record", "product_model": "CTRL-900"},
+        ),
+        SearchResult(
+            chunk_id="family-error-30109",
+            score=0.8,
+            title="Vision Family Manual",
+            document_version_id="v2",
+            source_document_id="d2",
+            pages=[85],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Code: 30109; Message: Cannot execute when multiple subtasks are selected.; "
+                "Cause: A subtask was executed from the main screen while multiple subtasks were selected."
+            ),
+            metadata={"chunk_type": "table_record", "product_family": "VSN Series"},
+        ),
+    ]
+
+
+def test_reported_symptom_and_explicit_error_fallback_binds_distinct_product_sides():
+    query = (
+        "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
+        "what caused the condition, and what causes VSN Series Error 30109?"
+    )
+
+    selected = _fallback_evidence_results(query, _reported_symptom_comparison_results_fixture())
+
+    assert _is_comparison_query(query)
+    assert [result.chunk_id for result in selected] == [
+        "controller-damaged-program",
+        "family-error-30109",
+    ]
+
+
+def test_reported_symptom_and_explicit_error_fallback_preserves_reversed_clause_order():
+    query = (
+        "What causes VSN Series Error 30109, and for a CTRL-900 showing that its sensor program is "
+        "damaged and initialization is necessary, what caused the condition?"
+    )
+
+    selected = _fallback_evidence_results(query, list(reversed(_reported_symptom_comparison_results_fixture())))
+
+    assert [result.chunk_id for result in selected] == [
+        "family-error-30109",
+        "controller-damaged-program",
+    ]
+
+
+def test_reported_symptom_and_explicit_error_fallback_rejects_missing_error_side():
+    query = (
+        "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
+        "what caused the condition, and what causes VSN Series Error 30109?"
+    )
+
+    assert _fallback_evidence_results(query, _reported_symptom_comparison_results_fixture()[:1]) == []
+
+
+def test_reported_symptom_and_explicit_error_fallback_rejects_sibling_symptom():
+    query = (
+        "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
+        "what caused the condition, and what causes VSN Series Error 30109?"
+    )
+    results = _reported_symptom_comparison_results_fixture()
+    results[0] = results[0].model_copy(
+        update={
+            "content": (
+                "Column headers: Cause; Row headers: Sensor communication interrupted. Initialization necessary.; "
+                "Cell value: The network cable was disconnected."
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+
+
 def test_repeated_product_side_troubleshooting_fallback_rejects_missing_side():
     query = (
         "On a CTRL-900, what should a technician check for Error 43101, "
