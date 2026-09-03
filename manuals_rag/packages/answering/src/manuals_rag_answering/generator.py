@@ -1293,16 +1293,77 @@ def _troubleshooting_evidence_supports_roles(evidence: str, roles: set[str]) -> 
 
 
 def _troubleshooting_evidence_records(evidence: str) -> list[str]:
-    """Split structured troubleshooting evidence without merging sibling rows."""
-    return [
-        record.strip()
-        for record in re.split(
-            r"\n+|(?=\b(?:Error Message|Error Number|Alarm|Fault)\s*:)",
-            evidence,
-            flags=re.IGNORECASE,
-        )
-        if record.strip()
-    ]
+    """Split structured troubleshooting evidence into source-bound records.
+
+    Manual table serializers use several equivalent shapes: one complete row per
+    line, a single row wrapped across field lines, compact semicolon-delimited
+    rows, or pipe tables.  Newlines alone therefore cannot define records.  A
+    repeated row anchor (identifier, message, or row header) starts a sibling
+    record, while distinct fields on following lines remain attached to the
+    current record.
+    """
+    text = str(evidence or "").strip()
+    if not text:
+        return []
+
+    pipe_lines = [line.strip() for line in text.splitlines() if line.strip() and "|" in line]
+    non_pipe_lines = [line.strip() for line in text.splitlines() if line.strip() and "|" not in line]
+    if len(pipe_lines) >= 2 and not non_pipe_lines:
+        return pipe_lines
+
+    label_pattern = re.compile(
+        r"\b(?P<label>"
+        r"error\s+messages?|messages?|error\s+(?:code|number)|alarm|fault|"
+        r"row\s+headers?|cause|corrective\s+actions?|remed(?:y|ies)|cell\s+value"
+        r")\s*:",
+        flags=re.IGNORECASE,
+    )
+    matches = list(label_pattern.finditer(text))
+    if not matches:
+        return [line.strip() for line in text.splitlines() if line.strip()]
+
+    def label_family(label: str) -> str:
+        normalized = re.sub(r"\s+", " ", label.lower()).strip()
+        if normalized.startswith("error code") or normalized.startswith("error number"):
+            return "identifier"
+        if normalized in {"alarm", "fault"}:
+            return "identifier"
+        if normalized.startswith("row header"):
+            return "row"
+        if normalized.startswith("error message") or normalized.startswith("message"):
+            return "message"
+        if normalized == "cause":
+            return "cause"
+        if normalized.startswith("corrective action") or normalized.startswith("remed"):
+            return "action"
+        return "value"
+
+    records: list[str] = []
+    current_parts: list[str] = []
+    current_anchor_families: set[str] = set()
+    anchor_families = {"identifier", "message", "row"}
+    prefix = text[: matches[0].start()].strip()
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        part = text[match.start() : end].strip(" \t\r\n;")
+        family = label_family(match.group("label"))
+        if family in anchor_families and family in current_anchor_families:
+            record = "; ".join(item for item in current_parts if item).strip()
+            if record:
+                records.append(record)
+            current_parts = []
+            current_anchor_families = set()
+        if not current_parts and prefix:
+            current_parts.append(prefix)
+            prefix = ""
+        current_parts.append(part)
+        if family in anchor_families:
+            current_anchor_families.add(family)
+
+    record = "; ".join(item for item in current_parts if item).strip()
+    if record:
+        records.append(record)
+    return records
 
 
 def _repeated_side_matching_records(clause: str, evidence: str) -> list[str]:
