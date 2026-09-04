@@ -9086,14 +9086,14 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 799434d before edits; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main ddb354a before edits; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed correction commit fce7cb7 before the final tracking-only lifecycle commit",
+      "git_status_check": "dirty only with this run's progress and manifest tracking before final commit",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-      "timestamp": "2026-09-04T08:32:00Z",
-      "git_status_before_final_commit": "dirty only with this run's scoped checker/test/progress/manifest changes before final commit"
+      "timestamp": "2026-09-04T09:03:00Z",
+      "git_status_before_final_commit": "dirty only with this run's progress and manifest tracking before final commit"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12907,14 +12907,14 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 799434d before edits; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main ddb354a before edits; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed correction commit fce7cb7 before the final tracking-only lifecycle commit",
+        "git_status_check": "dirty only with this run's progress and manifest tracking before final commit",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-        "timestamp": "2026-09-04T08:32:00Z",
-        "git_status_before_final_commit": "dirty only with this run's scoped checker/test/progress/manifest changes before final commit"
+        "timestamp": "2026-09-04T09:03:00Z",
+        "git_status_before_final_commit": "dirty only with this run's progress and manifest tracking before final commit"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -14050,13 +14050,14 @@
         "guardrail_commit": "5a93593",
         "guardrail_timestamp": "2026-09-04T08:41:07Z",
         "severity": "needs_fix",
-        "status": "addressed_this_run_unique_case_identity_bijection_and_alias_reconciliation",
+        "status": "addressed_and_independently_validated_unique_case_identity_bijection_and_alias_reconciliation",
         "evidence": [
           "Dataset and result case IDs must be nonempty, unique within each artifact, and equal as sets before freshness ordering.",
           "Git-backed exact-ID positive plus missing, duplicate, and unexpected result-ID adverse controls pass.",
-          "All current target aliases now agree at root and question_bank; normal and parent-aware real-manifest checks pass; focused suite passes 78 tests."
+          "All current target aliases now agree at root and question_bank; normal and parent-aware real-manifest checks pass; focused suite passes 78 tests.",
+          "Independent read-only fixture-mounted full unit gate passed 683 tests with 59 warnings on 2026-09-04."
         ],
-        "remaining": "The final identity increment received the focused 78-test gate after the earlier 680-test full gate; obtain a fresh full gate next run before treating the checker containment as independently audited, then continue pipe-path API proof."
+        "remaining": "Independent validation is complete: exact-ID and missing/duplicate/unexpected-ID controls passed in the 78-test focused suite, and the read-only fixture-mounted full unit gate passed 683 tests. Continue the unresolved pipe-path API proof target."
       },
       {
         "finding": "Guardrail commit 799434d found that the answer-run freshness checker treated a tracked manifest with untracked peers, partial results, and skipped or cancelled runs as complete answer-mode evidence.",
@@ -16548,13 +16549,14 @@
       "guardrail_commit": "5a93593",
       "guardrail_timestamp": "2026-09-04T08:41:07Z",
       "severity": "needs_fix",
-      "status": "addressed_this_run_unique_case_identity_bijection_and_alias_reconciliation",
+      "status": "addressed_and_independently_validated_unique_case_identity_bijection_and_alias_reconciliation",
       "evidence": [
         "Dataset and result case IDs must be nonempty, unique within each artifact, and equal as sets before freshness ordering.",
         "Git-backed exact-ID positive plus missing, duplicate, and unexpected result-ID adverse controls pass.",
-        "All current target aliases now agree at root and question_bank; normal and parent-aware real-manifest checks pass; focused suite passes 78 tests."
+        "All current target aliases now agree at root and question_bank; normal and parent-aware real-manifest checks pass; focused suite passes 78 tests.",
+        "Independent read-only fixture-mounted full unit gate passed 683 tests with 59 warnings on 2026-09-04."
       ],
-      "remaining": "The final identity increment received the focused 78-test gate after the earlier 680-test full gate; obtain a fresh full gate next run before treating the checker containment as independently audited, then continue pipe-path API proof."
+      "remaining": "Independent validation is complete: exact-ID and missing/duplicate/unexpected-ID controls passed in the 78-test focused suite, and the read-only fixture-mounted full unit gate passed 683 tests. Continue the unresolved pipe-path API proof target."
     },
     {
       "finding": "Guardrail commit 799434d found that the answer-run freshness checker treated a tracked manifest with untracked peers, partial results, and skipped or cancelled runs as complete answer-mode evidence.",
