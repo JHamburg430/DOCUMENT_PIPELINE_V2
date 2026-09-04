@@ -1,6 +1,7 @@
 import copy
 import importlib.util
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -16,6 +17,100 @@ def _load_manifest_check_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _write_answer_run(
+    root: Path,
+    suffix: str,
+    *,
+    dataset_count: int = 2,
+    result_count: int = 2,
+    answer_eval_count: int = 2,
+    evaluation_skipped: bool = False,
+    status: str | None = None,
+    dataset_case_ids: list[str | None] | None = None,
+    result_case_ids: list[str | None] | None = None,
+) -> list[Path]:
+    reports = root / "test_reports"
+    reports.mkdir(exist_ok=True)
+    manifest = {"response_mode": "answer_with_citations"}
+    summary = {
+        "total_queries": dataset_count,
+        "passed_queries": 0,
+        "failed_queries": dataset_count,
+        "answer_eval_count": answer_eval_count,
+        "answer_passed_queries": 0,
+        "answer_failed_queries": answer_eval_count,
+    }
+    if evaluation_skipped:
+        manifest["evaluation_skipped"] = True
+        summary["evaluation_skipped"] = True
+    if status is not None:
+        manifest["status"] = status
+        summary["status"] = status
+    paths = [
+        reports / f"retrieval_eval_manifest_{suffix}.json",
+        reports / f"retrieval_eval_dataset_{suffix}.jsonl",
+        reports / f"retrieval_eval_results_{suffix}.jsonl",
+        reports / f"retrieval_eval_summary_{suffix}.json",
+    ]
+    dataset_case_ids = dataset_case_ids or [
+        f"case-{index}" for index in range(dataset_count)
+    ]
+    result_case_ids = result_case_ids or [
+        f"case-{index}" for index in range(result_count)
+    ]
+    paths[0].write_text(json.dumps(manifest), encoding="utf-8")
+    paths[1].write_text(
+        "".join(
+            json.dumps({"case_id": case_id}) + "\n" for case_id in dataset_case_ids
+        ),
+        encoding="utf-8",
+    )
+    paths[2].write_text(
+        "".join(
+            json.dumps(
+                {
+                    "case": {"case_id": case_id},
+                    "answer_evaluation": {"passed": False},
+                }
+            )
+            + "\n"
+            for case_id in result_case_ids
+        ),
+        encoding="utf-8",
+    )
+    paths[3].write_text(json.dumps(summary), encoding="utf-8")
+    return paths
+
+
+def _git_commit_paths(root: Path, paths: list[Path]) -> None:
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "add",
+            *[str(path.relative_to(root)) for path in paths],
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=Manifest Test",
+            "-c",
+            "user.email=manifest@test.invalid",
+            "commit",
+            "-qm",
+            "add eval artifacts",
+        ],
+        check=True,
+    )
 
 
 def _minimal_manifest():
@@ -667,21 +762,9 @@ def test_manifest_checker_rejects_answer_grounding_rotation_artifact_run_mismatc
 def test_manifest_checker_rejects_newer_complete_answer_mode_run(tmp_path):
     module = _load_manifest_check_module()
     manifest = _minimal_manifest()
-    reports = tmp_path / "test_reports"
-    reports.mkdir()
     suffix = "20260830_211603"
-    (reports / f"retrieval_eval_manifest_{suffix}.json").write_text(
-        json.dumps({"response_mode": "answer_with_citations"}), encoding="utf-8"
-    )
-    (reports / f"retrieval_eval_dataset_{suffix}.jsonl").write_text(
-        "{}\n", encoding="utf-8"
-    )
-    (reports / f"retrieval_eval_results_{suffix}.jsonl").write_text(
-        "{}\n", encoding="utf-8"
-    )
-    (reports / f"retrieval_eval_summary_{suffix}.json").write_text(
-        "{}\n", encoding="utf-8"
-    )
+    paths = _write_answer_run(tmp_path, suffix)
+    _git_commit_paths(tmp_path, paths)
 
     errors = module.check_manifest(manifest, tmp_path)
 
@@ -695,21 +778,107 @@ def test_manifest_checker_rejects_newer_complete_answer_mode_run(tmp_path):
 def test_manifest_checker_accepts_latest_complete_answer_mode_run(tmp_path):
     module = _load_manifest_check_module()
     manifest = _minimal_manifest()
-    reports = tmp_path / "test_reports"
-    reports.mkdir()
     suffix = "20260830_201603"
-    (reports / f"retrieval_eval_manifest_{suffix}.json").write_text(
-        json.dumps({"response_mode": "answer_with_citations"}), encoding="utf-8"
+    paths = _write_answer_run(tmp_path, suffix)
+    _git_commit_paths(tmp_path, paths)
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_accepts_current_state_newer_than_latest_complete_run(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(tmp_path, "20260830_191603")
+    _git_commit_paths(tmp_path, paths)
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_ignores_answer_run_with_untracked_peer_artifacts(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(tmp_path, "20260830_211603")
+    _git_commit_paths(tmp_path, paths[:1])
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_ignores_partial_answer_run(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(
+        tmp_path, "20260830_211603", result_count=1, answer_eval_count=1
     )
-    (reports / f"retrieval_eval_dataset_{suffix}.jsonl").write_text(
-        "{}\n", encoding="utf-8"
+    _git_commit_paths(tmp_path, paths)
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_ignores_answer_run_with_missing_result_case_id(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(
+        tmp_path,
+        "20260830_211603",
+        result_case_ids=["case-0", None],
     )
-    (reports / f"retrieval_eval_results_{suffix}.jsonl").write_text(
-        "{}\n", encoding="utf-8"
+    _git_commit_paths(tmp_path, paths)
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_ignores_answer_run_with_duplicate_result_case_id(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(
+        tmp_path,
+        "20260830_211603",
+        result_case_ids=["case-0", "case-0"],
     )
-    (reports / f"retrieval_eval_summary_{suffix}.json").write_text(
-        "{}\n", encoding="utf-8"
+    _git_commit_paths(tmp_path, paths)
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_ignores_answer_run_with_unexpected_result_case_id(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(
+        tmp_path,
+        "20260830_211603",
+        result_case_ids=["case-0", "unexpected-case"],
     )
+    _git_commit_paths(tmp_path, paths)
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_ignores_answer_run_with_missing_peer(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(tmp_path, "20260830_211603")
+    paths[2].unlink()
+    _git_commit_paths(tmp_path, [paths[0], paths[1], paths[3]])
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_ignores_skipped_answer_run(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(
+        tmp_path, "20260830_211603", evaluation_skipped=True
+    )
+    _git_commit_paths(tmp_path, paths)
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_ignores_cancelled_answer_run(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(tmp_path, "20260830_211603", status="cancelled")
+    _git_commit_paths(tmp_path, paths)
 
     assert module.check_manifest(manifest, tmp_path) == []
 

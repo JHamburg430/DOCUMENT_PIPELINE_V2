@@ -210,7 +210,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_072834.jsonl. The positive used source-supported atomic citations but omitted exact pipe parent chunk 38d26f5e; the Error 99999 control cited nothing and fabricated nothing. Preserve 071826 and 072834 as diagnostic/not-clean.",
-    "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "scope": "retrieval_eval_20260904_072834 is diagnostic evidence from a reverted retrieval experiment; no production retrieval or answering change was retained. No active count, ledger, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -790,7 +790,7 @@
       "expected_terms_missing": 1
     },
     "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_071826.jsonl and retrieval_eval_results_20260904_072834.jsonl. The positive answers used source-supported atomic citations but did not prove safe pipe-parent promotion; both Error 99999 controls failed closed. Both runs remain diagnostic/not-clean.",
-    "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
   },
   "constraints": {
@@ -9086,13 +9086,13 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8341c3 before edits; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 799434d before edits; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed correction commit 750004b before the final tracking-only lifecycle commit",
+      "git_status_check": "dirty only with this run's scoped checker, test, progress, and manifest changes before final commit",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-      "timestamp": "2026-09-04T07:53:00Z",
+      "timestamp": "2026-09-04T08:32:00Z",
       "git_status_before_final_commit": "dirty only with this run's scoped checker/test/progress/manifest changes before final commit"
     },
     "dataset_ledger_extension_containment": {
@@ -9216,9 +9216,9 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8341c3 before edits; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 799434d before edits; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed correction commit 750004b before the final tracking-only lifecycle commit",
+      "git_status_check": "dirty only with this run's scoped checker, test, progress, and manifest changes before final commit",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -9311,7 +9311,7 @@
       ]
     }
   ],
-  "next_target": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10275,7 +10275,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_072834.jsonl. The positive used source-supported atomic citations but omitted exact pipe parent chunk 38d26f5e; the Error 99999 control cited nothing and fabricated nothing. Preserve 071826 and 072834 as diagnostic/not-clean.",
-      "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
       "scope": "retrieval_eval_20260904_072834 is diagnostic evidence from a reverted retrieval experiment; no production retrieval or answering change was retained. No active count, ledger, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10644,7 +10644,7 @@
         "expected_terms_missing": 1
       },
       "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_071826.jsonl and retrieval_eval_results_20260904_072834.jsonl. The positive answers used source-supported atomic citations but did not prove safe pipe-parent promotion; both Error 99999 controls failed closed. Both runs remain diagnostic/not-clean.",
-      "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
     },
     "current_answer_failure_categories": {
@@ -12907,13 +12907,13 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8341c3 before edits; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 799434d before edits; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed correction commit 750004b before the final tracking-only lifecycle commit",
+      "git_status_check": "dirty only with this run's scoped checker, test, progress, and manifest changes before final commit",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-        "timestamp": "2026-09-04T07:53:00Z",
+        "timestamp": "2026-09-04T08:32:00Z",
         "git_status_before_final_commit": "dirty only with this run's scoped checker/test/progress/manifest changes before final commit"
       },
       "dataset_ledger_extension_containment": {
@@ -13037,9 +13037,9 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8341c3 before edits; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 799434d before edits; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed correction commit 750004b before the final tracking-only lifecycle commit",
+      "git_status_check": "dirty only with this run's scoped checker, test, progress, and manifest changes before final commit",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -13134,7 +13134,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13171,7 +13171,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {
       "ranking_or_context_loss": 2
     },
@@ -14045,6 +14045,33 @@
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
+      {
+        "finding": "Guardrail commit 5a93593 found that count-only completion accepted duplicated or unexpected result case identities and that target aliases were temporarily stale during the in-progress correction.",
+        "guardrail_commit": "5a93593",
+        "guardrail_timestamp": "2026-09-04T08:41:07Z",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_unique_case_identity_bijection_and_alias_reconciliation",
+        "evidence": [
+          "Dataset and result case IDs must be nonempty, unique within each artifact, and equal as sets before freshness ordering.",
+          "Git-backed exact-ID positive plus missing, duplicate, and unexpected result-ID adverse controls pass.",
+          "All current target aliases now agree at root and question_bank; normal and parent-aware real-manifest checks pass; focused suite passes 78 tests."
+        ],
+        "remaining": "The final identity increment received the focused 78-test gate after the earlier 680-test full gate; obtain a fresh full gate next run before treating the checker containment as independently audited, then continue pipe-path API proof."
+      },
+      {
+        "finding": "Guardrail commit 799434d found that the answer-run freshness checker treated a tracked manifest with untracked peers, partial results, and skipped or cancelled runs as complete answer-mode evidence.",
+        "guardrail_commit": "799434d",
+        "guardrail_timestamp": "2026-09-04T08:14:00Z",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_complete_git_backed_artifact_contract",
+        "evidence": [
+          "All four run artifacts must be Git-tracked before a run participates in freshness ordering.",
+          "Dataset rows, result rows, summary total_queries, and summary answer_eval_count must agree and every result must contain answer_evaluation.",
+          "evaluation_skipped plus cancelled, canceled, skipped, partial, and incomplete statuses are excluded.",
+          "Git-backed complete, untracked-peer, partial-result, missing-peer, skipped, cancelled, and newer-current-state controls pass; the real manifest passes normally and parent-aware."
+        ],
+        "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b or preserve it as partially proved; keep retrieval_eval_20260904_071826 and 072834 diagnostic/not-clean."
+      },
       {
         "finding": "Guardrail commit e8341c3 found that progress advanced through retrieval_eval_20260904_071826 and 072834 while duplicated current-run manifest state and exclusions remained at 060126.",
         "guardrail_commit": "e8341c3",
@@ -15641,9 +15668,9 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T07:53:00Z"
+    "updated_at": "2026-09-04T08:52:00Z"
   },
-  "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {
     "ranking_or_context_loss": 2
   },
@@ -16516,6 +16543,33 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "finding": "Guardrail commit 5a93593 found that count-only completion accepted duplicated or unexpected result case identities and that target aliases were temporarily stale during the in-progress correction.",
+      "guardrail_commit": "5a93593",
+      "guardrail_timestamp": "2026-09-04T08:41:07Z",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_unique_case_identity_bijection_and_alias_reconciliation",
+      "evidence": [
+        "Dataset and result case IDs must be nonempty, unique within each artifact, and equal as sets before freshness ordering.",
+        "Git-backed exact-ID positive plus missing, duplicate, and unexpected result-ID adverse controls pass.",
+        "All current target aliases now agree at root and question_bank; normal and parent-aware real-manifest checks pass; focused suite passes 78 tests."
+      ],
+      "remaining": "The final identity increment received the focused 78-test gate after the earlier 680-test full gate; obtain a fresh full gate next run before treating the checker containment as independently audited, then continue pipe-path API proof."
+    },
+    {
+      "finding": "Guardrail commit 799434d found that the answer-run freshness checker treated a tracked manifest with untracked peers, partial results, and skipped or cancelled runs as complete answer-mode evidence.",
+      "guardrail_commit": "799434d",
+      "guardrail_timestamp": "2026-09-04T08:14:00Z",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_complete_git_backed_artifact_contract",
+      "evidence": [
+        "All four run artifacts must be Git-tracked before a run participates in freshness ordering.",
+        "Dataset rows, result rows, summary total_queries, and summary answer_eval_count must agree and every result must contain answer_evaluation.",
+        "evaluation_skipped plus cancelled, canceled, skipped, partial, and incomplete statuses are excluded.",
+        "Git-backed complete, untracked-peer, partial-result, missing-peer, skipped, cancelled, and newer-current-state controls pass; the real manifest passes normally and parent-aware."
+      ],
+      "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b or preserve it as partially proved; keep retrieval_eval_20260904_071826 and 072834 diagnostic/not-clean."
+    },
     {
       "finding": "Guardrail commit e8341c3 found that progress advanced through retrieval_eval_20260904_071826 and 072834 while duplicated current-run manifest state and exclusions remained at 060126.",
       "guardrail_commit": "e8341c3",
@@ -18112,5 +18166,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T07:53:00Z"
+  "updated_at": "2026-09-04T08:52:00Z"
 }

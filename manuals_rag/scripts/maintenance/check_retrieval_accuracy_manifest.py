@@ -382,23 +382,52 @@ def _check_latest_answer_mode_run_freshness(
     except (subprocess.CalledProcessError, OSError):
         git_backed = False
 
+    def _tracked(path: Path) -> bool:
+        if not git_backed:
+            return True
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(artifact_base_dir),
+                "ls-files",
+                "--error-unmatch",
+                str(path.relative_to(artifact_base_dir)),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        return result.returncode == 0
+
+    def _jsonl_rows(path: Path) -> list[dict[str, Any]] | None:
+        try:
+            rows = [
+                json.loads(line)
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+        except (OSError, json.JSONDecodeError):
+            return None
+        if not rows or not all(isinstance(row, dict) for row in rows):
+            return None
+        return rows
+
+    def _declares_incomplete(payload: dict[str, Any]) -> bool:
+        if payload.get("evaluation_skipped") is True:
+            return True
+        status = payload.get("status")
+        return isinstance(status, str) and status.strip().lower() in {
+            "cancelled",
+            "canceled",
+            "skipped",
+            "partial",
+            "incomplete",
+        }
+
     complete_answer_runs: list[str] = []
     for path in reports_dir.glob("retrieval_eval_manifest_*.json"):
-        if git_backed:
-            tracked = subprocess.run(
-                [
-                    "git",
-                    "-C",
-                    str(artifact_base_dir),
-                    "ls-files",
-                    "--error-unmatch",
-                    str(path.relative_to(artifact_base_dir)),
-                ],
-                capture_output=True,
-                text=True,
-            )
-            if tracked.returncode != 0:
-                continue
+        if not _tracked(path):
+            continue
         artifact_run = _run_id_from_value(path.name)
         if artifact_run is None:
             continue
@@ -406,22 +435,75 @@ def _check_latest_answer_mode_run_freshness(
             run_manifest = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if run_manifest.get("response_mode") != "answer_with_citations":
+        if (
+            run_manifest.get("response_mode") != "answer_with_citations"
+            or _declares_incomplete(run_manifest)
+        ):
             continue
         suffix = artifact_run.removeprefix("retrieval_eval_")
-        required = (
+        dataset_path, results_path, summary_path = (
             reports_dir / f"retrieval_eval_dataset_{suffix}.jsonl",
             reports_dir / f"retrieval_eval_results_{suffix}.jsonl",
             reports_dir / f"retrieval_eval_summary_{suffix}.json",
         )
-        if all(candidate.is_file() for candidate in required):
-            complete_answer_runs.append(artifact_run)
+        required = (path, dataset_path, results_path, summary_path)
+        if not all(
+            candidate.is_file() and _tracked(candidate) for candidate in required
+        ):
+            continue
+        dataset_rows = _jsonl_rows(dataset_path)
+        result_rows = _jsonl_rows(results_path)
+        try:
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if (
+            dataset_rows is None
+            or result_rows is None
+            or not isinstance(summary, dict)
+            or _declares_incomplete(summary)
+        ):
+            continue
+        total_queries = summary.get("total_queries")
+        answer_eval_count = summary.get("answer_eval_count")
+        dataset_case_ids = [row.get("case_id") for row in dataset_rows]
+        result_case_ids = [
+            row.get("case", {}).get("case_id")
+            if isinstance(row.get("case"), dict)
+            else None
+            for row in result_rows
+        ]
+        if (
+            not isinstance(total_queries, int)
+            or isinstance(total_queries, bool)
+            or total_queries <= 0
+            or answer_eval_count != total_queries
+            or len(dataset_rows) != total_queries
+            or len(result_rows) != total_queries
+            or not all(
+                isinstance(case_id, str) and case_id.strip()
+                for case_id in dataset_case_ids + result_case_ids
+            )
+            or len(set(dataset_case_ids)) != total_queries
+            or len(set(result_case_ids)) != total_queries
+            or set(dataset_case_ids) != set(result_case_ids)
+            or not all(
+                isinstance(row.get("answer_evaluation"), dict) for row in result_rows
+            )
+            or summary.get("passed_queries", 0) + summary.get("failed_queries", 0)
+            != total_queries
+            or summary.get("answer_passed_queries", 0)
+            + summary.get("answer_failed_queries", 0)
+            != answer_eval_count
+        ):
+            continue
+        complete_answer_runs.append(artifact_run)
 
     if not complete_answer_runs:
         return
     newest_run = max(complete_answer_runs)
     rotation_run = _get_path(manifest, "answer_grounding_rotation.latest_run")
-    if rotation_run != newest_run:
+    if not isinstance(rotation_run, str) or rotation_run < newest_run:
         errors.append(
             "answer_grounding current-run state stale: "
             f"answer_grounding_rotation.latest_run={rotation_run!r} but newest complete "
