@@ -847,6 +847,89 @@ def test_answer_response_scoring_can_use_llm_required_information_judge(monkeypa
     assert scored["llm_required_information"]["passed"] is True
 
 
+def test_answer_response_scoring_accepts_explicit_llm_judge_boolean_alias(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-fan-replacement",
+        query="How should a failed fan unit be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="chunk-fan",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["replace", "CA-F100"],
+        expected_snippet="Replace the fan unit with CA-F100.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "XG-X"},
+    )
+
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: ({"is_correct": True}, '{"is_correct":true}'),
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Replace the failed fan unit with CA-F100.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "chunk-fan", "pages": [10]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is True
+    assert scored["llm_required_information"]["passed"] is True
+    assert scored["llm_required_information"]["verdict_field"] == "is_correct"
+
+
+def test_malformed_llm_judge_response_does_not_override_term_score(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-fan-replacement",
+        query="How should a failed fan unit be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="chunk-fan",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["replace", "CA-F100"],
+        expected_snippet="Replace the fan unit with CA-F100.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "XG-X"},
+    )
+
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: ({}, "{}"),
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Replace the failed fan unit with CA-F100.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "chunk-fan", "pages": [10]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is True
+    assert scored["term_check"]["passed"] is True
+    assert scored["llm_required_information"]["checked"] is False
+    assert "omitted a boolean verdict" in scored["llm_required_information"]["error"]
+
+
 def test_answer_response_scoring_requires_all_multi_step_documents():
     case = RetrievalEvalCase(
         case_id="case-1",

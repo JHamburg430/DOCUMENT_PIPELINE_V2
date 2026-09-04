@@ -4085,7 +4085,7 @@ def _llm_required_information_judgment(
         },
         "required": ["contains_required_information", "missing_information", "reason"],
     }
-    payload, _ = chat_json(
+    payload, raw_response = chat_json(
         model=settings.ollama_eval_model,
         purpose="eval_answer_required_information",
         think=False,
@@ -4098,7 +4098,8 @@ def _llm_required_information_judgment(
                 "content": (
                     "You are grading whether an answer contains the information needed to answer a manuals question. "
                     "Use only the expected evidence and expected terms as the grading reference. "
-                    "Return JSON only. Mark true when the answer gives the required operational facts, even if wording differs."
+                    "Return JSON only, using the exact schema field contains_required_information. "
+                    "Mark it true when the answer gives the required operational facts, even if wording differs."
                 ),
             },
             {
@@ -4117,13 +4118,31 @@ def _llm_required_information_judgment(
             },
         ],
     )
-    passed = bool(payload.get("contains_required_information"))
+    verdict_field = "contains_required_information"
+    verdict = payload.get(verdict_field)
+    if not isinstance(verdict, bool):
+        # Some local models ignore the requested schema name and emit a familiar
+        # boolean grading alias. Accept only explicit booleans; never turn a
+        # malformed or empty judge response into a false answer evaluation.
+        for alias in ("is_correct", "passed", "answer_contains_required_information"):
+            alias_verdict = payload.get(alias)
+            if isinstance(alias_verdict, bool):
+                verdict_field = alias
+                verdict = alias_verdict
+                break
+    if not isinstance(verdict, bool):
+        preview = raw_response.strip().replace("\n", " ")[:240]
+        raise ValueError(f"answer judge response omitted a boolean verdict: {preview or '<empty>'}")
+    missing_information = payload.get("missing_information")
+    if not isinstance(missing_information, list):
+        missing_information = []
     return {
         "checked": True,
         "provider": "ollama",
         "model": settings.ollama_eval_model,
-        "passed": passed,
-        "missing_information": list(payload.get("missing_information") or []),
+        "passed": verdict,
+        "verdict_field": verdict_field,
+        "missing_information": list(missing_information),
         "reason": str(payload.get("reason") or ""),
     }
 
