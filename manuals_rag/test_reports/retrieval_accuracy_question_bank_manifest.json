@@ -3038,6 +3038,7 @@
     "validation": [
       "retrieval_eval_20260904_062608 actual HTTP answer mode: retrieval 0/2, answer 0/2, candidate and metadata-document recall 100%; manually inspected every answer, citation, and expected evidence role.",
       "Loaded depth-30 debug: pipe parent 38d26f5e dense rank 28, fused 87, query-aligned 14, family-selected 17, reranked 4; production pre-rerank limit is 12.",
+      "Post-commit worktree proof: selected /tmp/manuals_rag_accuracy_20260901 was clean, registered at 61a359f, and present; supported removal was intentionally not attempted because reuse is mandatory while permission-denied cleanup blockers persist.",
       "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK."
     ]
   },
