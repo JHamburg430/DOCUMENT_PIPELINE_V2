@@ -474,12 +474,30 @@ def _result_run_id(path: Path) -> str:
     return name.removeprefix("retrieval_eval_results_").removesuffix(".jsonl")
 
 
+def _completed_result_run_ids() -> set[str]:
+    completed = {
+        path.name.removeprefix("retrieval_eval_summary_").removesuffix(".json")
+        for path in TEST_REPORTS_DIR.glob("retrieval_eval_summary_*.json")
+    }
+    for event_path in TEST_REPORTS_DIR.glob("question_matrix_job_*_events.jsonl"):
+        try:
+            events = _read_jsonl(event_path)
+        except (OSError, json.JSONDecodeError):
+            continue
+        for event in events:
+            if event.get("event") != "dataset_completed" or not event.get("results_path"):
+                continue
+            completed.add(_result_run_id(Path(str(event["results_path"]))))
+    return completed
+
+
 def _load_result_index(excluded_run_ids: set[str]) -> dict[str, dict]:
     indexed: dict[str, dict] = {}
+    completed_run_ids = _completed_result_run_ids()
     result_paths = sorted(TEST_REPORTS_DIR.glob("retrieval_eval_results_*.jsonl"), key=lambda path: path.stat().st_mtime)
     for path in result_paths:
         run_id = _result_run_id(path)
-        if run_id in excluded_run_ids:
+        if run_id in excluded_run_ids or run_id not in completed_run_ids:
             continue
         try:
             rows = _read_jsonl(path)

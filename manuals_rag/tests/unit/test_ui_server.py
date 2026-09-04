@@ -252,6 +252,10 @@ def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_p
         + "\n",
         encoding="utf-8",
     )
+    (reports / "retrieval_eval_summary_20260827_120000.json").write_text(
+        ui_server.json.dumps({"total_queries": 1}),
+        encoding="utf-8",
+    )
     manifest_path.write_text(
         ui_server.json.dumps(
             {
@@ -312,6 +316,10 @@ def test_question_matrix_qualifies_duplicate_case_ids_by_dataset(monkeypatch, tm
         + "\n",
         encoding="utf-8",
     )
+    (reports / "retrieval_eval_summary_20260901_120000.json").write_text(
+        ui_server.json.dumps({"total_queries": 2}),
+        encoding="utf-8",
+    )
     (reports / "retrieval_accuracy_question_bank_manifest.json").write_text(
         ui_server.json.dumps(
             {
@@ -336,6 +344,45 @@ def test_question_matrix_qualifies_duplicate_case_ids_by_dataset(monkeypatch, tm
     assert payload["rows"][1]["key"] == f"{second_rel}::shared-case"
     assert payload["rows"][0]["latest_result"]["evaluation"]["passed"] is True
     assert payload["rows"][1]["latest_result"]["evaluation"]["passed"] is False
+
+
+def test_question_matrix_ignores_newer_incomplete_result_artifact(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    case = {"case_id": "case-1", "query": "What should be checked?"}
+    dataset_rel = "test_reports/dataset.jsonl"
+    (reports / "dataset.jsonl").write_text(ui_server.json.dumps(case) + "\n", encoding="utf-8")
+    (reports / "retrieval_accuracy_question_bank_manifest.json").write_text(
+        ui_server.json.dumps(
+            {"question_bank": {"datasets": [{"path": dataset_rel, "status": "generated", "total_questions": 1}]}}
+        ),
+        encoding="utf-8",
+    )
+    (reports / "retrieval_eval_results_20260901_120000.jsonl").write_text(
+        ui_server.json.dumps(
+            {"dataset": dataset_rel, "case": case, "evaluation": {"passed": True, "rank": 1}}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (reports / "retrieval_eval_summary_20260901_120000.json").write_text(
+        ui_server.json.dumps({"total_queries": 1}),
+        encoding="utf-8",
+    )
+    (reports / "retrieval_eval_results_20260901_130000_partial.jsonl").write_text(
+        ui_server.json.dumps(
+            {"dataset": dataset_rel, "case": case, "evaluation": {"passed": False, "rank": None}}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+
+    payload = ui_server._build_question_matrix()
+
+    assert payload["rows"][0]["latest_result"]["run_id"] == "20260901_120000"
+    assert payload["rows"][0]["latest_result"]["evaluation"]["passed"] is True
 
 
 def test_question_matrix_marks_reviewed_generated_dataset_rows(monkeypatch, tmp_path):
