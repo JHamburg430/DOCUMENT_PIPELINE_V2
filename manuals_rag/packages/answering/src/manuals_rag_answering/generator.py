@@ -1397,7 +1397,6 @@ def _repeated_side_matching_records(clause: str, evidence: str) -> list[str]:
     anchor = _repeated_side_clause_anchor(clause)
     matching: list[str] = []
     for record in _troubleshooting_evidence_records(evidence):
-        normalized = _normalized_phrase(record)
         identifiers = {
             _normalized_phrase(match.group(0))
             for match in re.finditer(r"\b[a-z]*\d[a-z0-9._/-]*\b", record, flags=re.IGNORECASE)
@@ -1408,8 +1407,24 @@ def _repeated_side_matching_records(clause: str, evidence: str) -> list[str]:
             anchor_terms = _material_claim_terms(anchor).difference(
                 {"condition", "reported", "reporting", "shown", "showing"}
             )
-            record_terms = _material_claim_terms(normalized)
-            if len(anchor_terms) >= 2 and anchor_terms.issubset(record_terms):
+            identity_parts = [
+                match.group("value").strip(" .;|")
+                for match in re.finditer(
+                    r"\b(?:row\s+headers?|error\s+messages?|messages?)\s*:\s*"
+                    r"(?P<value>.*?)"
+                    r"(?=(?:;|\n)\s*(?:error\s+messages?|messages?|error\s+(?:code|number)|"
+                    r"alarm|fault|row\s+headers?|cause|corrective\s+actions?|remed(?:y|ies)|"
+                    r"cell\s+value)\s*:|$)",
+                    record,
+                    flags=re.IGNORECASE | re.DOTALL,
+                )
+            ]
+            if not identity_parts and "|" in record:
+                first_cell = next((cell.strip() for cell in record.split("|") if cell.strip()), "")
+                if first_cell and not re.fullmatch(r"(?:error|message|condition|symptom)", first_cell, re.I):
+                    identity_parts.append(first_cell)
+            identity_terms = _material_claim_terms(_normalized_phrase(" ".join(identity_parts)))
+            if len(anchor_terms) >= 2 and anchor_terms.issubset(identity_terms):
                 matching.append(record)
     return matching
 

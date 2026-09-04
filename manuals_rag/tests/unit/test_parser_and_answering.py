@@ -8,6 +8,7 @@ from manuals_rag_answering.generator import (
     _fallback_evidence_results,
     _is_comparison_query,
     _parse_relevance_response,
+    _repeated_side_matching_records,
     _troubleshooting_evidence_records,
     _troubleshooting_citations_match_query_anchor,
     generate_answer,
@@ -1824,6 +1825,101 @@ def test_reported_symptom_and_explicit_error_fallback_rejects_sibling_symptom():
             "content": (
                 "Column headers: Cause; Row headers: Sensor communication interrupted. Initialization necessary.; "
                 "Cell value: The network cable was disconnected."
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+
+
+def test_reported_symptom_fallback_rejects_anchor_terms_scattered_through_cause():
+    query = (
+        "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
+        "what caused the condition, and what causes VSN Series Error 30109?"
+    )
+    results = _reported_symptom_comparison_results_fixture()
+    results[0] = results[0].model_copy(
+        update={
+            "content": (
+                "Column headers: Cause; Row headers: Sensor communication interrupted.; "
+                "Cell value: A damaged initialization file makes program recovery necessary for the sensor."
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+    assert _fallback_answer(query, results).insufficient_evidence is True
+
+
+def test_reported_symptom_fallback_rejects_swapped_sibling_identity_and_cause():
+    query = (
+        "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
+        "what caused the condition, and what causes VSN Series Error 30109?"
+    )
+    results = _reported_symptom_comparison_results_fixture()
+    results[0] = results[0].model_copy(
+        update={
+            "content": (
+                "Column headers: Cause; Row headers: Network initialization failed.; "
+                "Cell value: The sensor program is damaged and initialization is necessary."
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+
+
+def test_reported_symptom_fallback_rejects_unlabeled_record_as_identity_evidence():
+    query = (
+        "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
+        "what caused the condition, and what causes VSN Series Error 30109?"
+    )
+    results = _reported_symptom_comparison_results_fixture()
+    results[0] = results[0].model_copy(
+        update={
+            "content": (
+                "Sensor program damaged. Initialization necessary. "
+                "Cause: A memory read error occurred at startup."
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+
+
+def test_reported_symptom_fallback_requires_extractable_anchor_on_every_side():
+    query = (
+        "For a CTRL-900, what caused the reported condition, "
+        "and what causes VSN Series Error 30109?"
+    )
+
+    assert _fallback_evidence_results(query, _reported_symptom_comparison_results_fixture()) == []
+
+
+def test_reported_symptom_fallback_accepts_pipe_row_identity_with_optional_delimiters():
+    clause = "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary"
+    pipe_rows = [
+        "Sensor program damaged. Initialization necessary. | A memory read error occurred at startup.",
+        "| Sensor program damaged. Initialization necessary. | A memory read error occurred at startup.",
+        "| Sensor program damaged. Initialization necessary. | A memory read error occurred at startup. |",
+    ]
+
+    for pipe_row in pipe_rows:
+        assert _repeated_side_matching_records(clause, pipe_row) == [pipe_row]
+
+
+def test_reported_symptom_fallback_does_not_borrow_cause_across_leading_pipe_rows():
+    query = (
+        "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
+        "what caused the condition, and what causes VSN Series Error 30109?"
+    )
+    results = _reported_symptom_comparison_results_fixture()
+    results[0] = results[0].model_copy(
+        update={
+            "content": (
+                "| Condition | Cause |\n"
+                "| Sensor program damaged. Initialization necessary. | |\n"
+                "| Sensor communication interrupted. | A network cable was disconnected. |"
             )
         }
     )
