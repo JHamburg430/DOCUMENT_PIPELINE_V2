@@ -1160,6 +1160,8 @@ def _is_procedure_rule_query(query: str) -> bool:
 
 def _query_troubleshooting_anchor(query: str) -> str:
     patterns = (
+        r"\breport(?:s|ed|ing)?\s+(?:an?\s+)?(.+?)\s*,\s*what\s+caus(?:e|ed)",
+        r"\bwhat\s+causes?\s+(?:the\s+)?(?:status|message|error|alarm|fault)\s+['\"]?(.+?)['\"]?\s*\?\s*$",
         r"\bwhat causes\s+(.+?)\s+for\s+.+?\b(?:and|,)\s+how should",
         r"\bwhat causes\s+(.+?)\s*,?\s+and how should",
         r"\berror says\s+(.+?)\s*,?\s+what should",
@@ -1170,6 +1172,67 @@ def _query_troubleshooting_anchor(query: str) -> str:
         if match:
             return match.group(1).strip(" .?\"'")
     return ""
+
+
+def _single_troubleshooting_role_bound_results(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[bool, list[SearchResult]]:
+    """Select one row that binds the visible symptom to every requested role.
+
+    The boolean reports whether the query exposed a usable symptom anchor and
+    matching source row. Once such a row exists, missing requested roles or
+    multiple competing supporting rows fail closed instead of falling through
+    to nearby troubleshooting prose.
+    """
+    if _is_comparison_query(query):
+        return False, []
+    anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
+    roles = _requested_troubleshooting_evidence_roles(query)
+    if len(anchor) < 6 or not roles:
+        return False, []
+
+    saw_anchor = False
+    supported: list[SearchResult] = []
+    seen_chunks: set[str] = set()
+
+    def has_relation_schema(evidence: str, record: str) -> bool:
+        if re.search(
+            r"\b(?:cause|reason|corrective\s+action|action|remed(?:y|ies)|fix)\s*:\s*\S",
+            record,
+            flags=re.IGNORECASE,
+        ):
+            return True
+        identity_labels = {"condition", "symptom", "fault", "alarm", "error", "error code", "message", "error message", "status"}
+        role_labels = {"cause", "reason", "corrective action", "action", "remedy", "remedies", "fix"}
+        for line in evidence.splitlines():
+            if "|" not in line:
+                continue
+            labels = {re.sub(r"\s+", " ", cell.strip().lower()) for cell in line.strip(" |").split("|")}
+            if labels.intersection(identity_labels) and labels.intersection(role_labels):
+                return True
+        return False
+
+    for result in results:
+        evidence = _troubleshooting_context_text(result)
+        for record in _troubleshooting_evidence_records(evidence):
+            if anchor not in _normalized_phrase(record):
+                continue
+            if not has_relation_schema(evidence, record):
+                continue
+            saw_anchor = True
+            role_supported = (
+                _pipe_troubleshooting_record_supports_roles(evidence, record, roles)
+                if "|" in record
+                else _troubleshooting_evidence_supports_roles(record, roles)
+            )
+            if role_supported and result.chunk_id not in seen_chunks:
+                supported.append(result)
+                seen_chunks.add(result.chunk_id)
+            break
+    if not saw_anchor:
+        return False, []
+    return True, supported if len(supported) == 1 else []
 
 
 def _normalized_phrase(text: str) -> str:
@@ -1359,8 +1422,13 @@ def _pipe_troubleshooting_record_supports_roles(
 
     def is_header(line: str) -> bool:
         values = cells(line)
-        return len(values) == len(record_cells) and len(values) >= 2 and all(
-            header_label_pattern.fullmatch(value) for value in values if value
+        recognized = [value for value in values if header_label_pattern.fullmatch(value)]
+        return (
+            len(values) == len(record_cells)
+            and len(values) >= 2
+            and len(recognized) >= 2
+            and any(re.fullmatch(r"(?:condition|symptom|fault|alarm|error(?:\s+(?:code|number|message))?|message)", value, re.I) for value in values)
+            and any(pattern.fullmatch(value) for pattern in role_patterns.values() for value in values)
         )
 
     # A positional role is valid only under the governing header in the same
@@ -2866,6 +2934,9 @@ def _fallback_evidence_results(query: str, results: list[SearchResult]) -> list[
     repeated_applies, repeated_results = _repeated_side_troubleshooting_results(query, ordered_results)
     if repeated_applies:
         return repeated_results
+    role_binding_applies, role_bound_results = _single_troubleshooting_role_bound_results(query, ordered_results)
+    if role_binding_applies:
+        return role_bound_results
     if _is_comparison_query(query) and len(requested_numeric_ids) >= 2:
         side_bindings = _requested_troubleshooting_identifier_side_bindings(query)
         requested_rows: list[SearchResult] = []

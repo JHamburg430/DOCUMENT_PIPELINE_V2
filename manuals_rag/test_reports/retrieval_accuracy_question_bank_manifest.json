@@ -1,8 +1,8 @@
 {
   "answer_current_failure_categories": {
-    "expected_evidence_not_cited": 2,
-    "expected_document_not_cited_or_used": 1,
-    "retrieval_not_passed": 1
+    "expected_evidence_not_cited": 1,
+    "expected_terms_missing": 1,
+    "insufficient_evidence": 1
   },
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
@@ -186,31 +186,31 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-09-04T10:25:30Z",
-    "latest_run": "retrieval_eval_20260904_102530",
-    "classification": "diagnostic_pipe_parent_still_crowded_out",
+    "timestamp": "2026-09-04T11:29:45Z",
+    "latest_run": "retrieval_eval_20260904_112945",
+    "classification": "clean_positive_plus_intentional_fail_closed_control",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0628_pipe_actual_api_validation.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260904_102530.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260904_102530.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260904_102530.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260904_102530.json",
+    "dataset": "test_reports/retrieval_eval_dataset_20260904_112945.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260904_112945.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260904_112945.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260904_112945.json",
     "search_mode": "http",
     "response_mode": "answer_with_citations",
     "max_queries": 2,
-    "retrieval_result": "1/2 automated retrieval, but manual exact-evidence inspection found neither row returned the required pipe parent; the nominal negative pass was same-document term overlap on an atomic Status/Remedy record. Candidate and metadata-document recall were 100%.",
-    "answer_result": "0/2 benchmark answer scoring. The positive cited an unrelated IV4 FTP chunk; the later-header negative cited a setup page and did not answer the requested cause. Neither row reached genuine pipe-shaped evidence, so the run is diagnostic/not-clean.",
+    "retrieval_result": "2/2 at rank 1; the positive returned exact pipe parent 38d26f5e and the later-header control returned only the source-visible remedy row without manufacturing a cause.",
+    "answer_result": "1/2 by design: the positive passed with exact source-row citation; the intentional remedy-only cause control returned insufficient evidence with no citations.",
     "runtime_load_evidence": {
-      "validated_run": "retrieval_eval_20260904_102530",
+      "validated_run": "retrieval_eval_20260904_112945",
       "api_url": "http://127.0.0.1:9193",
       "container": "manuals-rag-temp-api-39262386-20260902-0726",
-      "health": "ok for loaded HTTP diagnostic retrieval_eval_20260904_102530; host and mounted-container generator.py SHA-256 matched 2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf",
+      "health": "ok after restart; host and mounted-container generator.py SHA-256 matched 4130bdb029c2d3cd5dd567d5d7fa3d4d7e874a93632f18ffdd30e66b228cb223",
       "fingerprints": {
-        "generator.py": "2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf"
+        "generator.py": "4130bdb029c2d3cd5dd567d5d7fa3d4d7e874a93632f18ffdd30e66b228cb223"
       }
     },
-    "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and every returned chunk in retrieval_eval_results_20260904_102530.jsonl. Exact pipe parent 38d26f5e was absent from both rows. The nominal later-header retrieval pass used atomic Status/Remedy chunk b5f76be0, so it does not exercise the pipe validator; both answers are diagnostic failures.",
-    "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
-    "scope": "retrieval_eval_20260904_102530 is validation-only diagnostic evidence; no production retrieval/answering, scorer, active count, ledger, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
+    "manual_jsonl_inspection": "Inspected both visible answers, every citation, and returned chunks in retrieval_eval_20260904_112945. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The remedy-only control returns insufficient evidence and no citations.",
+    "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
+    "scope": "retrieval_eval_20260904_112945 is a validation-only two-case run; active coverage and dataset ledger unchanged. Production scope is general answering evidence selection only."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -699,9 +699,10 @@
       "retrieval_eval_20260903_005643 XG-X positive mixed-anchor-family record-bound grounded answer",
       "retrieval_eval_20260903_015447 CV-X482 Error 10101 plus XG-X SD Card 2-full distinct-document grounded answer",
       "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive",
-      "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive"
+      "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive",
+      "retrieval_eval_20260904_112945 FTP Connection Error exact pipe-row cause positive"
     ],
-    "answer_grounding_status": "retrieval_eval_20260904_102530 is the latest diagnostic/not-clean HTTP evidence: neither row returned genuine pipe parent 38d26f5e, so ed7c83b remains only unit/runtime proved, not actual-API pipe-path proved.",
+    "answer_grounding_status": "retrieval_eval_20260904_112945 supplies clean positive exact pipe-row cause evidence plus an intentional remedy-only fail-closed control; the combined run remains excluded from all-clean claims.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -780,17 +781,20 @@
       "table_lineage_unsafe_diagnostic_results": "test_reports/retrieval_eval_results_20260904_071826.jsonl",
       "table_lineage_unsafe_diagnostic_summary": "test_reports/retrieval_eval_summary_20260904_071826.json",
       "table_lineage_reverted_control_results": "test_reports/retrieval_eval_results_20260904_072834.jsonl",
-      "table_lineage_reverted_control_summary": "test_reports/retrieval_eval_summary_20260904_072834.json"
+      "table_lineage_reverted_control_summary": "test_reports/retrieval_eval_summary_20260904_072834.json",
+      "pipe_answer_role_bound_dataset": "test_reports/retrieval_eval_dataset_20260904_112945.jsonl",
+      "pipe_answer_role_bound_results": "test_reports/retrieval_eval_results_20260904_112945.jsonl",
+      "pipe_answer_role_bound_summary": "test_reports/retrieval_eval_summary_20260904_112945.json",
+      "pipe_answer_role_bound_manifest": "test_reports/retrieval_eval_manifest_20260904_112945.json"
     },
     "current_answer_failures": {
-      "expected_evidence_not_cited": 2,
-      "retrieval_not_passed": 2,
-      "insufficient_evidence": 1,
-      "expected_terms_missing": 1
+      "expected_evidence_not_cited": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
     },
-    "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_102530.jsonl. The FTP positive cited an unrelated IV4 chunk; the later-header case cited an IV-HG setup page. Neither returned or cited pipe parent 38d26f5e, so the nominal 1/2 retrieval score is not accepted as pipe-path evidence.",
-    "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
-    "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
+    "manual_jsonl_inspection": "Inspected both 112945 payloads. The positive cites exact pipe parent 38d26f5e with null quote span and states its source-supported cause; the remedy-only control returns insufficient evidence with no citations.",
+    "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
+    "latest_clean_run": "retrieval_eval_20260904_112945 FTP Connection Error positive only"
   },
   "constraints": {
     "allowed_logic": [
@@ -809,15 +813,15 @@
   },
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {
-    "expected_evidence_not_cited": 2,
-    "expected_document_not_cited_or_used": 1,
-    "retrieval_not_passed": 1
+    "expected_evidence_not_cited": 1,
+    "expected_terms_missing": 1,
+    "insufficient_evidence": 1
   },
-  "current_answer_failure_source": "retrieval_eval_20260904_102530 diagnostic/not-clean: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1. Neither answer cited the required pipe parent; the positive cited an unrelated IV4 FTP chunk and the later-header case cited a setup page.",
+  "current_answer_failure_source": "retrieval_eval_20260904_112945 intentional negative only: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1. The positive cites exact pipe parent 38d26f5e and passes; the later-header remedy-only row correctly provides no cause and fails closed.",
   "current_failure_categories": {},
   "current_failure_sources": {
     "retrieval": "none",
-    "answer": "retrieval_eval_20260904_102530: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1."
+    "answer": "retrieval_eval_20260904_112945 intentional negative: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1."
   },
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260904_110603 is current retrieval evidence: automated 2/2; the positive exact pipe parent is rank 1 and the later-header control is not directly promoted.",
@@ -9078,15 +9082,15 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main bae1bef03d1b111e6b962cd4bf280eb87d3ee22b; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main d26139b before the current scoped commit; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean at pushed production/tracking commit bae1bef before this lifecycle tracking update",
+      "git_status_check": "clean at d26139b before edits; dirty only with this run's scoped answering, tests, artifacts, progress, and manifest changes",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-      "timestamp": "2026-09-04T11:23:00Z",
-      "git_status_before_final_commit": "clean after pushed production/tracking commit bae1bef; dirty only with this required lifecycle tracking update before follow-up commit",
-      "pushed_correction_commit": "bae1bef"
+      "timestamp": "2026-09-04T11:35:00Z",
+      "git_status_before_final_commit": "dirty only with the current run's scoped changes; removal intentionally not attempted before durable tracking",
+      "pushed_correction_commit": "pending current scoped commit"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -9209,9 +9213,9 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 64342c4 before edits; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main d26139b before current edits; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean at origin/main 64342c4 before this run; pre-final-commit status dirty only with progress/manifest tracking",
+      "git_status_check": "clean at d26139b before edits; pre-final-commit status dirty only with the current run's scoped changes",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -9304,7 +9308,7 @@
       ]
     }
   ],
-  "next_target": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10058,9 +10062,9 @@
   },
   "question_bank": {
     "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 2,
-      "expected_document_not_cited_or_used": 1,
-      "retrieval_not_passed": 1
+      "expected_evidence_not_cited": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
     },
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
@@ -10244,31 +10248,31 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-09-04T10:25:30Z",
-      "latest_run": "retrieval_eval_20260904_102530",
-      "classification": "diagnostic_pipe_parent_still_crowded_out",
+      "timestamp": "2026-09-04T11:29:45Z",
+      "latest_run": "retrieval_eval_20260904_112945",
+      "classification": "clean_positive_plus_intentional_fail_closed_control",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0628_pipe_actual_api_validation.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260904_102530.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260904_102530.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260904_102530.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260904_102530.json",
+      "dataset": "test_reports/retrieval_eval_dataset_20260904_112945.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260904_112945.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260904_112945.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260904_112945.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "max_queries": 2,
-      "retrieval_result": "1/2 automated retrieval, but manual exact-evidence inspection found neither row returned the required pipe parent; the nominal negative pass was same-document term overlap on an atomic Status/Remedy record. Candidate and metadata-document recall were 100%.",
-      "answer_result": "0/2 benchmark answer scoring. The positive cited an unrelated IV4 FTP chunk; the later-header negative cited a setup page and did not answer the requested cause. Neither row reached genuine pipe-shaped evidence, so the run is diagnostic/not-clean.",
+      "retrieval_result": "2/2 at rank 1; the positive returned exact pipe parent 38d26f5e and the later-header control returned only the source-visible remedy row without manufacturing a cause.",
+      "answer_result": "1/2 by design: the positive passed with exact source-row citation; the intentional remedy-only cause control returned insufficient evidence with no citations.",
       "runtime_load_evidence": {
-        "validated_run": "retrieval_eval_20260904_102530",
+        "validated_run": "retrieval_eval_20260904_112945",
         "api_url": "http://127.0.0.1:9193",
         "container": "manuals-rag-temp-api-39262386-20260902-0726",
-        "health": "ok for loaded HTTP diagnostic retrieval_eval_20260904_102530; host and mounted-container generator.py SHA-256 matched 2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf",
+        "health": "ok after restart; host and mounted-container generator.py SHA-256 matched 4130bdb029c2d3cd5dd567d5d7fa3d4d7e874a93632f18ffdd30e66b228cb223",
         "fingerprints": {
-          "generator.py": "2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf"
+          "generator.py": "4130bdb029c2d3cd5dd567d5d7fa3d4d7e874a93632f18ffdd30e66b228cb223"
         }
       },
-      "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and every returned chunk in retrieval_eval_results_20260904_102530.jsonl. Exact pipe parent 38d26f5e was absent from both rows. The nominal later-header retrieval pass used atomic Status/Remedy chunk b5f76be0, so it does not exercise the pipe validator; both answers are diagnostic failures.",
-      "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
-      "scope": "retrieval_eval_20260904_102530 is validation-only diagnostic evidence; no production retrieval/answering, scorer, active count, ledger, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
+      "manual_jsonl_inspection": "Inspected both visible answers, every citation, and returned chunks in retrieval_eval_20260904_112945. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The remedy-only control returns insufficient evidence and no citations.",
+      "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
+      "scope": "retrieval_eval_20260904_112945 is a validation-only two-case run; active coverage and dataset ledger unchanged. Production scope is general answering evidence selection only."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10546,9 +10550,10 @@
         "retrieval_eval_20260903_005643 XG-X positive mixed-anchor-family record-bound grounded answer",
         "retrieval_eval_20260903_015447 CV-X482 Error 10101 plus XG-X SD Card 2-full distinct-document grounded answer",
         "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive",
-        "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive"
+        "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive",
+        "retrieval_eval_20260904_112945 FTP Connection Error exact pipe-row cause positive"
       ],
-      "answer_grounding_status": "retrieval_eval_20260904_102530 is the latest diagnostic/not-clean HTTP evidence: neither row returned genuine pipe parent 38d26f5e, so ed7c83b remains only unit/runtime proved, not actual-API pipe-path proved.",
+      "answer_grounding_status": "retrieval_eval_20260904_112945 supplies clean positive exact pipe-row cause evidence plus an intentional remedy-only fail-closed control; the combined run remains excluded from all-clean claims.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10627,33 +10632,36 @@
         "table_lineage_unsafe_diagnostic_results": "test_reports/retrieval_eval_results_20260904_071826.jsonl",
         "table_lineage_unsafe_diagnostic_summary": "test_reports/retrieval_eval_summary_20260904_071826.json",
         "table_lineage_reverted_control_results": "test_reports/retrieval_eval_results_20260904_072834.jsonl",
-        "table_lineage_reverted_control_summary": "test_reports/retrieval_eval_summary_20260904_072834.json"
+        "table_lineage_reverted_control_summary": "test_reports/retrieval_eval_summary_20260904_072834.json",
+        "pipe_answer_role_bound_dataset": "test_reports/retrieval_eval_dataset_20260904_112945.jsonl",
+        "pipe_answer_role_bound_results": "test_reports/retrieval_eval_results_20260904_112945.jsonl",
+        "pipe_answer_role_bound_summary": "test_reports/retrieval_eval_summary_20260904_112945.json",
+        "pipe_answer_role_bound_manifest": "test_reports/retrieval_eval_manifest_20260904_112945.json"
       },
       "current_answer_failures": {
-        "expected_evidence_not_cited": 2,
-        "retrieval_not_passed": 2,
-        "insufficient_evidence": 1,
-        "expected_terms_missing": 1
+        "expected_evidence_not_cited": 1,
+        "expected_terms_missing": 1,
+        "insufficient_evidence": 1
       },
-      "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_102530.jsonl. The FTP positive cited an unrelated IV4 chunk; the later-header case cited an IV-HG setup page. Neither returned or cited pipe parent 38d26f5e, so the nominal 1/2 retrieval score is not accepted as pipe-path evidence.",
-      "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
-      "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
+      "manual_jsonl_inspection": "Inspected both 112945 payloads. The positive cites exact pipe parent 38d26f5e with null quote span and states its source-supported cause; the remedy-only control returns insufficient evidence with no citations.",
+      "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
+      "latest_clean_run": "retrieval_eval_20260904_112945 FTP Connection Error positive only"
     },
     "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 2,
-      "expected_document_not_cited_or_used": 1,
-      "retrieval_not_passed": 1
+      "expected_evidence_not_cited": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
     },
     "current_answer_failure_categories": {
-      "expected_evidence_not_cited": 2,
-      "expected_document_not_cited_or_used": 1,
-      "retrieval_not_passed": 1
+      "expected_evidence_not_cited": 1,
+      "expected_terms_missing": 1,
+      "insufficient_evidence": 1
     },
-    "current_answer_failure_source": "retrieval_eval_20260904_102530 diagnostic/not-clean: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1. Neither answer cited the required pipe parent; the positive cited an unrelated IV4 FTP chunk and the later-header case cited a setup page.",
+    "current_answer_failure_source": "retrieval_eval_20260904_112945 intentional negative only: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1. The positive cites exact pipe parent 38d26f5e and passes; the later-header remedy-only row correctly provides no cause and fails closed.",
     "current_failure_categories": {},
     "current_failure_sources": {
       "retrieval": "none",
-      "answer": "retrieval_eval_20260904_102530: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1."
+      "answer": "retrieval_eval_20260904_112945 intentional negative: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1."
     },
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260904_110603 is current retrieval evidence: automated 2/2; the positive exact pipe parent is rank 1 and the later-header control is not directly promoted.",
@@ -12897,15 +12905,15 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main bae1bef03d1b111e6b962cd4bf280eb87d3ee22b; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main d26139b before the current scoped commit; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "git_status_check": "clean at pushed production/tracking commit bae1bef before this lifecycle tracking update",
+        "git_status_check": "clean at d26139b before edits; dirty only with this run's scoped answering, tests, artifacts, progress, and manifest changes",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-        "timestamp": "2026-09-04T11:23:00Z",
-        "git_status_before_final_commit": "clean after pushed production/tracking commit bae1bef; dirty only with this required lifecycle tracking update before follow-up commit",
-        "pushed_correction_commit": "bae1bef"
+        "timestamp": "2026-09-04T11:35:00Z",
+        "git_status_before_final_commit": "dirty only with the current run's scoped changes; removal intentionally not attempted before durable tracking",
+        "pushed_correction_commit": "pending current scoped commit"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -13028,9 +13036,9 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 64342c4 before edits; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main d26139b before current edits; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean at origin/main 64342c4 before this run; pre-final-commit status dirty only with progress/manifest tracking",
+        "git_status_check": "clean at d26139b before edits; pre-final-commit status dirty only with the current run's scoped changes",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -13125,7 +13133,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13162,9 +13170,14 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
+      {
+        "reason": "combined validation run contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
+        "run_id": "retrieval_eval_20260904_112945",
+        "scope": "combined run only; accept the FTP Connection Error positive as clean case-level evidence and preserve the later-header control as expected insufficient evidence"
+      },
       {
         "reason": "diagnostic/not-clean actual HTTP run: neither row returned genuine pipe parent 38d26f5e; the nominal later-header retrieval pass was same-document term overlap on an atomic Status/Remedy record, and both answers failed expected-evidence citation",
         "run_id": "retrieval_eval_20260904_102530",
@@ -15677,11 +15690,16 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T11:23:00Z"
+    "updated_at": "2026-09-04T11:35:00Z"
   },
-  "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
+    {
+      "reason": "combined validation run contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
+      "run_id": "retrieval_eval_20260904_112945",
+      "scope": "combined run only; accept the FTP Connection Error positive as clean case-level evidence and preserve the later-header control as expected insufficient evidence"
+    },
     {
       "reason": "diagnostic/not-clean actual HTTP run: neither row returned genuine pipe parent 38d26f5e; the nominal later-header retrieval pass was same-document term overlap on an atomic Status/Remedy record, and both answers failed expected-evidence citation",
       "run_id": "retrieval_eval_20260904_102530",
@@ -18193,5 +18211,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T11:23:00Z"
+  "updated_at": "2026-09-04T11:35:00Z"
 }

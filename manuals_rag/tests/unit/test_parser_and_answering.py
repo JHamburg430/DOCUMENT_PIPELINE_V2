@@ -6273,3 +6273,72 @@ def test_parse_document_docling_artifact_batches_cover_full_page_range():
     assert covered_pages[0] == 1
     assert covered_pages[-1] == result.page_count
     assert covered_pages == list(range(1, result.page_count + 1))
+
+
+def test_fallback_binds_reported_pipe_symptom_to_requested_cause():
+    query = "For a MOD-500 reporting an FTP Connection Error, what caused the condition?"
+    parent = SearchResult(
+        chunk_id="bound-parent",
+        score=0.4,
+        title="Controller manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[12],
+        section_path=["Errors"],
+        content=(
+            "Message | Cause | Remedy\n"
+            "FTP Connection Error | Connection with the FTP server failed. | Check the server."
+        ),
+        metadata={"chunk_type": "parent_section", "retrieval_stage": "direct_pipe_parent_promoted"},
+    )
+    nearby = SearchResult(
+        chunk_id="nearby-setup",
+        score=2.0,
+        title="Controller manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[6],
+        section_path=["FTP setup"],
+        content="Enable FTP errors to display FTP Connection Error when a transfer fails.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    selected = _fallback_evidence_results(query, [parent, nearby])
+    fallback = _fallback_answer(query, [parent, nearby])
+
+    assert [result.chunk_id for result in selected] == ["bound-parent"]
+    assert "Connection with the FTP server failed" in fallback.answer
+    assert [citation["chunk_id"] for citation in fallback.citations] == ["bound-parent"]
+
+
+def test_fallback_rejects_matching_status_row_without_requested_cause():
+    query = "For a MOD-500, what causes the status 'Sensor was not found using Search Sensor'?"
+    remedy_only = SearchResult(
+        chunk_id="remedy-only",
+        score=3.0,
+        title="Controller manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[14],
+        section_path=["Connection errors"],
+        content="Status: Sensor was not found using Search Sensor; Remedy: Check power and wiring.",
+        metadata={"chunk_type": "table_record"},
+    )
+    nearby = SearchResult(
+        chunk_id="nearby-procedure",
+        score=2.0,
+        title="Controller manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[4],
+        section_path=["Setup"],
+        content="Click Search Sensor, then connect to the displayed sensor.",
+        metadata={"chunk_type": "atomic_text"},
+    )
+
+    selected = _fallback_evidence_results(query, [remedy_only, nearby])
+    fallback = _fallback_answer(query, [remedy_only, nearby])
+
+    assert selected == []
+    assert fallback.insufficient_evidence is True
+    assert fallback.citations == []
