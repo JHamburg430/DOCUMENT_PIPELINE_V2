@@ -9087,15 +9087,15 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main c01314f; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main 4d9bc20; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean immediately after pushed production/tracking commit c01314f; dirty only with this required lifecycle update",
+      "git_status_check": "clean immediately after pushed production/tracking commit 4d9bc20; dirty only with this required lifecycle update",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-      "timestamp": "2026-09-04T11:35:00Z",
-      "git_status_before_final_commit": "clean after c01314f; dirty only with this required lifecycle tracking update",
-      "pushed_correction_commit": "c01314f"
+      "timestamp": "2026-09-04T12:17:00Z",
+      "git_status_before_final_commit": "clean after 4d9bc20; dirty only with this required lifecycle tracking update",
+      "pushed_correction_commit": "4d9bc20"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12915,15 +12915,15 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main c01314f; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main 4d9bc20; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "git_status_check": "clean immediately after pushed production/tracking commit c01314f; dirty only with this required lifecycle update",
+        "git_status_check": "clean immediately after pushed production/tracking commit 4d9bc20; dirty only with this required lifecycle update",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-        "timestamp": "2026-09-04T11:35:00Z",
-        "git_status_before_final_commit": "clean after c01314f; dirty only with this required lifecycle tracking update",
-        "pushed_correction_commit": "c01314f"
+        "timestamp": "2026-09-04T12:17:00Z",
+        "git_status_before_final_commit": "clean after 4d9bc20; dirty only with this required lifecycle tracking update",
+        "pushed_correction_commit": "4d9bc20"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -15721,7 +15721,7 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T12:07:05Z"
+    "updated_at": "2026-09-04T12:17:00Z"
   },
   "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
   "retrieval_current_failure_categories": {},
@@ -18263,5 +18263,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T12:07:05Z"
+  "updated_at": "2026-09-04T12:17:00Z"
 }

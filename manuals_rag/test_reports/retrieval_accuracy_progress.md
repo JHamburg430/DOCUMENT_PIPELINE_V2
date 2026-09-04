@@ -7394,3 +7394,7 @@ Next target:
 Next target:
 
 - Await independent guardrail review of the requested-model-bound selector. Preserve `retrieval_eval_20260904_120705` as a clean positive plus intentional fail-closed control and preserve the direct wrong-model API fallthrough probes as diagnostic; do not claim actual-API model-mismatch branch proof until a safe realistic case reaches that branch.
+
+### Post-push lifecycle record
+
+- Production/evidence commit `4d9bc20` was pushed to `origin/main`. Immediately afterward, selected worktree `/tmp/manuals_rag_accuracy_20260901` was clean, present, and registered at `4d9bc20`. Removal command/result remains exactly `not attempted`; accumulated permission-denied blockers require this known clean registered worktree to remain available for mandatory reuse, and no safe durable post-removal tracking sequence exists from this detached checkout. This tracking-only follow-up updates both manifest copies before the final commit/push; no force removal, recursive deletion, prune, reset, clean, stash, or unrelated worktree mutation occurred.
