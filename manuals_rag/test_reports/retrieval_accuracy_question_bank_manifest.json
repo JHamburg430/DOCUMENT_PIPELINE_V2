@@ -9217,9 +9217,9 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 799434d before edits; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 64342c4 before edits; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed correction commit fce7cb7 before the final tracking-only lifecycle commit",
+      "git_status_check": "clean at origin/main 64342c4 before this run; pre-final-commit status dirty only with progress/manifest tracking",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -13039,9 +13039,9 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 799434d before edits; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 64342c4 before edits; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed correction commit fce7cb7 before the final tracking-only lifecycle commit",
+      "git_status_check": "clean at origin/main 64342c4 before this run; pre-final-commit status dirty only with progress/manifest tracking",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -15685,7 +15685,7 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T09:30:00Z"
+    "updated_at": "2026-09-04T09:58:00Z"
   },
   "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {
@@ -18198,5 +18198,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T09:30:00Z"
+  "updated_at": "2026-09-04T09:58:00Z"
 }
