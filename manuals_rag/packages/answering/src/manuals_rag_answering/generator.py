@@ -1310,6 +1310,113 @@ def _troubleshooting_evidence_supports_roles(evidence: str, roles: set[str]) -> 
     return roles.issubset(supported)
 
 
+def _pipe_troubleshooting_record_supports_roles(
+    source_evidence: str,
+    record: str,
+    roles: set[str],
+) -> bool:
+    """Bind requested troubleshooting roles to nonblank cells in one pipe row."""
+    if not roles or "|" not in record:
+        return not roles
+
+    def cells(line: str) -> list[str]:
+        values = [value.strip() for value in line.strip().split("|")]
+        if values and not values[0]:
+            values = values[1:]
+        if values and not values[-1]:
+            values = values[:-1]
+        return values
+
+    record_cells = cells(record)
+    if not record_cells:
+        return False
+
+    supported: set[str] = set()
+    role_patterns = {
+        "cause": re.compile(r"^(?:cause|reason)$", re.IGNORECASE),
+        "message": re.compile(r"^(?:error\s+)?message$", re.IGNORECASE),
+        "action": re.compile(r"^(?:corrective\s+action|action|remed(?:y|ies)|fix)$", re.IGNORECASE),
+    }
+    labeled_role_patterns = {
+        "cause": re.compile(r"\b(?:cause|reason)\s*:\s*\S", re.IGNORECASE),
+        "message": re.compile(r"\b(?:error\s+)?message\s*:\s*\S", re.IGNORECASE),
+        "action": re.compile(
+            r"\b(?:corrective\s+action|action|remed(?:y|ies)|fix)\s*:\s*\S",
+            re.IGNORECASE,
+        ),
+    }
+    for role, pattern in labeled_role_patterns.items():
+        if role in roles and pattern.search(record):
+            supported.add(role)
+    header_label_pattern = re.compile(
+        r"^(?:condition|symptom|fault|alarm|error(?:\s+(?:code|number|message))?|"
+        r"message|cause|reason|corrective\s+action|action|remed(?:y|ies)|fix)$",
+        re.IGNORECASE,
+    )
+
+    def is_separator(line: str) -> bool:
+        return bool(cells(line)) and all(re.fullmatch(r":?-{3,}:?", value) for value in cells(line))
+
+    def is_header(line: str) -> bool:
+        values = cells(line)
+        return len(values) == len(record_cells) and len(values) >= 2 and all(
+            header_label_pattern.fullmatch(value) for value in values if value
+        )
+
+    # A positional role is valid only under the governing header in the same
+    # contiguous pipe table. Search backward from the selected row so headers
+    # from later or separate tables cannot relabel it. Consecutive, conflicting
+    # header-looking rows are ambiguous and fail closed.
+    lines = source_evidence.splitlines()
+    for record_index, line in enumerate(lines):
+        if line.strip() != record.strip():
+            continue
+        header_index: int | None = None
+        for index in range(record_index - 1, -1, -1):
+            candidate = lines[index]
+            if not candidate.strip() or "|" not in candidate:
+                break
+            if is_separator(candidate):
+                continue
+            if is_header(candidate):
+                header_index = index
+                break
+        if header_index is None:
+            continue
+        previous_index = header_index - 1
+        while previous_index >= 0 and is_separator(lines[previous_index]):
+            previous_index -= 1
+        if (
+            previous_index >= 0
+            and lines[previous_index].strip()
+            and "|" in lines[previous_index]
+            and is_header(lines[previous_index])
+        ):
+            continue
+        header_cells = cells(lines[header_index])
+        for role, pattern in role_patterns.items():
+            if role not in roles:
+                continue
+            for index, header in enumerate(header_cells):
+                if pattern.fullmatch(header) and record_cells[index].strip(" -"):
+                    supported.add(role)
+
+    # Headerless pipe rows remain eligible only when the selected row labels the
+    # role itself; positional inference would let a sibling value masquerade as
+    # a cause or remedy.
+    for role, pattern in role_patterns.items():
+        if role not in roles or role in supported:
+            continue
+        if any(
+            ":" in cell
+            and pattern.fullmatch(cell.split(":", 1)[0].strip(" ;"))
+            and bool(cell.split(":", 1)[1].strip())
+            for cell in record_cells
+        ):
+            supported.add(role)
+    return roles.issubset(supported)
+
+
 def _troubleshooting_evidence_records(evidence: str) -> list[str]:
     """Split structured troubleshooting evidence into source-bound records.
 
@@ -1330,6 +1437,11 @@ def _troubleshooting_evidence_records(evidence: str) -> list[str]:
     non_pipe_lines = [line.strip() for line in text.splitlines() if line.strip() and "|" not in line]
     if len(pipe_lines) >= 2 and not non_pipe_lines:
         return pipe_lines
+    if pipe_lines and non_pipe_lines:
+        # Mixed serializers can place one labeled row before ordinary pipe
+        # siblings. Keep those source records separate so a selected answer
+        # cannot inherit a sibling row's cause or remedy.
+        return _troubleshooting_evidence_records("\n".join(non_pipe_lines)) + pipe_lines
 
     label_pattern = re.compile(
         r"\b(?P<label>"
@@ -1465,7 +1577,15 @@ def _repeated_side_troubleshooting_results(
             citation_evidence = _citation_evidence_text(result)
             matching_records = _repeated_side_matching_records(clause, citation_evidence)
             if not matching_records or not any(
-                _troubleshooting_evidence_supports_roles(record, requested_roles)
+                (
+                    _pipe_troubleshooting_record_supports_roles(
+                        citation_evidence,
+                        record,
+                        requested_roles,
+                    )
+                    if "|" in record
+                    else _troubleshooting_evidence_supports_roles(record, requested_roles)
+                )
                 for record in matching_records
             ):
                 continue

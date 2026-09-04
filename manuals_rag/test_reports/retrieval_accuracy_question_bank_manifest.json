@@ -1,5 +1,10 @@
 {
-  "answer_current_failure_categories": {},
+  "answer_current_failure_categories": {
+    "expected_evidence_not_cited": 2,
+    "retrieval_not_passed": 2,
+    "insufficient_evidence": 1,
+    "expected_terms_missing": 1
+  },
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
     "controls": [
@@ -182,42 +187,31 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-09-04T04:48:00Z",
-    "latest_run": "retrieval_eval_20260904_044548",
-    "classification": "positive_grounded_answer_clean_missing_side_fail_closed",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260902_2228_distinct_document_ivhg_vs_validation.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260904_044548.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260904_044548.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260904_044548.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260904_044548.json",
+    "timestamp": "2026-09-04T06:04:00Z",
+    "latest_run": "retrieval_eval_20260904_060126",
+    "classification": "diagnostic_table_local_header_correction_http_pipe_branch_unproved",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0138_pipe_troubleshooting_validation.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260904_060126.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260904_060126.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260904_060126.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260904_060126.json",
     "search_mode": "http",
     "response_mode": "answer_with_citations",
     "max_queries": 2,
-    "retrieval_result": "2/2 retrieval passed at rank 1. The positive returned exact VS Error 30109 chunk be25fb78 plus exact IV-HG cause chunk 1ddc77c5; the Error 99999 control retained only the available IV-HG side and did not promote incidental numeric settings.",
-    "answer_result": "1/2 actual HTTP/API answers passed. The source-backed positive returned a fallback_validation grounded answer with both exact citations; the unsupported Error 99999 side returned insufficient evidence with no citations as intended. The combined run is not claimed clean.",
+    "retrieval_result": "0/2 exact expected-evidence retrieval; candidate and metadata-document recall were 100%, but exact pipe parent chunk 38d26f5e was absent from final_top_k.",
+    "answer_result": "0/2 benchmark answer scoring. The positive fallback was source-supported by structured atomic chunks ce29be75 and be25fb78; the Error 99999 control returned insufficient evidence with no citations. This is diagnostic and not genuine pipe-branch proof.",
     "runtime_load_evidence": {
-      "validated_run": "retrieval_eval_20260904_044548",
+      "validated_run": "retrieval_eval_20260904_060126",
       "api_url": "http://127.0.0.1:9193",
-      "container": "manuals-rag-temp-api-39262386-20260904-pipe-binding",
-      "health": "ok at 2026-09-04T04:45:17Z; worktree-mounted container loaded and served both changed-path cases",
+      "container": "manuals-rag-temp-api-39262386-20260902-0726",
+      "health": "ok after restart at 2026-09-04T06:00:28Z",
       "fingerprints": {
-        "generator.py": "8748c83951ed4119968ce6a51b7b819db3bae232cad0dcd3ce54561481308851",
-        "retrieval_eval.py": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
-        "query_analysis.py": "6aba38f3d797836a2ab573a11605c0d2c9d017724502d480b2466a7b48fb6ac7",
-        "retriever.py": "e1de7c392e0d5ccad9d2fb881c6459acf847a80aaaf489f861cdb42028b78b6e"
-      },
-      "model_settings": {
-        "OLLAMA_URL": "http://host.docker.internal:11434",
-        "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-        "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-        "RERANKER_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-        "RERANKER_DEVICE": "cuda:0"
+        "generator.py": "2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf"
       }
     },
-    "manual_jsonl_inspection": "Inspected every case, returned chunk, user-visible answer, and citation in retrieval_eval_results_20260904_044548.jsonl. The positive answer states both requested causes and cites exact chunks 1ddc77c5 and be25fb78 with null quote spans; each cited chunk directly supports its assigned product/symptom or product/error clause. The Error 99999 control returns insufficient evidence with no citations and does not expose the supported IV-HG clause as a complete answer. The positive alone is clean; the combined run is excluded.",
-    "remaining": "Await guardrail review of the leading-pipe/source-field correction; preserve retrieval_eval_20260904_041201 and retrieval_eval_20260904_044548 as combined-run exclusions with positive-row evidence only, retain active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
-    "validated_production_changes": ["compound multi-product field requests retain comparison intent", "single explicit diagnostic code across compared products enables table lexical retrieval", "diagnostic promotion rejects non-diagnostic incidental numeric table values", "reported symptom and explicit error clauses bind independently to their requested product sides"],
-    "scope": "retrieval_eval_20260904_044548 validates the general source-field and leading-pipe relation-preserving answer fallback correction on the actual API; no document/vendor/file/query hardcoding and no retrieval, eval-scoring/generation, API, UI, ingestion, parser, infrastructure, schema, model, embedding, or reranker configuration change."
+    "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
+    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "scope": "retrieval_eval_20260904_060126 validates only the loaded HTTP structured-atomic positive and fail-closed control; the general answering-only table-local header correction remains without genuine pipe-shaped API proof. No active count, ledger, retrieval, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -708,7 +702,7 @@
       "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive",
       "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive"
     ],
-    "answer_grounding_status": "retrieval_eval_20260904_044548 positive is clean grounded changed-path evidence after the leading-pipe correction: it states both source-backed causes and cites exact chunks 1ddc77c5 and be25fb78. Its Error 99999 row intentionally fails closed with no citations, so the combined run remains excluded.",
+    "answer_grounding_status": "retrieval_eval_20260904_060126 is diagnostic/not-clean. Its positive fallback is supported by structured atomic citations, but exact pipe parent evidence was not returned, so the genuine pipe changed path remains unproved through HTTP.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -752,25 +746,25 @@
       "mixed_series_record_bound_dataset": "test_reports/retrieval_eval_dataset_20260903_000449.jsonl",
       "mixed_series_record_bound_results": "test_reports/retrieval_eval_results_20260903_000449.jsonl",
       "mixed_series_record_bound_summary": "test_reports/retrieval_eval_summary_20260903_000449.json",
-      "mixed_series_record_bound_manifest": "test_reports/retrieval_eval_manifest_20260903_000449.json"
-      ,"mixed_series_label_aware_dataset": "test_reports/retrieval_eval_dataset_20260903_003115.jsonl"
-      ,"mixed_series_label_aware_results": "test_reports/retrieval_eval_results_20260903_003115.jsonl"
-      ,"mixed_series_label_aware_summary": "test_reports/retrieval_eval_summary_20260903_003115.json"
-      ,"mixed_series_label_aware_manifest": "test_reports/retrieval_eval_manifest_20260903_003115.json"
-      ,"mixed_series_mixed_family_dataset": "test_reports/retrieval_eval_dataset_20260903_005643.jsonl"
-      ,"mixed_series_mixed_family_results": "test_reports/retrieval_eval_results_20260903_005643.jsonl"
-      ,"mixed_series_mixed_family_summary": "test_reports/retrieval_eval_summary_20260903_005643.json"
-      ,"mixed_series_mixed_family_manifest": "test_reports/retrieval_eval_manifest_20260903_005643.json"
-      ,"distinct_document_10101_xgx_source_dataset": "test_reports/retrieval_eval_dataset_20260902_2158_distinct_document_troubleshooting_validation.jsonl"
-      ,"distinct_document_10101_xgx_run_dataset": "test_reports/retrieval_eval_dataset_20260903_015447.jsonl"
-      ,"distinct_document_10101_xgx_results": "test_reports/retrieval_eval_results_20260903_015447.jsonl"
-      ,"distinct_document_10101_xgx_summary": "test_reports/retrieval_eval_summary_20260903_015447.json"
-      ,"distinct_document_10101_xgx_manifest": "test_reports/retrieval_eval_manifest_20260903_015447.json"
-      ,"distinct_document_ivhg_vs_source_dataset": "test_reports/retrieval_eval_dataset_20260902_2228_distinct_document_ivhg_vs_validation.jsonl"
-      ,"distinct_document_ivhg_vs_run_dataset": "test_reports/retrieval_eval_dataset_20260903_022525.jsonl"
-      ,"distinct_document_ivhg_vs_results": "test_reports/retrieval_eval_results_20260903_022525.jsonl"
-      ,"distinct_document_ivhg_vs_summary": "test_reports/retrieval_eval_summary_20260903_022525.json"
-      ,"distinct_document_ivhg_vs_manifest": "test_reports/retrieval_eval_manifest_20260903_022525.json",
+      "mixed_series_record_bound_manifest": "test_reports/retrieval_eval_manifest_20260903_000449.json",
+      "mixed_series_label_aware_dataset": "test_reports/retrieval_eval_dataset_20260903_003115.jsonl",
+      "mixed_series_label_aware_results": "test_reports/retrieval_eval_results_20260903_003115.jsonl",
+      "mixed_series_label_aware_summary": "test_reports/retrieval_eval_summary_20260903_003115.json",
+      "mixed_series_label_aware_manifest": "test_reports/retrieval_eval_manifest_20260903_003115.json",
+      "mixed_series_mixed_family_dataset": "test_reports/retrieval_eval_dataset_20260903_005643.jsonl",
+      "mixed_series_mixed_family_results": "test_reports/retrieval_eval_results_20260903_005643.jsonl",
+      "mixed_series_mixed_family_summary": "test_reports/retrieval_eval_summary_20260903_005643.json",
+      "mixed_series_mixed_family_manifest": "test_reports/retrieval_eval_manifest_20260903_005643.json",
+      "distinct_document_10101_xgx_source_dataset": "test_reports/retrieval_eval_dataset_20260902_2158_distinct_document_troubleshooting_validation.jsonl",
+      "distinct_document_10101_xgx_run_dataset": "test_reports/retrieval_eval_dataset_20260903_015447.jsonl",
+      "distinct_document_10101_xgx_results": "test_reports/retrieval_eval_results_20260903_015447.jsonl",
+      "distinct_document_10101_xgx_summary": "test_reports/retrieval_eval_summary_20260903_015447.json",
+      "distinct_document_10101_xgx_manifest": "test_reports/retrieval_eval_manifest_20260903_015447.json",
+      "distinct_document_ivhg_vs_source_dataset": "test_reports/retrieval_eval_dataset_20260902_2228_distinct_document_ivhg_vs_validation.jsonl",
+      "distinct_document_ivhg_vs_run_dataset": "test_reports/retrieval_eval_dataset_20260903_022525.jsonl",
+      "distinct_document_ivhg_vs_results": "test_reports/retrieval_eval_results_20260903_022525.jsonl",
+      "distinct_document_ivhg_vs_summary": "test_reports/retrieval_eval_summary_20260903_022525.json",
+      "distinct_document_ivhg_vs_manifest": "test_reports/retrieval_eval_manifest_20260903_022525.json",
       "distinct_document_ivhg_vs_grounded_run_dataset": "test_reports/retrieval_eval_dataset_20260903_033304.jsonl",
       "distinct_document_ivhg_vs_grounded_results": "test_reports/retrieval_eval_results_20260903_033304.jsonl",
       "distinct_document_ivhg_vs_grounded_summary": "test_reports/retrieval_eval_summary_20260903_033304.json",
@@ -778,11 +772,21 @@
       "leading_pipe_containment_dataset": "test_reports/retrieval_eval_dataset_20260904_044548.jsonl",
       "leading_pipe_containment_results": "test_reports/retrieval_eval_results_20260904_044548.jsonl",
       "leading_pipe_containment_summary": "test_reports/retrieval_eval_summary_20260904_044548.json",
-      "leading_pipe_containment_manifest": "test_reports/retrieval_eval_manifest_20260904_044548.json"
+      "leading_pipe_containment_manifest": "test_reports/retrieval_eval_manifest_20260904_044548.json",
+      "pipe_header_pre_correction_results": "test_reports/retrieval_eval_results_20260904_053522.jsonl",
+      "pipe_header_post_correction_dataset": "test_reports/retrieval_eval_dataset_20260904_060126.jsonl",
+      "pipe_header_post_correction_results": "test_reports/retrieval_eval_results_20260904_060126.jsonl",
+      "pipe_header_post_correction_summary": "test_reports/retrieval_eval_summary_20260904_060126.json",
+      "pipe_header_post_correction_manifest": "test_reports/retrieval_eval_manifest_20260904_060126.json"
     },
-    "current_answer_failures": {},
-    "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260904_044548.jsonl. The positive cites exact returned chunks 1ddc77c5 and be25fb78 with null quote spans, and each chunk directly supports its assigned damaged-program or Error 30109 cause. The Error 99999 row returns insufficient evidence with no citations. The positive alone is accepted clean; the combined run is excluded.",
-    "remaining": "Await guardrail review of the leading-pipe/source-field correction; preserve retrieval_eval_20260904_041201 and retrieval_eval_20260904_044548 as combined-run exclusions with positive-row evidence only, retain active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "current_answer_failures": {
+      "expected_evidence_not_cited": 2,
+      "retrieval_not_passed": 2,
+      "insufficient_evidence": 1,
+      "expected_terms_missing": 1
+    },
+    "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
+    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
   },
   "constraints": {
@@ -801,15 +805,24 @@
     "run_budget_minutes": 30
   },
   "created_at": "2026-08-23",
-  "current_answer_failure_categories": {},
-  "current_answer_failure_source": "none; retrieval_eval_20260903_033304 positive passed actual HTTP answer grounding, and the Error 99999 row is an intentional unsupported-side fail-closed control",
-  "current_failure_categories": {},
-  "current_failure_sources": {
-    "retrieval": "none",
-    "answer": "none"
+  "current_answer_failure_categories": {
+    "expected_evidence_not_cited": 2,
+    "retrieval_not_passed": 2,
+    "insufficient_evidence": 1,
+    "expected_terms_missing": 1
   },
-  "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "none in retrieval_eval_20260903_033304: both source-backed chunks reached final_top_k for the positive, and the Error 99999 control retained only available IV-HG evidence.",
+  "current_answer_failure_source": "retrieval_eval_20260904_060126 diagnostic/not-clean: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1. The positive used source-supported structured atomic citations; the unsupported control failed closed.",
+  "current_failure_categories": {
+    "ranking_or_context_loss": 2
+  },
+  "current_failure_sources": {
+    "retrieval": "retrieval_eval_20260904_060126: ranking_or_context_loss=2 because exact pipe parent chunk 38d26f5e was absent from final_top_k despite 100% candidate and metadata-document recall.",
+    "answer": "retrieval_eval_20260904_060126: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1."
+  },
+  "current_retrieval_failure_categories": {
+    "ranking_or_context_loss": 2
+  },
+  "current_retrieval_failure_source": "retrieval_eval_20260904_060126 is the current diagnostic HTTP run: exact pipe parent chunk 38d26f5e was absent from final_top_k in both rows despite candidate and metadata-document recall at 100%.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -1007,7 +1020,9 @@
       "total_queries": 10
     }
   ],
-  "failure_categories": {},
+  "failure_categories": {
+    "ranking_or_context_loss": 2
+  },
   "goal": {
     "components": [
       "single_step_retrieval",
@@ -9061,16 +9076,18 @@
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
+      "reused_existing_registered_worktree": true,
       "created_new_worktree": false,
-    "timestamp": "2026-09-03T03:37:00Z",
-      "git_status_before_final_commit": "dirty only with this run's scoped answering change, tests, HTTP eval artifacts, and tracking",
       "removal_command": "not attempted",
-      "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8ba8bd before final commit",
+      "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 000e63f before edits; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
-      "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-      "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
+      "git_status_check": "dirty only with this run scoped answering/test/eval/tracking files before final commit",
+      "post_removal_registry_check": "not applicable; removal intentionally not attempted",
+      "post_removal_path_check": "not applicable; worktree retained",
+      "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
+      "timestamp": "2026-09-04T06:04:00Z",
+      "git_status_before_final_commit": "dirty only with this run scoped answering/test/eval/tracking files before final commit"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -9190,13 +9207,12 @@
     "current_run": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
       "reused_existing_registered_worktree": true,
-      "restored_prunable_registration": "supported git worktree add --force --detach restored the exact absent/prunable registered path from origin/main 1a8aa13; no newly named worktree was created",
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901; restored from origin/main 1a8aa13 before edits, fetched and integrated guardrail commits ea32604/6835a89 before final push, and retained the exact path for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 000e63f before edits; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-    "git_status_check": "clean after the final commit; no uncommitted or untracked job-owned files remain",
+      "git_status_check": "dirty only with this run scoped answering/test/eval/tracking files before final commit",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -9289,7 +9305,7 @@
       ]
     }
   ],
-  "next_target": "Await guardrail review of the leading-pipe/source-field correction; preserve retrieval_eval_20260904_041201 and retrieval_eval_20260904_044548 as combined-run exclusions with positive-row evidence only, retain active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10042,7 +10058,12 @@
     "retired_questions_create_replacement_debt": true
   },
   "question_bank": {
-    "answer_current_failure_categories": {},
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 2,
+      "retrieval_not_passed": 2,
+      "insufficient_evidence": 1,
+      "expected_terms_missing": 1
+    },
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
       "controls": [
@@ -10225,42 +10246,31 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-09-04T04:48:00Z",
-      "latest_run": "retrieval_eval_20260904_044548",
-      "classification": "positive_grounded_answer_clean_missing_side_fail_closed",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260902_2228_distinct_document_ivhg_vs_validation.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260904_044548.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260904_044548.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260904_044548.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260904_044548.json",
+      "timestamp": "2026-09-04T06:04:00Z",
+      "latest_run": "retrieval_eval_20260904_060126",
+      "classification": "diagnostic_table_local_header_correction_http_pipe_branch_unproved",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0138_pipe_troubleshooting_validation.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260904_060126.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260904_060126.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260904_060126.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260904_060126.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "max_queries": 2,
-    "retrieval_result": "2/2 retrieval passed at rank 1. The positive returned exact VS Error 30109 chunk be25fb78 plus exact IV-HG cause chunk 1ddc77c5; the Error 99999 control retained only the available IV-HG side and did not promote incidental numeric settings.",
-      "answer_result": "1/2 actual HTTP/API answers passed. The source-backed positive returned a fallback_validation grounded answer with both exact citations; the unsupported Error 99999 side returned insufficient evidence with no citations as intended. The combined run is not claimed clean.",
+      "retrieval_result": "0/2 exact expected-evidence retrieval; candidate and metadata-document recall were 100%, but exact pipe parent chunk 38d26f5e was absent from final_top_k.",
+      "answer_result": "0/2 benchmark answer scoring. The positive fallback was source-supported by structured atomic chunks ce29be75 and be25fb78; the Error 99999 control returned insufficient evidence with no citations. This is diagnostic and not genuine pipe-branch proof.",
       "runtime_load_evidence": {
-        "validated_run": "retrieval_eval_20260904_044548",
+        "validated_run": "retrieval_eval_20260904_060126",
         "api_url": "http://127.0.0.1:9193",
-        "container": "manuals-rag-temp-api-39262386-20260904-pipe-binding",
-        "health": "ok at 2026-09-04T04:45:17Z; worktree-mounted container loaded and served both changed-path cases",
+        "container": "manuals-rag-temp-api-39262386-20260902-0726",
+        "health": "ok after restart at 2026-09-04T06:00:28Z",
         "fingerprints": {
-          "generator.py": "8748c83951ed4119968ce6a51b7b819db3bae232cad0dcd3ce54561481308851",
-          "retrieval_eval.py": "4531354e806ba47fe14baf0e9376f649a34504e41fdad507523264f1c02b1a8e",
-        "query_analysis.py": "6aba38f3d797836a2ab573a11605c0d2c9d017724502d480b2466a7b48fb6ac7",
-        "retriever.py": "e1de7c392e0d5ccad9d2fb881c6459acf847a80aaaf489f861cdb42028b78b6e"
-        },
-        "model_settings": {
-          "OLLAMA_URL": "http://host.docker.internal:11434",
-          "OLLAMA_ANSWER_MODEL": "qwen3.5:9b",
-          "OLLAMA_EMBED_MODEL": "qwen3-embedding:0.6b",
-          "RERANKER_MODEL": "cross-encoder/ms-marco-MiniLM-L-12-v2",
-          "RERANKER_DEVICE": "cuda:0"
+          "generator.py": "2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf"
         }
       },
-      "manual_jsonl_inspection": "Inspected every case, returned chunk, user-visible answer, and citation in retrieval_eval_results_20260904_044548.jsonl. The positive answer states both requested causes and cites exact chunks 1ddc77c5 and be25fb78 with null quote spans; each cited chunk directly supports its assigned product/symptom or product/error clause. The Error 99999 control returns insufficient evidence with no citations and does not expose the supported IV-HG clause as a complete answer. The positive alone is clean; the combined run is excluded.",
-      "remaining": "Await guardrail review of the leading-pipe/source-field correction; preserve retrieval_eval_20260904_041201 and retrieval_eval_20260904_044548 as combined-run exclusions with positive-row evidence only, retain active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
-      "validated_production_changes": ["compound multi-product field requests retain comparison intent", "single explicit diagnostic code across compared products enables table lexical retrieval", "diagnostic promotion rejects non-diagnostic incidental numeric table values", "reported symptom and explicit error clauses bind independently to their requested product sides"],
-      "scope": "retrieval_eval_20260904_044548 validates the general source-field and leading-pipe relation-preserving answer fallback correction on the actual API; no document/vendor/file/query hardcoding and no retrieval, eval-scoring/generation, API, UI, ingestion, parser, infrastructure, schema, model, embedding, or reranker configuration change."
+      "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
+      "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+      "scope": "retrieval_eval_20260904_060126 validates only the loaded HTTP structured-atomic positive and fail-closed control; the general answering-only table-local header correction remains without genuine pipe-shaped API proof. No active count, ledger, retrieval, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10532,7 +10542,7 @@
         "retrieval_eval_20260902_161158 multi-error Error 10109/10110 row-group grounded answer",
         "retrieval_eval_20260902_180540 multi-error Error 10101/10115 distinct-chunk grounded answer",
         "retrieval_eval_20260902_184955 source-faithful cross-product Error 10101/30109 relation-bound grounded answer",
-      "retrieval_eval_20260902_232718 positive repeated-side per-clause role-bound grounded answer",
+        "retrieval_eval_20260902_232718 positive repeated-side per-clause role-bound grounded answer",
         "retrieval_eval_20260903_000449 XG-X positive repeated-side per-record role-bound grounded answer",
         "retrieval_eval_20260903_003115 XG-X positive label-aware record-bound grounded answer",
         "retrieval_eval_20260903_005643 XG-X positive mixed-anchor-family record-bound grounded answer",
@@ -10540,7 +10550,7 @@
         "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive",
         "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive"
       ],
-      "answer_grounding_status": "retrieval_eval_20260904_044548 positive is clean grounded changed-path evidence after the leading-pipe correction: it states both source-backed causes and cites exact chunks 1ddc77c5 and be25fb78. Its Error 99999 row intentionally fails closed with no citations, so the combined run remains excluded.",
+      "answer_grounding_status": "retrieval_eval_20260904_060126 is diagnostic/not-clean. Its positive fallback is supported by structured atomic citations, but exact pipe parent evidence was not returned, so the genuine pipe changed path remains unproved through HTTP.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10580,29 +10590,29 @@
         "mixed_series_role_bound_dataset": "test_reports/retrieval_eval_dataset_20260902_232718.jsonl",
         "mixed_series_role_bound_results": "test_reports/retrieval_eval_results_20260902_232718.jsonl",
         "mixed_series_role_bound_summary": "test_reports/retrieval_eval_summary_20260902_232718.json",
-      "mixed_series_role_bound_manifest": "test_reports/retrieval_eval_manifest_20260902_232718.json",
-      "mixed_series_record_bound_dataset": "test_reports/retrieval_eval_dataset_20260903_000449.jsonl",
-      "mixed_series_record_bound_results": "test_reports/retrieval_eval_results_20260903_000449.jsonl",
-      "mixed_series_record_bound_summary": "test_reports/retrieval_eval_summary_20260903_000449.json",
-        "mixed_series_record_bound_manifest": "test_reports/retrieval_eval_manifest_20260903_000449.json"
-        ,"mixed_series_label_aware_dataset": "test_reports/retrieval_eval_dataset_20260903_003115.jsonl"
-        ,"mixed_series_label_aware_results": "test_reports/retrieval_eval_results_20260903_003115.jsonl"
-        ,"mixed_series_label_aware_summary": "test_reports/retrieval_eval_summary_20260903_003115.json"
-        ,"mixed_series_label_aware_manifest": "test_reports/retrieval_eval_manifest_20260903_003115.json"
-        ,"mixed_series_mixed_family_dataset": "test_reports/retrieval_eval_dataset_20260903_005643.jsonl"
-        ,"mixed_series_mixed_family_results": "test_reports/retrieval_eval_results_20260903_005643.jsonl"
-        ,"mixed_series_mixed_family_summary": "test_reports/retrieval_eval_summary_20260903_005643.json"
-        ,"mixed_series_mixed_family_manifest": "test_reports/retrieval_eval_manifest_20260903_005643.json"
-        ,"distinct_document_10101_xgx_source_dataset": "test_reports/retrieval_eval_dataset_20260902_2158_distinct_document_troubleshooting_validation.jsonl"
-        ,"distinct_document_10101_xgx_run_dataset": "test_reports/retrieval_eval_dataset_20260903_015447.jsonl"
-        ,"distinct_document_10101_xgx_results": "test_reports/retrieval_eval_results_20260903_015447.jsonl"
-        ,"distinct_document_10101_xgx_summary": "test_reports/retrieval_eval_summary_20260903_015447.json"
-        ,"distinct_document_10101_xgx_manifest": "test_reports/retrieval_eval_manifest_20260903_015447.json"
-        ,"distinct_document_ivhg_vs_source_dataset": "test_reports/retrieval_eval_dataset_20260902_2228_distinct_document_ivhg_vs_validation.jsonl"
-        ,"distinct_document_ivhg_vs_run_dataset": "test_reports/retrieval_eval_dataset_20260903_022525.jsonl"
-        ,"distinct_document_ivhg_vs_results": "test_reports/retrieval_eval_results_20260903_022525.jsonl"
-        ,"distinct_document_ivhg_vs_summary": "test_reports/retrieval_eval_summary_20260903_022525.json"
-        ,"distinct_document_ivhg_vs_manifest": "test_reports/retrieval_eval_manifest_20260903_022525.json",
+        "mixed_series_role_bound_manifest": "test_reports/retrieval_eval_manifest_20260902_232718.json",
+        "mixed_series_record_bound_dataset": "test_reports/retrieval_eval_dataset_20260903_000449.jsonl",
+        "mixed_series_record_bound_results": "test_reports/retrieval_eval_results_20260903_000449.jsonl",
+        "mixed_series_record_bound_summary": "test_reports/retrieval_eval_summary_20260903_000449.json",
+        "mixed_series_record_bound_manifest": "test_reports/retrieval_eval_manifest_20260903_000449.json",
+        "mixed_series_label_aware_dataset": "test_reports/retrieval_eval_dataset_20260903_003115.jsonl",
+        "mixed_series_label_aware_results": "test_reports/retrieval_eval_results_20260903_003115.jsonl",
+        "mixed_series_label_aware_summary": "test_reports/retrieval_eval_summary_20260903_003115.json",
+        "mixed_series_label_aware_manifest": "test_reports/retrieval_eval_manifest_20260903_003115.json",
+        "mixed_series_mixed_family_dataset": "test_reports/retrieval_eval_dataset_20260903_005643.jsonl",
+        "mixed_series_mixed_family_results": "test_reports/retrieval_eval_results_20260903_005643.jsonl",
+        "mixed_series_mixed_family_summary": "test_reports/retrieval_eval_summary_20260903_005643.json",
+        "mixed_series_mixed_family_manifest": "test_reports/retrieval_eval_manifest_20260903_005643.json",
+        "distinct_document_10101_xgx_source_dataset": "test_reports/retrieval_eval_dataset_20260902_2158_distinct_document_troubleshooting_validation.jsonl",
+        "distinct_document_10101_xgx_run_dataset": "test_reports/retrieval_eval_dataset_20260903_015447.jsonl",
+        "distinct_document_10101_xgx_results": "test_reports/retrieval_eval_results_20260903_015447.jsonl",
+        "distinct_document_10101_xgx_summary": "test_reports/retrieval_eval_summary_20260903_015447.json",
+        "distinct_document_10101_xgx_manifest": "test_reports/retrieval_eval_manifest_20260903_015447.json",
+        "distinct_document_ivhg_vs_source_dataset": "test_reports/retrieval_eval_dataset_20260902_2228_distinct_document_ivhg_vs_validation.jsonl",
+        "distinct_document_ivhg_vs_run_dataset": "test_reports/retrieval_eval_dataset_20260903_022525.jsonl",
+        "distinct_document_ivhg_vs_results": "test_reports/retrieval_eval_results_20260903_022525.jsonl",
+        "distinct_document_ivhg_vs_summary": "test_reports/retrieval_eval_summary_20260903_022525.json",
+        "distinct_document_ivhg_vs_manifest": "test_reports/retrieval_eval_manifest_20260903_022525.json",
         "distinct_document_ivhg_vs_grounded_run_dataset": "test_reports/retrieval_eval_dataset_20260903_033304.jsonl",
         "distinct_document_ivhg_vs_grounded_results": "test_reports/retrieval_eval_results_20260903_033304.jsonl",
         "distinct_document_ivhg_vs_grounded_summary": "test_reports/retrieval_eval_summary_20260903_033304.json",
@@ -10610,22 +10620,41 @@
         "leading_pipe_containment_dataset": "test_reports/retrieval_eval_dataset_20260904_044548.jsonl",
         "leading_pipe_containment_results": "test_reports/retrieval_eval_results_20260904_044548.jsonl",
         "leading_pipe_containment_summary": "test_reports/retrieval_eval_summary_20260904_044548.json",
-        "leading_pipe_containment_manifest": "test_reports/retrieval_eval_manifest_20260904_044548.json"
+        "leading_pipe_containment_manifest": "test_reports/retrieval_eval_manifest_20260904_044548.json",
+        "pipe_header_pre_correction_results": "test_reports/retrieval_eval_results_20260904_053522.jsonl",
+        "pipe_header_post_correction_dataset": "test_reports/retrieval_eval_dataset_20260904_060126.jsonl",
+        "pipe_header_post_correction_results": "test_reports/retrieval_eval_results_20260904_060126.jsonl",
+        "pipe_header_post_correction_summary": "test_reports/retrieval_eval_summary_20260904_060126.json",
+        "pipe_header_post_correction_manifest": "test_reports/retrieval_eval_manifest_20260904_060126.json"
       },
-      "current_answer_failures": {},
-      "manual_jsonl_inspection": "Inspected every case in retrieval_eval_results_20260904_044548.jsonl. The positive cites exact returned chunks 1ddc77c5 and be25fb78 with null quote spans, and each chunk directly supports its assigned damaged-program or Error 30109 cause. The Error 99999 row returns insufficient evidence with no citations. The positive alone is accepted clean; the combined run is excluded.",
-      "remaining": "Await guardrail review of the leading-pipe/source-field correction; preserve retrieval_eval_20260904_041201 and retrieval_eval_20260904_044548 as combined-run exclusions with positive-row evidence only, retain active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+      "current_answer_failures": {
+        "expected_evidence_not_cited": 2,
+        "retrieval_not_passed": 2,
+        "insufficient_evidence": 1,
+        "expected_terms_missing": 1
+      },
+      "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
+      "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
     },
-  "current_answer_failure_categories": {},
-  "current_answer_failure_source": "none; retrieval_eval_20260903_033304 positive passed actual HTTP answer grounding, and the Error 99999 row is an intentional unsupported-side fail-closed control",
-  "current_failure_categories": {},
-    "current_failure_sources": {
-    "retrieval": "none",
-    "answer": "none"
+    "current_answer_failure_categories": {
+      "expected_evidence_not_cited": 2,
+      "retrieval_not_passed": 2,
+      "insufficient_evidence": 1,
+      "expected_terms_missing": 1
     },
-  "current_retrieval_failure_categories": {},
-  "current_retrieval_failure_source": "none in retrieval_eval_20260903_033304: both source-backed chunks reached final_top_k for the positive, and the Error 99999 control retained only available IV-HG evidence.",
+    "current_answer_failure_source": "retrieval_eval_20260904_060126 diagnostic/not-clean: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1. The positive used source-supported structured atomic citations; the unsupported control failed closed.",
+    "current_failure_categories": {
+      "ranking_or_context_loss": 2
+    },
+    "current_failure_sources": {
+      "retrieval": "retrieval_eval_20260904_060126: ranking_or_context_loss=2 because exact pipe parent chunk 38d26f5e was absent from final_top_k despite 100% candidate and metadata-document recall.",
+      "answer": "retrieval_eval_20260904_060126: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1."
+    },
+    "current_retrieval_failure_categories": {
+      "ranking_or_context_loss": 2
+    },
+    "current_retrieval_failure_source": "retrieval_eval_20260904_060126 is the current diagnostic HTTP run: exact pipe parent chunk 38d26f5e was absent from final_top_k in both rows despite candidate and metadata-document recall at 100%.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -10995,7 +11024,9 @@
       }
     ],
     "exploratory_questions": 209,
-    "failure_categories": {},
+    "failure_categories": {
+      "ranking_or_context_loss": 2
+    },
     "latest_comparison_setting_side_binding_containment": {
       "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
       "actual_http_evidence": {
@@ -12862,16 +12893,18 @@
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
+        "reused_existing_registered_worktree": true,
         "created_new_worktree": false,
-      "timestamp": "2026-09-03T03:37:00Z",
-      "git_status_before_final_commit": "dirty only with this run's scoped answering change, tests, HTTP eval artifacts, and tracking",
         "removal_command": "not attempted",
-        "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8ba8bd before final commit",
+        "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 000e63f before edits; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "post_removal_registry_check": "not applicable; retained registered for mandatory reuse",
-        "post_removal_path_check": "not removed; /tmp/manuals_rag_accuracy_20260901 remains present",
-        "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
+        "git_status_check": "dirty only with this run scoped answering/test/eval/tracking files before final commit",
+        "post_removal_registry_check": "not applicable; removal intentionally not attempted",
+        "post_removal_path_check": "not applicable; worktree retained",
+        "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
+        "timestamp": "2026-09-04T06:04:00Z",
+        "git_status_before_final_commit": "dirty only with this run scoped answering/test/eval/tracking files before final commit"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12991,13 +13024,12 @@
       "current_run": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
         "reused_existing_registered_worktree": true,
-        "restored_prunable_registration": "supported git worktree add --force --detach restored the exact absent/prunable registered path from origin/main 1a8aa13; no newly named worktree was created",
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901; restored from origin/main 1a8aa13 before edits, fetched and integrated guardrail commits ea32604/6835a89 before final push, and retained the exact path for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 000e63f before edits; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-    "git_status_check": "clean after the final commit; no uncommitted or untracked job-owned files remain",
+        "git_status_check": "dirty only with this run scoped answering/test/eval/tracking files before final commit",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -13092,7 +13124,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Await guardrail review of the leading-pipe/source-field correction; preserve retrieval_eval_20260904_041201 and retrieval_eval_20260904_044548 as combined-run exclusions with positive-row evidence only, retain active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13129,8 +13161,10 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await guardrail review of the leading-pipe/source-field correction; preserve retrieval_eval_20260904_041201 and retrieval_eval_20260904_044548 as combined-run exclusions with positive-row evidence only, retain active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
-  "retrieval_current_failure_categories": {},
+    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "retrieval_current_failure_categories": {
+      "ranking_or_context_loss": 2
+    },
     "run_exclusions": [
       {
         "reason": "combined run is not clean: the source-backed IV-HG/VS Error 30109 positive passed with exact citations after the leading-pipe correction, while the intentionally unsupported VS Error 99999 side failed closed with insufficient evidence and no citations",
@@ -13962,11 +13996,50 @@
         "scope": "source-reviewed IV-HG500CA damaged-program plus VS Error 30109 distinct-document HTTP validation",
         "recorded_at": "2026-09-03T02:28:00Z",
         "reason": "diagnostic/not-clean: candidate recall was 100%, but final_top_k retained only IV-HG rows and omitted exact VS Error 30109 chunk be25fb78. The positive and intentional Error 99999 control both failed closed with insufficient evidence and no citations; no clean answer claim is made."
+      },
+      {
+        "run_id": "retrieval_eval_20260904_053522",
+        "scope": "pre-correction leading-pipe HTTP two-case run",
+        "recorded_at": "2026-09-04T06:04:00Z",
+        "reason": "diagnostic/not-clean: 0/2 retrieval and 0/2 answer grounding; neither row returned sufficient cited pipe-table evidence."
+      },
+      {
+        "run_id": "retrieval_eval_20260904_054425",
+        "scope": "interrupted leading-pipe HTTP retry",
+        "recorded_at": "2026-09-04T06:04:00Z",
+        "reason": "diagnostic/not-clean: 0/2 retrieval and 0/2 answer grounding; no clean changed-path claim is accepted."
+      },
+      {
+        "run_id": "retrieval_eval_20260904_055144",
+        "scope": "interrupted isolated positive HTTP retry",
+        "recorded_at": "2026-09-04T06:04:00Z",
+        "reason": "diagnostic/not-clean: 0/1 retrieval and 0/1 exact expected-evidence grounding; the visible fallback used a structured atomic citation, not the pipe branch."
+      },
+      {
+        "run_id": "retrieval_eval_20260904_060126",
+        "scope": "table-local-header post-correction HTTP two-case run",
+        "recorded_at": "2026-09-04T06:04:00Z",
+        "reason": "diagnostic/not-clean: 0/2 exact retrieval and 0/2 answer scoring. The positive visible fallback is source-supported by structured atomic chunks, while the unsupported side fails closed, but neither row proves the genuine pipe branch because exact parent chunk 38d26f5e was absent from final_top_k."
       }
     ],
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
+      {
+        "timestamp": "2026-09-04T05:41:05Z",
+        "severity": "needs_fix",
+        "guardrail_commit": "000e63f",
+        "finding": "The interrupted pipe-role validator searched unrelated headers across a chunk, allowing a remedy cell to be relabeled as a cause by a conflicting or later table header.",
+        "status": "production_correction_complete_api_pipe_branch_proof_pending",
+        "evidence": [
+          "Role headers are now searched only backward from the selected row inside one contiguous pipe table; later/separate headers cannot relabel the row, and consecutive conflicting header rows fail closed.",
+          "Focused troubleshooting controls passed 27 tests, including leading/trailing/headerless positives, one-header multi-row reuse, conflicting-header and cross-table negatives, blank-role, sibling, missing-side, and cross-record controls.",
+          "The fixture-mounted full unit gate passed 672 tests with 59 warnings.",
+          "Restarted existing worktree-mounted API container manuals-rag-temp-api-39262386-20260902-0726 at 2026-09-04T06:00:28Z; health returned ok and host/container generator.py SHA-256 matched 2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf.",
+          "Actual HTTP retrieval_eval_20260904_060126 remained diagnostic 0/2: the positive used source-supported structured atomic citations and the Error 99999 control failed closed, but final_top_k omitted exact pipe parent chunk 38d26f5e, so the run does not prove the genuine pipe branch."
+        ],
+        "remaining": "Independent guardrail review plus genuine pipe-shaped actual-API changed-path evidence remain required before classifying the branch fully clean; do not treat structured atomic citations as pipe-path proof."
+      },
       {
         "timestamp": "2026-09-04T04:10:29Z",
         "severity": "needs_fix",
@@ -15535,10 +15608,12 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T04:48:00Z"
+    "updated_at": "2026-09-04T06:04:00Z"
   },
-    "remaining": "Await guardrail review of the leading-pipe/source-field correction; preserve retrieval_eval_20260904_041201 and retrieval_eval_20260904_044548 as combined-run exclusions with positive-row evidence only, retain active coverage at 209, and reuse /tmp/manuals_rag_accuracy_20260901.",
-  "retrieval_current_failure_categories": {},
+  "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+  "retrieval_current_failure_categories": {
+    "ranking_or_context_loss": 2
+  },
   "run_exclusions": [
     {
       "reason": "combined run is not clean: the source-backed IV-HG/VS Error 30109 positive passed with exact citations after the leading-pipe correction, while the intentionally unsupported VS Error 99999 side failed closed with insufficient evidence and no citations",
@@ -16370,10 +16445,49 @@
       "scope": "source-reviewed IV-HG500CA damaged-program plus VS Error 30109 distinct-document HTTP validation",
       "recorded_at": "2026-09-03T02:28:00Z",
       "reason": "diagnostic/not-clean: candidate recall was 100%, but final_top_k retained only IV-HG rows and omitted exact VS Error 30109 chunk be25fb78. The positive and intentional Error 99999 control both failed closed with insufficient evidence and no citations; no clean answer claim is made."
+    },
+    {
+      "run_id": "retrieval_eval_20260904_053522",
+      "scope": "pre-correction leading-pipe HTTP two-case run",
+      "recorded_at": "2026-09-04T06:04:00Z",
+      "reason": "diagnostic/not-clean: 0/2 retrieval and 0/2 answer grounding; neither row returned sufficient cited pipe-table evidence."
+    },
+    {
+      "run_id": "retrieval_eval_20260904_054425",
+      "scope": "interrupted leading-pipe HTTP retry",
+      "recorded_at": "2026-09-04T06:04:00Z",
+      "reason": "diagnostic/not-clean: 0/2 retrieval and 0/2 answer grounding; no clean changed-path claim is accepted."
+    },
+    {
+      "run_id": "retrieval_eval_20260904_055144",
+      "scope": "interrupted isolated positive HTTP retry",
+      "recorded_at": "2026-09-04T06:04:00Z",
+      "reason": "diagnostic/not-clean: 0/1 retrieval and 0/1 exact expected-evidence grounding; the visible fallback used a structured atomic citation, not the pipe branch."
+    },
+    {
+      "run_id": "retrieval_eval_20260904_060126",
+      "scope": "table-local-header post-correction HTTP two-case run",
+      "recorded_at": "2026-09-04T06:04:00Z",
+      "reason": "diagnostic/not-clean: 0/2 exact retrieval and 0/2 answer scoring. The positive visible fallback is source-supported by structured atomic chunks, while the unsupported side fails closed, but neither row proves the genuine pipe branch because exact parent chunk 38d26f5e was absent from final_top_k."
     }
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "timestamp": "2026-09-04T05:41:05Z",
+      "severity": "needs_fix",
+      "guardrail_commit": "000e63f",
+      "finding": "The interrupted pipe-role validator searched unrelated headers across a chunk, allowing a remedy cell to be relabeled as a cause by a conflicting or later table header.",
+      "status": "production_correction_complete_api_pipe_branch_proof_pending",
+      "evidence": [
+        "Role headers are now searched only backward from the selected row inside one contiguous pipe table; later/separate headers cannot relabel the row, and consecutive conflicting header rows fail closed.",
+        "Focused troubleshooting controls passed 27 tests, including leading/trailing/headerless positives, one-header multi-row reuse, conflicting-header and cross-table negatives, blank-role, sibling, missing-side, and cross-record controls.",
+        "The fixture-mounted full unit gate passed 672 tests with 59 warnings.",
+        "Restarted existing worktree-mounted API container manuals-rag-temp-api-39262386-20260902-0726 at 2026-09-04T06:00:28Z; health returned ok and host/container generator.py SHA-256 matched 2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf.",
+        "Actual HTTP retrieval_eval_20260904_060126 remained diagnostic 0/2: the positive used source-supported structured atomic citations and the Error 99999 control failed closed, but final_top_k omitted exact pipe parent chunk 38d26f5e, so the run does not prove the genuine pipe branch."
+      ],
+      "remaining": "Independent guardrail review plus genuine pipe-shaped actual-API changed-path evidence remain required before classifying the branch fully clean; do not treat structured atomic citations as pipe-path proof."
+    },
     {
       "timestamp": "2026-09-04T04:10:29Z",
       "severity": "needs_fix",
@@ -16419,21 +16533,21 @@
       ],
       "required_next_action": "Preserve guardrail-validated 557502c and the 005643 row-level classifications; continue source-reviewed distinct-document troubleshooting coverage with claim-level citation inspection."
     },
-        {
-          "timestamp": "2026-09-03T00:10:49Z",
-          "severity": "needs_fix",
-          "guardrail_commit": "900cb88",
-          "finding": "The record parser rejected valid line-wrapped troubleshooting rows and allowed compact same-line or row-header sibling records to lend unsupported remedies.",
-          "status": "addressed_this_run_pending_guardrail_review",
-          "evidence": [
-            "Production commit d0d1ed3 replaces newline-only splitting with label-aware record binding: wrapped fields remain one record, repeated identifier/message/row anchors start a sibling record, and pipe-table rows remain isolated.",
-            "Focused parser/answer controls passed 18 tests, including line-wrapped and semicolon positives plus compact same-line, row-header, pipe-table, sibling-role, reversed-order, cross-chunk, missing-side, and unrelated-sibling adversarial cases.",
-            "The fixture-mounted full unit gate passed 649 tests with 59 warnings; git diff --check passed.",
-            "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901 at 2026-09-03T00:30:57Z; health was OK and host/container generator.py SHA-256 matched 3594c384e5b4d6440af6647fe1fa567f5bac4826f441d2a80bdf233eb9c32835. Five loaded parser branch controls passed.",
-            "Actual HTTP retrieval_eval_20260903_003115 passed retrieval 2/2 at rank 1. The XG-X positive passed answer grounding and cited exact CV-X482 5d3cb915 and XG-X 435cd418 chunks; returned content directly states both requested corrective actions and quote_span is null. The VS missing-side control returned insufficient_evidence=true with no citations."
-          ],
-          "required_next_action": "Await independent guardrail review of d0d1ed3; preserve the 003115 positive as clean case-level evidence, the missing-side row as an intentional control, and the combined run as not clean."
-        },
+    {
+      "timestamp": "2026-09-03T00:10:49Z",
+      "severity": "needs_fix",
+      "guardrail_commit": "900cb88",
+      "finding": "The record parser rejected valid line-wrapped troubleshooting rows and allowed compact same-line or row-header sibling records to lend unsupported remedies.",
+      "status": "addressed_this_run_pending_guardrail_review",
+      "evidence": [
+        "Production commit d0d1ed3 replaces newline-only splitting with label-aware record binding: wrapped fields remain one record, repeated identifier/message/row anchors start a sibling record, and pipe-table rows remain isolated.",
+        "Focused parser/answer controls passed 18 tests, including line-wrapped and semicolon positives plus compact same-line, row-header, pipe-table, sibling-role, reversed-order, cross-chunk, missing-side, and unrelated-sibling adversarial cases.",
+        "The fixture-mounted full unit gate passed 649 tests with 59 warnings; git diff --check passed.",
+        "Restarted manuals-rag-temp-api-39262386-20260902-0726 from /tmp/manuals_rag_accuracy_20260901 at 2026-09-03T00:30:57Z; health was OK and host/container generator.py SHA-256 matched 3594c384e5b4d6440af6647fe1fa567f5bac4826f441d2a80bdf233eb9c32835. Five loaded parser branch controls passed.",
+        "Actual HTTP retrieval_eval_20260903_003115 passed retrieval 2/2 at rank 1. The XG-X positive passed answer grounding and cited exact CV-X482 5d3cb915 and XG-X 435cd418 chunks; returned content directly states both requested corrective actions and quote_span is null. The VS missing-side control returned insufficient_evidence=true with no citations."
+      ],
+      "required_next_action": "Await independent guardrail review of d0d1ed3; preserve the 003115 positive as clean case-level evidence, the missing-side row as an intentional control, and the combined run as not clean."
+    },
     {
       "timestamp": "2026-09-02T23:11:35Z",
       "severity": "needs_fix",
@@ -17942,5 +18056,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T04:48:00Z"
+  "updated_at": "2026-09-04T06:04:00Z"
 }

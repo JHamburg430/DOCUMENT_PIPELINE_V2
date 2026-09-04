@@ -1908,6 +1908,120 @@ def test_reported_symptom_fallback_accepts_pipe_row_identity_with_optional_delim
         assert _repeated_side_matching_records(clause, pipe_row) == [pipe_row]
 
 
+def test_reported_symptom_fallback_accepts_source_bound_pipe_cause_cell_end_to_end():
+    query = (
+        "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
+        "what caused the condition, and what causes VSN Series Error 30109?"
+    )
+    pipe_tables = [
+        (
+            "| Condition | Cause |\n"
+            "| Sensor program damaged. Initialization necessary. | A memory read error occurred at startup. |"
+        ),
+        (
+            "Condition | Cause\n"
+            "Sensor program damaged. Initialization necessary. | A memory read error occurred at startup."
+        ),
+        (
+            "Sensor program damaged. Initialization necessary. | Cause: A memory read error occurred at startup."
+        ),
+        (
+            "Message: Sensor program damaged. Initialization necessary.; "
+            "Cause: A memory read error occurred at startup.\n"
+            "Sensor communication interrupted. | A network cable was disconnected."
+        ),
+    ]
+
+    for pipe_table in pipe_tables:
+        results = _reported_symptom_comparison_results_fixture()
+        results[0] = results[0].model_copy(update={"content": pipe_table})
+        selected = _fallback_evidence_results(query, results)
+        assert [result.chunk_id for result in selected] == [
+            "controller-damaged-program",
+            "family-error-30109",
+        ]
+        answer = _fallback_answer(query, results)
+        assert answer.insufficient_evidence is False
+        assert "memory read error occurred at startup" in answer.answer.lower()
+        assert "network cable was disconnected" not in answer.answer.lower()
+        assert {citation["chunk_id"] for citation in answer.citations} == {
+            "controller-damaged-program",
+            "family-error-30109",
+        }
+
+
+def test_reported_symptom_fallback_rejects_pipe_row_with_blank_requested_role_cell():
+    query = (
+        "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
+        "what caused the condition, and what causes VSN Series Error 30109?"
+    )
+    results = _reported_symptom_comparison_results_fixture()
+    results[0] = results[0].model_copy(
+        update={
+            "content": (
+                "| Condition | Cause | Remedy |\n"
+                "| Sensor program damaged. Initialization necessary. | | Reset the controller. |"
+            )
+        }
+    )
+
+    assert _fallback_evidence_results(query, results) == []
+    assert _fallback_answer(query, results).insufficient_evidence is True
+
+
+def test_reported_symptom_fallback_does_not_relabel_pipe_row_from_conflicting_header():
+    pipe_tables_cases = [
+        (
+            "| Condition | Remedy |\n"
+            "| Condition | Cause |\n"
+            "| Sensor program damaged. Initialization necessary. | Reset the controller. |"
+        ),
+        (
+            "| Condition | Remedy |\n"
+            "| Sensor program damaged. Initialization necessary. | Reset the controller. |\n"
+            "| Cause | Condition |\n"
+            "| Power loss | Startup interrupted |"
+        ),
+    ]
+    query = (
+        "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
+        "what caused the condition, and what causes VSN Series Error 30109?"
+    )
+    for pipe_tables in pipe_tables_cases:
+        results = _reported_symptom_comparison_results_fixture()
+        results[0] = results[0].model_copy(update={"content": pipe_tables})
+
+        assert _fallback_evidence_results(query, results) == []
+        answer = _fallback_answer(query, results)
+        assert answer.insufficient_evidence is True
+        assert "reset the controller" not in answer.answer.lower()
+
+
+def test_reported_symptom_fallback_uses_one_header_for_later_rows_in_same_pipe_table():
+    query = (
+        "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
+        "what caused the condition, and what causes VSN Series Error 30109?"
+    )
+    results = _reported_symptom_comparison_results_fixture()
+    results[0] = results[0].model_copy(
+        update={
+            "content": (
+                "| Condition | Cause |\n"
+                "| --- | --- |\n"
+                "| Sensor communication interrupted. | A network cable was disconnected. |\n"
+                "| Sensor program damaged. Initialization necessary. | A memory read error occurred. |"
+            )
+        }
+    )
+
+    selected = _fallback_evidence_results(query, results)
+    assert [result.chunk_id for result in selected] == [
+        "controller-damaged-program",
+        "family-error-30109",
+    ]
+    assert _fallback_answer(query, results).insufficient_evidence is False
+
+
 def test_reported_symptom_fallback_does_not_borrow_cause_across_leading_pipe_rows():
     query = (
         "For a CTRL-900 reporting that its sensor program is damaged and initialization is necessary, "
