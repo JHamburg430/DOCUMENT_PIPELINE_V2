@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260830-clear-question-list-2";
+const ASSET_VERSION = "20260904-matrix-only";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
 const MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"]);
@@ -2464,16 +2464,6 @@ async function loadHistory() {
     row.addEventListener("click", async () => {
       const run = await apiJson(`/runs/${row.dataset.runId}`);
       $("history-detail").innerHTML = `<details open><summary>Run JSON</summary><pre>${escapeHtml(JSON.stringify(run, null, 2))}</pre></details>`;
-      if (run.run_type === "end_to_end_eval" && (run.result_json || run.status === "running" || run.status === "queued")) {
-        state.selectedEvalIndex = 0;
-        document.querySelector('[data-tab="eval"]').click();
-        if (run.result_json) {
-          renderCompletedEvalRun(run, "history");
-          setStatus(`Loaded ${run.status} run`, run.status === "failed" ? "error" : "complete");
-        } else {
-          await resumeEvalRun(run.id);
-        }
-      }
     });
   });
 }
@@ -2481,11 +2471,9 @@ async function loadHistory() {
 async function recoverAfterPageReturn() {
   if (document.visibilityState && document.visibilityState !== "visible") return;
   try {
-    await loadLatestRun();
-    if (state.activeRun?.id && !state.running) {
-      await resumeEvalRun(state.activeRun.id);
-    } else if (!state.running) {
-      await loadHistory();
+    await loadHistory();
+    if (document.querySelector(".tab.active")?.dataset.tab === "matrix") {
+      await loadQuestionMatrix();
     }
     if (document.querySelector(".tab.active")?.dataset.tab === "ingestion") {
       await loadIngestionStatus();
@@ -2612,26 +2600,15 @@ function setupProgressInteractions() {
 
 async function init() {
   setupTabs();
-  setupEvalScopeControls();
-  setupProgressInteractions();
   setupMatrixControls();
-  $("run-eval").addEventListener("click", runEval);
-  $("load-latest").addEventListener("click", loadLatestResults);
   $("run-query").addEventListener("click", runQuery);
   $("refresh-history").addEventListener("click", loadHistory);
   $("refresh-ingestion").addEventListener("click", loadIngestionStatus);
   try {
-    await loadDocuments();
-    await loadLatestRun();
     await loadHistory();
     await loadIngestionStatus();
     await loadQuestionMatrix();
     state.ingestionTimer = setInterval(maybePollIngestion, 5000);
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const { payload, meta } = JSON.parse(saved);
-      renderEval(payload, meta);
-    }
     setConnectionStatus(`API connected at ${API_BASE}`);
   } catch (error) {
     setConnectionStatus(`API error: ${error.message}`, "error");

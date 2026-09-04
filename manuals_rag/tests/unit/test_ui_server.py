@@ -103,6 +103,11 @@ def test_eval_matrix_view_is_available():
     styles_css = (UI_DIR / "styles.css").read_text()
 
     assert 'data-tab="matrix"' in index_html
+    assert 'class="tab active" data-tab="matrix"' in index_html
+    assert 'id="matrix" class="tab-panel active"' in index_html
+    assert "End-to-End Eval" not in index_html
+    assert 'data-tab="eval"' not in index_html
+    assert 'id="eval"' not in index_html
     assert 'id="matrix-run-all-bank"' in index_html
     assert 'id="matrix-run-column"' in index_html
     assert 'id="matrix-use-model-judge"' in index_html

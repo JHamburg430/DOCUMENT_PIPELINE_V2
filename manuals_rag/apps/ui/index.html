@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260830-clear-question-list-2" />
+    <link rel="stylesheet" href="/styles.css?v=20260904-matrix-only" />
   </head>
   <body>
     <main class="app-shell">
@@ -14,93 +14,14 @@
           <p id="connection-status">Connecting to API...</p>
         </div>
         <nav class="tabs" aria-label="Views">
-          <button class="tab active" data-tab="eval">End-to-End Eval</button>
-          <button class="tab" data-tab="matrix">Eval Matrix</button>
+          <button class="tab active" data-tab="matrix">Eval Matrix</button>
           <button class="tab" data-tab="search">Search</button>
           <button class="tab" data-tab="ingestion">Ingestion</button>
           <button class="tab" data-tab="history">Run History</button>
         </nav>
       </header>
 
-      <section id="eval" class="tab-panel active">
-        <aside class="sidebar">
-          <section class="panel">
-            <h2>Current Run</h2>
-            <div id="latest-run" class="muted">Loading...</div>
-            <button id="load-latest" type="button">Open Run</button>
-          </section>
-
-          <section class="panel">
-            <h2>Run Evaluation</h2>
-            <label>
-              Scope
-              <select id="eval-scope">
-                <option value="corpus">All indexed docs in corpora</option>
-                <option value="document">Single document</option>
-              </select>
-            </label>
-            <label>
-              Corpus IDs
-              <input id="eval-corpus" value="manuals_vendor_keyence" />
-            </label>
-            <label>
-              Document
-              <select id="eval-document"></select>
-            </label>
-            <label>
-              Max questions
-              <input id="eval-max-questions" type="number" min="1" max="50" value="8" />
-            </label>
-            <label class="check-row">
-              <input id="eval-llm-generation" type="checkbox" checked />
-              Use LLM question generation
-            </label>
-            <label>
-              Samples per stage
-              <input id="sample-limit" type="number" min="3" max="100" value="10" />
-            </label>
-            <button id="run-eval" type="button">Run End-to-End Eval</button>
-          </section>
-        </aside>
-
-        <section class="workspace">
-          <section class="panel">
-            <div class="section-heading">
-              <h2>Progress</h2>
-              <span id="eval-status" class="status-pill">Idle</span>
-            </div>
-            <div id="progress-list" class="progress-list"></div>
-            <details open>
-              <summary>Run debug</summary>
-              <div id="run-debug-summary" class="debug-summary empty-state">No active run.</div>
-              <pre id="run-debug-log" class="debug-log"></pre>
-            </details>
-            <details>
-              <summary>Streaming model output</summary>
-              <div id="model-output" class="model-output"></div>
-            </details>
-            <section class="live-trace-panel">
-              <div class="section-heading">
-                <h2>Question Trace</h2>
-                <span id="trace-status" class="muted">No active trace.</span>
-              </div>
-              <div id="question-trace" class="question-trace empty-state">Run or resume an eval to inspect each question.</div>
-            </section>
-          </section>
-
-          <section class="panel">
-            <div class="section-heading">
-              <h2>Results</h2>
-              <span id="result-run-id" class="muted"></span>
-            </div>
-            <div id="eval-summary" class="metrics empty-state">No evaluation loaded.</div>
-            <div id="eval-table"></div>
-            <div id="eval-detail"></div>
-          </section>
-        </section>
-      </section>
-
-      <section id="matrix" class="tab-panel">
+      <section id="matrix" class="tab-panel active">
         <section class="panel">
           <div class="section-heading">
             <h2>Eval Matrix</h2>
@@ -272,6 +193,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260830-clear-question-list-2"></script>
+    <script src="/app.js?v=20260904-matrix-only"></script>
   </body>
 </html>
