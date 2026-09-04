@@ -30,6 +30,9 @@ def _write_answer_run(
     status: str | None = None,
     dataset_case_ids: list[str | None] | None = None,
     result_case_ids: list[str | None] | None = None,
+    answer_evaluations: list[object] | None = None,
+    answer_passed_queries: int = 0,
+    answer_failed_queries: int | None = None,
 ) -> list[Path]:
     reports = root / "test_reports"
     reports.mkdir(exist_ok=True)
@@ -39,8 +42,12 @@ def _write_answer_run(
         "passed_queries": 0,
         "failed_queries": dataset_count,
         "answer_eval_count": answer_eval_count,
-        "answer_passed_queries": 0,
-        "answer_failed_queries": answer_eval_count,
+        "answer_passed_queries": answer_passed_queries,
+        "answer_failed_queries": (
+            answer_eval_count
+            if answer_failed_queries is None
+            else answer_failed_queries
+        ),
     }
     if evaluation_skipped:
         manifest["evaluation_skipped"] = True
@@ -60,6 +67,9 @@ def _write_answer_run(
     result_case_ids = result_case_ids or [
         f"case-{index}" for index in range(result_count)
     ]
+    answer_evaluations = answer_evaluations or [
+        {"passed": False} for _ in range(result_count)
+    ]
     paths[0].write_text(json.dumps(manifest), encoding="utf-8")
     paths[1].write_text(
         "".join(
@@ -72,11 +82,13 @@ def _write_answer_run(
             json.dumps(
                 {
                     "case": {"case_id": case_id},
-                    "answer_evaluation": {"passed": False},
+                    "answer_evaluation": answer_evaluation,
                 }
             )
             + "\n"
-            for case_id in result_case_ids
+            for case_id, answer_evaluation in zip(
+                result_case_ids, answer_evaluations, strict=True
+            )
         ),
         encoding="utf-8",
     )
@@ -847,6 +859,62 @@ def test_manifest_checker_ignores_answer_run_with_unexpected_result_case_id(tmp_
         tmp_path,
         "20260830_211603",
         result_case_ids=["case-0", "unexpected-case"],
+    )
+    _git_commit_paths(tmp_path, paths)
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_accepts_explicit_reconciled_answer_verdicts(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(
+        tmp_path,
+        "20260830_201603",
+        answer_evaluations=[{"passed": True}, {"passed": False}],
+        answer_passed_queries=1,
+        answer_failed_queries=1,
+    )
+    _git_commit_paths(tmp_path, paths)
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_ignores_answer_run_with_empty_verdict(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(
+        tmp_path,
+        "20260830_211603",
+        answer_evaluations=[{}, {}],
+    )
+    _git_commit_paths(tmp_path, paths)
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_ignores_answer_run_with_missing_or_non_boolean_verdict(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(
+        tmp_path,
+        "20260830_211603",
+        answer_evaluations=[None, {"passed": "false"}],
+    )
+    _git_commit_paths(tmp_path, paths)
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
+def test_manifest_checker_ignores_answer_run_with_summary_verdict_mismatch(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    paths = _write_answer_run(
+        tmp_path,
+        "20260830_211603",
+        answer_evaluations=[{"passed": True}, {"passed": True}],
+        answer_passed_queries=0,
+        answer_failed_queries=2,
     )
     _git_commit_paths(tmp_path, paths)
 

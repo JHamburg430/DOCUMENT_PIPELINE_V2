@@ -9086,13 +9086,13 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main ddb354a before edits; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 6b67f3f before edits; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
       "git_status_check": "dirty only with this run's progress and manifest tracking before final commit",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-      "timestamp": "2026-09-04T09:03:00Z",
+      "timestamp": "2026-09-04T09:30:00Z",
       "git_status_before_final_commit": "dirty only with this run's progress and manifest tracking before final commit"
     },
     "dataset_ledger_extension_containment": {
@@ -12907,13 +12907,13 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main ddb354a before edits; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 6b67f3f before edits; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
         "git_status_check": "dirty only with this run's progress and manifest tracking before final commit",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-        "timestamp": "2026-09-04T09:03:00Z",
+        "timestamp": "2026-09-04T09:30:00Z",
         "git_status_before_final_commit": "dirty only with this run's progress and manifest tracking before final commit"
       },
       "dataset_ledger_extension_containment": {
@@ -14045,6 +14045,20 @@
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
+      {
+        "finding": "Guardrail commit 0ab0d44 found that empty, missing, non-boolean, or summary-contradicting per-result answer verdicts could be treated as a complete newer answer-mode run by the freshness checker.",
+        "guardrail_commit": "0ab0d44",
+        "guardrail_timestamp": "2026-09-04T09:16:35Z",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_explicit_boolean_verdict_and_summary_reconciliation",
+        "evidence": [
+          "Every result must contain answer_evaluation.passed as an actual boolean before a run participates in freshness ordering.",
+          "Per-result true and false verdict counts must exactly equal nonnegative integer answer_passed_queries and answer_failed_queries in the summary.",
+          "Git-backed legitimate mixed-verdict, empty verdict, missing/non-boolean verdict, and summary-verdict mismatch controls pass in the 82-test focused suite.",
+          "Normal and parent-aware whole-manifest checks pass; the fixture-mounted full unit gate passes 687 tests with 59 warnings."
+        ],
+        "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting or later-header negative that reaches the same branch, or keep that branch explicitly partially proved."
+      },
       {
         "finding": "Guardrail commit 5a93593 found that count-only completion accepted duplicated or unexpected result case identities and that target aliases were temporarily stale during the in-progress correction.",
         "guardrail_commit": "5a93593",
@@ -15669,7 +15683,7 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T08:52:00Z"
+    "updated_at": "2026-09-04T09:30:00Z"
   },
   "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {
@@ -16544,6 +16558,20 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "finding": "Guardrail commit 0ab0d44 found that empty, missing, non-boolean, or summary-contradicting per-result answer verdicts could be treated as a complete newer answer-mode run by the freshness checker.",
+      "guardrail_commit": "0ab0d44",
+      "guardrail_timestamp": "2026-09-04T09:16:35Z",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_explicit_boolean_verdict_and_summary_reconciliation",
+      "evidence": [
+        "Every result must contain answer_evaluation.passed as an actual boolean before a run participates in freshness ordering.",
+        "Per-result true and false verdict counts must exactly equal nonnegative integer answer_passed_queries and answer_failed_queries in the summary.",
+        "Git-backed legitimate mixed-verdict, empty verdict, missing/non-boolean verdict, and summary-verdict mismatch controls pass in the 82-test focused suite.",
+        "Normal and parent-aware whole-manifest checks pass; the fixture-mounted full unit gate passes 687 tests with 59 warnings."
+      ],
+      "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting or later-header negative that reaches the same branch, or keep that branch explicitly partially proved."
+    },
     {
       "finding": "Guardrail commit 5a93593 found that count-only completion accepted duplicated or unexpected result case identities and that target aliases were temporarily stale during the in-progress correction.",
       "guardrail_commit": "5a93593",
@@ -18168,5 +18196,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T08:52:00Z"
+  "updated_at": "2026-09-04T09:30:00Z"
 }

@@ -473,6 +473,14 @@ def _check_latest_answer_mode_run_freshness(
             else None
             for row in result_rows
         ]
+        answer_verdicts = [
+            row.get("answer_evaluation", {}).get("passed")
+            if isinstance(row.get("answer_evaluation"), dict)
+            else None
+            for row in result_rows
+        ]
+        answer_passed_queries = summary.get("answer_passed_queries")
+        answer_failed_queries = summary.get("answer_failed_queries")
         if (
             not isinstance(total_queries, int)
             or isinstance(total_queries, bool)
@@ -487,14 +495,20 @@ def _check_latest_answer_mode_run_freshness(
             or len(set(dataset_case_ids)) != total_queries
             or len(set(result_case_ids)) != total_queries
             or set(dataset_case_ids) != set(result_case_ids)
-            or not all(
-                isinstance(row.get("answer_evaluation"), dict) for row in result_rows
-            )
+            or not all(isinstance(verdict, bool) for verdict in answer_verdicts)
             or summary.get("passed_queries", 0) + summary.get("failed_queries", 0)
             != total_queries
-            or summary.get("answer_passed_queries", 0)
-            + summary.get("answer_failed_queries", 0)
-            != answer_eval_count
+            or not isinstance(answer_passed_queries, int)
+            or isinstance(answer_passed_queries, bool)
+            or answer_passed_queries < 0
+            or not isinstance(answer_failed_queries, int)
+            or isinstance(answer_failed_queries, bool)
+            or answer_failed_queries < 0
+            or answer_passed_queries + answer_failed_queries != answer_eval_count
+            or sum(verdict is True for verdict in answer_verdicts)
+            != answer_passed_queries
+            or sum(verdict is False for verdict in answer_verdicts)
+            != answer_failed_queries
         ):
             continue
         complete_answer_runs.append(artifact_run)
