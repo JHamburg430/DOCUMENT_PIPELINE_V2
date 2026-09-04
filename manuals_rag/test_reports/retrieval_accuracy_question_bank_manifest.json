@@ -9082,15 +9082,15 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main d26139b before the current scoped commit; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main c01314f; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean at d26139b before edits; dirty only with this run's scoped answering, tests, artifacts, progress, and manifest changes",
+      "git_status_check": "clean immediately after pushed production/tracking commit c01314f; dirty only with this required lifecycle update",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
       "timestamp": "2026-09-04T11:35:00Z",
-      "git_status_before_final_commit": "dirty only with the current run's scoped changes; removal intentionally not attempted before durable tracking",
-      "pushed_correction_commit": "pending current scoped commit"
+      "git_status_before_final_commit": "clean after c01314f; dirty only with this required lifecycle tracking update",
+      "pushed_correction_commit": "c01314f"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -9213,9 +9213,9 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main d26139b before current edits; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main c01314f; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean at d26139b before edits; pre-final-commit status dirty only with the current run's scoped changes",
+      "git_status_check": "clean immediately after c01314f; dirty only with this required lifecycle tracking update",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -12905,15 +12905,15 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main d26139b before the current scoped commit; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main c01314f; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "git_status_check": "clean at d26139b before edits; dirty only with this run's scoped answering, tests, artifacts, progress, and manifest changes",
+        "git_status_check": "clean immediately after pushed production/tracking commit c01314f; dirty only with this required lifecycle update",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
         "timestamp": "2026-09-04T11:35:00Z",
-        "git_status_before_final_commit": "dirty only with the current run's scoped changes; removal intentionally not attempted before durable tracking",
-        "pushed_correction_commit": "pending current scoped commit"
+        "git_status_before_final_commit": "clean after c01314f; dirty only with this required lifecycle tracking update",
+        "pushed_correction_commit": "c01314f"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -13036,9 +13036,9 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main d26139b before current edits; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main c01314f; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "git_status_check": "clean at d26139b before edits; pre-final-commit status dirty only with the current run's scoped changes",
+        "git_status_check": "clean immediately after c01314f; dirty only with this required lifecycle tracking update",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
