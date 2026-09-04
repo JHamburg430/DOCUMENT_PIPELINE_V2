@@ -209,7 +209,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected both visible answers, every citation, and cited returned content in retrieval_eval_20260904_120705. The positive directly states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the later-header control returns insufficient evidence and no citations.",
-    "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+    "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
     "scope": "retrieval_eval_20260904_120705 is a validation-only two-case rerun after a general requested-model answer-selector correction; active coverage and dataset ledger unchanged. Direct wrong-model API probes are diagnostic/not-clean."
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -798,7 +798,7 @@
       "insufficient_evidence": 1
     },
     "manual_jsonl_inspection": "Inspected both 120705 payloads, every citation, and cited returned content. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The later-header control returns insufficient evidence with no citations.",
-    "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+    "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
     "latest_clean_run": "retrieval_eval_20260904_120705 FTP Connection Error positive only"
   },
   "constraints": {
@@ -9087,14 +9087,14 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main 4d9bc20; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 12c188e before this tracking-only validation; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean immediately after pushed production/tracking commit 4d9bc20; dirty only with this required lifecycle update",
+      "git_status_check": "clean at origin/main 12c188e before this run; dirty only with this tracking-only validation update",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-      "timestamp": "2026-09-04T12:17:00Z",
-      "git_status_before_final_commit": "clean after 4d9bc20; dirty only with this required lifecycle tracking update",
+      "timestamp": "2026-09-04T12:35:00Z",
+      "git_status_before_final_commit": "clean at 12c188e before this run; dirty only with this tracking-only validation update",
       "pushed_correction_commit": "4d9bc20"
     },
     "dataset_ledger_extension_containment": {
@@ -9313,7 +9313,7 @@
       ]
     }
   ],
-  "next_target": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+  "next_target": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10276,7 +10276,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected both visible answers, every citation, and cited returned content in retrieval_eval_20260904_120705. The positive directly states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the later-header control returns insufficient evidence and no citations.",
-      "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+      "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
       "scope": "retrieval_eval_20260904_120705 is a validation-only two-case rerun after a general requested-model answer-selector correction; active coverage and dataset ledger unchanged. Direct wrong-model API probes are diagnostic/not-clean."
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10654,7 +10654,7 @@
         "insufficient_evidence": 1
       },
       "manual_jsonl_inspection": "Inspected both 120705 payloads, every citation, and cited returned content. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The later-header control returns insufficient evidence with no citations.",
-      "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+      "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
       "latest_clean_run": "retrieval_eval_20260904_120705 FTP Connection Error positive only"
     },
     "answer_current_failure_categories": {
@@ -12915,14 +12915,14 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main 4d9bc20; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 12c188e before this tracking-only validation; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "git_status_check": "clean immediately after pushed production/tracking commit 4d9bc20; dirty only with this required lifecycle update",
+      "git_status_check": "clean at origin/main 12c188e before this run; dirty only with this tracking-only validation update",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-        "timestamp": "2026-09-04T12:17:00Z",
-        "git_status_before_final_commit": "clean after 4d9bc20; dirty only with this required lifecycle tracking update",
+      "timestamp": "2026-09-04T12:35:00Z",
+      "git_status_before_final_commit": "clean at 12c188e before this run; dirty only with this tracking-only validation update",
         "pushed_correction_commit": "4d9bc20"
       },
       "dataset_ledger_extension_containment": {
@@ -13143,7 +13143,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+    "next_target": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13180,7 +13180,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+    "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
   {
@@ -14072,16 +14072,17 @@
     "guardrail_commit": "b9d4c9e",
     "guardrail_timestamp": "2026-09-04T11:43:44Z",
     "severity": "needs_fix",
-    "status": "production_correction_complete_loaded_model_binding_controls_pass_actual_api_model_mismatch_proof_limited_pending_guardrail_review",
+    "status": "production_correction_committed_and_independently_validated_actual_api_model_mismatch_branch_proof_limited",
     "evidence": [
       "The selector now requires every explicit requested product/model side to match the candidate source row before accepting its symptom-to-role relation.",
       "Loaded controls pass for exact-model positive, wrong-model-only, higher-score wrong-model sibling, absent-model metadata, duplicate same-model identity ambiguity, model-prefix collision, and exact Error 30109 text/model binding.",
       "The corrected fixture-mounted full unit gate passed 702 tests with 59 warnings; the first 687-pass/15-failure attempt lacked Git and is diagnostic only.",
       "Restarted manuals-rag-temp-api-39262386-20260902-0726; health was ok and host/container generator.py SHA-256 matched 4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811.",
       "Actual HTTP retrieval_eval_20260904_120705 passed retrieval 2/2 and answer 1/2 by design: the IV-HG500CA FTP positive cited exact pipe parent 38d26f5e and the later-header no-cause control failed closed with no citations.",
-      "Direct IV4-G600CA and synthetic MOD-500 API probes returned unrelated IV4 FTP setup evidence rather than a cause. They are diagnostic and do not prove the requested-model selector branch through HTTP."
+      "Direct IV4-G600CA and synthetic MOD-500 API probes returned unrelated IV4 FTP setup evidence rather than a cause. They are diagnostic and do not prove the requested-model selector branch through HTTP.",
+      "Independent 2026-09-04 validation found origin/main at 12c188e with correction 4d9bc20 committed, passed six loaded model-binding controls, passed normal and parent-aware manifest checks, and passed the Git-mounted fixture-complete unit gate at 703 tests; the base-image 688-pass/15-failure attempt lacked Git and is diagnostic only."
     ],
-    "remaining": "Independent guardrail review remains required. The production selector defect is covered deterministically and loaded, but an actual HTTP wrong-model case that reaches the structured selector is still unavailable without unsafe synthetic injection; preserve the direct API fallthrough diagnostics and do not claim them clean."
+    "remaining": "The committed production selector defect is independently covered and fully unit-gated. An actual HTTP wrong-model case that reaches the structured selector remains unavailable without unsafe synthetic injection; preserve the direct API fallthrough diagnostics and do not claim branch proof until a safe realistic case exercises it."
   },
       {
         "finding": "Guardrail commit 0ab0d44 found that empty, missing, non-boolean, or summary-contradicting per-result answer verdicts could be treated as a complete newer answer-mode run by the freshness checker.",
@@ -15721,9 +15722,9 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T12:17:00Z"
+    "updated_at": "2026-09-04T12:35:00Z"
   },
-  "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+  "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
   {
@@ -16614,16 +16615,17 @@
     "guardrail_commit": "b9d4c9e",
     "guardrail_timestamp": "2026-09-04T11:43:44Z",
     "severity": "needs_fix",
-    "status": "production_correction_complete_loaded_model_binding_controls_pass_actual_api_model_mismatch_proof_limited_pending_guardrail_review",
+    "status": "production_correction_committed_and_independently_validated_actual_api_model_mismatch_branch_proof_limited",
     "evidence": [
       "The selector now requires every explicit requested product/model side to match the candidate source row before accepting its symptom-to-role relation.",
       "Loaded controls pass for exact-model positive, wrong-model-only, higher-score wrong-model sibling, absent-model metadata, duplicate same-model identity ambiguity, model-prefix collision, and exact Error 30109 text/model binding.",
       "The corrected fixture-mounted full unit gate passed 702 tests with 59 warnings; the first 687-pass/15-failure attempt lacked Git and is diagnostic only.",
       "Restarted manuals-rag-temp-api-39262386-20260902-0726; health was ok and host/container generator.py SHA-256 matched 4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811.",
       "Actual HTTP retrieval_eval_20260904_120705 passed retrieval 2/2 and answer 1/2 by design: the IV-HG500CA FTP positive cited exact pipe parent 38d26f5e and the later-header no-cause control failed closed with no citations.",
-      "Direct IV4-G600CA and synthetic MOD-500 API probes returned unrelated IV4 FTP setup evidence rather than a cause. They are diagnostic and do not prove the requested-model selector branch through HTTP."
+      "Direct IV4-G600CA and synthetic MOD-500 API probes returned unrelated IV4 FTP setup evidence rather than a cause. They are diagnostic and do not prove the requested-model selector branch through HTTP.",
+      "Independent 2026-09-04 validation found origin/main at 12c188e with correction 4d9bc20 committed, passed six loaded model-binding controls, passed normal and parent-aware manifest checks, and passed the Git-mounted fixture-complete unit gate at 703 tests; the base-image 688-pass/15-failure attempt lacked Git and is diagnostic only."
     ],
-    "remaining": "Independent guardrail review remains required. The production selector defect is covered deterministically and loaded, but an actual HTTP wrong-model case that reaches the structured selector is still unavailable without unsafe synthetic injection; preserve the direct API fallthrough diagnostics and do not claim them clean."
+    "remaining": "The committed production selector defect is independently covered and fully unit-gated. An actual HTTP wrong-model case that reaches the structured selector remains unavailable without unsafe synthetic injection; preserve the direct API fallthrough diagnostics and do not claim branch proof until a safe realistic case exercises it."
   },
     {
       "finding": "Guardrail commit 0ab0d44 found that empty, missing, non-boolean, or summary-contradicting per-result answer verdicts could be treated as a complete newer answer-mode run by the freshness checker.",
@@ -18263,5 +18265,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T12:17:00Z"
+  "updated_at": "2026-09-04T12:35:00Z"
 }
