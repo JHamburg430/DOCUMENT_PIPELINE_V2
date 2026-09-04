@@ -25,6 +25,7 @@ MANUALS_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(MANUALS_ROOT / "packages" / "evals" / "src"))
 
 from manuals_rag_evals.retrieval_eval import (
+    _has_near_duplicate_query,
     build_eval_cases_from_chunks,
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
@@ -689,10 +690,26 @@ def build_single_step_generation_cases_until_target(
     cursor = 0
     previous_by_chunk = {key: list(value) for key, value in previous_questions_by_chunk_id.items()}
     previous_by_section = {key: list(value) for key, value in previous_questions_by_section_key.items()}
+    accepted_query_texts = list(
+        dict.fromkeys(
+            question
+            for questions in [*previous_by_chunk.values(), *previous_by_section.values()]
+            for question in questions
+            if question
+        )
+    )
     while cursor < len(chunks) and len(accepted) < max_cases:
         window_chunks = chunks[cursor : cursor + window_size]
         if not window_chunks:
             break
+        window_chunks = [
+            chunk
+            for chunk in window_chunks
+            if len(previous_by_chunk.get(str(chunk.get("id") or ""), [])) < per_chunk_limit
+        ]
+        if not window_chunks:
+            cursor += window_size
+            continue
         remaining = max_cases - len(accepted)
         batch = build_eval_cases_from_chunks(
             window_chunks,
@@ -701,12 +718,19 @@ def build_single_step_generation_cases_until_target(
             use_llm_generation=use_llm_generation,
             previous_questions_by_chunk_id=previous_by_chunk,
             previous_questions_by_section_key=previous_by_section,
+            previous_questions_global=accepted_query_texts,
             prompt_guidance=prompt_guidance,
             num_ctx=num_ctx,
             timeout_seconds=timeout_seconds,
         )
-        accepted.extend(batch)
+        globally_distinct_batch: list[RetrievalEvalCase] = []
         for case in batch:
+            if _has_near_duplicate_query(case.query, accepted_query_texts):
+                continue
+            accepted_query_texts.append(case.query)
+            globally_distinct_batch.append(case)
+        accepted.extend(globally_distinct_batch)
+        for case in globally_distinct_batch:
             previous_by_chunk.setdefault(str(case.source_chunk_id), []).append(case.query)
             previous_by_section.setdefault(_section_context_key(case.to_dict()), []).append(case.query)
         cursor += window_size
@@ -882,6 +906,15 @@ def main() -> int:
         help="Existing RetrievalEvalCase JSONL dataset to score instead of generating new cases.",
     )
     parser.add_argument(
+        "--retrieval-results-path",
+        type=Path,
+        default=None,
+        help=(
+            "Reuse top_results from a completed retrieval JSONL artifact instead of searching again. "
+            "Requires --dataset-path and --response-mode answer_with_citations."
+        ),
+    )
+    parser.add_argument(
         "--drop-invalid-saved-cases",
         action="store_true",
         help="When loading --dataset-path, omit stale saved single-step cases whose source chunks fail the current queryworthiness gate.",
@@ -991,6 +1024,10 @@ def main() -> int:
     random.seed(args.seed)
     if args.dataset_path and not args.existing_corpus_id:
         raise SystemExit("--dataset-path requires --existing-corpus-id so saved cases are searched in the intended corpus.")
+    if args.retrieval_results_path and (not args.dataset_path or args.response_mode != "answer_with_citations"):
+        raise SystemExit(
+            "--retrieval-results-path requires --dataset-path and --response-mode answer_with_citations."
+        )
 
     if args.existing_corpus_id:
         corpus_id = args.existing_corpus_id
@@ -1083,10 +1120,32 @@ def main() -> int:
                 )
             ]
 
+    reused_retrieval_by_case_id: dict[str, dict[str, Any]] = {}
+    if args.retrieval_results_path:
+        for record in read_jsonl(args.retrieval_results_path):
+            case_id = str(dict(record.get("case") or {}).get("case_id") or "")
+            if case_id:
+                reused_retrieval_by_case_id[case_id] = record
+        missing_case_ids = [str(case["case_id"]) for case in cases if str(case["case_id"]) not in reused_retrieval_by_case_id]
+        if missing_case_ids:
+            raise SystemExit(
+                f"Retrieval artifact is missing {len(missing_case_ids)} requested cases; first missing case: {missing_case_ids[0]}"
+            )
+        print(
+            json.dumps(
+                {
+                    "retrieval_results_path": str(args.retrieval_results_path),
+                    "reused_retrieval_cases": len(cases),
+                },
+                indent=2,
+            ),
+            flush=True,
+        )
+
     warmup_timeout_seconds = args.warmup_timeout_seconds
     if args.warmup_queries > 0 and warmup_timeout_seconds <= 0:
         warmup_timeout_seconds = max(30, args.per_query_timeout_seconds * 4)
-    warmups = run_warmup_searches(
+    warmups = [] if reused_retrieval_by_case_id else run_warmup_searches(
         cases,
         corpus_id=corpus_id,
         search_mode=args.search_mode,
@@ -1151,12 +1210,19 @@ def main() -> int:
         answer_evaluation: dict[str, Any] | None = None
         try:
             with query_timeout(args.per_query_timeout_seconds):
-                search_payload = run_case_search(
-                    case["query"],
-                    corpus_id=corpus_id,
-                    search_mode=args.search_mode,
-                    response_mode=args.response_mode,
-                )
+                if reused_retrieval_by_case_id:
+                    search_results = list(reused_retrieval_by_case_id[str(case["case_id"])].get("top_results") or [])
+                    search_payload = {
+                        "top_results": search_results,
+                        "answer": generate_answer_payload(case["query"], search_results),
+                    }
+                else:
+                    search_payload = run_case_search(
+                        case["query"],
+                        corpus_id=corpus_id,
+                        search_mode=args.search_mode,
+                        response_mode=args.response_mode,
+                    )
             search_results = search_payload.get("top_results", [])
             eval_case = RetrievalEvalCase(**case)
             evaluation = score_search_results(eval_case, search_results)
@@ -1227,6 +1293,7 @@ def main() -> int:
                 "corpus_id": corpus_id,
                 "documents": ingested_docs,
                 "input_dataset_path": str(args.dataset_path) if args.dataset_path else None,
+                "input_retrieval_results_path": str(args.retrieval_results_path) if args.retrieval_results_path else None,
                 "search_mode": args.search_mode,
                 "response_mode": args.response_mode,
                 "use_llm_answer_judge": args.use_llm_answer_judge,

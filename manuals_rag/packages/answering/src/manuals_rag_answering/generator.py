@@ -545,6 +545,9 @@ def _query_troubleshooting_anchor(query: str) -> str:
     patterns = (
         r"\bwhat causes\s+(.+?)\s+for\s+.+?\b(?:and|,)\s+how should",
         r"\bwhat causes\s+(.+?)\s*,?\s+and how should",
+        r"\bwhat causes\s+(.+?)\s+for\s+.+?\s*\?*$",
+        r"\bhow should\s+(.+?)\s+for\s+.+?\s+be corrected\s*\?*$",
+        r"\bhow should\s+(.+?)\s+be corrected\s*\?*$",
         r"\berror says\s+(.+?)\s*,?\s+what should",
         r"\berror\s+(.+?)\s*,?\s+what should",
     )
@@ -1346,6 +1349,40 @@ def generate_answer_with_trace(
             }
         )
         return answer, trace
+    if _is_troubleshooting_query(query):
+        structured_results = _focused_troubleshooting_results(
+            query,
+            _order_troubleshooting_results(query, results[:8]),
+        )
+        answer = validate_answer(
+            _fallback_answer(query, structured_results),
+            structured_results,
+            query=query,
+        )
+        trace["relevance_review"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "structured_troubleshooting",
+            }
+        )
+        trace["summarization"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "summary_count": 0,
+            }
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "structured_troubleshooting",
+                "num_predict": None,
+                "answer_source": "structured_evidence",
+            }
+        )
+        return answer, trace
     if prioritized_results is None:
         candidate_results = results[:8]
         prioritized = prioritize_results_for_answer(query, candidate_results)
@@ -1407,6 +1444,16 @@ def prepare_answer_evidence(query: str, results: list[SearchResult]) -> dict[str
 
 
 def prioritize_results_for_answer(query: str, candidate_results: list[SearchResult]) -> dict[str, Any]:
+    if _is_troubleshooting_query(query):
+        prioritized_results = _focused_troubleshooting_results(
+            query,
+            _order_troubleshooting_results(query, candidate_results),
+        )
+        return {
+            "judgments": _fallback_relevance_judgments(query, prioritized_results),
+            "prioritized_results": prioritized_results,
+            "selection_source": "structured_troubleshooting",
+        }
     judgments = judge_retrieval_relevance(query, candidate_results)
     judgment_by_chunk_id = {item["chunk_id"]: item for item in judgments}
     focused_results = _focused_troubleshooting_results(query, candidate_results)

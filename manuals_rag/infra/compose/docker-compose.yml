@@ -20,8 +20,8 @@ services:
       OLLAMA_URL: http://host.docker.internal:11434
       OLLAMA_EMBED_MODEL: qwen3-embedding:0.6b
       OLLAMA_METADATA_MODEL: tinyllama:1.1b
-      OLLAMA_ANSWER_MODEL: qwen3.5:9b
-      OLLAMA_ANSWER_NUM_PREDICT: ${OLLAMA_ANSWER_NUM_PREDICT:-1024}
+      OLLAMA_ANSWER_MODEL: qwen3.5:4b
+      OLLAMA_ANSWER_NUM_PREDICT: ${OLLAMA_ANSWER_NUM_PREDICT:-512}
       LOCAL_ADMIN_TOKEN: admin-token
       LOCAL_OPERATOR_TOKEN: operator-token
       LOCAL_END_USER_TOKEN: user-token
@@ -69,8 +69,8 @@ services:
       OLLAMA_URL: http://host.docker.internal:11434
       OLLAMA_EMBED_MODEL: qwen3-embedding:0.6b
       OLLAMA_METADATA_MODEL: tinyllama:1.1b
-      OLLAMA_ANSWER_MODEL: qwen3.5:9b
-      OLLAMA_ANSWER_NUM_PREDICT: ${OLLAMA_ANSWER_NUM_PREDICT:-1024}
+      OLLAMA_ANSWER_MODEL: qwen3.5:4b
+      OLLAMA_ANSWER_NUM_PREDICT: ${OLLAMA_ANSWER_NUM_PREDICT:-512}
       DEFAULT_CORPUS_ID: manuals_vendor_keyence
       DOCLING_DEVICE: cuda
       DOCLING_ENABLE_TABLE_STRUCTURE: "true"
@@ -142,7 +142,7 @@ services:
       MANUALS_RAG_API_BASE: http://api:8600
       MANUALS_RAG_AUTH_TOKEN: admin-token
       MANUALS_RAG_DEFAULT_CORPUS: manuals_vendor_keyence
-      OLLAMA_URL: http://host.docker.internal:11437
+      OLLAMA_URL: http://host.docker.internal:11434
       OLLAMA_ANSWER_MODEL: qwen3.5:9b
       OLLAMA_EVAL_MODEL: qwen3.5:9b
     volumes:

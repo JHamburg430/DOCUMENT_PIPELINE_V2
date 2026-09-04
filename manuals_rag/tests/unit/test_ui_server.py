@@ -1232,6 +1232,36 @@ def test_question_matrix_retrieval_requires_expected_chunk_when_chunk_target_exi
     assert cells["relevance"]["status"] == "blank"
 
 
+def test_question_matrix_trusts_completed_saved_retrieval_evaluation_without_live_trace():
+    cells = ui_server._build_row_cells(
+        {
+            "case": {
+                "source_document_id": "doc-expected",
+                "source_chunk_id": "chunk-expected",
+            },
+            "evaluation": {
+                "passed": True,
+                "rank": 2,
+                "candidate_recall": True,
+                "metadata_document_selection": {"attempted": True, "passed": True, "rank": 1},
+            },
+            "answer_evaluation": {
+                "passed": True,
+                "expected_document_used": True,
+                "citation_fidelity": {"checked": True, "passed": True, "checked_quote_count": 0},
+                "term_check": {"passed": True},
+            },
+        }
+    )
+
+    assert cells["retrieval"] == {
+        "status": "pass",
+        "detail": "completed saved evaluation; rank 2",
+        "label": "PASS",
+    }
+    assert cells["answer"]["status"] == "pass"
+
+
 def test_question_matrix_accepts_scored_equivalent_evidence_without_exact_anchor():
     cells = ui_server._build_row_cells(
         {

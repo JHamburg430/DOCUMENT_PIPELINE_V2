@@ -1970,6 +1970,7 @@ def build_eval_cases_from_chunks(
     use_llm_generation: bool = True,
     previous_questions_by_chunk_id: dict[str, list[str]] | None = None,
     previous_questions_by_section_key: dict[str, list[str]] | None = None,
+    previous_questions_global: list[str] | None = None,
     prompt_guidance: str | None = None,
     num_ctx: int | None = None,
     timeout_seconds: float | None = None,
@@ -1977,6 +1978,7 @@ def build_eval_cases_from_chunks(
     cases: list[RetrievalEvalCase] = []
     previous_questions_by_chunk_id = previous_questions_by_chunk_id or {}
     previous_questions_by_section_key = previous_questions_by_section_key or {}
+    previous_questions_global = previous_questions_global or []
     generated_questions_by_section_key: dict[str, list[str]] = {}
     for chunk in chunks:
         anchors = extract_anchor_terms(str(chunk["content"]))
@@ -1991,6 +1993,7 @@ def build_eval_cases_from_chunks(
             *previous_questions_by_section_key.get(section_key, []),
             *generated_questions_by_section_key.get(section_key, []),
             *previous_questions_by_chunk_id.get(str(chunk.get("id")), []),
+            *previous_questions_global,
         ]
         candidates = (
             generate_user_style_queries(
@@ -2060,16 +2063,25 @@ def _column_field(chunk: dict[str, Any]) -> str:
     return normalize_text(" ".join(headers))
 
 
-def _row_group_key(chunk: dict[str, Any]) -> tuple[str, str, str, str] | None:
+def _row_group_key(chunk: dict[str, Any]) -> tuple[str, str, str, str, str] | None:
     metadata = dict(chunk.get("metadata_json", {}))
     table_row = metadata.get("table_row")
     if table_row is None:
         return None
+    row_headers = _metadata_list(metadata, "table_row_headers")
+    # A section can contain several independent tables whose local row numbers
+    # restart at zero.  The first hierarchical row header identifies the table
+    # block/root and prevents unrelated cells with the same row number from
+    # being paired as an error, cause, and corrective action.
+    row_header_root = normalize_text(row_headers[0]) if row_headers else ""
+    if not row_header_root and any(term in _column_field(chunk) for term in {"error message", "symptom"}):
+        row_header_root = normalize_text(_cell_value(str(chunk.get("content", ""))))
     return (
         str(chunk.get("source_document_id", "")),
         str(chunk.get("document_version_id", "")),
         str(chunk.get("section_path_text", "")),
         str(table_row),
+        row_header_root,
     )
 
 
@@ -2078,6 +2090,8 @@ def _good_multi_step_anchor(value: str) -> bool:
     if len(compact) < 18:
         return False
     if re.search(r"\.{4,}", compact):
+        return False
+    if _looks_like_parser_artifact(value):
         return False
     return bool(extract_anchor_terms(value, limit=2))
 
@@ -2475,6 +2489,34 @@ def _good_cross_document_subject(subject: str, *, field: str, value: str) -> boo
     return bool(terms)
 
 
+def _cross_document_field_is_comparable(field: str) -> bool:
+    """Return whether a field denotes a specification meaningful across products."""
+
+    comparable_terms = {
+        "accuracy",
+        "capacity",
+        "current",
+        "cycle",
+        "dimensions",
+        "distance",
+        "frequency",
+        "interface",
+        "period",
+        "power",
+        "protocol",
+        "range",
+        "repeatability",
+        "resolution",
+        "sampling",
+        "speed",
+        "temperature",
+        "voltage",
+        "wavelength",
+        "weight",
+    }
+    return bool(set(tokenize(field)).intersection(comparable_terms))
+
+
 def _build_cross_document_multi_step_cases(
     chunks: list[dict[str, Any]],
     *,
@@ -2518,6 +2560,20 @@ def _build_cross_document_multi_step_cases(
             if str(left.get("source_document_id", "")) == str(grouped.get("source_document_id", "")):
                 continue
             if left_label == label:
+                continue
+            left_product_ids = _metadata_product_identifiers(dict(left.get("metadata_json", {})))
+            right_product_ids = _metadata_product_identifiers(metadata)
+            # A shared column label is not enough to make a useful comparison.
+            # Without a common product identity the generator paired unrelated
+            # manuals (for example, vision-controller output settings with a
+            # lighting-controller feature) and produced artificial retrieval
+            # failures that no technician would reasonably ask.
+            shares_product_identity = bool(
+                left_product_ids
+                and right_product_ids
+                and not left_product_ids.isdisjoint(right_product_ids)
+            )
+            if not shares_product_identity and not _cross_document_field_is_comparable(field):
                 continue
             right_terms = set(extract_anchor_terms(value, limit=4))
             if left_terms and right_terms and left_terms == right_terms:
@@ -2764,7 +2820,7 @@ def build_multi_step_eval_cases_from_chunks(
     max_cases: int,
     case_family: str = "all",
 ) -> list[RetrievalEvalCase]:
-    grouped: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
+    grouped: dict[tuple[str, str, str, str, str], list[dict[str, Any]]] = {}
     for chunk in chunks:
         if str(chunk.get("chunk_type", "")) != "table_record":
             continue
@@ -2797,50 +2853,59 @@ def build_multi_step_eval_cases_from_chunks(
                 if not prompt_anchor:
                     continue
                 if "symptom" in _column_field(prompt_cell):
-                    query = f"What causes {prompt_anchor}{_for_label(label)}, and what should be checked or corrected?"
+                    combined_query = f"What causes {prompt_anchor}{_for_label(label)}, and what should be checked or corrected?"
                 else:
-                    query = f"What causes {prompt_anchor}{_for_label(label)}, and how should it be corrected?"
-                if _has_near_duplicate_query(query, seen_queries):
-                    continue
-                evidence = _multi_step_expected_evidence(prompt_cell, cause_cell, action_cell)
-                expected_terms = []
-                for item in evidence:
-                    for term in item["expected_terms"]:
-                        if term not in expected_terms:
-                            expected_terms.append(term)
+                    combined_query = f"What causes {prompt_anchor}{_for_label(label)}, and how should it be corrected?"
+                variants = (
+                    (combined_query, (cause_cell, action_cell), "table_sibling_error_cause_action"),
+                    (f"What causes {prompt_anchor}{_for_label(label)}?", (cause_cell,), "table_sibling_error_cause"),
+                    (f"How should {prompt_anchor}{_for_label(label)} be corrected?", (action_cell,), "table_sibling_error_action"),
+                )
+                for query, evidence_cells, generation_method in variants:
+                    if any(_normalized_query_key(query) == _normalized_query_key(existing) for existing in seen_queries):
+                        continue
+                    # The error/symptom is already supplied by the question. The
+                    # retrieved answer must contain the cause and/or corrective
+                    # action, not merely repeat that prompt cell.
+                    evidence = _multi_step_expected_evidence(*evidence_cells)
+                    expected_terms = []
+                    for item in evidence:
+                        for term in item["expected_terms"]:
+                            if term not in expected_terms:
+                                expected_terms.append(term)
+                            if len(expected_terms) >= 6:
+                                break
                         if len(expected_terms) >= 6:
                             break
-                    if len(expected_terms) >= 6:
-                        break
-                if len(expected_terms) < 4:
-                    continue
-                seen_queries.append(query)
-                cases.append(
-                    RetrievalEvalCase(
-                        case_id=f"{prompt_cell['id']}::multi_step::{len(cases) + 1}",
-                        query=query,
-                        source_document_id=str(prompt_cell["source_document_id"]),
-                        document_version_id=str(prompt_cell["document_version_id"]),
-                        source_chunk_id=str(prompt_cell["id"]),
-                        source_title=str(prompt_cell.get("title", "")),
-                        source_filename=str(prompt_cell.get("source_filename", "")),
-                        chunk_type=str(prompt_cell.get("chunk_type", "")),
-                        section_path=str(prompt_cell.get("section_path_text", "")),
-                        page_from=int(prompt_cell.get("page_from", 0)),
-                        page_to=int(prompt_cell.get("page_to", 0)),
-                        expected_terms=expected_terms[:6],
-                        expected_snippet=" | ".join(item["snippet"] for item in evidence),
-                        generation_method="table_sibling_error_cause_action",
-                        source_metadata=dict(prompt_cell.get("metadata_json", {})),
-                        benchmark_quality="validated",
-                        anchor_terms=expected_terms[:6],
-                        retrieval_task="multi_step_retrieval",
-                        expected_source_chunk_ids=[item["chunk_id"] for item in evidence],
-                        expected_evidence=evidence,
+                    if len(expected_terms) < 2:
+                        continue
+                    seen_queries.append(query)
+                    cases.append(
+                        RetrievalEvalCase(
+                            case_id=f"{prompt_cell['id']}::multi_step::{len(cases) + 1}",
+                            query=query,
+                            source_document_id=str(prompt_cell["source_document_id"]),
+                            document_version_id=str(prompt_cell["document_version_id"]),
+                            source_chunk_id=str(prompt_cell["id"]),
+                            source_title=str(prompt_cell.get("title", "")),
+                            source_filename=str(prompt_cell.get("source_filename", "")),
+                            chunk_type=str(prompt_cell.get("chunk_type", "")),
+                            section_path=str(prompt_cell.get("section_path_text", "")),
+                            page_from=int(prompt_cell.get("page_from", 0)),
+                            page_to=int(prompt_cell.get("page_to", 0)),
+                            expected_terms=expected_terms[:6],
+                            expected_snippet=" | ".join(item["snippet"] for item in evidence),
+                            generation_method=generation_method,
+                            source_metadata=dict(prompt_cell.get("metadata_json", {})),
+                            benchmark_quality="validated",
+                            anchor_terms=expected_terms[:6],
+                            retrieval_task="multi_step_retrieval",
+                            expected_source_chunk_ids=[item["chunk_id"] for item in evidence],
+                            expected_evidence=evidence,
+                        )
                     )
-                )
-                if len(cases) >= max_cases:
-                    return cases
+                    if len(cases) >= max_cases:
+                        return cases
     if case_family in {"all", "contextual_section"} and len(cases) < max_cases:
         cases.extend(
             _build_contextual_multi_step_cases(
@@ -3646,9 +3711,13 @@ def _retrieved_chunk_texts(results: list[dict[str, Any]] | None) -> dict[str, st
         chunk_id = str(result.get("chunk_id") or result.get("id") or "")
         if not chunk_id:
             continue
+        metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
         text_parts = [
             str(result.get("content") or ""),
-            str((result.get("metadata") or {}).get("content") or "") if isinstance(result.get("metadata"), dict) else "",
+            str(metadata.get("content") or ""),
+            str(metadata.get("context_window") or ""),
+            str(metadata.get("table_row_group_context") or ""),
+            str(metadata.get("parent_context") or ""),
         ]
         chunk_texts[chunk_id] = "\n".join(part for part in text_parts if part)
     return chunk_texts

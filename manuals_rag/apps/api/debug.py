@@ -14,10 +14,14 @@ from manuals_rag_answering.generator import (
     SUMMARY_SCHEMA,
     SYSTEM_PROMPT,
     _evidence_text,
+    _direct_evidence_summary,
     _extract_json_summary,
     _fallback_answer,
     _fallback_relevance_judgments,
     _fallback_summary,
+    _focused_troubleshooting_results,
+    _is_troubleshooting_query,
+    _order_troubleshooting_results,
     _parse_relevance_response,
     _relevance_prompt,
     _summary_source_documents,
@@ -629,6 +633,16 @@ def _stream_prioritize_results_for_answer(
 ) -> dict[str, Any]:
     if not candidate_results:
         return {"judgments": [], "prioritized_results": []}
+    if _is_troubleshooting_query(query):
+        ordered_results = _focused_troubleshooting_results(
+            query,
+            _order_troubleshooting_results(query, candidate_results),
+        )
+        return {
+            "judgments": _fallback_relevance_judgments(query, ordered_results),
+            "prioritized_results": ordered_results,
+            "selection_source": "structured_troubleshooting",
+        }
     evidence = [
         {
             "chunk_id": result.chunk_id,
@@ -711,6 +725,28 @@ def _stream_prioritize_results_for_answer(
 
 
 def _stream_summarize_chunk(query: str, result: SearchResult, *, emit: Any) -> dict[str, Any]:
+    direct_summary = _direct_evidence_summary(query, result)
+    if direct_summary:
+        return {
+            "chunk_id": result.chunk_id,
+            "title": result.title,
+            "pages": result.pages,
+            "section_path": result.section_path,
+            "summary": direct_summary,
+            "summary_source": "direct_evidence",
+            "source_document_id": result.source_document_id,
+            "document_version_id": result.document_version_id,
+            "source_documents": [
+                {
+                    "chunk_id": result.chunk_id,
+                    "title": result.title,
+                    "pages": result.pages,
+                    "section_path": result.section_path,
+                    "source_document_id": result.source_document_id,
+                    "document_version_id": result.document_version_id,
+                }
+            ],
+        }
     payload = {
         "chunk_id": result.chunk_id,
         "title": result.title,
@@ -745,6 +781,7 @@ def _stream_summarize_chunk(query: str, result: SearchResult, *, emit: Any) -> d
         "pages": result.pages,
         "section_path": result.section_path,
         "summary": summary,
+        "summary_source": "model",
         "source_document_id": result.source_document_id,
         "document_version_id": result.document_version_id,
         "source_documents": [
@@ -858,6 +895,22 @@ def _stream_generate_answer_with_trace(
             }
         )
         return answer, trace
+    if _is_troubleshooting_query(query):
+        answer = validate_answer(
+            _fallback_answer(query, prioritized_results),
+            prioritized_results,
+            query=query,
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "structured_troubleshooting",
+                "answer_source": "structured_evidence",
+                "num_predict": None,
+            }
+        )
+        return answer, trace
     try:
         generated, _raw = _stream_llm_json(
             emit=emit,
@@ -878,7 +931,7 @@ def _stream_generate_answer_with_trace(
         from manuals_rag_schemas.documents import AnswerResponse
 
         generated_answer = AnswerResponse.model_validate(generated)
-        validated_answer = validate_answer(generated_answer, prioritized_results)
+        validated_answer = validate_answer(generated_answer, prioritized_results, query=query)
         if validated_answer.answer != generated_answer.answer and any(
             "not sufficiently supported" in warning for warning in validated_answer.warnings
         ):
@@ -892,7 +945,11 @@ def _stream_generate_answer_with_trace(
         return validated_answer, trace
     except Exception as exc:
         logger.warning("Streaming final answer generation failed for model=%s; using fallback answer: %s", settings.ollama_answer_model, exc)
-        fallback_answer = validate_answer(_fallback_answer(query, prioritized_results), prioritized_results)
+        fallback_answer = validate_answer(
+            _fallback_answer(query, prioritized_results),
+            prioritized_results,
+            query=query,
+        )
         trace["final_answer"].update(
             {
                 "used_fallback": True,

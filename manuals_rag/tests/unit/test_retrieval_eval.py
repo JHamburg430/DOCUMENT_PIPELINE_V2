@@ -221,10 +221,14 @@ def test_large_retrieval_eval_generation_windows_continue_until_target(monkeypat
         if window_chunks[0]["id"] == "empty":
             return []
         index = len(calls)
+        query = {
+            "accepted-1": "What voltage does MODEL-1 require?",
+            "accepted-2": "Which cable connects MODEL-2 to the controller?",
+        }[window_chunks[0]["id"]]
         return [
             RetrievalEvalCase(
                 case_id=f"case-{index}",
-                query=f"What accepted question {index}?",
+                query=query,
                 source_document_id="doc-1",
                 document_version_id="ver-1",
                 source_chunk_id=window_chunks[0]["id"],
@@ -259,6 +263,99 @@ def test_large_retrieval_eval_generation_windows_continue_until_target(monkeypat
 
     assert [case.source_chunk_id for case in cases] == ["accepted-1", "accepted-2"]
     assert calls == [["empty"], ["accepted-1"], ["accepted-2"]]
+
+
+def test_large_retrieval_eval_generation_deduplicates_across_chunks(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    chunks = [{"id": "first"}, {"id": "duplicate"}, {"id": "distinct"}]
+
+    def fake_build_eval_cases_from_chunks(window_chunks, **kwargs):
+        chunk_id = window_chunks[0]["id"]
+        query = {
+            "first": "What output format does the CV-X482 use for Program Time?",
+            "duplicate": "What is the Program Time output format on the CV-X482?",
+            "distinct": "What unit does the CV-X482 use for Program Time?",
+        }[chunk_id]
+        return [
+            RetrievalEvalCase(
+                case_id=f"case-{chunk_id}",
+                query=query,
+                source_document_id="doc-1",
+                document_version_id="ver-1",
+                source_chunk_id=chunk_id,
+                source_title="Manual",
+                source_filename="manual.pdf",
+                chunk_type="spec_record",
+                section_path=f"Specs/{chunk_id}",
+                page_from=1,
+                page_to=1,
+                expected_terms=["program", "time"],
+                expected_snippet="Program Time output specification.",
+                generation_method="reviewed_llm:test",
+                source_metadata={},
+                benchmark_quality="model_reviewed",
+            )
+        ]
+
+    monkeypatch.setattr(module, "build_eval_cases_from_chunks", fake_build_eval_cases_from_chunks)
+
+    cases = module.build_single_step_generation_cases_until_target(
+        chunks,
+        max_cases=2,
+        chunk_window=1,
+        per_chunk_limit=1,
+        use_llm_generation=True,
+        previous_questions_by_chunk_id={},
+        previous_questions_by_section_key={},
+        prompt_guidance=None,
+        num_ctx=None,
+        timeout_seconds=None,
+    )
+
+    assert [case.source_chunk_id for case in cases] == ["first", "distinct"]
+
+
+def test_large_retrieval_eval_generation_skips_chunks_at_question_limit(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    calls = []
+
+    def fake_build_eval_cases_from_chunks(window_chunks, **kwargs):
+        calls.append([chunk["id"] for chunk in window_chunks])
+        return []
+
+    monkeypatch.setattr(module, "build_eval_cases_from_chunks", fake_build_eval_cases_from_chunks)
+
+    cases = module.build_single_step_generation_cases_until_target(
+        [{"id": "covered"}, {"id": "new"}],
+        max_cases=1,
+        chunk_window=2,
+        per_chunk_limit=1,
+        use_llm_generation=True,
+        previous_questions_by_chunk_id={"covered": ["What voltage is required?"]},
+        previous_questions_by_section_key={},
+        prompt_guidance=None,
+        num_ctx=None,
+        timeout_seconds=None,
+    )
+
+    assert cases == []
+    assert calls == [["new"]]
 
 
 def test_large_retrieval_eval_offsets_saved_dataset_after_validation(tmp_path):
@@ -1631,6 +1728,59 @@ def test_answer_response_scoring_requires_cited_chunk_to_support_expected_eviden
     assert cited_role["evidence_citation_support"]["passed"] is True
 
 
+def test_answer_scoring_accepts_cited_table_row_context_as_expected_evidence():
+    case = RetrievalEvalCase(
+        case_id="usb-format-action",
+        query="How should the USB HDD format error be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="error-cell",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=1,
+        page_to=1,
+        expected_terms=["execute", "format", "function", "erased"],
+        expected_snippet="Execute the Format function; all data will be erased.",
+        generation_method="table_sibling_error_action",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "action-cell",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["execute", "format", "function", "erased"],
+                "snippet": "Corrective Action: Execute the Format function; all data will be erased.",
+            }
+        ],
+    )
+    answer = {
+        "answer": "Execute the Format function; note that all USB HDD data will be erased.",
+        "citations": [{"document_id": "doc-xgx", "chunk_id": "error-code-cell", "pages": [1]}],
+        "used_documents": [{"document_id": "doc-xgx"}],
+        "insufficient_evidence": False,
+    }
+    results = [
+        {
+            "chunk_id": "error-code-cell",
+            "source_document_id": "doc-xgx",
+            "content": "Error Code: 328",
+            "metadata": {
+                "table_row_group_context": (
+                    "Error Message: The USB HDD format is incorrect.; "
+                    "Corrective Action: Execute the Format function; all data will be erased."
+                )
+            },
+        }
+    ]
+
+    scored = score_answer_response(case, answer, {"passed": True}, results)
+
+    assert scored["passed"] is True
+
+
 def test_answer_response_scoring_requires_exact_cited_chunk_to_be_returned():
     case = RetrievalEvalCase(
         case_id="answer-exact-chunk-returned",
@@ -2771,11 +2921,84 @@ def test_build_multi_step_eval_cases_from_sibling_error_rows():
 
     cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=5)
 
-    assert len(cases) == 1
+    assert len(cases) == 3
     assert cases[0].retrieval_task == "multi_step_retrieval"
     assert "what causes timeout error" in cases[0].query.lower()
-    assert cases[0].expected_source_chunk_ids == ["error-cell", "cause-cell", "action-cell"]
-    assert len(cases[0].expected_evidence or []) == 3
+    assert cases[0].expected_source_chunk_ids == ["cause-cell", "action-cell"]
+    assert cases[1].generation_method == "table_sibling_error_cause"
+    assert cases[1].expected_source_chunk_ids == ["cause-cell"]
+    assert cases[2].generation_method == "table_sibling_error_action"
+    assert cases[2].expected_source_chunk_ids == ["action-cell"]
+    assert len(cases[0].expected_evidence or []) == 2
+
+
+def test_sibling_error_rows_do_not_cross_tables_that_reuse_row_numbers():
+    base = {
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "chunk_type": "table_record",
+        "title": "XG-X",
+        "source_filename": "xgx.pdf",
+        "section_path_text": "Troubleshooting",
+        "page_from": 10,
+        "page_to": 10,
+    }
+    chunks = [
+        {
+            **base,
+            "id": "error-cell",
+            "content": "Column headers: Error Message; Cell value: Internal command error occurred.; Row: 7; Column: 0",
+            "metadata_json": {"table_cell": True, "table_row": 7, "table_column_headers": ["Error Message"]},
+        },
+        {
+            **base,
+            "id": "unrelated-cause",
+            "content": "Column headers: Cause; Cell value: No illumination unit is connected.; Row: 7; Column: 1",
+            "metadata_json": {
+                "table_cell": True,
+                "table_row": 7,
+                "table_column_headers": ["Cause"],
+                "table_row_headers": ["Illumination expansion error"],
+            },
+        },
+        {
+            **base,
+            "id": "unrelated-action",
+            "content": "Column headers: Corrective Action; Cell value: Connect the illumination unit.; Row: 7; Column: 2",
+            "metadata_json": {
+                "table_cell": True,
+                "table_row": 7,
+                "table_column_headers": ["Corrective Action"],
+                "table_row_headers": ["Illumination expansion error"],
+            },
+        },
+    ]
+
+    assert build_multi_step_eval_cases_from_chunks(chunks, max_cases=5) == []
+
+
+def test_sibling_error_rows_reject_parser_notation_as_the_question_anchor():
+    base = {
+        "source_document_id": "doc-xgx",
+        "document_version_id": "ver-xgx",
+        "chunk_type": "table_record",
+        "title": "XG-X",
+        "source_filename": "xgx.pdf",
+        "section_path_text": "Troubleshooting",
+        "page_from": 10,
+        "page_to": 10,
+    }
+    anchor = "*n : Expansion Unit No. (1 to 8) m: Light Head No. (1 to 2)"
+    chunks = [
+        {
+            **base,
+            "id": "error-cell",
+            "content": f"Column headers: Error Message; Cell value: {anchor}; Row: 7; Column: 0",
+            "metadata_json": {"table_cell": True, "table_row": 7, "table_column_headers": ["Error Message"]},
+        }
+    ]
+
+    assert build_multi_step_eval_cases_from_chunks(chunks, max_cases=5) == []
 
 
 def test_build_multi_step_eval_cases_from_contextual_procedure_section():
@@ -3054,6 +3277,36 @@ def test_build_multi_step_eval_cases_from_cross_document_same_field_values():
     assert cases[0].expected_evidence[0]["source_document_id"] == "doc-iv"
     assert cases[0].expected_evidence[1]["source_document_id"] == "doc-lj"
     assert "iv4g120" in cases[0].expected_evidence[0]["product_identifiers"]
+
+
+def test_build_cross_document_cases_skip_unrelated_noncomparable_fields():
+    chunks = []
+    for index, (model, value) in enumerate((("LJ-X8000", "Reset the PLC link."), ("CA-DRM10X", "Reduce light intensity."))):
+        chunks.append(
+            {
+                "id": f"action-{index}",
+                "source_document_id": f"doc-{index}",
+                "document_version_id": f"ver-{index}",
+                "chunk_type": "table_record",
+                "chunk_level": 1,
+                "title": model,
+                "source_filename": f"{model}.pdf",
+                "section_path_text": "Troubleshooting",
+                "page_from": 1,
+                "page_to": 1,
+                "content": f"Row headers: Communication; Column headers: Corrective Action; Cell value: {value}",
+                "metadata_json": {
+                    "product_model": model,
+                    "table_cell": True,
+                    "table_column_headers": ["Corrective Action"],
+                    "table_row_headers": ["Communication"],
+                },
+            }
+        )
+
+    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=5, case_family="cross_document")
+
+    assert cases == []
 
 
 def test_build_cross_document_cases_skip_generic_item_fields():
@@ -3694,6 +3947,57 @@ def test_build_eval_cases_allows_repeated_content_but_dedupes_questions(monkeypa
     assert cases[0].source_metadata["generation_document_context"]["product_model"] == "CA-EN100U"
     assert "page_range" not in cases[0].source_metadata["generation_document_context"]
     assert call_count == 2
+
+
+def test_build_eval_cases_global_previous_questions_block_cross_chunk_acceptance(monkeypatch):
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "response": (
+                    '{"queries":[{"query":"Which cable connects the XG-X Series to VisionDataStorage?",'
+                    '"intent":"cable_lookup","reason":"direct lookup"}]}'
+                )
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.httpx.Client", FakeClient)
+    chunk = {
+        "id": "duplicate-source-chunk",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "chunk_type": "spec_record",
+        "title": "XG-X Manual",
+        "source_filename": "xgx.pdf",
+        "section_path_text": "VisionDataStorage",
+        "page_from": 10,
+        "page_to": 10,
+        "content": "VisionDataStorage uses the dedicated USB cable OP-88263.",
+        "metadata_json": {"product_family": "XG-X Series", "spec_flag": True},
+        "product_family": "XG-X Series",
+    }
+
+    cases = build_eval_cases_from_chunks(
+        [chunk],
+        max_cases=1,
+        previous_questions_global=["Which cable connects the XG-X Series to VisionDataStorage?"],
+    )
+
+    assert cases == []
 
 
 def test_build_eval_cases_passes_previous_chunk_questions_to_generator(monkeypatch):

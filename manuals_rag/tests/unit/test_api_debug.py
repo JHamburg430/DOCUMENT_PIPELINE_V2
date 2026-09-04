@@ -5,10 +5,142 @@ from apps.api.main import app
 from apps.api import main
 from apps.api import debug as api_debug
 from manuals_rag_evals.retrieval_eval import RetrievalEvalCase
+from manuals_rag_schemas.documents import AnswerResponse, SearchResult
 
 
 client = TestClient(app)
 ADMIN_HEADERS = {"Authorization": "Bearer admin-token"}
+
+
+def test_stream_table_summary_uses_direct_evidence_without_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="cause-cell",
+        score=0.9,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content="Column headers: Cause; Cell value: The output buffer is full.",
+        metadata={"chunk_type": "table_record"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model summary should not run")),
+    )
+
+    summary = api_debug._stream_summarize_chunk("What causes the output error?", result, emit=lambda _event: None)
+
+    assert summary["summary_source"] == "direct_evidence"
+    assert "output buffer is full" in summary["summary"].lower()
+
+
+def test_stream_answer_validation_receives_query(monkeypatch):
+    query = "How many lines and overlap lines does the example use?"
+    result = SearchResult(
+        chunk_id="chunk-1",
+        score=0.9,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[7],
+        section_path=["Example"],
+        content="The example uses 10 lines and two overlap lines.",
+        metadata={"chunk_type": "procedure_record"},
+    )
+    generated = AnswerResponse(
+        answer="The example uses 10 lines and two overlap lines.",
+        confidence="high",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+    seen_queries = []
+
+    monkeypatch.setattr(api_debug, "_stream_llm_json", lambda **_kwargs: (generated.model_dump(), "{}"))
+
+    def fake_validate(answer, results, query=""):
+        seen_queries.append(query)
+        return answer
+
+    monkeypatch.setattr(api_debug, "validate_answer", fake_validate)
+
+    answer, _trace = api_debug._stream_generate_answer_with_trace(
+        query,
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": "chunk-1", "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert answer.answer == generated.answer
+    assert seen_queries == [query]
+
+
+def test_stream_troubleshooting_answer_uses_structured_evidence_without_model(monkeypatch):
+    query = "What causes the encoder timeout error, and how should it be corrected?"
+    result = SearchResult(
+        chunk_id="timeout-row",
+        score=0.9,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content=(
+            "Error Message: Encoder timeout error.; Cause: Encoder input stopped.; "
+            "Corrective Action: Check the encoder connection."
+        ),
+        metadata={"chunk_type": "table_record"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model answer should not run")),
+    )
+
+    answer, trace = api_debug._stream_generate_answer_with_trace(
+        query,
+        [result],
+        prioritized_results=[result],
+        summarized_evidence=[{"chunk_id": result.chunk_id, "summary": result.content}],
+        emit=lambda _event: None,
+    )
+
+    assert "Check the encoder connection" in answer.answer
+    assert trace["final_answer"]["answer_source"] == "structured_evidence"
+    assert trace["final_answer"]["used_fallback"] is False
+
+
+def test_stream_troubleshooting_prioritization_does_not_call_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="timeout-row",
+        score=0.9,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content="Error Message: Encoder timeout error.; Corrective Action: Check the encoder connection.",
+        metadata={"chunk_type": "table_record"},
+    )
+    monkeypatch.setattr(
+        api_debug,
+        "_stream_llm_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("model relevance review should not run")),
+    )
+
+    prioritized = api_debug._stream_prioritize_results_for_answer(
+        "How should the encoder timeout error be corrected?",
+        [result],
+        emit=lambda _event: None,
+    )
+
+    assert prioritized["prioritized_results"] == [result]
+    assert prioritized["selection_source"] == "structured_troubleshooting"
 
 
 def _fake_eval_case() -> RetrievalEvalCase:

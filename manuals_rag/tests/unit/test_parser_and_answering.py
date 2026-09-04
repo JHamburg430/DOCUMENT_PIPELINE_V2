@@ -6,6 +6,7 @@ from manuals_rag_answering.generator import (
     _comparison_answer_covers_retrieved_model_sides,
     _fallback_evidence_results,
     _parse_relevance_response,
+    _query_troubleshooting_anchor,
     generate_answer,
     generate_answer_with_trace,
     judge_retrieval_relevance,
@@ -28,6 +29,18 @@ from manuals_rag_parsers.docling_parser import (
 from manuals_rag_schemas.documents import AnswerResponse, SearchResult
 from manuals_rag_schemas.enums import NodeType, ParseProfile
 from tests.helpers import tmp_eval_small_pdf_path
+
+
+def test_troubleshooting_anchor_supports_generated_cause_and_action_questions():
+    symptom = "The RS-232C communication setting cannot be changed because PLC-Link is enabled."
+
+    expected = symptom.rstrip(".")
+
+    assert _query_troubleshooting_anchor(f"What causes {symptom} for XG-X Series?") == expected
+    assert (
+        _query_troubleshooting_anchor(f"How should {symptom} for XG-X Series be corrected?")
+        == expected
+    )
 
 
 def test_classify_block_detects_spec_and_table():
@@ -1965,6 +1978,40 @@ def test_validate_answer_fallback_prefers_full_troubleshooting_row_for_cause_rem
     assert validated.answer.startswith("Error Message: The following error occurred. - There is no LJ head connected.")
     assert validated.citations[0]["chunk_id"] == "full-row"
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_generate_answer_uses_deterministic_troubleshooting_path_for_section_evidence(monkeypatch):
+    result = SearchResult(
+        chunk_id="encoder-row",
+        score=0.9,
+        title="XG-X Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[12],
+        section_path=["Troubleshooting"],
+        content=(
+            "Error Message: Encoder timeout error.; Cause: Encoder input stopped.; "
+            "Corrective Action: Check the encoder connection."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model should not run")),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.judge_retrieval_relevance",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("relevance model should not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What causes the encoder timeout error, and how should it be corrected?",
+        [result],
+    )
+
+    assert "Check the encoder connection" in answer.answer
+    assert trace["final_answer"]["answer_source"] == "structured_evidence"
+    assert trace["final_answer"]["used_fallback"] is False
 
 
 def test_validate_answer_rejects_quote_from_context_window_under_cited_chunk():

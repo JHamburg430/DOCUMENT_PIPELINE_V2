@@ -819,7 +819,18 @@ def _build_row_cells(item: dict | None, case: dict | None = None) -> dict[str, d
     else:
         cells["metadata"] = _matrix_cell("blank", "not attempted")
 
-    cells["retrieval"] = _retrieval_retention_cell(cells, retrieval)
+    if retrieval and not completed_steps:
+        cells["retrieval"] = _matrix_cell(
+            "pass" if retrieval.get("passed") else "fail",
+            (
+                f"completed saved evaluation; rank {retrieval.get('rank')}"
+                if retrieval.get("passed")
+                else retrieval.get("failure_category") or "retrieval evaluation failed"
+            ),
+            "PASS" if retrieval.get("passed") else "FAIL",
+        )
+    else:
+        cells["retrieval"] = _retrieval_retention_cell(cells, retrieval)
     if cells["retrieval"]["status"] != "pass":
         return _block_answer_cells(cells)
 
