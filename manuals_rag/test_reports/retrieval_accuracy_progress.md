@@ -7411,3 +7411,7 @@ Next target:
 Next target:
 
 - Preserve the requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch before marking the remaining proof limitation resolved. If such a case remains unavailable without synthetic injection or harness expansion, keep the limitation explicit and do not make optional production changes.
+
+### Post-push lifecycle record
+
+- Validation/tracking commit `a13dde8` was pushed to `origin/main`. Immediately afterward, selected worktree `/tmp/manuals_rag_accuracy_20260901` was clean, present, and registered at `a13dde8`. Removal command/result remains exactly `not attempted`; accumulated permission-denied blockers require this known clean registered worktree to remain available for mandatory reuse, and no safe durable post-removal tracking sequence exists from this detached checkout. This follow-up updates both manifest lifecycle copies before the final commit/push; no force removal, recursive deletion, prune, reset, clean, stash, or unrelated worktree mutation occurred.

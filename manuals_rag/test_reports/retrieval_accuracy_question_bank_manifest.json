@@ -9087,15 +9087,15 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 12c188e before this tracking-only validation; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main a13dde8; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean at origin/main 12c188e before this run; dirty only with this tracking-only validation update",
+      "git_status_check": "clean immediately after pushed validation/tracking commit a13dde8; dirty only with this required lifecycle follow-up",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-      "timestamp": "2026-09-04T12:35:00Z",
-      "git_status_before_final_commit": "clean at 12c188e before this run; dirty only with this tracking-only validation update",
-      "pushed_correction_commit": "4d9bc20"
+      "timestamp": "2026-09-04T12:39:00Z",
+      "git_status_before_final_commit": "clean after a13dde8; dirty only with this required lifecycle follow-up",
+      "pushed_correction_commit": "a13dde8"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12915,15 +12915,15 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 12c188e before this tracking-only validation; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main a13dde8; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean at origin/main 12c188e before this run; dirty only with this tracking-only validation update",
+        "git_status_check": "clean immediately after pushed validation/tracking commit a13dde8; dirty only with this required lifecycle follow-up",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-      "timestamp": "2026-09-04T12:35:00Z",
-      "git_status_before_final_commit": "clean at 12c188e before this run; dirty only with this tracking-only validation update",
-        "pushed_correction_commit": "4d9bc20"
+        "timestamp": "2026-09-04T12:39:00Z",
+        "git_status_before_final_commit": "clean after a13dde8; dirty only with this required lifecycle follow-up",
+        "pushed_correction_commit": "a13dde8"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -15722,7 +15722,7 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T12:35:00Z"
+    "updated_at": "2026-09-04T12:39:00Z"
   },
   "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
   "retrieval_current_failure_categories": {},
@@ -18265,5 +18265,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T12:35:00Z"
+  "updated_at": "2026-09-04T12:39:00Z"
 }
