@@ -3022,22 +3022,23 @@
   },
   "latest_no_change_validation": {
     "coverage": {
-      "active_total": 208,
-      "multi_step": 107,
+      "active_total": 209,
+      "multi_step": 108,
       "replacement_debt": 0,
       "single_step": 101
     },
-    "guardrail_review": "Checked-in guardrail findings include 2026-09-01T01:48:00Z ok audit for status-output comparator repair; direct guardrail cron history was restricted to the current job.",
-    "manifest_status": "Root and question_bank copies agree for current duplicated state; current retrieval and answer failure aliases are empty for the limited row-1/row-2 source-reviewed slice.",
-    "next_target": "Continue broader source-reviewed single-step answer-grounding coverage on the next validated unresolved slice. Preserve retrieval_eval_20260901_004116 as row-1/row-2 source-reviewed clean evidence only after the status-output exact-comparator containment: exact ON when = Set value context is promoted, while >= and Unicode >= sibling rows are rejected for exact-equality queries.",
-    "primary_checkout": "Preserved stale/dirty primary checkout main...origin/main [ahead 1, behind 158], local stale commit bb2ce10, unrelated dirty files, compose endpoint drift, and mass eval-artifact deletions without accepting, reverting, merging, or pushing them.",
-    "scope": "Tracking-only: no production retrieval, answering, eval scoring/generation, benchmark, API, UI, parser, ingestion, auth, infrastructure, Docker, schema, deployment, model provider/name, embedding, reranker, or eval artifact changes.",
-    "status": "guardrail_manifest_state_preserved_no_production_change",
-    "target": "Cron-safe start-of-run guardrail and manifest review from clean origin/main after primary checkout divergence.",
-    "timestamp": "2026-09-01T02:05:00Z",
+    "guardrail_review": "Reviewed guardrail commit c1b4724 and the five latest audit summaries; needs_fix remains because actual HTTP has not cited genuine pipe-shaped evidence.",
+    "manifest_status": "Deterministic whole-manifest checker passed after preserving all paired current-state aliases unchanged.",
+    "next_target": "Implement a general lineage/diversity policy for same-table atomic crowding, then require focused/full gates and genuine pipe-shaped HTTP positive plus conflicting-header negative.",
+    "primary_checkout": "Preserved the divergent dirty primary checkout without accepting, reverting, or committing any of its changes.",
+    "scope": "Tracking and diagnostic artifacts only; a bounded candidate-pool experiment was reverted after it did not restore the pipe parent to final top 10.",
+    "status": "guardrail_needs_fix_diagnosed_no_safe_production_change",
+    "target": "Diagnose retrieval_eval_20260904_062608 pipe parent final_top_k loss from the reused registered accuracy worktree.",
+    "timestamp": "2026-09-04T06:28:00Z",
     "validation": [
-      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK before tracking update.",
-      "docker compose -f infra/compose/docker-compose.yml ps --format json showed the local stack running, including API/UI on 8600/8601."
+      "retrieval_eval_20260904_062608 actual HTTP answer mode: retrieval 0/2, answer 0/2, candidate and metadata-document recall 100%; manually inspected every answer, citation, and expected evidence role.",
+      "Loaded depth-30 debug: pipe parent 38d26f5e dense rank 28, fused 87, query-aligned 14, family-selected 17, reranked 4; production pre-rerank limit is 12.",
+      "python3 scripts/maintenance/check_retrieval_accuracy_manifest.py -> manifest consistency OK."
     ]
   },
   "latest_rejected_experiment": {

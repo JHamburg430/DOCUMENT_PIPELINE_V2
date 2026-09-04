@@ -11,6 +11,19 @@
 
 Next target:
 
+## 2026-09-04 02:28 EDT — pipe HTTP proof remains blocked by bounded ranking loss
+
+- Guardrail first target: reviewed guardrail commit `c1b4724` (`needs_fix`) and the five latest audit summaries. Reused clean registered accuracy worktree `/tmp/manuals_rag_accuracy_20260901`; fetched `origin`, and verified selected HEAD equals `origin/main` at `c1b4724`. The divergent dirty primary checkout was not modified.
+- Environment: `manuals-rag-temp-api-39262386-20260902-0726` was healthy at `http://127.0.0.1:9193`; Postgres, Qdrant, and Redis were running. The real manifest checker passed before work.
+- Fresh actual HTTP answer-mode rerun `retrieval_eval_20260904_062608` preserved the prior result: retrieval `0/2`, answer scoring `0/2`, candidate recall `100%`, metadata-document selection recall `100%`, fallback validation `2/2`. Manual JSONL inspection confirmed the positive answer cites structured atomic chunks `ce29be75` and `be25fb78`, which directly support both stated causes with null quote spans; the Error 99999 control fails closed with no citations. Exact pipe parent `38d26f5e` was absent from `final_top_k`, so the run is diagnostic/not-clean and does not prove the pipe validator path.
+- Diagnosis: loaded retrieval debug at depth 30 found pipe parent `38d26f5e` at dense rank 28, fused rank 87, query-aligned rank 14, family-selected rank 17, and reranked rank 4. Production truncates family selection/reranking to 12, so the parent is excluded before the cross-encoder can promote it; the final top 10 is then crowded by atomic cells from the same table. A bounded 30-candidate experiment passed two focused pipeline tests but still left the parent outside production top 10 after downstream promotions. The experiment was fully reverted and no production retrieval change is claimed because a safe diversity/lineage policy and the required full/runtime/API gates did not fit this run.
+- Tracking/coverage: active coverage remains 209 (101 single-step, 108 multi-step) across 21 registered datasets; replacement debt remains 0. Preserved `retrieval_eval_20260904_053522`, `054425`, `055144`, `060126`, and `062608` as diagnostic/not-clean. No model/provider, embedding, reranker, ingestion/parser, API/UI, infrastructure, schema, or deployment behavior changed.
+- Worktree lifecycle: selected path `/tmp/manuals_rag_accuracy_20260901`; removal command/result `not attempted` because accumulated permission-denied cleanup blockers require registered-worktree reuse. Registry and path checks remain required after commit; no force removal, prune, reset, clean, or unrelated worktree mutation was performed.
+
+Next target:
+
+- Add a general lineage/diversity policy that prevents many atomic cells from one source table from crowding out a directly entailed parent/table source, with positive, wrong-symptom/role, cross-table, and multi-document controls. Then run focused and full unit gates, runtime fingerprints, and genuine pipe-shaped HTTP positive plus conflicting-header negative before accepting `ed7c83b` as production-proved.
+
 - Retry curated cross-document v2 row 9 source-reviewed answer-grounding with enough runtime to complete, or make a general retrieval/context improvement so the loaded API returns citation-visible XG-X unsupported-SD-card guarantee evidence and CV-X482 edge-detection Max Segments evidence without timeout. Preserve `retrieval_eval_20260901_203350` and `retrieval_eval_20260901_203649` as diagnostic/not-clean.
 
 ## 2026-09-01 Cron 39262386 Cross-Document Row 8 Source-Reviewed Answer Evidence
