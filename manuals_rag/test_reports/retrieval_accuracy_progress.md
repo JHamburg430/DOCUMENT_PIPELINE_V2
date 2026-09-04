@@ -11,6 +11,19 @@
 
 Next target:
 
+## 2026-09-04 03:34 EDT — unsafe cross-table lineage promotion contained by conservative revert
+
+- Guardrail first target: fetched `origin`, reviewed the routed loaded adverse result and committed `2026-09-04T07:24:00Z` `needs_fix` finding at `c674e1a`, and reused registered accuracy worktree `/tmp/manuals_rag_accuracy_20260901`. The dirty worktree remained on its pre-audit base `98529b9` while the newer finding was inspected directly from `origin/main`; the dirty divergent primary checkout was preserved unchanged.
+- Adverse finding: the uncommitted source-context promotion grouped atomic cells by document/version/section/`table_row`. Distinct tables can reuse the same row number, so a parent containing the first row's cause plus unrelated `Camera cable settings` could replace the second row's atomic `Cable disconnected` cause. The earlier `retrieval_eval_20260904_071826` 2/2 retrieval result is therefore diagnostic/not-clean and is not accepted as safe production evidence.
+- Correction attempt and containment: added logical-table-node binding plus exact row/column/value relation controls. Focused retriever tests passed (`171 passed`; loaded branch subset `8 passed`), and the restarted API loaded the audited retriever (`host/container SHA-256 61829fede6d470f6476dac16e285f5466c5107788bbe41fb48fcb359d0781159`). Actual HTTP run `retrieval_eval_20260904_072834` then regressed exact retrieval to `0/2` (`ranking_or_context_loss=2`; candidate and metadata-document recall remained 100%). Because the safe correction did not preserve the legitimate source-table path, the entire job-owned production/test experiment was conservatively reverted before commit. No production retrieval or answering change is being shipped.
+- Answer inspection: both `072834` user-visible responses used validation fallback. The positive cited source-supported atomic evidence but missed the required pipe parent; the Error 99999 control failed closed with insufficient evidence and no fabricated unsupported side. Preserve both `071826` and `072834` as diagnostic/not-clean; neither proves safe lineage promotion.
+- Validation/tracking: the previously completed compose-configured full unit gate on the pre-guardrail experiment was `676 passed, 59 warnings`, and a fixture-mounted gate during the relation-preserving correction attempt passed `680 passed, 59 warnings`; neither is claimed as proof of a shipped production change. After the conservative revert, `git diff --check`, the real manifest checker, and the parent-aware manifest check passed. Active coverage remains 209 (101 single-step, 108 multi-step) across 21 registered datasets; replacement debt remains 0.
+- Worktree lifecycle: selected path `/tmp/manuals_rag_accuracy_20260901`; supported removal was intentionally not attempted because the documented permission-denied cleanup blocker mandates reuse and durable cleanup ordering. The path remains registered and present. No new worktree, force removal, prune, reset, clean, or unrelated worktree mutation occurred.
+
+Next target:
+
+- Design a relation-preserving source-table strategy that binds document, section, logical table identity, row identity, column role, and value without regressing the legitimate IV-HG pipe-table case. Preserve `retrieval_eval_20260904_071826` and `072834` as diagnostic/not-clean; require the exact distinct-table/same-row adverse control, focused/full gates, loaded runtime proof, and actual HTTP positive plus unsupported-side evidence before any production commit.
+
 ## 2026-09-04 02:28 EDT — pipe HTTP proof remains blocked by bounded ranking loss
 
 - Guardrail first target: reviewed guardrail commit `c1b4724` (`needs_fix`) and the five latest audit summaries. Reused clean registered accuracy worktree `/tmp/manuals_rag_accuracy_20260901`; fetched `origin`, and verified selected HEAD equals `origin/main` at `c1b4724`. The divergent dirty primary checkout was not modified.

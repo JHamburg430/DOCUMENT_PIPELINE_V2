@@ -210,7 +210,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
-    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "scope": "retrieval_eval_20260904_060126 validates only the loaded HTTP structured-atomic positive and fail-closed control; the general answering-only table-local header correction remains without genuine pipe-shaped API proof. No active count, ledger, retrieval, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -786,7 +786,7 @@
       "expected_terms_missing": 1
     },
     "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
-    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
   },
   "constraints": {
@@ -9307,7 +9307,7 @@
       ]
     }
   ],
-  "next_target": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10271,7 +10271,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
-      "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
       "scope": "retrieval_eval_20260904_060126 validates only the loaded HTTP structured-atomic positive and fail-closed control; the general answering-only table-local header correction remains without genuine pipe-shaped API proof. No active count, ledger, retrieval, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10636,7 +10636,7 @@
         "expected_terms_missing": 1
       },
       "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
-      "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
     },
     "current_answer_failure_categories": {
@@ -13126,7 +13126,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13163,7 +13163,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {
       "ranking_or_context_loss": 2
     },
@@ -15612,7 +15612,7 @@
     ],
     "updated_at": "2026-09-04T06:04:00Z"
   },
-  "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for the table-local header binding correction, or preserve the branch as partially proved; diagnose the final_top_k loss of exact parent chunk 38d26f5e without document/vendor/query hardcoding. Preserve retrieval_eval_20260904_053522, 054425, 055144, and 060126 as diagnostic/not-clean; retain active coverage at 209 and reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {
     "ranking_or_context_loss": 2
   },
