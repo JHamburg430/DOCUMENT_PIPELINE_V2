@@ -9083,19 +9083,19 @@
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-      "reused_existing_registered_worktree": true,
+      "reused_existing_registered_worktree": false,
       "created_new_worktree": false,
-      "removal_command": "not attempted",
-      "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main a13dde8; exact path retained for reuse",
-      "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean immediately after pushed validation/tracking commit a13dde8; dirty only with this required lifecycle follow-up",
-      "post_removal_registry_check": "not applicable; removal intentionally not attempted",
-      "post_removal_path_check": "not applicable; worktree retained",
-      "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-      "timestamp": "2026-09-04T12:39:00Z",
-      "git_status_before_final_commit": "clean after a13dde8; dirty only with this required lifecycle follow-up",
-      "pushed_correction_commit": "a13dde8"
+      "removal_command": "git worktree remove /tmp/manuals_rag_accuracy_20260901",
+      "removal_result": "exit 0; exact missing/prunable registration reconciled without --force or prune",
+      "registry_check": "pre-removal exact registration present at b335daa and prunable; post-removal exact registration absent",
+      "path_check": "/tmp/manuals_rag_accuracy_20260901 absent before and after removal",
+      "git_status_check": "not applicable because the selected path was absent before and after reconciliation; dirty primary checkout was not modified",
+      "post_removal_registry_check": "registered=false for exact /tmp/manuals_rag_accuracy_20260901 path",
+      "post_removal_path_check": "absent",
+      "post_removal_git_status_check": "not applicable; no checkout remained at the exact path",
+      "timestamp": "2026-09-04T18:53:00Z",
+      "tracking_method": "tracking-only commit assembled from origin/main with isolated Git index; no worktree created",
+      "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -9214,16 +9214,19 @@
     ],
     "current_run": {
       "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-      "reused_existing_registered_worktree": true,
+      "reused_existing_registered_worktree": false,
       "created_new_worktree": false,
-      "removal_command": "not attempted",
-      "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main c01314f; exact path retained for reuse",
-      "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean immediately after c01314f; dirty only with this required lifecycle tracking update",
-      "post_removal_registry_check": "not applicable; removal intentionally not attempted",
-      "post_removal_path_check": "not applicable; worktree retained",
-      "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
+      "removal_command": "git worktree remove /tmp/manuals_rag_accuracy_20260901",
+      "removal_result": "exit 0; exact missing/prunable registration reconciled without --force or prune",
+      "registry_check": "pre-removal exact registration present at b335daa and prunable; post-removal exact registration absent",
+      "path_check": "/tmp/manuals_rag_accuracy_20260901 absent before and after removal",
+      "git_status_check": "not applicable because the selected path was absent before and after reconciliation; dirty primary checkout was not modified",
+      "post_removal_registry_check": "registered=false for exact /tmp/manuals_rag_accuracy_20260901 path",
+      "post_removal_path_check": "absent",
+      "post_removal_git_status_check": "not applicable; no checkout remained at the exact path",
+      "timestamp": "2026-09-04T18:53:00Z",
+      "tracking_method": "tracking-only commit assembled from origin/main with isolated Git index; no worktree created",
+      "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
     }
   },
   "llm_answer_judge_policy": {
@@ -12911,19 +12914,19 @@
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-        "reused_existing_registered_worktree": true,
+        "reused_existing_registered_worktree": false,
         "created_new_worktree": false,
-        "removal_command": "not attempted",
-        "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main a13dde8; exact path retained for reuse",
-        "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "git_status_check": "clean immediately after pushed validation/tracking commit a13dde8; dirty only with this required lifecycle follow-up",
-        "post_removal_registry_check": "not applicable; removal intentionally not attempted",
-        "post_removal_path_check": "not applicable; worktree retained",
-        "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-        "timestamp": "2026-09-04T12:39:00Z",
-        "git_status_before_final_commit": "clean after a13dde8; dirty only with this required lifecycle follow-up",
-        "pushed_correction_commit": "a13dde8"
+        "removal_command": "git worktree remove /tmp/manuals_rag_accuracy_20260901",
+        "removal_result": "exit 0; exact missing/prunable registration reconciled without --force or prune",
+        "registry_check": "pre-removal exact registration present at b335daa and prunable; post-removal exact registration absent",
+        "path_check": "/tmp/manuals_rag_accuracy_20260901 absent before and after removal",
+        "git_status_check": "not applicable because the selected path was absent before and after reconciliation; dirty primary checkout was not modified",
+        "post_removal_registry_check": "registered=false for exact /tmp/manuals_rag_accuracy_20260901 path",
+        "post_removal_path_check": "absent",
+        "post_removal_git_status_check": "not applicable; no checkout remained at the exact path",
+        "timestamp": "2026-09-04T18:53:00Z",
+        "tracking_method": "tracking-only commit assembled from origin/main with isolated Git index; no worktree created",
+        "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -13042,16 +13045,19 @@
       ],
       "current_run": {
         "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
-        "reused_existing_registered_worktree": true,
+        "reused_existing_registered_worktree": false,
         "created_new_worktree": false,
-        "removal_command": "not attempted",
-        "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at pushed origin/main c01314f; exact path retained for reuse",
-        "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "git_status_check": "clean immediately after c01314f; dirty only with this required lifecycle tracking update",
-        "post_removal_registry_check": "not applicable; removal intentionally not attempted",
-        "post_removal_path_check": "not applicable; worktree retained",
-        "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
+        "removal_command": "git worktree remove /tmp/manuals_rag_accuracy_20260901",
+        "removal_result": "exit 0; exact missing/prunable registration reconciled without --force or prune",
+        "registry_check": "pre-removal exact registration present at b335daa and prunable; post-removal exact registration absent",
+        "path_check": "/tmp/manuals_rag_accuracy_20260901 absent before and after removal",
+        "git_status_check": "not applicable because the selected path was absent before and after reconciliation; dirty primary checkout was not modified",
+        "post_removal_registry_check": "registered=false for exact /tmp/manuals_rag_accuracy_20260901 path",
+        "post_removal_path_check": "absent",
+        "post_removal_git_status_check": "not applicable; no checkout remained at the exact path",
+        "timestamp": "2026-09-04T18:53:00Z",
+        "tracking_method": "tracking-only commit assembled from origin/main with isolated Git index; no worktree created",
+        "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
       }
     },
     "llm_answer_judge_policy": {
