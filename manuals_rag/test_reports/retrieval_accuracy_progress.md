@@ -7317,3 +7317,7 @@ Next target:
 Next target:
 
 - Obtain genuine pipe-shaped actual-API changed-path evidence for `ed7c83b`, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve `retrieval_eval_20260904_071826` and `072834` as diagnostic/not-clean and reuse `/tmp/manuals_rag_accuracy_20260901`.
+
+### Post-push lifecycle record
+
+- Correction commit `fc7793a` was pushed to `origin/main`. The selected worktree `/tmp/manuals_rag_accuracy_20260901` was clean at that commit before this tracking-only lifecycle update. Removal command/result remains exactly `not attempted`; the path is present and registered at `fc7793a` for mandatory reuse because accumulated permission-denied cleanup blockers make removal plus durable post-removal tracking unsafe. No force removal, recursive deletion, prune, reset, clean, stash, or unrelated worktree mutation occurred.

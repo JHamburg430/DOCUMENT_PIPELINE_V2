@@ -9088,12 +9088,13 @@
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
       "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 6b67f3f before edits; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "dirty only with this run's progress and manifest tracking before final commit",
+      "git_status_check": "clean at pushed correction commit fc7793a before the lifecycle tracking update",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
       "timestamp": "2026-09-04T09:30:00Z",
-      "git_status_before_final_commit": "dirty only with this run's progress and manifest tracking before final commit"
+      "git_status_before_final_commit": "dirty only with this run's checker, tests, progress, and manifest changes before correction commit fc7793a",
+      "pushed_correction_commit": "fc7793a"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -12909,12 +12910,13 @@
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
         "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 6b67f3f before edits; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-        "git_status_check": "dirty only with this run's progress and manifest tracking before final commit",
+        "git_status_check": "clean at pushed correction commit fc7793a before the lifecycle tracking update",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
         "timestamp": "2026-09-04T09:30:00Z",
-        "git_status_before_final_commit": "dirty only with this run's progress and manifest tracking before final commit"
+        "git_status_before_final_commit": "dirty only with this run's checker, tests, progress, and manifest changes before correction commit fc7793a",
+        "pushed_correction_commit": "fc7793a"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
