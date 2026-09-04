@@ -664,6 +664,56 @@ def test_manifest_checker_rejects_answer_grounding_rotation_artifact_run_mismatc
     )
 
 
+def test_manifest_checker_rejects_newer_complete_answer_mode_run(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    suffix = "20260830_211603"
+    (reports / f"retrieval_eval_manifest_{suffix}.json").write_text(
+        json.dumps({"response_mode": "answer_with_citations"}), encoding="utf-8"
+    )
+    (reports / f"retrieval_eval_dataset_{suffix}.jsonl").write_text(
+        "{}\n", encoding="utf-8"
+    )
+    (reports / f"retrieval_eval_results_{suffix}.jsonl").write_text(
+        "{}\n", encoding="utf-8"
+    )
+    (reports / f"retrieval_eval_summary_{suffix}.json").write_text(
+        "{}\n", encoding="utf-8"
+    )
+
+    errors = module.check_manifest(manifest, tmp_path)
+
+    assert any(
+        "answer_grounding current-run state stale" in error
+        and "retrieval_eval_20260830_211603" in error
+        for error in errors
+    )
+
+
+def test_manifest_checker_accepts_latest_complete_answer_mode_run(tmp_path):
+    module = _load_manifest_check_module()
+    manifest = _minimal_manifest()
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    suffix = "20260830_201603"
+    (reports / f"retrieval_eval_manifest_{suffix}.json").write_text(
+        json.dumps({"response_mode": "answer_with_citations"}), encoding="utf-8"
+    )
+    (reports / f"retrieval_eval_dataset_{suffix}.jsonl").write_text(
+        "{}\n", encoding="utf-8"
+    )
+    (reports / f"retrieval_eval_results_{suffix}.jsonl").write_text(
+        "{}\n", encoding="utf-8"
+    )
+    (reports / f"retrieval_eval_summary_{suffix}.json").write_text(
+        "{}\n", encoding="utf-8"
+    )
+
+    assert module.check_manifest(manifest, tmp_path) == []
+
+
 def test_manifest_checker_rejects_nested_answer_grounding_rotation_artifact_run_mismatch():
     module = _load_manifest_check_module()
     manifest = _minimal_manifest()

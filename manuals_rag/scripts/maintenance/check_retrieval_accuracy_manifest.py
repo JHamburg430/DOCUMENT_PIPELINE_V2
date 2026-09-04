@@ -360,6 +360,75 @@ def _check_answer_grounding_rotation_artifacts(
                 )
 
 
+def _check_latest_answer_mode_run_freshness(
+    manifest: dict[str, Any],
+    artifact_base_dir: Path | None,
+    errors: list[str],
+) -> None:
+    """Reject current-state tracking that predates a complete answer-mode run."""
+    if artifact_base_dir is None:
+        return
+    reports_dir = artifact_base_dir / "test_reports"
+    if not reports_dir.is_dir():
+        return
+    try:
+        subprocess.run(
+            ["git", "-C", str(artifact_base_dir), "rev-parse", "--show-toplevel"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        git_backed = True
+    except (subprocess.CalledProcessError, OSError):
+        git_backed = False
+
+    complete_answer_runs: list[str] = []
+    for path in reports_dir.glob("retrieval_eval_manifest_*.json"):
+        if git_backed:
+            tracked = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(artifact_base_dir),
+                    "ls-files",
+                    "--error-unmatch",
+                    str(path.relative_to(artifact_base_dir)),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            if tracked.returncode != 0:
+                continue
+        artifact_run = _run_id_from_value(path.name)
+        if artifact_run is None:
+            continue
+        try:
+            run_manifest = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if run_manifest.get("response_mode") != "answer_with_citations":
+            continue
+        suffix = artifact_run.removeprefix("retrieval_eval_")
+        required = (
+            reports_dir / f"retrieval_eval_dataset_{suffix}.jsonl",
+            reports_dir / f"retrieval_eval_results_{suffix}.jsonl",
+            reports_dir / f"retrieval_eval_summary_{suffix}.json",
+        )
+        if all(candidate.is_file() for candidate in required):
+            complete_answer_runs.append(artifact_run)
+
+    if not complete_answer_runs:
+        return
+    newest_run = max(complete_answer_runs)
+    rotation_run = _get_path(manifest, "answer_grounding_rotation.latest_run")
+    if rotation_run != newest_run:
+        errors.append(
+            "answer_grounding current-run state stale: "
+            f"answer_grounding_rotation.latest_run={rotation_run!r} but newest complete "
+            f"answer-mode artifacts are {newest_run!r}"
+        )
+
+
 def _check_accepted_clean_run_artifacts(
     label: str,
     status: Any,
@@ -601,6 +670,7 @@ def check_manifest(
         artifact_base_dir,
         errors,
     )
+    _check_latest_answer_mode_run_freshness(data, artifact_base_dir, errors)
     _check_accepted_clean_run_artifacts(
         "answer_grounding_status",
         _get_path(data, "answer_grounding_status"),

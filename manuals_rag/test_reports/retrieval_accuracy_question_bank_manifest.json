@@ -187,31 +187,31 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-09-04T06:04:00Z",
-    "latest_run": "retrieval_eval_20260904_060126",
-    "classification": "diagnostic_table_local_header_correction_http_pipe_branch_unproved",
+    "timestamp": "2026-09-04T07:53:00Z",
+    "latest_run": "retrieval_eval_20260904_072834",
+    "classification": "diagnostic_reverted_table_lineage_experiment",
     "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0138_pipe_troubleshooting_validation.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260904_060126.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260904_060126.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260904_060126.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260904_060126.json",
+    "dataset": "test_reports/retrieval_eval_dataset_20260904_072834.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260904_072834.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260904_072834.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260904_072834.json",
     "search_mode": "http",
     "response_mode": "answer_with_citations",
     "max_queries": 2,
-    "retrieval_result": "0/2 exact expected-evidence retrieval; candidate and metadata-document recall were 100%, but exact pipe parent chunk 38d26f5e was absent from final_top_k.",
-    "answer_result": "0/2 benchmark answer scoring. The positive fallback was source-supported by structured atomic chunks ce29be75 and be25fb78; the Error 99999 control returned insufficient evidence with no citations. This is diagnostic and not genuine pipe-branch proof.",
+    "retrieval_result": "0/2 exact expected-evidence retrieval after the relation-preserving table-lineage correction attempt; ranking_or_context_loss=2 while candidate and metadata-document recall remained 100%.",
+    "answer_result": "0/2 benchmark answer scoring. The positive fallback used source-supported atomic evidence but omitted the required pipe parent; the Error 99999 control returned insufficient evidence with no citations. The entire experiment was reverted and this run is diagnostic/not-clean.",
     "runtime_load_evidence": {
-      "validated_run": "retrieval_eval_20260904_060126",
+      "validated_run": "retrieval_eval_20260904_072834",
       "api_url": "http://127.0.0.1:9193",
       "container": "manuals-rag-temp-api-39262386-20260902-0726",
-      "health": "ok after restart at 2026-09-04T06:00:28Z",
+      "health": "ok for loaded HTTP diagnostic retrieval_eval_20260904_072834 before the unsuccessful experiment was reverted",
       "fingerprints": {
-        "generator.py": "2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf"
+        "retriever.py": "61829fede6d470f6476dac16e285f5466c5107788bbe41fb48fcb359d0781159"
       }
     },
-    "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
+    "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_072834.jsonl. The positive used source-supported atomic citations but omitted exact pipe parent chunk 38d26f5e; the Error 99999 control cited nothing and fabricated nothing. Preserve 071826 and 072834 as diagnostic/not-clean.",
     "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
-    "scope": "retrieval_eval_20260904_060126 validates only the loaded HTTP structured-atomic positive and fail-closed control; the general answering-only table-local header correction remains without genuine pipe-shaped API proof. No active count, ledger, retrieval, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
+    "scope": "retrieval_eval_20260904_072834 is diagnostic evidence from a reverted retrieval experiment; no production retrieval or answering change was retained. No active count, ledger, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -702,7 +702,7 @@
       "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive",
       "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive"
     ],
-    "answer_grounding_status": "retrieval_eval_20260904_060126 is diagnostic/not-clean. Its positive fallback is supported by structured atomic citations, but exact pipe parent evidence was not returned, so the genuine pipe changed path remains unproved through HTTP.",
+    "answer_grounding_status": "retrieval_eval_20260904_071826 and retrieval_eval_20260904_072834 are diagnostic/not-clean evidence from the reverted table-lineage experiment. Neither proves safe relation-preserving parent promotion.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -777,7 +777,11 @@
       "pipe_header_post_correction_dataset": "test_reports/retrieval_eval_dataset_20260904_060126.jsonl",
       "pipe_header_post_correction_results": "test_reports/retrieval_eval_results_20260904_060126.jsonl",
       "pipe_header_post_correction_summary": "test_reports/retrieval_eval_summary_20260904_060126.json",
-      "pipe_header_post_correction_manifest": "test_reports/retrieval_eval_manifest_20260904_060126.json"
+      "pipe_header_post_correction_manifest": "test_reports/retrieval_eval_manifest_20260904_060126.json",
+      "table_lineage_unsafe_diagnostic_results": "test_reports/retrieval_eval_results_20260904_071826.jsonl",
+      "table_lineage_unsafe_diagnostic_summary": "test_reports/retrieval_eval_summary_20260904_071826.json",
+      "table_lineage_reverted_control_results": "test_reports/retrieval_eval_results_20260904_072834.jsonl",
+      "table_lineage_reverted_control_summary": "test_reports/retrieval_eval_summary_20260904_072834.json"
     },
     "current_answer_failures": {
       "expected_evidence_not_cited": 2,
@@ -785,7 +789,7 @@
       "insufficient_evidence": 1,
       "expected_terms_missing": 1
     },
-    "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
+    "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_071826.jsonl and retrieval_eval_results_20260904_072834.jsonl. The positive answers used source-supported atomic citations but did not prove safe pipe-parent promotion; both Error 99999 controls failed closed. Both runs remain diagnostic/not-clean.",
     "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
   },
@@ -811,18 +815,18 @@
     "insufficient_evidence": 1,
     "expected_terms_missing": 1
   },
-  "current_answer_failure_source": "retrieval_eval_20260904_060126 diagnostic/not-clean: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1. The positive used source-supported structured atomic citations; the unsupported control failed closed.",
+  "current_answer_failure_source": "retrieval_eval_20260904_072834 diagnostic/not-clean: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1. The positive used source-supported atomic citations but missed the required pipe parent; the unsupported control failed closed.",
   "current_failure_categories": {
     "ranking_or_context_loss": 2
   },
   "current_failure_sources": {
-    "retrieval": "retrieval_eval_20260904_060126: ranking_or_context_loss=2 because exact pipe parent chunk 38d26f5e was absent from final_top_k despite 100% candidate and metadata-document recall.",
-    "answer": "retrieval_eval_20260904_060126: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1."
+    "retrieval": "retrieval_eval_20260904_072834: ranking_or_context_loss=2 after the relation-preserving table-lineage correction attempt; candidate and metadata-document recall remained 100%.",
+    "answer": "retrieval_eval_20260904_072834: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1."
   },
   "current_retrieval_failure_categories": {
     "ranking_or_context_loss": 2
   },
-  "current_retrieval_failure_source": "retrieval_eval_20260904_060126 is the current diagnostic HTTP run: exact pipe parent chunk 38d26f5e was absent from final_top_k in both rows despite candidate and metadata-document recall at 100%.",
+  "current_retrieval_failure_source": "retrieval_eval_20260904_072834 is the current diagnostic HTTP run: the relation-preserving table-lineage correction attempt regressed exact retrieval to ranking_or_context_loss=2 despite 100% candidate and metadata-document recall; the experiment was reverted.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -9082,14 +9086,14 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 000e63f before edits; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8341c3 before edits; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed commit ed7c83b; no uncommitted or untracked job-owned files remain",
+      "git_status_check": "dirty only with this run's scoped checker/test/progress/manifest changes before final commit",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-      "timestamp": "2026-09-04T06:04:00Z",
-      "git_status_before_final_commit": "dirty only with this run scoped answering/test/eval/tracking files before final commit"
+      "timestamp": "2026-09-04T07:53:00Z",
+      "git_status_before_final_commit": "dirty only with this run's scoped checker/test/progress/manifest changes before final commit"
     },
     "dataset_ledger_extension_containment": {
       "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -9212,9 +9216,9 @@
       "created_new_worktree": false,
       "removal_command": "not attempted",
       "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 000e63f before edits; exact path retained for reuse",
+      "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8341c3 before edits; exact path retained for reuse",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed commit ed7c83b; no uncommitted or untracked job-owned files remain",
+      "git_status_check": "dirty only with this run's scoped checker/test/progress/manifest changes before final commit",
       "post_removal_registry_check": "not applicable; removal intentionally not attempted",
       "post_removal_path_check": "not applicable; worktree retained",
       "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -10248,31 +10252,31 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-09-04T06:04:00Z",
-      "latest_run": "retrieval_eval_20260904_060126",
-      "classification": "diagnostic_table_local_header_correction_http_pipe_branch_unproved",
+      "timestamp": "2026-09-04T07:53:00Z",
+      "latest_run": "retrieval_eval_20260904_072834",
+      "classification": "diagnostic_reverted_table_lineage_experiment",
       "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0138_pipe_troubleshooting_validation.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260904_060126.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260904_060126.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260904_060126.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260904_060126.json",
+      "dataset": "test_reports/retrieval_eval_dataset_20260904_072834.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260904_072834.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260904_072834.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260904_072834.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "max_queries": 2,
-      "retrieval_result": "0/2 exact expected-evidence retrieval; candidate and metadata-document recall were 100%, but exact pipe parent chunk 38d26f5e was absent from final_top_k.",
-      "answer_result": "0/2 benchmark answer scoring. The positive fallback was source-supported by structured atomic chunks ce29be75 and be25fb78; the Error 99999 control returned insufficient evidence with no citations. This is diagnostic and not genuine pipe-branch proof.",
+      "retrieval_result": "0/2 exact expected-evidence retrieval after the relation-preserving table-lineage correction attempt; ranking_or_context_loss=2 while candidate and metadata-document recall remained 100%.",
+      "answer_result": "0/2 benchmark answer scoring. The positive fallback used source-supported atomic evidence but omitted the required pipe parent; the Error 99999 control returned insufficient evidence with no citations. The entire experiment was reverted and this run is diagnostic/not-clean.",
       "runtime_load_evidence": {
-        "validated_run": "retrieval_eval_20260904_060126",
+        "validated_run": "retrieval_eval_20260904_072834",
         "api_url": "http://127.0.0.1:9193",
         "container": "manuals-rag-temp-api-39262386-20260902-0726",
-        "health": "ok after restart at 2026-09-04T06:00:28Z",
+        "health": "ok for loaded HTTP diagnostic retrieval_eval_20260904_072834 before the unsuccessful experiment was reverted",
         "fingerprints": {
-          "generator.py": "2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf"
+          "retriever.py": "61829fede6d470f6476dac16e285f5466c5107788bbe41fb48fcb359d0781159"
         }
       },
-      "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
+      "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_072834.jsonl. The positive used source-supported atomic citations but omitted exact pipe parent chunk 38d26f5e; the Error 99999 control cited nothing and fabricated nothing. Preserve 071826 and 072834 as diagnostic/not-clean.",
       "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
-      "scope": "retrieval_eval_20260904_060126 validates only the loaded HTTP structured-atomic positive and fail-closed control; the general answering-only table-local header correction remains without genuine pipe-shaped API proof. No active count, ledger, retrieval, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
+      "scope": "retrieval_eval_20260904_072834 is diagnostic evidence from a reverted retrieval experiment; no production retrieval or answering change was retained. No active count, ledger, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10552,7 +10556,7 @@
         "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive",
         "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive"
       ],
-      "answer_grounding_status": "retrieval_eval_20260904_060126 is diagnostic/not-clean. Its positive fallback is supported by structured atomic citations, but exact pipe parent evidence was not returned, so the genuine pipe changed path remains unproved through HTTP.",
+      "answer_grounding_status": "retrieval_eval_20260904_071826 and retrieval_eval_20260904_072834 are diagnostic/not-clean evidence from the reverted table-lineage experiment. Neither proves safe relation-preserving parent promotion.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10627,7 +10631,11 @@
         "pipe_header_post_correction_dataset": "test_reports/retrieval_eval_dataset_20260904_060126.jsonl",
         "pipe_header_post_correction_results": "test_reports/retrieval_eval_results_20260904_060126.jsonl",
         "pipe_header_post_correction_summary": "test_reports/retrieval_eval_summary_20260904_060126.json",
-        "pipe_header_post_correction_manifest": "test_reports/retrieval_eval_manifest_20260904_060126.json"
+        "pipe_header_post_correction_manifest": "test_reports/retrieval_eval_manifest_20260904_060126.json",
+        "table_lineage_unsafe_diagnostic_results": "test_reports/retrieval_eval_results_20260904_071826.jsonl",
+        "table_lineage_unsafe_diagnostic_summary": "test_reports/retrieval_eval_summary_20260904_071826.json",
+        "table_lineage_reverted_control_results": "test_reports/retrieval_eval_results_20260904_072834.jsonl",
+        "table_lineage_reverted_control_summary": "test_reports/retrieval_eval_summary_20260904_072834.json"
       },
       "current_answer_failures": {
         "expected_evidence_not_cited": 2,
@@ -10635,7 +10643,7 @@
         "insufficient_evidence": 1,
         "expected_terms_missing": 1
       },
-      "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_060126.jsonl. The positive cited structured atomic chunks ce29be75 and be25fb78 with null quote spans and directly stated both causes. The Error 99999 control cited nothing and fabricated nothing. Exact pipe parent chunk 38d26f5e was not returned, so neither row is accepted as genuine pipe-path evidence.",
+      "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_071826.jsonl and retrieval_eval_results_20260904_072834.jsonl. The positive answers used source-supported atomic citations but did not prove safe pipe-parent promotion; both Error 99999 controls failed closed. Both runs remain diagnostic/not-clean.",
       "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
     },
@@ -10645,18 +10653,18 @@
       "insufficient_evidence": 1,
       "expected_terms_missing": 1
     },
-    "current_answer_failure_source": "retrieval_eval_20260904_060126 diagnostic/not-clean: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1. The positive used source-supported structured atomic citations; the unsupported control failed closed.",
+    "current_answer_failure_source": "retrieval_eval_20260904_072834 diagnostic/not-clean: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1. The positive used source-supported atomic citations but missed the required pipe parent; the unsupported control failed closed.",
     "current_failure_categories": {
       "ranking_or_context_loss": 2
     },
     "current_failure_sources": {
-      "retrieval": "retrieval_eval_20260904_060126: ranking_or_context_loss=2 because exact pipe parent chunk 38d26f5e was absent from final_top_k despite 100% candidate and metadata-document recall.",
-      "answer": "retrieval_eval_20260904_060126: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1."
+      "retrieval": "retrieval_eval_20260904_072834: ranking_or_context_loss=2 after the relation-preserving table-lineage correction attempt; candidate and metadata-document recall remained 100%.",
+      "answer": "retrieval_eval_20260904_072834: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1."
     },
     "current_retrieval_failure_categories": {
       "ranking_or_context_loss": 2
     },
-    "current_retrieval_failure_source": "retrieval_eval_20260904_060126 is the current diagnostic HTTP run: exact pipe parent chunk 38d26f5e was absent from final_top_k in both rows despite candidate and metadata-document recall at 100%.",
+    "current_retrieval_failure_source": "retrieval_eval_20260904_072834 is the current diagnostic HTTP run: the relation-preserving table-lineage correction attempt regressed exact retrieval to ranking_or_context_loss=2 despite 100% candidate and metadata-document recall; the experiment was reverted.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -12899,14 +12907,14 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 000e63f before edits; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8341c3 before edits; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed commit ed7c83b; no uncommitted or untracked job-owned files remain",
+      "git_status_check": "dirty only with this run's scoped checker/test/progress/manifest changes before final commit",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted",
-        "timestamp": "2026-09-04T06:04:00Z",
-        "git_status_before_final_commit": "dirty only with this run scoped answering/test/eval/tracking files before final commit"
+        "timestamp": "2026-09-04T07:53:00Z",
+        "git_status_before_final_commit": "dirty only with this run's scoped checker/test/progress/manifest changes before final commit"
       },
       "dataset_ledger_extension_containment": {
         "classification": "guardrail_needs_fix_addressed_no_production_behavior_change",
@@ -13029,9 +13037,9 @@
         "created_new_worktree": false,
         "removal_command": "not attempted",
         "removal_result": "not attempted; retained registered for mandatory reuse because accumulated permission-denied cleanup blockers remain and durable post-removal tracking from this detached checkout would be unsafe",
-        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main 000e63f before edits; exact path retained for reuse",
+        "registry_check": "registered=true for /tmp/manuals_rag_accuracy_20260901 at origin/main e8341c3 before edits; exact path retained for reuse",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 remains present",
-      "git_status_check": "clean after pushed commit ed7c83b; no uncommitted or untracked job-owned files remain",
+      "git_status_check": "dirty only with this run's scoped checker/test/progress/manifest changes before final commit",
         "post_removal_registry_check": "not applicable; removal intentionally not attempted",
         "post_removal_path_check": "not applicable; worktree retained",
         "post_removal_git_status_check": "not applicable; removal intentionally not attempted"
@@ -13168,6 +13176,16 @@
       "ranking_or_context_loss": 2
     },
     "run_exclusions": [
+      {
+        "reason": "diagnostic/not-clean automated retrieval green from an unsafe same-section/same-row table-lineage experiment; the helper could conflate distinct tables with colliding row numbers and replace directly supporting atomic evidence",
+        "run_id": "retrieval_eval_20260904_071826",
+        "scope": "entire combined run; preserve retrieved/cited row evidence but do not accept as safe production or answer-grounding proof"
+      },
+      {
+        "reason": "diagnostic/not-clean control after a relation-preserving correction attempt regressed exact retrieval to 0/2; the complete production/test experiment was reverted before commit",
+        "run_id": "retrieval_eval_20260904_072834",
+        "scope": "entire combined run; preserve source-supported atomic answer evidence and fail-closed Error 99999 behavior without claiming table-lineage proof"
+      },
       {
         "reason": "combined run is not clean: the source-backed IV-HG/VS Error 30109 positive passed with exact citations after the leading-pipe correction, while the intentionally unsupported VS Error 99999 side failed closed with insufficient evidence and no citations",
         "run_id": "retrieval_eval_20260904_044548",
@@ -14027,6 +14045,19 @@
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
+      {
+        "finding": "Guardrail commit e8341c3 found that progress advanced through retrieval_eval_20260904_071826 and 072834 while duplicated current-run manifest state and exclusions remained at 060126.",
+        "guardrail_commit": "e8341c3",
+        "guardrail_timestamp": "2026-09-04T07:42:30Z",
+        "severity": "needs_fix",
+        "status": "addressed_this_run_tracking_reconciled_and_freshness_check_added",
+        "evidence": [
+          "root and question_bank current run, failure sources, status, rotation, timestamps, artifacts, and exclusions now identify 072834 and preserve 071826",
+          "deterministic checker rejects a newer complete answer-mode artifact set when answer_grounding_rotation.latest_run is older",
+          "normal and parent-aware manifest checks plus focused manifest tests passed"
+        ],
+        "remaining": "Design a relation-preserving source-table strategy with logical table, row, column-role, and value binding; preserve 071826 and 072834 as diagnostic/not-clean."
+      },
       {
         "timestamp": "2026-09-04T05:41:05Z",
         "severity": "needs_fix",
@@ -15610,13 +15641,23 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T06:04:00Z"
+    "updated_at": "2026-09-04T07:53:00Z"
   },
   "remaining": "Design a relation-preserving source-table strategy that binds logical table, row, column role, and value while passing the exact distinct-table/same-row adverse control without regressing the legitimate IV-HG pipe-table case. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {
     "ranking_or_context_loss": 2
   },
   "run_exclusions": [
+    {
+      "reason": "diagnostic/not-clean automated retrieval green from an unsafe same-section/same-row table-lineage experiment; the helper could conflate distinct tables with colliding row numbers and replace directly supporting atomic evidence",
+      "run_id": "retrieval_eval_20260904_071826",
+      "scope": "entire combined run; preserve retrieved/cited row evidence but do not accept as safe production or answer-grounding proof"
+    },
+    {
+      "reason": "diagnostic/not-clean control after a relation-preserving correction attempt regressed exact retrieval to 0/2; the complete production/test experiment was reverted before commit",
+      "run_id": "retrieval_eval_20260904_072834",
+      "scope": "entire combined run; preserve source-supported atomic answer evidence and fail-closed Error 99999 behavior without claiming table-lineage proof"
+    },
     {
       "reason": "combined run is not clean: the source-backed IV-HG/VS Error 30109 positive passed with exact citations after the leading-pipe correction, while the intentionally unsupported VS Error 99999 side failed closed with insufficient evidence and no citations",
       "run_id": "retrieval_eval_20260904_044548",
@@ -16475,6 +16516,19 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+    {
+      "finding": "Guardrail commit e8341c3 found that progress advanced through retrieval_eval_20260904_071826 and 072834 while duplicated current-run manifest state and exclusions remained at 060126.",
+      "guardrail_commit": "e8341c3",
+      "guardrail_timestamp": "2026-09-04T07:42:30Z",
+      "severity": "needs_fix",
+      "status": "addressed_this_run_tracking_reconciled_and_freshness_check_added",
+      "evidence": [
+        "root and question_bank current run, failure sources, status, rotation, timestamps, artifacts, and exclusions now identify 072834 and preserve 071826",
+        "deterministic checker rejects a newer complete answer-mode artifact set when answer_grounding_rotation.latest_run is older",
+        "normal and parent-aware manifest checks plus focused manifest tests passed"
+      ],
+      "remaining": "Design a relation-preserving source-table strategy with logical table, row, column-role, and value binding; preserve 071826 and 072834 as diagnostic/not-clean."
+    },
     {
       "timestamp": "2026-09-04T05:41:05Z",
       "severity": "needs_fix",
@@ -18058,5 +18112,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T06:04:00Z"
+  "updated_at": "2026-09-04T07:53:00Z"
 }
