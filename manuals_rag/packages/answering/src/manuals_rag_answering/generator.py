@@ -1189,6 +1189,7 @@ def _single_troubleshooting_role_bound_results(
         return False, []
     anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
     roles = _requested_troubleshooting_evidence_roles(query)
+    requested_sides = _requested_product_sides(query)
     if len(anchor) < 6 or not roles:
         return False, []
 
@@ -1221,6 +1222,11 @@ def _single_troubleshooting_role_bound_results(
             if not has_relation_schema(evidence, record):
                 continue
             saw_anchor = True
+            if requested_sides and not all(
+                _result_matches_requested_product_side(result, side)
+                for side in requested_sides
+            ):
+                continue
             role_supported = (
                 _pipe_troubleshooting_record_supports_roles(evidence, record, roles)
                 if "|" in record

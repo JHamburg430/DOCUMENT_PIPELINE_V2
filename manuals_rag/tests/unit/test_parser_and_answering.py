@@ -6289,7 +6289,11 @@ def test_fallback_binds_reported_pipe_symptom_to_requested_cause():
             "Message | Cause | Remedy\n"
             "FTP Connection Error | Connection with the FTP server failed. | Check the server."
         ),
-        metadata={"chunk_type": "parent_section", "retrieval_stage": "direct_pipe_parent_promoted"},
+        metadata={
+            "chunk_type": "parent_section",
+            "retrieval_stage": "direct_pipe_parent_promoted",
+            "product_model": "MOD-500",
+        },
     )
     nearby = SearchResult(
         chunk_id="nearby-setup",
@@ -6342,3 +6346,74 @@ def test_fallback_rejects_matching_status_row_without_requested_cause():
     assert selected == []
     assert fallback.insufficient_evidence is True
     assert fallback.citations == []
+
+
+def _model_bound_pipe_result(chunk_id: str, model: str, *, score: float = 1.0) -> SearchResult:
+    return SearchResult(
+        chunk_id=chunk_id,
+        score=score,
+        title=f"{model} controller manual",
+        document_version_id=f"version-{chunk_id}",
+        source_document_id=f"document-{chunk_id}",
+        pages=[12],
+        section_path=["Errors"],
+        content=(
+            "Message | Cause | Remedy\n"
+            "FTP Connection Error | Connection with the FTP server failed. | Check the server."
+        ),
+        metadata={"chunk_type": "parent_section", "product_model": model},
+    )
+
+
+def test_single_role_bound_fallback_rejects_wrong_model_only():
+    query = "For a MOD-500 reporting an FTP Connection Error, what caused the condition?"
+
+    assert _fallback_evidence_results(query, [_model_bound_pipe_result("wrong", "MOD-600")]) == []
+
+
+def test_single_role_bound_fallback_ignores_higher_score_wrong_model_sibling():
+    query = "For a MOD-500 reporting an FTP Connection Error, what caused the condition?"
+    results = [
+        _model_bound_pipe_result("wrong", "MOD-600", score=5.0),
+        _model_bound_pipe_result("right", "MOD-500", score=1.0),
+    ]
+
+    assert [result.chunk_id for result in _fallback_evidence_results(query, results)] == ["right"]
+
+
+def test_single_role_bound_fallback_rejects_model_less_matching_row():
+    query = "For a MOD-500 reporting an FTP Connection Error, what caused the condition?"
+    result = _model_bound_pipe_result("missing", "MOD-500")
+    result.title = "Controller manual"
+    result.metadata.pop("product_model")
+
+    assert _fallback_evidence_results(query, [result]) == []
+
+
+def test_single_role_bound_fallback_rejects_prefix_only_model_match():
+    query = "For a MOD-500 reporting an FTP Connection Error, what caused the condition?"
+
+    assert _fallback_evidence_results(query, [_model_bound_pipe_result("prefix", "MOD-5000")]) == []
+
+
+def test_single_role_bound_fallback_rejects_duplicate_matching_identity():
+    query = "For a MOD-500 reporting an FTP Connection Error, what caused the condition?"
+    results = [
+        _model_bound_pipe_result("duplicate-one", "MOD-500", score=2.0),
+        _model_bound_pipe_result("duplicate-two", "MOD-500", score=1.0),
+    ]
+
+    assert _fallback_evidence_results(query, results) == []
+
+
+def test_single_role_bound_fallback_binds_exact_error_text_and_model():
+    query = "For a MOD-500, what causes the status 'Error 30109 occurred during startup'?"
+    right = _model_bound_pipe_result("right-code", "MOD-500")
+    right.content = (
+        "Message | Cause | Remedy\n"
+        "Error 30109 occurred during startup | The configuration is invalid. | Reload the configuration."
+    )
+    wrong = _model_bound_pipe_result("wrong-code", "MOD-600", score=3.0)
+    wrong.content = right.content
+
+    assert [result.chunk_id for result in _fallback_evidence_results(query, [wrong, right])] == ["right-code"]

@@ -186,31 +186,31 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-09-04T11:29:45Z",
-    "latest_run": "retrieval_eval_20260904_112945",
-    "classification": "clean_positive_plus_intentional_fail_closed_control",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0628_pipe_actual_api_validation.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260904_112945.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260904_112945.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260904_112945.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260904_112945.json",
+    "timestamp": "2026-09-04T12:07:05Z",
+    "latest_run": "retrieval_eval_20260904_120705",
+    "classification": "clean_positive_plus_intentional_fail_closed_control_after_requested_model_binding",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260904_112945.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260904_120705.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260904_120705.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260904_120705.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260904_120705.json",
     "search_mode": "http",
     "response_mode": "answer_with_citations",
     "max_queries": 2,
-    "retrieval_result": "2/2 at rank 1; the positive returned exact pipe parent 38d26f5e and the later-header control returned only the source-visible remedy row without manufacturing a cause.",
-    "answer_result": "1/2 by design: the positive passed with exact source-row citation; the intentional remedy-only cause control returned insufficient evidence with no citations.",
+    "retrieval_result": "2/2 at rank 1; both returned exact pipe parent 38d26f5e.",
+    "answer_result": "1/2 by design: the positive passed with exact source-row citation; the intentional later-header remedy-only cause control returned insufficient evidence with no citations.",
     "runtime_load_evidence": {
-      "validated_run": "retrieval_eval_20260904_112945",
+      "validated_run": "retrieval_eval_20260904_120705",
       "api_url": "http://127.0.0.1:9193",
       "container": "manuals-rag-temp-api-39262386-20260902-0726",
-      "health": "ok after restart; host and mounted-container generator.py SHA-256 matched 4130bdb029c2d3cd5dd567d5d7fa3d4d7e874a93632f18ffdd30e66b228cb223",
+      "health": "ok after restart; host and mounted-container generator.py SHA-256 matched 4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811",
       "fingerprints": {
-        "generator.py": "4130bdb029c2d3cd5dd567d5d7fa3d4d7e874a93632f18ffdd30e66b228cb223"
+        "generator.py": "4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811"
       }
     },
-    "manual_jsonl_inspection": "Inspected both visible answers, every citation, and returned chunks in retrieval_eval_20260904_112945. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The remedy-only control returns insufficient evidence and no citations.",
-    "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
-    "scope": "retrieval_eval_20260904_112945 is a validation-only two-case run; active coverage and dataset ledger unchanged. Production scope is general answering evidence selection only."
+    "manual_jsonl_inspection": "Inspected both visible answers, every citation, and cited returned content in retrieval_eval_20260904_120705. The positive directly states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the later-header control returns insufficient evidence and no citations.",
+    "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+    "scope": "retrieval_eval_20260904_120705 is a validation-only two-case rerun after a general requested-model answer-selector correction; active coverage and dataset ledger unchanged. Direct wrong-model API probes are diagnostic/not-clean."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -700,9 +700,10 @@
       "retrieval_eval_20260903_015447 CV-X482 Error 10101 plus XG-X SD Card 2-full distinct-document grounded answer",
       "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive",
       "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive",
-      "retrieval_eval_20260904_112945 FTP Connection Error exact pipe-row cause positive"
+      "retrieval_eval_20260904_112945 FTP Connection Error exact pipe-row cause positive",
+      "retrieval_eval_20260904_120705 FTP Connection Error exact pipe-row cause positive"
     ],
-    "answer_grounding_status": "retrieval_eval_20260904_112945 supplies clean positive exact pipe-row cause evidence plus an intentional remedy-only fail-closed control; the combined run remains excluded from all-clean claims.",
+    "answer_grounding_status": "retrieval_eval_20260904_120705 revalidates the exact pipe-row cause positive plus intentional remedy-only fail-closed control after requested-model binding; direct wrong-model API probes remain diagnostic fallthrough evidence.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -785,16 +786,20 @@
       "pipe_answer_role_bound_dataset": "test_reports/retrieval_eval_dataset_20260904_112945.jsonl",
       "pipe_answer_role_bound_results": "test_reports/retrieval_eval_results_20260904_112945.jsonl",
       "pipe_answer_role_bound_summary": "test_reports/retrieval_eval_summary_20260904_112945.json",
-      "pipe_answer_role_bound_manifest": "test_reports/retrieval_eval_manifest_20260904_112945.json"
+      "pipe_answer_role_bound_manifest": "test_reports/retrieval_eval_manifest_20260904_112945.json",
+      "model_bound_pipe_answer_dataset": "test_reports/retrieval_eval_dataset_20260904_120705.jsonl",
+      "model_bound_pipe_answer_results": "test_reports/retrieval_eval_results_20260904_120705.jsonl",
+      "model_bound_pipe_answer_summary": "test_reports/retrieval_eval_summary_20260904_120705.json",
+      "model_bound_pipe_answer_manifest": "test_reports/retrieval_eval_manifest_20260904_120705.json"
     },
     "current_answer_failures": {
       "expected_evidence_not_cited": 1,
       "expected_terms_missing": 1,
       "insufficient_evidence": 1
     },
-    "manual_jsonl_inspection": "Inspected both 112945 payloads. The positive cites exact pipe parent 38d26f5e with null quote span and states its source-supported cause; the remedy-only control returns insufficient evidence with no citations.",
-    "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
-    "latest_clean_run": "retrieval_eval_20260904_112945 FTP Connection Error positive only"
+    "manual_jsonl_inspection": "Inspected both 120705 payloads, every citation, and cited returned content. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The later-header control returns insufficient evidence with no citations.",
+    "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+    "latest_clean_run": "retrieval_eval_20260904_120705 FTP Connection Error positive only"
   },
   "constraints": {
     "allowed_logic": [
@@ -817,11 +822,11 @@
     "expected_terms_missing": 1,
     "insufficient_evidence": 1
   },
-  "current_answer_failure_source": "retrieval_eval_20260904_112945 intentional negative only: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1. The positive cites exact pipe parent 38d26f5e and passes; the later-header remedy-only row correctly provides no cause and fails closed.",
+  "current_answer_failure_source": "retrieval_eval_20260904_120705 intentional negative only: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1. The positive cites exact pipe parent 38d26f5e and passes; the later-header remedy-only row correctly provides no cause and fails closed.",
   "current_failure_categories": {},
   "current_failure_sources": {
     "retrieval": "none",
-    "answer": "retrieval_eval_20260904_112945 intentional negative: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1."
+    "answer": "retrieval_eval_20260904_120705 intentional negative: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1."
   },
   "current_retrieval_failure_categories": {},
   "current_retrieval_failure_source": "retrieval_eval_20260904_110603 is current retrieval evidence: automated 2/2; the positive exact pipe parent is rank 1 and the later-header control is not directly promoted.",
@@ -9308,7 +9313,7 @@
       ]
     }
   ],
-  "next_target": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
+  "next_target": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10248,31 +10253,31 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-09-04T11:29:45Z",
-      "latest_run": "retrieval_eval_20260904_112945",
-      "classification": "clean_positive_plus_intentional_fail_closed_control",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0628_pipe_actual_api_validation.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260904_112945.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260904_112945.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260904_112945.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260904_112945.json",
+      "timestamp": "2026-09-04T12:07:05Z",
+      "latest_run": "retrieval_eval_20260904_120705",
+      "classification": "clean_positive_plus_intentional_fail_closed_control_after_requested_model_binding",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260904_112945.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260904_120705.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260904_120705.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260904_120705.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260904_120705.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "max_queries": 2,
-      "retrieval_result": "2/2 at rank 1; the positive returned exact pipe parent 38d26f5e and the later-header control returned only the source-visible remedy row without manufacturing a cause.",
-      "answer_result": "1/2 by design: the positive passed with exact source-row citation; the intentional remedy-only cause control returned insufficient evidence with no citations.",
+      "retrieval_result": "2/2 at rank 1; both returned exact pipe parent 38d26f5e.",
+      "answer_result": "1/2 by design: the positive passed with exact source-row citation; the intentional later-header remedy-only cause control returned insufficient evidence with no citations.",
       "runtime_load_evidence": {
-        "validated_run": "retrieval_eval_20260904_112945",
+        "validated_run": "retrieval_eval_20260904_120705",
         "api_url": "http://127.0.0.1:9193",
         "container": "manuals-rag-temp-api-39262386-20260902-0726",
-        "health": "ok after restart; host and mounted-container generator.py SHA-256 matched 4130bdb029c2d3cd5dd567d5d7fa3d4d7e874a93632f18ffdd30e66b228cb223",
+        "health": "ok after restart; host and mounted-container generator.py SHA-256 matched 4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811",
         "fingerprints": {
-          "generator.py": "4130bdb029c2d3cd5dd567d5d7fa3d4d7e874a93632f18ffdd30e66b228cb223"
+          "generator.py": "4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811"
         }
       },
-      "manual_jsonl_inspection": "Inspected both visible answers, every citation, and returned chunks in retrieval_eval_20260904_112945. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The remedy-only control returns insufficient evidence and no citations.",
-      "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
-      "scope": "retrieval_eval_20260904_112945 is a validation-only two-case run; active coverage and dataset ledger unchanged. Production scope is general answering evidence selection only."
+      "manual_jsonl_inspection": "Inspected both visible answers, every citation, and cited returned content in retrieval_eval_20260904_120705. The positive directly states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the later-header control returns insufficient evidence and no citations.",
+      "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+      "scope": "retrieval_eval_20260904_120705 is a validation-only two-case rerun after a general requested-model answer-selector correction; active coverage and dataset ledger unchanged. Direct wrong-model API probes are diagnostic/not-clean."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10551,9 +10556,10 @@
         "retrieval_eval_20260903_015447 CV-X482 Error 10101 plus XG-X SD Card 2-full distinct-document grounded answer",
         "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive",
         "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive",
-        "retrieval_eval_20260904_112945 FTP Connection Error exact pipe-row cause positive"
+        "retrieval_eval_20260904_112945 FTP Connection Error exact pipe-row cause positive",
+        "retrieval_eval_20260904_120705 FTP Connection Error exact pipe-row cause positive"
       ],
-      "answer_grounding_status": "retrieval_eval_20260904_112945 supplies clean positive exact pipe-row cause evidence plus an intentional remedy-only fail-closed control; the combined run remains excluded from all-clean claims.",
+      "answer_grounding_status": "retrieval_eval_20260904_120705 revalidates the exact pipe-row cause positive plus intentional remedy-only fail-closed control after requested-model binding; direct wrong-model API probes remain diagnostic fallthrough evidence.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10636,16 +10642,20 @@
         "pipe_answer_role_bound_dataset": "test_reports/retrieval_eval_dataset_20260904_112945.jsonl",
         "pipe_answer_role_bound_results": "test_reports/retrieval_eval_results_20260904_112945.jsonl",
         "pipe_answer_role_bound_summary": "test_reports/retrieval_eval_summary_20260904_112945.json",
-        "pipe_answer_role_bound_manifest": "test_reports/retrieval_eval_manifest_20260904_112945.json"
+        "pipe_answer_role_bound_manifest": "test_reports/retrieval_eval_manifest_20260904_112945.json",
+      "model_bound_pipe_answer_dataset": "test_reports/retrieval_eval_dataset_20260904_120705.jsonl",
+      "model_bound_pipe_answer_results": "test_reports/retrieval_eval_results_20260904_120705.jsonl",
+      "model_bound_pipe_answer_summary": "test_reports/retrieval_eval_summary_20260904_120705.json",
+      "model_bound_pipe_answer_manifest": "test_reports/retrieval_eval_manifest_20260904_120705.json"
       },
       "current_answer_failures": {
         "expected_evidence_not_cited": 1,
         "expected_terms_missing": 1,
         "insufficient_evidence": 1
       },
-      "manual_jsonl_inspection": "Inspected both 112945 payloads. The positive cites exact pipe parent 38d26f5e with null quote span and states its source-supported cause; the remedy-only control returns insufficient evidence with no citations.",
-      "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
-      "latest_clean_run": "retrieval_eval_20260904_112945 FTP Connection Error positive only"
+      "manual_jsonl_inspection": "Inspected both 120705 payloads, every citation, and cited returned content. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The later-header control returns insufficient evidence with no citations.",
+      "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
+      "latest_clean_run": "retrieval_eval_20260904_120705 FTP Connection Error positive only"
     },
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 1,
@@ -10657,11 +10667,11 @@
       "expected_terms_missing": 1,
       "insufficient_evidence": 1
     },
-    "current_answer_failure_source": "retrieval_eval_20260904_112945 intentional negative only: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1. The positive cites exact pipe parent 38d26f5e and passes; the later-header remedy-only row correctly provides no cause and fails closed.",
+    "current_answer_failure_source": "retrieval_eval_20260904_120705 intentional negative only: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1. The positive cites exact pipe parent 38d26f5e and passes; the later-header remedy-only row correctly provides no cause and fails closed.",
     "current_failure_categories": {},
     "current_failure_sources": {
       "retrieval": "none",
-      "answer": "retrieval_eval_20260904_112945 intentional negative: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1."
+      "answer": "retrieval_eval_20260904_120705 intentional negative: insufficient_evidence=1, expected_terms_missing=1, expected_evidence_not_cited=1."
     },
     "current_retrieval_failure_categories": {},
     "current_retrieval_failure_source": "retrieval_eval_20260904_110603 is current retrieval evidence: automated 2/2; the positive exact pipe parent is rank 1 and the later-header control is not directly promoted.",
@@ -13133,7 +13143,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
+    "next_target": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13170,9 +13180,14 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
+    "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
+  {
+    "reason": "combined validation rerun contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
+    "run_id": "retrieval_eval_20260904_120705",
+    "scope": "combined run only; accept the FTP Connection Error positive as clean case-level evidence and preserve the later-header control as expected insufficient evidence"
+  },
       {
         "reason": "combined validation run contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
         "run_id": "retrieval_eval_20260904_112945",
@@ -14052,6 +14067,22 @@
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
+  {
+    "finding": "Guardrail commit b9d4c9e found that c01314f single-step troubleshooting answer selection accepted a source row whose product/model conflicts with the model explicitly requested by the user.",
+    "guardrail_commit": "b9d4c9e",
+    "guardrail_timestamp": "2026-09-04T11:43:44Z",
+    "severity": "needs_fix",
+    "status": "production_correction_complete_loaded_model_binding_controls_pass_actual_api_model_mismatch_proof_limited_pending_guardrail_review",
+    "evidence": [
+      "The selector now requires every explicit requested product/model side to match the candidate source row before accepting its symptom-to-role relation.",
+      "Loaded controls pass for exact-model positive, wrong-model-only, higher-score wrong-model sibling, absent-model metadata, duplicate same-model identity ambiguity, model-prefix collision, and exact Error 30109 text/model binding.",
+      "The corrected fixture-mounted full unit gate passed 702 tests with 59 warnings; the first 687-pass/15-failure attempt lacked Git and is diagnostic only.",
+      "Restarted manuals-rag-temp-api-39262386-20260902-0726; health was ok and host/container generator.py SHA-256 matched 4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811.",
+      "Actual HTTP retrieval_eval_20260904_120705 passed retrieval 2/2 and answer 1/2 by design: the IV-HG500CA FTP positive cited exact pipe parent 38d26f5e and the later-header no-cause control failed closed with no citations.",
+      "Direct IV4-G600CA and synthetic MOD-500 API probes returned unrelated IV4 FTP setup evidence rather than a cause. They are diagnostic and do not prove the requested-model selector branch through HTTP."
+    ],
+    "remaining": "Independent guardrail review remains required. The production selector defect is covered deterministically and loaded, but an actual HTTP wrong-model case that reaches the structured selector is still unavailable without unsafe synthetic injection; preserve the direct API fallthrough diagnostics and do not claim them clean."
+  },
       {
         "finding": "Guardrail commit 0ab0d44 found that empty, missing, non-boolean, or summary-contradicting per-result answer verdicts could be treated as a complete newer answer-mode run by the freshness checker.",
         "guardrail_commit": "0ab0d44",
@@ -15690,11 +15721,16 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T11:35:00Z"
+    "updated_at": "2026-09-04T12:07:05Z"
   },
-  "remaining": "Await guardrail review of the relation-bound single-step answer correction, then continue broader source-reviewed answer coverage while preserving the 112945 intentional-negative exclusion.",
+  "remaining": "Await independent guardrail review of the requested-model-bound single-step answer correction; preserve retrieval_eval_20260904_120705 as a clean FTP positive plus intentional fail-closed control, and preserve the two direct wrong-model API probes as diagnostic because they fell through to unrelated FTP setup evidence rather than exercising the structured selector.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
+  {
+    "reason": "combined validation rerun contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
+    "run_id": "retrieval_eval_20260904_120705",
+    "scope": "combined run only; accept the FTP Connection Error positive as clean case-level evidence and preserve the later-header control as expected insufficient evidence"
+  },
     {
       "reason": "combined validation run contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
       "run_id": "retrieval_eval_20260904_112945",
@@ -16573,6 +16609,22 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
+  {
+    "finding": "Guardrail commit b9d4c9e found that c01314f single-step troubleshooting answer selection accepted a source row whose product/model conflicts with the model explicitly requested by the user.",
+    "guardrail_commit": "b9d4c9e",
+    "guardrail_timestamp": "2026-09-04T11:43:44Z",
+    "severity": "needs_fix",
+    "status": "production_correction_complete_loaded_model_binding_controls_pass_actual_api_model_mismatch_proof_limited_pending_guardrail_review",
+    "evidence": [
+      "The selector now requires every explicit requested product/model side to match the candidate source row before accepting its symptom-to-role relation.",
+      "Loaded controls pass for exact-model positive, wrong-model-only, higher-score wrong-model sibling, absent-model metadata, duplicate same-model identity ambiguity, model-prefix collision, and exact Error 30109 text/model binding.",
+      "The corrected fixture-mounted full unit gate passed 702 tests with 59 warnings; the first 687-pass/15-failure attempt lacked Git and is diagnostic only.",
+      "Restarted manuals-rag-temp-api-39262386-20260902-0726; health was ok and host/container generator.py SHA-256 matched 4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811.",
+      "Actual HTTP retrieval_eval_20260904_120705 passed retrieval 2/2 and answer 1/2 by design: the IV-HG500CA FTP positive cited exact pipe parent 38d26f5e and the later-header no-cause control failed closed with no citations.",
+      "Direct IV4-G600CA and synthetic MOD-500 API probes returned unrelated IV4 FTP setup evidence rather than a cause. They are diagnostic and do not prove the requested-model selector branch through HTTP."
+    ],
+    "remaining": "Independent guardrail review remains required. The production selector defect is covered deterministically and loaded, but an actual HTTP wrong-model case that reaches the structured selector is still unavailable without unsafe synthetic injection; preserve the direct API fallthrough diagnostics and do not claim them clean."
+  },
     {
       "finding": "Guardrail commit 0ab0d44 found that empty, missing, non-boolean, or summary-contradicting per-result answer verdicts could be treated as a complete newer answer-mode run by the freshness checker.",
       "guardrail_commit": "0ab0d44",
@@ -18211,5 +18263,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T11:35:00Z"
+  "updated_at": "2026-09-04T12:07:05Z"
 }
