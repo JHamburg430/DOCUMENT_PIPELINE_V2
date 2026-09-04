@@ -1,0 +1,551 @@
+{
+  "corpus_id": "manuals_vendor_keyence",
+  "documents": [
+    {
+      "document_id": "14879385-0608-44ee-85fc-0b79ac5c1d96",
+      "version_id": "99a0ce95-f748-46d0-b7a4-851fd687e667",
+      "filename": "CA-EN100U_Datasheet.pdf",
+      "document": {
+        "title": "CA-EN100U Data Sheet",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "0b23b505-b66b-4f82-bf43-7570c2442681",
+      "version_id": "805883ab-49d9-461e-9087-a51123ae60f9",
+      "filename": "AS_103012_LineScan_C_611J12_KA_US_2073_3.pdf",
+      "document": {
+        "title": "AS 103012 LineScan C 611J12 KA US 2073 3",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "d7566a8f-8bc7-4ba5-a88d-aa3b44a9505b",
+      "version_id": "61016924-ed4d-4543-8461-9f155a79da8c",
+      "filename": "AS_104471_OP-88310_OP-88381_L_611K13_KA_US_1049_1.pdf",
+      "document": {
+        "title": "AS 104471 OP-88310 OP-88381 L 611K13 KA US 1049 1",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "e5febfed-cd3f-4743-8a65-20e9e7e30491",
+      "version_id": "24baea2f-4a7e-4825-a052-053fb6ff85d6",
+      "filename": "AS_107533_IV_IM_96M12230_WW_GB_2082_3a.pdf",
+      "document": {
+        "title": "AS 107533 IV IM 96M12230 WW GB 2082 3a",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "8a744119-c356-454a-8d6d-4bd8744c4abf",
+      "version_id": "064f9f5a-1b8f-4728-9dfe-10e1d7143137",
+      "filename": "AS_112204_VJ_C_611L77_KA_US_2124_5.pdf",
+      "document": {
+        "title": "Model | Light Emission Surface Size (mm incch)",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "9224d20b-6866-480b-9d00-f98adbda3bee",
+      "version_id": "d0ac8b4b-e008-4c5d-ac52-5606cb80bf0d",
+      "filename": "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM_A61GB_WW_GB_2072_2.pdf",
+      "document": {
+        "title": "AS 114922 IV-H2000MA IV-H500CA IV-H500MA UM A61GB WW GB 2072 2",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "c1e0747b-96ed-474e-b761-73fe10360e4e",
+      "version_id": "b1d53139-fc0b-47c7-91e3-51d5ef453d5a",
+      "filename": "AS_114958_TG_611O36_KA_US_2075_2.pdf",
+      "document": {
+        "title": "History of Safety Standard",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "2f359d19-dd88-471b-8b7b-1a1eda8c2581",
+      "version_id": "d5060b27-c45b-4494-84e5-62e11c254553",
+      "filename": "AS_124150_LJ-X8000_CM_C10GB_WW_GB_2101_1.pdf",
+      "document": {
+        "title": "LJ: X8000 Series 3D Mode Volume Simple Setup Manual",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "695a571b-0ed8-4601-9ac0-d187dbe51c54",
+      "version_id": "d2be0ab1-9277-4ca0-b9ee-59c95e2187a9",
+      "filename": "AS_124659_SZ-V_C_611O89_KA_US_2074_4.pdf",
+      "document": {
+        "title": "AS 124659 SZ-V C 611O89 KA US 2074 4",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "6279a874-72ca-46bd-81e5-e5f0a9e7745a",
+      "version_id": "26fc5b9c-dd65-4daa-9a1e-879445834544",
+      "filename": "AS_126535_CV-X_C_611S71_KA_US_2124_5.pdf",
+      "document": {
+        "title": "AS_126535_CV-X_C_611S71_KA_US_2124_5.pdf",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "7927e7fc-fc59-4c09-8a38-07c2e895f89b",
+      "version_id": "9f58b1dc-3a0a-4036-b6a0-605037457d4f",
+      "filename": "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+      "document": {
+        "title": "EtherNet/IP\u2122 Edition (Allen-Brauldly CompactLogix/ControlLogix Series)",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "f8e76135-15c5-4fa0-97dc-138a07ee3086",
+      "version_id": "8a56a4a2-6a26-4154-b3a1-6f621d5c68ca",
+      "filename": "AS_130681_SR-1000_SR-2000_SR-PN1_CM_D65GB_WW_GB_2122_1.pdf",
+      "document": {
+        "title": "AS 130681 SR-1000 SR-2000 SR-PN1 CM D65GB WW GB 2122 1",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "bd8e91eb-a026-4143-9323-feff0f9a7cba",
+      "version_id": "b12952dc-70e8-4255-964e-0c898ab32e17",
+      "filename": "AS_140519_LR-W500_LR-W500-_LR-W500C_IM_96M17798_WW_GB_2034_1.pdf",
+      "document": {
+        "title": "AS 140519 LR-W500 LR-W500- LR-W500C IM 96M17798 WW GB 2034 1",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "43fc06d2-e726-41d3-b33b-43fb024ef739",
+      "version_id": "93888719-c99a-4290-a0f8-7eb4be2bc460",
+      "filename": "AS_141263_WM_C_611X50_KA_US_2035_2.pdf",
+      "document": {
+        "title": "AS_141263_WM_C_611X50_KA_US_2035_2",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "38bdaf91-b51b-41ad-bdec-9a7ec61ec44e",
+      "version_id": "4de6d819-8cd2-42d5-a4ef-bd86c78fcf0a",
+      "filename": "AS_142767_2DVGR_C_611Y32_KA_US_2054_1.pdf",
+      "document": {
+        "title": "Guided Robotic",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "7a552567-89c6-419d-a3a5-b3db4dc12277",
+      "version_id": "0057136f-933b-4d84-b848-54b5b3917ddb",
+      "filename": "AS_143269_VS_CM_J23GB_WW_GB_2065_2.pdf",
+      "document": {
+        "title": "Keyence Vision",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "3a94cb48-c326-4958-9252-c0fcbd8d4e63",
+      "version_id": "15645952-c95a-4b11-94ee-ad6081a84096",
+      "filename": "AS_145624_IV_C_611Y54_KA_US_2084_2.pdf",
+      "document": {
+        "title": "Vision Sensor IV Series",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "37ad6489-6746-4aae-adc6-fe803f229647",
+      "version_id": "67f4e527-c68f-4146-af94-fee39dafa5f3",
+      "filename": "AS_145861_VS_C_611Y94_KA_US_2104_2.pdf",
+      "document": {
+        "title": "AS 145861 VS C 611Y94 KA US 2104 2",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "8086e290-7093-48d3-9efc-fcc88f9fb1c1",
+      "version_id": "2d45cab1-d50c-4540-be72-43199ef5b25a",
+      "filename": "AS_145895_KV-X_C_611X95_KA_US_2084_1.pdf",
+      "document": {
+        "title": "KV-X500",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "036c91eb-df6d-4aa0-b576-d0e5be3a16d6",
+      "version_id": "f3a0c058-8b44-4f1c-adf6-cae595729456",
+      "filename": "AS_146087_IV4_UM_K08GB_WW_GB_2084_1.pdf",
+      "document": {
+        "title": "AS 146087 IV4 UM K08GB WW GB 2084 1",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+      "version_id": "81b9a03f-4c48-45e3-acb0-f9ea7b5652d7",
+      "filename": "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf",
+      "document": {
+        "title": "AS 147290 LJ-X8000 UM I64US KA GB 2094 3",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "ab20ebe2-6029-4b57-a9af-8fc3b8882512",
+      "version_id": "aa464894-9b91-4d29-8e92-d72875ff5677",
+      "filename": "AS_147320_LJ-S8000_SG_K47GB_WW_GB_2094_1.pdf",
+      "document": {
+        "title": "Chapter 1 Head Installation",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "e50b3d35-9004-44dd-bfd1-ddc455a4f6b7",
+      "version_id": "1c456706-0249-4441-89ef-5e1b67f6113f",
+      "filename": "AS_148740_IV4-400CA_IV4-400MA_IV4-500CA_IM_96M17956_WW_GB_2114_2.pdf",
+      "document": {
+        "title": "AS 148740 IV4-400CA IV4-400MA IV4-500CA IM 96M17956 WW GB 2114 2",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "9faae21a-84b7-41ee-aa34-253cf69e118f",
+      "version_id": "dceb96ce-da7f-416a-b6c6-0791fc27052e",
+      "filename": "AS_149074_SZ-V_GL-R_L_689034_KA_US_2114_1.pdf",
+      "document": {
+        "title": "AS 149074 SZ-V GL-R L 689034 KA US 2114 1",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "857c0518-4b3a-42e2-97c9-211ab24163b6",
+      "version_id": "4c9c46c5-a2c5-4efd-ae35-b0c6cf83d716",
+      "filename": "AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf",
+      "document": {
+        "title": "AS 149551 IV4 UM K80GB WW GB 2124 1",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "e95c8781-65d6-420e-a389-00d6f1a50c84",
+      "version_id": "b49479e3-c7e7-4165-a7ef-bfdc273d3e9e",
+      "filename": "AS_149615_IV4_C_689071_KA_US_2124_3.pdf",
+      "document": {
+        "title": "Manual inspection | Visual inspection could not be used due to the high line speed.",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+      "version_id": "8504a047-4f74-4eaa-b00a-4784588750d7",
+      "filename": "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+      "document": {
+        "title": "Indicate a hazardous situation which, if not avoided, will result in death or serious injury.",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "115081d4-db23-42b3-8055-e94c8237ebbe",
+      "version_id": "b5fb8695-290c-4b12-8a58-172a472c0494",
+      "filename": "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf",
+      "document": {
+        "title": "Dimension inspection | | Appearance inspection | | Shape Inspection | | Height difference | Volume | Burrs | Dents | Presence detection | Orientations detection | Incorrect seatings",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "660738dd-244e-413b-87b3-3c4514c71747",
+      "version_id": "14394d3c-e656-4b5b-91b0-c88c82014e57",
+      "filename": "AS_151119_LJ-S8000_C_689103_KA_US_2025_1.pdf",
+      "document": {
+        "title": "Seensor NEW LJ: S8000 Series",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "819b3c93-bfee-4c4a-a804-b58e0240446f",
+      "version_id": "e173ee83-9c68-4f8d-aee1-d1c3790306f4",
+      "filename": "AS_151195_VS_C_689087_KA_US_2025_1.pdf",
+      "document": {
+        "title": "AS_151195_VS_C_689087_KA_US_2025_1.pdf",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "ab3b1b4c-ca3a-4e0b-9ec4-6e29c686dfcf",
+      "version_id": "ba1e55c3-69f7-4f6f-aeb3-e729fb930eb0",
+      "filename": "AS_151292_VS_UM_J18GB_WW_GB_2035_7.pdf",
+      "document": {
+        "title": "User's Manual",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "d0f2314c-86f0-4fcb-adc8-564e29f3152c",
+      "version_id": "ef17957d-8e04-4a4d-92d7-65df001f9e94",
+      "filename": "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf",
+      "document": {
+        "title": "Classify Title",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "0e6c3de6-0bb5-4ea5-8fb2-3c418f31eb4f",
+      "version_id": "1f814f68-c9d4-4239-ba28-a69ae7fb9482",
+      "filename": "AS_152333_LJ-S8000_IM_96M18473_WW_GB_2045_1.pdf",
+      "document": {
+        "title": "LJ: S8000 series head Instruction Manual",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "972354a8-2b55-4586-8adb-832dfb76a1d4",
+      "version_id": "15de1d0b-cc94-4407-88c9-f2f4bf097d12",
+      "filename": "AS_152388_LR-ZH500C3P_LR-ZH500C3P-_LR-ZH500CN_IM_96M18539_WW_GB_2045_1.pdf",
+      "document": {
+        "title": "Danger! Classify Title",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "599c5822-664e-430d-9015-c2462a9373ec",
+      "version_id": "2a01496d-aecd-4450-a391-927ae0bab689",
+      "filename": "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf",
+      "document": {
+        "title": "AS 152507 CV-X UM C81US KA GB 2045 5",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "062d5b8b-8927-4de2-9c3a-c1e4b381061b",
+      "version_id": "0908bbc8-fa6e-4bfb-9a39-633c65cd166f",
+      "filename": "AS_158438_3DVision_C_689228_KA_US_2065_1.pdf",
+      "document": {
+        "title": "Inline 3D Appearance and Dimension Inspection Image Processing System",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "58e02d4c-c6bc-424c-a3c0-c7706759602e",
+      "version_id": "fd040832-b4f8-4248-a483-ada8674500f6",
+      "filename": "AS_159993_CA-L_CA-M_CA-D_GC_689230_KA_US_2075_1.pdf",
+      "document": {
+        "title": "Model | Weiight",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "9380acf9-5479-448c-b57e-d4a951162804",
+      "version_id": "85ab1d37-4c48-45dd-835b-bf0c73428e4e",
+      "filename": "AS_160148_XG-X_C_689246_KA_US_2085_1.pdf",
+      "document": {
+        "title": "AS 160148 XG-X C 689246 KA US 2085 1",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "37766429-2f8a-4ee8-8f1c-4bf1f6660d8d",
+      "version_id": "df4d787d-7cbf-4cb4-9a51-735f2d070e5d",
+      "filename": "AS_160462_VS_C_689253_KA_US_2085_1.pdf",
+      "document": {
+        "title": "New AI Technology",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "594e3313-d17b-4c96-a44f-82101884ad34",
+      "version_id": "265262aa-bf3b-4c78-ae08-5d878fd4ed46",
+      "filename": "AS_77987_LR-W_UM_542GB_WW_GB_1125_1.pdf",
+      "document": {
+        "title": "MU: N Series User's Manual LR-W70(C) Edition",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "1a6783bf-01ae-4dde-8876-687064704e8c",
+      "version_id": "cef9bd20-c9e7-46b6-8e5c-e1d521ea7263",
+      "filename": "AS_78620_CA-EN100U_IM_96M13845_WW_GB_2072_4a.pdf",
+      "document": {
+        "title": "AS 78620 CA-EN100U IM 96M13845 WW GB 2072 4a",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "eac20d9f-19aa-4f08-b06e-d39fe6f7d6a6",
+      "version_id": "0e68f984-b4be-4798-a4ff-e0b3e2da8558",
+      "filename": "AS_79692_LR-T_C_611C20_KA_US_2074_3.pdf",
+      "document": {
+        "title": "New Standard! All-Purpose Laser Sensor",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "e60ba2bb-ac5a-4fcb-93f4-491a8f5d2694",
+      "version_id": "12812782-31b9-412a-a696-cb93fb7a800e",
+      "filename": "AS_79692_LR-T_C_611C20_KA_US_2074_3_unlocked.pdf",
+      "document": {
+        "title": "New Standard! All-Purpose Laser Sensor",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "b45f57e6-fa92-498c-89e2-7035b8aaf2f4",
+      "version_id": "40e73569-44a6-410f-8635-b182a4bff7d0",
+      "filename": "AS_86111_LR-Z_C_611C85_KA_US_2074_4 (1).pdf",
+      "document": {
+        "title": "Sensors for Laser Sensor",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "14a8b1a9-526b-48e1-b828-4dd7e561abb6",
+      "version_id": "6fbd94aa-52ed-4ef9-8acb-097d620bc671",
+      "filename": "CA-DZW50X_Datasheet.pdf",
+      "document": {
+        "title": "CA-DZW50X_Datasheet.pdf",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "f72bdd2b-c2fa-45ff-82af-0d1c76e4b48e",
+      "version_id": "5f7e6b19-56d2-4c10-a308-be3dd47d4bd6",
+      "filename": "CA-S20D_Datasheet.pdf",
+      "document": {
+        "title": "CA-S20D",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "174dbe80-efe6-472a-8e3b-d6932d0771bd",
+      "version_id": "5f2c3a2a-ce20-4ef1-961c-176d97cb1bd0",
+      "filename": "CA-U5_Datasheet.pdf",
+      "document": {
+        "title": "CA-U5",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "d70726cd-f6b4-405b-b868-31f4dbd6e2fc",
+      "version_id": "e6e3beeb-b5ea-43db-aaa5-544b7e720dad",
+      "filename": "Keyence_XGX_User_Manual.pdf",
+      "document": {
+        "title": "Keyence XGX User Manual",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "d88f593a-8d50-4f54-baaa-39fcc5020833",
+      "version_id": "148337a5-0544-4d1e-8e23-0c8f95061d31",
+      "filename": "LuaScriptManual_en.pdf",
+      "document": {
+        "title": "XG Series",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "2338687c-87a5-4b57-898b-1845981a9174",
+      "version_id": "71d4f00b-2d4d-43d9-b65c-de871c1cae4f",
+      "filename": "SR-H8W_Datasheet.pdf",
+      "document": {
+        "title": "SR-H8W",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "80cc9bf7-297a-488e-aa15-5ccd9418ac68",
+      "version_id": "1db89b64-47de-4dd6-b640-c79cfdb18bae",
+      "filename": "VJ-3302_Datasheet.pdf",
+      "document": {
+        "title": "VJ-3302 Data Sheet",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "8d83cb71-55d2-42db-9630-bc16f0d6877c",
+      "version_id": "2ff1e7ad-0b2e-4381-9a64-b988891d612c",
+      "filename": "VJ-H500CX_Datasheet.pdf",
+      "document": {
+        "title": "VJ-H500CX",
+        "ingest_status": "indexed"
+      }
+    },
+    {
+      "document_id": "b70d3aec-68af-490a-b9b2-f449d1ac654d",
+      "version_id": "3b28f398-41a5-43dc-82b8-edc11a039792",
+      "filename": "WM-6025_Datasheet.pdf",
+      "document": {
+        "title": "WM-6025 Data Sheet",
+        "ingest_status": "indexed"
+      }
+    }
+  ],
+  "input_dataset_path": "test_reports/retrieval_eval_dataset_20260904_0628_pipe_actual_api_validation.jsonl",
+  "search_mode": "http",
+  "response_mode": "answer_with_citations",
+  "use_llm_answer_judge": false,
+  "query_offset": 0,
+  "per_query_timeout_seconds": 180,
+  "warmup_queries": 0,
+  "warmup_timeout_seconds": 0,
+  "warmups": [],
+  "dropped_invalid_cases": 0,
+  "rejected_cases": [],
+  "dataset_path": "/workspace/manuals_rag/test_reports/retrieval_eval_dataset_20260904_102530.jsonl",
+  "results_path": "/workspace/manuals_rag/test_reports/retrieval_eval_results_20260904_102530.jsonl",
+  "summary_path": "/workspace/manuals_rag/test_reports/retrieval_eval_summary_20260904_102530.json",
+  "selected_documents": [
+    "CA-EN100U_Datasheet.pdf",
+    "AS_103012_LineScan_C_611J12_KA_US_2073_3.pdf",
+    "AS_104471_OP-88310_OP-88381_L_611K13_KA_US_1049_1.pdf",
+    "AS_107533_IV_IM_96M12230_WW_GB_2082_3a.pdf",
+    "AS_112204_VJ_C_611L77_KA_US_2124_5.pdf",
+    "AS_114922_IV-H2000MA_IV-H500CA_IV-H500MA_UM_A61GB_WW_GB_2072_2.pdf",
+    "AS_114958_TG_611O36_KA_US_2075_2.pdf",
+    "AS_124150_LJ-X8000_CM_C10GB_WW_GB_2101_1.pdf",
+    "AS_124659_SZ-V_C_611O89_KA_US_2074_4.pdf",
+    "AS_126535_CV-X_C_611S71_KA_US_2124_5.pdf",
+    "AS_128241_LJ-X8000_SG_D48GB_WW_GB_2072_1.pdf",
+    "AS_130681_SR-1000_SR-2000_SR-PN1_CM_D65GB_WW_GB_2122_1.pdf",
+    "AS_140519_LR-W500_LR-W500-_LR-W500C_IM_96M17798_WW_GB_2034_1.pdf",
+    "AS_141263_WM_C_611X50_KA_US_2035_2.pdf",
+    "AS_142767_2DVGR_C_611Y32_KA_US_2054_1.pdf",
+    "AS_143269_VS_CM_J23GB_WW_GB_2065_2.pdf",
+    "AS_145624_IV_C_611Y54_KA_US_2084_2.pdf",
+    "AS_145861_VS_C_611Y94_KA_US_2104_2.pdf",
+    "AS_145895_KV-X_C_611X95_KA_US_2084_1.pdf",
+    "AS_146087_IV4_UM_K08GB_WW_GB_2084_1.pdf",
+    "AS_147290_LJ-X8000_UM_I64US_KA_GB_2094_3.pdf",
+    "AS_147320_LJ-S8000_SG_K47GB_WW_GB_2094_1.pdf",
+    "AS_148740_IV4-400CA_IV4-400MA_IV4-500CA_IM_96M17956_WW_GB_2114_2.pdf",
+    "AS_149074_SZ-V_GL-R_L_689034_KA_US_2114_1.pdf",
+    "AS_149551_IV4_UM_K80GB_WW_GB_2124_1.pdf",
+    "AS_149615_IV4_C_689071_KA_US_2124_3.pdf",
+    "AS_149726_LJ-S8000_UM_L02US_KA_GB_2035_2.pdf",
+    "AS_151019_LJ-X8000_C_689092_KA_US_2055_2.pdf",
+    "AS_151119_LJ-S8000_C_689103_KA_US_2025_1.pdf",
+    "AS_151195_VS_C_689087_KA_US_2025_1.pdf",
+    "AS_151292_VS_UM_J18GB_WW_GB_2035_7.pdf",
+    "AS_151433_XG-X_UM_C84US_KA_GB_2035_8a.pdf",
+    "AS_152333_LJ-S8000_IM_96M18473_WW_GB_2045_1.pdf",
+    "AS_152388_LR-ZH500C3P_LR-ZH500C3P-_LR-ZH500CN_IM_96M18539_WW_GB_2045_1.pdf",
+    "AS_152507_CV-X_UM_C81US_KA_GB_2045_5.pdf",
+    "AS_158438_3DVision_C_689228_KA_US_2065_1.pdf",
+    "AS_159993_CA-L_CA-M_CA-D_GC_689230_KA_US_2075_1.pdf",
+    "AS_160148_XG-X_C_689246_KA_US_2085_1.pdf",
+    "AS_160462_VS_C_689253_KA_US_2085_1.pdf",
+    "AS_77987_LR-W_UM_542GB_WW_GB_1125_1.pdf",
+    "AS_78620_CA-EN100U_IM_96M13845_WW_GB_2072_4a.pdf",
+    "AS_79692_LR-T_C_611C20_KA_US_2074_3.pdf",
+    "AS_79692_LR-T_C_611C20_KA_US_2074_3_unlocked.pdf",
+    "AS_86111_LR-Z_C_611C85_KA_US_2074_4 (1).pdf",
+    "CA-DZW50X_Datasheet.pdf",
+    "CA-S20D_Datasheet.pdf",
+    "CA-U5_Datasheet.pdf",
+    "Keyence_XGX_User_Manual.pdf",
+    "LuaScriptManual_en.pdf",
+    "SR-H8W_Datasheet.pdf",
+    "VJ-3302_Datasheet.pdf",
+    "VJ-H500CX_Datasheet.pdf",
+    "WM-6025_Datasheet.pdf"
+  ]
+}

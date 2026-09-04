@@ -1,9 +1,8 @@
 {
   "answer_current_failure_categories": {
     "expected_evidence_not_cited": 2,
-    "retrieval_not_passed": 2,
-    "insufficient_evidence": 1,
-    "expected_terms_missing": 1
+    "expected_document_not_cited_or_used": 1,
+    "retrieval_not_passed": 1
   },
   "answer_failure_categories": {},
   "answer_grounding_contextual_rows_15_16": {
@@ -187,31 +186,31 @@
     ]
   },
   "answer_grounding_rotation": {
-    "timestamp": "2026-09-04T07:53:00Z",
-    "latest_run": "retrieval_eval_20260904_072834",
-    "classification": "diagnostic_reverted_table_lineage_experiment",
-    "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0138_pipe_troubleshooting_validation.jsonl",
-    "dataset": "test_reports/retrieval_eval_dataset_20260904_072834.jsonl",
-    "results": "test_reports/retrieval_eval_results_20260904_072834.jsonl",
-    "summary": "test_reports/retrieval_eval_summary_20260904_072834.json",
-    "manifest": "test_reports/retrieval_eval_manifest_20260904_072834.json",
+    "timestamp": "2026-09-04T10:25:30Z",
+    "latest_run": "retrieval_eval_20260904_102530",
+    "classification": "diagnostic_pipe_parent_still_crowded_out",
+    "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0628_pipe_actual_api_validation.jsonl",
+    "dataset": "test_reports/retrieval_eval_dataset_20260904_102530.jsonl",
+    "results": "test_reports/retrieval_eval_results_20260904_102530.jsonl",
+    "summary": "test_reports/retrieval_eval_summary_20260904_102530.json",
+    "manifest": "test_reports/retrieval_eval_manifest_20260904_102530.json",
     "search_mode": "http",
     "response_mode": "answer_with_citations",
     "max_queries": 2,
-    "retrieval_result": "0/2 exact expected-evidence retrieval after the relation-preserving table-lineage correction attempt; ranking_or_context_loss=2 while candidate and metadata-document recall remained 100%.",
-    "answer_result": "0/2 benchmark answer scoring. The positive fallback used source-supported atomic evidence but omitted the required pipe parent; the Error 99999 control returned insufficient evidence with no citations. The entire experiment was reverted and this run is diagnostic/not-clean.",
+    "retrieval_result": "1/2 automated retrieval, but manual exact-evidence inspection found neither row returned the required pipe parent; the nominal negative pass was same-document term overlap on an atomic Status/Remedy record. Candidate and metadata-document recall were 100%.",
+    "answer_result": "0/2 benchmark answer scoring. The positive cited an unrelated IV4 FTP chunk; the later-header negative cited a setup page and did not answer the requested cause. Neither row reached genuine pipe-shaped evidence, so the run is diagnostic/not-clean.",
     "runtime_load_evidence": {
-      "validated_run": "retrieval_eval_20260904_072834",
+      "validated_run": "retrieval_eval_20260904_102530",
       "api_url": "http://127.0.0.1:9193",
       "container": "manuals-rag-temp-api-39262386-20260902-0726",
-      "health": "ok for loaded HTTP diagnostic retrieval_eval_20260904_072834 before the unsuccessful experiment was reverted",
+      "health": "ok for loaded HTTP diagnostic retrieval_eval_20260904_102530; host and mounted-container generator.py SHA-256 matched 2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf",
       "fingerprints": {
-        "retriever.py": "61829fede6d470f6476dac16e285f5466c5107788bbe41fb48fcb359d0781159"
+        "generator.py": "2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf"
       }
     },
-    "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_072834.jsonl. The positive used source-supported atomic citations but omitted exact pipe parent chunk 38d26f5e; the Error 99999 control cited nothing and fabricated nothing. Preserve 071826 and 072834 as diagnostic/not-clean.",
-    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
-    "scope": "retrieval_eval_20260904_072834 is diagnostic evidence from a reverted retrieval experiment; no production retrieval or answering change was retained. No active count, ledger, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
+    "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and every returned chunk in retrieval_eval_results_20260904_102530.jsonl. Exact pipe parent 38d26f5e was absent from both rows. The nominal later-header retrieval pass used atomic Status/Remedy chunk b5f76be0, so it does not exercise the pipe validator; both answers are diagnostic failures.",
+    "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "scope": "retrieval_eval_20260904_102530 is validation-only diagnostic evidence; no production retrieval/answering, scorer, active count, ledger, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
   },
   "answer_grounding_sibling_rows_11_12": {
     "answer_failure_reasons": {
@@ -702,7 +701,7 @@
       "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive",
       "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive"
     ],
-    "answer_grounding_status": "retrieval_eval_20260904_071826 and retrieval_eval_20260904_072834 are diagnostic/not-clean evidence from the reverted table-lineage experiment. Neither proves safe relation-preserving parent promotion.",
+    "answer_grounding_status": "retrieval_eval_20260904_102530 is the latest diagnostic/not-clean HTTP evidence: neither row returned genuine pipe parent 38d26f5e, so ed7c83b remains only unit/runtime proved, not actual-API pipe-path proved.",
     "artifacts": {
       "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
       "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -789,8 +788,8 @@
       "insufficient_evidence": 1,
       "expected_terms_missing": 1
     },
-    "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_071826.jsonl and retrieval_eval_results_20260904_072834.jsonl. The positive answers used source-supported atomic citations but did not prove safe pipe-parent promotion; both Error 99999 controls failed closed. Both runs remain diagnostic/not-clean.",
-    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_102530.jsonl. The FTP positive cited an unrelated IV4 chunk; the later-header case cited an IV-HG setup page. Neither returned or cited pipe parent 38d26f5e, so the nominal 1/2 retrieval score is not accepted as pipe-path evidence.",
+    "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
   },
   "constraints": {
@@ -811,22 +810,21 @@
   "created_at": "2026-08-23",
   "current_answer_failure_categories": {
     "expected_evidence_not_cited": 2,
-    "retrieval_not_passed": 2,
-    "insufficient_evidence": 1,
-    "expected_terms_missing": 1
+    "expected_document_not_cited_or_used": 1,
+    "retrieval_not_passed": 1
   },
-  "current_answer_failure_source": "retrieval_eval_20260904_072834 diagnostic/not-clean: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1. The positive used source-supported atomic citations but missed the required pipe parent; the unsupported control failed closed.",
+  "current_answer_failure_source": "retrieval_eval_20260904_102530 diagnostic/not-clean: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1. Neither answer cited the required pipe parent; the positive cited an unrelated IV4 FTP chunk and the later-header case cited a setup page.",
   "current_failure_categories": {
-    "ranking_or_context_loss": 2
+    "ranking_or_context_loss": 1
   },
   "current_failure_sources": {
-    "retrieval": "retrieval_eval_20260904_072834: ranking_or_context_loss=2 after the relation-preserving table-lineage correction attempt; candidate and metadata-document recall remained 100%.",
-    "answer": "retrieval_eval_20260904_072834: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1."
+    "retrieval": "retrieval_eval_20260904_102530: ranking_or_context_loss=1 by automated scoring, but manual exact-evidence inspection found the nominal pass was same-document overlap and neither row returned pipe parent 38d26f5e.",
+    "answer": "retrieval_eval_20260904_102530: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1."
   },
   "current_retrieval_failure_categories": {
-    "ranking_or_context_loss": 2
+    "ranking_or_context_loss": 1
   },
-  "current_retrieval_failure_source": "retrieval_eval_20260904_072834 is the current diagnostic HTTP run: the relation-preserving table-lineage correction attempt regressed exact retrieval to ranking_or_context_loss=2 despite 100% candidate and metadata-document recall; the experiment was reverted.",
+  "current_retrieval_failure_source": "retrieval_eval_20260904_102530 is the current diagnostic HTTP run: automated retrieval was 1/2 with ranking_or_context_loss=1, but manual exact-evidence inspection found neither row returned pipe parent 38d26f5e; the nominal pass was same-document atomic overlap.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -1025,7 +1023,7 @@
     }
   ],
   "failure_categories": {
-    "ranking_or_context_loss": 2
+    "ranking_or_context_loss": 1
   },
   "goal": {
     "components": [
@@ -9312,7 +9310,7 @@
       ]
     }
   ],
-  "next_target": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10067,9 +10065,8 @@
   "question_bank": {
     "answer_current_failure_categories": {
       "expected_evidence_not_cited": 2,
-      "retrieval_not_passed": 2,
-      "insufficient_evidence": 1,
-      "expected_terms_missing": 1
+      "expected_document_not_cited_or_used": 1,
+      "retrieval_not_passed": 1
     },
     "answer_failure_categories": {},
     "answer_grounding_contextual_rows_15_16": {
@@ -10253,31 +10250,31 @@
       ]
     },
     "answer_grounding_rotation": {
-      "timestamp": "2026-09-04T07:53:00Z",
-      "latest_run": "retrieval_eval_20260904_072834",
-      "classification": "diagnostic_reverted_table_lineage_experiment",
-      "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0138_pipe_troubleshooting_validation.jsonl",
-      "dataset": "test_reports/retrieval_eval_dataset_20260904_072834.jsonl",
-      "results": "test_reports/retrieval_eval_results_20260904_072834.jsonl",
-      "summary": "test_reports/retrieval_eval_summary_20260904_072834.json",
-      "manifest": "test_reports/retrieval_eval_manifest_20260904_072834.json",
+      "timestamp": "2026-09-04T10:25:30Z",
+      "latest_run": "retrieval_eval_20260904_102530",
+      "classification": "diagnostic_pipe_parent_still_crowded_out",
+      "source_dataset": "test_reports/retrieval_eval_dataset_20260904_0628_pipe_actual_api_validation.jsonl",
+      "dataset": "test_reports/retrieval_eval_dataset_20260904_102530.jsonl",
+      "results": "test_reports/retrieval_eval_results_20260904_102530.jsonl",
+      "summary": "test_reports/retrieval_eval_summary_20260904_102530.json",
+      "manifest": "test_reports/retrieval_eval_manifest_20260904_102530.json",
       "search_mode": "http",
       "response_mode": "answer_with_citations",
       "max_queries": 2,
-      "retrieval_result": "0/2 exact expected-evidence retrieval after the relation-preserving table-lineage correction attempt; ranking_or_context_loss=2 while candidate and metadata-document recall remained 100%.",
-      "answer_result": "0/2 benchmark answer scoring. The positive fallback used source-supported atomic evidence but omitted the required pipe parent; the Error 99999 control returned insufficient evidence with no citations. The entire experiment was reverted and this run is diagnostic/not-clean.",
+      "retrieval_result": "1/2 automated retrieval, but manual exact-evidence inspection found neither row returned the required pipe parent; the nominal negative pass was same-document term overlap on an atomic Status/Remedy record. Candidate and metadata-document recall were 100%.",
+      "answer_result": "0/2 benchmark answer scoring. The positive cited an unrelated IV4 FTP chunk; the later-header negative cited a setup page and did not answer the requested cause. Neither row reached genuine pipe-shaped evidence, so the run is diagnostic/not-clean.",
       "runtime_load_evidence": {
-        "validated_run": "retrieval_eval_20260904_072834",
+        "validated_run": "retrieval_eval_20260904_102530",
         "api_url": "http://127.0.0.1:9193",
         "container": "manuals-rag-temp-api-39262386-20260902-0726",
-        "health": "ok for loaded HTTP diagnostic retrieval_eval_20260904_072834 before the unsuccessful experiment was reverted",
+        "health": "ok for loaded HTTP diagnostic retrieval_eval_20260904_102530; host and mounted-container generator.py SHA-256 matched 2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf",
         "fingerprints": {
-          "retriever.py": "61829fede6d470f6476dac16e285f5466c5107788bbe41fb48fcb359d0781159"
+          "generator.py": "2a10c75fd7e273e963a8d917e9a130eae05659beb399be592cb732c6a800bbbf"
         }
       },
-      "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and returned chunk in retrieval_eval_results_20260904_072834.jsonl. The positive used source-supported atomic citations but omitted exact pipe parent chunk 38d26f5e; the Error 99999 control cited nothing and fabricated nothing. Preserve 071826 and 072834 as diagnostic/not-clean.",
-      "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
-      "scope": "retrieval_eval_20260904_072834 is diagnostic evidence from a reverted retrieval experiment; no production retrieval or answering change was retained. No active count, ledger, scorer, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
+      "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and every returned chunk in retrieval_eval_results_20260904_102530.jsonl. Exact pipe parent 38d26f5e was absent from both rows. The nominal later-header retrieval pass used atomic Status/Remedy chunk b5f76be0, so it does not exercise the pipe validator; both answers are diagnostic failures.",
+      "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "scope": "retrieval_eval_20260904_102530 is validation-only diagnostic evidence; no production retrieval/answering, scorer, active count, ledger, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
     },
     "answer_grounding_sibling_rows_15_16": {
       "active_count_impact": "none; active exploratory coverage remains 203 total, 100 single-step and 103 multi-step; replacement debt remains 0",
@@ -10557,7 +10554,7 @@
         "retrieval_eval_20260903_033304 IV-HG damaged-program plus VS Error 30109 distinct-document positive",
         "retrieval_eval_20260904_044548 IV-HG damaged-program plus VS Error 30109 leading-pipe containment positive"
       ],
-      "answer_grounding_status": "retrieval_eval_20260904_071826 and retrieval_eval_20260904_072834 are diagnostic/not-clean evidence from the reverted table-lineage experiment. Neither proves safe relation-preserving parent promotion.",
+      "answer_grounding_status": "retrieval_eval_20260904_102530 is the latest diagnostic/not-clean HTTP evidence: neither row returned genuine pipe parent 38d26f5e, so ed7c83b remains only unit/runtime proved, not actual-API pipe-path proved.",
       "artifacts": {
         "sibling_row17_failed_retry_dataset": "test_reports/retrieval_eval_dataset_20260901_235625.jsonl",
         "sibling_row17_failed_retry_manifest": "test_reports/retrieval_eval_manifest_20260901_235625.json",
@@ -10644,28 +10641,27 @@
         "insufficient_evidence": 1,
         "expected_terms_missing": 1
       },
-      "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_071826.jsonl and retrieval_eval_results_20260904_072834.jsonl. The positive answers used source-supported atomic citations but did not prove safe pipe-parent promotion; both Error 99999 controls failed closed. Both runs remain diagnostic/not-clean.",
-      "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_102530.jsonl. The FTP positive cited an unrelated IV4 chunk; the later-header case cited an IV-HG setup page. Neither returned or cited pipe parent 38d26f5e, so the nominal 1/2 retrieval score is not accepted as pipe-path evidence.",
+      "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
     },
     "current_answer_failure_categories": {
       "expected_evidence_not_cited": 2,
-      "retrieval_not_passed": 2,
-      "insufficient_evidence": 1,
-      "expected_terms_missing": 1
+      "expected_document_not_cited_or_used": 1,
+      "retrieval_not_passed": 1
     },
-    "current_answer_failure_source": "retrieval_eval_20260904_072834 diagnostic/not-clean: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1. The positive used source-supported atomic citations but missed the required pipe parent; the unsupported control failed closed.",
+    "current_answer_failure_source": "retrieval_eval_20260904_102530 diagnostic/not-clean: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1. Neither answer cited the required pipe parent; the positive cited an unrelated IV4 FTP chunk and the later-header case cited a setup page.",
     "current_failure_categories": {
-      "ranking_or_context_loss": 2
+      "ranking_or_context_loss": 1
     },
     "current_failure_sources": {
-      "retrieval": "retrieval_eval_20260904_072834: ranking_or_context_loss=2 after the relation-preserving table-lineage correction attempt; candidate and metadata-document recall remained 100%.",
-      "answer": "retrieval_eval_20260904_072834: expected_evidence_not_cited=2, retrieval_not_passed=2, insufficient_evidence=1, expected_terms_missing=1."
+      "retrieval": "retrieval_eval_20260904_102530: ranking_or_context_loss=1 by automated scoring, but manual exact-evidence inspection found the nominal pass was same-document overlap and neither row returned pipe parent 38d26f5e.",
+      "answer": "retrieval_eval_20260904_102530: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1."
     },
     "current_retrieval_failure_categories": {
-      "ranking_or_context_loss": 2
+      "ranking_or_context_loss": 1
     },
-    "current_retrieval_failure_source": "retrieval_eval_20260904_072834 is the current diagnostic HTTP run: the relation-preserving table-lineage correction attempt regressed exact retrieval to ranking_or_context_loss=2 despite 100% candidate and metadata-document recall; the experiment was reverted.",
+    "current_retrieval_failure_source": "retrieval_eval_20260904_102530 is the current diagnostic HTTP run: automated retrieval was 1/2 with ranking_or_context_loss=1, but manual exact-evidence inspection found neither row returned pipe parent 38d26f5e; the nominal pass was same-document atomic overlap.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -11036,7 +11032,7 @@
     ],
     "exploratory_questions": 209,
     "failure_categories": {
-      "ranking_or_context_loss": 2
+      "ranking_or_context_loss": 1
     },
     "latest_comparison_setting_side_binding_containment": {
       "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
@@ -13136,7 +13132,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13173,11 +13169,16 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
     "retrieval_current_failure_categories": {
-      "ranking_or_context_loss": 2
+      "ranking_or_context_loss": 1
     },
     "run_exclusions": [
+      {
+        "reason": "diagnostic/not-clean actual HTTP run: neither row returned genuine pipe parent 38d26f5e; the nominal later-header retrieval pass was same-document term overlap on an atomic Status/Remedy record, and both answers failed expected-evidence citation",
+        "run_id": "retrieval_eval_20260904_102530",
+        "scope": "entire validation-only run; preserve the realistic queries and manual payload inspection without claiming ed7c83b actual-API pipe-path proof"
+      },
       {
         "reason": "diagnostic/not-clean automated retrieval green from an unsafe same-section/same-row table-lineage experiment; the helper could conflate distinct tables with colliding row numbers and replace directly supporting atomic evidence",
         "run_id": "retrieval_eval_20260904_071826",
@@ -15685,13 +15686,18 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T09:58:00Z"
+    "updated_at": "2026-09-04T10:29:00Z"
   },
-  "remaining": "Obtain genuine pipe-shaped actual-API changed-path evidence for ed7c83b, including a conflicting/later-header negative that reaches the same branch, or keep the branch explicitly partially proved. Preserve retrieval_eval_20260904_071826 and 072834 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
   "retrieval_current_failure_categories": {
-    "ranking_or_context_loss": 2
+    "ranking_or_context_loss": 1
   },
   "run_exclusions": [
+    {
+      "reason": "diagnostic/not-clean actual HTTP run: neither row returned genuine pipe parent 38d26f5e; the nominal later-header retrieval pass was same-document term overlap on an atomic Status/Remedy record, and both answers failed expected-evidence citation",
+      "run_id": "retrieval_eval_20260904_102530",
+      "scope": "entire validation-only run; preserve the realistic queries and manual payload inspection without claiming ed7c83b actual-API pipe-path proof"
+    },
     {
       "reason": "diagnostic/not-clean automated retrieval green from an unsafe same-section/same-row table-lineage experiment; the helper could conflate distinct tables with colliding row numbers and replace directly supporting atomic evidence",
       "run_id": "retrieval_eval_20260904_071826",
@@ -18198,5 +18204,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T09:58:00Z"
+  "updated_at": "2026-09-04T10:29:00Z"
 }

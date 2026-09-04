@@ -1,0 +1,63 @@
+{
+  "total_queries": 2,
+  "passed_queries": 1,
+  "failed_queries": 1,
+  "pass_rate": 0.5,
+  "pass_at_1": 0.5,
+  "pass_at_3": 0.5,
+  "pass_at_5": 0.5,
+  "mean_passing_rank": 1.0,
+  "by_chunk_type": {
+    "parent_section": {
+      "total": 2,
+      "passed": 1
+    }
+  },
+  "by_retrieval_task": {
+    "single_step_retrieval": {
+      "total": 2,
+      "passed": 1
+    }
+  },
+  "by_document": {
+    "source-reviewed manual evidence": {
+      "total": 2,
+      "passed": 1
+    }
+  },
+  "failure_categories": {
+    "ranking_or_context_loss": 1
+  },
+  "benchmark_quality": {
+    "validated": 2
+  },
+  "benchmark_validity_rate": 1.0,
+  "candidate_recall_rate": 1.0,
+  "metadata_document_selection_attempts": 2,
+  "metadata_document_selection_recall_rate": 1.0,
+  "metadata_document_selection_rank_1_rate": 1.0,
+  "answer_eval_count": 2,
+  "answer_passed_queries": 0,
+  "answer_failed_queries": 2,
+  "answer_pass_rate": 0.0,
+  "answer_failure_reasons": {
+    "expected_document_not_cited_or_used": 1,
+    "expected_evidence_not_cited": 2,
+    "retrieval_not_passed": 1
+  },
+  "answer_latency": {
+    "min_seconds": 26.744,
+    "max_seconds": 72.078,
+    "mean_seconds": 49.411,
+    "p95_seconds": 72.078
+  },
+  "answer_fallback_count": 2,
+  "answer_fallback_rate": 1.0,
+  "answer_sources": {
+    "fallback_validation": 2
+  },
+  "answer_fallback_reasons": {
+    "Generated answer was replaced by retrieval-grounded fallback during validation.": 2
+  },
+  "answer_mean_summary_count": null
+}
