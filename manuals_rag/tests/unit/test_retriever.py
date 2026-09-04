@@ -4848,3 +4848,125 @@ def test_table_lexical_search_skips_unstructured_general_queries(monkeypatch):
     )
 
     assert results == []
+
+
+def test_select_family_candidates_reserves_directly_bound_pipe_parent():
+    analysis = analyze_query("For MOD-500 reporting an FTP Connection Error, what caused the condition?")
+    prose = [
+        SearchResult(
+            chunk_id=f"prose-{index}", score=1.0 - index * 0.01, title="Manual",
+            document_version_id="ver-1", source_document_id="doc-1", pages=[1],
+            section_path=["Errors"], content="FTP connection setup.", metadata={"chunk_type": "atomic_text"},
+        )
+        for index in range(8)
+    ]
+    unrelated_context = [
+        SearchResult(
+            chunk_id=f"context-{index}", score=0.8 - index * 0.01, title="Manual",
+            document_version_id="ver-1", source_document_id="doc-1", pages=[1],
+            section_path=["Errors"], content="General connection notes.", metadata={"chunk_type": "parent_section"},
+        )
+        for index in range(5)
+    ]
+    parent = SearchResult(
+        chunk_id="bound-parent", score=0.2, title="Manual", document_version_id="ver-1",
+        source_document_id="doc-1", pages=[2], section_path=["Errors"],
+        content=(
+            "Message | Cause | Remedy | Output/ Indicator\n"
+            "FTP Connection Error | Connection with the FTP server failed. | Check the server. | *2"
+        ),
+        metadata={"chunk_type": "parent_section", "product_model": "MOD-500"},
+    )
+
+    selected = retriever._select_family_candidates([*prose, *unrelated_context, parent], analysis, limit=12)
+
+    assert "bound-parent" in {result.chunk_id for result in selected}
+    reserved = next(result for result in selected if result.chunk_id == "bound-parent")
+    assert reserved.metadata["chunk_type"] == "parent_section"
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "Message | Remedy\nFTP Connection Error | Restart the server.\n\nStatus | Cause\nOffline | Power was removed.",
+        "Message | Cause\nFTP Transfer Error | The destination rejected the data.\nFTP Connection Error |",
+        "Message | Remedy\nFTP Connection Error | Restart the server.\nCause | Status\nPower was removed. | Offline",
+    ],
+)
+def test_direct_pipe_parent_match_rejects_cross_table_sibling_and_blank_role(content):
+    analysis = analyze_query("For MOD-500 reporting an FTP Connection Error, what caused the condition?")
+    parent = SearchResult(
+        chunk_id="unsafe-parent", score=0.9, title="Manual", document_version_id="ver-1",
+        source_document_id="doc-1", pages=[2], section_path=["Errors"], content=content,
+        metadata={"chunk_type": "parent_section", "product_model": "MOD-500"},
+    )
+
+    assert retriever._direct_pipe_parent_match_score(parent, analysis) == 0.0
+
+
+def test_direct_pipe_parent_match_does_not_combine_same_row_numbers_from_distinct_tables():
+    analysis = analyze_query("For MOD-500 reporting a Cable Disconnected message, what caused the condition?")
+    parent = SearchResult(
+        chunk_id="cross-table-parent", score=0.9, title="Manual", document_version_id="ver-1",
+        source_document_id="doc-1", pages=[2], section_path=["Errors"],
+        content=(
+            "Message | Remedy\nCable Disconnected | Reconnect the cable.\n\n"
+            "Message | Cause\nCamera Settings Invalid | The selected model is unavailable."
+        ),
+        metadata={"chunk_type": "parent_section", "product_model": "MOD-500"},
+    )
+
+    assert retriever._direct_pipe_parent_match_score(parent, analysis) == 0.0
+
+
+def test_promote_direct_pipe_parent_restores_parent_dropped_by_reranker():
+    analysis = analyze_query("For MOD-500 reporting an FTP Connection Error, what caused the condition?")
+    atomic = SearchResult(
+        chunk_id="atomic", score=4.0, title="Manual", document_version_id="ver-1",
+        source_document_id="doc-1", pages=[1], section_path=["Errors"],
+        content="FTP connection setup.", metadata={"chunk_type": "atomic_text"},
+    )
+    parent = SearchResult(
+        chunk_id="bound-parent", score=0.2, title="Manual", document_version_id="ver-1",
+        source_document_id="doc-1", pages=[2], section_path=["Errors"],
+        content="Message | Cause | Remedy\nFTP Connection Error | Connection with the FTP server failed. | Check the server.",
+        metadata={"chunk_type": "parent_section", "product_model": "MOD-500"},
+    )
+
+    promoted = retriever._promote_direct_pipe_parents([atomic], [atomic, parent], analysis, limit=2)
+
+    assert [result.chunk_id for result in promoted] == ["bound-parent", "atomic"]
+    assert promoted[0].metadata["retrieval_stage"] == "direct_pipe_parent_promoted"
+
+
+def test_direct_pipe_parent_requires_requested_model_and_specific_identity():
+    analysis = analyze_query("For MOD-500 reporting an FTP Connection Error, what caused the condition?")
+    wrong_model = SearchResult(
+        chunk_id="wrong", score=9.0, title="Manual", document_version_id="ver-2", source_document_id="doc-2",
+        pages=[2], section_path=["Errors"],
+        content="Message | Cause\nFTP Connection Error | The server rejected the login.",
+        metadata={"chunk_type": "parent_section", "product_model": "MOD-600"},
+    )
+    generic = wrong_model.model_copy(
+        update={"chunk_id": "generic", "content": "Status | Cause\nError | Power was removed.",
+                "metadata": {"chunk_type": "parent_section", "product_model": "MOD-500"}}
+    )
+
+    assert retriever._direct_pipe_parent_match_score(wrong_model, analysis) == 0.0
+    assert retriever._direct_pipe_parent_match_score(generic, analyze_query("Why does MOD-500 report Error?")) == 0.0
+
+
+def test_promote_direct_pipe_parent_fails_closed_for_identical_message_ambiguity():
+    analysis = analyze_query("For MOD-500 reporting an FTP Connection Error, what caused the condition?")
+    base = SearchResult(
+        chunk_id="first", score=0.8, title="Manual", document_version_id="ver-1", source_document_id="doc-1",
+        pages=[2], section_path=["Errors"],
+        content="Message | Cause\nFTP Connection Error | The server rejected the login.",
+        metadata={"chunk_type": "parent_section", "product_model": "MOD-500"},
+    )
+    sibling = base.model_copy(
+        update={"chunk_id": "second", "score": 0.9,
+                "content": "Message | Cause\nFTP Connection Error | The network route is unavailable."}
+    )
+
+    assert retriever._promote_direct_pipe_parents([], [base, sibling], analysis, limit=2) == []

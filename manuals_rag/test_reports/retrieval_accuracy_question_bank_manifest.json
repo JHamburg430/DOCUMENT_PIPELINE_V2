@@ -209,7 +209,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and every returned chunk in retrieval_eval_results_20260904_102530.jsonl. Exact pipe parent 38d26f5e was absent from both rows. The nominal later-header retrieval pass used atomic Status/Remedy chunk b5f76be0, so it does not exercise the pipe validator; both answers are diagnostic failures.",
-    "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
     "scope": "retrieval_eval_20260904_102530 is validation-only diagnostic evidence; no production retrieval/answering, scorer, active count, ledger, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -789,7 +789,7 @@
       "expected_terms_missing": 1
     },
     "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_102530.jsonl. The FTP positive cited an unrelated IV4 chunk; the later-header case cited an IV-HG setup page. Neither returned or cited pipe parent 38d26f5e, so the nominal 1/2 retrieval score is not accepted as pipe-path evidence.",
-    "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
     "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
   },
   "constraints": {
@@ -814,17 +814,13 @@
     "retrieval_not_passed": 1
   },
   "current_answer_failure_source": "retrieval_eval_20260904_102530 diagnostic/not-clean: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1. Neither answer cited the required pipe parent; the positive cited an unrelated IV4 FTP chunk and the later-header case cited a setup page.",
-  "current_failure_categories": {
-    "ranking_or_context_loss": 1
-  },
+  "current_failure_categories": {},
   "current_failure_sources": {
-    "retrieval": "retrieval_eval_20260904_102530: ranking_or_context_loss=1 by automated scoring, but manual exact-evidence inspection found the nominal pass was same-document overlap and neither row returned pipe parent 38d26f5e.",
+    "retrieval": "none",
     "answer": "retrieval_eval_20260904_102530: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1."
   },
-  "current_retrieval_failure_categories": {
-    "ranking_or_context_loss": 1
-  },
-  "current_retrieval_failure_source": "retrieval_eval_20260904_102530 is the current diagnostic HTTP run: automated retrieval was 1/2 with ranking_or_context_loss=1, but manual exact-evidence inspection found neither row returned pipe parent 38d26f5e; the nominal pass was same-document atomic overlap.",
+  "current_retrieval_failure_categories": {},
+  "current_retrieval_failure_source": "retrieval_eval_20260904_110603 is current retrieval evidence: automated 2/2; the positive exact pipe parent is rank 1 and the later-header control is not directly promoted.",
   "diagnostics": [
     {
       "baseline": "retrieval_eval_20260825_072839",
@@ -1022,9 +1018,7 @@
       "total_queries": 10
     }
   ],
-  "failure_categories": {
-    "ranking_or_context_loss": 1
-  },
+  "failure_categories": {},
   "goal": {
     "components": [
       "single_step_retrieval",
@@ -9310,7 +9304,7 @@
       ]
     }
   ],
-  "next_target": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "next_target": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10273,7 +10267,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected both user-visible answers, every citation, and every returned chunk in retrieval_eval_results_20260904_102530.jsonl. Exact pipe parent 38d26f5e was absent from both rows. The nominal later-header retrieval pass used atomic Status/Remedy chunk b5f76be0, so it does not exercise the pipe validator; both answers are diagnostic failures.",
-      "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
       "scope": "retrieval_eval_20260904_102530 is validation-only diagnostic evidence; no production retrieval/answering, scorer, active count, ledger, API/UI, parser/ingestion, infrastructure, model/provider, embedding, or reranker change."
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10642,8 +10636,13 @@
         "expected_terms_missing": 1
       },
       "manual_jsonl_inspection": "Inspected every user-visible answer, citation, and returned chunk in retrieval_eval_results_20260904_102530.jsonl. The FTP positive cited an unrelated IV4 chunk; the later-header case cited an IV-HG setup page. Neither returned or cited pipe parent 38d26f5e, so the nominal 1/2 retrieval score is not accepted as pipe-path evidence.",
-      "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+      "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
       "latest_clean_run": "retrieval_eval_20260904_044548 IV-HG/VS positive only"
+    },
+    "answer_current_failure_categories": {
+      "expected_evidence_not_cited": 2,
+      "expected_document_not_cited_or_used": 1,
+      "retrieval_not_passed": 1
     },
     "current_answer_failure_categories": {
       "expected_evidence_not_cited": 2,
@@ -10651,17 +10650,13 @@
       "retrieval_not_passed": 1
     },
     "current_answer_failure_source": "retrieval_eval_20260904_102530 diagnostic/not-clean: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1. Neither answer cited the required pipe parent; the positive cited an unrelated IV4 FTP chunk and the later-header case cited a setup page.",
-    "current_failure_categories": {
-      "ranking_or_context_loss": 1
-    },
+    "current_failure_categories": {},
     "current_failure_sources": {
-      "retrieval": "retrieval_eval_20260904_102530: ranking_or_context_loss=1 by automated scoring, but manual exact-evidence inspection found the nominal pass was same-document overlap and neither row returned pipe parent 38d26f5e.",
+      "retrieval": "none",
       "answer": "retrieval_eval_20260904_102530: expected_evidence_not_cited=2, expected_document_not_cited_or_used=1, retrieval_not_passed=1."
     },
-    "current_retrieval_failure_categories": {
-      "ranking_or_context_loss": 1
-    },
-    "current_retrieval_failure_source": "retrieval_eval_20260904_102530 is the current diagnostic HTTP run: automated retrieval was 1/2 with ranking_or_context_loss=1, but manual exact-evidence inspection found neither row returned pipe parent 38d26f5e; the nominal pass was same-document atomic overlap.",
+    "current_retrieval_failure_categories": {},
+    "current_retrieval_failure_source": "retrieval_eval_20260904_110603 is current retrieval evidence: automated 2/2; the positive exact pipe parent is rank 1 and the later-header control is not directly promoted.",
     "datasets": [
       {
         "by_chunk_type": {
@@ -11031,9 +11026,7 @@
       }
     ],
     "exploratory_questions": 209,
-    "failure_categories": {
-      "ranking_or_context_loss": 1
-    },
+    "failure_categories": {},
     "latest_comparison_setting_side_binding_containment": {
       "actual_api_negative_limitation": "The exact missing-side MOD1-A/MOD2-B adverse case requires synthetic indexed rows and cannot be exercised through the public API without adding debug/API/harness code. It was exercised in the loaded API container through the production predicate; the actual HTTP run covered the real positive/control comparison-setting path.",
       "actual_http_evidence": {
@@ -13132,7 +13125,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "next_target": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13169,10 +13162,8 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
-    "retrieval_current_failure_categories": {
-      "ranking_or_context_loss": 1
-    },
+    "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
+    "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
         "reason": "diagnostic/not-clean actual HTTP run: neither row returned genuine pipe parent 38d26f5e; the nominal later-header retrieval pass was same-document term overlap on an atomic Status/Remedy record, and both answers failed expected-evidence citation",
@@ -15686,12 +15677,10 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T10:29:00Z"
+    "updated_at": "2026-09-04T11:12:00Z"
   },
-  "remaining": "Design and validate a general relation-preserving same-table lineage/diversity policy so directly entailed pipe parents can survive atomic crowding, then obtain genuine actual-API pipe positive and later-header negative evidence. Preserve 071826, 072834, and 102530 as diagnostic/not-clean; reuse /tmp/manuals_rag_accuracy_20260901.",
-  "retrieval_current_failure_categories": {
-    "ranking_or_context_loss": 1
-  },
+  "remaining": "Fix general single-step answer evidence selection so a directly retrieved, source-bound pipe parent is used and cited for its matching row, while later-header/cross-table cause requests fail closed. Preserve 110603 as retrieval changed-path evidence and 110612 as diagnostic/not-clean answer evidence; reuse /tmp/manuals_rag_accuracy_20260901.",
+  "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
       "reason": "diagnostic/not-clean actual HTTP run: neither row returned genuine pipe parent 38d26f5e; the nominal later-header retrieval pass was same-document term overlap on an atomic Status/Remedy record, and both answers failed expected-evidence citation",
@@ -18204,5 +18193,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T10:29:00Z"
+  "updated_at": "2026-09-04T11:12:00Z"
 }

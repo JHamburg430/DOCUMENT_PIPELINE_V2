@@ -2939,6 +2939,105 @@ def _diagnostic_table_support_score(result: SearchResult, analysis: QueryAnalysi
     )
 
 
+def _requested_troubleshooting_roles(query: str) -> set[str]:
+    roles: set[str] = set()
+    if re.search(r"\b(?:cause|causes|caused|why|reason)\b", query, flags=re.IGNORECASE):
+        roles.add("cause")
+    if re.search(r"\b(?:error\s+message|message\s+(?:is|says|shown|displayed))\b", query, flags=re.IGNORECASE):
+        roles.add("message")
+    if re.search(
+        r"\b(?:corrective\s+action|remed(?:y|ies)|fix|what\s+should\b|what\s+(?:do|does|can)\b)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        roles.add("action")
+    return roles
+
+
+def _direct_pipe_parent_match_score(result: SearchResult, analysis: QueryAnalysis) -> float:
+    """Score a parent only when one contiguous pipe row binds the query to requested roles."""
+    if str(result.metadata.get("chunk_type") or "") != "parent_section":
+        return 0.0
+    roles = _requested_troubleshooting_roles(analysis.raw_query)
+    if not roles or "|" not in result.content:
+        return 0.0
+
+    requested_identifiers = list(getattr(analysis, "product_identifiers", []) or [])
+    if len(requested_identifiers) > 1:
+        return 0.0
+    if requested_identifiers:
+        source_identifiers = {
+            _compact_identifier(str(value))
+            for key in ("product_model", "product_family", "part_number", "product_models", "product_families", "devices")
+            for raw_value in [result.metadata.get(key)]
+            for value in (raw_value if isinstance(raw_value, list) else [raw_value])
+            if value
+        }
+        if _compact_identifier(requested_identifiers[0]) not in source_identifiers:
+            return 0.0
+
+    role_headers = {
+        "cause": {"cause", "reason"},
+        "message": {"message", "error message"},
+        "action": {"action", "corrective action", "remedy", "remedies", "fix"},
+    }
+    identity_headers = {
+        "condition", "symptom", "fault", "alarm", "error", "error code", "error number",
+        "message", "error message", "status",
+    }
+    recognized_headers = identity_headers.union(*(values for values in role_headers.values()))
+    query_terms = _query_terms(analysis).difference(_query_product_identifier_terms(analysis))
+
+    def cells(line: str) -> list[str]:
+        values = [value.strip() for value in line.strip().split("|")]
+        if values and not values[0]:
+            values = values[1:]
+        if values and not values[-1]:
+            values = values[:-1]
+        return values
+
+    headers: list[str] | None = None
+    best = 0.0
+    for raw_line in result.content.splitlines():
+        line = raw_line.strip()
+        if not line:
+            headers = None
+            continue
+        if "|" not in line:
+            headers = None
+            continue
+        values = cells(line)
+        normalized = [re.sub(r"\s+", " ", value.lower()).strip() for value in values]
+        recognized_count = sum(value in recognized_headers for value in normalized if value)
+        if (
+            len(values) >= 2
+            and recognized_count >= 2
+            and any(value in identity_headers for value in normalized)
+        ):
+            headers = normalized
+            continue
+        if headers is None or len(values) != len(headers):
+            continue
+        identity_indexes = [index for index, header in enumerate(headers) if header in identity_headers]
+        role_indexes = {
+            role: [index for index, header in enumerate(headers) if header in role_headers[role]]
+            for role in roles
+        }
+        if not identity_indexes or any(not indexes for indexes in role_indexes.values()):
+            continue
+        if any(not any(values[index].strip(" -") for index in indexes) for indexes in role_indexes.values()):
+            continue
+        identity_terms = set().union(*(_text_terms(values[index]) for index in identity_indexes))
+        material_identity_terms = identity_terms.difference({"condition", "error", "fault", "message", "status"})
+        if not material_identity_terms:
+            continue
+        overlap = query_terms.intersection(identity_terms)
+        required_overlap = len(identity_terms) if len(identity_terms) <= 4 else max(2, len(identity_terms) - 1)
+        if required_overlap and len(overlap) >= required_overlap:
+            best = max(best, len(overlap) / max(1, len(identity_terms)))
+    return best
+
+
 def _select_family_candidates(
     results: list[SearchResult],
     analysis: QueryAnalysis,
@@ -2970,8 +3069,38 @@ def _select_family_candidates(
         chosen = results[:limit]
     deduped: dict[str, SearchResult] = {}
     for result in chosen:
-        deduped[result.chunk_id] = result
+        if result.chunk_id not in deduped:
+            deduped[result.chunk_id] = result
     return list(deduped.values())[: max(limit, 10)]
+
+
+def _promote_direct_pipe_parents(
+    primary_results: list[SearchResult],
+    candidates: list[SearchResult],
+    analysis: QueryAnalysis,
+    *,
+    limit: int,
+) -> list[SearchResult]:
+    unique_candidates = {result.chunk_id: result for result in candidates}
+    matches = sorted(
+        ((score, result) for result in unique_candidates.values() if (score := _direct_pipe_parent_match_score(result, analysis)) > 0),
+        key=lambda item: (item[0], item[1].score),
+        reverse=True,
+    )
+    if len(matches) != 1:
+        return primary_results[:limit]
+    score, parent = matches[0]
+    promoted = parent.model_copy(
+        update={
+            "score": max(parent.score, primary_results[0].score if primary_results else parent.score),
+            "metadata": {
+                **parent.metadata,
+                "retrieval_stage": "direct_pipe_parent_promoted",
+                "direct_pipe_parent_match_score": score,
+            },
+        }
+    )
+    return [promoted, *(result for result in primary_results if result.chunk_id != promoted.chunk_id)][:limit]
 
 
 def _resolve_rerank_device() -> object | None:
@@ -3369,6 +3498,12 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=chunk_search_filters, limit=12), "family_selected")
     enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=12)
     reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked")
+    reranked = _promote_direct_pipe_parents(
+        reranked,
+        [*family_selected, *dense_results, *sparse_results, *special_results, *contextual_lexical_results],
+        analysis,
+        limit=12,
+    )
     reranked = _promote_structured_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     reranked = _promote_comparison_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     reranked = _promote_direct_configuration_candidates(
