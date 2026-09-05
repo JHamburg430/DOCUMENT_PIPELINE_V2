@@ -187,6 +187,15 @@ def test_query_analysis_marks_plural_values_apply_questions_as_structured_lookup
     assert analysis.product_identifiers == ["IV4-G120", "IV4-G600CA"]
 
 
+def test_query_analysis_marks_where_do_i_set_questions_as_configuration_how_to():
+    analysis = analyze_query("Where do I set overlap distance for the scanner?")
+
+    assert "configuration" in analysis.query_types
+    assert "how_to" in analysis.query_types
+    assert "procedure_record" in analysis.preferred_chunk_types
+    assert "section_window" in analysis.preferred_chunk_types
+
+
 def test_query_analysis_marks_compound_multi_product_specs_as_comparison_lookup():
     analysis = analyze_query(
         "For the controller, what enclosure rating is listed for MOD1-A manual, "

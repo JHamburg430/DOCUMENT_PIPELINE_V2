@@ -38,10 +38,18 @@ def analyze_query(query: str) -> QueryAnalysis:
     if any(word in lowered for word in ["warning", "danger", "safety", "hazard", "caution"]):
         types.append("safety")
         preferred_chunk_types.append("warning_record")
-    if any(word in lowered for word in ["how", "steps", "configure", "setup", "install"]):
+    location_configuration = bool(
+        re.search(
+            r"\bwhere\b.{0,80}\b(?:set|adjust|change|configure|find|locate|select|enable|disable)\b"
+            r"|\bwhere\s+(?:is|are)\b.{0,80}\b(?:setting|option|parameter|control|field)\b"
+            r"|\b(?:which|what)\s+(?:menu|screen|tab|section|page)\b",
+            lowered,
+        )
+    )
+    if any(word in lowered for word in ["how", "steps", "configure", "setup", "install"]) or location_configuration:
         types.append("how_to")
         preferred_chunk_types.append("procedure_record")
-    if any(word in lowered for word in ["configure", "configuration", "setting", "parameter", "menu"]):
+    if any(word in lowered for word in ["configure", "configuration", "setting", "parameter", "menu"]) or location_configuration:
         types.append("configuration")
         preferred_chunk_types.extend(["procedure_record", "section_window", "table_record"])
     if any(word in lowered for word in ["command", "timing", "flow", "handshake", "flag", "procedure"]):

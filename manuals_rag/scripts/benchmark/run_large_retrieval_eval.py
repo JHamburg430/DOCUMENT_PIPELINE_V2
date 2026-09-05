@@ -787,6 +787,7 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
     doc_stats = defaultdict(lambda: {"total": 0, "passed": 0})
     failure_categories = Counter()
     benchmark_quality = Counter()
+    question_families = Counter()
     candidate_recall_hits = 0
     metadata_selection_attempts = 0
     metadata_selection_hits = 0
@@ -800,16 +801,37 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
     answer_fallback_reasons = Counter()
     answer_summary_counts: list[int] = []
     for result in results:
-        chunk_type = result["case"]["chunk_type"]
+        case = result["case"]
+        query = str(case.get("query") or "")
+        generation_method = str(case.get("generation_method") or "").lower()
+        if re.search(
+            r"\bwhere\b.{0,80}\b(?:set|setting|configure|find|located|menu|screen|tab|section)\b"
+            r"|\b(?:which|what)\s+(?:menu|screen|tab|section|page)\b",
+            query,
+            flags=re.IGNORECASE,
+        ):
+            question_family = "configuration_location"
+        elif "troubleshoot" in generation_method or "table_sibling_error" in generation_method:
+            question_family = "troubleshooting"
+        elif re.search(r"\b(?:compare|difference|versus|vs\.?)\b", query, flags=re.IGNORECASE):
+            question_family = "comparison"
+        elif re.search(r"\b(?:how many|number of|maximum|minimum|range|value)\b", query, flags=re.IGNORECASE):
+            question_family = "quantity_specification"
+        elif re.search(r"\b(?:how do i|how to|steps?|procedure)\b", query, flags=re.IGNORECASE):
+            question_family = "procedure"
+        else:
+            question_family = "general"
+        question_families[question_family] += 1
+        chunk_type = case["chunk_type"]
         chunk_type_stats[chunk_type]["total"] += 1
         chunk_type_stats[chunk_type]["passed"] += int(result["evaluation"]["passed"])
-        retrieval_task = result["case"].get("retrieval_task", "single_step_retrieval")
+        retrieval_task = case.get("retrieval_task", "single_step_retrieval")
         retrieval_task_stats[retrieval_task]["total"] += 1
         retrieval_task_stats[retrieval_task]["passed"] += int(result["evaluation"]["passed"])
-        filename = result["case"]["source_filename"]
+        filename = case["source_filename"]
         doc_stats[filename]["total"] += 1
         doc_stats[filename]["passed"] += int(result["evaluation"]["passed"])
-        benchmark_quality[result["case"].get("benchmark_quality", "unknown")] += 1
+        benchmark_quality[case.get("benchmark_quality", "unknown")] += 1
         if result["evaluation"].get("failure_category"):
             failure_categories[result["evaluation"]["failure_category"]] += 1
         if result["evaluation"].get("candidate_recall"):
@@ -859,6 +881,13 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
         "by_chunk_type": dict(chunk_type_stats),
         "by_retrieval_task": dict(retrieval_task_stats),
         "by_document": dict(doc_stats),
+        "by_question_family": dict(question_families),
+        "representative_question_coverage": len(question_families) >= 3,
+        "question_coverage_warning": (
+            None
+            if len(question_families) >= 3
+            else "The evaluation covers fewer than three question families and must not be treated as representative of broad manual QA."
+        ),
         "failure_categories": dict(failure_categories),
         "benchmark_quality": dict(benchmark_quality),
         "benchmark_validity_rate": round(benchmark_quality.get("validated", 0) / total, 4) if total else 0.0,

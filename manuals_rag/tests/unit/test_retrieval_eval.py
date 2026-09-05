@@ -16,6 +16,7 @@ from manuals_rag_evals.retrieval_eval import (
     validate_eval_case,
     _parse_generated_queries,
     _parse_query_review,
+    _configuration_location_answer_completeness,
     _question_generation_trace_fields,
     _safe_query_label,
     _short_answer_anchor,
@@ -2773,6 +2774,9 @@ def test_large_retrieval_eval_summarizes_answer_metrics():
         "Generated answer was replaced by retrieval-grounded fallback during validation.": 1
     }
     assert summary["answer_mean_summary_count"] == 3.0
+    assert summary["by_question_family"] == {"general": 1}
+    assert summary["representative_question_coverage"] is False
+    assert "must not be treated as representative" in summary["question_coverage_warning"]
 
 
 def test_large_retrieval_eval_scores_api_answer_payload_for_http_answer_mode(monkeypatch):
@@ -6168,3 +6172,48 @@ def test_score_search_results_categorizes_candidate_miss():
     evaluation = score_search_results(case, results)
     assert evaluation["passed"] is False
     assert evaluation["failure_category"] == "candidate_miss"
+
+
+def test_configuration_location_completeness_rejects_raw_context_and_requires_purpose():
+    case = RetrievalEvalCase(
+        case_id="location-1",
+        query="Where do I set overlap distance for the scanner?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="section_window",
+        section_path="Capture settings",
+        page_from=3,
+        page_to=3,
+        expected_terms=["overlap", "distance"],
+        expected_snippet="Overlap distance: Specifies how much of the previous scan is retained.",
+        generation_method="configuration_location",
+        source_metadata={"parent_context": "Capture Unit > Scanner Settings > Continuous Settings"},
+    )
+
+    raw = _configuration_location_answer_completeness(
+        case,
+        "manual.pdf | Capture settings Overlap distance: 12 pixels",
+    )
+    raw_without_filename = _configuration_location_answer_completeness(
+        case,
+        "Capture settings\n\nOverlap distance: Specifies how much of the previous scan is retained.",
+    )
+    missing_purpose = _configuration_location_answer_completeness(
+        case,
+        "Location: Capture Unit > Scanner Settings > Overlap distance.",
+    )
+    complete = _configuration_location_answer_completeness(
+        case,
+        "Location: Capture Unit > Scanner Settings > Overlap distance. Purpose: It controls how much of the previous scan is retained.",
+    )
+
+    assert raw["passed"] is False
+    assert "raw_context_answer" in raw["failure_reasons"]
+    assert raw_without_filename["passed"] is False
+    assert "configuration_location_missing" in raw_without_filename["failure_reasons"]
+    assert missing_purpose["passed"] is False
+    assert "configuration_purpose_missing" in missing_purpose["failure_reasons"]
+    assert complete["passed"] is True

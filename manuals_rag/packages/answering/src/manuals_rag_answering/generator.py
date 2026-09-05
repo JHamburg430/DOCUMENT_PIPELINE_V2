@@ -21,6 +21,9 @@ Use used_documents as an array of objects with document_id, title, version, page
 Use citations as an array of objects with chunk_id, document_id, pages, and quote_span.
 If evidence is weak, set insufficient_evidence=true and explain the gap.
 Always mention version awareness and cite pages/sections.
+Answer the user's requested task directly in the first sentence; never begin with a filename, manual title, or raw evidence dump.
+For location/configuration questions, state the supported unit/menu/screen/tab hierarchy, the exact setting, what it controls, and any applicable mode or constraint present in evidence.
+Do not substitute a neighboring or prerequisite setting for the setting the user asked about.
 """.strip()
 
 RELEVANCE_PROMPT = """
@@ -43,6 +46,8 @@ Return strict JSON with a top-level key `summary`.
 The summary must:
 - preserve only information relevant to the user's request
 - mention concrete settings, constraints, or procedures when present
+- for location/configuration questions, preserve the full supported unit/menu/screen/tab hierarchy, the exact requested setting, its purpose, and applicable mode
+- distinguish the requested setting from neighboring, prerequisite, or calculation settings
 - stay concise
 - avoid speculation
 """.strip()
@@ -464,9 +469,9 @@ def _evidence_text(result: SearchResult) -> str:
         return content or context_window
     if chunk_type in {"atomic_text", "table_record", "spec_record", "datasheet_record", "procedure_record", "warning_record"}:
         return content
-    if context_window:
-        return context_window
-    return content
+    # A section window is itself the selected evidence.  Its context_window may
+    # contain a neighboring fragment and must not replace the selected text.
+    return content or context_window
 
 
 def _fallback_answer_text(result: SearchResult) -> str:
@@ -549,6 +554,18 @@ def _is_procedure_rule_query(query: str) -> bool:
         re.search(r"\b(what|which|how|when)\b", query, flags=re.IGNORECASE)
         and re.search(
             r"\b(branch(?:ed|ing)?|condition|flowchart|procedure|rule|step|follow(?:ed)?|should)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def _is_configuration_location_query(query: str) -> bool:
+    return bool(
+        re.search(
+            r"\bwhere\b.{0,100}\b(?:set|adjust|change|configure|find|locate|select|enable|disable)\b"
+            r"|\bwhere\s+(?:is|are)\b.{0,100}\b(?:setting|option|parameter|control|field)\b"
+            r"|\b(?:which|what)\s+(?:menu|screen|tab|section|page)\b",
             query,
             flags=re.IGNORECASE,
         )
@@ -1064,10 +1081,13 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             followup_questions=[],
             insufficient_evidence=True,
         )
-    fallback_results = concise_results or _fallback_evidence_results(query, results)
+    location_answer, location_results = _concise_configuration_location_answer(query, results)
+    fallback_results = concise_results or location_results or _fallback_evidence_results(query, results)
     top = fallback_results[0]
     if concise_answer:
         answer_text = concise_answer
+    elif location_answer:
+        answer_text = location_answer
     elif len(fallback_results) == 1:
         answer_text = (
             _matching_troubleshooting_row_text(query, top)
@@ -1129,6 +1149,388 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
     if re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
         score += min(4.0, float(len(_contextual_quantity_terms(evidence))))
     return score
+
+
+LOCATION_CUE_RE = re.compile(
+    r"\b(?:menu|screen|tab|section|page|unit|settings?|options?|area|panel|dialog|toolbar|folder)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _configuration_location_subject(query: str) -> str:
+    patterns = (
+        r"\b(?:set|adjust|change|configure|find|locate|select|enable|disable)\s+(.+?)"
+        r"(?:\s+(?:between|for|on|in|under|with|using)\s+|[?.!,;]|$)",
+        r"\bwhere\s+(?:is|are)\s+(?:the\s+)?(.+?)\s+(?:setting|option|parameter|control|field)\b",
+        r"\b(?:which|what)\s+(?:menu|screen|tab|section|page)\s+"
+        r"(?:contains?|has|includes?|shows?|holds?)\s+(?:the\s+)?(.+?)"
+        r"(?:\s+(?:for|on|in|under|with|using)\s+|[?.!,;]|$)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, query, flags=re.IGNORECASE)
+        if match:
+            return re.sub(r"\s+", " ", match.group(1)).strip(" .?\"'")
+    return ""
+
+
+def _normalized_device_text(text: str) -> str:
+    normalized = re.sub(r"\blinescan\b", "line scan", text, flags=re.IGNORECASE)
+    return re.sub(r"[^a-z0-9]+", " ", normalized.lower()).strip()
+
+
+def _location_terms(text: str) -> set[str]:
+    terms: set[str] = set()
+    for token in _normalized_device_text(text).split():
+        if len(token) < 3:
+            continue
+        terms.add(token)
+        if len(token) > 4 and token.endswith("s") and not token.endswith("ss"):
+            terms.add(token[:-1])
+        if len(token) > 5 and token.endswith("ing"):
+            stem = token[:-3]
+            terms.add(stem[:-1] if len(stem) > 2 and stem[-1:] == stem[-2:-1] else stem)
+    return terms
+
+
+def _requested_device_phrases(query: str) -> set[str]:
+    normalized = _normalized_device_text(query)
+    phrases: set[str] = set()
+    for match in re.finditer(
+        r"\b([a-z0-9-]+(?:\s+[a-z0-9-]+){0,3}\s+"
+        r"(?:camera|head|controller|scanner|sensor|reader|drive|motor|unit|module))\b",
+        normalized,
+    ):
+        phrase = match.group(1).strip()
+        words = phrase.split()
+        while words and words[0] in {"a", "an", "the", "for", "on", "with", "using"}:
+            words.pop(0)
+        if len(words) >= 2:
+            phrases.add(" ".join(words))
+    return phrases
+
+
+def _requested_capture_scope_phrases(query: str) -> set[str]:
+    normalized = _normalized_device_text(query)
+    phrases: set[str] = set()
+    for match in re.finditer(
+        r"\b([a-z][a-z0-9]*(?:\s+[a-z][a-z0-9]*){0,3})\s+"
+        r"(?:camera|captures?|imaging|acquisition)\b",
+        normalized,
+    ):
+        words = match.group(1).split()
+        while words and words[0] in {"a", "an", "the", "for", "on", "with", "using", "between"}:
+            words.pop(0)
+        if len(words) >= 2:
+            phrases.add(" ".join(words[-3:]))
+    return phrases
+
+
+def _configuration_location_evidence_text(result: SearchResult) -> str:
+    parts: list[str] = []
+    for value in [
+        str(result.metadata.get("parent_context") or "").strip(),
+        str(result.content or "").strip(),
+        str(result.metadata.get("context_window") or "").strip(),
+    ]:
+        if value and value not in parts:
+            parts.append(value)
+    return "\n\n".join(parts)
+
+
+def _configuration_location_evidence_results(query: str, results: list[SearchResult]) -> list[SearchResult]:
+    if not _is_configuration_location_query(query):
+        return []
+    subject = _configuration_location_subject(query)
+    subject_terms = _location_terms(subject)
+    compact_subject = re.sub(r"[^a-z0-9]+", "", subject.lower())
+    requested_devices = _requested_device_phrases(query)
+    requested_scopes = _requested_capture_scope_phrases(query)
+    scored: list[tuple[float, int, SearchResult]] = []
+    for index, result in enumerate(results[:8]):
+        evidence = _configuration_location_evidence_text(result)
+        evidence_terms = _location_terms(evidence)
+        score = float(len(subject_terms.intersection(evidence_terms)) * 2)
+        if compact_subject and compact_subject in re.sub(r"[^a-z0-9]+", "", evidence.lower()):
+            score += 5.0
+        score += min(3.0, float(len(set(LOCATION_CUE_RE.findall(evidence.lower())))) * 0.5)
+        if re.search(r"\b(?:specif(?:y|ies)|controls?|used for|allows?|enables?|prevents?)\b", evidence, flags=re.IGNORECASE):
+            score += 1.0
+        scope_text = _normalized_device_text(
+            " ".join(
+                [
+                    str(result.metadata.get("parent_context") or "")[:700],
+                    " ".join(result.section_path),
+                    str(result.content or "")[:300],
+                ]
+            )
+        )
+        declared_scope = re.search(
+            r"\bwhen using (?:a |an )?([a-z0-9 -]{2,60}?(?:camera|head|controller|scanner|sensor|reader|drive|motor|unit|module))\b",
+            scope_text,
+        )
+        if requested_devices:
+            matching_devices = {device for device in requested_devices if device in scope_text}
+            score += float(len(matching_devices) * 4)
+            if declared_scope and not any(
+                device in declared_scope.group(1) or declared_scope.group(1) in device
+                for device in requested_devices
+            ):
+                score -= 4.0
+        if requested_scopes:
+            scope_terms = _location_terms(scope_text)
+            best_scope_overlap = max(
+                (len(_location_terms(scope).intersection(scope_terms)) for scope in requested_scopes),
+                default=0,
+            )
+            score += float(best_scope_overlap * 1.5)
+            if declared_scope and not any(
+                len(_location_terms(scope).intersection(_location_terms(declared_scope.group(1)))) >= 2
+                for scope in requested_scopes
+            ):
+                score -= 3.0
+        scored.append((score, index, result))
+    selected = [
+        result
+        for score, _index, result in sorted(scored, key=lambda item: (-item[0], item[1]))
+        if score >= max(3.0, float(len(subject_terms) * 2))
+    ]
+    primary = selected[:4]
+    if not primary:
+        return []
+    support: list[SearchResult] = []
+    primary_pages = [page for result in primary[:2] for page in result.pages]
+    primary_documents = {result.source_document_id for result in primary[:2]}
+    for result in results[:8]:
+        if result in primary or result.source_document_id not in primary_documents:
+            continue
+        evidence = _configuration_location_evidence_text(result)
+        if len(set(LOCATION_CUE_RE.findall(evidence.lower()))) < 2:
+            continue
+        if primary_pages and result.pages and min(abs(page - primary_page) for page in result.pages for primary_page in primary_pages) > 3:
+            continue
+        support.append(result)
+    return [*primary, *support[:2]]
+
+
+def _configuration_path_labels(text: str, subject: str) -> list[str]:
+    compact_subject = re.sub(r"\s+", " ", subject).strip()
+    subject_match = re.search(re.escape(compact_subject), text, flags=re.IGNORECASE) if compact_subject else None
+    if not subject_match and compact_subject:
+        subject_terms = _location_terms(compact_subject)
+        candidates = [
+            (len(subject_terms.intersection(_location_terms(candidate.group(0)))), candidate)
+            for candidate in re.finditer(r"[^\n]+", text)
+        ]
+        best_overlap, best_candidate = max(candidates, key=lambda item: item[0], default=(0, None))
+        if best_overlap and best_candidate is not None:
+            subject_match = best_candidate
+    prefix = text[: subject_match.start()] if subject_match else text
+    label_re = re.compile(
+        r"\b([A-Z][A-Za-z0-9/&-]*(?:[ \t]+[A-Z][A-Za-z0-9/&-]*){0,5}[ \t]+"
+        r"(?:Settings?|Options?|Menu|Screen|Tab|Area|Panel|Dialog|Folder)"
+        r"(?:\s*\([^\n)]{1,80}\))?)",
+    )
+    labels: list[str] = []
+    for match in label_re.finditer(prefix):
+        label = re.sub(r"\s+", " ", match.group(1)).strip()
+        if label not in labels:
+            labels.append(label)
+    local = text[subject_match.start() : subject_match.start() + 500].lower() if subject_match else ""
+    if "continuous" in local and "fixed" not in local:
+        labels = [label for label in labels if "fixed" not in label.lower()]
+    if len(labels) <= 3:
+        return labels
+    broad = next((label for label in labels if "settings" in label.lower()), labels[0])
+    tail = labels[-2:]
+    selected: list[str] = []
+    for label in [broad, *tail]:
+        if label not in selected:
+            selected.append(label)
+    return selected
+
+
+def _merged_configuration_path_labels(
+    query: str,
+    subject: str,
+    evidence_texts: list[str],
+) -> tuple[list[str], str]:
+    """Build one menu path from complementary chunks in the same retrieved section."""
+    candidates = [(_configuration_path_labels(text, subject), text) for text in evidence_texts]
+    definition_pattern = re.compile(
+        rf"{re.escape(subject)}\s*(?:\([^\n)]*\))?\s*:",
+        flags=re.IGNORECASE,
+    )
+    _base_index, (base_labels, base_text) = max(
+        enumerate(candidates),
+        key=lambda indexed: (
+            bool(definition_pattern.search(indexed[1][1])),
+            -indexed[0],
+            len(indexed[1][0]),
+        ),
+        default=(0, ([], "")),
+    )
+    if not base_labels:
+        return [], base_text
+
+    # Prefer the plural UI label when OCR/navigation prose exposes both forms.
+    all_labels: list[str] = []
+    subject_terms = _location_terms(subject)
+    for labels, text in candidates:
+        # Subject anchoring finds the local child setting; an unanchored pass
+        # exposes parent screens that may live in an adjacent support chunk.
+        has_subject_definition = bool(definition_pattern.search(text)) or any(
+            subject_terms.intersection(_location_terms(segment.split(":", 1)[0]))
+            for segment in text.splitlines()
+            if ":" in segment
+        )
+        support_labels = [] if has_subject_definition else _configuration_path_labels(text, "")
+        for label in [*labels, *support_labels]:
+            if label not in all_labels:
+                all_labels.append(label)
+    plural_keys = {
+        re.sub(r"\bsettings\b", "setting", label.lower())
+        for label in all_labels
+        if re.search(r"\bsettings\b", label, flags=re.IGNORECASE)
+    }
+    all_labels = [
+        label
+        for label in all_labels
+        if not (
+            re.search(r"\bsetting\b", label, flags=re.IGNORECASE)
+            and not re.search(r"\bsettings\b", label, flags=re.IGNORECASE)
+            and label.lower() in plural_keys
+        )
+    ]
+    base_labels = [label for label in base_labels if label in all_labels]
+
+    # A setting definition and its parent screen are frequently split across
+    # adjacent chunks. Add the strongest device-specific settings screen ahead
+    # of a local path, without relying on any product or manual-specific label.
+    query_terms = _location_terms(_normalized_device_text(query))
+    broad_candidates = [
+        label
+        for label in all_labels
+        if label not in base_labels
+        and "settings" in label.lower()
+        and len(_location_terms(label).intersection(query_terms)) >= 1
+    ]
+    broad = max(
+        broad_candidates,
+        key=lambda label: (
+            len(_location_terms(label).intersection(query_terms)),
+            -len(label),
+        ),
+        default="",
+    )
+    merged: list[str] = []
+    if broad and broad not in base_labels:
+        merged.append(broad)
+    for label in base_labels:
+        if label not in merged:
+            merged.append(label)
+    return merged, base_text
+
+
+def _concise_configuration_location_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    location_results = _configuration_location_evidence_results(query, results)
+    subject = _configuration_location_subject(query)
+    if not subject or not location_results:
+        return "", []
+    evidence_texts = [_configuration_location_evidence_text(result) for result in location_results]
+    path_results = location_results
+    anchor_result = location_results[0]
+    if anchor_result.pages:
+        nearby_results = [
+            result
+            for result in location_results
+            if result.source_document_id == anchor_result.source_document_id
+            and result.pages
+            and min(
+                abs(page - anchor_page)
+                for page in result.pages
+                for anchor_page in anchor_result.pages
+            )
+            <= 3
+        ]
+        if nearby_results:
+            path_results = nearby_results
+    path_labels, best_text = _merged_configuration_path_labels(
+        query,
+        subject,
+        [_configuration_location_evidence_text(result) for result in path_results],
+    )
+    subject_label = subject[:1].upper() + subject[1:]
+    if not path_labels:
+        return "", []
+    definition = ""
+    purpose = ""
+    definition_re = re.compile(
+        rf"{re.escape(subject)}\s*(?:\([^\n)]*\))?\s*:\s*([^\n.]+(?:\.[^\n.]+)?)",
+        flags=re.IGNORECASE,
+    )
+    for result in location_results:
+        evidence = _configuration_location_evidence_text(result)
+        match = definition_re.search(evidence)
+        if not match:
+            continue
+        candidate = re.sub(r"\s+", " ", match.group(1)).strip(" .")
+        if len(candidate) > len(definition):
+            definition = candidate
+        purpose_match = re.search(
+            rf"{re.escape(subject)}[^\n]{{0,500}}?((?:Even if|This (?:keeps|allows|enables|prevents|ensures)|It (?:keeps|allows|enables|prevents|ensures))[^\n.]*\.)",
+            evidence,
+            flags=re.IGNORECASE,
+        )
+        if purpose_match and len(purpose_match.group(1)) > len(purpose):
+            purpose = re.sub(r"\s+", " ", purpose_match.group(1)).strip()
+    if not definition:
+        subject_terms = _location_terms(subject)
+        candidates: list[tuple[int, str, str]] = []
+        for evidence in evidence_texts:
+            for segment in re.split(r"[\n]+", evidence):
+                if ":" not in segment:
+                    continue
+                label, value = segment.split(":", 1)
+                overlap = len(subject_terms.intersection(_location_terms(label)))
+                if overlap and re.search(r"\b(?:specif(?:y|ies)|controls?|used for|allows?|enables?)\b", value, flags=re.IGNORECASE):
+                    candidates.append((overlap, label.strip(), value.strip()))
+        if candidates:
+            _overlap, resolved_label, resolved_definition = max(
+                candidates,
+                key=lambda item: (item[0], len(item[2])),
+            )
+            subject_label = re.sub(r"\s*\([^)]*\)\s*$", "", resolved_label).strip()
+            definition = re.split(r"(?<=[.!?])\s+", resolved_definition, maxsplit=1)[0].strip(" .")
+    if not definition:
+        return "", []
+    unit_source = " ".join([*path_labels, *evidence_texts])
+    common_unit_matches = re.findall(
+        r"\b(?:common\s+for\s+)?all\s+([A-Za-z][A-Za-z0-9-]*)\s+units\b",
+        unit_source,
+        flags=re.IGNORECASE,
+    )
+    path_unit_matches = re.findall(
+        r"\b([A-Za-z][A-Za-z0-9-]*)\s+Units?\b",
+        " ".join(path_labels),
+        flags=re.IGNORECASE,
+    )
+    unit_matches = common_unit_matches or path_unit_matches
+    clean_labels = [re.sub(r"\s*\([^)]*\bUnits?\b[^)]*\)", "", label).strip() for label in path_labels]
+    path = " > ".join([*clean_labels, subject_label])
+    if unit_matches:
+        unit_name = f"{unit_matches[-1].title()} Unit"
+        location = f"In the {unit_name}, open {path}"
+    else:
+        location = path
+    answer = f"Location: {location}. Purpose: {definition}."
+    if re.search(r"\bcamera (?:you selected in (?:the )?camera )?tab\b", best_text, flags=re.IGNORECASE):
+        answer = f"{answer} Use the tab for the camera being configured."
+    if purpose and purpose.lower() not in answer.lower():
+        answer = f"{answer} {purpose}"
+    return answer, location_results[:4]
 
 
 def _multi_part_evidence_clauses(query: str) -> list[str]:
@@ -1459,6 +1861,37 @@ def _citation_quotes_are_supported(citations: list[dict[str, Any]], results: lis
     return True
 
 
+def _answer_addresses_configuration_location(
+    answer: str,
+    query: str,
+    results: list[SearchResult],
+) -> bool:
+    if not _is_configuration_location_query(query):
+        return True
+    normalized = re.sub(r"\s+", " ", answer).strip()
+    if not normalized or re.search(r"\.pdf\b|\bretrieved evidence\b", normalized[:180], flags=re.IGNORECASE):
+        return False
+    first_sentence = re.split(r"(?<=[.!?])\s+|\n+", normalized, maxsplit=1)[0]
+    if not re.match(r"^location\s*:", first_sentence, flags=re.IGNORECASE) and not re.search(
+        r"\b(?:in|under|inside|within|from|open|go to|navigate to)\b",
+        first_sentence,
+        flags=re.IGNORECASE,
+    ):
+        return False
+    subject_terms = _location_terms(_configuration_location_subject(query))
+    first_terms = _location_terms(first_sentence)
+    required_subject_terms = max(1, min(len(subject_terms), (len(subject_terms) + 1) // 2))
+    if len(subject_terms.intersection(first_terms)) < required_subject_terms:
+        return False
+    if not LOCATION_CUE_RE.search(first_sentence):
+        return False
+    evidence_terms: set[str] = set()
+    for result in results[:4]:
+        evidence_terms.update(_material_claim_terms(_configuration_location_evidence_text(result)))
+    supporting_terms = _material_claim_terms(normalized).difference(subject_terms).intersection(evidence_terms)
+    return len(supporting_terms) >= 3
+
+
 def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: str = "") -> AnswerResponse:
     if results and (
         not _answer_supported_by_results(answer.answer, results)
@@ -1471,6 +1904,7 @@ def validate_answer(answer: AnswerResponse, results: list[SearchResult], query: 
         or not _answer_uses_comparison_troubleshooting_side_rows(answer.answer, query, results)
         or not _comparison_answer_covers_retrieved_model_sides(query, list(answer.citations), results)
         or not _answer_addresses_quantity_request(answer.answer, query, results)
+        or not _answer_addresses_configuration_location(answer.answer, query, results)
     ):
         fallback = _fallback_answer(query, results)
         answer = fallback.model_copy(
@@ -1636,40 +2070,63 @@ def generate_answer_with_trace(
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Question: {query}\nEvidence summaries: {json.dumps(summarized_evidence)}"},
     ]
-    try:
-        generated, _raw = chat_json(
-            model=settings.ollama_answer_model,
-            messages=messages,
-            json_schema=ANSWER_SCHEMA,
-            think=False,
-            num_predict=settings.ollama_answer_num_predict,
-            timeout=90.0,
-            purpose="final_answer",
-        )
-        generated_answer = AnswerResponse.model_validate(_normalize_generated_answer_payload(generated, prioritized_results))
-        validated_answer = validate_answer(generated_answer, prioritized_results, query=query)
-        if validated_answer.answer != generated_answer.answer and any(
-            "not sufficiently supported" in warning for warning in validated_answer.warnings
-        ):
-            trace["final_answer"].update(
+    last_error: Exception | None = None
+    for attempt in range(2):
+        attempt_messages = messages
+        if attempt:
+            attempt_messages = [
+                messages[0],
                 {
-                    "used_fallback": True,
-                    "answer_source": "fallback_validation",
-                    "fallback_reason": "Generated answer was replaced by retrieval-grounded fallback during validation.",
-                }
+                    "role": "user",
+                    "content": (
+                        f"{messages[1]['content']}\n\n"
+                        "Return exactly one valid JSON object matching the schema. "
+                        "Lead with the direct answer and do not copy raw evidence blocks."
+                    ),
+                },
+            ]
+        try:
+            generated, _raw = chat_json(
+                model=settings.ollama_answer_model,
+                messages=attempt_messages,
+                json_schema=ANSWER_SCHEMA,
+                think=False,
+                num_predict=settings.ollama_answer_num_predict,
+                timeout=90.0,
+                purpose="final_answer",
             )
-        return validated_answer, trace
-    except Exception as exc:
-        logger.warning("Final answer generation failed for model=%s; using fallback answer: %s", settings.ollama_answer_model, exc)
-        fallback_answer = validate_answer(_fallback_answer(query, prioritized_results), prioritized_results, query=query)
-        trace["final_answer"].update(
-            {
-                "used_fallback": True,
-                "answer_source": "fallback_exception",
-                "fallback_reason": str(exc),
-            }
-        )
-        return fallback_answer, trace
+            generated_answer = AnswerResponse.model_validate(_normalize_generated_answer_payload(generated, prioritized_results))
+            validated_answer = validate_answer(generated_answer, prioritized_results, query=query)
+            if validated_answer.answer != generated_answer.answer and any(
+                "not sufficiently supported" in warning for warning in validated_answer.warnings
+            ):
+                trace["final_answer"].update(
+                    {
+                        "used_fallback": True,
+                        "answer_source": "fallback_validation",
+                        "fallback_reason": "Generated answer was replaced by retrieval-grounded fallback during validation.",
+                    }
+                )
+            trace["final_answer"]["attempts"] = attempt + 1
+            return validated_answer, trace
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "Final answer generation attempt %s failed for model=%s: %s",
+                attempt + 1,
+                settings.ollama_answer_model,
+                exc,
+            )
+    fallback_answer = validate_answer(_fallback_answer(query, prioritized_results), prioritized_results, query=query)
+    trace["final_answer"].update(
+        {
+            "attempts": 2,
+            "used_fallback": True,
+            "answer_source": "fallback_exception",
+            "fallback_reason": str(last_error),
+        }
+    )
+    return fallback_answer, trace
 
 
 def prepare_answer_evidence(query: str, results: list[SearchResult]) -> dict[str, Any]:
@@ -1705,7 +2162,11 @@ def prioritize_results_for_answer(query: str, candidate_results: list[SearchResu
         if _is_procedure_rule_query(query) and not _is_troubleshooting_query(query)
         else []
     )
-    prioritized_results = [result for result in [*anchored_results, *comparison_evidence, *procedure_evidence]]
+    location_evidence = _configuration_location_evidence_results(query, candidate_results)
+    prioritized_results = [
+        result
+        for result in [*anchored_results, *comparison_evidence, *procedure_evidence, *location_evidence]
+    ]
     prioritized_results.extend(
         result
         for result in candidate_results
@@ -1723,13 +2184,18 @@ def prioritize_results_for_answer(query: str, candidate_results: list[SearchResu
     prioritized_results = _focused_troubleshooting_results(query, _order_troubleshooting_results(query, prioritized_results))
     protected_chunk_ids = {
         result.chunk_id
-        for result in [*anchored_results, *comparison_evidence, *procedure_evidence]
+        for result in [*anchored_results, *comparison_evidence, *procedure_evidence, *location_evidence]
     }
     original_rank = {result.chunk_id: index for index, result in enumerate(prioritized_results)}
+    location_priority = {
+        result.chunk_id: len(location_evidence) - index
+        for index, result in enumerate(location_evidence)
+    }
     verdict_priority = {"relevant": 2, "potentially_relevant": 1, "not_relevant": 0}
     prioritized_results.sort(
         key=lambda result: (
             result.chunk_id in protected_chunk_ids,
+            location_priority.get(result.chunk_id, 0),
             _distinctive_query_coverage(query, result),
             verdict_priority.get(judgment_by_chunk_id.get(result.chunk_id, {}).get("verdict", ""), 0),
             _query_evidence_overlap_score(query, result),

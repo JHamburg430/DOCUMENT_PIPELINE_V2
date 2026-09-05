@@ -4,6 +4,9 @@ import fitz
 
 from manuals_rag_answering.generator import (
     _comparison_answer_covers_retrieved_model_sides,
+    _concise_configuration_location_answer,
+    _configuration_path_labels,
+    _configuration_location_subject,
     _fallback_evidence_results,
     _is_comparison_query,
     _parse_relevance_response,
@@ -42,6 +45,192 @@ def test_troubleshooting_anchor_supports_generated_cause_and_action_questions():
         _query_troubleshooting_anchor(f"How should {symptom} for XG-X Series be corrected?")
         == expected
     )
+
+
+def test_location_question_prioritizes_complete_setting_hierarchy_over_related_context(monkeypatch):
+    direct = SearchResult(
+        chunk_id="direct",
+        score=0.7,
+        title="Controller Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[20],
+        section_path=["Capture"],
+        content=(
+            "Overlapping lines: Specify the number of lines overlapped from the previous capture "
+            "when storing in the image variable."
+        ),
+        metadata={
+            "chunk_type": "section_window",
+            "parent_context": (
+                "Line Camera Settings\n\nImage Area (Common for All Capture Units)\n\n"
+                "Fixed Capture Settings\n\nContinuous Capture Settings\n\n"
+                "Overlapping lines (for Continuous only): Specify the number of lines overlapped "
+                "from the previous capture when storing in the image variable."
+            ),
+        },
+    )
+    related = SearchResult(
+        chunk_id="related",
+        score=0.8,
+        title="Controller Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[8],
+        section_path=["Classification"],
+        content="Duplicate suppression is enabled when overlapping lines is one or higher.",
+        metadata={"chunk_type": "section_window"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.judge_retrieval_relevance",
+        lambda _query, _results: [
+            {"chunk_id": "related", "verdict": "relevant", "reason": "related"},
+            {"chunk_id": "direct", "verdict": "potentially_relevant", "reason": "setting details"},
+        ],
+    )
+
+    prioritized = prioritize_results_for_answer(
+        "Where do I set overlapping lines for a line scan camera?",
+        [related, direct],
+    )
+
+    assert prioritized["prioritized_results"][0].chunk_id == "direct"
+
+
+def test_location_subject_supports_natural_where_and_menu_paraphrases():
+    assert _configuration_location_subject("Where is the overlap distance setting for the scanner?") == "overlap distance"
+    assert _configuration_location_subject("Which menu contains overlapping lines for the camera?") == "overlapping lines"
+    assert (
+        _configuration_location_subject("Where can I configure overlap between continuous line-scan captures?")
+        == "overlap"
+    )
+
+
+def test_location_question_replaces_raw_context_with_concise_path_and_purpose():
+    result = SearchResult(
+        chunk_id="direct",
+        score=0.9,
+        title="Controller Manual.pdf",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[20],
+        section_path=["Capture"],
+        content=(
+            "Controller Manual.pdf | Capture\n\nOverlapping lines: Specify the number of lines "
+            "overlapped from the previous capture when storing in the image variable."
+        ),
+        metadata={
+            "chunk_type": "section_window",
+            "parent_context": (
+                "Line Camera Settings\n\nImage Area (Common for All Capture Units)\n\n"
+                "Fixed Capture Settings\n\nContinuous Capture Settings\n\n"
+                "Overlapping lines (for Continuous only): Specify the number of lines overlapped "
+                "from the previous capture when storing in the image variable."
+            ),
+        },
+    )
+    raw_answer = AnswerResponse(
+        answer=result.content,
+        confidence="medium",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+    validated = validate_answer(
+        raw_answer,
+        [result],
+        query="Where do I set overlapping lines for a line scan camera?",
+    )
+
+    assert validated.answer.startswith("Location: In the Capture Unit, open Line Camera Settings")
+    assert "Line Camera Settings > Image Area >" in validated.answer
+    assert "Continuous Capture Settings > Overlapping lines" in validated.answer
+    assert "Purpose:" in validated.answer
+    assert ".pdf" not in validated.answer
+
+
+def test_location_answer_merges_parent_screen_and_rejects_sibling_device_path():
+    definition = SearchResult(
+        chunk_id="definition",
+        score=0.9,
+        title="Controller Manual.pdf",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[207],
+        section_path=["Capture Using Line Scan Cameras"],
+        content=(
+            "Continuous Capture Settings\n\nOverlapping lines: Specify the number of lines "
+            "overlapped from the previous capture when storing in the image variable.\n\n"
+            "These settings are common for all capture units."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    parent_screen = SearchResult(
+        chunk_id="parent",
+        score=0.7,
+        title="Controller Manual.pdf",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[205],
+        section_path=["Capture Using Line Scan Cameras"],
+        content=(
+            "Camera 1 to Camera 4: Select the tab for the camera being configured.\n\n"
+            "Line Camera Settings: Specify the conditions for image capture."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    sibling_device = SearchResult(
+        chunk_id="sibling",
+        score=0.95,
+        title="Controller Manual.pdf",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[164],
+        section_path=["Capture When Using a Profile Head"],
+        content=(
+            "Capture Area Settings\n\nOverlapping lines: Specify the number of lines "
+            "to overlap the image."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    raw_answer = AnswerResponse(
+        answer=sibling_device.content,
+        confidence="medium",
+        used_documents=[],
+        citations=[],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+    concise, _support = _concise_configuration_location_answer(
+        "Where can I configure overlap between continuous line-scan captures?",
+        [definition, sibling_device, parent_screen],
+    )
+    assert "parent" in [result.chunk_id for result in _support], [
+        result.chunk_id for result in _support
+    ]
+    assert "Line Camera Settings" in _configuration_path_labels(parent_screen.content, ""), (
+        _configuration_path_labels(parent_screen.content, "")
+    )
+    assert concise.startswith(
+        "Location: In the Capture Unit, open Line Camera Settings > Continuous Capture Settings"
+    )
+
+    validated = validate_answer(
+        raw_answer,
+        [definition, sibling_device, parent_screen],
+        query="Where can I configure overlap between continuous line-scan captures?",
+    )
+
+    assert validated.answer.startswith(
+        "Location: In the Capture Unit, open Line Camera Settings > Continuous Capture Settings"
+    )
+    assert "Capture Area Settings" not in validated.answer
+    assert "Purpose:" in validated.answer
 
 
 def test_troubleshooting_symptom_with_different_or_while_is_not_a_comparison():

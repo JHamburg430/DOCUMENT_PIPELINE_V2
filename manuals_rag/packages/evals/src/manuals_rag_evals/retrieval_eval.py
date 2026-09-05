@@ -4580,6 +4580,7 @@ def score_answer_response(
         terms["passed"] = True
         terms["equivalent_cited_evidence_matched"] = True
     answer_text = str(answer.get("answer") or "").strip()
+    location_completeness = _configuration_location_answer_completeness(case, answer_text)
     passed = bool(
         answer_text
         and not answer.get("insufficient_evidence")
@@ -4587,6 +4588,7 @@ def score_answer_response(
         and terms["passed"]
         and citation_fidelity["passed"]
         and evidence_citation_support["passed"]
+        and location_completeness["passed"]
     )
     failure_reasons: list[str] = []
     if not answer_text:
@@ -4601,6 +4603,7 @@ def score_answer_response(
         failure_reasons.append("unsupported_citation_quote")
     if not evidence_citation_support["passed"]:
         failure_reasons.append("expected_evidence_not_cited")
+    failure_reasons.extend(location_completeness["failure_reasons"])
     if retrieval_evaluation and not retrieval_evaluation.get("passed"):
         failure_reasons.append("retrieval_not_passed")
     return {
@@ -4617,4 +4620,55 @@ def score_answer_response(
         "equivalent_citation_support": equivalent_citation_support,
         "exact_evidence_answer_support": exact_evidence_answer_support,
         "llm_required_information": llm_required_info,
+        "configuration_location_completeness": location_completeness,
     }
+
+
+def _configuration_location_answer_completeness(
+    case: RetrievalEvalCase,
+    answer_text: str,
+) -> dict[str, Any]:
+    query = case.query
+    location_query = bool(
+        re.search(
+            r"\bwhere\b.{0,100}\b(?:set|adjust|change|configure|find|locate|select|enable|disable)\b"
+            r"|\bwhere\s+(?:is|are)\b.{0,100}\b(?:setting|option|parameter|control|field)\b"
+            r"|\b(?:which|what)\s+(?:menu|screen|tab|section|page)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    if not location_query:
+        return {"checked": False, "passed": True, "failure_reasons": []}
+    failures: list[str] = []
+    normalized = re.sub(r"\s+", " ", answer_text).strip()
+    first_sentence = re.split(r"(?<=[.!?])\s+|\n+", normalized, maxsplit=1)[0]
+    if re.search(r"\.pdf\b|\bretrieved evidence\b", first_sentence, flags=re.IGNORECASE):
+        failures.append("raw_context_answer")
+    if not re.search(
+        r"\b(?:menu|screen|tab|section|page|unit|settings?|options?|area|panel|dialog|folder)\b",
+        first_sentence,
+        flags=re.IGNORECASE,
+    ):
+        failures.append("configuration_location_missing")
+    if not re.match(r"^location\s*:", first_sentence, flags=re.IGNORECASE) and not re.search(
+        r"\b(?:in|under|inside|within|from|open|go to|navigate to)\b",
+        first_sentence,
+        flags=re.IGNORECASE,
+    ):
+        failures.append("configuration_location_missing")
+    source_text = " ".join(
+        [
+            case.expected_snippet,
+            str(case.source_metadata.get("parent_context") or ""),
+            " ".join(str(item.get("snippet") or "") for item in (case.expected_evidence or [])),
+        ]
+    )
+    if re.search(r"\b(?:specif(?:y|ies)|used (?:for|to)|because|so that|allows?|enables?|prevents?)\b", source_text, flags=re.IGNORECASE) and not re.search(
+        r"\b(?:purpose|specif(?:y|ies)|used (?:for|to)|because|so that|allows?|enables?|prevents?|controls?)\b",
+        normalized,
+        flags=re.IGNORECASE,
+    ):
+        failures.append("configuration_purpose_missing")
+    failures = list(dict.fromkeys(failures))
+    return {"checked": True, "passed": not failures, "failure_reasons": failures}
