@@ -209,7 +209,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected both visible answers, every citation, and cited returned content in retrieval_eval_20260904_120705. The positive directly states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the later-header control returns insufficient evidence and no citations.",
-    "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
+    "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
     "scope": "retrieval_eval_20260904_120705 is a validation-only two-case rerun after a general requested-model answer-selector correction; active coverage and dataset ledger unchanged. Direct wrong-model API probes are diagnostic/not-clean."
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -798,7 +798,7 @@
       "insufficient_evidence": 1
     },
     "manual_jsonl_inspection": "Inspected both 120705 payloads, every citation, and cited returned content. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The later-header control returns insufficient evidence with no citations.",
-    "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
+    "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
     "latest_clean_run": "retrieval_eval_20260904_120705 FTP Connection Error positive only"
   },
   "constraints": {
@@ -9082,19 +9082,19 @@
   },
   "latest_temp_worktree_hygiene_guardrail": {
     "current_run_worktree": {
-      "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
+      "selected_worktree": "none (no registered accuracy-owned worktree exists on disk)",
       "reused_existing_registered_worktree": false,
       "created_new_worktree": false,
-      "removal_command": "git worktree remove /tmp/manuals_rag_accuracy_20260901",
-      "removal_result": "exit 0; exact missing/prunable registration reconciled without --force or prune",
-      "registry_check": "pre-removal exact registration present at b335daa and prunable; post-removal exact registration absent",
-      "path_check": "/tmp/manuals_rag_accuracy_20260901 absent before and after removal",
-      "git_status_check": "not applicable because the selected path was absent before and after reconciliation; dirty primary checkout was not modified",
-      "post_removal_registry_check": "registered=false for exact /tmp/manuals_rag_accuracy_20260901 path",
-      "post_removal_path_check": "absent",
-      "post_removal_git_status_check": "not applicable; no checkout remained at the exact path",
-      "timestamp": "2026-09-04T18:53:00Z",
-      "tracking_method": "tracking-only commit assembled from origin/main with isolated Git index; no worktree created",
+      "removal_command": "not attempted",
+      "removal_result": "not attempted; no worktree was selected",
+      "registry_check": "108 total registrations; 107 absent/prunable; only the dirty primary checkout exists on disk",
+      "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
+      "git_status_check": "dirty primary checkout preserved unchanged with 795 user/concurrent paths",
+      "post_removal_registry_check": "not applicable; no removal attempted",
+      "post_removal_path_check": "not applicable; no removal attempted",
+      "post_removal_git_status_check": "not applicable; no removal attempted",
+      "timestamp": "2026-09-05T22:55:14Z",
+      "tracking_method": "tracking-only commit assembled from origin/main 27a2e46 with isolated Git index; no worktree created",
       "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
     },
     "dataset_ledger_extension_containment": {
@@ -9213,19 +9213,19 @@
       }
     ],
     "current_run": {
-      "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
+      "selected_worktree": "none (no registered accuracy-owned worktree exists on disk)",
       "reused_existing_registered_worktree": false,
       "created_new_worktree": false,
-      "removal_command": "git worktree remove /tmp/manuals_rag_accuracy_20260901",
-      "removal_result": "exit 0; exact missing/prunable registration reconciled without --force or prune",
-      "registry_check": "pre-removal exact registration present at b335daa and prunable; post-removal exact registration absent",
-      "path_check": "/tmp/manuals_rag_accuracy_20260901 absent before and after removal",
-      "git_status_check": "not applicable because the selected path was absent before and after reconciliation; dirty primary checkout was not modified",
-      "post_removal_registry_check": "registered=false for exact /tmp/manuals_rag_accuracy_20260901 path",
-      "post_removal_path_check": "absent",
-      "post_removal_git_status_check": "not applicable; no checkout remained at the exact path",
-      "timestamp": "2026-09-04T18:53:00Z",
-      "tracking_method": "tracking-only commit assembled from origin/main with isolated Git index; no worktree created",
+      "removal_command": "not attempted",
+      "removal_result": "not attempted; no worktree was selected",
+      "registry_check": "108 total registrations; 107 absent/prunable; only the dirty primary checkout exists on disk",
+      "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
+      "git_status_check": "dirty primary checkout preserved unchanged with 795 user/concurrent paths",
+      "post_removal_registry_check": "not applicable; no removal attempted",
+      "post_removal_path_check": "not applicable; no removal attempted",
+      "post_removal_git_status_check": "not applicable; no removal attempted",
+      "timestamp": "2026-09-05T22:55:14Z",
+      "tracking_method": "tracking-only commit assembled from origin/main 27a2e46 with isolated Git index; no worktree created",
       "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
     }
   },
@@ -9316,7 +9316,7 @@
       ]
     }
   ],
-  "next_target": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
+  "next_target": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10279,7 +10279,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected both visible answers, every citation, and cited returned content in retrieval_eval_20260904_120705. The positive directly states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the later-header control returns insufficient evidence and no citations.",
-      "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
+      "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
       "scope": "retrieval_eval_20260904_120705 is a validation-only two-case rerun after a general requested-model answer-selector correction; active coverage and dataset ledger unchanged. Direct wrong-model API probes are diagnostic/not-clean."
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10646,10 +10646,10 @@
         "pipe_answer_role_bound_results": "test_reports/retrieval_eval_results_20260904_112945.jsonl",
         "pipe_answer_role_bound_summary": "test_reports/retrieval_eval_summary_20260904_112945.json",
         "pipe_answer_role_bound_manifest": "test_reports/retrieval_eval_manifest_20260904_112945.json",
-      "model_bound_pipe_answer_dataset": "test_reports/retrieval_eval_dataset_20260904_120705.jsonl",
-      "model_bound_pipe_answer_results": "test_reports/retrieval_eval_results_20260904_120705.jsonl",
-      "model_bound_pipe_answer_summary": "test_reports/retrieval_eval_summary_20260904_120705.json",
-      "model_bound_pipe_answer_manifest": "test_reports/retrieval_eval_manifest_20260904_120705.json"
+        "model_bound_pipe_answer_dataset": "test_reports/retrieval_eval_dataset_20260904_120705.jsonl",
+        "model_bound_pipe_answer_results": "test_reports/retrieval_eval_results_20260904_120705.jsonl",
+        "model_bound_pipe_answer_summary": "test_reports/retrieval_eval_summary_20260904_120705.json",
+        "model_bound_pipe_answer_manifest": "test_reports/retrieval_eval_manifest_20260904_120705.json"
       },
       "current_answer_failures": {
         "expected_evidence_not_cited": 1,
@@ -10657,13 +10657,8 @@
         "insufficient_evidence": 1
       },
       "manual_jsonl_inspection": "Inspected both 120705 payloads, every citation, and cited returned content. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The later-header control returns insufficient evidence with no citations.",
-      "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
+      "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
       "latest_clean_run": "retrieval_eval_20260904_120705 FTP Connection Error positive only"
-    },
-    "answer_current_failure_categories": {
-      "expected_evidence_not_cited": 1,
-      "expected_terms_missing": 1,
-      "insufficient_evidence": 1
     },
     "current_answer_failure_categories": {
       "expected_evidence_not_cited": 1,
@@ -12913,19 +12908,19 @@
     },
     "latest_temp_worktree_hygiene_guardrail": {
       "current_run_worktree": {
-        "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
+        "selected_worktree": "none (no registered accuracy-owned worktree exists on disk)",
         "reused_existing_registered_worktree": false,
         "created_new_worktree": false,
-        "removal_command": "git worktree remove /tmp/manuals_rag_accuracy_20260901",
-        "removal_result": "exit 0; exact missing/prunable registration reconciled without --force or prune",
-        "registry_check": "pre-removal exact registration present at b335daa and prunable; post-removal exact registration absent",
-        "path_check": "/tmp/manuals_rag_accuracy_20260901 absent before and after removal",
-        "git_status_check": "not applicable because the selected path was absent before and after reconciliation; dirty primary checkout was not modified",
-        "post_removal_registry_check": "registered=false for exact /tmp/manuals_rag_accuracy_20260901 path",
-        "post_removal_path_check": "absent",
-        "post_removal_git_status_check": "not applicable; no checkout remained at the exact path",
-        "timestamp": "2026-09-04T18:53:00Z",
-        "tracking_method": "tracking-only commit assembled from origin/main with isolated Git index; no worktree created",
+        "removal_command": "not attempted",
+        "removal_result": "not attempted; no worktree was selected",
+        "registry_check": "108 total registrations; 107 absent/prunable; only the dirty primary checkout exists on disk",
+        "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
+        "git_status_check": "dirty primary checkout preserved unchanged with 795 user/concurrent paths",
+        "post_removal_registry_check": "not applicable; no removal attempted",
+        "post_removal_path_check": "not applicable; no removal attempted",
+        "post_removal_git_status_check": "not applicable; no removal attempted",
+        "timestamp": "2026-09-05T22:55:14Z",
+        "tracking_method": "tracking-only commit assembled from origin/main 27a2e46 with isolated Git index; no worktree created",
         "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
       },
       "dataset_ledger_extension_containment": {
@@ -13044,19 +13039,19 @@
         }
       ],
       "current_run": {
-        "selected_worktree": "/tmp/manuals_rag_accuracy_20260901",
+        "selected_worktree": "none (no registered accuracy-owned worktree exists on disk)",
         "reused_existing_registered_worktree": false,
         "created_new_worktree": false,
-        "removal_command": "git worktree remove /tmp/manuals_rag_accuracy_20260901",
-        "removal_result": "exit 0; exact missing/prunable registration reconciled without --force or prune",
-        "registry_check": "pre-removal exact registration present at b335daa and prunable; post-removal exact registration absent",
-        "path_check": "/tmp/manuals_rag_accuracy_20260901 absent before and after removal",
-        "git_status_check": "not applicable because the selected path was absent before and after reconciliation; dirty primary checkout was not modified",
-        "post_removal_registry_check": "registered=false for exact /tmp/manuals_rag_accuracy_20260901 path",
-        "post_removal_path_check": "absent",
-        "post_removal_git_status_check": "not applicable; no checkout remained at the exact path",
-        "timestamp": "2026-09-04T18:53:00Z",
-        "tracking_method": "tracking-only commit assembled from origin/main with isolated Git index; no worktree created",
+        "removal_command": "not attempted",
+        "removal_result": "not attempted; no worktree was selected",
+        "registry_check": "108 total registrations; 107 absent/prunable; only the dirty primary checkout exists on disk",
+        "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
+        "git_status_check": "dirty primary checkout preserved unchanged with 795 user/concurrent paths",
+        "post_removal_registry_check": "not applicable; no removal attempted",
+        "post_removal_path_check": "not applicable; no removal attempted",
+        "post_removal_git_status_check": "not applicable; no removal attempted",
+        "timestamp": "2026-09-05T22:55:14Z",
+        "tracking_method": "tracking-only commit assembled from origin/main 27a2e46 with isolated Git index; no worktree created",
         "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
       }
     },
@@ -13149,7 +13144,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
+    "next_target": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13186,14 +13181,14 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
+    "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
-  {
-    "reason": "combined validation rerun contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
-    "run_id": "retrieval_eval_20260904_120705",
-    "scope": "combined run only; accept the FTP Connection Error positive as clean case-level evidence and preserve the later-header control as expected insufficient evidence"
-  },
+      {
+        "reason": "combined validation rerun contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
+        "run_id": "retrieval_eval_20260904_120705",
+        "scope": "combined run only; accept the FTP Connection Error positive as clean case-level evidence and preserve the later-header control as expected insufficient evidence"
+      },
       {
         "reason": "combined validation run contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
         "run_id": "retrieval_eval_20260904_112945",
@@ -14073,23 +14068,37 @@
     "single_step_questions": 101,
     "total_questions": 209,
     "unresolved_guardrail_findings": [
-  {
-    "finding": "Guardrail commit b9d4c9e found that c01314f single-step troubleshooting answer selection accepted a source row whose product/model conflicts with the model explicitly requested by the user.",
-    "guardrail_commit": "b9d4c9e",
-    "guardrail_timestamp": "2026-09-04T11:43:44Z",
-    "severity": "needs_fix",
-    "status": "production_correction_committed_and_independently_validated_actual_api_model_mismatch_branch_proof_limited",
-    "evidence": [
-      "The selector now requires every explicit requested product/model side to match the candidate source row before accepting its symptom-to-role relation.",
-      "Loaded controls pass for exact-model positive, wrong-model-only, higher-score wrong-model sibling, absent-model metadata, duplicate same-model identity ambiguity, model-prefix collision, and exact Error 30109 text/model binding.",
-      "The corrected fixture-mounted full unit gate passed 702 tests with 59 warnings; the first 687-pass/15-failure attempt lacked Git and is diagnostic only.",
-      "Restarted manuals-rag-temp-api-39262386-20260902-0726; health was ok and host/container generator.py SHA-256 matched 4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811.",
-      "Actual HTTP retrieval_eval_20260904_120705 passed retrieval 2/2 and answer 1/2 by design: the IV-HG500CA FTP positive cited exact pipe parent 38d26f5e and the later-header no-cause control failed closed with no citations.",
-      "Direct IV4-G600CA and synthetic MOD-500 API probes returned unrelated IV4 FTP setup evidence rather than a cause. They are diagnostic and do not prove the requested-model selector branch through HTTP.",
-      "Independent 2026-09-04 validation found origin/main at 12c188e with correction 4d9bc20 committed, passed six loaded model-binding controls, passed normal and parent-aware manifest checks, and passed the Git-mounted fixture-complete unit gate at 703 tests; the base-image 688-pass/15-failure attempt lacked Git and is diagnostic only."
-    ],
-    "remaining": "The committed production selector defect is independently covered and fully unit-gated. An actual HTTP wrong-model case that reaches the structured selector remains unavailable without unsafe synthetic injection; preserve the direct API fallthrough diagnostics and do not claim branch proof until a safe realistic case exercises it."
-  },
+      {
+        "finding": "Guardrail commit 27a2e46 confirmed that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
+        "guardrail_commit": "27a2e46",
+        "guardrail_timestamp": "2026-09-05T22:46:14Z",
+        "severity": "needs_fix",
+        "status": "blocked_fail_closed_no_registered_accuracy_worktree",
+        "evidence": [
+          "Latest guardrail cron independently reproduced exact-model acceptance and wrong-model-only, prefix-collision, and absent-authoritative-model fail-closed controls.",
+          "The neighboring-token adverse still selected and cited the wrong-model row, and the higher-scored wrong-model row beside valid exact-model evidence caused both to be rejected.",
+          "Fresh worktree enumeration found 108 registrations, 107 absent/prunable, and only the 795-path dirty primary checkout present.",
+          "The job API endpoint 127.0.0.1:9193 is unavailable; no new runtime or answer evidence was claimed."
+        ],
+        "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout."
+      },
+      {
+        "finding": "Guardrail commit b9d4c9e found that c01314f single-step troubleshooting answer selection accepted a source row whose product/model conflicts with the model explicitly requested by the user.",
+        "guardrail_commit": "b9d4c9e",
+        "guardrail_timestamp": "2026-09-04T11:43:44Z",
+        "severity": "needs_fix",
+        "status": "production_correction_committed_and_independently_validated_actual_api_model_mismatch_branch_proof_limited",
+        "evidence": [
+          "The selector now requires every explicit requested product/model side to match the candidate source row before accepting its symptom-to-role relation.",
+          "Loaded controls pass for exact-model positive, wrong-model-only, higher-score wrong-model sibling, absent-model metadata, duplicate same-model identity ambiguity, model-prefix collision, and exact Error 30109 text/model binding.",
+          "The corrected fixture-mounted full unit gate passed 702 tests with 59 warnings; the first 687-pass/15-failure attempt lacked Git and is diagnostic only.",
+          "Restarted manuals-rag-temp-api-39262386-20260902-0726; health was ok and host/container generator.py SHA-256 matched 4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811.",
+          "Actual HTTP retrieval_eval_20260904_120705 passed retrieval 2/2 and answer 1/2 by design: the IV-HG500CA FTP positive cited exact pipe parent 38d26f5e and the later-header no-cause control failed closed with no citations.",
+          "Direct IV4-G600CA and synthetic MOD-500 API probes returned unrelated IV4 FTP setup evidence rather than a cause. They are diagnostic and do not prove the requested-model selector branch through HTTP.",
+          "Independent 2026-09-04 validation found origin/main at 12c188e with correction 4d9bc20 committed, passed six loaded model-binding controls, passed normal and parent-aware manifest checks, and passed the Git-mounted fixture-complete unit gate at 703 tests; the base-image 688-pass/15-failure attempt lacked Git and is diagnostic only."
+        ],
+        "remaining": "The committed production selector defect is independently covered and fully unit-gated. An actual HTTP wrong-model case that reaches the structured selector remains unavailable without unsafe synthetic injection; preserve the direct API fallthrough diagnostics and do not claim branch proof until a safe realistic case exercises it."
+      },
       {
         "finding": "Guardrail commit 0ab0d44 found that empty, missing, non-boolean, or summary-contradicting per-result answer verdicts could be treated as a complete newer answer-mode run by the freshness checker.",
         "guardrail_commit": "0ab0d44",
@@ -15728,16 +15737,16 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-04T12:39:00Z"
+    "updated_at": "2026-09-05T22:55:14Z"
   },
-  "remaining": "Preserve the committed requested-model correction and obtain a safe realistic actual-API case that reaches the wrong-model structured-selector branch; if unavailable without synthetic injection or harness expansion, keep the limitation explicit and make no optional production change.",
+  "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
-  {
-    "reason": "combined validation rerun contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
-    "run_id": "retrieval_eval_20260904_120705",
-    "scope": "combined run only; accept the FTP Connection Error positive as clean case-level evidence and preserve the later-header control as expected insufficient evidence"
-  },
+    {
+      "reason": "combined validation rerun contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
+      "run_id": "retrieval_eval_20260904_120705",
+      "scope": "combined run only; accept the FTP Connection Error positive as clean case-level evidence and preserve the later-header control as expected insufficient evidence"
+    },
     {
       "reason": "combined validation run contains a clean exact pipe-row cause positive plus an intentional remedy-only cause control that correctly failed closed",
       "run_id": "retrieval_eval_20260904_112945",
@@ -16616,23 +16625,37 @@
   ],
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
-  {
-    "finding": "Guardrail commit b9d4c9e found that c01314f single-step troubleshooting answer selection accepted a source row whose product/model conflicts with the model explicitly requested by the user.",
-    "guardrail_commit": "b9d4c9e",
-    "guardrail_timestamp": "2026-09-04T11:43:44Z",
-    "severity": "needs_fix",
-    "status": "production_correction_committed_and_independently_validated_actual_api_model_mismatch_branch_proof_limited",
-    "evidence": [
-      "The selector now requires every explicit requested product/model side to match the candidate source row before accepting its symptom-to-role relation.",
-      "Loaded controls pass for exact-model positive, wrong-model-only, higher-score wrong-model sibling, absent-model metadata, duplicate same-model identity ambiguity, model-prefix collision, and exact Error 30109 text/model binding.",
-      "The corrected fixture-mounted full unit gate passed 702 tests with 59 warnings; the first 687-pass/15-failure attempt lacked Git and is diagnostic only.",
-      "Restarted manuals-rag-temp-api-39262386-20260902-0726; health was ok and host/container generator.py SHA-256 matched 4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811.",
-      "Actual HTTP retrieval_eval_20260904_120705 passed retrieval 2/2 and answer 1/2 by design: the IV-HG500CA FTP positive cited exact pipe parent 38d26f5e and the later-header no-cause control failed closed with no citations.",
-      "Direct IV4-G600CA and synthetic MOD-500 API probes returned unrelated IV4 FTP setup evidence rather than a cause. They are diagnostic and do not prove the requested-model selector branch through HTTP.",
-      "Independent 2026-09-04 validation found origin/main at 12c188e with correction 4d9bc20 committed, passed six loaded model-binding controls, passed normal and parent-aware manifest checks, and passed the Git-mounted fixture-complete unit gate at 703 tests; the base-image 688-pass/15-failure attempt lacked Git and is diagnostic only."
-    ],
-    "remaining": "The committed production selector defect is independently covered and fully unit-gated. An actual HTTP wrong-model case that reaches the structured selector remains unavailable without unsafe synthetic injection; preserve the direct API fallthrough diagnostics and do not claim branch proof until a safe realistic case exercises it."
-  },
+    {
+      "finding": "Guardrail commit 27a2e46 confirmed that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
+      "guardrail_commit": "27a2e46",
+      "guardrail_timestamp": "2026-09-05T22:46:14Z",
+      "severity": "needs_fix",
+      "status": "blocked_fail_closed_no_registered_accuracy_worktree",
+      "evidence": [
+        "Latest guardrail cron independently reproduced exact-model acceptance and wrong-model-only, prefix-collision, and absent-authoritative-model fail-closed controls.",
+        "The neighboring-token adverse still selected and cited the wrong-model row, and the higher-scored wrong-model row beside valid exact-model evidence caused both to be rejected.",
+        "Fresh worktree enumeration found 108 registrations, 107 absent/prunable, and only the 795-path dirty primary checkout present.",
+        "The job API endpoint 127.0.0.1:9193 is unavailable; no new runtime or answer evidence was claimed."
+      ],
+      "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout."
+    },
+    {
+      "finding": "Guardrail commit b9d4c9e found that c01314f single-step troubleshooting answer selection accepted a source row whose product/model conflicts with the model explicitly requested by the user.",
+      "guardrail_commit": "b9d4c9e",
+      "guardrail_timestamp": "2026-09-04T11:43:44Z",
+      "severity": "needs_fix",
+      "status": "production_correction_committed_and_independently_validated_actual_api_model_mismatch_branch_proof_limited",
+      "evidence": [
+        "The selector now requires every explicit requested product/model side to match the candidate source row before accepting its symptom-to-role relation.",
+        "Loaded controls pass for exact-model positive, wrong-model-only, higher-score wrong-model sibling, absent-model metadata, duplicate same-model identity ambiguity, model-prefix collision, and exact Error 30109 text/model binding.",
+        "The corrected fixture-mounted full unit gate passed 702 tests with 59 warnings; the first 687-pass/15-failure attempt lacked Git and is diagnostic only.",
+        "Restarted manuals-rag-temp-api-39262386-20260902-0726; health was ok and host/container generator.py SHA-256 matched 4719aa193efc60a0348a0806cbdf107ca6bf7535fd87da3f88cff1d418e36811.",
+        "Actual HTTP retrieval_eval_20260904_120705 passed retrieval 2/2 and answer 1/2 by design: the IV-HG500CA FTP positive cited exact pipe parent 38d26f5e and the later-header no-cause control failed closed with no citations.",
+        "Direct IV4-G600CA and synthetic MOD-500 API probes returned unrelated IV4 FTP setup evidence rather than a cause. They are diagnostic and do not prove the requested-model selector branch through HTTP.",
+        "Independent 2026-09-04 validation found origin/main at 12c188e with correction 4d9bc20 committed, passed six loaded model-binding controls, passed normal and parent-aware manifest checks, and passed the Git-mounted fixture-complete unit gate at 703 tests; the base-image 688-pass/15-failure attempt lacked Git and is diagnostic only."
+      ],
+      "remaining": "The committed production selector defect is independently covered and fully unit-gated. An actual HTTP wrong-model case that reaches the structured selector remains unavailable without unsafe synthetic injection; preserve the direct API fallthrough diagnostics and do not claim branch proof until a safe realistic case exercises it."
+    },
     {
       "finding": "Guardrail commit 0ab0d44 found that empty, missing, non-boolean, or summary-contradicting per-result answer verdicts could be treated as a complete newer answer-mode run by the freshness checker.",
       "guardrail_commit": "0ab0d44",
@@ -18271,5 +18294,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-04T12:39:00Z"
+  "updated_at": "2026-09-05T22:55:14Z"
 }
