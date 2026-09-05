@@ -1246,7 +1246,7 @@ def _configuration_location_evidence_results(query: str, results: list[SearchRes
     requested_devices = _requested_device_phrases(query)
     requested_scopes = _requested_capture_scope_phrases(query)
     scored: list[tuple[float, int, SearchResult]] = []
-    for index, result in enumerate(results[:8]):
+    for index, result in enumerate(results[:12]):
         evidence = _configuration_location_evidence_text(result)
         evidence_terms = _location_terms(evidence)
         score = float(len(subject_terms.intersection(evidence_terms)) * 2)
@@ -1300,7 +1300,7 @@ def _configuration_location_evidence_results(query: str, results: list[SearchRes
     support: list[SearchResult] = []
     primary_pages = [page for result in primary[:2] for page in result.pages]
     primary_documents = {result.source_document_id for result in primary[:2]}
-    for result in results[:8]:
+    for result in results[:12]:
         if result in primary or result.source_document_id not in primary_documents:
             continue
         evidence = _configuration_location_evidence_text(result)
@@ -1885,6 +1885,19 @@ def _answer_addresses_configuration_location(
         return False
     if not LOCATION_CUE_RE.search(first_sentence):
         return False
+    expected_location, _expected_results = _concise_configuration_location_answer(query, results)
+    if expected_location:
+        expected_path = expected_location.split(". Purpose:", 1)[0]
+        expected_labels = re.findall(
+            r"\b([A-Z][A-Za-z0-9/&-]*(?:\s+[A-Z][A-Za-z0-9/&-]*){0,5}\s+"
+            r"(?:Units?|Settings?|Options?|Menu|Screen|Tab|Area|Panel|Dialog|Folder))\b",
+            expected_path,
+        )
+        compact_answer = re.sub(r"[^a-z0-9]+", "", normalized.lower())
+        for label in expected_labels:
+            compact_label = re.sub(r"[^a-z0-9]+", "", label.lower())
+            if compact_label and compact_label not in compact_answer:
+                return False
     evidence_terms: set[str] = set()
     for result in results[:4]:
         evidence_terms.update(_material_claim_terms(_configuration_location_evidence_text(result)))
@@ -2059,7 +2072,7 @@ def generate_answer_with_trace(
         )
         return answer, trace
     if prioritized_results is None:
-        candidate_results = results[:8]
+        candidate_results = results[:12] if _is_configuration_location_query(query) else results[:8]
         prioritized = prioritize_results_for_answer(query, candidate_results)
         prioritized_results = prioritized["prioritized_results"]
     if summarized_evidence is None:
@@ -2130,7 +2143,7 @@ def generate_answer_with_trace(
 
 
 def prepare_answer_evidence(query: str, results: list[SearchResult]) -> dict[str, Any]:
-    candidate_results = results[:8]
+    candidate_results = results[:12] if _is_configuration_location_query(query) else results[:8]
     prioritized = prioritize_results_for_answer(query, candidate_results)
     summaries = summarize_results_for_answer(query, prioritized["prioritized_results"])
     return {

@@ -205,10 +205,24 @@ def test_location_answer_merges_parent_screen_and_rejects_sibling_device_path():
         followup_questions=[],
         insufficient_evidence=False,
     )
-
+    filler_results = [
+        SearchResult(
+            chunk_id=f"filler-{index}",
+            score=0.8 - index / 100,
+            title="Controller Manual.pdf",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[300 + index],
+            section_path=["Other settings"],
+            content="Unrelated camera timing information.",
+            metadata={"chunk_type": "section_window"},
+        )
+        for index in range(7)
+    ]
+    retrieval_results = [definition, sibling_device, *filler_results, parent_screen]
     concise, _support = _concise_configuration_location_answer(
         "Where can I configure overlap between continuous line-scan captures?",
-        [definition, sibling_device, parent_screen],
+        retrieval_results,
     )
     assert "parent" in [result.chunk_id for result in _support], [
         result.chunk_id for result in _support
@@ -222,7 +236,7 @@ def test_location_answer_merges_parent_screen_and_rejects_sibling_device_path():
 
     validated = validate_answer(
         raw_answer,
-        [definition, sibling_device, parent_screen],
+        retrieval_results,
         query="Where can I configure overlap between continuous line-scan captures?",
     )
 
@@ -231,6 +245,21 @@ def test_location_answer_merges_parent_screen_and_rejects_sibling_device_path():
     )
     assert "Capture Area Settings" not in validated.answer
     assert "Purpose:" in validated.answer
+
+    partial = raw_answer.model_copy(
+        update={
+            "answer": (
+                "Location: In the Capture Unit, open Continuous Capture Settings > Overlapping lines. "
+                "Purpose: Specify how many lines from the previous capture are retained."
+            )
+        }
+    )
+    completed = validate_answer(
+        partial,
+        retrieval_results,
+        query="Where can I configure overlap between continuous line-scan captures?",
+    )
+    assert "Line Camera Settings > Continuous Capture Settings" in completed.answer
 
 
 def test_troubleshooting_symptom_with_different_or_while_is_not_a_comparison():
