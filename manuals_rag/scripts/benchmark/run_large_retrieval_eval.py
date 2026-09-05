@@ -30,6 +30,7 @@ from manuals_rag_evals.retrieval_eval import (
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
     extract_anchor_terms,
+    generated_query_source_rejection_reason,
     multi_step_case_quality_rejection_reason,
     score_answer_response,
     score_search_results,
@@ -599,6 +600,9 @@ def saved_case_quality_rejection_reason(case: RetrievalEvalCase) -> str | None:
     anchors = list(case.anchor_terms or case.expected_terms)
     if not chunk_is_queryworthy(chunk, anchors):
         return "not_queryworthy_source_chunk"
+    source_rejection = generated_query_source_rejection_reason(case.query, case.expected_snippet)
+    if source_rejection:
+        return source_rejection
     return None
 
 
@@ -918,7 +922,10 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         "failure_categories": dict(failure_categories),
         "benchmark_quality": dict(benchmark_quality),
-        "benchmark_validity_rate": round(benchmark_quality.get("validated", 0) / total, 4) if total else 0.0,
+        "benchmark_validity_rate": round(
+            sum(benchmark_quality.get(label, 0) for label in ("validated", "model_reviewed")) / total,
+            4,
+        ) if total else 0.0,
         "candidate_recall_rate": round(candidate_recall_hits / total, 4) if total else 0.0,
         "metadata_document_selection_attempts": metadata_selection_attempts,
         "metadata_document_selection_recall_rate": round(metadata_selection_hits / metadata_selection_attempts, 4)

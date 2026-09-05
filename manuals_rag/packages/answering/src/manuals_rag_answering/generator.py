@@ -397,6 +397,13 @@ def _answer_addresses_quantity_request(answer: str, query: str, results: list[Se
         return all(answer_role_values.get(role, set()).intersection(values) for role, values in role_values.items())
     if requested_roles and saw_partial_requested_role_evidence:
         return False
+    if not candidate_quantities and re.search(r"\bhow many\b", query, flags=re.IGNORECASE):
+        selected = _fallback_evidence_results(query, results)
+        if selected:
+            target_answer = _concise_general_fallback_answer(query, selected[0])
+            target_quantities = _quantity_terms(target_answer)
+            if target_quantities:
+                return bool(_quantity_terms(answer).intersection(target_quantities))
     if not candidate_quantities:
         return True
     return bool(answer_quantities.intersection(candidate_quantities))
@@ -1089,10 +1096,16 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     elif location_answer:
         answer_text = location_answer
     elif len(fallback_results) == 1:
+        table_fallback = (
+            _fallback_answer_text(top)
+            if str(top.metadata.get("chunk_type") or "") == "table_record"
+            else ""
+        )
         answer_text = (
             _matching_troubleshooting_row_text(query, top)
             or _focused_table_record_answer_text(query, top)
-            or _fallback_answer_text(top)
+            or table_fallback
+            or _concise_general_fallback_answer(query, top)
         )
     else:
         answer_text = "Retrieved evidence:\n" + "\n".join(
@@ -1128,6 +1141,52 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
     )
 
 
+def _query_target_quantity_score(query: str, evidence: str) -> float:
+    if not re.search(r"\b(?:count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
+        return 0.0
+    ignored = ANSWER_CLAIM_SUPPORT_STOPWORDS.union(
+        {"connect", "connected", "does", "many", "new", "series", "system", "what", "which"}
+    )
+    query_terms = _answer_terms(query).difference(ignored)
+    best = 0.0
+    for segment in re.split(r"(?:\n+|(?<=[.!?;])\s+)", evidence):
+        quantities = _quantity_terms(segment)
+        if not quantities:
+            continue
+        overlap = len(query_terms.intersection(_answer_terms(segment)))
+        if overlap >= 2:
+            best = max(best, min(8.0, overlap * 1.5 + len(quantities)))
+    return best
+
+
+def _concise_general_fallback_answer(query: str, result: SearchResult) -> str:
+    evidence = _fallback_answer_text(result)
+    segments = [
+        re.sub(r"\s+", " ", segment).strip(" -|\t\r\n")
+        for segment in re.split(r"(?:\n+|(?<=[.!?;])\s+)", evidence)
+        if segment.strip(" -|\t\r\n")
+    ]
+    if not segments:
+        return "I could not produce a concise answer from the retrieved evidence."
+    query_terms = _material_claim_terms(query)
+
+    def score(segment: str) -> tuple[float, int]:
+        overlap = len(query_terms.intersection(_material_claim_terms(segment)))
+        quantity_score = _query_target_quantity_score(query, segment)
+        action_bonus = 1.0 if re.search(
+            r"\b(?:select|set|open|click|press|choose|connect|install|use|must|should|do not|cannot)\b",
+            segment,
+            flags=re.IGNORECASE,
+        ) else 0.0
+        return overlap * 2.0 + quantity_score + action_bonus, -len(segment)
+
+    best = max(segments, key=score)
+    best = re.sub(r"^\S+\.pdf\s*\|\s*", "", best, flags=re.IGNORECASE)
+    if len(best) > 700:
+        best = best[:700].rsplit(" ", 1)[0].rstrip(" ,;:") + "."
+    return best
+
+
 def _fallback_evidence_score(query: str, result: SearchResult) -> float:
     query_terms = _answer_terms(query)
     evidence = _fallback_answer_text(result)
@@ -1148,6 +1207,7 @@ def _fallback_evidence_score(query: str, result: SearchResult) -> float:
         score += 1.0
     if re.search(r"\b(count|counts|how many|number of|quantity|total)\b", query, flags=re.IGNORECASE):
         score += min(4.0, float(len(_contextual_quantity_terms(evidence))))
+        score += _query_target_quantity_score(query, evidence)
     return score
 
 

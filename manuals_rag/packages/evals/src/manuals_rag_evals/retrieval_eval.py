@@ -186,7 +186,13 @@ ANSWER_SCORING_GENERIC_TERMS = QUERY_DEDUPE_FILLER.union(
         "descriptions",
         "detail",
         "details",
+        "caution",
         "flag",
+        "danger",
+        "error",
+        "message",
+        "please",
+        "product",
         "whether",
         "executed",
         "having",
@@ -200,6 +206,7 @@ ANSWER_SCORING_GENERIC_TERMS = QUERY_DEDUPE_FILLER.union(
         "same",
         "typical",
         "type",
+        "warning",
     },
 )
 
@@ -684,7 +691,7 @@ def _looks_like_toc_line(content: str) -> bool:
         return True
     if re.match(r"^\[[^\]]+\]\s*\(page\s+\d+(?:-\d+)?\)", compact):
         return True
-    if re.search(r"\.{4,}\s*\d+(?:-\d+)?\b", content):
+    if re.search(r"(?:\.\s*){4,}\d+(?:-\d+)?\b", content):
         return True
     return False
 
@@ -809,6 +816,107 @@ def chunk_is_queryworthy(chunk: dict[str, Any], anchors: list[str]) -> bool:
     if len(anchors) < 1:
         return False
     return _has_concrete_technical_signal(content, anchors, chunk_type)
+
+
+def generated_query_source_rejection_reason(query: str, content: str) -> str | None:
+    """Reject question intents that the candidate snippet does not actually support.
+
+    The model reviewer is useful for semantic paraphrases, but small local models can
+    mistake a forward reference or a procedure heading for the answer itself.  These
+    checks describe generic evidence requirements rather than any product or manual.
+    """
+
+    normalized_query = normalize_text(query)
+    normalized_content = normalize_text(content)
+    raw_content = str(content or "").strip()
+    if not normalized_query or not normalized_content:
+        return "not_answerable_from_snippet"
+
+    condition_equivalents = {
+        "insufficient": ("insufficient", "not enough", "too little", "shortage"),
+        "duplicate": ("duplicate", "same", "not unique", "already used"),
+        "full": ("full", "capacity reached", "no space", "maximum number"),
+        "minimum": ("minimum", "lowest", "min."),
+        "maximum": ("maximum", "highest", "max."),
+    }
+    for query_term, supported_phrases in condition_equivalents.items():
+        if re.search(rf"\b{re.escape(query_term)}\b", normalized_query) and not any(
+            phrase in normalized_content for phrase in supported_phrases
+        ):
+            return "invented_fact"
+
+    asks_for_precautions = bool(
+        re.search(r"\b(?:what|which|how).{0,45}\b(?:precautions?|instructions?|steps?)\b", normalized_query)
+    ) and not bool(re.search(r"\bwhat\s+happens?\b|\b(?:effect|result)\b", normalized_query))
+    if asks_for_precautions and re.search(
+        r"\b(?:following|follow)\s+(?:the\s+)?(?:precautions?|instructions?|steps?)(?:\s+below)?\b",
+        normalized_content,
+    ):
+        concrete_directives = re.findall(
+            r"(?:^|[.!?;•]\s*)"
+            r"(?:do not|never|always|must|should|keep|avoid|disconnect|separate|ground|use|connect|remove|"
+            r"wear|check|confirm|make sure|ensure)\b",
+            raw_content,
+            flags=re.IGNORECASE,
+        )
+        if not concrete_directives:
+            return "not_answerable_from_snippet"
+
+    asks_how_to_configure = bool(
+        re.search(
+            r"\bhow\s+(?:do|can|should)\b.{0,70}\b(?:configure|set\s*up|change|adjust|perform|carry\s+out)\b",
+            normalized_query,
+        )
+    )
+    if asks_how_to_configure and not re.search(
+        r"\b(?:select|set|open|click|press|choose|enter|connect|install|configure|adjust|turn|enable|disable)\b",
+        normalized_content,
+    ):
+        return "asks_for_steps_not_present"
+
+    asks_for_outcome = bool(
+        re.search(r"\bwhat\s+happens?\b|\bwhat\s+is\s+the\s+(?:effect|result)\b", normalized_query)
+    )
+    if asks_for_outcome and not re.search(
+        r"\b(?:will|may|causes?|results?\s+in|becomes?|turns?|remains?|stops?|starts?|occurs?|"
+        r"is\s+(?:shown|displayed|saved|updated|enabled|disabled|selected|used))\b|"
+        r"\b(?:displays?|updates?)\b(?!\s+(?:mode|settings?|method|option))",
+        normalized_content,
+    ):
+        return "not_answerable_from_snippet"
+
+    asks_for_bound_value = bool(
+        re.search(r"\b(?:what|which)\b.{0,70}\b(?:type|value|rating|range|limit|output|input|format|mode)\b", normalized_query)
+    )
+    if asks_for_bound_value:
+        query_identifiers = re.findall(
+            r"\b[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+\b",
+            query,
+        )
+        for identifier in query_identifiers:
+            bound_value = re.search(
+                rf"\b{re.escape(identifier)}\s*:\s*([^;\n]+)",
+                raw_content,
+                flags=re.IGNORECASE,
+            )
+            if not bound_value:
+                continue
+            compact_value = normalize_text(bound_value.group(1)).strip(" .:-")
+            if compact_value in {
+                "description",
+                "input",
+                "input type",
+                "model",
+                "output",
+                "output type",
+                "setting",
+                "specification",
+                "type",
+                "value",
+            }:
+                return "wrong_product_or_context"
+
+    return None
 
 
 def _query_specificity_score(query: str, expected_terms: list[str]) -> int:
@@ -1897,6 +2005,30 @@ def generate_user_style_queries(
             if normalized in seen:
                 continue
             if _has_near_duplicate_query(item["query"], accepted_query_texts):
+                continue
+            source_rejection = generated_query_source_rejection_reason(
+                item["query"],
+                str(chunk.get("content") or ""),
+            )
+            if source_rejection:
+                review_feedback.append(
+                    {
+                        "question": item["query"],
+                        "category": source_rejection,
+                        "feedback": "The source snippet does not contain the requested instruction or outcome.",
+                        "answer_in_snippet": False,
+                    }
+                )
+                _trace_question_generation_event(
+                    "question_generation_rejected",
+                    chunk_id=chunk.get("id"),
+                    **trace_fields,
+                    question=item["query"],
+                    category=source_rejection,
+                    reason="The source snippet does not contain the requested instruction or outcome.",
+                    answer_in_snippet=False,
+                    false_rejection_check={},
+                )
                 continue
             review = _review_generated_query(item["query"], chunk, anchors, num_ctx=num_ctx, timeout_seconds=timeout_seconds)
             if not review.approved:
@@ -3608,6 +3740,9 @@ def _answer_scoring_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
                     combined_terms.append(term)
             if combined_terms:
                 return combined_terms, "case_expected_snippet_quantity_terms"
+        relevant_terms = _query_relevant_source_answer_terms(case.query, case.expected_snippet)
+        if relevant_terms:
+            return relevant_terms, "query_relevant_expected_snippet_terms"
         specific_terms = _scorable_answer_terms(case.expected_terms, case.expected_snippet)
         if specific_terms:
             return specific_terms, "case_expected_terms"
@@ -3643,6 +3778,63 @@ def _answer_scoring_terms(case: RetrievalEvalCase) -> tuple[list[str], str]:
     if evidence_terms:
         return evidence_terms, "expected_evidence_terms"
     return case.expected_terms, "case_expected_terms"
+
+
+def _query_relevant_source_answer_terms(query: str, source_text: str) -> list[str]:
+    """Choose answer terms from the source clause most related to the question."""
+
+    segments = [
+        segment.strip(" ;•\t\r\n")
+        for segment in re.split(r"(?:[.!?;]\s+|[•\n]+)", str(source_text or ""))
+        if segment.strip(" ;•\t\r\n")
+    ]
+    if not segments:
+        return []
+    query_terms = _answer_overlap_tokens(query)
+
+    def related_to_query(token: str) -> bool:
+        if token in query_terms:
+            return True
+        token_base = token.replace("-", "")
+        return any(
+            len(query_term) >= 5
+            and len(token_base) >= 5
+            and query_term[:5] == token_base[:5]
+            for query_term in query_terms
+        )
+
+    def relevance(segment: str) -> tuple[int, int]:
+        segment_terms = _answer_overlap_tokens(segment)
+        overlap = sum(1 for token in segment_terms if related_to_query(token))
+        return overlap, min(len(segment), 240)
+
+    relevant_segment = max(segments, key=relevance)
+    source_address_terms = _source_address_terms(source_text)
+    terms: list[str] = []
+    seen: set[str] = set()
+
+    for phrase in re.findall(r"[\[\"]([^\]\"]{3,80})[\]\"]", relevant_segment):
+        phrase = re.sub(r"\s+", " ", phrase).strip()
+        phrase_key = phrase.lower()
+        if phrase_key not in seen and len(_answer_overlap_tokens(phrase)) >= 1:
+            seen.add(phrase_key)
+            terms.append(phrase)
+
+    for token in tokenize(relevant_segment):
+        if token in STOPWORDS or token in ANSWER_SCORING_GENERIC_TERMS or token in source_address_terms:
+            continue
+        if len(token) < 4 and not any(char.isdigit() for char in token):
+            continue
+        if token in query_terms:
+            continue
+        if not related_to_query(token) and not any(char.isdigit() for char in token):
+            continue
+        key = _answer_material_term_key(token)
+        if key in seen:
+            continue
+        seen.add(key)
+        terms.append(token)
+    return terms[:4]
 
 
 def _scorable_answer_terms(terms: list[str], source_text: str = "") -> list[str]:

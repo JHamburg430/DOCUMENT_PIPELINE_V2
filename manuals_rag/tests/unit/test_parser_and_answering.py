@@ -1921,6 +1921,52 @@ def test_validate_answer_fallback_selects_returned_quantity_evidence():
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
 
+def test_quantity_fallback_binds_the_count_to_the_asked_component_and_stays_concise():
+    query = "How many communication expansion units can I connect to the controller?"
+    wrong = SearchResult(
+        chunk_id="installation",
+        score=0.91,
+        title="User Manual",
+        document_version_id="v1",
+        source_document_id="doc-user",
+        pages=[30],
+        section_path=["Installing the Communication Expansion Unit"],
+        content=(
+            "Install the communication expansion unit on the controller. "
+            "The monitor output is 1024 x 768 pixels. Up to two heads can be connected."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    correct = SearchResult(
+        chunk_id="expansion-limit",
+        score=0.82,
+        title="Installation Guide",
+        document_version_id="v1",
+        source_document_id="doc-guide",
+        pages=[30],
+        section_path=["Specifications"],
+        content="Only one communication expansion unit can be connected.",
+        metadata={"chunk_type": "spec_record"},
+    )
+    unsupported = AnswerResponse(
+        answer="Install the unit on the right side of the controller.",
+        confidence="high",
+        used_documents=[],
+        citations=[{"chunk_id": "installation", "document_id": "doc-user", "pages": [30], "quote_span": None}],
+        warnings=[],
+        followup_questions=[],
+        insufficient_evidence=False,
+    )
+
+    selected = _fallback_evidence_results(query, [wrong, correct])
+    validated = validate_answer(unsupported, [wrong, correct], query=query)
+
+    assert [result.chunk_id for result in selected] == ["expansion-limit"]
+    assert validated.answer == "Only one communication expansion unit can be connected."
+    assert "Retrieved evidence:" not in validated.answer
+    assert [citation["chunk_id"] for citation in validated.citations] == ["expansion-limit"]
+
+
 def _quantity_answer(answer_text: str, cited_chunk_id: str = "continuous-mode-example") -> AnswerResponse:
     return AnswerResponse(
         answer=answer_text,

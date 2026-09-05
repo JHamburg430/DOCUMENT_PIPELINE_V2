@@ -9,6 +9,7 @@ from manuals_rag_evals.retrieval_eval import (
     build_eval_cases_from_chunks,
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
+    generated_query_source_rejection_reason,
     multi_step_case_quality_rejection_reason,
     score_answer_response,
     score_document_selection,
@@ -16,6 +17,7 @@ from manuals_rag_evals.retrieval_eval import (
     validate_eval_case,
     _parse_generated_queries,
     _parse_query_review,
+    _answer_scoring_terms,
     _configuration_location_answer_completeness,
     _question_generation_trace_fields,
     _safe_query_label,
@@ -24,6 +26,100 @@ from manuals_rag_evals.retrieval_eval import (
     _troubleshooting_query_qualifier,
     _troubleshooting_row_identifier,
 )
+
+
+@pytest.mark.parametrize(
+    ("query", "content", "expected_reason"),
+    [
+        (
+            "What precautions must I follow to reduce noise?",
+            "Install the unit following the precautions below. Otherwise, a malfunction may occur.",
+            "not_answerable_from_snippet",
+        ),
+        (
+            "How do I configure the screen updating method?",
+            "Procedure step 2: Typical operations at trigger input (Run Screen Update Mode is Live Image)",
+            "asks_for_steps_not_present",
+        ),
+        (
+            "What happens if I select Live Image?",
+            "Procedure step 2: Typical operations at trigger input (Run Screen Update Mode is Live Image)",
+            "not_answerable_from_snippet",
+        ),
+        (
+            "What output type does the IV4-400CA provide?",
+            "IV4-400CA: Output; IV4-400MA: Open collector output, NPN/PNP is switchable.",
+            "wrong_product_or_context",
+        ),
+        (
+            "What happens to the output when SD card capacity is insufficient?",
+            "The output turns ON for an SD card access error.",
+            "invented_fact",
+        ),
+    ],
+)
+def test_generated_query_requires_the_requested_instruction_or_outcome_in_source(
+    query: str,
+    content: str,
+    expected_reason: str,
+):
+    assert generated_query_source_rejection_reason(query, content) == expected_reason
+
+
+def test_generated_query_source_gate_accepts_concrete_directives_and_outcomes():
+    assert generated_query_source_rejection_reason(
+        "What precautions must I follow to reduce noise?",
+        "Follow these precautions: Separate the unit from strong magnetic fields. Ground the frame ground terminal.",
+    ) is None
+    assert generated_query_source_rejection_reason(
+        "What happens when the Error output is selected?",
+        "The output turns ON when a system error occurs.",
+    ) is None
+    assert generated_query_source_rejection_reason(
+        "What happens if I ignore the installation precautions?",
+        "Install the unit following the precautions below. Otherwise, a malfunction may occur.",
+    ) is None
+    assert generated_query_source_rejection_reason(
+        "How do I configure the screen update mode?",
+        "Open Run Settings, select Screen Update Mode, and choose Live Image.",
+    ) is None
+    assert generated_query_source_rejection_reason(
+        "What output type does the IV4-400MA provide?",
+        "IV4-400CA: Output; IV4-400MA: Open collector output, NPN/PNP is switchable.",
+    ) is None
+    assert generated_query_source_rejection_reason(
+        "What happens when the registration capacity is full?",
+        "When the registration capacity is full, the indicator turns red.",
+    ) is None
+
+
+def test_answer_scoring_uses_the_query_relevant_source_clause():
+    case = RetrievalEvalCase(
+        case_id="case-relevant-clause",
+        query="Is the sensor safe for use in explosive atmospheres?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="warning_record",
+        section_path="Safety",
+        page_from=1,
+        page_to=1,
+        expected_terms=["danger", "purpose", "protect"],
+        expected_snippet=(
+            "DANGER: Do not use this product to protect a human body. "
+            "This product is not intended as explosion-proof. Do not use it in a hazardous location."
+        ),
+        generation_method="reviewed_llm:safety",
+        source_metadata={},
+    )
+
+    terms, source = _answer_scoring_terms(case)
+
+    assert source == "query_relevant_expected_snippet_terms"
+    assert "explosion-proof" in terms
+    assert not {"danger", "purpose", "protect"}.intersection(terms)
 
 
 def test_large_retrieval_eval_loads_saved_dataset(tmp_path):
@@ -2737,7 +2833,7 @@ def test_large_retrieval_eval_summarizes_answer_metrics():
                     "chunk_type": "spec_record",
                     "retrieval_task": "single_step_retrieval",
                     "source_filename": "manual.pdf",
-                    "benchmark_quality": "validated",
+                    "benchmark_quality": "model_reviewed",
                 },
                 "evaluation": {"passed": True, "rank": 1, "candidate_recall": True},
                 "answer": {
@@ -2774,6 +2870,7 @@ def test_large_retrieval_eval_summarizes_answer_metrics():
         "Generated answer was replaced by retrieval-grounded fallback during validation.": 1
     }
     assert summary["answer_mean_summary_count"] == 3.0
+    assert summary["benchmark_validity_rate"] == 1.0
     assert summary["by_question_family"] == {"general": 1}
     assert summary["representative_question_coverage"] is False
     assert "must not be treated as representative" in summary["question_coverage_warning"]
