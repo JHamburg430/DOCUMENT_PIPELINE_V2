@@ -13,7 +13,7 @@ import subprocess
 import sys
 import time
 import uuid
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -666,7 +666,35 @@ def prepare_question_generation_chunks(chunks: list[dict[str, Any]]) -> list[dic
             continue
         ranked.append((-score, str(chunk.get("id") or ""), chunk))
     ranked.sort()
-    return [chunk for _score, _chunk_id, chunk in ranked]
+    # Preserve quality ordering within a source/family while round-robining
+    # across documents and structural chunk types. A global score sort lets a
+    # few large manuals and abundant spec records monopolize the question bank.
+    buckets: dict[tuple[str, str], deque[tuple[int, str, dict[str, Any]]]] = defaultdict(deque)
+    for item in ranked:
+        chunk = item[2]
+        metadata = dict(chunk.get("metadata_json") or {})
+        document_id = str(
+            chunk.get("source_document_id")
+            or metadata.get("source_document_id")
+            or chunk.get("document_version_id")
+            or "unknown-document"
+        )
+        buckets[(str(chunk.get("chunk_type") or "unknown"), document_id)].append(item)
+    ordered_keys = sorted(
+        buckets,
+        key=lambda key: (buckets[key][0][0], key[0], key[1]),
+    )
+    diversified: list[dict[str, Any]] = []
+    while ordered_keys:
+        next_keys: list[tuple[str, str]] = []
+        for key in ordered_keys:
+            bucket = buckets[key]
+            _score, _chunk_id, chunk = bucket.popleft()
+            diversified.append(chunk)
+            if bucket:
+                next_keys.append(key)
+        ordered_keys = next_keys
+    return diversified
 
 
 def build_single_step_generation_cases_until_target(
