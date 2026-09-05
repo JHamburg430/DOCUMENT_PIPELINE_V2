@@ -69,7 +69,10 @@ def test_debug_report_includes_all_stages(monkeypatch):
         "query_aligned",
         "family_selected",
         "reranked",
+        "troubleshooting_table_siblings",
+        "structured_table_promoted",
         "comparison_table_promoted",
+        "troubleshooting_table_promoted",
         "deduped",
         "assembled",
     ]
@@ -87,10 +90,13 @@ def test_debug_report_includes_all_stages(monkeypatch):
         "completeness_scored",
         "query_aligned",
         "family_selected",
-        "enrich_candidates_for_rerank",
-        "reranked",
-        "comparison_table_promoted",
-        "deduped",
+            "enrich_candidates_for_rerank",
+            "reranked",
+            "troubleshooting_table_siblings",
+            "structured_table_promoted",
+            "comparison_table_promoted",
+            "troubleshooting_table_promoted",
+            "deduped",
         "assembled",
     }
     assert report["summary"]["stage_timing_totals_seconds"]["dense"] >= 0

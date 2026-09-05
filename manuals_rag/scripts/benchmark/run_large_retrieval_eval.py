@@ -30,6 +30,7 @@ from manuals_rag_evals.retrieval_eval import (
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
     extract_anchor_terms,
+    multi_step_case_quality_rejection_reason,
     score_answer_response,
     score_search_results,
 )
@@ -593,7 +594,7 @@ def _source_chunk_from_saved_case(case: RetrievalEvalCase) -> dict[str, Any]:
 
 def saved_case_quality_rejection_reason(case: RetrievalEvalCase) -> str | None:
     if case.retrieval_task != "single_step_retrieval":
-        return None
+        return multi_step_case_quality_rejection_reason(case)
     chunk = _source_chunk_from_saved_case(case)
     anchors = list(case.anchor_terms or case.expected_terms)
     if not chunk_is_queryworthy(chunk, anchors):

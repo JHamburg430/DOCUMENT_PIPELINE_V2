@@ -5,6 +5,7 @@ import fitz
 from manuals_rag_answering.generator import (
     _comparison_answer_covers_retrieved_model_sides,
     _fallback_evidence_results,
+    _is_comparison_query,
     _parse_relevance_response,
     _query_troubleshooting_anchor,
     generate_answer,
@@ -41,6 +42,15 @@ def test_troubleshooting_anchor_supports_generated_cause_and_action_questions():
         _query_troubleshooting_anchor(f"How should {symptom} for XG-X Series be corrected?")
         == expected
     )
+
+
+def test_troubleshooting_symptom_with_different_or_while_is_not_a_comparison():
+    assert not _is_comparison_query(
+        'What causes calibration data generated under different conditions from the "Axes Configuration" error?'
+    )
+    assert not _is_comparison_query("What causes the error while HDR capture is enabled?")
+    assert not _is_comparison_query('The controller shows "Fan error". What caused it, and what should I do?')
+    assert _is_comparison_query("Compare the Controller A and Controller B corrective actions.")
 
 
 def test_classify_block_detects_spec_and_table():
@@ -1623,7 +1633,8 @@ def test_validate_answer_fallback_uses_matching_troubleshooting_row_from_parent_
     )
 
     assert "Change to a trigger signal that can be used" in validated.answer
-    assert "even-number side" in validated.answer
+    assert validated.answer.startswith("Corrective action:")
+    assert "Retrieved evidence:" not in validated.answer
     assert [citation["chunk_id"] for citation in validated.citations] == ["trigger-settings-section"]
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
@@ -1975,9 +1986,252 @@ def test_validate_answer_fallback_prefers_full_troubleshooting_row_for_cause_rem
         query="What causes The following error occurred. - There is no LJ head connected. and how should it be corrected?",
     )
 
-    assert validated.answer.startswith("Error Message: The following error occurred. - There is no LJ head connected.")
+    assert validated.answer == (
+        "Cause: The LJ-S/LJ-X/LJ-V Series head is not connected to the camera input unit.\n"
+        "Corrective action: Connect the LJ-S/LJ-X/LJ-V Series head to the camera input unit."
+    )
     assert validated.citations[0]["chunk_id"] == "full-row"
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
+
+
+def test_troubleshooting_answer_combines_cause_and_action_without_dumping_table_context():
+    results = [
+        SearchResult(
+            chunk_id="cause-row",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Fan error; "
+                "Cell value: The fan unit has failed."
+            ),
+            metadata={
+                "chunk_type": "table_record",
+                "context_window": "Fan error | The fan unit has failed. | Replace the fan unit with CA-F100.",
+            },
+        ),
+        SearchResult(
+            chunk_id="action-row",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective Action; Row headers: Fan error; "
+                "Cell value: Replace the fan unit with CA-F100."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    answer, trace = generate_answer_with_trace(
+        "What causes the Fan error, and how should it be corrected?",
+        results,
+    )
+
+    assert answer.answer == (
+        "Cause: The fan unit has failed.\n"
+        "Corrective action: Replace the fan unit with CA-F100."
+    )
+    assert {citation["chunk_id"] for citation in answer.citations} == {"cause-row", "action-row"}
+    assert "Column headers" not in answer.answer
+    assert "Context:" not in answer.answer
+    assert trace["final_answer"]["answer_source"] == "structured_evidence"
+
+
+def test_troubleshooting_answer_associates_cells_from_the_exact_same_table_row():
+    common_metadata = {
+        "chunk_type": "table_record",
+        "table_row": 6,
+    }
+    results = [
+        SearchResult(
+            chunk_id="message-cell",
+            score=0.9,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Error Message; Row headers: Controller: X.X > A head not supported by the controller is connected.; "
+                "Cell value: The camera firmware is not the latest version."
+            ),
+            metadata=common_metadata,
+        ),
+        SearchResult(
+            chunk_id="cause-cell",
+            score=0.8,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Controller: X.X > A head not supported by the controller is connected.; "
+                "Cell value: The connected head requires newer camera firmware."
+            ),
+            metadata=common_metadata,
+        ),
+        SearchResult(
+            chunk_id="action-cell",
+            score=0.7,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective Action; Row headers: Controller: X.X > A head not supported by the controller is connected.; "
+                "Cell value: Turn off the controller and upgrade the firmware."
+            ),
+            metadata=common_metadata,
+        ),
+    ]
+
+    answer, _trace = generate_answer_with_trace(
+        "What causes The camera firmware is not the latest version, and how should it be corrected?",
+        results,
+    )
+
+    assert answer.answer == (
+        "Cause: The connected head requires newer camera firmware.\n"
+        "Corrective action: Turn off the controller and upgrade the firmware."
+    )
+    assert {citation["chunk_id"] for citation in answer.citations} == {"cause-cell", "action-cell"}
+
+
+def test_uppercase_vs_product_family_is_not_treated_as_a_comparison():
+    results = [
+        SearchResult(
+            chunk_id="vs-error-row",
+            score=0.9,
+            title="VS Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Message: Failed to connect to [Target IP Address].; "
+                "Cause: Connection to the camera of the specified IP address failed.; "
+                "Corrective Action: Check the destination IP address and the connection settings."
+            ),
+            metadata={"chunk_type": "table_record"},
+        )
+    ]
+
+    answer, _trace = generate_answer_with_trace(
+        "What causes Failed to connect to [Target IP Address] for VS Series, and how should it be corrected?",
+        results,
+    )
+
+    assert answer.answer == (
+        "Cause: Connection to the camera of the specified IP address failed.\n"
+        "Corrective action: Check the destination IP address and the connection settings."
+    )
+
+
+def test_troubleshooting_answer_retains_action_at_tenth_retrieval_position():
+    distractors = [
+        SearchResult(
+            chunk_id=f"distractor-{index}",
+            score=1.0 - index / 100,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=f"General image stitching guidance {index}.",
+            metadata={"chunk_type": "atomic_text"},
+        )
+        for index in range(8)
+    ]
+    results = [
+        *distractors,
+        SearchResult(
+            chunk_id="cause-row",
+            score=0.2,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Image Stitching unit is not available when using the Height Image.; "
+                "Cell value: A multi-camera image variable was selected."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="action-row",
+            score=0.1,
+            title="Doc",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective Action; Row headers: Image Stitching unit is not available when using the Height Image.; "
+                "Cell value: Change to an image variable that is not the multi-camera type."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    answer, _trace = generate_answer_with_trace(
+        "What causes Image Stitching unit is not available when using the Height Image, and how should it be corrected?",
+        results,
+    )
+
+    assert "Cause: A multi-camera image variable was selected." in answer.answer
+    assert "Corrective action: Change to an image variable that is not the multi-camera type." in answer.answer
+    assert {citation["chunk_id"] for citation in answer.citations} == {"cause-row", "action-row"}
+
+
+def test_error_cause_number_column_is_not_rendered_as_the_cause():
+    results = [
+        SearchResult(
+            chunk_id="error-number-cell",
+            score=0.9,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Error cause No.; Row headers: Unable to output to the PLC-Link due to a full output buffer.; "
+                "Cell value: 13302."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+        SearchResult(
+            chunk_id="full-error-row",
+            score=0.8,
+            title="CV-X Manual",
+            document_version_id="v1",
+            source_document_id="d1",
+            pages=[12],
+            section_path=["Troubleshooting"],
+            content=(
+                "Error Number: 13302; Error Messages: Unable to output to the PLC-Link due to a full output buffer.; "
+                "Cause: The controller output buffer is full.; Remedy: Reduce the amount of output data."
+            ),
+            metadata={"chunk_type": "table_record"},
+        ),
+    ]
+
+    answer, _trace = generate_answer_with_trace(
+        "For error 13302, what causes Unable to output to the PLC-Link due to a full output buffer?",
+        results,
+    )
+
+    assert answer.answer == "Cause: The controller output buffer is full."
+    assert answer.citations[0]["chunk_id"] == "full-error-row"
 
 
 def test_generate_answer_uses_deterministic_troubleshooting_path_for_section_evidence(monkeypatch):
@@ -2118,7 +2372,10 @@ def test_validate_answer_fallback_when_troubleshooting_answer_uses_wrong_error_a
         ),
     )
 
-    assert validated.answer.startswith("Error Messages: An error occurred in the communication with the light controller.")
+    assert validated.answer == (
+        "Cause: The next FLASH was input while the light was being emitted.\n"
+        "Corrective action: Set the FLASH output time to 0.1 msec."
+    )
     assert validated.citations[0]["chunk_id"] == "light-row"
     assert any("not sufficiently supported" in warning for warning in validated.warnings)
 
@@ -2170,7 +2427,7 @@ def test_prioritize_results_keeps_exact_troubleshooting_anchor_before_model_judg
     assert [result.chunk_id for result in prioritized["prioritized_results"]] == ["light-row"]
 
 
-def test_validate_answer_keeps_troubleshooting_answer_with_matching_error_anchor():
+def test_validate_answer_cleans_matching_troubleshooting_answer_to_requested_fields():
     answer = AnswerResponse(
         answer=(
             "Error Messages: An error occurred in the communication with the light controller. "
@@ -2218,7 +2475,10 @@ def test_validate_answer_keeps_troubleshooting_answer_with_matching_error_anchor
         ),
     )
 
-    assert validated.answer == answer.answer
+    assert validated.answer == (
+        "Cause: The next FLASH was input while the light was being emitted.\n"
+        "Corrective action: Set the FLASH output time to 0.1 msec."
+    )
     assert validated.citations[0]["chunk_id"] == "light-row"
 
 

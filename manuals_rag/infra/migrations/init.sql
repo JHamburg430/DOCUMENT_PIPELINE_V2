@@ -76,6 +76,8 @@ create table if not exists logical_nodes (
     token_count integer not null default 0
 );
 
+create extension if not exists pg_trgm;
+
 create table if not exists retrieval_chunks (
     id text primary key,
     document_version_id uuid not null references document_versions(id) on delete cascade,
@@ -95,6 +97,10 @@ create table if not exists retrieval_chunks (
     is_active boolean not null default true,
     priority_score double precision not null default 0
 );
+
+create index if not exists retrieval_chunks_active_table_content_trgm_idx
+    on retrieval_chunks using gin ((regexp_replace(lower(content), '[^a-z0-9]+', '', 'g')) gin_trgm_ops)
+    where is_active = true and chunk_type = 'table_record';
 
 create table if not exists document_metadata_extractions (
     source_document_id uuid primary key references source_documents(id) on delete cascade,

@@ -521,12 +521,26 @@ def _troubleshooting_context_text(result: SearchResult) -> str:
 
 
 def _is_troubleshooting_query(query: str) -> bool:
-    return bool(re.search(r"\b(cause|causes|correct|corrected|corrective|remedy|error|alarm|fault)\b", query, flags=re.IGNORECASE))
+    return bool(
+        re.search(
+            r"\b(cause|causes|caused|why|reason|correct|corrected|corrective|remedy|"
+            r"resolve|resolved|fix|fixed|error|alarm|fault)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+        or re.search(r"\bwhat should i do\b", query, flags=re.IGNORECASE)
+    )
 
 
 def _is_comparison_query(query: str) -> bool:
-    return bool(re.search(r"\b(compare|comparison|differ|differs|difference|different|versus|vs\.?|while|whereas)\b", query, flags=re.IGNORECASE)) or bool(
-        re.search(r"\bwhat\b.+\band what\b", query, flags=re.IGNORECASE)
+    return bool(
+        re.search(r"\b(compare|comparison|versus|whereas)\b", query, flags=re.IGNORECASE)
+        # Keep the conventional lowercase abbreviation while avoiding collisions with
+        # uppercase product families such as "VS Series".
+        or re.search(r"\bvs\.?(?=\s)", query)
+        or re.search(r"\bdifferences?\s+between\b", query, flags=re.IGNORECASE)
+        or re.search(r"\b(?:how|what)\b.+\b(?:differ|differs)\s+from\b", query, flags=re.IGNORECASE)
+        or re.search(r"\bwhat\s+(?:is|are)\b.+\band what\s+(?:is|are)\b", query, flags=re.IGNORECASE)
     )
 
 
@@ -542,6 +556,9 @@ def _is_procedure_rule_query(query: str) -> bool:
 
 
 def _query_troubleshooting_anchor(query: str) -> str:
+    quoted = re.search(r'["“](.+?)["”]', query)
+    if quoted:
+        return quoted.group(1).strip(" .?\"'")
     patterns = (
         r"\bwhat causes\s+(.+?)\s+for\s+.+?\b(?:and|,)\s+how should",
         r"\bwhat causes\s+(.+?)\s*,?\s+and how should",
@@ -570,6 +587,14 @@ def _troubleshooting_evidence_score(query: str, result: SearchResult) -> float:
     content_normalized = _normalized_phrase(content)
     evidence_lower = evidence.lower()
     score = 0.0
+
+    error_number_match = re.search(r"\berror\s+(\d{3,})\b", query, flags=re.IGNORECASE)
+    if error_number_match:
+        error_number = re.escape(error_number_match.group(1))
+        if re.search(rf"\bError Number:\s*{error_number}\b", content, flags=re.IGNORECASE):
+            score += 10.0
+        elif re.search(rf"\b{error_number}\b", content):
+            score += 3.0
 
     anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
     if len(anchor) >= 10:
@@ -766,6 +791,212 @@ def _row_action_text(row: str) -> str:
     return cells[-1]
 
 
+_TROUBLESHOOTING_FIELD_PATTERN = re.compile(
+    r"(?:^|[.;]\s*)(Error Messages?|Message|Cause|Corrective Action|Remedy|Column headers|Row headers|Cell value|Row|Column):\s*"
+    r"(.*?)(?=[.;]\s*(?:Error Messages?|Message|Cause|Corrective Action|Remedy|Column headers|Row headers|Cell value|Row|Column):|$)",
+    flags=re.IGNORECASE | re.DOTALL,
+)
+
+
+def _troubleshooting_fields(text: str) -> dict[str, str]:
+    """Extract answerable fields from a troubleshooting table record."""
+    fields: dict[str, str] = {}
+    for label, value in _TROUBLESHOOTING_FIELD_PATTERN.findall(text or ""):
+        normalized_label = " ".join(label.lower().split())
+        cleaned_value = " ".join(value.split()).strip(" ;|")
+        if cleaned_value:
+            fields[normalized_label] = cleaned_value
+
+    column = fields.get("column headers", "").lower()
+    cell = fields.get("cell value", "")
+    if cell:
+        if re.fullmatch(r"(?:error\s+)?cause", column):
+            fields.setdefault("cause", cell)
+        elif "corrective action" in column or "remedy" in column:
+            fields.setdefault("corrective action", cell)
+        elif "error message" in column:
+            fields.setdefault("error message", cell)
+    return fields
+
+
+def _troubleshooting_field_records(text: str) -> list[dict[str, str]]:
+    blocks = re.split(r"(?=(?:Error Messages?|Message):\s*)", text or "", flags=re.IGNORECASE)
+    records = [_troubleshooting_fields(block) for block in blocks if block.strip()]
+    return [record for record in records if record]
+
+
+def _pipe_troubleshooting_fields(text: str) -> dict[str, str]:
+    cells = [" ".join(cell.split()).strip(" ;") for cell in (text or "").split("|") if cell.strip(" ;")]
+    if len(cells) < 3:
+        return {}
+    return {
+        "error message": cells[0],
+        "cause": cells[1],
+        "corrective action": cells[2],
+    }
+
+
+def _requested_troubleshooting_fields(query: str) -> tuple[bool, bool]:
+    query_lower = query.lower()
+    wants_cause = bool(re.search(r"\b(?:cause|causes|caused|why|reason)\b", query_lower))
+    wants_action = bool(
+        re.search(
+            r"\b(?:correct|corrected|corrective|remedy|resolve|resolved|fix|fixed|"
+            r"how should|what should|what must|change|set|adjust)\b",
+            query_lower,
+        )
+    )
+    if not wants_cause and not wants_action:
+        wants_action = True
+    return wants_cause, wants_action
+
+
+def _troubleshooting_anchor_matches(anchor: str, evidence: str) -> bool:
+    return _troubleshooting_anchor_match_score(anchor, evidence) >= 0
+
+
+def _troubleshooting_anchor_match_score(anchor: str, evidence: str) -> float:
+    normalized_evidence = _normalized_phrase(evidence)
+    normalized_anchor = re.sub(r"^(?:a|an|the)\s+", "", anchor)
+    if not normalized_anchor:
+        return 0.0
+    anchor_tokens = normalized_anchor.split()
+    evidence_tokens_list = normalized_evidence.split()
+    anchor_terms = set(anchor_tokens)
+    evidence_terms = set(evidence_tokens_list)
+    if normalized_anchor == normalized_evidence:
+        return 100.0
+    if normalized_evidence.endswith(normalized_anchor):
+        return 95.0
+    if normalized_anchor in normalized_evidence:
+        precision = len(anchor_terms) / max(1, len(evidence_terms))
+        return 70.0 + precision * 20.0
+    if ("not" in anchor_terms) != ("not" in evidence_terms):
+        return -1.0
+    for left, right in (("enabled", "disabled"), ("enable", "disable")):
+        if left in anchor_terms and right in evidence_terms and left not in evidence_terms:
+            return -1.0
+        if right in anchor_terms and left in evidence_terms and right not in evidence_terms:
+            return -1.0
+    required = max(2, min(len(anchor_terms), len(anchor_terms) // 2 + 1))
+    overlap = len(anchor_terms.intersection(evidence_terms))
+    if overlap < required:
+        return -1.0
+    return 50.0 * overlap / max(1, len(anchor_terms.union(evidence_terms)))
+
+
+def _troubleshooting_table_row_key(result: SearchResult) -> tuple[object, ...] | None:
+    row = result.metadata.get("table_row")
+    if row is None:
+        return None
+    return (
+        result.source_document_id,
+        result.document_version_id,
+        tuple(result.pages),
+        tuple(result.section_path),
+        result.metadata.get("table_id") or result.metadata.get("table_index"),
+        str(row),
+    )
+
+
+def _concise_troubleshooting_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    if not _is_troubleshooting_query(query) or _is_comparison_query(query):
+        return "", []
+
+    wants_cause, wants_action = _requested_troubleshooting_fields(query)
+    anchor = _normalized_phrase(_query_troubleshooting_anchor(query))
+    ordered = _order_troubleshooting_results(query, results)
+    candidates: list[tuple[float, int, int, dict[str, str], SearchResult]] = []
+    query_terms = _material_claim_terms(query)
+
+    # Table-cell chunks frequently repeat only a parent header in their row headers. Find
+    # the exact error-message cell first, then allow cause/action cells from that same row
+    # to contribute even when those cells do not repeat the symptom text themselves.
+    exact_row_keys: set[tuple[object, ...]] = set()
+    if anchor and len(anchor) >= 10:
+        for result in ordered[:10]:
+            row_key = _troubleshooting_table_row_key(result)
+            if row_key is None:
+                continue
+            for fields in _troubleshooting_field_records(str(result.content or "")):
+                error_text = (
+                    fields.get("error message")
+                    or fields.get("error messages")
+                    or fields.get("message")
+                    or fields.get("row headers")
+                    or ""
+                )
+                if error_text and _troubleshooting_anchor_match_score(anchor, error_text) >= 95.0:
+                    exact_row_keys.add(row_key)
+
+    for result_index, result in enumerate(ordered[:10]):
+        evidence = _troubleshooting_context_text(result)
+        row_key = _troubleshooting_table_row_key(result)
+        row_is_exact = row_key is not None and row_key in exact_row_keys
+        if anchor and len(anchor) >= 10 and not row_is_exact and not _troubleshooting_anchor_matches(anchor, evidence):
+            continue
+        field_records = _troubleshooting_field_records(str(result.content or ""))
+        if not field_records:
+            matching_row = _matching_troubleshooting_row_text(query, result)
+            pipe_fields = _pipe_troubleshooting_fields(matching_row)
+            field_records = [pipe_fields] if pipe_fields else []
+        for fields in field_records:
+            error_text = (
+                fields.get("error message")
+                or fields.get("error messages")
+                or fields.get("message")
+                or fields.get("row headers")
+                or ""
+            )
+            match_score = _troubleshooting_anchor_match_score(anchor, error_text or evidence) if anchor else 0.0
+            if row_is_exact and match_score < 92.0:
+                match_score = 92.0
+            if anchor and match_score < 0:
+                continue
+            coverage = len(query_terms.intersection(_material_claim_terms(" ".join(fields.values()))))
+            candidates.append((match_score, coverage, -result_index, fields, result))
+
+    selected_values: dict[str, str] = {}
+    selected_results: list[SearchResult] = []
+    for field_name, wanted in (("cause", wants_cause), ("corrective action", wants_action)):
+        if not wanted:
+            continue
+        matching = []
+        for match_score, coverage, result_order, fields, result in candidates:
+            value = fields.get(field_name) or (fields.get("remedy") if field_name == "corrective action" else "")
+            if value:
+                matching.append((match_score, coverage, result_order, value, result))
+        if not matching:
+            continue
+        _match_score, _coverage, _result_order, value, result = max(
+            matching,
+            key=lambda item: (item[0], item[1], item[2]),
+        )
+        selected_values[field_name] = value
+        selected_results.append(result)
+
+    lines: list[str] = []
+    if wants_cause and selected_values.get("cause"):
+        cause = selected_values["cause"]
+        lines.append(f"Cause: {cause if cause.endswith(('.', '!', '?')) else cause + '.'}")
+    if wants_action and selected_values.get("corrective action"):
+        action = selected_values["corrective action"]
+        lines.append(f"Corrective action: {action if action.endswith(('.', '!', '?')) else action + '.'}")
+    if not lines:
+        return "", []
+
+    unique_results: list[SearchResult] = []
+    seen_chunks: set[str] = set()
+    for result in selected_results:
+        if result.chunk_id not in seen_chunks:
+            unique_results.append(result)
+            seen_chunks.add(result.chunk_id)
+    return "\n".join(lines), unique_results
+
+
 def _answer_uses_matching_troubleshooting_row(answer: str, query: str, results: list[SearchResult]) -> bool:
     if not _is_troubleshooting_query(query):
         return True
@@ -822,9 +1053,22 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             followup_questions=[],
             insufficient_evidence=True,
         )
-    fallback_results = _fallback_evidence_results(query, results)
+    concise_answer, concise_results = _concise_troubleshooting_answer(query, results)
+    if _is_troubleshooting_query(query) and _query_troubleshooting_anchor(query) and not concise_answer:
+        return AnswerResponse(
+            answer="I could not find a troubleshooting entry matching the stated error in the retrieved evidence.",
+            confidence="low",
+            used_documents=[],
+            citations=[],
+            warnings=["The retrieved evidence did not contain a matching cause or corrective action."],
+            followup_questions=[],
+            insufficient_evidence=True,
+        )
+    fallback_results = concise_results or _fallback_evidence_results(query, results)
     top = fallback_results[0]
-    if len(fallback_results) == 1:
+    if concise_answer:
+        answer_text = concise_answer
+    elif len(fallback_results) == 1:
         answer_text = (
             _matching_troubleshooting_row_text(query, top)
             or _focused_table_record_answer_text(query, top)
@@ -1350,10 +1594,7 @@ def generate_answer_with_trace(
         )
         return answer, trace
     if _is_troubleshooting_query(query):
-        structured_results = _focused_troubleshooting_results(
-            query,
-            _order_troubleshooting_results(query, results[:8]),
-        )
+        structured_results = _order_troubleshooting_results(query, results[:10])
         answer = validate_answer(
             _fallback_answer(query, structured_results),
             structured_results,

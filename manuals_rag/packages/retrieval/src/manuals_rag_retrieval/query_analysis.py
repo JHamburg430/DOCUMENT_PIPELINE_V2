@@ -48,7 +48,7 @@ def analyze_query(query: str) -> QueryAnalysis:
         types.append("operational_flow")
         preferred_chunk_types.extend(["section_window", "procedure_record"])
     structured_lookup_field = re.search(
-        r"\b(?:address|values?|items?|setting\s+(?:item|range)|word\s+device|number\s+of\s+image\s+pixels|cause|error\s+code|message|symbol|description|detection|index|sub\s+index|stored\s+data|error\s+message|summary|data\s*\d+)\b",
+        r"\b(?:address|values?|items?|setting\s+(?:item|range)|word\s+device|number\s+of\s+image\s+pixels|causes?|error\s+code|message|symbol|description|detection|index|sub\s+index|stored\s+data|error\s+message|summary|data\s*\d+)\b",
         lowered,
     )
     structured_lookup_shape = re.search(r"\b(?:appl(?:y|ies)\s+to|appl(?:y|ies)\s+for)\b", lowered)
@@ -120,7 +120,16 @@ def analyze_query(query: str) -> QueryAnalysis:
         preferred_chunk_types.extend(["datasheet_record", "spec_record", "table_record"])
     if any(word in lowered for word in ["error", "alarm", "troubleshoot", "fault"]):
         types.append("troubleshooting")
-    if re.search(r"\bwhat\s+causes?\b", lowered) and re.search(r"\b(correct(?:ed|ive|ion)?|check(?:ed)?|remed(?:y|ied)|fix(?:ed)?)\b", lowered):
+    if (
+        re.search(
+            r"\bwhat\s+(?:causes?|caused|(?:is|are)\s+the\s+(?:likely\s+)?(?:cause|reason))\b",
+            lowered,
+        )
+        or re.search(r"\bhow\s+should\b.+\b(?:corrected|fixed|resolved)\b", lowered)
+        or re.search(r"\bwhy\s+(?:does|is)\b.+\b(?:show|shows|report|reporting)\b", lowered)
+        or re.search(r"\bwhat should i do when\b.+\b(?:show|shows|report|reports)\b", lowered)
+        or re.search(r"\bhow can i resolve\b", lowered)
+    ):
         types.append("troubleshooting")
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "section_window"])

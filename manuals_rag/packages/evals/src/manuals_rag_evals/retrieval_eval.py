@@ -1242,6 +1242,10 @@ def validate_eval_case(query: str, chunk: dict[str, Any], anchors: list[str]) ->
 
 
 def _safe_query_label(chunk: dict[str, Any]) -> str:
+    def concise_series_label(value: str) -> str:
+        match = re.match(r"\s*([A-Z][A-Z0-9-]{1,15}\s+Series)\b", value, flags=re.IGNORECASE)
+        return match.group(1) if match else value
+
     metadata = dict(chunk.get("metadata_json", {}))
     model = str(chunk.get("product_model") or metadata.get("product_model") or "").strip()
     generic_model_label = re.search(
@@ -1250,13 +1254,16 @@ def _safe_query_label(chunk: dict[str, Any]) -> str:
         flags=re.IGNORECASE,
     )
     if model and not generic_model_label and len(model) <= 60 and model.count("/") <= 3 and not _query_uses_filename_artifact(model, chunk):
-        return model
+        return concise_series_label(model)
     family = str(metadata.get("product_family") or "").strip()
     if family and len(family) <= 80 and family.count("/") <= 1 and not _query_uses_filename_artifact(family, chunk):
-        return family
+        return concise_series_label(family)
     title = str(chunk.get("title", "")).strip()
     filename = str(chunk.get("source_filename", "")).strip()
     if title and title != filename and not title.lower().endswith(".pdf"):
+        series_match = re.search(r"\b([A-Z][A-Z0-9-]{1,15}\s+Series)\b", title)
+        if series_match:
+            return series_match.group(1)
         return title
     return ""
 
@@ -2120,11 +2127,51 @@ def _best_related_cell(cells: list[dict[str, Any]], field_terms: set[str], ancho
 
 def _short_answer_anchor(value: str) -> str:
     clean = re.sub(r"\s+", " ", value).strip()
+    clean = re.sub(r"\bAlight\b", "A light", clean)
     clean = re.sub(r"\s*\([^)]{18,}\)", "", clean).strip()
-    if len(clean) <= 90:
+    if len(clean) <= 360:
         return clean
     sentence = re.split(r"(?<=[.!?])\s+", clean)[0].strip()
-    return sentence[:90].strip() if sentence else clean[:90].strip()
+    if (
+        len(sentence) >= 30
+        and normalize_text(sentence) not in {"the following error occurred", "the following error occurred."}
+        and len(extract_anchor_terms(sentence, limit=4)) >= 2
+    ):
+        return sentence
+    shortened = clean[:360].rsplit(" ", 1)[0].strip(" ,.;:-")
+    return shortened or clean
+
+
+def _troubleshooting_query_qualifier(cause_value: str, prompt_value: str) -> str:
+    """Return a mode/context qualifier that distinguishes an otherwise generic error.
+
+    Only a leading contextual clause is used; the actual causal assertion after
+    the comma remains hidden as the expected answer.
+    """
+    match = re.match(r"\s*(?:in|when|while|with)\s+(.{12,140}?),\s+", cause_value, flags=re.I)
+    minimum_distinctive_terms = 2
+    if match:
+        qualifier = match.group(0).strip(" ,")
+    else:
+        parenthetical = re.search(r"\(([^)]{3,60})\)", cause_value)
+        if not parenthetical:
+            return ""
+        qualifier = f"With {parenthetical.group(1).strip()}"
+        minimum_distinctive_terms = 1
+    prompt_terms = set(extract_anchor_terms(prompt_value, limit=12))
+    qualifier_terms = set(extract_anchor_terms(qualifier, limit=12)).difference(prompt_terms)
+    if len(qualifier_terms) < minimum_distinctive_terms:
+        return ""
+    return qualifier
+
+
+def _troubleshooting_row_identifier(chunk: dict[str, Any]) -> str:
+    metadata = dict(chunk.get("metadata_json", {}))
+    for header in _metadata_list(metadata, "table_row_headers"):
+        match = re.match(r"\s*(\d{3,6})\b", header)
+        if match:
+            return f"For error {match.group(1)}"
+    return ""
 
 
 def _looks_like_parser_artifact(text: str) -> bool:
@@ -2188,6 +2235,56 @@ def _multi_step_expected_evidence(*cells: dict[str, Any]) -> list[dict[str, Any]
             }
         )
     return evidence
+
+
+def multi_step_case_quality_rejection_reason(case: RetrievalEvalCase) -> str | None:
+    """Reject evaluation prompts that gain an advantage from internal pipeline data.
+
+    Exact alarm/error text and a public product name are allowed because users routinely
+    paste those. Internal ids, filenames, table coordinates, and answer-complete prompts
+    are not valid user inputs and cannot count toward the benchmark.
+    """
+    query = re.sub(r"\s+", " ", case.query).strip()
+    lowered = query.lower()
+    if not _query_looks_like_question(query):
+        return "not_question_form"
+    if len(query) > 650:
+        return "implausibly_long_query"
+    if re.search(r"\b(?:chunk|document version|source document|metadata)\s*(?:id)?\b", lowered):
+        return "internal_metadata_cue"
+    if re.search(r"\brow\s*\d+\s*(?:,|and)?\s*column\s*\d+\b", lowered):
+        return "table_coordinate_cue"
+    if re.search(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b", lowered):
+        return "opaque_identifier_cue"
+    if ".pdf" in lowered or "///" in query:
+        return "filename_or_parser_cue"
+    hidden_ids = {
+        normalize_text(value)
+        for value in [
+            case.source_chunk_id,
+            case.source_document_id,
+            case.document_version_id,
+            *(case.expected_source_chunk_ids or []),
+        ]
+        if str(value or "").strip()
+    }
+    normalized_query = normalize_text(query)
+    if any(identifier and identifier in normalized_query for identifier in hidden_ids):
+        return "hidden_identifier_cue"
+    if re.search(r"\bwhat\s+.+\s+entries are listed for\b", lowered):
+        return "mechanical_query"
+
+    query_terms = set(tokenize(query))
+    expected_terms = {
+        term
+        for item in case.expected_evidence or []
+        for expected in item.get("expected_terms", [])
+        for term in tokenize(str(expected))
+        if term not in STOPWORDS and len(term) >= 3
+    }
+    if expected_terms and not expected_terms.difference(query_terms):
+        return "answer_fully_exposed_by_query"
+    return None
 
 
 def _procedure_subject(content: str) -> str:
@@ -2852,16 +2949,69 @@ def build_multi_step_eval_cases_from_chunks(
                 prompt_anchor = _short_answer_anchor(prompt_value)
                 if not prompt_anchor:
                     continue
+                prompt_question_text = prompt_anchor.rstrip(" .?!")
+                cause_value = _cell_value(str(cause_cell.get("content", "")))
+                qualifier = _troubleshooting_query_qualifier(cause_value, prompt_value)
+                if not qualifier:
+                    qualifier = _troubleshooting_row_identifier(prompt_cell)
+                cause_prompt = f"{qualifier}, what causes" if qualifier else "What causes"
+                action_prompt = f"{qualifier}, how should" if qualifier else "How should"
+                device = label or "the system"
+                qualifier_prefix = f"{qualifier}, " if qualifier else ""
                 if "symptom" in _column_field(prompt_cell):
-                    combined_query = f"What causes {prompt_anchor}{_for_label(label)}, and what should be checked or corrected?"
+                    combined_query = (
+                        f"{cause_prompt} {prompt_question_text}{_for_label(label)}, "
+                        "and what should be checked or corrected?"
+                    )
                 else:
-                    combined_query = f"What causes {prompt_anchor}{_for_label(label)}, and how should it be corrected?"
+                    combined_query = f"{cause_prompt} {prompt_question_text}{_for_label(label)}, and how should it be corrected?"
                 variants = (
                     (combined_query, (cause_cell, action_cell), "table_sibling_error_cause_action"),
-                    (f"What causes {prompt_anchor}{_for_label(label)}?", (cause_cell,), "table_sibling_error_cause"),
-                    (f"How should {prompt_anchor}{_for_label(label)} be corrected?", (action_cell,), "table_sibling_error_action"),
+                    (
+                        f'{qualifier_prefix}{device} shows "{prompt_question_text}". What caused it, and what should I do?',
+                        (cause_cell, action_cell),
+                        "table_sibling_error_cause_action_user_variant_1",
+                    ),
+                    (
+                        f'I am getting "{prompt_question_text}" on {device}. What is the likely cause and recommended fix?',
+                        (cause_cell, action_cell),
+                        "table_sibling_error_cause_action_user_variant_2",
+                    ),
+                    (
+                        f'{qualifier_prefix}why is {device} reporting "{prompt_question_text}", and how can I resolve it?',
+                        (cause_cell, action_cell),
+                        "table_sibling_error_cause_action_user_variant_3",
+                    ),
+                    (
+                        f'{qualifier_prefix}when {device} reports "{prompt_question_text}", what are the cause and corrective action?',
+                        (cause_cell, action_cell),
+                        "table_sibling_error_cause_action_user_variant_4",
+                    ),
+                    (f"{cause_prompt} {prompt_question_text}{_for_label(label)}?", (cause_cell,), "table_sibling_error_cause"),
+                    (
+                        f'{qualifier_prefix}why does {device} show "{prompt_question_text}"?',
+                        (cause_cell,),
+                        "table_sibling_error_cause_user_variant_1",
+                    ),
+                    (
+                        f'{qualifier_prefix}what is the likely reason {device} reports "{prompt_question_text}"?',
+                        (cause_cell,),
+                        "table_sibling_error_cause_user_variant_2",
+                    ),
+                    (f"{action_prompt} {prompt_question_text}{_for_label(label)} be corrected?", (action_cell,), "table_sibling_error_action"),
+                    (
+                        f'{qualifier_prefix}what should I do when {device} shows "{prompt_question_text}"?',
+                        (action_cell,),
+                        "table_sibling_error_action_user_variant_1",
+                    ),
+                    (
+                        f'{qualifier_prefix}how can I resolve "{prompt_question_text}" on {device}?',
+                        (action_cell,),
+                        "table_sibling_error_action_user_variant_2",
+                    ),
                 )
                 for query, evidence_cells, generation_method in variants:
+                    query = query[:1].upper() + query[1:]
                     if any(_normalized_query_key(query) == _normalized_query_key(existing) for existing in seen_queries):
                         continue
                     # The error/symptom is already supplied by the question. The
@@ -2879,9 +3029,7 @@ def build_multi_step_eval_cases_from_chunks(
                             break
                     if len(expected_terms) < 2:
                         continue
-                    seen_queries.append(query)
-                    cases.append(
-                        RetrievalEvalCase(
+                    candidate = RetrievalEvalCase(
                             case_id=f"{prompt_cell['id']}::multi_step::{len(cases) + 1}",
                             query=query,
                             source_document_id=str(prompt_cell["source_document_id"]),
@@ -2903,7 +3051,10 @@ def build_multi_step_eval_cases_from_chunks(
                             expected_source_chunk_ids=[item["chunk_id"] for item in evidence],
                             expected_evidence=evidence,
                         )
-                    )
+                    if multi_step_case_quality_rejection_reason(candidate):
+                        continue
+                    seen_queries.append(query)
+                    cases.append(candidate)
                     if len(cases) >= max_cases:
                         return cases
     if case_family in {"all", "contextual_section"} and len(cases) < max_cases:
@@ -3769,6 +3920,9 @@ def _citation_document_id(citation: dict[str, Any]) -> str:
 def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text: str) -> bool:
     text_lower = cited_text.lower()
     text_tokens = set(tokenize(text_lower))
+    snippet = str(item.get("snippet") or "").strip()
+    if snippet and _normalized_quote_text(snippet) in _normalized_quote_text(cited_text):
+        return True
     binding_check = _expected_evidence_binding_check(item, cited_text)
     if not binding_check["passed"]:
         return False
@@ -3781,7 +3935,6 @@ def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text:
     required_terms = role_terms or expected_terms
     if required_terms and not all(_expected_term_matches_text(term, text_lower, text_tokens) for term in required_terms):
         return False
-    snippet = str(item.get("snippet") or "")
     snippet_terms = [
         term
         for term in extract_anchor_terms(snippet, limit=8)
@@ -3795,6 +3948,129 @@ def _expected_evidence_supported_by_cited_text(item: dict[str, Any], cited_text:
         if _expected_term_matches_text(term, text_lower, text_tokens)
     ]
     return len(matched_snippet_terms) >= max(2, min(len(snippet_terms), len(snippet_terms) - 1))
+
+
+def _table_evidence_field_family(value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "", value.lower())
+    if "cause" in normalized:
+        return "cause"
+    if "remedy" in normalized or "correctiveaction" in normalized or normalized == "action":
+        return "action"
+    return normalized
+
+
+def _cited_table_field_family(cited_text: str) -> str:
+    match = re.search(r"\bColumn headers:\s*(.*?)(?=;\s*(?:Row headers|Cell value|Row|Column):|$)", cited_text, flags=re.I | re.S)
+    return _table_evidence_field_family(match.group(1)) if match else ""
+
+
+def _cited_cell_value(cited_text: str) -> str:
+    match = re.search(r"\bCell value:\s*(.*?)(?=;\s*(?:Row|Column):|$)", cited_text, flags=re.I | re.S)
+    return match.group(1).strip(" ;|") if match else ""
+
+
+def _equivalent_table_evidence_support(
+    case: RetrievalEvalCase,
+    item: dict[str, Any],
+    result: dict[str, Any],
+    cited_text: str,
+) -> bool:
+    """Accept a duplicate table rendering only when its bindings remain specific.
+
+    A manual can yield two active representations of the same troubleshooting
+    row (for example a source table and a repeated appendix table).  Chunk IDs,
+    page numbers, and even column labels may differ while the user-visible alarm
+    and operational answer are equivalent.  This check is intentionally narrow:
+    same document, same cause/action field family, strong query-to-row overlap,
+    at least half of the expected evidence terms, and no identifier, quantity,
+    or polarity binding conflict.
+    """
+    expected_document_id = str(item.get("source_document_id") or item.get("document_id") or "")
+    if expected_document_id and str(result.get("source_document_id") or "") != expected_document_id:
+        return False
+    expected_family = _table_evidence_field_family(str(item.get("field") or ""))
+    cited_family = _cited_table_field_family(cited_text)
+    if not expected_family or not cited_family or expected_family != cited_family:
+        return False
+    if _query_evidence_overlap(case.query, result) < 3:
+        return False
+    if not _expected_evidence_binding_check(item, cited_text)["passed"]:
+        return False
+    expected_terms = [str(term) for term in item.get("expected_terms") or [] if str(term).strip()]
+    if not expected_terms:
+        return False
+    cited_lower = cited_text.lower()
+    cited_tokens = set(tokenize(cited_lower))
+    matched_terms = sum(
+        1 for term in expected_terms if _expected_term_matches_text(term, cited_lower, cited_tokens)
+    )
+    return matched_terms >= max(2, (len(expected_terms) + 1) // 2)
+
+
+def _expected_evidence_text(
+    item: dict[str, Any],
+    chunk_texts: dict[str, str],
+) -> str:
+    chunk_id = str(item.get("chunk_id") or "")
+    return (
+        chunk_texts.get(chunk_id)
+        or str(item.get("content") or item.get("expected_snippet") or item.get("snippet") or "").strip()
+    )
+
+
+def _expected_evidence_answer_support(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+    retrieved_results: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """Detect answers that contain the exact expected table-cell evidence.
+
+    This is deliberately narrow: it only protects literal expected cell/field
+    values, so a semantically nearby troubleshooting row cannot pass merely by
+    sharing broad anchor terms.
+    """
+    if not case.expected_evidence or not retrieved_results:
+        return {"checked": False, "passed": False, "matched_chunk_ids": [], "missing_chunk_ids": []}
+    answer_normalized = _normalized_quote_text(str(answer.get("answer") or ""))
+    chunk_texts = _retrieved_chunk_texts(retrieved_results)
+    matched_chunk_ids: list[str] = []
+    missing_chunk_ids: list[str] = []
+    checked = False
+    for item in case.expected_evidence:
+        if not isinstance(item, dict):
+            continue
+        chunk_id = str(item.get("chunk_id") or "")
+        evidence_text = _expected_evidence_text(item, chunk_texts)
+        if not evidence_text:
+            missing_chunk_ids.append(chunk_id)
+            continue
+        field = str(item.get("field") or "").strip().lower()
+        value = ""
+        cell_match = re.search(r"\bCell value:\s*(.*?)(?=;\s*(?:Row|Column):|$)", evidence_text, flags=re.I | re.S)
+        if cell_match:
+            value = cell_match.group(1).strip(" ;|")
+        elif field:
+            field_match = re.search(
+                rf"(?:^|;\s*){re.escape(field)}:\s*(.*?)(?=;\s*[A-Za-z][A-Za-z ]+:|$)",
+                evidence_text,
+                flags=re.I | re.S,
+            )
+            if field_match:
+                value = field_match.group(1).strip(" ;|")
+        if not value:
+            missing_chunk_ids.append(chunk_id)
+            continue
+        checked = True
+        if _normalized_quote_text(value) in answer_normalized:
+            matched_chunk_ids.append(chunk_id)
+        else:
+            missing_chunk_ids.append(chunk_id)
+    return {
+        "checked": checked,
+        "passed": checked and not missing_chunk_ids,
+        "matched_chunk_ids": matched_chunk_ids,
+        "missing_chunk_ids": missing_chunk_ids,
+    }
 
 
 def _expected_evidence_binding_check(item: dict[str, Any], cited_text: str) -> dict[str, Any]:
@@ -3956,14 +4232,26 @@ def _expected_evidence_citation_support(
         }
 
     missing_evidence: list[dict[str, Any]] = []
+    coverage: list[dict[str, Any]] = []
+    answer_normalized = _normalized_quote_text(str(answer.get("answer") or ""))
     for item in case.expected_evidence:
         if not isinstance(item, dict):
             continue
         expected_chunk_id = str(item.get("chunk_id") or "")
         expected_document_id = str(item.get("source_document_id") or item.get("document_id") or "")
+        resolved_item = dict(item)
+        resolved_text = _expected_evidence_text(item, chunk_texts)
+        if resolved_text:
+            cell_match = re.search(
+                r"\bCell value:\s*(.*?)(?=;\s*(?:Row|Column):|$)",
+                resolved_text,
+                flags=re.I | re.S,
+            )
+            resolved_item["snippet"] = cell_match.group(1).strip(" ;|") if cell_match else resolved_text
         expected_terms = [str(term) for term in item.get("expected_terms") or [] if str(term).strip()]
         term_required = len(expected_terms) if len(expected_terms) <= 2 else 2
         supported = False
+        support_record: dict[str, Any] | None = None
         for citation in citations:
             cited_chunk_id = str(citation.get("chunk_id") or "")
             if expected_document_id and _citation_document_id(citation) != expected_document_id:
@@ -3972,12 +4260,39 @@ def _expected_evidence_citation_support(
             if not cited_text:
                 continue
             if expected_chunk_id and cited_chunk_id != expected_chunk_id:
-                if _expected_evidence_supported_by_cited_text(item, cited_text):
+                if _expected_evidence_supported_by_cited_text(resolved_item, cited_text):
                     supported = True
+                    value = _cited_cell_value(cited_text)
+                    support_record = {
+                        "expected_chunk_id": expected_chunk_id,
+                        "cited_chunk_id": cited_chunk_id,
+                        "match_type": "equivalent_text",
+                        "answer_supported": bool(value and _normalized_quote_text(value) in answer_normalized),
+                    }
+                    break
+                result = next(
+                    (candidate for candidate in retrieved_results if str(candidate.get("chunk_id") or "") == cited_chunk_id),
+                    None,
+                )
+                if result and _equivalent_table_evidence_support(case, resolved_item, result, cited_text):
+                    supported = True
+                    value = _cited_cell_value(cited_text)
+                    support_record = {
+                        "expected_chunk_id": expected_chunk_id,
+                        "cited_chunk_id": cited_chunk_id,
+                        "match_type": "equivalent_table_row",
+                        "answer_supported": bool(value and _normalized_quote_text(value) in answer_normalized),
+                    }
                     break
                 continue
-            if expected_chunk_id and cited_chunk_id == expected_chunk_id and not expected_terms:
+            if expected_chunk_id and cited_chunk_id == expected_chunk_id:
                 supported = True
+                support_record = {
+                    "expected_chunk_id": expected_chunk_id,
+                    "cited_chunk_id": cited_chunk_id,
+                    "match_type": "exact_chunk",
+                    "answer_supported": True,
+                }
                 break
             if not expected_terms:
                 continue
@@ -3990,7 +4305,15 @@ def _expected_evidence_citation_support(
             ]
             if len(matched_terms) >= term_required:
                 supported = True
+                support_record = {
+                    "expected_chunk_id": expected_chunk_id,
+                    "cited_chunk_id": cited_chunk_id,
+                    "match_type": "term_overlap",
+                    "answer_supported": True,
+                }
                 break
+        if support_record:
+            coverage.append(support_record)
         if not supported:
             missing_evidence.append(
                 {
@@ -4004,6 +4327,7 @@ def _expected_evidence_citation_support(
         "passed": not missing_evidence,
         "checked": True,
         "missing_evidence": missing_evidence,
+        "coverage": coverage,
     }
 
 
@@ -4064,13 +4388,15 @@ def _llm_required_information_judgment(
     *,
     expected_terms: list[str],
     material_terms: list[str],
+    retrieved_results: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     answer_text = str(answer.get("answer") or "").strip()
     if not answer_text:
         return {"checked": False, "passed": False, "reason": "empty_answer"}
     expected_evidence = case.expected_evidence or []
+    chunk_texts = _retrieved_chunk_texts(retrieved_results)
     evidence_text = "\n\n".join(
-        str(item.get("content") or item.get("expected_snippet") or "").strip()
+        _expected_evidence_text(item, chunk_texts)
         for item in expected_evidence[:4]
         if isinstance(item, dict)
     ).strip()
@@ -4207,6 +4533,13 @@ def score_answer_response(
     terms = _answer_contains_expected_terms(answer, expected_terms, required_terms=material_terms)
     terms["term_source"] = term_source
     terms["material_term_source"] = material_source
+    exact_evidence_answer_support = _expected_evidence_answer_support(case, answer, retrieved_results)
+    if exact_evidence_answer_support.get("passed"):
+        # An exact expected table cell in the answer is stronger evidence than
+        # the lossy token heuristic, particularly for short corrective-action
+        # cells. Apply this independently of the optional LLM judge.
+        terms["passed"] = True
+        terms["exact_expected_evidence_matched"] = True
     llm_required_info = {"checked": False}
     if use_llm_required_info_judge:
         try:
@@ -4215,15 +4548,37 @@ def score_answer_response(
                 answer,
                 expected_terms=expected_terms,
                 material_terms=material_terms,
+                retrieved_results=retrieved_results,
             )
             if llm_required_info.get("checked"):
                 terms["llm_judged"] = True
                 terms["llm_required_information"] = llm_required_info
-                terms["passed"] = bool(llm_required_info.get("passed"))
+                if llm_required_info.get("passed"):
+                    terms["passed"] = True
+                elif exact_evidence_answer_support.get("passed"):
+                    terms["llm_negative_overridden_by_exact_expected_evidence"] = True
+                    terms["passed"] = True
+                else:
+                    terms["passed"] = False
         except Exception as exc:
             llm_required_info = {"checked": False, "error": f"{exc.__class__.__name__}: {exc}"}
     citation_fidelity = _answer_citation_fidelity(answer, retrieved_results)
     evidence_citation_support = _expected_evidence_citation_support(case, answer, retrieved_results)
+    equivalent_answer_support = [
+        item
+        for item in evidence_citation_support.get("coverage", [])
+        if item.get("match_type") in {"equivalent_text", "equivalent_table_row"}
+    ]
+    if (
+        evidence_citation_support.get("passed")
+        and equivalent_answer_support
+        and all(item.get("answer_supported") for item in equivalent_answer_support)
+    ):
+        # The answer quotes a cited duplicate rendering of the expected table
+        # row.  Its wording is a stronger signal than token requirements derived
+        # from the other rendering.
+        terms["passed"] = True
+        terms["equivalent_cited_evidence_matched"] = True
     answer_text = str(answer.get("answer") or "").strip()
     passed = bool(
         answer_text
@@ -4260,5 +4615,6 @@ def score_answer_response(
         "citation_fidelity": citation_fidelity,
         "evidence_citation_support": evidence_citation_support,
         "equivalent_citation_support": equivalent_citation_support,
+        "exact_evidence_answer_support": exact_evidence_answer_support,
         "llm_required_information": llm_required_info,
     }

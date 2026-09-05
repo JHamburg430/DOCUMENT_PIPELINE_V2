@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from manuals_rag_evals.retrieval_eval import (
@@ -7,6 +9,7 @@ from manuals_rag_evals.retrieval_eval import (
     build_eval_cases_from_chunks,
     build_multi_step_eval_cases_from_chunks,
     chunk_is_queryworthy,
+    multi_step_case_quality_rejection_reason,
     score_answer_response,
     score_document_selection,
     score_search_results,
@@ -14,7 +17,11 @@ from manuals_rag_evals.retrieval_eval import (
     _parse_generated_queries,
     _parse_query_review,
     _question_generation_trace_fields,
+    _safe_query_label,
+    _short_answer_anchor,
     _structured_eval_input,
+    _troubleshooting_query_qualifier,
+    _troubleshooting_row_identifier,
 )
 
 
@@ -928,6 +935,206 @@ def test_malformed_llm_judge_response_does_not_override_term_score(monkeypatch):
     assert scored["term_check"]["passed"] is True
     assert scored["llm_required_information"]["checked"] is False
     assert "omitted a boolean verdict" in scored["llm_required_information"]["error"]
+
+
+def test_exact_expected_cell_overrides_false_llm_judge_and_prompt_uses_resolved_chunk(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-fan-replacement",
+        query="How should the fan error be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="chunk-fan-action",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["replace", "CA-F100"],
+        expected_snippet="Column headers: Corrective Action; Row headers: Fan error",
+        generation_method="unit_test",
+        source_metadata={"product_model": "XG-X"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "chunk-fan-action",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["replace", "CA-F100"],
+                "snippet": "Column headers: Corrective Action; Row headers: Fan error",
+            }
+        ],
+    )
+    seen_payload = {}
+
+    def fake_chat_json(**kwargs):
+        seen_payload.update(json.loads(kwargs["messages"][1]["content"]))
+        return (
+            {"contains_required_information": False, "missing_information": [], "reason": ""},
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.chat_json", fake_chat_json)
+    retrieved = [
+        {
+            "chunk_id": "chunk-fan-action",
+            "source_document_id": "doc-xgx",
+            "content": (
+                "Column headers: Corrective Action; Row headers: Fan error; "
+                "Cell value: Replace the fan unit with CA-F100.; Row: 1; Column: 2"
+            ),
+        },
+        {
+            "chunk_id": "consolidated-fan-row",
+            "source_document_id": "doc-xgx",
+            "content": (
+                "Error Message: Fan error.; Cause: The fan unit failed.; "
+                "Corrective Action: Replace the fan unit with CA-F100.; Error Code: 10"
+            ),
+        },
+    ]
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Corrective action: Replace the fan unit with CA-F100.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "consolidated-fan-row", "pages": [10]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        retrieved,
+        use_llm_required_info_judge=True,
+    )
+
+    assert "Cell value: Replace the fan unit with CA-F100" in seen_payload["expected_evidence"]
+    assert scored["passed"] is True
+    assert scored["exact_evidence_answer_support"]["passed"] is True
+    assert scored["evidence_citation_support"]["passed"] is True
+    assert scored["term_check"]["llm_negative_overridden_by_exact_expected_evidence"] is True
+
+
+def test_exact_expected_cell_overrides_lossy_term_check_without_llm_judge():
+    case = RetrievalEvalCase(
+        case_id="case-short-action",
+        query="How should the image variable error be corrected?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="chunk-action",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["parserartifact", "truncatedtoken"],
+        expected_snippet="Column headers: Corrective Action; Row headers: Image variable error",
+        generation_method="unit_test",
+        source_metadata={"product_model": "XG-X"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "chunk-action",
+                "source_document_id": "doc-xgx",
+                "field": "corrective action",
+                "expected_terms": ["parserartifact", "truncatedtoken"],
+                "snippet": "Column headers: Corrective Action; Row headers: Image variable error",
+            }
+        ],
+    )
+    retrieved = [
+        {
+            "chunk_id": "chunk-action",
+            "source_document_id": "doc-xgx",
+            "content": (
+                "Column headers: Corrective Action; Row headers: Image variable error; "
+                "Cell value: Change to a single-camera image variable.; Row: 1; Column: 2"
+            ),
+        }
+    ]
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Corrective action: Change to a single-camera image variable.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "chunk-action", "pages": [10]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        retrieved,
+        use_llm_required_info_judge=False,
+    )
+
+    assert scored["passed"] is True
+    assert scored["term_check"]["exact_expected_evidence_matched"] is True
+
+
+def test_exact_expected_cell_does_not_protect_wrong_neighboring_row(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-light-mode",
+        query="What causes the light head does not support LumiTrax error?",
+        source_document_id="doc-xgx",
+        document_version_id="ver-xgx",
+        source_chunk_id="chunk-lumitrax",
+        source_title="XG-X",
+        source_filename="xgx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=10,
+        page_to=10,
+        expected_terms=["light", "support", "LumiTrax", "set"],
+        expected_snippet="The light head does not support LumiTrax.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "XG-X"},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "chunk-lumitrax",
+                "source_document_id": "doc-xgx",
+                "field": "cause",
+                "expected_terms": ["light", "support", "LumiTrax", "set"],
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: (
+            {
+                "contains_required_information": False,
+                "missing_information": ["The answer describes MultiSpectrum instead of LumiTrax."],
+                "reason": "Wrong troubleshooting row.",
+            },
+            "{}",
+        ),
+    )
+    retrieved = [
+        {
+            "chunk_id": "chunk-lumitrax",
+            "source_document_id": "doc-xgx",
+            "content": (
+                "Column headers: Cause; Row headers: The light head does not support LumiTrax.; "
+                "Cell value: A light head that does not support LumiTrax is set as the LumiTrax light."
+            ),
+        }
+    ]
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "A light head that does not support MultiSpectrum Mode is set as the MultiSpectrum light.",
+            "citations": [{"document_id": "doc-xgx", "chunk_id": "chunk-lumitrax", "pages": [10]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        retrieved,
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is False
+    assert scored["exact_evidence_answer_support"]["passed"] is False
+    assert scored["term_check"]["passed"] is False
 
 
 def test_answer_response_scoring_requires_all_multi_step_documents():
@@ -2238,6 +2445,80 @@ def test_answer_response_scoring_rejects_composite_chunk_with_sibling_identifier
     assert "expected_evidence_not_cited" in scored["failure_reasons"]
 
 
+def test_answer_response_scoring_accepts_equivalent_duplicate_troubleshooting_table_row():
+    case = RetrievalEvalCase(
+        case_id="duplicate-troubleshooting-row",
+        query=(
+            'For error 13302, what should I do when CV-X482 shows '
+            '"Unable to output to the PLC-Link due to a full output buffer"?'
+        ),
+        source_document_id="doc-cvx",
+        document_version_id="ver-cvx",
+        source_chunk_id="expected-remedy",
+        source_title="CV-X Manual",
+        source_filename="CV-X.pdf",
+        chunk_type="table_record",
+        section_path="Errors",
+        page_from=1281,
+        page_to=1281,
+        expected_terms=["reduce", "amount", "measurement", "slower"],
+        expected_snippet=(
+            "Column headers: Remedy; Row headers: 13302 Unable Link; "
+            "Cell value: Reduce the amount of data so each measurement is output at a slower rate."
+        ),
+        generation_method="table_sibling_error_cause_action_user_variant_10",
+        source_metadata={},
+        retrieval_task="multi_step_retrieval",
+        expected_evidence=[
+            {
+                "chunk_id": "expected-remedy",
+                "source_document_id": "doc-cvx",
+                "field": "remedy",
+                "expected_terms": ["reduce", "amount", "measurement", "slower"],
+                "snippet": "Reduce the amount of data so each measurement is output at a slower rate.",
+            }
+        ],
+    )
+    cited_value = (
+        "Reduce the amount of data to be output so the data is output via PLC-Link at a faster rate "
+        "than it builds up. Or, extend the time between triggers to allow for data to be output."
+    )
+    scored = score_answer_response(
+        case,
+        {
+            "answer": f"Corrective action: {cited_value}",
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "duplicate-action", "quote_span": None}],
+            "used_documents": [{"document_id": "doc-cvx"}],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "duplicate-action",
+                "source_document_id": "doc-cvx",
+                "content": (
+                    "Column headers: Corrective Action; Row headers: Unable to output to the PLC-Link "
+                    f"due to a full output buffer; Cell value: {cited_value}; Row: 2; Column: 2"
+                ),
+            }
+        ],
+    )
+
+    assert scored["passed"] is True
+    assert scored["term_check"]["equivalent_cited_evidence_matched"] is True
+    assert scored["evidence_citation_support"]["coverage"][0]["match_type"] == "equivalent_table_row"
+
+
+def test_safe_query_label_trims_descriptive_text_after_series_name():
+    chunk = {
+        "title": "VS Series Vision System with Built-in AI",
+        "source_filename": "manual.pdf",
+        "metadata_json": {"product_family": "VS Series Vision System with Built: in AI"},
+    }
+
+    assert _safe_query_label(chunk) == "VS Series"
+
+
 def test_answer_response_scoring_rejects_composite_chunk_with_swapped_numeric_bindings():
     case = RetrievalEvalCase(
         case_id="answer-composite-swapped-quantity",
@@ -3002,17 +3283,57 @@ def test_build_multi_step_eval_cases_from_sibling_error_rows():
         },
     ]
 
-    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=5)
+    cases = build_multi_step_eval_cases_from_chunks(chunks, max_cases=20)
 
-    assert len(cases) == 3
+    assert len(cases) == 11
     assert cases[0].retrieval_task == "multi_step_retrieval"
     assert "what causes timeout error" in cases[0].query.lower()
     assert cases[0].expected_source_chunk_ids == ["cause-cell", "action-cell"]
-    assert cases[1].generation_method == "table_sibling_error_cause"
-    assert cases[1].expected_source_chunk_ids == ["cause-cell"]
-    assert cases[2].generation_method == "table_sibling_error_action"
-    assert cases[2].expected_source_chunk_ids == ["action-cell"]
+    cause_cases = [case for case in cases if case.generation_method == "table_sibling_error_cause" or case.generation_method.startswith("table_sibling_error_cause_user_")]
+    action_cases = [case for case in cases if case.generation_method == "table_sibling_error_action" or case.generation_method.startswith("table_sibling_error_action_user_")]
+    assert len(cause_cases) == 3
+    assert all(case.expected_source_chunk_ids == ["cause-cell"] for case in cause_cases)
+    assert len(action_cases) == 3
+    assert all(case.expected_source_chunk_ids == ["action-cell"] for case in action_cases)
     assert len(cases[0].expected_evidence or []) == 2
+    assert all(multi_step_case_quality_rejection_reason(case) is None for case in cases)
+    assert multi_step_case_quality_rejection_reason(
+        cases[0].__class__(**{**cases[0].to_dict(), "query": f"Which chunk id is {cases[0].source_chunk_id}?"})
+    ) == "internal_metadata_cue"
+
+
+def test_troubleshooting_question_anchor_is_not_cut_midword_or_reduced_to_generic_sentence():
+    long_error = (
+        "Updating the registered image information at every process is not possible due to the "
+        "maximum image capture area being greater than 26.21 million pixels."
+    )
+    generic_prefix_error = (
+        "The following error occurred. - Three or more LJ-S heads are connected. "
+        "Turn off the controller and check."
+    )
+
+    assert _short_answer_anchor(long_error) == long_error
+    assert _short_answer_anchor(generic_prefix_error) == generic_prefix_error
+
+
+def test_troubleshooting_question_qualifier_keeps_mode_specific_context_without_causal_answer():
+    qualifier = _troubleshooting_query_qualifier(
+        (
+            "In the LumiTrax mode's mobile tracking for 21-megapixel cameras, "
+            "the pattern region was set to a width of 2432 pixels or more."
+        ),
+        "Pattern region must be less than 2432 pixels in width and 2050 pixels in height.",
+    )
+
+    assert qualifier == "In the LumiTrax mode's mobile tracking for 21-megapixel cameras"
+    assert "pattern region was set" not in qualifier
+    assert _troubleshooting_query_qualifier(
+        "The controller output buffer is full. (Handshake OFF)",
+        "Unable to output to PLC-Link due to a full output buffer.",
+    ) == "With Handshake OFF"
+    assert _troubleshooting_row_identifier(
+        {"metadata_json": {"table_row_headers": ["13302 Unable Link"]}}
+    ) == "For error 13302"
 
 
 def test_sibling_error_rows_do_not_cross_tables_that_reuse_row_numbers():

@@ -26,10 +26,12 @@ else:
 logger = logging.getLogger(__name__)
 FUSED_CANDIDATE_POOL_LIMIT = 30
 DOCUMENT_METADATA_SELECTION_LIMIT = 5
+IDENTIFIER_METADATA_SELECTION_LIMIT = 20
 LEXICAL_TABLE_ROW_LIMIT = 48
 LEXICAL_TABLE_SCAN_LIMIT = 1500
 LEXICAL_CONTEXT_LIMIT = 24
 LEXICAL_CONTEXT_SCAN_LIMIT = 1500
+_TROUBLESHOOTING_LEXICAL_CACHE: dict[tuple[object, ...], list[SearchResult]] = {}
 LEXICAL_TABLE_STOPWORDS = {
     "about",
     "after",
@@ -139,6 +141,37 @@ def _chunk_search_filters(filters: dict[str, object], metadata_filters: dict[str
     return metadata_filters
 
 
+def _exact_identifier_document_ids(
+    metadata_hits: list[dict[str, object]],
+    analysis: QueryAnalysis,
+) -> list[str]:
+    identifier = getattr(analysis, "product_model", None) or getattr(analysis, "part_number", None)
+    expected = _compact_identifier(str(identifier or ""))
+    if not expected:
+        return []
+    matched: list[str] = []
+    for hit in metadata_hits:
+        payload = hit.get("payload") if isinstance(hit.get("payload"), dict) else {}
+        values = [
+            payload.get("product_model"),
+            *(payload.get("product_models") or []),
+            *(payload.get("devices") or []),
+            *(payload.get("part_numbers") or []),
+        ]
+        compact_values = {_compact_identifier(str(value)) for value in values if str(value or "").strip()}
+        document_id = str(hit.get("source_document_id") or "")
+        if document_id and expected in compact_values and document_id not in matched:
+            matched.append(document_id)
+    return matched
+
+
+def _metadata_selection_limit(analysis: QueryAnalysis) -> int:
+    """Search a wider document pool when the query names an exact identifier."""
+    if getattr(analysis, "product_model", None) or getattr(analysis, "part_number", None):
+        return IDENTIFIER_METADATA_SELECTION_LIMIT
+    return DOCUMENT_METADATA_SELECTION_LIMIT
+
+
 def _special_route_filters(base_filters: dict[str, object], analysis: QueryAnalysis) -> list[dict[str, object]]:
     routes: list[dict[str, object]] = []
     if "structured_lookup" in analysis.query_types:
@@ -235,6 +268,11 @@ def _should_run_extra_table_vector_search(analysis: QueryAnalysis) -> bool:
 def _should_run_table_lexical_search(analysis: QueryAnalysis) -> bool:
     if "structured_lookup" not in analysis.query_types:
         return True
+    # A cause/remedy request needs exact row text even when a product family is
+    # named. Vector-only routing can favor semantically similar errors from the
+    # same family and omit the requested table row.
+    if "troubleshooting" in analysis.query_types and _troubleshooting_query_anchor(analysis.raw_query):
+        return True
     if analysis.product_model or analysis.product_family or analysis.part_number:
         return False
     return True
@@ -314,7 +352,9 @@ def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
     ):
         return []
     terms: list[str] = []
-    for term in tokenize(query):
+    troubleshooting_anchor = _troubleshooting_query_anchor(query) if "troubleshooting" in analysis.query_types else ""
+    lexical_source = troubleshooting_anchor or query
+    for term in tokenize(lexical_source):
         normalized = re.sub(r"[^a-z0-9]+", "", term.lower())
         if (len(normalized) < 4 and not any(char.isdigit() for char in normalized)) or normalized in LEXICAL_TABLE_STOPWORDS:
             continue
@@ -681,6 +721,9 @@ def run_table_lexical_search(
             where.append(f"metadata_json->>%s = any(%s)")
             params.extend([key, [str(item) for item in values]])
     required_terms = [] if is_comparison_lookup else _lexical_table_content_terms(terms)
+    troubleshooting_phrase = ""
+    if "troubleshooting" in analysis.query_types:
+        troubleshooting_phrase = _compact_identifier(_troubleshooting_query_anchor(query))
     symbol_terms = _lexical_table_symbol_terms(terms)
     if is_comparison_lookup:
         like_terms: list[str] = []
@@ -694,6 +737,9 @@ def run_table_lexical_search(
                 + ")"
             )
             params.extend([f"%{term}%" for term in like_terms])
+    elif troubleshooting_phrase:
+        where.append("regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s")
+        params.append(f"%{troubleshooting_phrase}%")
     elif required_terms and len(symbol_terms) < 3:
         where.extend(["regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s"] * len(required_terms))
         params.extend([f"%{term}%" for term in required_terms])
@@ -959,6 +1005,31 @@ def run_table_lexical_search(
                 deduped.append(result)
             results = deduped
     return results[:limit]
+
+
+def _run_cached_table_lexical_search(
+    query: str,
+    corpus_ids: list[str],
+    filters: dict[str, object],
+    analysis: QueryAnalysis,
+) -> list[SearchResult]:
+    anchor = _troubleshooting_query_anchor(query) if "troubleshooting" in analysis.query_types else ""
+    if not anchor:
+        return run_table_lexical_search(query, corpus_ids, filters, analysis)
+    cache_key = (
+        tuple(corpus_ids),
+        tuple(sorted((str(key), repr(value)) for key, value in filters.items())),
+        _compact_identifier(anchor),
+        tuple(str(value) for value in analysis.product_identifiers),
+    )
+    cached = _TROUBLESHOOTING_LEXICAL_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    results = run_table_lexical_search(query, corpus_ids, filters, analysis)
+    if len(_TROUBLESHOOTING_LEXICAL_CACHE) >= 512:
+        _TROUBLESHOOTING_LEXICAL_CACHE.pop(next(iter(_TROUBLESHOOTING_LEXICAL_CACHE)))
+    _TROUBLESHOOTING_LEXICAL_CACHE[cache_key] = results
+    return results
 
 
 def _lexical_context_terms(query: str, analysis: QueryAnalysis) -> list[str]:
@@ -2093,6 +2164,240 @@ def _promote_structured_table_candidates(
     return deduped
 
 
+def _troubleshooting_query_anchor(query: str) -> str:
+    # Prefer the complete symptom in natural cause/remedy questions.  A quoted
+    # span inside that symptom may be a setting or menu label (for example,
+    # "Axes Configuration"), not the alarm text itself.
+    patterns = (
+        r"\bwhat causes\s+(.+?)(?:\s+for\s+[^,?]+)?(?:,\s+and|\s+and how|\?|$)",
+        r"\bhow should\s+(.+?)(?:\s+for\s+.+?)?\s+be corrected(?:\?|$)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, query, flags=re.I)
+        if match:
+            return match.group(1).strip(" .?\"'")
+    reported = re.search(
+        r"\b(?:reports?|shows?|displays?|says?)\s+[\"“](.+?)[\"”]",
+        query,
+        flags=re.I,
+    )
+    if reported:
+        return reported.group(1).strip(" .?\"'")
+    quoted = re.search(r'["“](.+?)["”]', query)
+    if quoted:
+        return quoted.group(1).strip(" .?\"'")
+    return ""
+
+
+def _troubleshooting_requested_table_fields(query: str) -> list[set[str]]:
+    fields: list[set[str]] = []
+    if re.search(r"\b(?:cause|causes|caused|why)\b", query, flags=re.I):
+        fields.append({"cause"})
+    if re.search(r"\b(?:correct|corrected|corrective|remedy|resolve|fix|how should|what should)\b", query, flags=re.I):
+        fields.append({"correctiveaction", "remedy"})
+    return fields or [{"cause", "correctiveaction", "remedy"}]
+
+
+def _troubleshooting_table_siblings(
+    results: list[SearchResult],
+    analysis: QueryAnalysis,
+    *,
+    limit: int = 80,
+) -> list[SearchResult]:
+    """Load sibling cells for retrieved troubleshooting rows.
+
+    Cause and corrective-action cells are indexed independently. A reranker can
+    retain one and drop the other even though both belong to the exact same
+    table row. Expanding by document, page, section, and row keeps that relation
+    intact without broadening to unrelated manuals.
+    """
+    if "troubleshooting" not in analysis.query_types:
+        return []
+    keys: list[tuple[str, int, str, str]] = []
+    for result in results:
+        row = result.metadata.get("table_row")
+        if row is None or not result.pages:
+            continue
+        key = (
+            result.document_version_id,
+            min(result.pages),
+            " / ".join(result.section_path) or "Document",
+            str(row),
+        )
+        if key not in keys:
+            keys.append(key)
+    if not keys:
+        return []
+    where = " or ".join(
+        [
+            "(document_version_id = %s and page_from <= %s and page_to >= %s "
+            "and section_path_text = %s and metadata_json->>'table_row' = %s)"
+        ]
+        * len(keys)
+    )
+    params: list[object] = []
+    for version_id, page, section_path, row in keys:
+        params.extend([version_id, page, page, section_path, row])
+    rows = fetch_all(
+        f"""
+        select id, document_version_id, source_document_id, title, section_path_text,
+               page_from, page_to, content, metadata_json, priority_score
+        from retrieval_chunks
+        where chunk_type = 'table_record' and is_active = true and ({where})
+        order by priority_score desc, id
+        limit {int(limit)}
+        """,
+        tuple(params),
+    )
+    siblings: list[SearchResult] = []
+    seen = {result.chunk_id for result in results}
+    for row in rows:
+        chunk_id = str(row["id"])
+        if chunk_id in seen:
+            continue
+        metadata = {
+            **dict(row.get("metadata_json") or {}),
+            "chunk_type": "table_record",
+            "chunk_level": 1,
+            "content_for_rerank": str(row["content"]),
+            "retrieval_stage": "troubleshooting_table_sibling",
+        }
+        section_path = metadata.get("section_path")
+        if not isinstance(section_path, list) or not section_path:
+            section_path = [str(row["section_path_text"])]
+        siblings.append(
+            SearchResult(
+                chunk_id=chunk_id,
+                score=float(row.get("priority_score") or 0.0),
+                title=str(row["title"]),
+                document_version_id=str(row["document_version_id"]),
+                source_document_id=str(row["source_document_id"]),
+                pages=list(range(int(row["page_from"]), int(row["page_to"]) + 1)),
+                section_path=section_path,
+                content=str(row["content"]),
+                metadata=metadata,
+            )
+        )
+        seen.add(chunk_id)
+    return siblings
+
+
+def _promote_troubleshooting_table_candidates(
+    primary_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    analysis: QueryAnalysis,
+    *,
+    limit: int = 12,
+) -> list[SearchResult]:
+    if "troubleshooting" not in analysis.query_types or not supplemental_results:
+        return primary_results
+    anchor = _troubleshooting_query_anchor(analysis.raw_query)
+    anchor_terms = _text_terms(anchor).difference(LEXICAL_TABLE_STOPWORDS)
+    if len(anchor_terms) < 2:
+        return primary_results
+    required_overlap = max(2, min(5, len(anchor_terms) // 2 + 1))
+    promoted: list[SearchResult] = []
+    seen: set[str] = set()
+    for field_terms in _troubleshooting_requested_table_fields(analysis.raw_query):
+        candidates: list[tuple[float, SearchResult]] = []
+        for result in supplemental_results:
+            if result.chunk_id in seen or str(result.metadata.get("chunk_type") or "") != "table_record":
+                continue
+            if not _table_result_matches_requested_field_metadata(result.metadata, field_terms):
+                continue
+            evidence = " ".join(
+                str(part)
+                for part in [result.content, result.metadata.get("content_for_rerank"), result.metadata.get("local_rerank_context")]
+                if part
+            )
+            overlap = len(anchor_terms.intersection(_text_terms(evidence)))
+            if overlap < required_overlap:
+                continue
+            phrase_bonus = 4.0 if _compact_identifier(anchor) in _compact_identifier(evidence) else 0.0
+            candidates.append((phrase_bonus + overlap + result.score, result))
+        if not candidates:
+            continue
+        _score, candidate = max(candidates, key=lambda item: item[0])
+        seen.add(candidate.chunk_id)
+        promoted.append(
+            candidate.model_copy(
+                update={"metadata": {**candidate.metadata, "retrieval_stage": "troubleshooting_table_promoted"}}
+            )
+        )
+    if not promoted:
+        return primary_results
+    combined = [*promoted, *primary_results]
+    deduped: list[SearchResult] = []
+    seen_ids: set[str] = set()
+    for result in combined:
+        if result.chunk_id in seen_ids:
+            continue
+        seen_ids.add(result.chunk_id)
+        deduped.append(result)
+        if len(deduped) >= limit:
+            break
+    return deduped
+
+
+def _exact_troubleshooting_table_results(
+    lexical_results: list[SearchResult],
+    analysis: QueryAnalysis,
+    *,
+    limit: int = 12,
+) -> list[SearchResult]:
+    """Return complete requested fields when lexical search found the exact alarm row."""
+    anchor = _troubleshooting_query_anchor(analysis.raw_query)
+    compact_anchor = _compact_identifier(anchor)
+    if len(compact_anchor) < 10:
+        return []
+    selected: list[SearchResult] = []
+    seen: set[str] = set()
+    identifiers = [str(value) for value in analysis.product_identifiers if str(value)]
+    for field_terms in _troubleshooting_requested_table_fields(analysis.raw_query):
+        matches = []
+        for result in lexical_results:
+            if result.chunk_id in seen or not _table_result_matches_requested_field_metadata(result.metadata, field_terms):
+                continue
+            evidence = " ".join(
+                [
+                    str(result.content or ""),
+                    " ".join(str(item) for item in result.metadata.get("table_row_headers") or []),
+                ]
+            )
+            if compact_anchor not in _compact_identifier(evidence):
+                continue
+            row_headers = [str(item) for item in result.metadata.get("table_row_headers") or []]
+            normalized_anchor = re.sub(r"[^a-z0-9]+", " ", anchor.lower()).strip()
+            anchor_match_score = 0.0
+            for header in row_headers:
+                normalized_header = re.sub(r"[^a-z0-9]+", " ", header.lower()).strip()
+                if normalized_header == normalized_anchor:
+                    anchor_match_score = max(anchor_match_score, 100.0)
+                elif normalized_header.endswith(normalized_anchor):
+                    anchor_match_score = max(anchor_match_score, 95.0)
+                elif normalized_anchor in normalized_header:
+                    anchor_match_score = max(
+                        anchor_match_score,
+                        80.0 * len(normalized_anchor) / max(1, len(normalized_header)),
+                    )
+            identifier_match = not identifiers or any(
+                _result_matches_primary_identifier(result, identifier) for identifier in identifiers
+            )
+            matches.append((identifier_match, anchor_match_score, result.score, result))
+        if not matches:
+            return []
+        identifier_match, _anchor_score, _score, best = max(matches, key=lambda item: (item[0], item[1], item[2]))
+        if identifiers and not identifier_match:
+            return []
+        selected.append(
+            best.model_copy(
+                update={"metadata": {**best.metadata, "retrieval_stage": "exact_troubleshooting_table"}}
+            )
+        )
+        seen.add(best.chunk_id)
+    return selected[:limit]
+
+
 def _select_family_candidates(
     results: list[SearchResult],
     analysis: QueryAnalysis,
@@ -2476,12 +2781,67 @@ def assemble_context(results: list[SearchResult], *, limit: int = 10) -> list[Se
     return assembled
 
 
+def _attach_document_selection(
+    results: list[SearchResult],
+    metadata_document_hits: list[dict[str, object]],
+) -> list[SearchResult]:
+    if not metadata_document_hits:
+        return results
+    document_selection = [
+        {
+            "source_document_id": hit.get("source_document_id"),
+            "score": hit.get("score"),
+            "retrieval_stage": hit.get("retrieval_stage"),
+            "title": (hit.get("payload") or {}).get("title") if isinstance(hit.get("payload"), dict) else None,
+            "source_filename": (hit.get("payload") or {}).get("source_filename") if isinstance(hit.get("payload"), dict) else None,
+        }
+        for hit in metadata_document_hits
+    ]
+    return [
+        result.model_copy(
+            update={
+                "metadata": {
+                    **result.metadata,
+                    "document_selection_stage": "metadata_embedding",
+                    "selected_document_metadata_hits": document_selection,
+                }
+            }
+        )
+        for result in results
+    ]
+
+
 def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 10) -> list[SearchResult]:
     store = QdrantStore()
     analysis = analyze_query(query)
-    search_filters, metadata_document_hits = select_documents_from_metadata(store, query, corpus_ids, filters)
+    search_filters, metadata_document_hits = select_documents_from_metadata(
+        store,
+        query,
+        corpus_ids,
+        filters,
+        limit=_metadata_selection_limit(analysis),
+    )
+    exact_document_ids: list[str] = []
+    if not _has_explicit_document_scope(filters):
+        exact_document_ids = _exact_identifier_document_ids(metadata_document_hits, analysis)
+        if exact_document_ids:
+            search_filters = {**filters, "source_document_id": exact_document_ids}
     chunk_search_filters = _chunk_search_filters(filters, search_filters, analysis)
+    supplemental_filters = chunk_search_filters if exact_document_ids else filters
     broad_vector_enabled = _should_run_broad_vector_search(analysis)
+    table_lexical_results = (
+        _annotate_stage_metadata(_run_cached_table_lexical_search(query, corpus_ids, supplemental_filters, analysis), "table_lexical")
+        if _should_run_table_lexical_search(analysis)
+        else []
+    )
+    exact_troubleshooting = _exact_troubleshooting_table_results(table_lexical_results, analysis, limit=12)
+    if exact_troubleshooting:
+        siblings = _troubleshooting_table_siblings(exact_troubleshooting, analysis)
+        assembled = assemble_context(
+            _dedupe_results([*exact_troubleshooting, *siblings], analysis),
+            limit=limit,
+        )
+        return _attach_document_selection(assembled, metadata_document_hits)
     dense_results = (
         _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, chunk_search_filters), "dense")
         if broad_vector_enabled
@@ -2497,13 +2857,8 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
         if _should_run_extra_table_vector_search(analysis)
         else []
     )
-    table_lexical_results = (
-        _annotate_stage_metadata(run_table_lexical_search(query, corpus_ids, filters, analysis), "table_lexical")
-        if _should_run_table_lexical_search(analysis)
-        else []
-    )
     contextual_lexical_results = _annotate_stage_metadata(
-        run_contextual_lexical_search(query, corpus_ids, filters, analysis),
+        run_contextual_lexical_search(query, corpus_ids, supplemental_filters, analysis),
         "contextual_lexical",
     )
     special_results = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, chunk_search_filters, analysis), "special")
@@ -2527,34 +2882,14 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=chunk_search_filters, limit=12), "family_selected")
     enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=12)
     reranked = _annotate_stage_metadata(rerank_results(enriched, query, limit=12), "reranked")
+    troubleshooting_siblings = _troubleshooting_table_siblings(reranked, analysis)
+    troubleshooting_supplemental = [*table_lexical_results, *troubleshooting_siblings]
     reranked = _promote_structured_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     reranked = _promote_comparison_table_candidates(reranked, table_lexical_results, analysis, limit=12)
+    reranked = _promote_troubleshooting_table_candidates(reranked, troubleshooting_supplemental, analysis, limit=12)
     deduped = _dedupe_results(reranked, analysis)
     assembled = assemble_context(deduped, limit=limit)
-    if not metadata_document_hits:
-        return assembled
-    document_selection = [
-        {
-            "source_document_id": hit.get("source_document_id"),
-            "score": hit.get("score"),
-            "retrieval_stage": hit.get("retrieval_stage"),
-            "title": (hit.get("payload") or {}).get("title") if isinstance(hit.get("payload"), dict) else None,
-            "source_filename": (hit.get("payload") or {}).get("source_filename") if isinstance(hit.get("payload"), dict) else None,
-        }
-        for hit in metadata_document_hits
-    ]
-    return [
-        result.model_copy(
-            update={
-                "metadata": {
-                    **result.metadata,
-                    "document_selection_stage": "metadata_embedding",
-                    "selected_document_metadata_hits": document_selection,
-                }
-            }
-        )
-        for result in assembled
-    ]
+    return _attach_document_selection(assembled, metadata_document_hits)
 
 
 def document_versions_for_results(results: list[SearchResult]) -> list[dict[str, object]]:

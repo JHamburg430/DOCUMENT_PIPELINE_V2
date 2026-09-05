@@ -283,6 +283,11 @@ def test_query_analysis_marks_cause_and_correction_questions_as_structured_looku
     assert "troubleshooting" in analysis.query_types
     assert "table_record" in analysis.preferred_chunk_types
 
+    cause_only = analyze_query("What causes the Image Stitching Height Image error for XG-X Series?")
+    action_only = analyze_query("How should the Image Stitching Height Image issue be corrected for XG-X Series?")
+    assert {"structured_lookup", "troubleshooting"}.issubset(cause_only.query_types)
+    assert {"structured_lookup", "troubleshooting"}.issubset(action_only.query_types)
+
 
 def test_query_analysis_treats_letter_number_series_as_product_family_not_error_code():
     analysis = analyze_query("When controlling image capture timing for X8000 Series, what detail should be used?")
@@ -382,6 +387,16 @@ def test_structured_lookup_with_product_family_skips_table_lexical_search():
     assert analysis.product_family == "XG-X"
     assert retriever._should_run_extra_table_vector_search(analysis) is True
     assert retriever._should_run_table_lexical_search(analysis) is False
+
+
+def test_cause_or_remedy_lookup_with_product_family_keeps_exact_table_lexical_search():
+    analysis = analyze_query(
+        "How should Failed to connect to [Target IP Address] for VS Series be corrected?"
+    )
+
+    assert "structured_lookup" in analysis.query_types
+    assert analysis.product_family == "VS"
+    assert retriever._should_run_table_lexical_search(analysis) is True
 
 
 def test_structured_lookup_without_explicit_identifier_keeps_table_lexical_search():
@@ -1613,6 +1628,34 @@ def test_metadata_document_selection_falls_back_when_metadata_index_has_no_hits(
     assert hits == []
 
 
+def test_exact_model_identifier_limits_metadata_hits_to_matching_manual():
+    analysis = analyze_query("How should error 13302 be corrected for CV-X482?")
+    hits = [
+        {
+            "source_document_id": "doc-xgx",
+            "payload": {"product_model": "XG-X", "identifier_tokens": ["XG-X"]},
+        },
+        {
+            "source_document_id": "doc-cvx",
+            "payload": {
+                "product_model": "CV-X482D",
+                "product_models": ["CV-X482"],
+                "identifier_tokens": ["CV-X482", "CV-X492"],
+            },
+        },
+    ]
+
+    assert retriever._exact_identifier_document_ids(hits, analysis) == ["doc-cvx"]
+
+
+def test_exact_model_identifier_uses_wider_metadata_candidate_pool():
+    exact_analysis = analyze_query("How should error 13302 be corrected for CV-X482?")
+    general_analysis = analyze_query("How should this controller error be corrected?")
+
+    assert retriever._metadata_selection_limit(exact_analysis) == retriever.IDENTIFIER_METADATA_SELECTION_LIMIT
+    assert retriever._metadata_selection_limit(general_analysis) == retriever.DOCUMENT_METADATA_SELECTION_LIMIT
+
+
 def test_document_metadata_index_aggregates_generic_chunk_metadata_signals():
     document = {"metadata_json": {"product_models": ["Series-100"]}}
     chunk_rows = [
@@ -2420,6 +2463,24 @@ def test_table_lexical_terms_include_comparison_short_codes():
     assert {"ljs8000", "ljx8000", "errc", "t1", "msab"}.issubset(set(terms))
 
 
+def test_troubleshooting_anchor_keeps_full_symptom_when_it_contains_quoted_setting():
+    query = (
+        'What causes Calibration data generated under different conditions from the "Axes Configuration" '
+        'of the stage setting. This calibration data cannot be edited for XG-X Series, and how should it be corrected?'
+    )
+
+    assert retriever._troubleshooting_query_anchor(query) == (
+        'Calibration data generated under different conditions from the "Axes Configuration" '
+        "of the stage setting. This calibration data cannot be edited"
+    )
+
+
+def test_troubleshooting_anchor_extracts_alarm_reported_in_quotes():
+    query = 'When Model-1 reports "The output buffer is full", what should I do?'
+
+    assert retriever._troubleshooting_query_anchor(query) == "The output buffer is full"
+
+
 def test_comparison_table_content_terms_include_failure_and_plural_variants():
     analysis = analyze_query("Compare IV-HG500CA memory read errors with XG-X unsupported SD card access failure.")
     terms = retriever._lexical_table_terms(analysis.raw_query, analysis)
@@ -2727,6 +2788,100 @@ def test_structured_table_promotion_preserves_top_lexical_cell_after_rerank():
     assert promoted[0].chunk_id == "expected-cell"
     assert promoted[0].metadata["retrieval_stage"] == "structured_table_promoted"
     assert promoted[1].chunk_id == "wrong-cell"
+
+
+def test_troubleshooting_table_promotion_restores_matching_cause_and_action_after_rerank():
+    query = (
+        "What causes Image Stitching unit is not available when using the Height Image, "
+        "and how should it be corrected?"
+    )
+    analysis = analyze_query(query)
+    reranked = [
+        SearchResult(
+            chunk_id="generic-height-section",
+            score=0.9,
+            title="Manual",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[8],
+            section_path=["Height Image"],
+            content="General Height Image setup instructions.",
+            metadata={"chunk_type": "section_window"},
+        )
+    ]
+    lexical = [
+        SearchResult(
+            chunk_id="cause-cell",
+            score=0.8,
+            title="Manual",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Cause; Row headers: Image Stitching unit is not available when using the Height Image.; "
+                "Cell value: A multi-camera image variable was selected in 3D Capture Mode."
+            ),
+            metadata={"chunk_type": "table_record", "table_column_headers": ["Cause"]},
+        ),
+        SearchResult(
+            chunk_id="action-cell",
+            score=0.7,
+            title="Manual",
+            document_version_id="ver-1",
+            source_document_id="doc-1",
+            pages=[10],
+            section_path=["Troubleshooting"],
+            content=(
+                "Column headers: Corrective Action; Row headers: Image Stitching unit is not available when using the Height Image.; "
+                "Cell value: Use an image variable that is not the multi-camera type."
+            ),
+            metadata={"chunk_type": "table_record", "table_column_headers": ["Corrective Action"]},
+        ),
+    ]
+
+    promoted = retriever._promote_troubleshooting_table_candidates(reranked, lexical, analysis, limit=12)
+
+    assert [result.chunk_id for result in promoted[:2]] == ["cause-cell", "action-cell"]
+    assert all(result.metadata["retrieval_stage"] == "troubleshooting_table_promoted" for result in promoted[:2])
+
+
+def test_troubleshooting_table_siblings_restore_dropped_action_cell(monkeypatch):
+    analysis = analyze_query("What causes the encoder error, and how should it be corrected?")
+    cause = SearchResult(
+        chunk_id="cause-cell",
+        score=0.9,
+        title="Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[10],
+        section_path=["Troubleshooting"],
+        content="Column headers: Cause; Row headers: Encoder error; Cell value: The encoder is disconnected.",
+        metadata={"chunk_type": "table_record", "table_row": 7},
+    )
+    monkeypatch.setattr(
+        retriever,
+        "fetch_all",
+        lambda *_args, **_kwargs: [
+            {
+                "id": "action-cell",
+                "document_version_id": "ver-1",
+                "source_document_id": "doc-1",
+                "title": "Manual",
+                "section_path_text": "Troubleshooting",
+                "page_from": 10,
+                "page_to": 10,
+                "content": "Column headers: Corrective Action; Row headers: Encoder error; Cell value: Connect the encoder.",
+                "metadata_json": {"chunk_type": "table_record", "table_row": 7},
+                "priority_score": 0.7,
+            }
+        ],
+    )
+
+    siblings = retriever._troubleshooting_table_siblings([cause], analysis)
+
+    assert [item.chunk_id for item in siblings] == ["action-cell"]
+    assert siblings[0].metadata["retrieval_stage"] == "troubleshooting_table_sibling"
 
 
 def test_comparison_table_lexical_adds_bounded_row_key_supplement(monkeypatch):
