@@ -9089,12 +9089,12 @@
       "removal_result": "not attempted; no worktree was selected",
       "registry_check": "108 total registrations; 107 absent/prunable; only the dirty primary checkout exists on disk",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
-      "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 795 user/concurrent paths",
+      "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 797 user/concurrent paths",
       "post_removal_registry_check": "not applicable; no removal attempted",
       "post_removal_path_check": "not applicable; no removal attempted",
       "post_removal_git_status_check": "not applicable; no removal attempted",
-      "timestamp": "2026-09-06T12:58:00Z",
-      "tracking_method": "tracking-only commit assembled from origin/main 169760b with an isolated Git index; no worktree created",
+      "timestamp": "2026-09-06T13:53:00Z",
+      "tracking_method": "tracking-only commit assembled from origin/main a4a1050 with an isolated Git index; no worktree created",
       "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
     },
     "dataset_ledger_extension_containment": {
@@ -9220,12 +9220,12 @@
       "removal_result": "not attempted; no worktree was selected",
       "registry_check": "108 total registrations; 107 absent/prunable; only the dirty primary checkout exists on disk",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
-      "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 795 user/concurrent paths",
+      "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 797 user/concurrent paths",
       "post_removal_registry_check": "not applicable; no removal attempted",
       "post_removal_path_check": "not applicable; no removal attempted",
       "post_removal_git_status_check": "not applicable; no removal attempted",
-      "timestamp": "2026-09-06T12:58:00Z",
-      "tracking_method": "tracking-only commit assembled from origin/main 169760b with an isolated Git index; no worktree created",
+      "timestamp": "2026-09-06T13:53:00Z",
+      "tracking_method": "tracking-only commit assembled from origin/main a4a1050 with an isolated Git index; no worktree created",
       "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
     }
   },
@@ -12915,12 +12915,12 @@
         "removal_result": "not attempted; no worktree was selected",
         "registry_check": "108 total registrations; 107 absent/prunable; only the dirty primary checkout exists on disk",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
-        "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 795 user/concurrent paths",
+        "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 797 user/concurrent paths",
         "post_removal_registry_check": "not applicable; no removal attempted",
         "post_removal_path_check": "not applicable; no removal attempted",
         "post_removal_git_status_check": "not applicable; no removal attempted",
-        "timestamp": "2026-09-06T12:58:00Z",
-        "tracking_method": "tracking-only commit assembled from origin/main 169760b with an isolated Git index; no worktree created",
+        "timestamp": "2026-09-06T13:53:00Z",
+        "tracking_method": "tracking-only commit assembled from origin/main a4a1050 with an isolated Git index; no worktree created",
         "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
       },
       "dataset_ledger_extension_containment": {
@@ -13046,12 +13046,12 @@
         "removal_result": "not attempted; no worktree was selected",
         "registry_check": "108 total registrations; 107 absent/prunable; only the dirty primary checkout exists on disk",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
-        "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 795 user/concurrent paths",
+        "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 797 user/concurrent paths",
         "post_removal_registry_check": "not applicable; no removal attempted",
         "post_removal_path_check": "not applicable; no removal attempted",
         "post_removal_git_status_check": "not applicable; no removal attempted",
-        "timestamp": "2026-09-06T12:58:00Z",
-        "tracking_method": "tracking-only commit assembled from origin/main 169760b with an isolated Git index; no worktree created",
+        "timestamp": "2026-09-06T13:53:00Z",
+        "tracking_method": "tracking-only commit assembled from origin/main a4a1050 with an isolated Git index; no worktree created",
         "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
       }
     },
@@ -14069,15 +14069,15 @@
     "total_questions": 209,
     "unresolved_guardrail_findings": [
       {
-        "finding": "Guardrail commit 169760b and the latest audit through 2026-09-06T12:47:25Z confirm that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
-        "guardrail_commit": "169760b",
-        "guardrail_timestamp": "2026-09-06T12:47:25Z",
+        "finding": "Guardrail commit a4a1050 and the latest audit through 2026-09-06T13:43:00Z confirm that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
+        "guardrail_commit": "a4a1050",
+        "guardrail_timestamp": "2026-09-06T13:43:00Z",
         "severity": "needs_fix",
         "status": "blocked_fail_closed_no_registered_accuracy_worktree",
         "evidence": [
           "Latest guardrail audit independently reproduced exact-model acceptance and wrong-model-only, prefix-collision, and absent-authoritative-model fail-closed controls.",
           "The neighboring-token adverse still selected and cited the wrong-model row, and the higher-scored wrong-model row beside valid exact-model evidence caused both to be rejected.",
-          "Fresh worktree enumeration found 108 registrations, 107 absent/prunable, and only the 795-path dirty primary checkout present.",
+          "Fresh worktree enumeration found 108 registrations, 107 absent/prunable, and only the 797-path dirty primary checkout present.",
           "The dedicated job API endpoint 127.0.0.1:9193 is unavailable; unrelated 127.0.0.1:8600 was not used as accuracy evidence, and no new runtime or answer evidence was claimed."
         ],
         "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout."
@@ -15737,7 +15737,7 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-06T12:58:00Z"
+    "updated_at": "2026-09-06T13:53:00Z"
   },
   "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
   "retrieval_current_failure_categories": {},
@@ -16626,15 +16626,15 @@
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
     {
-      "finding": "Guardrail commit 169760b and the latest audit through 2026-09-06T12:47:25Z confirm that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
-      "guardrail_commit": "169760b",
-      "guardrail_timestamp": "2026-09-06T12:47:25Z",
+      "finding": "Guardrail commit a4a1050 and the latest audit through 2026-09-06T13:43:00Z confirm that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
+      "guardrail_commit": "a4a1050",
+      "guardrail_timestamp": "2026-09-06T13:43:00Z",
       "severity": "needs_fix",
       "status": "blocked_fail_closed_no_registered_accuracy_worktree",
       "evidence": [
         "Latest guardrail audit independently reproduced exact-model acceptance and wrong-model-only, prefix-collision, and absent-authoritative-model fail-closed controls.",
         "The neighboring-token adverse still selected and cited the wrong-model row, and the higher-scored wrong-model row beside valid exact-model evidence caused both to be rejected.",
-        "Fresh worktree enumeration found 108 registrations, 107 absent/prunable, and only the 795-path dirty primary checkout present.",
+        "Fresh worktree enumeration found 108 registrations, 107 absent/prunable, and only the 797-path dirty primary checkout present.",
         "The dedicated job API endpoint 127.0.0.1:9193 is unavailable; unrelated 127.0.0.1:8600 was not used as accuracy evidence, and no new runtime or answer evidence was claimed."
       ],
       "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout."
@@ -18294,5 +18294,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-06T12:58:00Z"
+  "updated_at": "2026-09-06T13:53:00Z"
 }
