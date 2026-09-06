@@ -213,6 +213,29 @@ def test_eval_matrix_view_is_available():
     assert "#ingestion > .panel" in styles_css
 
 
+def test_ingestion_ui_supports_multi_upload_filtering_and_step_details():
+    app_js = (UI_DIR / "app.js").read_text()
+    index_html = (UI_DIR / "index.html").read_text()
+    styles_css = (UI_DIR / "styles.css").read_text()
+
+    assert 'id="ingestion-files" type="file"' in index_html
+    assert "multiple" in index_html
+    assert 'id="ingestion-ingest-selected"' in index_html
+    assert 'id="ingestion-filter-document"' in index_html
+    assert 'id="ingestion-filter-text"' in index_html
+    assert 'id="ingestion-filter-status"' in index_html
+    assert 'id="ingestion-step-detail"' in index_html
+    assert "uploadIngestionDocuments" in app_js
+    assert "ingestSelectedDocuments" in app_js
+    assert "data-ingestion-document" in app_js
+    assert "data-ingestion-run" in app_js
+    assert "data-ingestion-step" in app_js
+    assert "renderIngestionStepDetail" in app_js
+    assert "detail_json" in app_js
+    assert ".ingestion-step-track" in styles_css
+    assert ".ingestion-step-detail" in styles_css
+
+
 def test_question_matrix_loads_active_bank_and_latest_results(monkeypatch, tmp_path):
     reports = tmp_path / "test_reports"
     reports.mkdir()

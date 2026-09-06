@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260904-matrix-only";
+const ASSET_VERSION = "20260905-ingestion-steps";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
 const MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"]);
@@ -32,6 +32,12 @@ const state = {
   runDebug: null,
   runDebugTimer: null,
   ingestionTimer: null,
+  ingestion: {
+    payload: null,
+    selectedDocumentIds: new Set(),
+    selectedRunId: null,
+    selectedStepKey: null,
+  },
   evalRuntime: null,
 };
 
@@ -1544,8 +1550,9 @@ function renderList(items) {
 }
 
 function statusCount(rows = [], status) {
-  const row = rows.find((item) => item.status === status || item.ingest_status === status);
-  return Number(row?.count || 0);
+  return rows
+    .filter((item) => item.status === status || item.ingest_status === status)
+    .reduce((total, item) => total + Number(item.count || 0), 0);
 }
 
 function renderCitations(citations = []) {
@@ -2484,57 +2491,249 @@ async function recoverAfterPageReturn() {
   }
 }
 
-function renderIngestionTable(rows = [], mode = "runs") {
-  if (!rows.length) return '<div class="empty-state">No ingestion records yet.</div>';
-  if (mode === "documents") {
-    return `
-      <table>
-        <thead><tr><th>Updated</th><th>Status</th><th>Corpus</th><th>File</th><th>Pages</th><th>Chunks</th></tr></thead>
-        <tbody>
-          ${rows
-            .map(
-              (row) => `
-                <tr>
-                  <td data-label="Updated">${escapeHtml(row.updated_at)}</td>
-                  <td data-label="Status">${escapeHtml(row.ingest_status)}</td>
-                  <td data-label="Corpus">${escapeHtml(row.corpus_id)}</td>
-                  <td data-label="File">${escapeHtml(row.source_filename)}</td>
-                  <td data-label="Pages">${escapeHtml(row.page_count ?? "")}</td>
-                  <td data-label="Chunks">${escapeHtml(row.chunk_count ?? 0)}</td>
-                </tr>
-              `,
-            )
-            .join("")}
-        </tbody>
-      </table>
-    `;
+function ingestionStatusBadge(status) {
+  const normalized = String(status || "unknown").toLowerCase();
+  const mode = ["completed", "indexed", "parsed"].includes(normalized) ? "pass" : normalized === "failed" ? "fail" : "pending";
+  return `<span class="badge ${mode}">${escapeHtml(normalized)}</span>`;
+}
+
+function ingestionMatches(row) {
+  const documentId = $("ingestion-filter-document").value;
+  const text = $("ingestion-filter-text").value.trim().toLowerCase();
+  const status = $("ingestion-filter-status").value;
+  if (documentId && String(row.document_id) !== documentId) return false;
+  if (status && ![row.status, row.ingest_status].map((value) => String(value || "").toLowerCase()).includes(status)) return false;
+  if (!text) return true;
+  return [row.source_filename, row.corpus_id, row.document_id, row.run_id]
+    .map((value) => String(value || "").toLowerCase())
+    .some((value) => value.includes(text));
+}
+
+function filteredIngestionDocuments() {
+  return (state.ingestion.payload?.recent_documents || []).filter(ingestionMatches);
+}
+
+function filteredIngestionRuns() {
+  return (state.ingestion.payload?.recent_runs || []).filter(ingestionMatches);
+}
+
+function humanizeDetailKey(key) {
+  return String(key || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatIngestionDuration(durationMs) {
+  if (durationMs === null || durationMs === undefined) return '<span class="muted">Not reported</span>';
+  const milliseconds = Number(durationMs);
+  if (milliseconds < 1000) return `${escapeHtml(milliseconds.toFixed(1))} ms`;
+  const seconds = milliseconds / 1000;
+  if (seconds < 60) return `${escapeHtml(seconds.toFixed(1))} seconds`;
+  return `${Math.floor(seconds / 60)} min ${escapeHtml((seconds % 60).toFixed(1))} sec`;
+}
+
+function renderIngestionDetailValue(value) {
+  if (value === null || value === undefined || value === "") return '<span class="muted">Not reported</span>';
+  if (Array.isArray(value)) {
+    if (!value.length) return '<span class="muted">None</span>';
+    return `<ul class="detail-list">${value.map((item) => `<li>${renderIngestionDetailValue(item)}</li>`).join("")}</ul>`;
   }
+  if (typeof value === "object") {
+    return `<dl class="detail-grid nested">${Object.entries(value)
+      .map(([key, item]) => `<dt>${escapeHtml(humanizeDetailKey(key))}</dt><dd>${renderIngestionDetailValue(item)}</dd>`)
+      .join("")}</dl>`;
+  }
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return escapeHtml(value);
+}
+
+function renderIngestionDocuments(rows) {
+  if (!rows.length) return '<div class="empty-state">No documents match the current filters.</div>';
   return `
-    <table>
-      <thead><tr><th>Updated</th><th>Status</th><th>File</th><th>Doc Status</th><th>Pages</th><th>Chunks</th><th>Failure</th></tr></thead>
-      <tbody>
-        ${rows
-          .map(
-            (row) => `
-              <tr>
-                <td data-label="Updated">${escapeHtml(row.updated_at)}</td>
-                <td data-label="Status">${escapeHtml(row.status)}</td>
-                <td data-label="File">${escapeHtml(row.source_filename)}</td>
-                <td data-label="Doc Status">${escapeHtml(row.ingest_status)}</td>
-                <td data-label="Pages">${escapeHtml(row.page_count ?? "")}</td>
-                <td data-label="Chunks">${escapeHtml(row.chunk_count ?? 0)}</td>
-                <td data-label="Failure">${escapeHtml(row.failure_reason || row.failure_class || "")}</td>
-              </tr>
-            `,
-          )
-          .join("")}
-      </tbody>
-    </table>
-  `;
+    <table class="ingestion-documents-table">
+      <thead><tr><th class="selection-column">Select</th><th>Updated</th><th>Status</th><th>Corpus</th><th>File</th><th>Pages</th><th>Chunks</th></tr></thead>
+      <tbody>${rows
+        .map((row) => {
+          const documentId = String(row.document_id);
+          return `<tr>
+            <td data-label="Select"><input class="row-checkbox" type="checkbox" data-ingestion-document="${escapeHtml(documentId)}" ${state.ingestion.selectedDocumentIds.has(documentId) ? "checked" : ""} aria-label="Select ${escapeHtml(row.source_filename)}" /></td>
+            <td data-label="Updated">${escapeHtml(row.updated_at)}</td>
+            <td data-label="Status">${ingestionStatusBadge(row.ingest_status)}</td>
+            <td data-label="Corpus">${escapeHtml(row.corpus_id)}</td>
+            <td data-label="File"><strong>${escapeHtml(row.source_filename)}</strong><small>${escapeHtml(documentId)}</small></td>
+            <td data-label="Pages">${escapeHtml(row.page_count ?? "")}</td>
+            <td data-label="Chunks">${escapeHtml(row.chunk_count ?? 0)}</td>
+          </tr>`;
+        })
+        .join("")}</tbody>
+    </table>`;
+}
+
+function renderIngestionStepDetail() {
+  const target = $("ingestion-step-detail");
+  const run = (state.ingestion.payload?.recent_runs || []).find((item) => String(item.run_id) === state.ingestion.selectedRunId);
+  const step = (run?.steps || []).find((item) => item.step_key === state.ingestion.selectedStepKey);
+  if (!run || !step) {
+    target.className = "ingestion-step-detail empty-state";
+    target.innerHTML = run && !(run.steps || []).length
+      ? "This historical run predates detailed step tracking. New and re-ingested documents record every step."
+      : "Select a run and then a step to inspect its details.";
+    return;
+  }
+  const details = step.detail_json && typeof step.detail_json === "object" ? step.detail_json : {};
+  target.className = "ingestion-step-detail";
+  target.innerHTML = `
+    <div class="section-heading"><div><h4>${escapeHtml(step.label)}</h4><p class="muted">${escapeHtml(run.source_filename)}</p></div>${ingestionStatusBadge(step.status)}</div>
+    <dl class="detail-grid">
+      <dt>Started</dt><dd>${renderIngestionDetailValue(step.started_at)}</dd>
+      <dt>Completed</dt><dd>${renderIngestionDetailValue(step.completed_at)}</dd>
+      <dt>Duration</dt><dd>${formatIngestionDuration(step.duration_ms)}</dd>
+      ${step.error ? `<dt>Error</dt><dd class="error-text">${escapeHtml(step.error)}</dd>` : ""}
+      ${Object.entries(details)
+        .map(([key, value]) => `<dt>${escapeHtml(humanizeDetailKey(key))}</dt><dd>${renderIngestionDetailValue(value)}</dd>`)
+        .join("")}
+    </dl>`;
+}
+
+function renderIngestionRuns(rows) {
+  if (!rows.length) return '<div class="empty-state">No ingestion runs match the current filters.</div>';
+  const table = `
+    <table class="ingestion-runs-table">
+      <thead><tr><th>Updated</th><th>Status</th><th>File</th><th>Document</th><th>Pages</th><th>Chunks</th><th>Steps</th><th></th></tr></thead>
+      <tbody>${rows
+        .map((row) => {
+          const selected = String(row.run_id) === state.ingestion.selectedRunId;
+          const completedSteps = (row.steps || []).filter((step) => step.status === "completed").length;
+          return `<tr class="${selected ? "selected-row" : ""}">
+            <td data-label="Updated">${escapeHtml(row.updated_at)}</td>
+            <td data-label="Status">${ingestionStatusBadge(row.status)}</td>
+            <td data-label="File"><strong>${escapeHtml(row.source_filename)}</strong></td>
+            <td data-label="Document">${ingestionStatusBadge(row.ingest_status)}</td>
+            <td data-label="Pages">${escapeHtml(row.page_count ?? "")}</td>
+            <td data-label="Chunks">${escapeHtml(row.chunk_count ?? 0)}</td>
+            <td data-label="Steps">${row.step_count ? `${completedSteps}/${row.step_count}` : "Historical"}</td>
+            <td><button class="secondary-button" type="button" data-ingestion-run="${escapeHtml(row.run_id)}">${selected ? "Selected" : "View steps"}</button></td>
+          </tr>`;
+        })
+        .join("")}</tbody>
+    </table>`;
+  const selectedRun = rows.find((row) => String(row.run_id) === state.ingestion.selectedRunId)
+    || (state.ingestion.payload?.recent_runs || []).find((row) => String(row.run_id) === state.ingestion.selectedRunId);
+  if (!selectedRun) return table;
+  const steps = selectedRun.steps || [];
+  const stepNavigation = steps.length
+    ? `<div class="ingestion-step-track" role="list" aria-label="Ingestion steps">${steps
+        .map((step) => `<button type="button" role="listitem" class="ingestion-step ${escapeHtml(step.status)} ${step.step_key === state.ingestion.selectedStepKey ? "active" : ""}" data-ingestion-step="${escapeHtml(step.step_key)}"><span class="step-marker" aria-hidden="true"></span><span>${escapeHtml(step.label)}</span><small>${escapeHtml(step.status)}</small></button>`)
+        .join("")}</div>`
+    : '<div class="empty-state">Detailed steps were not recorded for this historical run.</div>';
+  return `${table}${stepNavigation}`;
+}
+
+function updateIngestionDocumentFilter(documents) {
+  const selected = $("ingestion-filter-document").value;
+  $("ingestion-filter-document").innerHTML = `<option value="">All documents</option>${documents
+    .map((row) => `<option value="${escapeHtml(row.document_id)}">${escapeHtml(row.source_filename)} · ${escapeHtml(row.ingest_status)}</option>`)
+    .join("")}`;
+  if (documents.some((row) => String(row.document_id) === selected)) $("ingestion-filter-document").value = selected;
+}
+
+function updateIngestionSelectionActions() {
+  const count = state.ingestion.selectedDocumentIds.size;
+  const ingestButton = $("ingestion-ingest-selected");
+  ingestButton.disabled = count === 0;
+  ingestButton.textContent = count ? `Ingest selected (${count})` : "Ingest selected";
+  const visibleIds = filteredIngestionDocuments().map((row) => String(row.document_id));
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => state.ingestion.selectedDocumentIds.has(id));
+  $("ingestion-select-visible").textContent = allVisibleSelected ? "Clear visible" : "Select visible";
+}
+
+function bindIngestionInteractions() {
+  document.querySelectorAll("[data-ingestion-document]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) state.ingestion.selectedDocumentIds.add(checkbox.dataset.ingestionDocument);
+      else state.ingestion.selectedDocumentIds.delete(checkbox.dataset.ingestionDocument);
+      updateIngestionSelectionActions();
+    });
+  });
+  document.querySelectorAll("[data-ingestion-run]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.ingestion.selectedRunId = button.dataset.ingestionRun;
+      const run = (state.ingestion.payload?.recent_runs || []).find((item) => String(item.run_id) === state.ingestion.selectedRunId);
+      const steps = run?.steps || [];
+      state.ingestion.selectedStepKey = (steps.find((step) => step.status === "running" || step.status === "failed") || steps[0])?.step_key || null;
+      renderIngestion();
+    });
+  });
+  document.querySelectorAll("[data-ingestion-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.ingestion.selectedStepKey = button.dataset.ingestionStep;
+      renderIngestion();
+    });
+  });
+}
+
+function renderIngestion() {
+  const documents = filteredIngestionDocuments();
+  const runs = filteredIngestionRuns();
+  $("ingestion-documents").innerHTML = renderIngestionDocuments(documents);
+  $("ingestion-runs").innerHTML = renderIngestionRuns(runs);
+  bindIngestionInteractions();
+  updateIngestionSelectionActions();
+  renderIngestionStepDetail();
+}
+
+async function uploadIngestionDocuments() {
+  const files = Array.from($("ingestion-files").files || []);
+  if (!files.length) {
+    $("ingestion-action-status").innerHTML = '<span class="error-text">Choose at least one PDF document.</span>';
+    return;
+  }
+  const button = $("ingestion-upload");
+  button.disabled = true;
+  $("ingestion-action-status").textContent = `Uploading ${files.length} document${files.length === 1 ? "" : "s"}...`;
+  try {
+    const form = new FormData();
+    files.forEach((file) => form.append("files", file));
+    form.append("corpus_id", $("ingestion-corpus").value.trim() || DEFAULT_CORPUS);
+    const response = await apiFetch("/documents/upload", { method: "POST", body: form });
+    const payload = await response.json();
+    const uploaded = payload.uploaded || [];
+    uploaded.forEach((item) => state.ingestion.selectedDocumentIds.add(String(item.document_id)));
+    const duplicates = uploaded.filter((item) => item.duplicate).length;
+    $("ingestion-action-status").innerHTML = `<span class="success-text">Added ${uploaded.length} document${uploaded.length === 1 ? "" : "s"}${duplicates ? ` (${duplicates} already uploaded)` : ""}. They are selected below; click Ingest selected to process them.</span>`;
+    $("ingestion-files").value = "";
+    await loadIngestionStatus();
+  } catch (error) {
+    $("ingestion-action-status").innerHTML = `<span class="error-text">Upload failed: ${escapeHtml(error.message)}</span>`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function ingestSelectedDocuments() {
+  const documentIds = [...state.ingestion.selectedDocumentIds];
+  if (!documentIds.length) return;
+  const button = $("ingestion-ingest-selected");
+  button.disabled = true;
+  const failures = [];
+  for (let index = 0; index < documentIds.length; index += 1) {
+    $("ingestion-action-status").textContent = `Queueing document ${index + 1} of ${documentIds.length}...`;
+    try {
+      await apiJson(`/documents/${encodeURIComponent(documentIds[index])}/ingest`, { method: "POST", body: "{}" });
+    } catch (error) {
+      failures.push(`${documentIds[index]}: ${error.message}`);
+    }
+  }
+  state.ingestion.selectedDocumentIds.clear();
+  $("ingestion-action-status").innerHTML = failures.length
+    ? `<span class="error-text">Queued ${documentIds.length - failures.length}; ${failures.length} failed.</span><ul class="detail-list">${failures.map((failure) => `<li>${escapeHtml(failure)}</li>`).join("")}</ul>`
+    : `<span class="success-text">Queued ${documentIds.length} document${documentIds.length === 1 ? "" : "s"} for ingestion.</span>`;
+  await loadIngestionStatus();
 }
 
 async function loadIngestionStatus() {
-  const payload = await apiJson("/debug/ingestion-status?limit=80");
+  const payload = await apiJson("/debug/ingestion-status?limit=200");
+  state.ingestion.payload = payload;
   const docRows = payload.document_status || [];
   const runRows = payload.run_status || [];
   const queues = payload.queues || {};
@@ -2551,8 +2750,8 @@ async function loadIngestionStatus() {
   ]
     .map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
     .join("");
-  $("ingestion-runs").innerHTML = renderIngestionTable(payload.recent_runs || [], "runs");
-  $("ingestion-documents").innerHTML = renderIngestionTable(payload.recent_documents || [], "documents");
+  updateIngestionDocumentFilter(payload.recent_documents || []);
+  renderIngestion();
 }
 
 function maybePollIngestion() {
@@ -2604,6 +2803,23 @@ async function init() {
   $("run-query").addEventListener("click", runQuery);
   $("refresh-history").addEventListener("click", loadHistory);
   $("refresh-ingestion").addEventListener("click", loadIngestionStatus);
+  $("ingestion-upload").addEventListener("click", uploadIngestionDocuments);
+  $("ingestion-ingest-selected").addEventListener("click", ingestSelectedDocuments);
+  ["ingestion-filter-document", "ingestion-filter-text", "ingestion-filter-status"].forEach((id) => {
+    $(id).addEventListener(id === "ingestion-filter-text" ? "input" : "change", renderIngestion);
+  });
+  $("ingestion-clear-filters").addEventListener("click", () => {
+    $("ingestion-filter-document").value = "";
+    $("ingestion-filter-text").value = "";
+    $("ingestion-filter-status").value = "";
+    renderIngestion();
+  });
+  $("ingestion-select-visible").addEventListener("click", () => {
+    const visibleIds = filteredIngestionDocuments().map((row) => String(row.document_id));
+    const allSelected = visibleIds.length && visibleIds.every((id) => state.ingestion.selectedDocumentIds.has(id));
+    visibleIds.forEach((id) => (allSelected ? state.ingestion.selectedDocumentIds.delete(id) : state.ingestion.selectedDocumentIds.add(id)));
+    renderIngestion();
+  });
   try {
     await loadHistory();
     await loadIngestionStatus();

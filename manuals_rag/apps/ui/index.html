@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260904-matrix-only" />
+    <link rel="stylesheet" href="/styles.css?v=20260905-ingestion-steps" />
   </head>
   <body>
     <main class="app-shell">
@@ -176,23 +176,70 @@
       <section id="ingestion" class="tab-panel">
         <section class="panel">
           <div class="section-heading">
-            <h2>Ingestion Monitor</h2>
+            <div>
+              <h2>Document Ingestion</h2>
+              <p class="muted">Upload one or more manuals, choose which documents to process, and inspect every pipeline step.</p>
+            </div>
             <button id="refresh-ingestion" type="button">Refresh</button>
           </div>
+          <section class="ingestion-upload" aria-labelledby="ingestion-upload-heading">
+            <h3 id="ingestion-upload-heading">Add documents</h3>
+            <div class="ingestion-upload-controls">
+              <label>
+                Corpus ID
+                <input id="ingestion-corpus" value="manuals_vendor_keyence" />
+              </label>
+              <label class="ingestion-file-field">
+                PDF documents
+                <input id="ingestion-files" type="file" accept="application/pdf,.pdf" multiple />
+              </label>
+              <button id="ingestion-upload" type="button">Upload documents</button>
+            </div>
+            <div id="ingestion-action-status" class="empty-state">Choose one or more PDF files to add.</div>
+          </section>
           <div id="ingestion-summary" class="metrics empty-state">Loading ingestion status...</div>
-          <div class="split">
-            <section>
-              <h3>Recent Runs</h3>
-              <div id="ingestion-runs"></div>
-            </section>
-            <section>
-              <h3>Recent Documents</h3>
-              <div id="ingestion-documents"></div>
-            </section>
+          <div class="ingestion-filters">
+            <label>
+              Document
+              <select id="ingestion-filter-document"><option value="">All documents</option></select>
+            </label>
+            <label>
+              Find
+              <input id="ingestion-filter-text" placeholder="Filename, corpus, document ID..." />
+            </label>
+            <label>
+              Status
+              <select id="ingestion-filter-status">
+                <option value="">All statuses</option>
+                <option value="uploaded">Uploaded</option>
+                <option value="queued">Queued</option>
+                <option value="running">Running</option>
+                <option value="parsed">Parsed</option>
+                <option value="indexed">Indexed</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+              </select>
+            </label>
+            <button id="ingestion-clear-filters" type="button">Clear filters</button>
           </div>
+          <section>
+            <div class="section-heading">
+              <h3>Documents</h3>
+              <div class="ingestion-document-actions">
+                <button id="ingestion-select-visible" type="button">Select visible</button>
+                <button id="ingestion-ingest-selected" type="button" disabled>Ingest selected</button>
+              </div>
+            </div>
+            <div id="ingestion-documents"></div>
+          </section>
+          <section>
+            <h3>Ingestion runs and steps</h3>
+            <div id="ingestion-runs"></div>
+            <div id="ingestion-step-detail" class="ingestion-step-detail empty-state">Select a run and then a step to inspect its details.</div>
+          </section>
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260904-matrix-only"></script>
+    <script src="/app.js?v=20260905-ingestion-steps"></script>
   </body>
 </html>

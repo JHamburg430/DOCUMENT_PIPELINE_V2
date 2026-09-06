@@ -10,6 +10,7 @@ from manuals_rag_chunking.hierarchical import build_chunks
 from manuals_rag_common.config import settings
 from manuals_rag_common.db import execute, execute_many, fetch_one, json_dumps
 from manuals_rag_common.ids import sha256_bytes
+from manuals_rag_common.ingestion_progress import complete_ingestion_step, fail_ingestion_step, start_ingestion_step
 from manuals_rag_common.logging import configure_logging
 from manuals_rag_common.queue import dequeue, enqueue
 from manuals_rag_common.storage import ObjectStore
@@ -202,11 +203,36 @@ def process_job(job: dict[str, str]) -> None:
     if not document:
         raise ValueError("Source document not found.")
     execute("update ingestion_runs set status = 'running', updated_at = now() where id = %s", (run_id,))
+    current_step = "load_source"
     try:
+        start_ingestion_step(run_id, current_step, details={"storage_uri": document["storage_uri"]})
+        raw = _read_minio_uri(document["storage_uri"])
+        complete_ingestion_step(run_id, current_step, details={"bytes_loaded": len(raw)})
+
+        current_step = "parse"
+        start_ingestion_step(run_id, current_step, details={"filename": document["source_filename"]})
         with INGEST_DURATION.labels("parse").time():
-            raw = _read_minio_uri(document["storage_uri"])
             result = parse_document(document["version_id"], document["source_filename"], raw)
+        complete_ingestion_step(
+            run_id,
+            current_step,
+            details={
+                "page_count": result.page_count,
+                "parse_profile": result.profile.value,
+                "quality_score": result.quality_score,
+                "warning_count": len(result.parse_warnings),
+                "warnings": result.parse_warnings,
+                "logical_nodes": len(result.logical_nodes),
+            },
+        )
+
+        current_step = "normalize"
+        start_ingestion_step(run_id, current_step, details={"input_nodes": len(result.logical_nodes)})
         normalized = normalize_nodes(result.logical_nodes)
+        complete_ingestion_step(run_id, current_step, details={"normalized_nodes": len(normalized)})
+
+        current_step = "metadata"
+        start_ingestion_step(run_id, current_step)
         table_extraction_used = any(node.node_type == NodeType.table for node in normalized)
         combined_text = "\n\n".join(node.text_normalized or node.text_raw for node in normalized[:20])
         inferred_metadata = infer_document_metadata(document["source_filename"], combined_text)
@@ -237,6 +263,22 @@ def process_job(job: dict[str, str]) -> None:
             "ocr_used": False,
             "is_active": True,
         }
+        complete_ingestion_step(
+            run_id,
+            current_step,
+            details={
+                "title": inferred_metadata.title,
+                "manufacturer": metadata["manufacturer"],
+                "product_family": metadata["product_family"],
+                "product_model": metadata["product_model"],
+                "document_kind": metadata["document_kind"],
+                "part_numbers": inferred_metadata.part_numbers,
+                "topics": inferred_metadata.document_topics,
+            },
+        )
+
+        current_step = "chunk"
+        start_ingestion_step(run_id, current_step, details={"normalized_nodes": len(normalized)})
         chunks = build_chunks(
             source_document_id=document["id"],
             document_version_id=document["version_id"],
@@ -244,6 +286,13 @@ def process_job(job: dict[str, str]) -> None:
             nodes=normalized,
             metadata=metadata,
         )
+        chunk_types: dict[str, int] = {}
+        for chunk in chunks:
+            chunk_types[chunk.chunk_type.value] = chunk_types.get(chunk.chunk_type.value, 0) + 1
+        complete_ingestion_step(run_id, current_step, details={"chunk_count": len(chunks), "chunk_types": chunk_types})
+
+        current_step = "assets"
+        start_ingestion_step(run_id, current_step, details={"page_count": result.page_count})
         store = ObjectStore()
         result.docling_artifact["image_assets"] = _store_document_images(
             store=store,
@@ -253,6 +302,18 @@ def process_job(job: dict[str, str]) -> None:
             source_document_id=str(document["id"]),
             version_id=str(document["version_id"]),
         )
+        image_assets = result.docling_artifact["image_assets"]
+        complete_ingestion_step(
+            run_id,
+            current_step,
+            details={
+                "page_images": len(image_assets.get("page_images", [])),
+                "table_images": len(image_assets.get("table_images", [])),
+            },
+        )
+
+        current_step = "persist"
+        start_ingestion_step(run_id, current_step, details={"nodes": len(normalized), "chunks": len(chunks)})
         artifact_bytes = json.dumps(result.docling_artifact, sort_keys=True).encode("utf-8")
         artifact_object_name = _artifact_object_name(str(document["tenant_id"]), artifact_bytes)
         artifact_uri = (
@@ -405,12 +466,27 @@ def process_job(job: dict[str, str]) -> None:
             ),
         )
         execute("update ingestion_runs set status = 'parsed', updated_at = now() where id = %s", (run_id,))
+        complete_ingestion_step(
+            run_id,
+            current_step,
+            details={
+                "nodes_persisted": len(normalized),
+                "chunks_persisted": len(chunks),
+                "artifact_uri": artifact_uri,
+                "table_extraction_used": table_extraction_used,
+            },
+        )
         enqueue("embed_jobs", {"run_id": run_id, "document_id": document["id"], "version_id": document["version_id"]})
     except Exception as exc:
         PARSE_FAILURES.labels("PARSE_FAILED").inc()
+        fail_ingestion_step(run_id, current_step, str(exc))
         execute(
             "update ingestion_runs set status = 'failed', failure_class = 'PARSE_FAILED', failure_reason = %s, updated_at = now() where id = %s",
             (str(exc), run_id),
+        )
+        execute(
+            "update source_documents set ingest_status = 'failed', updated_at = now() where id = %s",
+            (document["id"],),
         )
         raise
 

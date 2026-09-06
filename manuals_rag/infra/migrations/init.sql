@@ -121,6 +121,20 @@ create table if not exists ingestion_runs (
     updated_at timestamptz not null default now()
 );
 
+create table if not exists ingestion_run_steps (
+    run_id uuid not null references ingestion_runs(id) on delete cascade,
+    step_key text not null,
+    sequence integer not null,
+    label text not null,
+    status text not null default 'queued',
+    started_at timestamptz,
+    completed_at timestamptz,
+    duration_ms double precision,
+    detail_json jsonb not null default '{}'::jsonb,
+    error text,
+    primary key (run_id, step_key)
+);
+
 create table if not exists feedback (
     id uuid primary key,
     payload_json jsonb not null,

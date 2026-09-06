@@ -33,6 +33,7 @@ from manuals_rag_answering.workflow import build_workflow
 from manuals_rag_common.config import settings
 from manuals_rag_common.db import execute, fetch_all, fetch_one, json_dumps
 from manuals_rag_common.ids import sha256_bytes
+from manuals_rag_common.ingestion_progress import ensure_ingestion_step_table, initialize_ingestion_steps
 from manuals_rag_common.logging import configure_logging
 from manuals_rag_common.ollama import build_chat_payload, ensure_model_loaded, extract_chat_content, recent_ollama_calls
 from manuals_rag_common.queue import enqueue, redis_client
@@ -1023,7 +1024,13 @@ async def upload_documents(
 
 @app.post("/documents/{document_id}/ingest")
 def ingest_document(document_id: str, _: Principal = Depends(require_role("admin", "operator"))) -> dict[str, str]:
-    source = fetch_one("select current_version_id from source_documents where id = %s", (document_id,))
+    source = fetch_one(
+        """
+        select current_version_id, source_filename, file_size_bytes, sha256, storage_uri, corpus_id
+        from source_documents where id = %s
+        """,
+        (document_id,),
+    )
     if not source:
         raise HTTPException(status_code=404, detail="Document not found.")
     run_id = str(uuid4())
@@ -1033,6 +1040,16 @@ def ingest_document(document_id: str, _: Principal = Depends(require_role("admin
         values (%s, %s, %s, 'queued', null, now(), now())
         """,
         (run_id, document_id, source["current_version_id"]),
+    )
+    initialize_ingestion_steps(
+        run_id,
+        upload_details={
+            "filename": source.get("source_filename"),
+            "size_bytes": source.get("file_size_bytes"),
+            "sha256": source.get("sha256"),
+            "storage_uri": source.get("storage_uri"),
+            "corpus_id": source.get("corpus_id"),
+        },
     )
     enqueue("ingest_jobs", {"run_id": run_id, "document_id": document_id, "version_id": source["current_version_id"]})
     return {"run_id": run_id}
@@ -1058,9 +1075,14 @@ def list_versions(document_id: str, _: Principal = Depends(require_role("end_use
 
 @app.get("/ingestion-runs/{run_id}")
 def get_ingestion_run(run_id: str, _: Principal = Depends(require_role("operator", "admin", "auditor"))) -> dict[str, Any]:
+    ensure_ingestion_step_table()
     run = fetch_one("select * from ingestion_runs where id = %s", (run_id,))
     if not run:
         raise HTTPException(status_code=404, detail="Run not found.")
+    run["steps"] = fetch_all(
+        "select step_key, sequence, label, status, started_at, completed_at, duration_ms, detail_json, error from ingestion_run_steps where run_id = %s order by sequence",
+        (run_id,),
+    )
     return run
 
 
@@ -1486,8 +1508,12 @@ def debug_documents(
 @app.get("/debug/ingestion-status")
 def debug_ingestion_status(
     limit: int = 50,
+    document_id: str | None = None,
+    corpus_id: str | None = None,
+    status: str | None = None,
     _: Principal = Depends(require_role("operator", "admin", "auditor")),
 ) -> dict[str, Any]:
+    ensure_ingestion_step_table()
     bounded_limit = max(1, min(limit, 200))
     document_status = fetch_all(
         """
@@ -1505,8 +1531,20 @@ def debug_ingestion_status(
         order by status
         """
     )
+    run_where: list[str] = []
+    run_params: list[Any] = []
+    if document_id:
+        run_where.append("sd.id = %s")
+        run_params.append(document_id)
+    if corpus_id:
+        run_where.append("sd.corpus_id = %s")
+        run_params.append(corpus_id)
+    if status:
+        run_where.append("ir.status = %s")
+        run_params.append(status)
+    run_where_sql = f"where {' and '.join(run_where)}" if run_where else ""
     recent_runs = fetch_all(
-        """
+        f"""
         select
             ir.id as run_id,
             ir.status,
@@ -1527,13 +1565,26 @@ def debug_ingestion_status(
         from ingestion_runs ir
         join source_documents sd on sd.id = ir.source_document_id
         left join document_versions dv on dv.id = ir.document_version_id
+        {run_where_sql}
         order by ir.updated_at desc
         limit %s
         """,
-        (bounded_limit,),
+        tuple([*run_params, bounded_limit]),
     )
+    document_where: list[str] = []
+    document_params: list[Any] = []
+    if document_id:
+        document_where.append("sd.id = %s")
+        document_params.append(document_id)
+    if corpus_id:
+        document_where.append("sd.corpus_id = %s")
+        document_params.append(corpus_id)
+    if status:
+        document_where.append("sd.ingest_status = %s")
+        document_params.append(status)
+    document_where_sql = f"where {' and '.join(document_where)}" if document_where else ""
     recent_documents = fetch_all(
-        """
+        f"""
         select
             sd.id as document_id,
             sd.corpus_id,
@@ -1548,11 +1599,33 @@ def debug_ingestion_status(
             ) as chunk_count
         from source_documents sd
         left join document_versions dv on dv.id = sd.current_version_id
+        {document_where_sql}
         order by sd.updated_at desc
         limit %s
         """,
-        (bounded_limit,),
+        tuple([*document_params, bounded_limit]),
     )
+    run_ids = [str(row["run_id"]) for row in recent_runs]
+    step_rows = (
+        fetch_all(
+            """
+            select run_id, step_key, sequence, label, status, started_at, completed_at,
+                   duration_ms, detail_json, error
+            from ingestion_run_steps
+            where run_id = any(%s::uuid[])
+            order by run_id, sequence
+            """,
+            (run_ids,),
+        )
+        if run_ids
+        else []
+    )
+    steps_by_run: dict[str, list[dict[str, Any]]] = {}
+    for step in step_rows:
+        steps_by_run.setdefault(str(step["run_id"]), []).append(step)
+    for run in recent_runs:
+        run["steps"] = steps_by_run.get(str(run["run_id"]), [])
+        run["step_count"] = len(run["steps"])
     redis = redis_client()
     queues = {
         "ingest_jobs": redis.llen("ingest_jobs"),
