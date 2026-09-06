@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260905-ingestion-steps";
+const ASSET_VERSION = "20260906-stop-answer-failure";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
 const MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"]);
@@ -1093,6 +1093,10 @@ function setMatrixControlsBusy(busy) {
   });
   const stopButton = $("matrix-stop");
   if (stopButton) stopButton.disabled = !busy;
+  ["matrix-column", "matrix-use-model-judge", "matrix-stop-on-answer-failure"].forEach((id) => {
+    const control = $(id);
+    if (control) control.disabled = busy;
+  });
 }
 
 function renderMatrixJobStatus(job) {
@@ -1110,6 +1114,9 @@ function renderMatrixJobStatus(job) {
     ? "Generate questions"
     : (job.mode === "column" ? `Column: ${MATRIX_STAGES.find((stage) => stage.key === job.column)?.label || job.column}` : "All bank");
   const judgeText = job.use_model_judge ? "model judge on" : "model judge off";
+  const stopText = job.response_mode === "answer_with_citations"
+    ? (job.stop_on_answer_failure ? "stop on answer failure" : "continue after answer failures")
+    : "";
   const generationText = job.generation
     ? `${job.generation.retrieval_task === "multi_step_retrieval" ? "multi-step" : "single-step"} | ${job.generation.max_questions || 0} questions | offset ${job.generation.chunk_offset || 0} | attempt window ${job.generation.chunk_window || "all"} | ${job.generation.previous_question_dataset_count || 0} history files`
     : "";
@@ -1135,7 +1142,12 @@ function renderMatrixJobStatus(job) {
   node.className = job.status === "failed" ? "error-box" : "empty-state";
   node.innerHTML = `
     <strong>${escapeHtml(modeLabel)} ${escapeHtml(job.status || "queued")}</strong>
-    <span>${escapeHtml(generationText || `${completed}/${total} datasets | ${job.response_mode || ""} | ${judgeText}`)}</span>
+    <span>${escapeHtml(generationText || [
+      `${completed}/${total} datasets`,
+      job.response_mode || "",
+      judgeText,
+      stopText,
+    ].filter(Boolean).join(" | "))}</span>
     ${job.current_dataset ? `<small>${escapeHtml([job.current_dataset, questionText].filter(Boolean).join(" | "))}</small>` : ""}
     ${job.event_log_path ? `<small>${escapeHtml(`history: ${job.event_log_path}`)}</small>` : ""}
     ${recoveredText ? `<small>${escapeHtml(recoveredText)}</small>` : ""}
@@ -1182,6 +1194,7 @@ async function pollMatrixJob(jobId) {
       state.matrixJobTimer = setTimeout(() => pollMatrixJob(jobId), MATRIX_JOB_POLL_MS);
       return;
     }
+    if (job.current_row_key) state.selectedMatrixKey = job.current_row_key;
     await loadQuestionMatrix();
   } catch (error) {
     renderMatrixJobStatus({ status: "failed", error: error.message, dataset_count: state.matrixJob?.dataset_count || 0, completed_datasets: state.matrixJob?.completed_datasets || 0 });
@@ -1195,14 +1208,15 @@ async function startMatrixJob({ mode, column = "retrieval" }) {
   }
   if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
   const useModelJudge = Boolean($("matrix-use-model-judge")?.checked);
-  renderMatrixJobStatus({ status: "queued", mode, column: mode === "column" ? column : "all", use_model_judge: useModelJudge, dataset_count: 0, completed_datasets: 0 });
+  const stopOnAnswerFailure = Boolean($("matrix-stop-on-answer-failure")?.checked);
+  renderMatrixJobStatus({ status: "queued", mode, column: mode === "column" ? column : "all", use_model_judge: useModelJudge, stop_on_answer_failure: stopOnAnswerFailure, dataset_count: 0, completed_datasets: 0 });
   try {
-    const job = await localPostJson("/local/question-matrix/run", { mode, column, use_model_judge: useModelJudge });
+    const job = await localPostJson("/local/question-matrix/run", { mode, column, use_model_judge: useModelJudge, stop_on_answer_failure: stopOnAnswerFailure });
     state.matrixJob = job;
     renderMatrixJobStatus(job);
     pollMatrixJob(job.id);
   } catch (error) {
-    renderMatrixJobStatus({ status: "failed", mode, column, use_model_judge: useModelJudge, error: error.message, dataset_count: 0, completed_datasets: 0 });
+    renderMatrixJobStatus({ status: "failed", mode, column, use_model_judge: useModelJudge, stop_on_answer_failure: stopOnAnswerFailure, error: error.message, dataset_count: 0, completed_datasets: 0 });
   }
 }
 
@@ -1481,9 +1495,11 @@ async function loadQuestionMatrix() {
         if (state.matrixJobTimer) clearTimeout(state.matrixJobTimer);
         pollMatrixJob(payload.active_job.id);
       }
-    } else if (!state.matrixJob || !["queued", "running", "stopping"].includes(state.matrixJob.status)) {
+    } else if (!state.matrixJob) {
       state.matrixJob = null;
       renderMatrixJobStatus(null);
+    } else {
+      renderMatrixJobStatus(state.matrixJob);
     }
     renderQuestionMatrix(payload);
   } catch (error) {

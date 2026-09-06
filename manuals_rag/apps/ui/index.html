@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260905-ingestion-steps" />
+    <link rel="stylesheet" href="/styles.css?v=20260906-stop-answer-failure" />
   </head>
   <body>
     <main class="app-shell">
@@ -37,6 +37,10 @@
             <label class="inline-check">
               <input id="matrix-use-model-judge" type="checkbox" />
               <span>Use diagnostic model judge for answer information</span>
+            </label>
+            <label class="inline-check">
+              <input id="matrix-stop-on-answer-failure" type="checkbox" checked />
+              <span>Stop on first answer failure</span>
             </label>
             <button id="matrix-refresh" type="button">Refresh</button>
             <button id="matrix-clear-results" type="button">Clear Results</button>
@@ -240,6 +244,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260905-ingestion-steps"></script>
+    <script src="/app.js?v=20260906-stop-answer-failure"></script>
   </body>
 </html>

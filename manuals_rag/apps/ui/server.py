@@ -88,6 +88,10 @@ class MatrixJobCancelled(RuntimeError):
     pass
 
 
+class MatrixAnswerFailure(RuntimeError):
+    pass
+
+
 class ManualsRagUiHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
@@ -1714,6 +1718,9 @@ def _start_question_matrix_job(payload: dict) -> dict:
     mode = str(payload.get("mode") or "all_bank")
     column = str(payload.get("column") or "retrieval")
     use_model_judge = bool(payload.get("use_model_judge"))
+    stop_on_answer_failure = payload.get("stop_on_answer_failure", True)
+    if not isinstance(stop_on_answer_failure, bool):
+        raise ValueError("stop_on_answer_failure must be a boolean")
     if mode not in {"all_bank", "column"}:
         raise ValueError("mode must be all_bank or column")
     valid_columns = {
@@ -1752,6 +1759,7 @@ def _start_question_matrix_job(payload: dict) -> dict:
         "column": column if mode == "column" else "all",
         "response_mode": response_mode,
         "use_model_judge": use_model_judge and response_mode == "answer_with_citations",
+        "stop_on_answer_failure": stop_on_answer_failure and response_mode == "answer_with_citations",
         "started_at": None,
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "completed_at": None,
@@ -1783,14 +1791,27 @@ def _start_question_matrix_job(payload: dict) -> dict:
         _persist_question_matrix_jobs_locked()
     thread = Thread(target=_run_question_matrix_job, args=(job_id, datasets), daemon=True)
     thread.start()
-    _record_question_matrix_job_event(job_id, "job_queued", mode=mode, column=job["column"], response_mode=response_mode, dataset_count=len(datasets))
+    _record_question_matrix_job_event(
+        job_id,
+        "job_queued",
+        mode=mode,
+        column=job["column"],
+        response_mode=response_mode,
+        dataset_count=len(datasets),
+        stop_on_answer_failure=job["stop_on_answer_failure"],
+    )
     return _question_matrix_job_snapshot(job_id)
 
 
 def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
     job = _question_matrix_job_snapshot(job_id)
     _update_question_matrix_job(job_id, status="running", started_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
-    _record_question_matrix_job_event(job_id, "job_started", response_mode=job.get("response_mode"))
+    _record_question_matrix_job_event(
+        job_id,
+        "job_started",
+        response_mode=job.get("response_mode"),
+        stop_on_answer_failure=job.get("stop_on_answer_failure"),
+    )
     try:
         for index, dataset in enumerate(datasets, start=1):
             _raise_if_question_matrix_job_cancelled(job_id)
@@ -1919,6 +1940,16 @@ def _run_question_matrix_job(job_id: str, datasets: list[dict]) -> None:
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
         _record_question_matrix_job_event(job_id, "job_cancelled", error=str(error))
+    except MatrixAnswerFailure as error:
+        with MATRIX_JOBS_LOCK:
+            MATRIX_PROCESSES.pop(job_id, None)
+        _update_question_matrix_job(
+            job_id,
+            status="failed",
+            error=str(error),
+            completed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        )
+        _record_question_matrix_job_event(job_id, "job_stopped_on_answer_failure", error=str(error))
     except Exception as error:
         with MATRIX_JOBS_LOCK:
             MATRIX_PROCESSES.pop(job_id, None)
@@ -1949,6 +1980,25 @@ def _run_answer_matrix_dataset(
     manifest_path = TEST_REPORTS_DIR / f"retrieval_eval_manifest_{timestamp}_{uuid.uuid4().hex[:6]}.json"
     cases = _read_jsonl(dataset_path)
     results: list[dict] = []
+
+    def write_manifest(*, status: str, completed: bool, failure: dict | None = None) -> None:
+        manifest = {
+            "corpus_id": DEFAULT_CORPUS_ID,
+            "input_dataset_path": str(dataset_path),
+            "search_mode": "http_debug_stream",
+            "response_mode": "answer_with_citations",
+            "use_llm_answer_judge": bool(job.get("use_model_judge")),
+            "stop_on_answer_failure": bool(job.get("stop_on_answer_failure")),
+            "status": status,
+            "completed": completed,
+            "processed_questions": len(results),
+            "total_questions": len(cases),
+            "results_path": str(results_path),
+        }
+        if failure:
+            manifest["failure"] = failure
+        manifest_path.write_text(json.dumps(manifest, indent=2, default=str), encoding="utf-8")
+
     _update_question_matrix_job(
         job_id,
         current_dataset=dataset_rel,
@@ -2046,21 +2096,47 @@ def _run_answer_matrix_dataset(
                 retrieval_passed=bool(evaluation.get("passed")),
                 answer_passed=bool(answer_evaluation.get("passed")) if answer_evaluation else None,
             )
-    manifest_path.write_text(
-        json.dumps(
-            {
-                "corpus_id": DEFAULT_CORPUS_ID,
-                "input_dataset_path": str(dataset_path),
-                "search_mode": "http_debug_stream",
-                "response_mode": "answer_with_citations",
-                "use_llm_answer_judge": bool(job.get("use_model_judge")),
-                "results_path": str(results_path),
-            },
-            indent=2,
-            default=str,
-        ),
-        encoding="utf-8",
-    )
+            if answer_evaluation and not answer_evaluation.get("passed") and job.get("stop_on_answer_failure"):
+                failure = {
+                    "case_id": case_id,
+                    "question_number": case_numbers.get(case_id),
+                    "query": case.get("query"),
+                    "failure_reasons": answer_evaluation.get("failure_reasons") or [],
+                }
+                write_manifest(status="stopped_on_answer_failure", completed=False, failure=failure)
+                output = {
+                    "dataset": dataset_rel,
+                    "returncode": 1,
+                    "stdout_tail": json.dumps(
+                        {
+                            "results": len(results),
+                            "results_path": str(results_path),
+                            "manifest_path": str(manifest_path),
+                            "stopped_on_answer_failure": failure,
+                        }
+                    ),
+                    "stderr_tail": "",
+                    "partial": True,
+                }
+                _update_question_matrix_job(
+                    job_id,
+                    outputs=[*(_question_matrix_job_snapshot(job_id).get("outputs") or []), output],
+                    returncode=1,
+                )
+                _record_question_matrix_job_event(
+                    job_id,
+                    "answer_failure_stop",
+                    dataset=dataset_rel,
+                    results_path=str(results_path),
+                    manifest_path=str(manifest_path),
+                    **failure,
+                )
+                reason_text = ", ".join(failure["failure_reasons"]) or "answer evaluation failed"
+                raise MatrixAnswerFailure(
+                    f"Stopped on answer failure at question {failure['question_number']} "
+                    f"({case_id}): {reason_text}"
+                )
+    write_manifest(status="completed", completed=True)
     _update_question_matrix_job(
         job_id,
         outputs=[

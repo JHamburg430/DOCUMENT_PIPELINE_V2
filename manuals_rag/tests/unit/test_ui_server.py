@@ -111,6 +111,7 @@ def test_eval_matrix_view_is_available():
     assert 'id="matrix-run-all-bank"' in index_html
     assert 'id="matrix-run-column"' in index_html
     assert 'id="matrix-use-model-judge"' in index_html
+    assert 'id="matrix-stop-on-answer-failure" type="checkbox" checked' in index_html
     assert 'id="matrix-clear-results"' in index_html
     assert 'id="matrix-generate-questions"' in index_html
     assert 'id="matrix-clear-questions"' in index_html
@@ -145,6 +146,8 @@ def test_eval_matrix_view_is_available():
     assert "REJECT" in app_js
     assert "setupMatrixControls()" in app_js
     assert "startMatrixJob" in app_js
+    assert "stop_on_answer_failure: stopOnAnswerFailure" in app_js
+    assert "if (job.current_row_key) state.selectedMatrixKey = job.current_row_key" in app_js
     assert "stopMatrixJob" in app_js
     assert "clearMatrixResults" in app_js
     clear_generated_body = re.search(r"async function clearGeneratedQuestions\(\) \{(?P<body>.*?)\n\}", app_js, re.S).group("body")
@@ -661,6 +664,7 @@ def test_question_matrix_job_runs_active_bank_with_llm_answer_judge(monkeypatch,
     assert job["status"] == "completed"
     assert job["response_mode"] == "answer_with_citations"
     assert job["use_model_judge"] is True
+    assert job["stop_on_answer_failure"] is True
     assert job["current_stage_key"] == "answer"
     assert len(calls) == 1
     assert calls[0][1] == "test_reports/dataset.jsonl"
@@ -672,6 +676,67 @@ def test_question_matrix_model_judge_is_not_default_on():
 
     assert 'id="matrix-use-model-judge" type="checkbox"' in index_html
     assert 'id="matrix-use-model-judge" type="checkbox" checked' not in index_html
+
+
+def test_question_matrix_stop_on_answer_failure_is_default_on():
+    index_html = (ui_server.MANUALS_ROOT / "apps" / "ui" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="matrix-stop-on-answer-failure" type="checkbox" checked' in index_html
+
+
+def test_question_matrix_job_preserves_failed_answer_row_for_polling(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    manifest_path = reports / "retrieval_accuracy_question_bank_manifest.json"
+    dataset_path.write_text('{"case_id":"case-1","query":"q"}\n', encoding="utf-8")
+    manifest_path.write_text(
+        ui_server.json.dumps(
+            {
+                "question_bank": {
+                    "datasets": [{"path": "test_reports/dataset.jsonl", "status": "promoted", "total_questions": 1}],
+                    "run_exclusions": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    class ImmediateThread:
+        def __init__(self, target, args, daemon):
+            self.target = target
+            self.args = args
+
+        def start(self):
+            self.target(*self.args)
+
+    def fail_first_answer(job_id, dataset_rel, dataset_path_arg, case_numbers, dataset_index):
+        ui_server._update_question_matrix_job(
+            job_id,
+            current_dataset=dataset_rel,
+            current_case_id="case-1",
+            current_row_key=f"{dataset_rel}::case-1",
+            current_question_number=1,
+            current_stage_key="answer",
+            returncode=1,
+        )
+        raise ui_server.MatrixAnswerFailure("Stopped on answer failure at question 1 (case-1): expected_terms_missing")
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(ui_server, "Thread", ImmediateThread)
+    monkeypatch.setattr(ui_server, "_run_answer_matrix_dataset", fail_first_answer)
+    ui_server.MATRIX_JOBS.clear()
+
+    job = ui_server._start_question_matrix_job({"mode": "all_bank"})
+
+    assert job["status"] == "failed"
+    assert job["stop_on_answer_failure"] is True
+    assert job["current_case_id"] == "case-1"
+    assert job["current_row_key"] == "test_reports/dataset.jsonl::case-1"
+    assert job["current_question_number"] == 1
+    assert "expected_terms_missing" in job["error"]
+    assert job["events"][-2]["event"] == "job_stopped_on_answer_failure"
 
 
 def test_question_matrix_retrieval_column_uses_retrieval_only(monkeypatch, tmp_path):
@@ -719,10 +784,166 @@ def test_question_matrix_retrieval_column_uses_retrieval_only(monkeypatch, tmp_p
     assert job["status"] == "completed"
     assert job["response_mode"] == "retrieval_only"
     assert job["use_model_judge"] is False
+    assert job["stop_on_answer_failure"] is False
     assert job["current_stage_key"] == "retrieval"
     cmd = calls[0][0]
     assert cmd[cmd.index("--response-mode") + 1] == "retrieval_only"
     assert "--use-llm-answer-judge" not in cmd
+
+
+def test_answer_matrix_stops_after_persisting_first_answer_failure(monkeypatch, tmp_path):
+    from manuals_rag_evals import retrieval_eval
+
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    cases = [
+        {
+            "case_id": f"case-{index}",
+            "query": f"What voltage does MODEL-{index} use?",
+            "source_document_id": "doc-1",
+            "document_version_id": "ver-1",
+            "source_chunk_id": f"chunk-{index}",
+            "source_title": "Manual",
+            "source_filename": "manual.pdf",
+            "chunk_type": "spec_record",
+            "section_path": "Specifications",
+            "page_from": index,
+            "page_to": index,
+            "expected_terms": ["24", "vdc"],
+            "expected_snippet": "Power supply voltage: 24 VDC",
+            "generation_method": "unit_test",
+            "source_metadata": {"product_model": f"MODEL-{index}"},
+        }
+        for index in (1, 2)
+    ]
+    dataset_path.write_text("".join(ui_server.json.dumps(case) + "\n" for case in cases), encoding="utf-8")
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(
+        ui_server,
+        "_run_query_debug_stream",
+        lambda *args, **kwargs: (
+            {"answer": {"answer": "12 VDC", "citations": []}, "completed_steps": ["generate_answer"]},
+            {"passed": True, "rank": 1},
+        ),
+    )
+    monkeypatch.setattr(ui_server, "_debug_top_results", lambda debug_result: [])
+    monkeypatch.setattr(
+        retrieval_eval,
+        "score_answer_response",
+        lambda *args, **kwargs: {"passed": False, "failure_reasons": ["expected_terms_missing"]},
+    )
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-stop"] = {
+        "id": "matrix-stop",
+        "status": "running",
+        "use_model_judge": True,
+        "stop_on_answer_failure": True,
+        "outputs": [],
+        "events": [],
+        "live_cells": {},
+        "live_results": {},
+    }
+
+    with pytest.raises(ui_server.MatrixAnswerFailure, match=r"question 1 .*expected_terms_missing"):
+        ui_server._run_answer_matrix_dataset(
+            "matrix-stop",
+            "test_reports/dataset.jsonl",
+            dataset_path,
+            {"case-1": 1, "case-2": 2},
+            1,
+        )
+
+    result_paths = list(reports.glob("retrieval_eval_results_*.jsonl"))
+    manifest_paths = list(reports.glob("retrieval_eval_manifest_*.json"))
+    assert len(result_paths) == 1
+    assert len(ui_server._read_jsonl(result_paths[0])) == 1
+    manifest = ui_server._read_json(manifest_paths[0])
+    assert manifest["status"] == "stopped_on_answer_failure"
+    assert manifest["completed"] is False
+    assert manifest["processed_questions"] == 1
+    assert manifest["total_questions"] == 2
+    assert manifest["failure"]["case_id"] == "case-1"
+    assert manifest["failure"]["failure_reasons"] == ["expected_terms_missing"]
+    job = ui_server.MATRIX_JOBS["matrix-stop"]
+    assert job["current_case_id"] == "case-1"
+    assert job["current_row_key"].endswith("::case-1")
+    assert job["live_results"][job["current_row_key"]]["answer_evaluation"]["passed"] is False
+    assert job["outputs"][0]["partial"] is True
+    assert job["events"][-1]["event"] == "answer_failure_stop"
+    assert ui_server._result_run_id(result_paths[0]) not in ui_server._completed_result_run_ids()
+
+
+def test_answer_matrix_continues_when_stop_on_answer_failure_is_disabled(monkeypatch, tmp_path):
+    from manuals_rag_evals import retrieval_eval
+
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    case = {
+        "case_id": "case-1",
+        "query": "What voltage does MODEL-1 use?",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "source_chunk_id": "chunk-1",
+        "source_title": "Manual",
+        "source_filename": "manual.pdf",
+        "chunk_type": "spec_record",
+        "section_path": "Specifications",
+        "page_from": 1,
+        "page_to": 1,
+        "expected_terms": ["24", "vdc"],
+        "expected_snippet": "Power supply voltage: 24 VDC",
+        "generation_method": "unit_test",
+        "source_metadata": {"product_model": "MODEL-1"},
+    }
+    dataset_path.write_text(ui_server.json.dumps(case) + "\n", encoding="utf-8")
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(
+        ui_server,
+        "_run_query_debug_stream",
+        lambda *args, **kwargs: (
+            {"answer": {"answer": "12 VDC", "citations": []}, "completed_steps": ["generate_answer"]},
+            {"passed": True, "rank": 1},
+        ),
+    )
+    monkeypatch.setattr(ui_server, "_debug_top_results", lambda debug_result: [])
+    monkeypatch.setattr(
+        retrieval_eval,
+        "score_answer_response",
+        lambda *args, **kwargs: {"passed": False, "failure_reasons": ["expected_terms_missing"]},
+    )
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-continue"] = {
+        "id": "matrix-continue",
+        "status": "running",
+        "use_model_judge": True,
+        "stop_on_answer_failure": False,
+        "outputs": [],
+        "events": [],
+        "live_cells": {},
+        "live_results": {},
+    }
+
+    ui_server._run_answer_matrix_dataset(
+        "matrix-continue",
+        "test_reports/dataset.jsonl",
+        dataset_path,
+        {"case-1": 1},
+        1,
+    )
+
+    manifest = ui_server._read_json(next(reports.glob("retrieval_eval_manifest_*.json")))
+    job = ui_server.MATRIX_JOBS["matrix-continue"]
+    assert manifest["status"] == "completed"
+    assert manifest["completed"] is True
+    assert manifest["processed_questions"] == 1
+    assert job["completed_datasets"] == 1
+    assert job["returncode"] == 0
+    assert job["events"][-1]["event"] == "dataset_completed"
 
 
 def test_question_matrix_job_uses_visible_generated_questions(monkeypatch, tmp_path):
