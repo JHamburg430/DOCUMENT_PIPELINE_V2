@@ -3658,3 +3658,154 @@ def test_table_lexical_search_skips_unstructured_general_queries(monkeypatch):
     )
 
     assert results == []
+
+
+def _corrective_result(
+    chunk_id: str,
+    content: str,
+    *,
+    section_path: list[str] | None = None,
+) -> SearchResult:
+    return SearchResult(
+        chunk_id=chunk_id,
+        score=1.0,
+        title="XG-X1000 User Manual",
+        document_version_id="version-xgx",
+        source_document_id="document-xgx",
+        pages=[42],
+        section_path=section_path or ["Line Camera Settings"],
+        content=content,
+        metadata={"chunk_type": "procedure_record", "product_model": "XG-X1000"},
+    )
+
+
+def test_evidence_sufficiency_rejects_topically_related_but_incomplete_location_evidence():
+    assessment = retriever.assess_evidence_sufficiency(
+        "Where do I set overlapping lines for the XG-X1000 line scan camera, and what is it for?",
+        [_corrective_result("related", "Set the line scan interval for the XG-X1000 camera.")],
+    )
+
+    assert assessment.sufficient is False
+    assert "location" in assessment.missing_facets
+    assert "purpose" in assessment.missing_facets
+
+
+def test_evidence_sufficiency_accepts_complete_configuration_path_and_purpose():
+    assessment = retriever.assess_evidence_sufficiency(
+        "Where do I set overlapping lines for the XG-X1000 line scan camera, and what is it for?",
+        [
+            _corrective_result(
+                "complete",
+                "In the Capture Unit, select Line Camera Settings > Image Area > Continuous Capture Settings > "
+                "Overlapping lines. This setting controls the number of lines shared between adjacent captures "
+                "so that the images can be joined continuously.",
+                section_path=["Capture Unit", "Line Camera Settings", "Image Area", "Continuous Capture Settings"],
+            )
+        ],
+    )
+
+    assert assessment.sufficient is True
+    assert assessment.missing_facets == ()
+
+
+def test_evidence_sufficiency_does_not_treat_insufficient_capacity_as_numeric_request():
+    assessment = retriever.assess_evidence_sufficiency(
+        "What happens to the output when the SD card capacity is insufficient?",
+        [
+            _corrective_result(
+                "related-error",
+                "Error Number 12005: There is not enough free space on SD card 2.",
+            )
+        ],
+    )
+
+    assert "quantified_value" not in assessment.required_facets
+    assert assessment.sufficient is False
+
+
+def test_retrieve_skips_corrective_pass_when_primary_evidence_is_sufficient(monkeypatch):
+    calls: list[bool] = []
+    complete = _corrective_result(
+        "complete",
+        "Select Settings > Output and set the voltage to 24 V for the XG-X1000.",
+        section_path=["Settings", "Output"],
+    )
+
+    def fake_retrieve_once(*_args, force_broad=False, **_kwargs):
+        calls.append(force_broad)
+        return [complete]
+
+    monkeypatch.setattr(retriever, "_retrieve_once", fake_retrieve_once)
+
+    results = retriever.retrieve("Where do I set the XG-X1000 output voltage?", ["manuals"], {})
+
+    assert calls == [False]
+    assert results[0].metadata["corrective_retrieval"]["attempted"] is False
+
+
+def test_retrieve_runs_one_broad_corrective_pass_and_fuses_provenance(monkeypatch):
+    calls: list[bool] = []
+    related = _corrective_result("related", "The XG-X1000 supports line scan cameras.")
+    complete = _corrective_result(
+        "complete",
+        "In the Capture Unit, select Line Camera Settings > Image Area > Continuous Capture Settings > "
+        "Overlapping lines. This setting controls the lines shared between adjacent captures.",
+        section_path=["Capture Unit", "Line Camera Settings", "Image Area", "Continuous Capture Settings"],
+    )
+
+    def fake_retrieve_once(*_args, force_broad=False, **_kwargs):
+        calls.append(force_broad)
+        return [complete] if force_broad else [related]
+
+    class FakeStore:
+        fuse_rrf = staticmethod(QdrantStore.fuse_rrf)
+
+    monkeypatch.setattr(retriever, "_retrieve_once", fake_retrieve_once)
+    monkeypatch.setattr(retriever, "QdrantStore", FakeStore)
+    monkeypatch.setattr(retriever, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "rerank_results", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "assemble_context", lambda results, **_kwargs: results)
+
+    results = retriever.retrieve(
+        "Where do I set overlapping lines for the XG-X1000 line scan camera?",
+        ["manuals"],
+        {},
+    )
+
+    assert calls == [False, True]
+    trace = results[0].metadata["corrective_retrieval"]
+    assert trace["attempted"] is True
+    assert trace["accepted"] is True
+    assert trace["final_assessment"]["sufficient"] is True
+    assert "location" in trace["resolved_facets"]
+    complete_result = next(result for result in results if result.chunk_id == "complete")
+    assert complete_result.metadata["retrieval_strategy_sources"] == ["broad_corrective"]
+
+
+def test_retrieve_keeps_primary_order_when_corrective_candidate_does_not_improve_evidence(monkeypatch):
+    primary = _corrective_result("primary", "The XG-X1000 supports line scan cameras.")
+    unrelated = _corrective_result("unrelated", "The XG-X1000 camera has configurable lighting.")
+
+    def fake_retrieve_once(*_args, force_broad=False, **_kwargs):
+        return [unrelated] if force_broad else [primary]
+
+    class FakeStore:
+        fuse_rrf = staticmethod(QdrantStore.fuse_rrf)
+
+    monkeypatch.setattr(retriever, "_retrieve_once", fake_retrieve_once)
+    monkeypatch.setattr(retriever, "QdrantStore", FakeStore)
+    monkeypatch.setattr(retriever, "enrich_candidates_for_rerank", lambda results, *_args, **_kwargs: results)
+    monkeypatch.setattr(retriever, "rerank_results", lambda results, *_args, **_kwargs: list(reversed(results)))
+    monkeypatch.setattr(retriever, "assemble_context", lambda results, **_kwargs: results)
+
+    results = retriever.retrieve(
+        "Where do I set overlapping lines for the XG-X1000 line scan camera?",
+        ["manuals"],
+        {},
+    )
+
+    assert [result.chunk_id for result in results] == ["primary"]
+    trace = results[0].metadata["corrective_retrieval"]
+    assert trace["attempted"] is True
+    assert trace["accepted"] is False
+    assert trace["final_assessment"] == trace["primary_assessment"]

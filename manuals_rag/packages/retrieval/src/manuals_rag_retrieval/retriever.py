@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Iterable
 
@@ -68,6 +69,31 @@ LEXICAL_CONTEXT_STOPWORDS = LEXICAL_TABLE_STOPWORDS.union(
         "used",
     }
 )
+
+EVIDENCE_FACET_STOPWORDS = {
+    "about", "after", "also", "are", "can", "could", "does", "for", "from",
+    "have", "how", "into", "manual", "much", "must", "need", "should", "that",
+    "the", "their", "there", "these", "this", "those", "using", "what", "when",
+    "where", "which", "with", "would", "your",
+}
+
+
+@dataclass(frozen=True)
+class EvidenceSufficiency:
+    required_facets: tuple[str, ...]
+    satisfied_facets: tuple[str, ...]
+    missing_facets: tuple[str, ...]
+    query_term_coverage: float
+    sufficient: bool
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "required_facets": list(self.required_facets),
+            "satisfied_facets": list(self.satisfied_facets),
+            "missing_facets": list(self.missing_facets),
+            "query_term_coverage": self.query_term_coverage,
+            "sufficient": self.sufficient,
+        }
 LEXICAL_TABLE_FIELD_TERMS = {
     "average",
     "description",
@@ -2811,7 +2837,187 @@ def _attach_document_selection(
     ]
 
 
-def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 10) -> list[SearchResult]:
+def _evidence_corpus_text(results: list[SearchResult]) -> str:
+    parts: list[str] = []
+    for result in results:
+        metadata = result.metadata or {}
+        parts.extend(
+            [
+                result.title,
+                " ".join(result.section_path),
+                result.content,
+                str(metadata.get("context_window") or ""),
+                str(metadata.get("parent_context") or ""),
+                " ".join(str(item) for item in metadata.get("menu_labels") or []),
+                " ".join(str(item) for item in metadata.get("document_menu_labels") or []),
+            ]
+        )
+    return "\n".join(part for part in parts if part)
+
+
+def _requested_evidence_facets(query: str, analysis: QueryAnalysis) -> set[str]:
+    lowered = query.lower()
+    facets: set[str] = set()
+    if re.search(r"\bwhere\b|\b(?:which|what)\s+(?:menu|screen|tab|section|page)\b", lowered):
+        facets.add("location")
+    if "how_to" in analysis.query_types or re.search(r"\b(?:how do i|how can i|steps? to)\b", lowered):
+        facets.add("procedure")
+    if "troubleshooting" in analysis.query_types:
+        facets.update({"cause", "corrective_action"})
+    if "comparison" in analysis.query_types:
+        facets.add("comparison_sides")
+    if "compatibility" in analysis.query_types:
+        facets.add("compatibility")
+    if analysis.safety_intent or re.search(r"\b(?:safe|precaution|prohibited|must not)\b", lowered):
+        facets.add("safety_constraint")
+    if re.search(
+        r"\b(?:how many|how much|maximum|minimum|range|dimension|size|weight|distance|"
+        r"resolution|frequency|speed|time|duration)\b",
+        lowered,
+    ) or re.search(
+        r"\b(?:what|which)\s+(?:(?:is|are)\s+(?:the\s+)?)?"
+        r"(?:current|voltage|temperature|capacity)\b",
+        lowered,
+    ):
+        facets.add("quantified_value")
+    if re.search(r"\b(?:what (?:is|are).+ for|what does|why (?:is|are|does|do)|purpose|used for)\b", lowered):
+        facets.add("purpose")
+    return facets
+
+
+def assess_evidence_sufficiency(query: str, results: list[SearchResult]) -> EvidenceSufficiency:
+    """Check generic answer facets without using hidden expected-answer information."""
+    analysis = analyze_query(query)
+    required = _requested_evidence_facets(query, analysis)
+    if not results:
+        missing = required or {"relevant_evidence"}
+        return EvidenceSufficiency(tuple(sorted(required)), (), tuple(sorted(missing)), 0.0, False)
+
+    evidence = _evidence_corpus_text(results)
+    lowered = evidence.lower()
+    evidence_terms = _text_terms(evidence)
+    identifier_terms = _query_product_identifier_terms(analysis)
+    query_terms = {
+        term
+        for term in _text_terms(query)
+        if term not in EVIDENCE_FACET_STOPWORDS and term not in identifier_terms and len(term) >= 3
+    }
+    covered_terms = query_terms.intersection(evidence_terms)
+    term_coverage = round(len(covered_terms) / len(query_terms), 4) if query_terms else 1.0
+
+    satisfied: set[str] = set()
+    hierarchy_depth = max(
+        [len([part for part in result.section_path if str(part).strip()]) for result in results] or [0]
+    )
+    if "location" in required and (
+        hierarchy_depth >= 2
+        or re.search(r"(?:menu|screen|tab|section|settings?).{0,100}(?:>|→|/|under|within|select)", lowered)
+    ):
+        satisfied.add("location")
+    if "procedure" in required and re.search(
+        r"\b(?:select|set|open|choose|enable|disable|press|click|connect|install|remove|adjust|configure|"
+        r"register|navigate|verify|check|turn)\b",
+        lowered,
+    ):
+        satisfied.add("procedure")
+    if "cause" in required and re.search(r"\b(?:cause|caused|because|due to|results? from|occurs? when|if)\b", lowered):
+        satisfied.add("cause")
+    if "corrective_action" in required and re.search(
+        r"\b(?:correct|remedy|resolve|fix|replace|reconnect|restart|check|set|adjust|remove|install|ensure|verify)\b",
+        lowered,
+    ):
+        satisfied.add("corrective_action")
+    if "comparison_sides" in required:
+        compact_evidence = _compact_identifier(evidence)
+        compact_identifiers = [_compact_identifier(item) for item in analysis.product_identifiers if item]
+        if len(compact_identifiers) >= 2 and all(item in compact_evidence for item in compact_identifiers):
+            satisfied.add("comparison_sides")
+    if "compatibility" in required and re.search(
+        r"\b(?:compatible|supported|supports|connect(?:ed|ion)?|works? with|can be used|available for)\b",
+        lowered,
+    ):
+        satisfied.add("compatibility")
+    if "safety_constraint" in required and re.search(
+        r"\b(?:warning|caution|danger|prohibited|must not|do not|never|required|precaution|safe)\b",
+        lowered,
+    ):
+        satisfied.add("safety_constraint")
+    if "quantified_value" in required and (
+        re.search(r"\b\d+(?:\.\d+)?\s*(?:%|v|a|ma|w|mm|cm|m|kg|g|hz|khz|mhz|ms|s|min|hours?|pixels?)?\b", lowered)
+        or re.search(r"\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten)\b", lowered)
+    ):
+        satisfied.add("quantified_value")
+    if "purpose" in required and re.search(
+        r"\b(?:used to|used for|allows?|enables?|controls?|determines?|provides?|prevents?|so that|in order to)\b",
+        lowered,
+    ):
+        satisfied.add("purpose")
+
+    identifiers_satisfied = True
+    if identifier_terms:
+        compact_evidence = _compact_identifier(evidence)
+        identifiers_satisfied = any(_compact_identifier(item) in compact_evidence for item in analysis.product_identifiers)
+    topic_satisfied = not query_terms or bool(covered_terms)
+    missing = required.difference(satisfied)
+    if not identifiers_satisfied:
+        missing.add("requested_identifier")
+    if not topic_satisfied:
+        missing.add("query_topic")
+    sufficient = not missing and term_coverage >= (0.4 if len(query_terms) >= 3 else 0.0)
+    return EvidenceSufficiency(
+        tuple(sorted(required)),
+        tuple(sorted(satisfied)),
+        tuple(sorted(missing)),
+        term_coverage,
+        sufficient,
+    )
+
+
+def _attach_corrective_trace(
+    results: list[SearchResult],
+    *,
+    primary: EvidenceSufficiency,
+    final: EvidenceSufficiency,
+    attempted: bool,
+    accepted: bool = False,
+    corrective_candidate: EvidenceSufficiency | None = None,
+    strategy_sources: dict[str, list[str]] | None = None,
+) -> list[SearchResult]:
+    trace = {
+        "attempted": attempted,
+        "accepted": accepted,
+        "primary_assessment": primary.to_dict(),
+        "corrective_candidate_assessment": corrective_candidate.to_dict() if corrective_candidate else None,
+        "final_assessment": final.to_dict(),
+        "resolved_facets": sorted(set(primary.missing_facets).difference(final.missing_facets)),
+        "max_attempts": 1,
+    }
+    annotated: list[SearchResult] = []
+    for result in results:
+        sources = (strategy_sources or {}).get(result.chunk_id, ["primary"])
+        annotated.append(
+            result.model_copy(
+                update={
+                    "metadata": {
+                        **result.metadata,
+                        "retrieval_strategy_sources": sources,
+                        "corrective_retrieval": trace,
+                    }
+                }
+            )
+        )
+    return annotated
+
+
+def _retrieve_once(
+    query: str,
+    corpus_ids: list[str],
+    filters: dict[str, object],
+    limit: int = 10,
+    *,
+    force_broad: bool = False,
+    candidate_pool_limit: int = FUSED_CANDIDATE_POOL_LIMIT,
+) -> list[SearchResult]:
     store = QdrantStore()
     analysis = analyze_query(query)
     search_filters, metadata_document_hits = select_documents_from_metadata(
@@ -2822,38 +3028,39 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
         limit=_metadata_selection_limit(analysis),
     )
     exact_document_ids: list[str] = []
-    if not _has_explicit_document_scope(filters):
+    if not force_broad and not _has_explicit_document_scope(filters):
         exact_document_ids = _exact_identifier_document_ids(metadata_document_hits, analysis)
         if exact_document_ids:
             search_filters = {**filters, "source_document_id": exact_document_ids}
-    chunk_search_filters = _chunk_search_filters(filters, search_filters, analysis)
+    chunk_search_filters = filters if force_broad else _chunk_search_filters(filters, search_filters, analysis)
     supplemental_filters = chunk_search_filters if exact_document_ids else filters
-    broad_vector_enabled = _should_run_broad_vector_search(analysis)
+    broad_vector_enabled = force_broad or _should_run_broad_vector_search(analysis)
     table_lexical_results = (
         _annotate_stage_metadata(_run_cached_table_lexical_search(query, corpus_ids, supplemental_filters, analysis), "table_lexical")
         if _should_run_table_lexical_search(analysis)
         else []
     )
     exact_troubleshooting = _exact_troubleshooting_table_results(table_lexical_results, analysis, limit=12)
-    if exact_troubleshooting:
+    if exact_troubleshooting and not force_broad:
         siblings = _troubleshooting_table_siblings(exact_troubleshooting, analysis)
         assembled = assemble_context(
             _dedupe_results([*exact_troubleshooting, *siblings], analysis),
             limit=limit,
         )
         return _attach_document_selection(assembled, metadata_document_hits)
+    branch_limit = 60 if force_broad else 40
     dense_results = (
-        _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, chunk_search_filters), "dense")
+        _annotate_stage_metadata(run_dense_search(store, query, corpus_ids, chunk_search_filters, limit=branch_limit), "dense")
         if broad_vector_enabled
         else []
     )
     sparse_results = (
-        _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, chunk_search_filters), "sparse")
+        _annotate_stage_metadata(run_sparse_search(store, query, corpus_ids, chunk_search_filters, limit=branch_limit), "sparse")
         if broad_vector_enabled
         else []
     )
     table_results = (
-        _annotate_stage_metadata(run_table_search(store, query, corpus_ids, chunk_search_filters), "table")
+        _annotate_stage_metadata(run_table_search(store, query, corpus_ids, chunk_search_filters, limit=branch_limit), "table")
         if _should_run_extra_table_vector_search(analysis)
         else []
     )
@@ -2861,12 +3068,15 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
         run_contextual_lexical_search(query, corpus_ids, supplemental_filters, analysis),
         "contextual_lexical",
     )
-    special_results = _annotate_stage_metadata(run_special_search(store, query, corpus_ids, chunk_search_filters, analysis), "special")
+    special_results = _annotate_stage_metadata(
+        run_special_search(store, query, corpus_ids, chunk_search_filters, analysis, limit=branch_limit),
+        "special",
+    )
     fused = _annotate_stage_metadata(
         fuse_results(
             store,
             [dense_results, sparse_results, table_results, table_lexical_results, contextual_lexical_results, special_results],
-            limit=FUSED_CANDIDATE_POOL_LIMIT,
+            limit=candidate_pool_limit,
         ),
         "fused",
     )
@@ -2874,9 +3084,9 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
         fused,
         dense_results,
         analysis,
-        limit=FUSED_CANDIDATE_POOL_LIMIT,
+        limit=candidate_pool_limit,
     )
-    rescored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored")[:FUSED_CANDIDATE_POOL_LIMIT], "family_scored")
+    rescored = _annotate_stage_metadata(_apply_family_scoring(fused, analysis, stage="family_scored")[:candidate_pool_limit], "family_scored")
     completed = _annotate_stage_metadata(_annotate_completeness(rescored), "completeness_scored")
     aligned = _annotate_stage_metadata(_apply_query_alignment(completed, analysis, stage="query_aligned"), "query_aligned")
     family_selected = _annotate_stage_metadata(_select_family_candidates(aligned, analysis, filters=chunk_search_filters, limit=12), "family_selected")
@@ -2890,6 +3100,57 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     deduped = _dedupe_results(reranked, analysis)
     assembled = assemble_context(deduped, limit=limit)
     return _attach_document_selection(assembled, metadata_document_hits)
+
+
+def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limit: int = 10) -> list[SearchResult]:
+    """Retrieve once, then perform one broad corrective pass when requested facets are absent."""
+    primary_results = _retrieve_once(query, corpus_ids, filters, limit=limit)
+    primary_assessment = assess_evidence_sufficiency(query, primary_results)
+    if primary_assessment.sufficient:
+        return _attach_corrective_trace(
+            primary_results,
+            primary=primary_assessment,
+            final=primary_assessment,
+            attempted=False,
+        )
+
+    corrective_results = _retrieve_once(
+        query,
+        corpus_ids,
+        filters,
+        limit=max(limit, 12),
+        force_broad=True,
+        candidate_pool_limit=60,
+    )
+    strategy_sources: dict[str, list[str]] = {}
+    for source, source_results in (("primary", primary_results), ("broad_corrective", corrective_results)):
+        for result in source_results:
+            strategy_sources.setdefault(result.chunk_id, []).append(source)
+    store = QdrantStore()
+    fused = fuse_results(store, [primary_results, corrective_results], limit=30)
+    analysis = analyze_query(query)
+    enriched = enrich_candidates_for_rerank(fused, analysis, limit=30)
+    reranked = rerank_results(enriched, query, limit=max(limit, 12))
+    final_results = assemble_context(_dedupe_results(reranked, analysis), limit=limit)
+    candidate_assessment = assess_evidence_sufficiency(query, final_results)
+    correction_improved = (
+        len(candidate_assessment.missing_facets) < len(primary_assessment.missing_facets)
+        or (
+            candidate_assessment.missing_facets == primary_assessment.missing_facets
+            and candidate_assessment.query_term_coverage > primary_assessment.query_term_coverage
+        )
+    )
+    accepted_results = final_results if correction_improved else primary_results
+    final_assessment = candidate_assessment if correction_improved else primary_assessment
+    return _attach_corrective_trace(
+        accepted_results,
+        primary=primary_assessment,
+        final=final_assessment,
+        attempted=True,
+        accepted=correction_improved,
+        corrective_candidate=candidate_assessment,
+        strategy_sources=strategy_sources,
+    )
 
 
 def document_versions_for_results(results: list[SearchResult]) -> list[dict[str, object]]:

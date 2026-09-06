@@ -36,6 +36,7 @@ class QueryState(TypedDict, total=False):
     fused_results: list[dict]
     retrieval_results: list[dict]
     answer: dict
+    retrieval_trace: dict
     step_timings_ms: dict[str, float]
 
 
@@ -116,7 +117,14 @@ def assemble(state: QueryState) -> QueryState:
 
 def retrieve_documents(state: QueryState) -> QueryState:
     results = retrieve(state["query"], state["corpus_ids"], state["filters"])
-    return {**state, "retrieval_results": [result.model_dump() for result in results]}
+    retrieval_trace = {}
+    if results:
+        retrieval_trace = dict(results[0].metadata.get("corrective_retrieval") or {})
+    return {
+        **state,
+        "retrieval_results": [result.model_dump() for result in results],
+        "retrieval_trace": retrieval_trace,
+    }
 
 
 def validate_or_answer(state: QueryState) -> QueryState:

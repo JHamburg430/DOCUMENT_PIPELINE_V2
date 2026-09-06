@@ -1132,8 +1132,12 @@ def explain_retrieval(
 ) -> dict[str, Any]:
     filters = build_filters(request.query, request.filters)
     results = [item.model_dump() for item in retrieve(request.query, request.corpus_ids, filters)]
+    corrective_retrieval = {}
+    if results:
+        corrective_retrieval = dict(results[0].get("metadata", {}).get("corrective_retrieval") or {})
     return {
         "applied_filters": filters,
+        "corrective_retrieval": corrective_retrieval,
         "reranked_top_results": results,
     }
 

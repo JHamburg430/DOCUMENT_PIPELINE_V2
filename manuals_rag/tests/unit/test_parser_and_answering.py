@@ -262,6 +262,78 @@ def test_location_answer_merges_parent_screen_and_rejects_sibling_device_path():
     assert "Line Camera Settings > Continuous Capture Settings" in completed.answer
 
 
+def test_location_answer_prefers_richer_supported_hierarchy_over_earlier_partial_definition():
+    partial = SearchResult(
+        chunk_id="partial",
+        score=1.0,
+        title="Controller Manual.pdf",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[207],
+        section_path=["Capture"],
+        content=(
+            "Continuous Capture Settings\n\nOverlapping lines: Specify the number of lines "
+            "overlapped from the previous capture."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    complete = SearchResult(
+        chunk_id="complete",
+        score=0.8,
+        title="Controller Manual.pdf",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[228],
+        section_path=["Capture"],
+        content=(
+            "Line Camera Settings\n\nImage Area\n\nContinuous Capture Settings\n\n"
+            "Overlapping lines: Specify the number of lines overlapped from the previous capture "
+            "when storing in the image variable."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+
+    answer, support = _concise_configuration_location_answer(
+        "Where do I set overlapping lines for a line scan camera?",
+        [partial, complete],
+    )
+
+    assert "Line Camera Settings > Image Area > Continuous Capture Settings > Overlapping lines" in answer
+    assert {result.chunk_id for result in support} == {"partial", "complete"}
+
+
+def test_generate_answer_uses_complete_location_evidence_without_model(monkeypatch):
+    result = SearchResult(
+        chunk_id="complete",
+        score=0.9,
+        title="Controller Manual.pdf",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[228],
+        section_path=["Capture Unit"],
+        content=(
+            "Line Camera Settings\n\nImage Area\n\nContinuous Capture Settings\n\n"
+            "Overlapping lines: Specify the number of lines overlapped from the previous capture "
+            "when storing in the image variable. Select the tab for the camera being configured."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model should not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "Where do I set overlapping lines for a linescan camera, and what is it for?",
+        [result],
+    )
+
+    assert "Line Camera Settings > Image Area > Continuous Capture Settings > Overlapping lines" in answer.answer
+    assert "Purpose:" in answer.answer
+    assert trace["final_answer"]["prompt_kind"] == "configuration_location"
+    assert trace["final_answer"]["answer_source"] == "structured_evidence"
+
+
 def test_troubleshooting_symptom_with_different_or_while_is_not_a_comparison():
     assert not _is_comparison_query(
         'What causes calibration data generated under different conditions from the "Axes Configuration" error?'
@@ -2530,6 +2602,75 @@ def test_generate_answer_uses_deterministic_troubleshooting_path_for_section_evi
     assert "Check the encoder connection" in answer.answer
     assert trace["final_answer"]["answer_source"] == "structured_evidence"
     assert trace["final_answer"]["used_fallback"] is False
+
+
+def test_rendered_table_answer_returns_matching_row_with_column_labels(monkeypatch):
+    result = SearchResult(
+        chunk_id="output-settings",
+        score=0.9,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[174],
+        section_path=["Output Settings"],
+        content=(
+            "IV4_Manual.pdf | Output Settings\n\n"
+            "Setting range | Description\n"
+            "OFF | Do not output.\n"
+            "Error | The output turns ON for system error, startup memory readout error, "
+            "program switching error, external master registration error, and SD card access error.\n"
+            "Insufficient SD capacity | Output turns ON when the SD card does not have sufficient capacity."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model should not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "Which errors cause the output to turn ON when the setting is Error?",
+        [result],
+    )
+
+    assert answer.answer.startswith("Setting range: Error; Description:")
+    assert "program switching error" in answer.answer
+    assert "Insufficient SD capacity" not in answer.answer
+    assert trace["final_answer"]["prompt_kind"] == "structured_table"
+
+
+def test_rendered_table_answer_selects_requested_effect_without_raw_context(monkeypatch):
+    result = SearchResult(
+        chunk_id="output-settings",
+        score=0.9,
+        title="IV4 Manual",
+        document_version_id="v1",
+        source_document_id="d1",
+        pages=[174],
+        section_path=["Output Settings"],
+        content=(
+            "Setting range | Description\n"
+            "Error | The output turns ON for system errors.\n"
+            "Insufficient SD capacity | Output turns ON when the SD card does not have sufficient capacity."
+        ),
+        metadata={"chunk_type": "section_window"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_answering.generator.chat_json",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("answer model should not run")),
+    )
+
+    answer, trace = generate_answer_with_trace(
+        "What happens to the output when the SD card capacity is insufficient?",
+        [result],
+    )
+
+    assert answer.answer == (
+        "Setting range: Insufficient SD capacity; "
+        "Description: Output turns ON when the SD card does not have sufficient capacity."
+    )
+    assert "Retrieved evidence" not in answer.answer
+    assert trace["final_answer"]["answer_source"] == "structured_evidence"
 
 
 def test_validate_answer_rejects_quote_from_context_window_under_cited_chunk():

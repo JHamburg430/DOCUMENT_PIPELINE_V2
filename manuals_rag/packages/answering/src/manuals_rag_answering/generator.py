@@ -520,6 +520,60 @@ def _focused_table_record_answer_text(query: str, result: SearchResult) -> str:
     return best_row
 
 
+def _focused_pipe_table_answer_text(query: str, result: SearchResult) -> str:
+    """Return one query-matched row with its labels from a rendered table."""
+    lines = [line.strip() for line in _fallback_answer_text(result).splitlines() if "|" in line]
+    parsed = [[cell.strip() for cell in line.split("|")] for line in lines]
+    parsed = [cells for cells in parsed if len(cells) >= 2 and all(cells)]
+    if len(parsed) < 2:
+        return ""
+
+    query_terms = _material_claim_terms(query).difference(
+        {"cause", "causes", "description", "does", "happens", "range", "setting", "which"}
+    )
+    scored_rows: list[tuple[int, int, list[str]]] = []
+    for index, cells in enumerate(parsed):
+        overlap = len(query_terms.intersection(_material_claim_terms(" ".join(cells))))
+        scored_rows.append((overlap, -index, cells))
+    overlap, negative_index, best_cells = max(scored_rows, key=lambda item: (item[0], item[1]))
+    if overlap < 2:
+        return ""
+
+    row_index = -negative_index
+    header_cells: list[str] = []
+    for cells in reversed(parsed[:row_index]):
+        if len(cells) != len(best_cells):
+            continue
+        if any(".pdf" in cell.lower() for cell in cells):
+            continue
+        if all(len(cell) <= 60 and not re.search(r"[.!?]$", cell) for cell in cells):
+            header_cells = cells
+            break
+    if not header_cells:
+        return ""
+
+    labelled = [f"{label}: {value}" for label, value in zip(header_cells, best_cells) if label and value]
+    return "; ".join(labelled)
+
+
+def _concise_structured_table_answer(
+    query: str,
+    results: list[SearchResult],
+) -> tuple[str, list[SearchResult]]:
+    candidates: list[tuple[int, int, str, SearchResult]] = []
+    query_terms = _material_claim_terms(query)
+    for index, result in enumerate(results[:10]):
+        answer = _focused_pipe_table_answer_text(query, result)
+        if not answer:
+            continue
+        overlap = len(query_terms.intersection(_material_claim_terms(answer)))
+        candidates.append((overlap, -index, answer, result))
+    if not candidates:
+        return "", []
+    _overlap, _negative_index, answer, result = max(candidates, key=lambda item: (item[0], item[1]))
+    return answer, [result]
+
+
 def _troubleshooting_context_text(result: SearchResult) -> str:
     parts: list[str] = []
     for text in [
@@ -1089,12 +1143,15 @@ def _fallback_answer(query: str, results: list[SearchResult]) -> AnswerResponse:
             insufficient_evidence=True,
         )
     location_answer, location_results = _concise_configuration_location_answer(query, results)
-    fallback_results = concise_results or location_results or _fallback_evidence_results(query, results)
+    table_answer, table_results = _concise_structured_table_answer(query, results)
+    fallback_results = concise_results or location_results or table_results or _fallback_evidence_results(query, results)
     top = fallback_results[0]
     if concise_answer:
         answer_text = concise_answer
     elif location_answer:
         answer_text = location_answer
+    elif table_answer:
+        answer_text = table_answer
     elif len(fallback_results) == 1:
         table_fallback = (
             _fallback_answer_text(top)
@@ -1424,8 +1481,8 @@ def _merged_configuration_path_labels(
         enumerate(candidates),
         key=lambda indexed: (
             bool(definition_pattern.search(indexed[1][1])),
-            -indexed[0],
             len(indexed[1][0]),
+            -indexed[0],
         ),
         default=(0, ([], "")),
     )
@@ -2097,6 +2154,44 @@ def generate_answer_with_trace(
                 "answer_source": "fallback_no_results",
                 "fallback_reason": "No retrieval results were available.",
                 "summarized_evidence": [],
+            }
+        )
+        return answer, trace
+    table_answer, table_results = _concise_structured_table_answer(query, results)
+    if table_answer and not _is_configuration_location_query(query):
+        answer = validate_answer(_fallback_answer(query, table_results), table_results, query=query)
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "structured_table"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "structured_table",
+                "num_predict": None,
+                "answer_source": "structured_evidence",
+            }
+        )
+        return answer, trace
+    location_answer, location_results = _concise_configuration_location_answer(query, results)
+    if location_answer:
+        answer = validate_answer(_fallback_answer(query, location_results), location_results, query=query)
+        trace["relevance_review"].update(
+            {"provider": "deterministic", "model": None, "prompt_kind": "configuration_location"}
+        )
+        trace["summarization"].update(
+            {"provider": "deterministic", "model": None, "summary_count": 0}
+        )
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "configuration_location",
+                "num_predict": None,
+                "answer_source": "structured_evidence",
             }
         )
         return answer, trace

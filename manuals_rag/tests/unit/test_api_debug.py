@@ -197,6 +197,38 @@ def test_stream_step_payload_includes_retrieval_samples():
     assert payload["samples"][0]["content_preview"] == "Use 24 VDC power and verify the status LED."
 
 
+def test_explain_retrieval_exposes_corrective_trace(monkeypatch):
+    trace = {
+        "attempted": True,
+        "accepted": True,
+        "resolved_facets": ["location", "purpose"],
+    }
+    result = SearchResult(
+        chunk_id="overlap-setting",
+        score=0.93,
+        title="XG-X Manual",
+        document_version_id="ver-1",
+        source_document_id="doc-1",
+        pages=[42],
+        section_path=["Capture Unit", "Line Camera Settings"],
+        content="Set Overlapping lines under Continuous Capture Settings.",
+        metadata={"corrective_retrieval": trace},
+    )
+    monkeypatch.setattr(main, "build_filters", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(main, "retrieve", lambda *_args, **_kwargs: [result])
+
+    response = client.post(
+        "/explain-retrieval",
+        headers=ADMIN_HEADERS,
+        json={"query": "Where do I set overlapping lines?", "corpus_ids": ["manuals"]},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["corrective_retrieval"] == trace
+    assert payload["reranked_top_results"][0]["chunk_id"] == "overlap-setting"
+
+
 def test_assemble_stream_payload_preserves_complete_evidence_for_eval_scoring():
     content = "A" * 300 + " expected answer-bearing evidence"
     state = {

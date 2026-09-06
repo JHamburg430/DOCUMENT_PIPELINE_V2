@@ -68,6 +68,7 @@ def test_answer_workflow_uses_integrated_retriever(monkeypatch):
     assert calls == [("compare these documents", ["manuals"], {"document_kind": "manual", "is_active": True})]
     assert result["retrieval_results"][0]["chunk_id"] == "chunk-1"
     assert result["answer"]["citations"][0]["document_id"] == "document-1"
+    assert result["retrieval_trace"] == {}
     assert "retrieve_documents" in result["step_timings_ms"]
     assert "run_dense_search" not in result["step_timings_ms"]
 
