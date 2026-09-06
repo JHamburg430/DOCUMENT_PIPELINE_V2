@@ -9093,8 +9093,8 @@
       "post_removal_registry_check": "not applicable; no removal attempted",
       "post_removal_path_check": "not applicable; no removal attempted",
       "post_removal_git_status_check": "not applicable; no removal attempted",
-      "timestamp": "2026-09-06T11:53:00Z",
-      "tracking_method": "tracking-only commit assembled from origin/main f9bf870 with an isolated Git index; no worktree created",
+      "timestamp": "2026-09-06T12:28:00Z",
+      "tracking_method": "tracking-only commit assembled from origin/main ab5841f with an isolated Git index; no worktree created",
       "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
     },
     "dataset_ledger_extension_containment": {
@@ -9224,8 +9224,8 @@
       "post_removal_registry_check": "not applicable; no removal attempted",
       "post_removal_path_check": "not applicable; no removal attempted",
       "post_removal_git_status_check": "not applicable; no removal attempted",
-      "timestamp": "2026-09-06T11:53:00Z",
-      "tracking_method": "tracking-only commit assembled from origin/main f9bf870 with an isolated Git index; no worktree created",
+      "timestamp": "2026-09-06T12:28:00Z",
+      "tracking_method": "tracking-only commit assembled from origin/main ab5841f with an isolated Git index; no worktree created",
       "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
     }
   },
@@ -12919,8 +12919,8 @@
         "post_removal_registry_check": "not applicable; no removal attempted",
         "post_removal_path_check": "not applicable; no removal attempted",
         "post_removal_git_status_check": "not applicable; no removal attempted",
-        "timestamp": "2026-09-06T11:53:00Z",
-        "tracking_method": "tracking-only commit assembled from origin/main f9bf870 with an isolated Git index; no worktree created",
+        "timestamp": "2026-09-06T12:28:00Z",
+        "tracking_method": "tracking-only commit assembled from origin/main ab5841f with an isolated Git index; no worktree created",
         "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
       },
       "dataset_ledger_extension_containment": {
@@ -13050,8 +13050,8 @@
         "post_removal_registry_check": "not applicable; no removal attempted",
         "post_removal_path_check": "not applicable; no removal attempted",
         "post_removal_git_status_check": "not applicable; no removal attempted",
-        "timestamp": "2026-09-06T11:53:00Z",
-        "tracking_method": "tracking-only commit assembled from origin/main f9bf870 with an isolated Git index; no worktree created",
+        "timestamp": "2026-09-06T12:28:00Z",
+        "tracking_method": "tracking-only commit assembled from origin/main ab5841f with an isolated Git index; no worktree created",
         "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
       }
     },
@@ -14069,9 +14069,9 @@
     "total_questions": 209,
     "unresolved_guardrail_findings": [
       {
-        "finding": "Guardrail commit f9bf870 and the latest audit through 2026-09-06T11:47:07Z confirm that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
-        "guardrail_commit": "f9bf870",
-        "guardrail_timestamp": "2026-09-06T11:47:07Z",
+        "finding": "Guardrail commit ab5841f and the latest audit through 2026-09-06T12:17:47Z confirm that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
+        "guardrail_commit": "ab5841f",
+        "guardrail_timestamp": "2026-09-06T12:17:47Z",
         "severity": "needs_fix",
         "status": "blocked_fail_closed_no_registered_accuracy_worktree",
         "evidence": [
@@ -15737,7 +15737,7 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-06T11:53:00Z"
+    "updated_at": "2026-09-06T12:28:00Z"
   },
   "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
   "retrieval_current_failure_categories": {},
@@ -16626,9 +16626,9 @@
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
     {
-      "finding": "Guardrail commit f9bf870 and the latest audit through 2026-09-06T11:47:07Z confirm that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
-      "guardrail_commit": "f9bf870",
-      "guardrail_timestamp": "2026-09-06T11:47:07Z",
+      "finding": "Guardrail commit ab5841f and the latest audit through 2026-09-06T12:17:47Z confirm that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
+      "guardrail_commit": "ab5841f",
+      "guardrail_timestamp": "2026-09-06T12:17:47Z",
       "severity": "needs_fix",
       "status": "blocked_fail_closed_no_registered_accuracy_worktree",
       "evidence": [
@@ -18294,5 +18294,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-06T11:53:00Z"
+  "updated_at": "2026-09-06T12:28:00Z"
 }
