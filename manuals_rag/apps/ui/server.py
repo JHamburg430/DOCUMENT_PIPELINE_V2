@@ -39,6 +39,7 @@ MATRIX_PROCESSES: dict[str, subprocess.Popen] = {}
 MATRIX_JOBS_LOCK = Lock()
 MATRIX_JOBS_LOADED = False
 MATRIX_JOB_EVENT_TAIL_LIMIT = 200
+MATRIX_JOB_PERSISTED_EVENT_TAIL_LIMIT = 50
 PROXY_RETRYABLE_METHODS = {"GET", "HEAD"}
 PROXY_RETRYABLE_ERRORS = (ConnectionError, RemoteDisconnected, SocketTimeout, URLError, TimeoutError)
 ANSWER_STAGE_KEYS = {"relevance", "summaries", "generation", "answer_docs", "citations", "terms", "answer"}
@@ -1118,7 +1119,25 @@ def _persist_question_matrix_jobs_locked() -> None:
     state_path = _question_matrix_jobs_state_path()
     try:
         state_path.parent.mkdir(parents=True, exist_ok=True)
-        state_path.write_text(json.dumps({"jobs": MATRIX_JOBS}, indent=2, default=str), encoding="utf-8")
+        persisted_jobs: dict[str, dict] = {}
+        for job_id, job in MATRIX_JOBS.items():
+            persisted = dict(job)
+            current_row_key = str(job.get("current_row_key") or "")
+            live_cells = job.get("live_cells") or {}
+            live_results = job.get("live_results") or {}
+            persisted["live_cells"] = (
+                {current_row_key: live_cells[current_row_key]}
+                if current_row_key and current_row_key in live_cells
+                else {}
+            )
+            persisted["live_results"] = (
+                {current_row_key: live_results[current_row_key]}
+                if current_row_key and current_row_key in live_results
+                else {}
+            )
+            persisted["events"] = list(job.get("events") or [])[-MATRIX_JOB_PERSISTED_EVENT_TAIL_LIMIT:]
+            persisted_jobs[job_id] = persisted
+        state_path.write_text(json.dumps({"jobs": persisted_jobs}, indent=2, default=str), encoding="utf-8")
     except OSError:
         pass
 
@@ -2049,7 +2068,7 @@ def _run_answer_matrix_dataset(
                     eval_case,
                     answer,
                     evaluation,
-                    top_results,
+                    _debug_answer_evidence_results(debug_result, top_results),
                     use_llm_required_info_judge=bool(job.get("use_model_judge")),
                 )
                 _record_question_matrix_job_event(
@@ -2330,6 +2349,28 @@ def _debug_top_results(debug_result: dict) -> list[dict]:
         if stage.get("name") == "assemble_context":
             return list(stage.get("samples") or [])
     return []
+
+
+def _debug_answer_evidence_results(debug_result: dict, top_results: list[dict]) -> list[dict]:
+    """Return every concrete chunk the answer generator was allowed to cite.
+
+    Matrix retrieval scoring intentionally uses the bounded final-context preview,
+    but answer scoring must also resolve citations from the serialized answer-input
+    set. The answer workflow can expand a table row after context assembly, so a
+    valid citation may not be one of the few samples displayed for that stage.
+    """
+    merged: list[dict] = []
+    seen: set[str] = set()
+    answer_inputs = debug_result.get("answer_generation_inputs") or {}
+    for item in [*top_results, *(answer_inputs.get("samples") or [])]:
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get("chunk_id") or item.get("id") or "")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        merged.append(item)
+    return merged
 
 
 def _top_results_from_assemble_payload(payload: dict) -> list[dict]:

@@ -559,6 +559,38 @@ def test_question_matrix_recovers_active_job_from_state_file(monkeypatch, tmp_pa
     assert payload["active_job"]["recovered"] is True
 
 
+def test_question_matrix_persistence_keeps_only_current_live_row(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-running"] = {
+        "id": "matrix-running",
+        "status": "running",
+        "current_row_key": "dataset::case-2",
+        "live_cells": {
+            "dataset::case-1": {"answer": {"status": "pass"}},
+            "dataset::case-2": {"answer": {"status": "fail"}},
+        },
+        "live_results": {
+            "dataset::case-1": {"answer": {"answer": "old"}},
+            "dataset::case-2": {"answer": {"answer": "current"}},
+        },
+        "events": [{"event": "progress", "number": number} for number in range(75)],
+    }
+
+    with ui_server.MATRIX_JOBS_LOCK:
+        ui_server._persist_question_matrix_jobs_locked()
+
+    persisted = ui_server._read_json(reports / ".question_matrix_jobs.json")["jobs"]["matrix-running"]
+    assert list(persisted["live_cells"]) == ["dataset::case-2"]
+    assert list(persisted["live_results"]) == ["dataset::case-2"]
+    assert len(persisted["events"]) == ui_server.MATRIX_JOB_PERSISTED_EVENT_TAIL_LIMIT
+    assert persisted["events"][0]["number"] == 25
+    assert len(ui_server.MATRIX_JOBS["matrix-running"]["live_results"]) == 2
+    ui_server.MATRIX_JOBS.clear()
+
+
 def test_question_matrix_marks_orphaned_active_job_failed(monkeypatch, tmp_path):
     reports = tmp_path / "test_reports"
     reports.mkdir()
@@ -944,6 +976,28 @@ def test_answer_matrix_continues_when_stop_on_answer_failure_is_disabled(monkeyp
     assert job["completed_datasets"] == 1
     assert job["returncode"] == 0
     assert job["events"][-1]["event"] == "dataset_completed"
+
+
+def test_debug_answer_evidence_includes_all_serialized_answer_inputs():
+    context_results = [
+        {"chunk_id": "split-cause", "content": "Cause: fan is not operating"},
+        {"chunk_id": "split-action", "content": "Action: replace CA-F100"},
+    ]
+    debug_result = {
+        "answer_generation_inputs": {
+            "samples": [
+                context_results[0],
+                {
+                    "chunk_id": "combined-row",
+                    "content": "Cause: fan is not operating; Corrective Action: replace CA-F100",
+                },
+            ]
+        }
+    }
+
+    evidence = ui_server._debug_answer_evidence_results(debug_result, context_results)
+
+    assert [item["chunk_id"] for item in evidence] == ["split-cause", "split-action", "combined-row"]
 
 
 def test_question_matrix_job_uses_visible_generated_questions(monkeypatch, tmp_path):
