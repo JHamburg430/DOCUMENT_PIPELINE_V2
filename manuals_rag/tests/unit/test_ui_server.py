@@ -716,6 +716,11 @@ def test_question_matrix_stop_on_answer_failure_is_default_on():
     assert 'id="matrix-stop-on-answer-failure" type="checkbox" checked' in index_html
 
 
+def test_question_matrix_rejects_invalid_question_offset():
+    with pytest.raises(ValueError, match="question_offset must be a non-negative integer"):
+        ui_server._start_question_matrix_job({"mode": "all_bank", "question_offset": -1})
+
+
 def test_question_matrix_job_preserves_failed_answer_row_for_polling(monkeypatch, tmp_path):
     reports = tmp_path / "test_reports"
     reports.mkdir()
@@ -906,6 +911,69 @@ def test_answer_matrix_stops_after_persisting_first_answer_failure(monkeypatch, 
     assert job["outputs"][0]["partial"] is True
     assert job["events"][-1]["event"] == "answer_failure_stop"
     assert ui_server._result_run_id(result_paths[0]) not in ui_server._completed_result_run_ids()
+
+
+def test_answer_matrix_stop_gate_also_stops_when_retrieval_blocks_answer(monkeypatch, tmp_path):
+    reports = tmp_path / "test_reports"
+    reports.mkdir()
+    dataset_path = reports / "dataset.jsonl"
+    case = {
+        "case_id": "case-1",
+        "query": "What voltage does MODEL-1 use?",
+        "source_document_id": "doc-1",
+        "document_version_id": "ver-1",
+        "source_chunk_id": "chunk-1",
+        "source_title": "Manual",
+        "source_filename": "manual.pdf",
+        "chunk_type": "spec_record",
+        "section_path": "Specifications",
+        "page_from": 1,
+        "page_to": 1,
+        "expected_terms": ["24", "vdc"],
+        "expected_snippet": "Power supply voltage: 24 VDC",
+        "generation_method": "unit_test",
+        "source_metadata": {"product_model": "MODEL-1"},
+    }
+    dataset_path.write_text(ui_server.json.dumps(case) + "\n", encoding="utf-8")
+
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "TEST_REPORTS_DIR", reports)
+    monkeypatch.setattr(
+        ui_server,
+        "_run_query_debug_stream",
+        lambda *args, **kwargs: (
+            {"answer": {}, "completed_steps": ["retrieve"]},
+            {"passed": False, "failure_reasons": ["expected_source_missing"]},
+        ),
+    )
+    monkeypatch.setattr(ui_server, "_debug_top_results", lambda debug_result: [])
+    ui_server.MATRIX_JOBS.clear()
+    ui_server.MATRIX_JOBS["matrix-retrieval-stop"] = {
+        "id": "matrix-retrieval-stop",
+        "status": "running",
+        "use_model_judge": True,
+        "stop_on_answer_failure": True,
+        "outputs": [],
+        "events": [],
+        "live_cells": {},
+        "live_results": {},
+    }
+
+    with pytest.raises(ui_server.MatrixAnswerFailure, match="expected_source_missing"):
+        ui_server._run_answer_matrix_dataset(
+            "matrix-retrieval-stop",
+            "test_reports/dataset.jsonl",
+            dataset_path,
+            {"case-1": 1},
+            1,
+        )
+
+    job = ui_server.MATRIX_JOBS["matrix-retrieval-stop"]
+    record = next(iter(job["live_results"].values()))
+    assert record["evaluation"]["passed"] is False
+    assert record["answer"] == {}
+    assert job["outputs"][0]["partial"] is True
+    assert job["events"][-1]["event"] == "answer_failure_stop"
 
 
 def test_answer_matrix_continues_when_stop_on_answer_failure_is_disabled(monkeypatch, tmp_path):

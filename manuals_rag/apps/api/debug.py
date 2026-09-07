@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from time import perf_counter
 from typing import Any
 
@@ -15,15 +16,42 @@ from manuals_rag_answering.generator import (
     SYSTEM_PROMPT,
     _evidence_text,
     _direct_evidence_summary,
+    _concise_conditioned_measurement_answer,
+    _concise_contamination_action_answer,
+    _concise_capability_answer,
+    _concise_alignment_components_answer,
+    _concise_instruction_answer,
+    _concise_labeled_list_answer,
+    _concise_matching_model_answer,
+    _concise_temporal_effect_answer,
+    _concise_dependent_list_answer,
+    _concise_default_setting_value_answer,
+    _concise_enumerated_options_answer,
+    _concise_event_action_answer,
+    _concise_named_alternative_answer,
+    _concise_named_mode_requirement_answer,
+    _concise_named_selection_answer,
+    _concise_part_number_answer,
+    _concise_named_option_behavior_answer,
+    _concise_physical_location_answer,
+    _concise_required_setting_answer,
+    _concise_structured_fact_answer,
+    _concise_structured_table_answer,
+    _concise_troubleshooting_answer,
     _extract_json_summary,
     _fallback_answer,
+    _fallback_answer_from_summaries,
     _fallback_relevance_judgments,
     _fallback_summary,
     _focused_troubleshooting_results,
     _is_troubleshooting_query,
     _order_troubleshooting_results,
+    _normalize_generated_answer_payload,
     _parse_relevance_response,
     _relevance_prompt,
+    _repair_query_model_separators,
+    _scope_answer_results_to_query_models,
+    _structured_fact_evidence_results,
     _summary_source_documents,
     generate_answer_with_trace,
     prioritize_results_for_answer,
@@ -226,7 +254,7 @@ def build_query_debug_snapshot(
     step_timings_ms = dict(state.get("step_timings_ms", {}))
     retrieval_results = [dict(result) for result in state.get("retrieval_results", [])]
     validated_results = [SearchResult.model_validate(result) for result in retrieval_results]
-    candidate_results = validated_results[:8]
+    candidate_results = validated_results[:12]
     relevance_started = perf_counter()
     prioritized = prioritize_results_for_answer(request.query, candidate_results)
     relevance_duration_ms = round((perf_counter() - relevance_started) * 1000, 2)
@@ -458,7 +486,7 @@ def execute_query_debug_run(
 
     retrieval_results = [dict(result) for result in state.get("retrieval_results", [])]
     validated_results = [SearchResult.model_validate(result) for result in retrieval_results]
-    candidate_results = validated_results[:8]
+    candidate_results = validated_results[:12]
 
     report("judge_answer_inputs", "Running relevance review")
     relevance_started = perf_counter()
@@ -631,9 +659,27 @@ def _stream_prioritize_results_for_answer(
     *,
     emit: Any,
 ) -> dict[str, Any]:
+    candidate_results = _scope_answer_results_to_query_models(query, candidate_results)
     if not candidate_results:
         return {"judgments": [], "prioritized_results": []}
-    if _is_troubleshooting_query(query):
+    _contamination_answer, contamination_results = _concise_contamination_action_answer(
+        query,
+        candidate_results,
+    )
+    if contamination_results:
+        return {
+            "judgments": _fallback_relevance_judgments(query, contamination_results),
+            "prioritized_results": contamination_results,
+            "selection_source": "contamination_action",
+        }
+    specialized_action_query = bool(
+        (
+            re.search(r"\bresponse[- ]time\b", query, flags=re.IGNORECASE)
+            and re.search(r"\b(?:light|saturat\w*|insufficient|recalibrat\w*)\b", query, flags=re.IGNORECASE)
+        )
+        or re.search(r"\bwhat should i do when\b", query, flags=re.IGNORECASE)
+    )
+    if _is_troubleshooting_query(query) and not specialized_action_query:
         ordered_results = _focused_troubleshooting_results(
             query,
             _order_troubleshooting_results(query, candidate_results),
@@ -705,11 +751,38 @@ def _stream_prioritize_results_for_answer(
         judgments = fallback
 
     judgment_by_chunk_id = {item["chunk_id"]: item for item in judgments}
+    _instruction_answer, instruction_results = _concise_instruction_answer(
+        query,
+        candidate_results,
+    )
+    _table_answer, table_results = _concise_structured_table_answer(query, candidate_results)
+    _default_value_answer, default_value_results = _concise_default_setting_value_answer(
+        query,
+        candidate_results,
+    )
+    _matching_model_answer, matching_model_results = _concise_matching_model_answer(
+        query,
+        candidate_results,
+    )
+    _part_number_answer, part_number_results = _concise_part_number_answer(
+        query,
+        candidate_results,
+    )
+    structured_fact_results = _structured_fact_evidence_results(query, candidate_results)
     prioritized_results = [
+        *instruction_results,
+        *table_results,
+        *default_value_results,
+        *matching_model_results,
+        *part_number_results,
+        *structured_fact_results,
+    ]
+    prioritized_results.extend(
         result
         for result in candidate_results
         if judgment_by_chunk_id.get(result.chunk_id, {}).get("verdict") == "relevant"
-    ]
+        and result.chunk_id not in {item.chunk_id for item in prioritized_results}
+    )
     prioritized_results.extend(
         result
         for result in candidate_results
@@ -895,6 +968,648 @@ def _stream_generate_answer_with_trace(
             }
         )
         return answer, trace
+    results = _scope_answer_results_to_query_models(query, results)
+    prioritized_results = _scope_answer_results_to_query_models(query, prioritized_results)
+    specialized_action_query = bool(
+        (
+            re.search(r"\bresponse[- ]time\b", query, flags=re.IGNORECASE)
+            and re.search(r"\b(?:light|saturat\w*|insufficient|recalibrat\w*)\b", query, flags=re.IGNORECASE)
+        )
+        or re.search(r"\bwhat should i do when\b", query, flags=re.IGNORECASE)
+    )
+    if _is_troubleshooting_query(query) and not specialized_action_query:
+        troubleshooting_answer, troubleshooting_results = _concise_troubleshooting_answer(
+            query,
+            prioritized_results or results,
+        )
+        evidence_results = troubleshooting_results or prioritized_results or results
+        answer = validate_answer(
+            _fallback_answer(query, evidence_results),
+            evidence_results,
+            query=query,
+        )
+        if troubleshooting_answer:
+            answer.answer = troubleshooting_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "structured_troubleshooting",
+                "used_fallback": False,
+                "answer_source": "structured_evidence",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    conditioned_answer, conditioned_results = _concise_conditioned_measurement_answer(query, results)
+    if conditioned_answer:
+        answer = validate_answer(
+            _fallback_answer(query, conditioned_results),
+            conditioned_results,
+            query=query,
+        )
+        answer.answer = conditioned_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "conditioned_measurement",
+                "used_fallback": False,
+                "answer_source": "deterministic_conditioned_measurement",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    temporal_answer, temporal_results = _concise_temporal_effect_answer(query, results)
+    if temporal_answer:
+        answer = validate_answer(
+            _fallback_answer(query, temporal_results),
+            temporal_results,
+            query=query,
+        )
+        answer.answer = temporal_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "temporal_effect",
+                "used_fallback": False,
+                "answer_source": "deterministic_temporal_effect",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    if re.search(r"\bwhat should i do when\b", query, flags=re.IGNORECASE):
+        event_action, event_action_results = _concise_event_action_answer(
+            query,
+            prioritized_results or results,
+        )
+        if event_action:
+            answer = validate_answer(
+                _fallback_answer(query, event_action_results),
+                event_action_results,
+                query=query,
+            )
+            answer.answer = event_action
+            trace["final_answer"].update(
+                {
+                    "provider": "deterministic",
+                    "model": None,
+                    "prompt_kind": "event_action",
+                    "used_fallback": False,
+                    "answer_source": "deterministic_event_action",
+                    "fallback_reason": None,
+                    "summarized_evidence": [],
+                    "num_predict": None,
+                }
+            )
+            return answer, trace
+    if (
+        re.search(r"\bresponse[- ]time\b", query, flags=re.IGNORECASE)
+        and re.search(r"\b(?:light|saturat\w*|insufficient|recalibrat\w*)\b", query, flags=re.IGNORECASE)
+    ):
+        response_answer, response_results = _concise_structured_fact_answer(
+            query,
+            prioritized_results or results,
+        )
+        if response_answer:
+            answer = validate_answer(
+                _fallback_answer(query, response_results),
+                response_results,
+                query=query,
+            )
+            answer.answer = _repair_query_model_separators(response_answer, query)
+            trace["final_answer"].update(
+                {
+                    "provider": "deterministic",
+                    "model": None,
+                    "prompt_kind": "structured_fact",
+                    "used_fallback": False,
+                    "answer_source": "deterministic_structured_fact",
+                    "fallback_reason": None,
+                    "summarized_evidence": [],
+                    "num_predict": None,
+                }
+            )
+            return answer, trace
+    instruction_answer, instruction_results = _concise_instruction_answer(
+        query,
+        prioritized_results or results,
+    )
+    if instruction_answer:
+        answer = validate_answer(
+            _fallback_answer(query, instruction_results),
+            instruction_results,
+            query=query,
+        )
+        answer.answer = instruction_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "instruction",
+                "used_fallback": False,
+                "answer_source": "deterministic_instruction",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    alignment_answer, alignment_results = _concise_alignment_components_answer(query, results)
+    if alignment_answer:
+        answer = validate_answer(
+            _fallback_answer(query, alignment_results),
+            alignment_results,
+            query=query,
+        )
+        answer.answer = alignment_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "alignment_components",
+                "used_fallback": False,
+                "answer_source": "deterministic_alignment_components",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    physical_location_answer, physical_location_results = _concise_physical_location_answer(
+        query,
+        prioritized_results or results,
+    )
+    if physical_location_answer:
+        answer = validate_answer(
+            _fallback_answer(query, physical_location_results),
+            physical_location_results,
+            query=query,
+        )
+        answer.answer = physical_location_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "physical_location",
+                "used_fallback": False,
+                "answer_source": "deterministic_physical_location",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    enumerated_answer, enumerated_results = _concise_enumerated_options_answer(query, results)
+    if enumerated_answer:
+        answer = validate_answer(
+            _fallback_answer(query, enumerated_results),
+            enumerated_results,
+            query=query,
+        )
+        answer.answer = enumerated_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "enumerated_options",
+                "used_fallback": False,
+                "answer_source": "deterministic_enumerated_options",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    labeled_list_answer, labeled_list_results = _concise_labeled_list_answer(query, results)
+    if labeled_list_answer:
+        answer = validate_answer(
+            _fallback_answer(query, labeled_list_results),
+            labeled_list_results,
+            query=query,
+        )
+        answer.answer = labeled_list_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "labeled_list",
+                "used_fallback": False,
+                "answer_source": "deterministic_labeled_list",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    required_setting_answer, required_setting_results = _concise_required_setting_answer(query, results)
+    if required_setting_answer:
+        answer = validate_answer(
+            _fallback_answer(query, required_setting_results),
+            required_setting_results,
+            query=query,
+        )
+        answer.answer = required_setting_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "required_setting",
+                "used_fallback": False,
+                "answer_source": "deterministic_required_setting",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    mode_requirement_answer, mode_requirement_results = _concise_named_mode_requirement_answer(query, results)
+    if mode_requirement_answer:
+        answer = validate_answer(
+            _fallback_answer(query, mode_requirement_results),
+            mode_requirement_results,
+            query=query,
+        )
+        answer.answer = mode_requirement_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "named_mode_requirement",
+                "used_fallback": False,
+                "answer_source": "deterministic_named_mode_requirement",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    capability_answer, capability_results = _concise_capability_answer(query, results)
+    if capability_answer:
+        answer = validate_answer(
+            _fallback_answer(query, capability_results),
+            capability_results,
+            query=query,
+        )
+        answer.answer = capability_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "capability",
+                "used_fallback": False,
+                "answer_source": "deterministic_capability",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    named_selection_answer, named_selection_results = _concise_named_selection_answer(query, results)
+    if named_selection_answer:
+        answer = validate_answer(
+            _fallback_answer(query, named_selection_results),
+            named_selection_results,
+            query=query,
+        )
+        answer.answer = named_selection_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "named_selection",
+                "used_fallback": False,
+                "answer_source": "deterministic_named_selection",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    contamination_answer, contamination_results = _concise_contamination_action_answer(query, results)
+    if contamination_answer:
+        answer = validate_answer(
+            _fallback_answer(query, contamination_results),
+            contamination_results,
+            query=query,
+        )
+        answer.answer = contamination_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "contamination_action",
+                "used_fallback": True,
+                "answer_source": "deterministic_contamination_action",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    event_action, event_action_results = _concise_event_action_answer(
+        query,
+        prioritized_results or results,
+    )
+    if event_action:
+        answer = validate_answer(
+            _fallback_answer(query, event_action_results),
+            event_action_results,
+            query=query,
+        )
+        answer.answer = event_action
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "event_action",
+                "used_fallback": True,
+                "answer_source": "deterministic_event_action",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    response_light_condition_query = bool(
+        re.search(r"\bresponse[- ]time\b", query, flags=re.IGNORECASE)
+        and re.search(
+            r"\b(?:light|saturat\w*|insufficient|recalibrat\w*)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    if response_light_condition_query:
+        response_answer, response_results = _concise_structured_fact_answer(
+            query,
+            prioritized_results or results,
+        )
+        if response_answer:
+            answer = validate_answer(
+                _fallback_answer(query, response_results),
+                response_results,
+                query=query,
+            )
+            answer.answer = _repair_query_model_separators(response_answer, query)
+            trace["final_answer"].update(
+                {
+                    "provider": "deterministic",
+                    "model": None,
+                    "prompt_kind": "structured_fact",
+                    "used_fallback": True,
+                    "answer_source": "deterministic_structured_fact",
+                    "fallback_reason": None,
+                    "summarized_evidence": [],
+                    "num_predict": None,
+                }
+            )
+            return answer, trace
+    if _is_troubleshooting_query(query):
+        troubleshooting_answer, troubleshooting_results = _concise_troubleshooting_answer(
+            query,
+            prioritized_results or results,
+        )
+        evidence_results = troubleshooting_results or prioritized_results or results
+        answer = validate_answer(
+            _fallback_answer(query, evidence_results),
+            evidence_results,
+            query=query,
+        )
+        if troubleshooting_answer:
+            answer.answer = troubleshooting_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "structured_troubleshooting",
+                "used_fallback": False,
+                "answer_source": "structured_evidence",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    default_value_answer, default_value_results = _concise_default_setting_value_answer(query, results)
+    if default_value_answer:
+        answer = validate_answer(
+            _fallback_answer(query, default_value_results),
+            default_value_results,
+            query=query,
+        )
+        answer.answer = default_value_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "default_setting_value",
+                "used_fallback": True,
+                "answer_source": "deterministic_default_setting_value",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    part_number_answer, part_number_results = _concise_part_number_answer(query, results)
+    if part_number_answer:
+        answer = validate_answer(
+            _fallback_answer(query, part_number_results),
+            part_number_results,
+            query=query,
+        )
+        answer.answer = part_number_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "part_number",
+                "used_fallback": True,
+                "answer_source": "deterministic_part_number",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    matching_model_answer, matching_model_results = _concise_matching_model_answer(query, results)
+    if matching_model_answer:
+        answer = validate_answer(
+            _fallback_answer(query, matching_model_results),
+            matching_model_results,
+            query=query,
+        )
+        answer.answer = matching_model_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "matching_model",
+                "used_fallback": True,
+                "answer_source": "deterministic_matching_model",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    table_answer, table_results = _concise_structured_table_answer(query, results)
+    if table_answer:
+        answer = validate_answer(
+            _fallback_answer(query, table_results),
+            table_results,
+            query=query,
+        )
+        answer.answer = table_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "structured_table",
+                "used_fallback": False,
+                "answer_source": "structured_evidence",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    structured_fact_answer, structured_fact_results = _concise_structured_fact_answer(
+        query,
+        prioritized_results or results,
+    )
+    if structured_fact_answer:
+        answer = validate_answer(
+            _fallback_answer(query, structured_fact_results),
+            structured_fact_results,
+            query=query,
+        )
+        answer.answer = _repair_query_model_separators(structured_fact_answer, query)
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "structured_fact",
+                "used_fallback": True,
+                "answer_source": "deterministic_structured_fact",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    table_answer, table_results = _concise_structured_table_answer(query, results)
+    if table_answer:
+        answer = validate_answer(
+            _fallback_answer(query, table_results),
+            table_results,
+            query=query,
+        )
+        answer.answer = table_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "structured_table",
+                "used_fallback": False,
+                "answer_source": "structured_evidence",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    dependent_list_answer, dependent_list_results = _concise_dependent_list_answer(query, results)
+    if dependent_list_answer:
+        answer = validate_answer(
+            _fallback_answer(query, dependent_list_results),
+            dependent_list_results,
+            query=query,
+        )
+        answer.answer = dependent_list_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "dependent_list",
+                "used_fallback": True,
+                "answer_source": "deterministic_dependent_list",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    alternative_answer, alternative_results = _concise_named_alternative_answer(query, results)
+    if alternative_answer:
+        answer = validate_answer(
+            _fallback_answer(query, alternative_results),
+            alternative_results,
+            query=query,
+        )
+        answer.answer = alternative_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "named_alternative",
+                "used_fallback": False,
+                "answer_source": "deterministic_named_alternative",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    option_behavior_answer, option_behavior_results = _concise_named_option_behavior_answer(query, results)
+    if option_behavior_answer:
+        answer = validate_answer(
+            _fallback_answer(query, option_behavior_results),
+            option_behavior_results,
+            query=query,
+        )
+        answer.answer = option_behavior_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "named_option_behavior",
+                "used_fallback": True,
+                "answer_source": "deterministic_named_option_behavior",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
+    named_selection_answer, named_selection_results = _concise_named_selection_answer(query, results)
+    if named_selection_answer:
+        answer = validate_answer(
+            _fallback_answer(query, named_selection_results),
+            named_selection_results,
+            query=query,
+        )
+        answer.answer = named_selection_answer
+        trace["final_answer"].update(
+            {
+                "provider": "deterministic",
+                "model": None,
+                "prompt_kind": "named_selection",
+                "used_fallback": True,
+                "answer_source": "deterministic_named_selection",
+                "fallback_reason": None,
+                "summarized_evidence": [],
+                "num_predict": None,
+            }
+        )
+        return answer, trace
     if _is_troubleshooting_query(query):
         answer = validate_answer(
             _fallback_answer(query, prioritized_results),
@@ -911,53 +1626,101 @@ def _stream_generate_answer_with_trace(
             }
         )
         return answer, trace
-    try:
-        generated, _raw = _stream_llm_json(
-            emit=emit,
-            step_name="generate_answer",
-            call_id="final_answer",
-            label="Generate final answer",
-            model=settings.ollama_answer_model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Question: {query}\nEvidence summaries: {json.dumps(summarized_evidence)}"},
-            ],
-            json_schema=ANSWER_SCHEMA,
-            think=False,
-            timeout=90.0,
-            purpose="final_answer",
-            num_predict=settings.ollama_answer_num_predict,
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": f"Question: {query}\nEvidence summaries: {json.dumps(summarized_evidence)}"},
+    ]
+    last_error: Exception | None = None
+    for attempt in range(2):
+        attempt_num_predict = (
+            settings.ollama_answer_num_predict
+            if attempt == 0
+            else max(settings.ollama_answer_num_predict, 1024)
         )
-        from manuals_rag_schemas.documents import AnswerResponse
-
-        generated_answer = AnswerResponse.model_validate(generated)
-        validated_answer = validate_answer(generated_answer, prioritized_results, query=query)
-        if validated_answer.answer != generated_answer.answer and any(
-            "not sufficiently supported" in warning for warning in validated_answer.warnings
-        ):
-            trace["final_answer"].update(
+        attempt_messages = messages
+        if attempt:
+            attempt_messages = [
+                messages[0],
                 {
-                    "used_fallback": True,
-                    "answer_source": "fallback_validation",
-                    "fallback_reason": "Generated answer was replaced by retrieval-grounded fallback during validation.",
-                }
+                    "role": "user",
+                    "content": (
+                        f"{messages[1]['content']}\n\n"
+                        "Return exactly one valid JSON object matching the schema. "
+                        "Lead with the direct answer and do not copy raw evidence blocks."
+                    ),
+                },
+            ]
+        try:
+            generated, _raw = _stream_llm_json(
+                emit=emit,
+                step_name="generate_answer",
+                call_id="final_answer" if attempt == 0 else "final_answer_retry",
+                label="Generate final answer" if attempt == 0 else "Retry final answer",
+                model=settings.ollama_answer_model,
+                messages=attempt_messages,
+                json_schema=ANSWER_SCHEMA,
+                think=False,
+                timeout=90.0,
+                purpose="final_answer",
+                num_predict=attempt_num_predict,
             )
-        return validated_answer, trace
-    except Exception as exc:
-        logger.warning("Streaming final answer generation failed for model=%s; using fallback answer: %s", settings.ollama_answer_model, exc)
-        fallback_answer = validate_answer(
-            _fallback_answer(query, prioritized_results),
-            prioritized_results,
-            query=query,
-        )
-        trace["final_answer"].update(
-            {
-                "used_fallback": True,
-                "answer_source": "fallback_exception",
-                "fallback_reason": str(exc),
-            }
-        )
-        return fallback_answer, trace
+            from manuals_rag_schemas.documents import AnswerResponse
+
+            generated_answer = AnswerResponse.model_validate(
+                _normalize_generated_answer_payload(generated, prioritized_results)
+            )
+            validated_answer = validate_answer(generated_answer, prioritized_results, query=query)
+            if validated_answer.answer != generated_answer.answer and any(
+                "not sufficiently supported" in warning for warning in validated_answer.warnings
+            ):
+                summary_recovery = _fallback_answer_from_summaries(
+                    query,
+                    summarized_evidence,
+                    prioritized_results,
+                )
+                if summary_recovery is not None:
+                    recovered_answer = validate_answer(summary_recovery, prioritized_results, query=query)
+                    if recovered_answer.answer == summary_recovery.answer:
+                        validated_answer = recovered_answer
+                trace["final_answer"].update(
+                    {
+                        "used_fallback": True,
+                        "answer_source": (
+                            "fallback_summary_validation"
+                            if summary_recovery is not None and validated_answer.answer == summary_recovery.answer
+                            else "fallback_validation"
+                        ),
+                        "fallback_reason": "Generated answer was replaced by retrieval-grounded fallback during validation.",
+                    }
+                )
+            trace["final_answer"].update(
+                {"attempts": attempt + 1, "num_predict": attempt_num_predict}
+            )
+            return validated_answer, trace
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "Streaming final answer generation attempt %s failed for model=%s: %s",
+                attempt + 1,
+                settings.ollama_answer_model,
+                exc,
+            )
+    summary_fallback = _fallback_answer_from_summaries(query, summarized_evidence, prioritized_results)
+    fallback_answer = validate_answer(
+        summary_fallback or _fallback_answer(query, prioritized_results),
+        prioritized_results,
+        query=query,
+    )
+    trace["final_answer"].update(
+        {
+            "attempts": 2,
+            "num_predict": max(settings.ollama_answer_num_predict, 1024),
+            "used_fallback": True,
+            "answer_source": "fallback_summary" if summary_fallback else "fallback_exception",
+            "fallback_reason": str(last_error),
+        }
+    )
+    return fallback_answer, trace
 
 
 def stream_query_debug_events(
@@ -1024,7 +1787,7 @@ def stream_query_debug_events(
 
         retrieval_results = [dict(result) for result in state.get("retrieval_results", [])]
         validated_results = [SearchResult.model_validate(result) for result in retrieval_results]
-        candidate_results = validated_results[:8]
+        candidate_results = validated_results[:12]
 
         emit(step_event("judge_answer_inputs", "started"))
         yield from flush()

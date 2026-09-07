@@ -182,14 +182,19 @@ ANSWER_SCORING_GENERIC_TERMS = QUERY_DEDUPE_FILLER.union(
     {
         "as",
         "by",
+        "cause",
+        "causes",
         "description",
         "descriptions",
         "detail",
         "details",
+        "display",
         "caution",
         "flag",
         "danger",
         "error",
+        "item",
+        "items",
         "message",
         "please",
         "product",
@@ -204,6 +209,7 @@ ANSWER_SCORING_GENERIC_TERMS = QUERY_DEDUPE_FILLER.union(
         "purpose",
         "purposes",
         "same",
+        "solution",
         "typical",
         "type",
         "warning",
@@ -516,6 +522,7 @@ Approve only if the question:
 - Does not copy source/table/UI wording mechanically.
 - Does not depend on file names, page/table coordinates, or benchmark-only phrasing.
 - Does not ask about storage format, display precision, parser coordinates, or internal representation unless that is clearly a user-facing spec someone would search for.
+- When the snippet or document context contains multiple values for the same metric or multiple variants of the same component, names the user-visible accessory, assembly, location, mode, or other discriminator that uniquely binds the requested value. A product model plus a generic component name is not sufficient when sibling components have different values.
 
 Before rejecting, fill false_rejection_check for these conditions. If answer_in_snippet is true and any false_rejection_check value is true, approve unless there is a separate concrete defect covered by an allowed rejection category:
 - synonym_or_smoother_wording_only: the only issue is singular/plural wording, a natural synonym, broader user term, or smoother grammar.
@@ -536,6 +543,7 @@ Calibration examples:
 - Source says an LJ-V series head cannot register only grayscale images. Question "Can I register only grayscale images with an LJ-V series head?" should be approved because the yes/no restriction is directly stated.
 - Source says an RS-232C cable has part number OP-26487. Question "Which cable connects to the RS-232C port?" should be approved because the part number answers which cable.
 - Source only says to check a cable/status but gives no verification method. Question "How do I verify the cable status?" should be rejected as asks_for_steps_not_present.
+- Source context contains different tightening torques for several mounting accessories. Question "What torque is required for the bracket?" should be rejected as too_vague unless it names the particular bracket, accessory model, or mounting operation associated with the requested value.
 
 When rejecting, give concise feedback that the question generator can use directly. Do not rewrite the question yourself. Feedback must only criticize defects visible in the question text or concrete mismatches with the source snippet; never mention removing or changing a word, model, page, filename, manufacturer, or coordinate that is not literally present in the question.
 """.strip()
@@ -2101,6 +2109,84 @@ def generate_user_style_queries(
     return queries
 
 
+_EXPECTED_EVIDENCE_ACTION_LABELS = {
+    "action",
+    "corrective action",
+    "countermeasure",
+    "remedy",
+    "resolution",
+    "solution",
+}
+
+
+def _expected_evidence_field(segment: str) -> str:
+    match = re.match(r"\s*([A-Za-z][A-Za-z /_-]{1,40})\s*:\s*", segment)
+    return normalize_text(match.group(1)).strip() if match else ""
+
+
+def _query_aligned_expected_snippet(query: str, content: str) -> str:
+    """Select the source clause that answers one generated question.
+
+    A query-worthy chunk can contain several table rows or independent facts.
+    Reusing the chunk's first 220 characters for every generated question makes
+    later questions inherit the first row's expected terms.  Rank clauses by
+    their overlap with the individual query and retain the paired status/action
+    clause when the source is a labelled troubleshooting table.
+    """
+
+    raw_segments = [
+        segment.strip(" ;\t\r\n")
+        for segment in re.split(r"(?:;\s*|\n+|(?<=[.!?])\s+)", str(content or ""))
+        if segment.strip(" ;\t\r\n")
+    ]
+    if not raw_segments:
+        return content_preview(str(content or ""))
+
+    ignored = STOPWORDS.union(GENERIC_ANCHORS).union(ANSWER_SCORING_GENERIC_TERMS)
+    query_terms = {token for token in tokenize(query) if token not in ignored}
+    action_equivalents = (
+        {"clear", "disable", "disabled", "uncheck"},
+        {"check", "enable", "enabled", "select"},
+        {"decrease", "lower", "reduce"},
+        {"increase", "raise"},
+    )
+
+    def related(left: str, right: str) -> bool:
+        if left == right:
+            return True
+        if any(left in group and right in group for group in action_equivalents):
+            return True
+        left_base = left.replace("-", "")
+        right_base = right.replace("-", "")
+        return len(left_base) >= 5 and len(right_base) >= 5 and left_base[:5] == right_base[:5]
+
+    def relevance(segment: str) -> tuple[int, int, int, int]:
+        segment_terms = [token for token in tokenize(segment) if token not in ignored]
+        overlap = sum(1 for token in segment_terms if any(related(token, query_term) for query_term in query_terms))
+        action_overlap = sum(
+            1
+            for group in action_equivalents
+            if query_terms.intersection(group) and set(segment_terms).intersection(group)
+        )
+        numeric_overlap = sum(1 for token in segment_terms if any(char.isdigit() for char in token) and token in query_terms)
+        return action_overlap, overlap, numeric_overlap, -len(segment)
+
+    best_index = max(range(len(raw_segments)), key=lambda index: relevance(raw_segments[index]))
+    selected = [raw_segments[best_index]]
+    best_field = _expected_evidence_field(raw_segments[best_index])
+
+    if best_field in _EXPECTED_EVIDENCE_ACTION_LABELS and best_index > 0:
+        previous_field = _expected_evidence_field(raw_segments[best_index - 1])
+        if previous_field and previous_field not in _EXPECTED_EVIDENCE_ACTION_LABELS:
+            selected.append(raw_segments[best_index - 1])
+    elif best_field and best_field not in _EXPECTED_EVIDENCE_ACTION_LABELS and best_index + 1 < len(raw_segments):
+        next_field = _expected_evidence_field(raw_segments[best_index + 1])
+        if next_field in _EXPECTED_EVIDENCE_ACTION_LABELS:
+            selected.append(raw_segments[best_index + 1])
+
+    return content_preview("; ".join(selected), limit=500)
+
+
 def build_eval_cases_from_chunks(
     chunks: list[dict[str, Any]],
     *,
@@ -2163,6 +2249,10 @@ def build_eval_cases_from_chunks(
             generated_questions_by_section_key.setdefault(section_key, []).append(query)
             source_metadata = dict(chunk.get("metadata_json", {}))
             source_metadata["generation_document_context"] = _structured_eval_input(chunk, anchors).get("document_context") or {}
+            expected_snippet = _query_aligned_expected_snippet(query, str(chunk["content"]))
+            expected_terms = extract_anchor_terms(expected_snippet)
+            if not expected_terms:
+                expected_terms = anchors
             cases.append(
                 RetrievalEvalCase(
                     case_id=f"{chunk['id']}::{index}",
@@ -2176,12 +2266,12 @@ def build_eval_cases_from_chunks(
                     section_path=str(chunk.get("section_path_text", "")),
                     page_from=int(chunk.get("page_from", 0)),
                     page_to=int(chunk.get("page_to", 0)),
-                    expected_terms=anchors[:4],
-                    expected_snippet=content_preview(str(chunk["content"])),
+                    expected_terms=expected_terms[:4],
+                    expected_snippet=expected_snippet,
                     generation_method=method,
                     source_metadata=source_metadata,
                     benchmark_quality=quality,
-                    anchor_terms=anchors[:4],
+                    anchor_terms=expected_terms[:4],
                 )
             )
             if len(cases) >= max_cases:
@@ -3444,6 +3534,15 @@ def _query_evidence_overlap(query: str, result: dict[str, Any]) -> int:
             continue
         if token not in query_terms:
             query_terms.append(token)
+    normalized_query = normalize_text(query)
+    for phrase, table_term in (
+        ("input terminals", "inputs"),
+        ("input terminal", "inputs"),
+        ("output terminals", "outputs"),
+        ("output terminal", "outputs"),
+    ):
+        if phrase in normalized_query and table_term not in query_terms:
+            query_terms.append(table_term)
     return sum(1 for term in query_terms if _term_matches_evidence(term, evidence_text))
 
 
@@ -4010,6 +4109,83 @@ def _answer_required_action_terms(case: RetrievalEvalCase) -> tuple[list[str], s
 
 def _answer_required_material_terms(case: RetrievalEvalCase, answer: dict[str, Any]) -> tuple[list[str], str]:
     if not case.expected_evidence:
+        if re.search(
+            r"\b(?:which|what)\b.{0,100}\b(?:setting|parameter|option)\b.{0,100}"
+            r"\b(?:match|correspond|agree)\b",
+            case.query,
+            flags=re.IGNORECASE,
+        ) and re.search(r"\bcorrect(?:ly)?\b", str(case.expected_snippet or ""), flags=re.IGNORECASE):
+            return ["correctly"], "required_setting_alignment_terms"
+        alternatives = re.search(
+            r"\b(?:selected|selects?|chosen|chooses?|used|uses)\s+between\s+"
+            r"(?P<left>[A-Za-z0-9][A-Za-z0-9+_./-]{0,40})\s+(?P<join>or|and)\s+"
+            r"(?P<right>[A-Za-z0-9][A-Za-z0-9+_./-]{0,40})",
+            str(case.expected_snippet or ""),
+            flags=re.IGNORECASE,
+        )
+        if alternatives and re.search(
+            r"\b(?:which|what)\b.+\bbetween\b|\bhow\s+does\b.+\b(?:select|choose|determine)\b",
+            case.query,
+            flags=re.IGNORECASE,
+        ):
+            left = alternatives.group("left").rstrip(".,;:")
+            right = alternatives.group("right").rstrip(".,;:")
+            return [f"{left} {alternatives.group('join')} {right}"], "named_alternative_terms"
+        if re.search(r"^\s*why\b|\b(?:cause|reason)\b", case.query, flags=re.IGNORECASE):
+            causal_match = re.search(
+                r"\b(?:because|due\s+to|caused\s+by|reason\s+is)\b\s*(.+)",
+                str(case.expected_snippet or ""),
+                flags=re.IGNORECASE,
+            )
+            if causal_match:
+                query_tokens = _answer_overlap_tokens(case.query)
+                causal_terms: list[str] = []
+                seen: set[str] = set()
+                for token in tokenize(causal_match.group(1)):
+                    if (
+                        len(token) < 4
+                        or token in STOPWORDS
+                        or token in GENERIC_ANCHORS
+                        or token in ANSWER_SCORING_GENERIC_TERMS
+                        or token in query_tokens
+                    ):
+                        continue
+                    _add_answer_material_term(causal_terms, seen, token)
+                    if len(causal_terms) >= 2:
+                        break
+                if causal_terms:
+                    return causal_terms, "causal_expected_snippet_terms"
+        if _is_quantity_answer_query(case.query):
+            # Conditions stated numerically in the question are mandatory, even
+            # when a broad expected snippet contains several nearby quantities.
+            # This prevents a related specification (for example, an ambient
+            # range) from passing a question about a threshold-triggered limit.
+            query_material = _material_answer_terms_from_sentence(case.query)
+            product_model = re.sub(
+                r"[^a-z0-9]+",
+                "",
+                str((case.source_metadata or {}).get("product_model") or "").lower(),
+            )
+            if product_model:
+                model_numbers = set(re.findall(r"\d+", product_model))
+                query_material = [
+                    term
+                    for term in query_material
+                    if not (
+                        (
+                            len(re.sub(r"[^a-z0-9]+", "", term.lower())) >= 3
+                            and re.sub(r"[^a-z0-9]+", "", term.lower()) in product_model
+                        )
+                        or (
+                            re.fullmatch(r"\d+", term)
+                            and term in model_numbers
+                        )
+                    )
+                ]
+            return (
+                query_material,
+                "quantity_query_terms" if query_material else "none",
+            )
         return [], "none"
     action_terms, action_source = _answer_required_action_terms(case)
     query_tokens = _answer_overlap_tokens(case.query)
@@ -4529,6 +4705,11 @@ def _expected_term_matches_text(term: str, text_lower: str, text_tokens: set[str
         return False
     if term_lower in text_lower or term_lower in text_tokens:
         return True
+    if term_lower in {"correct", "correctly"} and re.search(
+        r"\b(?:match(?:es|ed|ing)?|correspond(?:s|ed|ing)?|agree(?:s|d|ing)?|same)\b",
+        text_lower,
+    ):
+        return True
     if " " in term_lower:
         phrase_skip_terms = STOPWORDS.union({"to"})
         term_tokens = [token for token in tokenize(term_lower) if token not in phrase_skip_terms]
@@ -4592,8 +4773,65 @@ def _llm_required_information_judgment(
         for item in expected_evidence[:4]
         if isinstance(item, dict)
     ).strip()
+    exact_source_text = ""
+    if not evidence_text:
+        # Generated single-step cases retain only a short expected_snippet.  It
+        # can end before the answer-bearing clause (for example, a table-row
+        # remedy after a long error message and cause).  When retrieval retained
+        # the expected source chunk, grade against that complete evidence rather
+        # than treating the generation-time preview as the full reference.
+        exact_source_text = str(chunk_texts.get(case.source_chunk_id) or "").strip()
+        evidence_text = exact_source_text
     if not evidence_text:
         evidence_text = str(case.expected_snippet or "").strip()
+    generated_snippet_is_truncated = bool(
+        not expected_evidence
+        and not exact_source_text
+        and re.search(
+            r"\b(?:it|the|a|an|and|or|to|of|from|by|with|for)\s*$",
+            str(case.expected_snippet or ""),
+            flags=re.IGNORECASE,
+        )
+    )
+    current_chunk_match = None
+    if generated_snippet_is_truncated:
+        source_context = str((case.source_metadata or {}).get("context_window") or "")
+        current_chunk_match = re.search(
+            r"Current chunk:\s*(.*?)(?=\n\nNext chunk:|$)",
+            source_context,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if current_chunk_match:
+            evidence_text = current_chunk_match.group(1).strip()
+    if generated_snippet_is_truncated and retrieved_results:
+        query_terms = _answer_overlap_tokens(case.query)
+        aligned_candidates: list[tuple[int, int, str]] = []
+        for index, result in enumerate(retrieved_results):
+            if not isinstance(result, dict):
+                continue
+            metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+            document_id = str(
+                result.get("source_document_id")
+                or result.get("document_id")
+                or metadata.get("source_document_id")
+                or metadata.get("document_id")
+                or ""
+            )
+            if document_id != case.source_document_id:
+                continue
+            chunk_id = str(result.get("chunk_id") or result.get("id") or "")
+            candidate_text = str(chunk_texts.get(chunk_id) or "").strip()
+            if not candidate_text:
+                continue
+            overlap = len(query_terms.intersection(_answer_overlap_tokens(candidate_text)))
+            aligned_candidates.append((overlap, -index, candidate_text))
+        if aligned_candidates:
+            overlap, _negative_index, candidate_text = max(
+                aligned_candidates,
+                key=lambda item: (item[0], item[1]),
+            )
+            if overlap >= 2 and not current_chunk_match:
+                evidence_text = candidate_text
     schema = {
         "type": "object",
         "properties": {
@@ -4615,9 +4853,11 @@ def _llm_required_information_judgment(
                 "role": "system",
                 "content": (
                     "You are grading whether an answer contains the information needed to answer a manuals question. "
-                    "Use only the expected evidence and expected terms as the grading reference. "
+                    "Use only the expected evidence as the factual reference and the question as the scope. "
+                    "Expected terms are retrieval/generation anchors, not a checklist: do not require a table header, "
+                    "error code, or other anchor that the question does not ask the answer to repeat. "
                     "Return JSON only, using the exact schema field contains_required_information. "
-                    "Mark it true when the answer gives the required operational facts, even if wording differs."
+                    "Mark it true only when the answer gives all operational facts requested by the question, even if wording differs."
                 ),
             },
             {
@@ -4654,6 +4894,13 @@ def _llm_required_information_judgment(
     missing_information = payload.get("missing_information")
     if not isinstance(missing_information, list):
         missing_information = []
+    reason = str(payload.get("reason") or "").strip()
+    if verdict is False and not missing_information and not reason:
+        # A negative verdict with neither missing facts nor an explanation is
+        # internally inconsistent. Treat it like a malformed response so a
+        # fully supported deterministic score is not converted into a false
+        # failure by an opaque local-model glitch.
+        raise ValueError("answer judge rejected the answer without identifying missing information")
     return {
         "checked": True,
         "provider": "ollama",
@@ -4661,7 +4908,7 @@ def _llm_required_information_judgment(
         "passed": verdict,
         "verdict_field": verdict_field,
         "missing_information": list(missing_information),
-        "reason": str(payload.get("reason") or ""),
+        "reason": reason,
     }
 
 
@@ -4685,7 +4932,13 @@ def _single_step_equivalent_citation_support(
             continue
         snippet_overlap = _expected_snippet_evidence_overlap(case, result)
         query_overlap = _query_evidence_overlap(case.query, result)
-        if not _cross_document_semantic_evidence_is_applicable(
+        expected_normalized = normalize_text(str(case.expected_snippet or ""))
+        evidence_normalized = normalize_text(_result_evidence_text(result))
+        exact_duplicate = bool(
+            len(expected_normalized) >= 80
+            and expected_normalized[:80] in evidence_normalized
+        )
+        if not exact_duplicate and not _cross_document_semantic_evidence_is_applicable(
             case,
             result,
             snippet_overlap=snippet_overlap,
@@ -4701,6 +4954,55 @@ def _single_step_equivalent_citation_support(
         "checked": bool(cited_chunk_ids),
         "chunk_ids": matched_chunks,
         "document_ids": matched_documents,
+    }
+
+
+def _calculation_answer_support(
+    case: RetrievalEvalCase,
+    answer: dict[str, Any],
+) -> dict[str, Any]:
+    if not re.search(r"\b(?:calculated|computed|derived)\b", case.query, flags=re.IGNORECASE):
+        return {"checked": False, "passed": False, "required_terms": [], "matched_terms": []}
+    source_context = str((case.source_metadata or {}).get("context_window") or "")
+    reference = source_context or str(case.expected_snippet or "")
+    formula_matches = list(
+        re.finditer(
+            r"\b(?:calculated|computed|derived)\s+from\b\s*([^.!?\n]+)",
+            reference,
+            flags=re.IGNORECASE,
+        )
+    )
+    if not formula_matches:
+        return {"checked": False, "passed": False, "required_terms": [], "matched_terms": []}
+    query_tokens = _answer_overlap_tokens(case.query)
+    required_terms: list[str] = []
+    seen: set[str] = set()
+    for token in tokenize(formula_matches[0].group(1)):
+        if (
+            len(token) < 4
+            or token in STOPWORDS
+            or token in GENERIC_ANCHORS
+            or token in ANSWER_SCORING_GENERIC_TERMS
+            or token in query_tokens
+            or token in {"number", "numbers"}
+        ):
+            continue
+        _add_answer_material_term(required_terms, seen, token)
+        if len(required_terms) >= 4:
+            break
+    answer_text = str(answer.get("answer") or "")
+    answer_lower = answer_text.lower()
+    answer_tokens = set(tokenize(answer_text))
+    matched_terms = [
+        term
+        for term in required_terms
+        if _expected_term_matches_text(term, answer_lower, answer_tokens)
+    ]
+    return {
+        "checked": bool(required_terms),
+        "passed": bool(required_terms) and len(matched_terms) == len(required_terms),
+        "required_terms": required_terms,
+        "matched_terms": matched_terms,
     }
 
 
@@ -4726,6 +5028,7 @@ def score_answer_response(
     terms["term_source"] = term_source
     terms["material_term_source"] = material_source
     exact_evidence_answer_support = _expected_evidence_answer_support(case, answer, retrieved_results)
+    calculation_answer_support = _calculation_answer_support(case, answer)
     if exact_evidence_answer_support.get("passed"):
         # An exact expected table cell in the answer is stronger evidence than
         # the lossy token heuristic, particularly for short corrective-action
@@ -4750,10 +5053,16 @@ def score_answer_response(
                 elif exact_evidence_answer_support.get("passed"):
                     terms["llm_negative_overridden_by_exact_expected_evidence"] = True
                     terms["passed"] = True
+                elif calculation_answer_support.get("passed"):
+                    terms["llm_negative_overridden_by_calculation_support"] = True
+                    terms["passed"] = True
                 else:
                     terms["passed"] = False
         except Exception as exc:
             llm_required_info = {"checked": False, "error": f"{exc.__class__.__name__}: {exc}"}
+            if calculation_answer_support.get("passed"):
+                terms["llm_negative_overridden_by_calculation_support"] = True
+                terms["passed"] = True
     citation_fidelity = _answer_citation_fidelity(answer, retrieved_results)
     evidence_citation_support = _expected_evidence_citation_support(case, answer, retrieved_results)
     equivalent_answer_support = [
@@ -4765,6 +5074,10 @@ def score_answer_response(
         evidence_citation_support.get("passed")
         and equivalent_answer_support
         and all(item.get("answer_supported") for item in equivalent_answer_support)
+        and not (
+            llm_required_info.get("checked")
+            and not llm_required_info.get("passed")
+        )
     ):
         # The answer quotes a cited duplicate rendering of the expected table
         # row.  Its wording is a stronger signal than token requirements derived
@@ -4772,10 +5085,19 @@ def score_answer_response(
         terms["passed"] = True
         terms["equivalent_cited_evidence_matched"] = True
     answer_text = str(answer.get("answer") or "").strip()
+    answer_claims_insufficient_evidence = bool(
+        re.search(
+            r"\b(?:provided|retrieved|available) evidence does not contain\b|"
+            r"\b(?:cannot|could not|unable to) (?:determine|find|answer)\b",
+            answer_text,
+            flags=re.IGNORECASE,
+        )
+    )
     location_completeness = _configuration_location_answer_completeness(case, answer_text)
     passed = bool(
         answer_text
         and not answer.get("insufficient_evidence")
+        and not answer_claims_insufficient_evidence
         and not missing_document_ids
         and terms["passed"]
         and citation_fidelity["passed"]
@@ -4787,6 +5109,8 @@ def score_answer_response(
         failure_reasons.append("empty_answer")
     if answer.get("insufficient_evidence"):
         failure_reasons.append("insufficient_evidence")
+    if answer_claims_insufficient_evidence:
+        failure_reasons.append("answer_claims_insufficient_evidence")
     if missing_document_ids:
         failure_reasons.append("expected_document_not_cited_or_used")
     if not terms["passed"]:
@@ -4811,6 +5135,7 @@ def score_answer_response(
         "evidence_citation_support": evidence_citation_support,
         "equivalent_citation_support": equivalent_citation_support,
         "exact_evidence_answer_support": exact_evidence_answer_support,
+        "calculation_answer_support": calculation_answer_support,
         "llm_required_information": llm_required_info,
         "configuration_location_completeness": location_completeness,
     }
@@ -4830,6 +5155,12 @@ def _configuration_location_answer_completeness(
             flags=re.IGNORECASE,
         )
     )
+    if re.search(
+        r"\bwhat\s+screen\s+(?:resolution|size|dimensions?|technology|type|format)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        location_query = False
     if not location_query:
         return {"checked": False, "passed": True, "failure_reasons": []}
     failures: list[str] = []

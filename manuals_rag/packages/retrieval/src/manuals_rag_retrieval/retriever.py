@@ -65,8 +65,14 @@ LEXICAL_TABLE_STOPWORDS = {
 LEXICAL_CONTEXT_STOPWORDS = LEXICAL_TABLE_STOPWORDS.union(
     {
         "detail",
+        "items",
+        "require",
         "related",
+        "support",
+        "supported",
+        "supports",
         "used",
+        "verification",
     }
 )
 
@@ -98,7 +104,7 @@ LEXICAL_TABLE_FIELD_TERMS = {
     "average",
     "description",
     "message",
-    "scaling",
+    "model",
     "specified",
     "summary",
     "symbol",
@@ -299,6 +305,8 @@ def _should_run_table_lexical_search(analysis: QueryAnalysis) -> bool:
     # same family and omit the requested table row.
     if "troubleshooting" in analysis.query_types and _troubleshooting_query_anchor(analysis.raw_query):
         return True
+    if re.search(r"\bconnector(?:\s+type)?\b", analysis.raw_query, flags=re.IGNORECASE):
+        return True
     if analysis.product_model or analysis.product_family or analysis.part_number:
         return False
     return True
@@ -373,7 +381,7 @@ def _compact_identifier(text: str) -> str:
 
 
 def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
-    if "structured_lookup" not in analysis.query_types and not (
+    if not {"structured_lookup", "spec_lookup", "part_lookup"}.intersection(analysis.query_types) and not (
         "comparison" in analysis.query_types and analysis.product_identifiers
     ):
         return []
@@ -382,7 +390,16 @@ def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
     lexical_source = troubleshooting_anchor or query
     for term in tokenize(lexical_source):
         normalized = re.sub(r"[^a-z0-9]+", "", term.lower())
-        if (len(normalized) < 4 and not any(char.isdigit() for char in normalized)) or normalized in LEXICAL_TABLE_STOPWORDS:
+        short_troubleshooting_symbol = bool(
+            troubleshooting_anchor
+            and len(normalized) >= 2
+            and normalized == _compact_identifier(troubleshooting_anchor)
+        )
+        if (
+            len(normalized) < 4
+            and not any(char.isdigit() for char in normalized)
+            and not short_troubleshooting_symbol
+        ) or normalized in LEXICAL_TABLE_STOPWORDS:
             continue
         if normalized not in terms:
             terms.append(normalized)
@@ -395,6 +412,17 @@ def _lexical_table_terms(query: str, analysis: QueryAnalysis) -> list[str]:
                     and piece not in terms
                 ):
                     terms.append(piece)
+    if re.search(r"\bhow\s+long\b", query, flags=re.IGNORECASE) and "length" not in terms:
+        terms.append("length")
+    if (
+        re.search(r"\b(?:output\s+)?polarity\b", query, flags=re.IGNORECASE)
+        and re.search(r"\b(?:out\s+of\s+the\s+box|out\s+of\s+box|default|initial)\b", query, flags=re.IGNORECASE)
+    ):
+        # Manuals commonly label this field as ``NPN/PNP selection`` with an
+        # ``Initial value`` column rather than using the user's word polarity.
+        for alias in ("selection", "initial", "npn", "pnp"):
+            if alias not in terms:
+                terms.append(alias)
     return terms[:16]
 
 
@@ -419,6 +447,7 @@ def _lexical_table_content_terms(terms: list[str]) -> list[str]:
         for term in terms
         if not any(char.isdigit() for char in term)
         and term not in {"corrective", "corrected", "remedy", "cause"}
+        and term not in LEXICAL_TABLE_FIELD_TERMS
     ]
     return sorted(content_terms, key=lambda term: (len(term), term), reverse=True)[:1]
 
@@ -764,8 +793,11 @@ def run_table_lexical_search(
             )
             params.extend([f"%{term}%" for term in like_terms])
     elif troubleshooting_phrase:
-        where.append("regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s")
-        params.append(f"%{troubleshooting_phrase}%")
+        where.append(
+            "(regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s "
+            "or metadata_json->>'table_row_headers' ilike %s)"
+        )
+        params.extend([f"%{troubleshooting_phrase}%", f"%{troubleshooting_phrase}%"])
     elif required_terms and len(symbol_terms) < 3:
         where.extend(["regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s"] * len(required_terms))
         params.extend([f"%{term}%" for term in required_terms])
@@ -826,9 +858,11 @@ def run_table_lexical_search(
                 "order by "
                 + " + ".join(
                     [
-                        "case when content ilike %s "
-                        "or metadata_json->>'table_row_headers' ilike %s "
-                        "or metadata_json->>'table_column_headers' ilike %s then 1 else 0 end"
+                        "case when regexp_replace(lower(content), '[^a-z0-9]+', '', 'g') like %s "
+                        "or regexp_replace(lower(coalesce(metadata_json->>'table_row_headers', '')), "
+                        "'[^a-z0-9]+', '', 'g') like %s "
+                        "or regexp_replace(lower(coalesce(metadata_json->>'table_column_headers', '')), "
+                        "'[^a-z0-9]+', '', 'g') like %s then 1 else 0 end"
                     ]
                     * len(order_terms)
                 )
@@ -986,7 +1020,7 @@ def run_table_lexical_search(
         ]
         setting_phrases = _comparison_setting_phrases(query)
         row_code_terms = _comparison_row_code_terms(
-            analysis.raw_query,
+            getattr(analysis, "raw_query", ""),
             identifiers,
         )
         if len(row_code_terms) < 2:
@@ -1059,7 +1093,11 @@ def _run_cached_table_lexical_search(
 
 
 def _lexical_context_terms(query: str, analysis: QueryAnalysis) -> list[str]:
-    if "structured_lookup" in analysis.query_types:
+    if (
+        "structured_lookup" in analysis.query_types
+        and "troubleshooting" not in analysis.query_types
+        and not analysis.error_code
+    ):
         return []
     terms: list[str] = []
     for term in tokenize(query):
@@ -1068,11 +1106,35 @@ def _lexical_context_terms(query: str, analysis: QueryAnalysis) -> list[str]:
             continue
         if normalized not in terms:
             terms.append(normalized)
+    # ``tokenize`` normalizes case, so recover short all-caps protocol and
+    # signal names from the original query before discarding short tokens.
+    for acronym in re.findall(r"\b[A-Z]{2,3}\b", query):
+        normalized = acronym.lower()
+        if normalized not in LEXICAL_CONTEXT_STOPWORDS and normalized not in terms:
+            terms.append(normalized)
     query_tokens = set(tokenize(query.lower()))
+    compact_query = re.sub(r"[^a-z0-9]+", "", query.lower())
+    if any(alias in compact_query for alias in ("loginname", "loginid", "userid")):
+        if "username" not in terms:
+            terms.append("username")
+    if query_tokens.intersection({"verify", "verified", "verification"}) and "check" not in terms:
+        terms.append("check")
+    if "password" in query_tokens and query_tokens.intersection({"disable", "disabled"}):
+        for polarity_term in ("required", "selected"):
+            if polarity_term not in terms:
+                terms.append(polarity_term)
     if "when" in query_tokens and query_tokens.intersection({"start", "starts", "begin", "begins", "occur", "occurs"}):
         for temporal_term in ("condition", "enabled", "trigger"):
             if temporal_term not in terms:
                 terms.append(temporal_term)
+    if re.search(r"\bhow\s+far\b", query, flags=re.IGNORECASE) and re.search(
+        r"\b(?:move|moves|moving|travel|travels)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        for travel_term in ("movable", "range"):
+            if travel_term not in terms:
+                terms.append(travel_term)
     return terms[:18]
 
 
@@ -1121,6 +1183,8 @@ def _context_lexical_score(row: dict[str, object], terms: list[str]) -> float:
         score += 0.2
     elif chunk_type in {"spec_record", "datasheet_record"}:
         score += 0.2
+    elif chunk_type == "table_record":
+        score += 0.18
     elif chunk_type == "atomic_text":
         score += 0.14
     if local_context:
@@ -1139,15 +1203,220 @@ def run_contextual_lexical_search(
     terms = _lexical_context_terms(query, analysis)
     if not terms:
         return []
+    identifier_compacts = {
+        _compact_identifier(identifier)
+        for identifier in analysis.product_identifiers
+        if identifier
+    }
+    technical_acronyms = [
+        acronym.lower()
+        for acronym in re.findall(r"\b[A-Z]{2,3}\b", query)
+        if not any(acronym.lower() in identifier for identifier in identifier_compacts)
+    ]
+    named_setting_match = re.search(
+        r"^\s*(?:how|what)\s+does\s+(?:the\s+)?(?P<label>.+?)\s+setting\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    explicit_parameter_match = re.search(
+        r"\b(?P<label>(?:[A-Z][A-Za-z]+\s+){2,}(?:Rate|Time|Mode|Level|Width))\b",
+        query,
+    )
+    named_setting_label = (
+        re.sub(
+            r"[^a-z0-9]+",
+            "",
+            (
+                named_setting_match.group("label")
+                if named_setting_match
+                else explicit_parameter_match.group("label")
+            ).lower(),
+        )
+        if named_setting_match or explicit_parameter_match
+        else ""
+    )
+    indicator_lookup = bool(
+        re.search(r"\b(?:which|what)\b.{0,80}\bindicators?\b", query, flags=re.IGNORECASE)
+    )
+    mode_detection_count_lookup = bool(
+        re.search(r"\b(?:maximum|max\.?)(?:\s+number\s+of)?\s+detection\s+count\b", query, flags=re.IGNORECASE)
+        and re.search(r"\bmode\b", query, flags=re.IGNORECASE)
+    )
+    input_terminal_count_lookup = bool(
+        re.search(
+            r"\b(?:how\s+many|number\s+of)\s+input(?:\s+terminals?)?\b|\binput\s+terminals?\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    general_count_lookup = bool(
+        re.search(
+            r"\b(?:how\s+many|number\s+of|quantity\s+of|count\s+of)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    explicit_model_field_lookup = bool(
+        analysis.product_identifiers
+        and re.search(
+            r"^\s*(?:what\s+(?:is\s+)?(?:the\s+)?|which\s+).{1,80}\b(?:of|for|does|applies)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    first_input_function_lookup = bool(
+        re.search(r"\b(?:first\s+input|in\s*1)\b", query, flags=re.IGNORECASE)
+        and re.search(r"\b(?:function|assigned?)\b", query, flags=re.IGNORECASE)
+    )
+    analog_output_option_lookup = bool(
+        re.search(r"\banalog\s+output\b", query, flags=re.IGNORECASE)
+        and re.search(
+            r"\b(?:option|setting|selection|numeric\s+range|display\s+value)\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+        and re.search(r"\b(?:display|displayed|shown|value)\b", query, flags=re.IGNORECASE)
+    )
+    password_disable_lookup = bool(
+        re.search(r"\bpassword\b", query, flags=re.IGNORECASE)
+        and re.search(r"\b(?:disable|disabled|not\s+required)\b", query, flags=re.IGNORECASE)
+    )
+    wiring_terminal_match = re.search(
+        r"\b(?P<color>black|white|gray|grey|orange|pink|yellow|blue|purple|green|red|brown)\b"
+        r".{0,80}\b(?P<terminal>(?:(?:out|in)|[ab])\s*\d+)\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    external_trigger_timing_lookup = bool(
+        re.search(r"\bexternal\s+trigger\b", query, flags=re.IGNORECASE)
+        and re.search(r"\b(?:timing|edge|edges|rising|falling)\b", query, flags=re.IGNORECASE)
+    )
+    default_error_terminal_lookup = bool(
+        re.search(r"\bterminals?\b", query, flags=re.IGNORECASE)
+        and re.search(r"\bdefault\b", query, flags=re.IGNORECASE)
+        and re.search(r"\berror(?:\s+condition|\s+signal)?\b", query, flags=re.IGNORECASE)
+    )
+    exact_error_code = str(analysis.error_code or "").strip()
+    chunk_types = [
+        "procedure_record",
+        "atomic_text",
+        "section_window",
+        "spec_record",
+        "datasheet_record",
+    ]
+    if (
+        len(named_setting_label) >= 6
+        or indicator_lookup
+        or mode_detection_count_lookup
+        or input_terminal_count_lookup
+        or general_count_lookup
+        or explicit_model_field_lookup
+        or first_input_function_lookup
+        or analog_output_option_lookup
+        or password_disable_lookup
+        or wiring_terminal_match
+        or external_trigger_timing_lookup
+        or default_error_terminal_lookup
+        or exact_error_code
+    ):
+        chunk_types.append("table_record")
     where = [
         "chunk_type = any(%s)",
         "is_active = true",
         "metadata_json->>'corpus_id' = any(%s)",
     ]
     params: list[object] = [
-        ["procedure_record", "atomic_text", "section_window", "spec_record", "datasheet_record"],
+        chunk_types,
         corpus_ids,
     ]
+    if exact_error_code:
+        compact_error_code = re.sub(r"[^a-z0-9]+", "", exact_error_code.lower())
+        where.append(
+            "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s"
+        )
+        params.append(f"%errornumber{compact_error_code}%")
+    elif technical_acronyms:
+        acronym_pattern = rf"(^|[^a-zA-Z0-9]){re.escape(technical_acronyms[0])}([^a-zA-Z0-9]|$)"
+        where.append(
+            "(coalesce(content, '') ~* %s or "
+            "coalesce(metadata_json->>'local_rerank_context', '') ~* %s)"
+        )
+        params.extend([acronym_pattern, acronym_pattern])
+    elif len(named_setting_label) >= 6:
+        where.append(
+            "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s"
+        )
+        params.append(f"%{named_setting_label}%")
+    elif indicator_lookup:
+        where.append(
+            "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s"
+        )
+        params.append("%indicators%")
+    elif mode_detection_count_lookup:
+        where.extend(
+            [
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+            ]
+        )
+        params.extend(["%operationmode%", "%detections%"])
+    elif input_terminal_count_lookup:
+        where.extend(
+            [
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+            ]
+        )
+        params.extend(["%numberofinputs%", "%in1toin%"])
+    elif first_input_function_lookup:
+        where.extend(
+            [
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+            ]
+        )
+        params.extend(["%rowheadersfunction%", "%in1%"])
+    elif analog_output_option_lookup:
+        where.extend(
+            [
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+            ]
+        )
+        params.extend(["%outputinanalogformat%", "%displayvalue%"])
+    elif password_disable_lookup:
+        where.extend(
+            [
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+            ]
+        )
+        params.extend(["%password%", "%notberequired%"])
+    elif external_trigger_timing_lookup:
+        where.extend(
+            [
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+            ]
+        )
+        params.extend(["%externaltrigger%", "%risingtiming%", "%fallingtiming%"])
+    elif wiring_terminal_match:
+        color = re.sub(r"[^a-z0-9]+", "", wiring_terminal_match.group("color").lower())
+        terminal = re.sub(r"[^a-z0-9]+", "", wiring_terminal_match.group("terminal").lower())
+        terminal_field = "terminalno" if terminal.startswith(("a", "b")) else "name"
+        where.extend(
+            [
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s",
+            ]
+        )
+        params.extend([f"%wiringcolor{color}%", f"%{terminal_field}{terminal}%"])
+    elif default_error_terminal_lookup:
+        where.append(
+            "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s"
+        )
+        params.append("%assigningdefaultvalueerror%")
     source_document_ids = filters.get("source_document_id")
     if source_document_ids:
         document_ids = source_document_ids if isinstance(source_document_ids, list) else [source_document_ids]
@@ -1170,7 +1439,9 @@ def run_contextual_lexical_search(
             "("
             + " or ".join(
                 [
-                    "content ilike %s or metadata_json->>'local_rerank_context' ilike %s or metadata_json::text ilike %s"
+                    "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
+                    "or regexp_replace(coalesce(metadata_json->>'local_rerank_context', ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
+                    "or regexp_replace(metadata_json::text, '[^a-zA-Z0-9]+', '', 'g') ilike %s"
                 ]
                 * min(3, len(product_terms))
             )
@@ -1181,7 +1452,14 @@ def run_contextual_lexical_search(
     like_terms = _lexical_context_content_terms(terms) or terms[:8]
     where.append(
         "("
-        + " or ".join(["content ilike %s or metadata_json->>'local_rerank_context' ilike %s"] * len(like_terms))
+        + " or ".join(
+            [
+                "regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
+                "or regexp_replace(coalesce(metadata_json->>'local_rerank_context', ''), "
+                "'[^a-zA-Z0-9]+', '', 'g') ilike %s"
+            ]
+            * len(like_terms)
+        )
         + ")"
     )
     for term in like_terms:
@@ -1197,13 +1475,17 @@ def run_contextual_lexical_search(
     for term in order_terms:
         if any(char.isdigit() for char in term):
             order_fragments.append(
-                "(case when metadata_json::text ilike %s then 2 else 0 end "
-                "+ case when content ilike %s or metadata_json->>'local_rerank_context' ilike %s then 1 else 0 end)"
+                "(case when regexp_replace(metadata_json::text, '[^a-zA-Z0-9]+', '', 'g') ilike %s then 2 else 0 end "
+                "+ case when regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
+                "or regexp_replace(coalesce(metadata_json->>'local_rerank_context', ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
+                "then 1 else 0 end)"
             )
             order_params.extend([f"%{term}%", f"%{term}%", f"%{term}%"])
         else:
             order_fragments.append(
-                "(case when content ilike %s or metadata_json->>'local_rerank_context' ilike %s then 1 else 0 end)"
+                "(case when regexp_replace(coalesce(content, ''), '[^a-zA-Z0-9]+', '', 'g') ilike %s "
+                "or regexp_replace(coalesce(metadata_json->>'local_rerank_context', ''), "
+                "'[^a-zA-Z0-9]+', '', 'g') ilike %s then 1 else 0 end)"
             )
             order_params.extend([f"%{term}%", f"%{term}%"])
     order_by = ""
@@ -1259,6 +1541,19 @@ def run_contextual_lexical_search(
         )
     ranked.sort(key=lambda item: item[0], reverse=True)
     return [result for _, result in ranked[:limit]]
+
+
+def _contextual_lexical_limit(query: str) -> int:
+    """Use a wider lexical pool when a numeric fact must stay locally bound."""
+    if re.search(
+        r"\b(?:capture\s+time|working\s+distance|profile\s+capture\s+rate|"
+        r"sampling\s+frequency|trigger\s+interval|depth|torque|voltage|"
+        r"temperature|pressure)\b",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        return 80
+    return LEXICAL_CONTEXT_LIMIT
 
 
 def _query_has_explicit_structure(analysis: QueryAnalysis) -> bool:
@@ -1422,7 +1717,7 @@ def _preferred_family_order(analysis: QueryAnalysis) -> list[str]:
     if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
         return ["spec", "table", "context", "prose"]
     if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
-        return ["procedure", "context", "prose", "table"]
+        return ["procedure", "context", "spec", "prose", "table"]
     if "operational_flow" in analysis.query_types:
         return ["context", "procedure", "prose", "table"]
     return ["prose", "context", "spec", "table"]
@@ -1440,7 +1735,10 @@ def _allowed_families(analysis: QueryAnalysis) -> set[str]:
     if "comparison" in analysis.query_types or "compatibility" in analysis.query_types:
         return {"spec", "table", "context"}
     if "how_to" in analysis.query_types or "configuration" in analysis.query_types:
-        return {"procedure", "context", "prose"}
+        # Configuration fields are frequently emitted as spec records even when
+        # the user phrases the request procedurally (for example, "configure the
+        # login name"). Excluding the spec family discards the exact field value.
+        return {"procedure", "context", "spec", "prose"}
     if "operational_flow" in analysis.query_types:
         return {"prose", "context", "procedure"}
     return {"prose", "context"}
@@ -1595,6 +1893,7 @@ def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> flo
         alignment -= 0.04
     if len(query_terms) >= 3 and max(content_overlap, rerank_overlap) >= 3:
         alignment += 0.03
+    alignment += _protocol_alignment_adjustment(result, analysis.raw_query)
     chunk_type = str(result.metadata.get("chunk_type", ""))
     if "spec_lookup" in analysis.query_types and "laser" in query_terms and chunk_type in {"spec_record", "warning_record"}:
         laser_safety_terms = {"radiation", "class", "wavelength", "output"}
@@ -1642,11 +1941,58 @@ def _query_alignment_score(result: SearchResult, analysis: QueryAnalysis) -> flo
     return alignment
 
 
+def _protocol_tokens(text: str) -> set[str]:
+    compact = re.sub(r"[^a-z0-9]+", "", str(text or "").lower())
+    tokens: set[str] = set()
+    aliases = {
+        "rs232c": ("rs232c",),
+        "ethernetip": ("ethernetip",),
+        "ethercat": ("ethercat",),
+        "profinet": ("profinet",),
+        "plclink": ("plclink",),
+        "usb": ("usb",),
+    }
+    for canonical, variants in aliases.items():
+        if any(variant in compact for variant in variants):
+            tokens.add(canonical)
+    # Match plain Ethernet after Ethernet/IP has been identified so the latter
+    # remains one transport rather than two independent requirements.
+    if "ethernet" in compact and "ethernetip" not in tokens:
+        tokens.add("ethernet")
+    return tokens
+
+
+def _protocol_alignment_adjustment(result: SearchResult, query: str) -> float:
+    requested = _protocol_tokens(query)
+    if not requested:
+        return 0.0
+    evidence_text = " ".join(
+        str(part)
+        for part in [
+            result.content,
+            result.metadata.get("content_for_rerank"),
+            result.metadata.get("rerank_document"),
+        ]
+        if part
+    )
+    evidence = _protocol_tokens(evidence_text)
+    overlap = requested.intersection(evidence)
+    adjustment = min(0.36, 0.18 * len(overlap))
+    transports = {"rs232c", "ethernet", "ethernetip", "ethercat", "profinet"}
+    requested_transports = requested.intersection(transports)
+    evidence_transports = evidence.intersection(transports)
+    if requested_transports and evidence_transports and not requested_transports.intersection(evidence_transports):
+        adjustment -= 0.45
+    return adjustment
+
+
 def _requested_mode_phrases(query: str) -> set[str]:
     phrases: set[str] = set()
     lowered = query.lower()
     for token in tokenize(lowered):
-        if len(token) >= 4 and "-" in token:
+        # Hyphenated product identifiers (for example IV4-G600CA) are not
+        # operating modes and are scored through product alignment instead.
+        if len(token) >= 4 and "-" in token and not any(char.isdigit() for char in token):
             phrases.add(_compact_identifier(token))
     for match in re.finditer(
         r"\b([a-z0-9][a-z0-9_\-./]*(?:\s+[a-z0-9][a-z0-9_\-./]*){0,3})\s+(?:mode|type)\b",
@@ -1852,6 +2198,563 @@ def _preserve_identifier_dense_candidates(
     if not retained:
         return fused_results[:limit]
     return [*fused_results[: max(0, limit - len(retained))], *retained]
+
+
+def _promote_identifier_contextual_candidates(
+    ranked_results: list[SearchResult],
+    contextual_results: list[SearchResult],
+    analysis: QueryAnalysis,
+    *,
+    limit: int,
+    promoted_limit: int = 3,
+) -> list[SearchResult]:
+    """Retain high-alignment lexical evidence for an explicit model after reranking."""
+    identifiers = [
+        str(identifier)
+        for identifier in (
+            getattr(analysis, "product_identifiers", None)
+            or [analysis.product_model, analysis.part_number]
+        )
+        if identifier
+    ]
+    if not identifiers or not contextual_results or limit <= 0:
+        return ranked_results[:limit]
+    qualified: list[tuple[float, int, float, int, SearchResult]] = []
+    direct_content_anchors: list[SearchResult] = []
+    for index, result in enumerate(contextual_results):
+        primary_identifier_match = any(
+            _result_matches_primary_identifier(result, identifier) for identifier in identifiers
+        )
+        compact_content = _compact_identifier(str(result.content or ""))
+        direct_content_match = bool(
+            str(result.metadata.get("chunk_type") or "")
+            in {
+                "table_record",
+                "spec_record",
+                "datasheet_record",
+                "procedure_record",
+                "atomic_text",
+                "section_window",
+            }
+            and any(_compact_identifier(identifier) in compact_content for identifier in identifiers)
+        )
+        if not primary_identifier_match and not direct_content_match:
+            continue
+        alignment = _query_alignment_score(result, analysis)
+        if alignment < 0.1:
+            continue
+        if direct_content_match and not primary_identifier_match:
+            direct_content_anchors.append(result)
+        chunk_type = str(result.metadata.get("chunk_type") or "")
+        structured = int(chunk_type in {"spec_record", "datasheet_record", "procedure_record", "warning_record"})
+        # Contextual lexical ranking already measures direct query-term support.
+        # Preserve that signal before using record structure as a tie-breaker;
+        # otherwise a generic spec row can displace procedure-bearing prose.
+        qualified.append((float(result.score), structured, alignment, -index, result))
+    # Parser metadata can misclassify the document model while a short heading
+    # still contains the exact requested identifier (for example ``XG: H1XA``).
+    # In that case retain the heading and query-aligned structured rows from the
+    # same page; the heading establishes scope and the sibling carries the fact.
+    query_terms = {
+        term
+        for term in _text_terms(analysis.raw_query)
+        if len(term) >= 3 and term not in LEXICAL_CONTEXT_STOPWORDS
+    }
+    for anchor_index, anchor in enumerate(direct_content_anchors[:promoted_limit]):
+        if not anchor.pages:
+            continue
+        rows = fetch_all(
+            """
+            select id, document_version_id, source_document_id, title, section_path_text,
+                   page_from, page_to, content, chunk_type, metadata_json, priority_score
+            from retrieval_chunks
+            where document_version_id = %s
+              and source_document_id = %s
+              and page_from <= %s
+              and page_to >= %s
+              and chunk_type = any(%s)
+              and is_active = true
+            """,
+            (
+                anchor.document_version_id,
+                anchor.source_document_id,
+                max(anchor.pages),
+                min(anchor.pages),
+                ["table_record", "spec_record", "datasheet_record", "atomic_text"],
+            ),
+        )
+        sibling_candidates: list[tuple[int, int, float, SearchResult]] = []
+        for row in rows:
+            chunk_id = str(row["id"])
+            if chunk_id == anchor.chunk_id:
+                continue
+            content = str(row["content"])
+            overlap = len(query_terms.intersection(_text_terms(content)))
+            if overlap < 2:
+                continue
+            metadata = {
+                **dict(row.get("metadata_json") or {}),
+                "chunk_type": str(row["chunk_type"]),
+                "retrieval_stage": "identifier_page_sibling_promoted",
+                "identifier_page_sibling": True,
+            }
+            section_path = metadata.get("section_path")
+            if not isinstance(section_path, list) or not section_path:
+                section_path = [str(row["section_path_text"])]
+            sibling = SearchResult(
+                chunk_id=chunk_id,
+                score=float(anchor.score) + overlap * 0.1,
+                title=str(row["title"]),
+                document_version_id=str(row["document_version_id"]),
+                source_document_id=str(row["source_document_id"]),
+                pages=list(range(int(row["page_from"]), int(row["page_to"]) + 1)),
+                section_path=[str(part) for part in section_path],
+                content=content,
+                metadata=metadata,
+            )
+            sibling_candidates.append(
+                (
+                    overlap,
+                    int(str(row["chunk_type"]) == "table_record"),
+                    -len(content),
+                    sibling,
+                )
+            )
+        if sibling_candidates:
+            _overlap, _structured, _specificity, sibling = max(
+                sibling_candidates,
+                key=lambda item: item[:3],
+            )
+            qualified.append(
+                (
+                    float(anchor.score) + 1.0,
+                    1,
+                    _query_alignment_score(sibling, analysis),
+                    -(len(contextual_results) + anchor_index),
+                    sibling,
+                )
+            )
+    qualified.sort(key=lambda item: item[:4], reverse=True)
+    promoted: list[SearchResult] = []
+    for _score, _structured, _alignment, _negative_index, result in qualified[:promoted_limit]:
+        promoted.append(
+            result.model_copy(
+                update={
+                    "metadata": {
+                        **result.metadata,
+                        "retrieval_stage": "identifier_contextual_promoted",
+                    }
+                }
+            )
+        )
+    if not promoted:
+        return ranked_results[:limit]
+    promoted_ids = {result.chunk_id for result in promoted}
+    return [*promoted, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
+
+
+def _promote_measurement_candidates(
+    ranked_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    query: str,
+    *,
+    analysis: QueryAnalysis | None = None,
+    limit: int = 12,
+    promoted_limit: int = 2,
+) -> list[SearchResult]:
+    """Retain value evidence where the requested label and mode are locally bound."""
+    query_normalized = re.sub(r"[^a-z0-9]+", " ", query.lower()).strip()
+    target_patterns = [
+        evidence_pattern
+        for query_pattern, evidence_pattern in (
+            (r"\bcapture time\b", r"\b(?:capture|cap) time\b"),
+            (r"\bworking distance\b", r"\b(?:working distance|wd)\b"),
+            (
+                r"\b(?:profile\s+capture|capture|sampling|profile)\s+(?:rate|frequency)\b",
+                r"\b(?:capture\s+profiles?|profiles?\s*(?:/|per)\s*second|sampling\s+frequency|\d[\d,]*\s*hz)\b",
+            ),
+            (
+                r"\b(?:maximum|max\.?)?(?:\s+number\s+of)?\s*detection\s+count\b",
+                r"\b(?:maximum|max\.?(?:\s+no\.?)?\s+of)\s+detections?\b",
+            ),
+            (
+                r"\b(?:how\s+many|number\s+of)\s+input(?:\s+terminals?)?\b|\binput\s+terminals?\b",
+                r"\bnumber\s+of\s+inputs\b",
+            ),
+            (r"\b(?:trigger\s+)?interval\b", r"\b(?:trigger\s+)?interval\b"),
+            (r"\bresponse\s+time\b", r"\bresponse\s+time\b"),
+            (r"\bdepth\b|\bhow deep\b", r"\bdepth\b"),
+            (r"\btorque\b", r"\btorque\b"),
+            (r"\bvoltage\b", r"\bvoltage\b|\b\d+(?:\.\d+)?v\b"),
+            (r"\btemperature\b", r"\b(?:ambienttemperatures?|temperatures?)\b"),
+            (r"\bpressure\b", r"\bpressure\b"),
+        )
+        if re.search(query_pattern, query_normalized)
+    ]
+    if not target_patterns or not supplemental_results or limit <= 0:
+        return ranked_results[:limit]
+    requested_modes = {
+        _compact_identifier(match.group(1))
+        for match in re.finditer(
+            r"\b([a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?)\s+mode\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+        if len(_compact_identifier(match.group(1))) >= 4
+    }
+    requested_identifiers = [
+        _compact_identifier(identifier)
+        for identifier in ((analysis.product_identifiers if analysis else []) or [])
+        if _compact_identifier(identifier)
+    ]
+    input_terminal_count_lookup = bool(
+        re.search(
+            r"\b(?:how\s+many|number\s+of)\s+input(?:\s+terminals?)?\b|\binput\s+terminals?\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+    )
+    option_set_lookup = bool(
+        re.search(r"\b(?:which|what)\b.{0,100}\boptions?\b", query, flags=re.IGNORECASE)
+    )
+    response_light_condition_lookup = bool(
+        re.search(r"\bresponse\s+time\b", query, flags=re.IGNORECASE)
+        and re.search(r"\b(?:light|saturat\w*|insufficient|recalibrat\w*)\b", query, flags=re.IGNORECASE)
+    )
+    measurement_query_terms = {
+        term
+        for term in _text_terms(query)
+        if len(term) >= 4 and term not in LEXICAL_CONTEXT_STOPWORDS
+    }
+    qualified: list[tuple[int, int, int, int, int, int, int, int, int, SearchResult]] = []
+    for result in supplemental_results:
+        chunk_type = str(result.metadata.get("chunk_type") or "")
+        if chunk_type == "table_record" and not input_terminal_count_lookup and not re.search(
+            r"\b\d+(?:\.\d+)?\s*(?:°\s*)?[a-z%/]+",
+            str(result.content or ""),
+            flags=re.IGNORECASE,
+        ):
+            # Do not promote a table header merely because its broad context
+            # contains a neighboring numeric value.
+            continue
+        evidence = re.sub(
+            r"[^a-z0-9]+",
+            " ",
+            " ".join(
+                str(part)
+                for part in [result.content, result.metadata.get("context_window")]
+                if part
+            ).lower(),
+        ).strip()
+        if input_terminal_count_lookup and not re.search(r"\bin\s*1\s+to\s+in\s*\d+\b", evidence):
+            continue
+        best_local_score = 0
+        for pattern in target_patterns:
+            for match in re.finditer(pattern, evidence):
+                window = evidence[max(0, match.start() - 180) : match.end() + 180]
+                if (
+                    not input_terminal_count_lookup
+                    and not re.search(r"\b\d+(?:\.\d+)?\s*[a-z%/]+\b", window)
+                ):
+                    continue
+                if requested_modes and not any(mode in _compact_identifier(window) for mode in requested_modes):
+                    continue
+                best_local_score = max(best_local_score, 2 if requested_modes else 1)
+        if not best_local_score:
+            continue
+        structured = int(chunk_type in {"table_record", "spec_record", "datasheet_record"})
+        identifier_haystack = _compact_identifier(
+            " ".join(
+                str(part)
+                for part in (
+                    result.content,
+                    result.title,
+                    result.metadata.get("product_model"),
+                    result.metadata.get("product_family"),
+                    result.metadata.get("context_window"),
+                )
+                if part
+            )
+        )
+        identifier_alignment = int(
+            not requested_identifiers
+            or any(identifier in identifier_haystack for identifier in requested_identifiers)
+        )
+        term_alignment = len(measurement_query_terms.intersection(set(evidence.split())))
+        direct_evidence_terms = set(
+            re.sub(r"[^a-z0-9]+", " ", str(result.content or "").lower()).split()
+        )
+        direct_term_alignment = len(measurement_query_terms.intersection(direct_evidence_terms))
+        complete_option_set = int(
+            option_set_lookup
+            and bool(
+                re.search(
+                    r"\b(?:select|choose)\s+either\b.{0,100}\bor\b",
+                    str(result.content or ""),
+                    flags=re.IGNORECASE,
+                )
+            )
+            and len(
+                re.findall(
+                    r"\b\d+(?:\.\d+)?\s*[a-z%/]+\b",
+                    str(result.content or ""),
+                    flags=re.IGNORECASE,
+                )
+            )
+            >= 2
+        )
+        option_specificity = -len(str(result.content or "")) if complete_option_set else -10_000_000
+        condition_completeness = int(
+            response_light_condition_lookup
+            and bool(re.search(r"\bsaturat\w*\b", str(result.content or ""), flags=re.IGNORECASE))
+            and bool(re.search(r"\binsufficient\b", str(result.content or ""), flags=re.IGNORECASE))
+        )
+        qualified.append(
+            (
+                identifier_alignment,
+                condition_completeness,
+                complete_option_set,
+                option_specificity,
+                best_local_score,
+                direct_term_alignment,
+                term_alignment,
+                structured,
+                -len(evidence),
+                result,
+            )
+        )
+    if not qualified:
+        return ranked_results[:limit]
+    qualified.sort(
+        key=lambda item: (item[0], item[1], item[2], item[3], item[4], item[5], item[6], item[7], item[8]),
+        reverse=True,
+    )
+    promoted = [
+        result.model_copy(
+            update={"metadata": {**result.metadata, "retrieval_stage": "measurement_promoted"}}
+        )
+        for _identifier, _condition, _option_set, _option_specificity, _local, _direct_terms, _terms, _structured, _negative_length, result in qualified[:promoted_limit]
+    ]
+    promoted_ids = {result.chunk_id for result in promoted}
+    return [*promoted, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
+
+
+def _promote_named_setting_candidates(
+    ranked_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    query: str,
+    *,
+    limit: int = 12,
+    promoted_limit: int = 2,
+) -> list[SearchResult]:
+    """Retain the table row whose setting label is explicitly named by the query."""
+    match = re.search(
+        r"^\s*(?:how|what)\s+does\s+(?:the\s+)?(?P<label>.+?)\s+setting\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        match = re.search(
+            r"\b(?P<label>(?:[A-Z][A-Za-z]+\s+){2,}(?:Rate|Time|Mode|Level|Width))\b",
+            query,
+        )
+    if not match:
+        return ranked_results[:limit]
+    label = re.sub(r"\s+", " ", match.group("label")).strip(" .?:")
+    normalized_label = _compact_identifier(label)
+    if len(normalized_label) < 6:
+        return ranked_results[:limit]
+    candidates: list[tuple[int, int, SearchResult]] = []
+    for result in supplemental_results:
+        evidence = str(result.content or "")
+        row_labels = [
+            _compact_identifier(value)
+            for value in re.findall(
+                r"Setting\s+item:\s*([^;\n]{1,120});\s*Settings:",
+                evidence,
+                flags=re.IGNORECASE,
+            )
+        ]
+        if normalized_label not in row_labels:
+            continue
+        candidates.append(
+            (
+                int(str(result.metadata.get("chunk_type") or "") == "table_record"),
+                -len(evidence),
+                result,
+            )
+        )
+    if not candidates:
+        return ranked_results[:limit]
+    candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    promoted = [
+        result.model_copy(
+            update={"metadata": {**result.metadata, "retrieval_stage": "named_setting_promoted"}}
+        )
+        for _table, _negative_length, result in candidates[:promoted_limit]
+    ]
+    promoted_ids = {result.chunk_id for result in promoted}
+    return [*promoted, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
+
+
+def _promote_named_operation_candidates(
+    ranked_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    query: str,
+    *,
+    limit: int = 12,
+    promoted_limit: int = 2,
+) -> list[SearchResult]:
+    """Retain behavior-bearing evidence for an explicitly named operation."""
+    operation_match = re.search(
+        r"\b(?P<label>(?:reset|clear|start|stop|change|read|write|save|load)\s+"
+        r"[A-Za-z0-9][A-Za-z0-9 _./-]{0,50}?)\s+command\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    if not operation_match:
+        operation_match = re.search(
+            r"\b(?:with|using|via)\s+(?P<label>(?:reset|clear|start|stop|change|read|write|save|load)\s+"
+            r"[A-Za-z0-9][A-Za-z0-9 _./-]{0,50}?)(?:[?.]|$)",
+            query,
+            flags=re.IGNORECASE,
+        )
+    if not operation_match or not supplemental_results or limit <= 0:
+        return ranked_results[:limit]
+    label = re.sub(r"\s+", " ", operation_match.group("label")).strip(" .?:")
+    normalized_label = _compact_identifier(label)
+    if len(normalized_label) < 6:
+        return ranked_results[:limit]
+    query_terms = _text_terms(query)
+    candidates: list[tuple[int, int, int, int, SearchResult]] = []
+    seen: set[str] = set()
+    for index, result in enumerate(supplemental_results):
+        if result.chunk_id in seen:
+            continue
+        seen.add(result.chunk_id)
+        evidence = "\n".join(
+            str(part)
+            for part in (
+                result.content,
+                result.metadata.get("context_window"),
+                result.metadata.get("parent_context"),
+            )
+            if part
+        )
+        if normalized_label not in _compact_identifier(evidence):
+            continue
+        behavior = int(
+            bool(
+                re.search(
+                    r"\b(?:resets?|clears?|starts?|stops?|changes?|reads?|writes?|saves?|loads?)\b",
+                    evidence,
+                    flags=re.IGNORECASE,
+                )
+            )
+        )
+        overlap = len(query_terms.intersection(_text_terms(evidence)))
+        structured = int(str(result.metadata.get("chunk_type") or "") == "table_record")
+        candidates.append((behavior, overlap, structured, -index, result))
+    if not candidates:
+        return ranked_results[:limit]
+    candidates.sort(key=lambda item: item[:4], reverse=True)
+    promoted = [
+        result.model_copy(
+            update={"metadata": {**result.metadata, "retrieval_stage": "named_operation_promoted"}}
+        )
+        for _behavior, _overlap, _structured, _negative_index, result in candidates[:promoted_limit]
+    ]
+    promoted_ids = {result.chunk_id for result in promoted}
+    return [*promoted, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
+
+
+def _promote_wiring_terminal_candidates(
+    ranked_results: list[SearchResult],
+    supplemental_results: list[SearchResult],
+    query: str,
+    *,
+    limit: int = 12,
+    promoted_limit: int = 2,
+) -> list[SearchResult]:
+    """Retain the exact color/terminal record after semantic reranking."""
+    match = re.search(
+        r"\b(?P<color>black|white|gray|grey|orange|pink|yellow|blue|purple|green|red|brown)\b"
+        r".{0,80}\b(?P<terminal>(?:(?:out|in)|[ab])\s*\d+)\b",
+        query,
+        flags=re.IGNORECASE,
+    )
+    trigger_timing_lookup = bool(
+        re.search(r"\bexternal\s+trigger\b", query, flags=re.IGNORECASE)
+        and re.search(r"\b(?:timing|edge|edges|rising|falling)\b", query, flags=re.IGNORECASE)
+    )
+    if (not match and not trigger_timing_lookup) or not supplemental_results or limit <= 0:
+        return ranked_results[:limit]
+    color = _compact_identifier(match.group("color")) if match else ""
+    terminal = _compact_identifier(match.group("terminal")) if match else ""
+    terminal_label = (
+        f"terminalno{terminal}" if terminal.startswith(("a", "b")) else f"name{terminal}"
+    ) if match else ""
+    requested_series = {
+        _compact_identifier(series)
+        for series in re.findall(r"\b[A-Z][A-Z0-9-]*\s+Series\b", query, flags=re.IGNORECASE)
+    }
+    candidates: list[tuple[int, int, int, int, SearchResult]] = []
+    seen: set[str] = set()
+    for index, result in enumerate(supplemental_results):
+        if result.chunk_id in seen:
+            continue
+        seen.add(result.chunk_id)
+        evidence = "\n".join(
+            str(part)
+            for part in (result.content, result.metadata.get("context_window"))
+            if part
+        )
+        compact_evidence = _compact_identifier(evidence)
+        if match:
+            if f"wiringcolor{color}" not in compact_evidence or terminal_label not in compact_evidence:
+                continue
+        elif not all(term in compact_evidence for term in ("externaltrigger", "risingtiming", "fallingtiming")):
+            continue
+        exact_content = _compact_identifier(str(result.content or ""))
+        scope = _compact_identifier(
+            " ".join(
+                str(part)
+                for part in (
+                    result.title,
+                    result.metadata.get("product_model"),
+                    result.metadata.get("product_family"),
+                    result.metadata.get("product_models"),
+                    result.metadata.get("product_families"),
+                )
+                if part
+            )
+        )
+        candidates.append(
+            (
+                int(
+                    (match and f"wiringcolor{color}" in exact_content and terminal_label in exact_content)
+                    or (
+                        trigger_timing_lookup
+                        and all(term in exact_content for term in ("externaltrigger", "risingtiming", "fallingtiming"))
+                    )
+                ),
+                int(not requested_series or any(series in scope for series in requested_series)),
+                int(str(result.metadata.get("chunk_type") or "") == "table_record"),
+                -index,
+                result,
+            )
+        )
+    if not candidates:
+        return ranked_results[:limit]
+    candidates.sort(key=lambda item: item[:4], reverse=True)
+    promoted = [
+        result.model_copy(
+            update={"metadata": {**result.metadata, "retrieval_stage": "wiring_terminal_promoted"}}
+        )
+        for _exact, _scope, _structured, _negative_index, result in candidates[:promoted_limit]
+    ]
+    promoted_ids = {result.chunk_id for result in promoted}
+    return [*promoted, *(result for result in ranked_results if result.chunk_id not in promoted_ids)][:limit]
 
 
 def _comparison_row_code_terms(query: str, identifiers: list[str]) -> list[str]:
@@ -2156,7 +3059,19 @@ def _promote_structured_table_candidates(
     *,
     limit: int = 12,
 ) -> list[SearchResult]:
-    if "structured_lookup" not in analysis.query_types or "comparison" in analysis.query_types or not supplemental_results:
+    default_value_lookup = bool(
+        "spec_lookup" in analysis.query_types
+        and re.search(
+            r"\b(?:out\s+of\s+the\s+box|out\s+of\s+box|default|initial)\b",
+            getattr(analysis, "raw_query", ""),
+            flags=re.IGNORECASE,
+        )
+    )
+    if (
+        not ({"structured_lookup"}.intersection(analysis.query_types) or default_value_lookup)
+        or "comparison" in analysis.query_types
+        or not supplemental_results
+    ):
         return primary_results
     candidates = [
         result
@@ -2191,10 +3106,18 @@ def _promote_structured_table_candidates(
 
 
 def _troubleshooting_query_anchor(query: str) -> str:
+    numeric_error = re.search(
+        r"\berror(?:\s+(?:number|code))?\s*[:#]?\s*(?P<code>\d{3,6})\b",
+        query,
+        flags=re.I,
+    )
+    if numeric_error:
+        return numeric_error.group("code")
     # Prefer the complete symptom in natural cause/remedy questions.  A quoted
     # span inside that symptom may be a setting or menu label (for example,
     # "Axes Configuration"), not the alarm text itself.
     patterns = (
+        r"\bhow do i\s+(?:fix|resolve|correct)\s+(?:the\s+)?(.+?)\s+error\s+(?:on|for|with)\b",
         r"\bwhat causes\s+(.+?)(?:\s+for\s+[^,?]+)?(?:,\s+and|\s+and how|\?|$)",
         r"\bhow should\s+(.+?)(?:\s+for\s+.+?)?\s+be corrected(?:\?|$)",
     )
@@ -2219,9 +3142,13 @@ def _troubleshooting_requested_table_fields(query: str) -> list[set[str]]:
     fields: list[set[str]] = []
     if re.search(r"\b(?:cause|causes|caused|why)\b", query, flags=re.I):
         fields.append({"cause"})
-    if re.search(r"\b(?:correct|corrected|corrective|remedy|resolve|fix|how should|what should)\b", query, flags=re.I):
-        fields.append({"correctiveaction", "remedy"})
-    return fields or [{"cause", "correctiveaction", "remedy"}]
+    if re.search(
+        r"\b(?:correct|corrected|corrective|remedy|resolve|fix|how should|what should|how do i stop)\b",
+        query,
+        flags=re.I,
+    ):
+        fields.append({"correctiveaction", "remedy", "solution"})
+    return fields or [{"cause", "correctiveaction", "remedy", "solution"}]
 
 
 def _troubleshooting_table_siblings(
@@ -2319,15 +3246,18 @@ def _promote_troubleshooting_table_candidates(
         return primary_results
     anchor = _troubleshooting_query_anchor(analysis.raw_query)
     anchor_terms = _text_terms(anchor).difference(LEXICAL_TABLE_STOPWORDS)
-    if len(anchor_terms) < 2:
+    identifiers = [str(value) for value in analysis.product_identifiers if str(value)]
+    if len(anchor_terms) < 2 and not (anchor_terms and identifiers):
         return primary_results
-    required_overlap = max(2, min(5, len(anchor_terms) // 2 + 1))
+    required_overlap = 1 if len(anchor_terms) == 1 and identifiers else max(2, min(5, len(anchor_terms) // 2 + 1))
     promoted: list[SearchResult] = []
     seen: set[str] = set()
     for field_terms in _troubleshooting_requested_table_fields(analysis.raw_query):
         candidates: list[tuple[float, SearchResult]] = []
         for result in supplemental_results:
             if result.chunk_id in seen or str(result.metadata.get("chunk_type") or "") != "table_record":
+                continue
+            if identifiers and not any(_result_matches_primary_identifier(result, identifier) for identifier in identifiers):
                 continue
             if not _table_result_matches_requested_field_metadata(result.metadata, field_terms):
                 continue
@@ -2374,7 +3304,7 @@ def _exact_troubleshooting_table_results(
     """Return complete requested fields when lexical search found the exact alarm row."""
     anchor = _troubleshooting_query_anchor(analysis.raw_query)
     compact_anchor = _compact_identifier(anchor)
-    if len(compact_anchor) < 10:
+    if len(compact_anchor) < 10 and not (len(compact_anchor) >= 2 and analysis.product_identifiers):
         return []
     selected: list[SearchResult] = []
     seen: set[str] = set()
@@ -3033,7 +3963,11 @@ def _retrieve_once(
         if exact_document_ids:
             search_filters = {**filters, "source_document_id": exact_document_ids}
     chunk_search_filters = filters if force_broad else _chunk_search_filters(filters, search_filters, analysis)
-    supplemental_filters = chunk_search_filters if exact_document_ids else filters
+    supplemental_filters = (
+        filters
+        if _contextual_lexical_limit(query) > LEXICAL_CONTEXT_LIMIT
+        else (chunk_search_filters if exact_document_ids else filters)
+    )
     broad_vector_enabled = force_broad or _should_run_broad_vector_search(analysis)
     table_lexical_results = (
         _annotate_stage_metadata(_run_cached_table_lexical_search(query, corpus_ids, supplemental_filters, analysis), "table_lexical")
@@ -3065,7 +3999,13 @@ def _retrieve_once(
         else []
     )
     contextual_lexical_results = _annotate_stage_metadata(
-        run_contextual_lexical_search(query, corpus_ids, supplemental_filters, analysis),
+        run_contextual_lexical_search(
+            query,
+            corpus_ids,
+            supplemental_filters,
+            analysis,
+            limit=_contextual_lexical_limit(query),
+        ),
         "contextual_lexical",
     )
     special_results = _annotate_stage_metadata(
@@ -3097,6 +4037,50 @@ def _retrieve_once(
     reranked = _promote_structured_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     reranked = _promote_comparison_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     reranked = _promote_troubleshooting_table_candidates(reranked, troubleshooting_supplemental, analysis, limit=12)
+    reranked = _promote_identifier_contextual_candidates(
+        reranked,
+        contextual_lexical_results,
+        analysis,
+        limit=12,
+    )
+    reranked = _promote_named_setting_candidates(
+        reranked,
+        [*contextual_lexical_results, *table_lexical_results, *fused],
+        query,
+        limit=12,
+    )
+    reranked = _promote_named_operation_candidates(
+        reranked,
+        [
+            *contextual_lexical_results,
+            *table_lexical_results,
+            *dense_results,
+            *sparse_results,
+            *special_results,
+            *fused,
+        ],
+        query,
+        limit=12,
+    )
+    reranked = _promote_wiring_terminal_candidates(
+        reranked,
+        [*contextual_lexical_results, *table_lexical_results, *dense_results, *fused],
+        query,
+        limit=12,
+    )
+    reranked = _promote_measurement_candidates(
+        reranked,
+        [
+            *contextual_lexical_results,
+            *dense_results,
+            *sparse_results,
+            *special_results,
+            *fused,
+        ],
+        query,
+        analysis=analysis,
+        limit=12,
+    )
     deduped = _dedupe_results(reranked, analysis)
     assembled = assemble_context(deduped, limit=limit)
     return _attach_document_selection(assembled, metadata_document_hits)

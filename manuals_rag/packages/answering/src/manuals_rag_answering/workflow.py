@@ -8,17 +8,34 @@ from langgraph.graph import END, START, StateGraph
 from manuals_rag_answering.generator import generate_answer
 from manuals_rag_retrieval.qdrant_store import QdrantStore
 from manuals_rag_retrieval.retriever import (
+    _annotate_completeness,
+    _apply_family_scoring,
+    _apply_query_alignment,
+    _contextual_lexical_limit,
+    _dedupe_results,
+    _preserve_identifier_dense_candidates,
+    _promote_identifier_contextual_candidates,
+    _promote_measurement_candidates,
+    _promote_named_operation_candidates,
+    _promote_named_setting_candidates,
     _promote_comparison_table_candidates,
     _promote_structured_table_candidates,
+    _promote_troubleshooting_table_candidates,
+    _promote_wiring_terminal_candidates,
+    _select_family_candidates,
     _should_run_table_lexical_search,
+    _troubleshooting_table_siblings,
     assemble_context,
     build_filters,
+    enrich_candidates_for_rerank,
     fuse_results,
     rerank_results,
     retrieve,
+    run_contextual_lexical_search,
     run_dense_search,
     run_sparse_search,
     run_special_search,
+    run_table_search,
     run_table_lexical_search,
 )
 from manuals_rag_retrieval.query_analysis import QueryAnalysis, analyze_query
@@ -32,6 +49,8 @@ class QueryState(TypedDict, total=False):
     dense_results: list[dict]
     sparse_results: list[dict]
     special_results: list[dict]
+    table_results: list[dict]
+    contextual_lexical_results: list[dict]
     table_lexical_results: list[dict]
     fused_results: list[dict]
     retrieval_results: list[dict]
@@ -68,7 +87,21 @@ def run_special(state: QueryState) -> QueryState:
     analysis = QueryAnalysis(**state["analysis"])
     dense_results = [SearchResult.model_validate(item) for item in state.get("dense_results", [])]
     special = run_special_search(store, state["query"], state["corpus_ids"], state["filters"], analysis)
-    return {**state, "special_results": [result.model_dump() for result in special], "dense_results": [r.model_dump() for r in dense_results]}
+    table = run_table_search(store, state["query"], state["corpus_ids"], state["filters"])
+    contextual = run_contextual_lexical_search(
+        state["query"],
+        state["corpus_ids"],
+        state.get("request_filters", state["filters"]),
+        analysis,
+        limit=_contextual_lexical_limit(state["query"]),
+    )
+    return {
+        **state,
+        "special_results": [result.model_dump() for result in special],
+        "table_results": [result.model_dump() for result in table],
+        "contextual_lexical_results": [result.model_dump() for result in contextual],
+        "dense_results": [r.model_dump() for r in dense_results],
+    }
 
 
 def fuse(state: QueryState) -> QueryState:
@@ -84,10 +117,13 @@ def fuse(state: QueryState) -> QueryState:
     result_sets = [
         [SearchResult.model_validate(item) for item in state.get("dense_results", [])],
         [SearchResult.model_validate(item) for item in state.get("sparse_results", [])],
+        [SearchResult.model_validate(item) for item in state.get("table_results", [])],
         table_lexical_results,
+        [SearchResult.model_validate(item) for item in state.get("contextual_lexical_results", [])],
         [SearchResult.model_validate(item) for item in state.get("special_results", [])],
     ]
     fused = fuse_results(store, result_sets, limit=30)
+    fused = _preserve_identifier_dense_candidates(fused, result_sets[0], analysis, limit=30)
     return {
         **state,
         "table_lexical_results": [result.model_dump() for result in table_lexical_results],
@@ -101,9 +137,69 @@ def rerank(state: QueryState) -> QueryState:
     analysis = QueryAnalysis(**state["analysis"])
     fused = [SearchResult.model_validate(item) for item in state.get("fused_results", [])]
     table_lexical_results = [SearchResult.model_validate(item) for item in state.get("table_lexical_results", [])]
-    reranked = rerank_results(fused, state["query"], limit=12)
+    contextual_results = [
+        SearchResult.model_validate(item) for item in state.get("contextual_lexical_results", [])
+    ]
+    dense_results = [SearchResult.model_validate(item) for item in state.get("dense_results", [])]
+    sparse_results = [SearchResult.model_validate(item) for item in state.get("sparse_results", [])]
+    special_results = [SearchResult.model_validate(item) for item in state.get("special_results", [])]
+    rescored = _apply_family_scoring(fused, analysis, stage="family_scored")[:30]
+    completed = _annotate_completeness(rescored)
+    aligned = _apply_query_alignment(completed, analysis, stage="query_aligned")
+    family_selected = _select_family_candidates(aligned, analysis, filters=state["filters"], limit=12)
+    enriched = enrich_candidates_for_rerank(family_selected, analysis, limit=12)
+    reranked = rerank_results(enriched, state["query"], limit=12)
+    troubleshooting_siblings = _troubleshooting_table_siblings(
+        [*reranked, *table_lexical_results],
+        analysis,
+    )
+    troubleshooting_supplemental = [*table_lexical_results, *troubleshooting_siblings]
     reranked = _promote_structured_table_candidates(reranked, table_lexical_results, analysis, limit=12)
     reranked = _promote_comparison_table_candidates(reranked, table_lexical_results, analysis, limit=12)
+    reranked = _promote_troubleshooting_table_candidates(
+        reranked,
+        troubleshooting_supplemental,
+        analysis,
+        limit=12,
+    )
+    reranked = _promote_identifier_contextual_candidates(
+        reranked,
+        contextual_results,
+        analysis,
+        limit=12,
+    )
+    reranked = _promote_named_setting_candidates(
+        reranked,
+        [*contextual_results, *table_lexical_results, *fused],
+        state["query"],
+        limit=12,
+    )
+    reranked = _promote_named_operation_candidates(
+        reranked,
+        [
+            *contextual_results,
+            *table_lexical_results,
+            *dense_results,
+            *sparse_results,
+            *special_results,
+            *fused,
+        ],
+        state["query"],
+        limit=12,
+    )
+    reranked = _promote_wiring_terminal_candidates(
+        reranked,
+        [*contextual_results, *table_lexical_results, *dense_results, *fused],
+        state["query"],
+        limit=12,
+    )
+    reranked = _promote_measurement_candidates(
+        reranked,
+        [*contextual_results, *dense_results, *sparse_results, *special_results, *fused],
+        state["query"],
+        analysis=analysis,
+        limit=12,
+    )
     return {**state, "retrieval_results": [result.model_dump() for result in reranked]}
 
 
@@ -111,7 +207,8 @@ def assemble(state: QueryState) -> QueryState:
     from manuals_rag_schemas.documents import SearchResult
 
     reranked = [SearchResult.model_validate(item) for item in state.get("retrieval_results", [])]
-    assembled = assemble_context(reranked)
+    analysis = QueryAnalysis(**state["analysis"])
+    assembled = assemble_context(_dedupe_results(reranked, analysis))
     return {**state, "retrieval_results": [result.model_dump() for result in assembled]}
 
 

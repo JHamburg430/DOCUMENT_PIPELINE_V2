@@ -80,12 +80,22 @@ def analyze_query(query: str) -> QueryAnalysis:
         r"row|column|cell\s+value)\b",
         lowered,
     )
+    named_choice_lookup_shape = re.search(
+        r"\bhow\s+does\b.{0,100}\b(?:mode|method|option|setting|type)\b.{0,40}"
+        r"\b(?:select|choose|determine)\b"
+        r"|\b(?:which|what)\b.{0,100}\b(?:modes|methods|options|settings|types)\b.{0,80}"
+        r"\b(?:select|choose|use)(?:s|d)?\b.{0,30}\bbetween\b",
+        lowered,
+    )
     if structured_lookup_field and (structured_lookup_shape or structured_reverse_lookup_shape):
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
     if structured_value_lookup_shape and structured_table_field:
         types.append("structured_lookup")
         preferred_chunk_types.extend(["table_record", "spec_record", "section_window"])
+    if named_choice_lookup_shape:
+        types.append("structured_lookup")
+        preferred_chunk_types.extend(["table_record", "section_window"])
     requested_doc_kind = None
     if "datasheet" in lowered:
         requested_doc_kind = "datasheet"
@@ -117,8 +127,16 @@ def analyze_query(query: str) -> QueryAnalysis:
         "vibration",
         "humidity",
         "temperature",
+        "length",
+        "weight",
+        "capacity",
+        "connector",
     }
-    explicit_spec_lookup = "specification" in lowered or re.search(r"\bspecs?\b", lowered) is not None
+    explicit_spec_lookup = (
+        "specification" in lowered
+        or re.search(r"\bspecs?\b", lowered) is not None
+        or re.search(r"\bhow\s+(?:long|heavy|wide|tall|fast)\b", lowered) is not None
+    )
     if requested_doc_kind in {None, "manual"} and (
         explicit_spec_lookup
         or any(word in lowered for word in spec_terms)
@@ -137,6 +155,8 @@ def analyze_query(query: str) -> QueryAnalysis:
         or re.search(r"\bwhy\s+(?:does|is)\b.+\b(?:show|shows|report|reporting)\b", lowered)
         or re.search(r"\bwhat should i do when\b.+\b(?:show|shows|report|reports)\b", lowered)
         or re.search(r"\bhow can i resolve\b", lowered)
+        or re.search(r"\bhow do i\s+(?:fix|resolve|correct)\b", lowered)
+        or re.search(r"\bhow do i stop\b.+\bfrom\b", lowered)
     ):
         types.append("troubleshooting")
         types.append("structured_lookup")
@@ -173,6 +193,20 @@ def analyze_query(query: str) -> QueryAnalysis:
             continue
         model_matches.append((match.start(), match.group(0)))
         model_match_spans.append(match.span())
+    for match in re.finditer(
+        r"\b(?:on|for|with|using)\s+(?:the\s+)?(?P<model>[A-Z]{1,5}\d{2,8})\b"
+        r"|\bthe\s+(?P<article_model>[A-Z]{1,5}\d{2,8})\b(?!\s+(?:alarm|error|fault|code)\b)",
+        query,
+        flags=re.IGNORECASE,
+    ):
+        group_name = "model" if match.group("model") else "article_model"
+        model = match.group(group_name).upper()
+        start = match.start(group_name)
+        span = (start, match.end(group_name))
+        if not any(existing_start == start for existing_start, _value in model_matches):
+            model_matches.append((start, model))
+            model_match_spans.append(span)
+    model_matches.sort(key=lambda item: item[0])
     if (
         len(model_matches) >= 2
         and re.search(r"\b(?:and|with)\b", lowered)
@@ -197,9 +231,12 @@ def analyze_query(query: str) -> QueryAnalysis:
                 for start, end in model_match_spans
             )
         ]
-    model_match = re.search(r"\b[A-Z]{1,5}\d{0,4}(?:-[A-Z0-9]{1,8})+\b", query)
-    if model_match and not any(char.isdigit() for char in model_match.group(0)):
-        model_match = None
+    model_value = model_matches[0][1] if model_matches else None
+    model_span = (
+        (model_matches[0][0], model_matches[0][0] + len(model_matches[0][1]))
+        if model_matches
+        else None
+    )
     family_matches = [
         (match.start(1), match.group(1).upper())
         for match in re.finditer(
@@ -213,13 +250,31 @@ def analyze_query(query: str) -> QueryAnalysis:
         query,
         flags=re.IGNORECASE,
     )
+    if (
+        family_match
+        and model_span
+        and model_span == family_match.span(1)
+        and "-" not in family_match.group(1)
+    ):
+        # An identifier explicitly qualified as a Series/Family is a family,
+        # even when it also matches the compact model-shaped pattern.
+        model_value = None
+        model_span = None
     part_match = re.search(r"\b(?:OP|CA|SZ|GL|SR|IV|LJ|LR|KV|XG|VS|WM|VJ)-[A-Z0-9]{2,12}[A-Z0-9-]*\b", query)
     error_match = re.search(r"\b[A-Z]\d{2,4}\b(?!\s+(?:series|family))", query, flags=re.IGNORECASE)
-    if error_match and model_match:
-        model_span = model_match.span()
+    if error_match and model_span:
         if model_span[0] <= error_match.start() and error_match.end() <= model_span[1]:
             error_match = None
-    explicit_identifier_count = int(bool(model_match)) + int(bool(error_match))
+    error_value = error_match.group(0) if error_match else None
+    if not error_value:
+        numeric_error_match = re.search(
+            r"\berror(?:\s+(?:number|code))?\s*[:#]?\s*(?P<code>\d{3,6})\b",
+            query,
+            flags=re.IGNORECASE,
+        )
+        if numeric_error_match:
+            error_value = numeric_error_match.group("code")
+    explicit_identifier_count = int(bool(model_value)) + int(bool(error_value))
     filter_strictness = "strict" if explicit_identifier_count >= 2 else ("balanced" if explicit_identifier_count == 1 else "loose")
     product_identifiers: list[str] = []
     for _start, identifier in sorted([*model_matches, *family_matches, *comparison_identifier_matches], key=lambda item: item[0]):
@@ -229,11 +284,11 @@ def analyze_query(query: str) -> QueryAnalysis:
         raw_query=query,
         query_types=sorted(set(types)),
         normalized_terms=normalized_terms,
-        product_family=family_match.group(1).upper() if family_match and not model_match else None,
-        product_model=model_match.group(0) if model_match else None,
+        product_family=family_match.group(1).upper() if family_match and not model_value else None,
+        product_model=model_value,
         product_identifiers=product_identifiers,
         part_number=part_match.group(0) if part_match else None,
-        error_code=error_match.group(0) if error_match and not part_match else None,
+        error_code=error_value,
         requested_doc_kind=requested_doc_kind,
         safety_intent="safety" in types,
         latest_only=any(term in lowered for term in ["latest", "newest", "current revision", "most recent"]),

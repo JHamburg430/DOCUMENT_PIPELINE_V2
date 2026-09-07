@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import mimetypes
 import os
@@ -178,6 +179,35 @@ def select_large_documents(directory: Path, *, max_docs: int, max_bytes: int) ->
         if len(selected) >= max_docs:
             break
     return selected
+
+
+def select_held_out_documents(
+    documents: list[dict[str, Any]],
+    *,
+    count: int,
+    seed: int,
+) -> list[dict[str, Any]]:
+    """Choose a stable document-level evaluation partition.
+
+    The selected documents supply benchmark questions, while retrieval still
+    searches the complete corpus. This prevents tuning-document questions from
+    leaking into a held-out evaluation without weakening the retrieval task.
+    """
+    if count < 0:
+        raise ValueError("Document holdout count cannot be negative.")
+    if count == 0:
+        return list(documents)
+    if count > len(documents):
+        raise ValueError(
+            f"Document holdout count {count} exceeds the {len(documents)} indexed documents."
+        )
+
+    def partition_key(document: dict[str, Any]) -> tuple[str, str]:
+        document_id = str(document.get("document_id") or document.get("id") or "")
+        digest = hashlib.sha256(f"{seed}\0{document_id}".encode("utf-8")).hexdigest()
+        return digest, document_id
+
+    return sorted(documents, key=partition_key)[:count]
 
 
 def create_corpus(corpus_id: str) -> None:
@@ -965,6 +995,15 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--existing-corpus-id", type=str, default=None)
     parser.add_argument(
+        "--held-out-document-count",
+        type=int,
+        default=0,
+        help=(
+            "Generate evaluation cases from a deterministic document-level holdout of this size. "
+            "Retrieval still searches the full corpus. 0 uses all indexed documents."
+        ),
+    )
+    parser.add_argument(
         "--dataset-path",
         type=Path,
         default=None,
@@ -1089,6 +1128,8 @@ def main() -> int:
     random.seed(args.seed)
     if args.dataset_path and not args.existing_corpus_id:
         raise SystemExit("--dataset-path requires --existing-corpus-id so saved cases are searched in the intended corpus.")
+    if args.dataset_path and args.held_out_document_count:
+        raise SystemExit("--held-out-document-count cannot be combined with --dataset-path; the saved dataset already fixes its source documents.")
     if args.retrieval_results_path and (not args.dataset_path or args.response_mode != "answer_with_citations"):
         raise SystemExit(
             "--retrieval-results-path requires --dataset-path and --response-mode answer_with_citations."
@@ -1123,6 +1164,35 @@ def main() -> int:
             print(json.dumps({"ingesting": path.name, "size_bytes": path.stat().st_size}, indent=2), flush=True)
             ingested_docs.append(upload_and_ingest(path, corpus_id=corpus_id))
 
+    try:
+        generation_docs = select_held_out_documents(
+            ingested_docs,
+            count=args.held_out_document_count,
+            seed=args.seed,
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    if (
+        args.retrieval_task == "multi_step_retrieval"
+        and args.multi_step_case_family in {"all", "cross_document"}
+        and args.held_out_document_count == 1
+    ):
+        raise SystemExit("Cross-document multi-step evaluation requires at least two held-out documents.")
+    holdout_manifest = {
+        "enabled": bool(args.held_out_document_count),
+        "seed": args.seed,
+        "requested_count": args.held_out_document_count,
+        "searchable_document_count": len(ingested_docs),
+        "generation_document_count": len(generation_docs),
+        "generation_documents": [
+            {
+                "document_id": item["document_id"],
+                "filename": item["filename"],
+            }
+            for item in generation_docs
+        ],
+    }
+
     if args.dataset_path:
         cases, rejected_cases = load_eval_cases_and_rejections_from_dataset(
             args.dataset_path,
@@ -1145,7 +1215,7 @@ def main() -> int:
         )
     else:
         rejected_cases = []
-        chunk_rows = fetch_chunk_rows([item["document_id"] for item in ingested_docs])
+        chunk_rows = fetch_chunk_rows([item["document_id"] for item in generation_docs])
         chunk_rows = prepare_question_generation_chunks(chunk_rows)
         generation_chunk_offset = max(0, args.generation_chunk_offset)
         if generation_chunk_offset:
@@ -1184,6 +1254,13 @@ def main() -> int:
                     ),
                 )
             ]
+
+    if not cases:
+        partition_label = "document holdout" if args.held_out_document_count else "selected documents"
+        raise SystemExit(
+            f"No eligible {args.retrieval_task} cases were generated from the {partition_label}; "
+            "adjust the partition, case family, or generation window."
+        )
 
     reused_retrieval_by_case_id: dict[str, dict[str, Any]] = {}
     if args.retrieval_results_path:
@@ -1244,6 +1321,7 @@ def main() -> int:
                     "response_mode": args.response_mode,
                     "retrieval_task": args.retrieval_task,
                     "multi_step_case_family": args.multi_step_case_family,
+                    "document_holdout": holdout_manifest,
                     "generation_chunk_offset": args.generation_chunk_offset if not args.dataset_path else None,
                     "generation_chunk_window": args.generation_chunk_window if not args.dataset_path else None,
                     "questions_per_window": args.questions_per_window if not args.dataset_path else None,
@@ -1369,6 +1447,7 @@ def main() -> int:
                 "warmups": warmups,
                 "retrieval_task": args.retrieval_task,
                 "multi_step_case_family": args.multi_step_case_family,
+                "document_holdout": holdout_manifest,
                 "generation_chunk_offset": args.generation_chunk_offset if not args.dataset_path else None,
                 "generation_chunk_window": args.generation_chunk_window if not args.dataset_path else None,
                 "questions_per_window": args.questions_per_window if not args.dataset_path else None,

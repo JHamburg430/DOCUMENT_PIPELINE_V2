@@ -1740,6 +1740,9 @@ def _start_question_matrix_job(payload: dict) -> dict:
     stop_on_answer_failure = payload.get("stop_on_answer_failure", True)
     if not isinstance(stop_on_answer_failure, bool):
         raise ValueError("stop_on_answer_failure must be a boolean")
+    question_offset = payload.get("question_offset", 0)
+    if isinstance(question_offset, bool) or not isinstance(question_offset, int) or question_offset < 0:
+        raise ValueError("question_offset must be a non-negative integer")
     if mode not in {"all_bank", "column"}:
         raise ValueError("mode must be all_bank or column")
     valid_columns = {
@@ -1779,6 +1782,7 @@ def _start_question_matrix_job(payload: dict) -> dict:
         "response_mode": response_mode,
         "use_model_judge": use_model_judge and response_mode == "answer_with_citations",
         "stop_on_answer_failure": stop_on_answer_failure and response_mode == "answer_with_citations",
+        "question_offset": question_offset,
         "started_at": None,
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "completed_at": None,
@@ -1997,7 +2001,9 @@ def _run_answer_matrix_dataset(
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     results_path = TEST_REPORTS_DIR / f"retrieval_eval_results_{timestamp}_{uuid.uuid4().hex[:6]}.jsonl"
     manifest_path = TEST_REPORTS_DIR / f"retrieval_eval_manifest_{timestamp}_{uuid.uuid4().hex[:6]}.json"
-    cases = _read_jsonl(dataset_path)
+    all_cases = _read_jsonl(dataset_path)
+    question_offset = min(int(job.get("question_offset") or 0), len(all_cases))
+    cases = all_cases[question_offset:]
     results: list[dict] = []
 
     def write_manifest(*, status: str, completed: bool, failure: dict | None = None) -> None:
@@ -2008,10 +2014,11 @@ def _run_answer_matrix_dataset(
             "response_mode": "answer_with_citations",
             "use_llm_answer_judge": bool(job.get("use_model_judge")),
             "stop_on_answer_failure": bool(job.get("stop_on_answer_failure")),
+            "question_offset": question_offset,
             "status": status,
             "completed": completed,
             "processed_questions": len(results),
-            "total_questions": len(cases),
+            "total_questions": len(all_cases),
             "results_path": str(results_path),
         }
         if failure:
@@ -2115,12 +2122,19 @@ def _run_answer_matrix_dataset(
                 retrieval_passed=bool(evaluation.get("passed")),
                 answer_passed=bool(answer_evaluation.get("passed")) if answer_evaluation else None,
             )
-            if answer_evaluation and not answer_evaluation.get("passed") and job.get("stop_on_answer_failure"):
+            retrieval_failed = not evaluation.get("passed")
+            answer_failed = bool(answer_evaluation and not answer_evaluation.get("passed"))
+            if job.get("stop_on_answer_failure") and (retrieval_failed or answer_failed):
+                failure_reasons = (
+                    (answer_evaluation or {}).get("failure_reasons")
+                    or evaluation.get("failure_reasons")
+                    or [evaluation.get("failure_category") or "retrieval_failed_before_answer"]
+                )
                 failure = {
                     "case_id": case_id,
                     "question_number": case_numbers.get(case_id),
                     "query": case.get("query"),
-                    "failure_reasons": answer_evaluation.get("failure_reasons") or [],
+                    "failure_reasons": failure_reasons,
                 }
                 write_manifest(status="stopped_on_answer_failure", completed=False, failure=failure)
                 output = {

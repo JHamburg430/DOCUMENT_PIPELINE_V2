@@ -17,6 +17,7 @@ from manuals_rag_evals.retrieval_eval import (
     validate_eval_case,
     _parse_generated_queries,
     _parse_query_review,
+    _query_aligned_expected_snippet,
     _answer_scoring_terms,
     _configuration_location_answer_completeness,
     _question_generation_trace_fields,
@@ -26,6 +27,31 @@ from manuals_rag_evals.retrieval_eval import (
     _troubleshooting_query_qualifier,
     _troubleshooting_row_identifier,
 )
+
+
+def test_query_aligned_expected_snippet_separates_multiple_rows_in_one_chunk():
+    content = (
+        "Status: Small defects can no longer be detected if the Intensity Threshold Level is increased.; "
+        "Corrective action: Decrease the Segment Size.; "
+        "Status: The Segment Size cannot be set to under 4.; "
+        "Corrective action: Uncheck High Speed Mode and then decrease the Segment Size."
+    )
+
+    defects = _query_aligned_expected_snippet(
+        "How do I restore detection of small defects after raising the Intensity Threshold Level?",
+        content,
+    )
+    below_four = _query_aligned_expected_snippet(
+        "What must I disable to set the Segment Size below 4?",
+        content,
+    )
+
+    assert "Small defects" in defects
+    assert "Intensity Threshold Level" in defects
+    assert "Uncheck High Speed Mode" not in defects
+    assert below_four.startswith("Corrective action: Uncheck High Speed Mode")
+    assert "set to under 4" in below_four
+    assert "Small defects" not in below_four
 
 
 @pytest.mark.parametrize(
@@ -122,6 +148,104 @@ def test_answer_scoring_uses_the_query_relevant_source_clause():
     assert not {"danger", "purpose", "protect"}.intersection(terms)
 
 
+def test_answer_scoring_requires_the_complete_named_alternative_phrase():
+    case = RetrievalEvalCase(
+        case_id="case-auto-mode",
+        query="Which detection modes does the W500 Auto setting choose between?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="table_record",
+        section_path="Detection mode",
+        page_from=1,
+        page_to=1,
+        expected_terms=["detection", "default", "explanation"],
+        expected_snippet=(
+            "Detection mode: Auto (default); Explanation: When adjusting the sensitivity, "
+            "the optimal mode is automatically selected between C+I or C."
+        ),
+        generation_method="reviewed_llm:named choice",
+        source_metadata={},
+    )
+    base_answer = {
+        "confidence": "high",
+        "used_documents": [{"document_id": "doc-1"}],
+        "citations": [{"chunk_id": "chunk-1", "document_id": "doc-1"}],
+        "warnings": [],
+        "followup_questions": [],
+        "insufficient_evidence": False,
+    }
+
+    incomplete = score_answer_response(
+        case,
+        {**base_answer, "answer": "Auto uses C+I mode."},
+        use_llm_required_info_judge=False,
+    )
+    complete = score_answer_response(
+        case,
+        {
+            **base_answer,
+            "answer": (
+                "Detection mode: Auto (default). Explanation: the optimal mode is selected between C+I or C."
+            ),
+        },
+        use_llm_required_info_judge=False,
+    )
+
+    assert not incomplete["passed"]
+    assert incomplete["term_check"]["material_term_source"] == "named_alternative_terms"
+    assert incomplete["term_check"]["material_expected_terms"] == ["C+I or C"]
+    assert complete["passed"]
+
+
+def test_answer_scoring_requires_required_setting_alignment_not_only_a_hazard_example():
+    case = RetrievalEvalCase(
+        case_id="case-voltage-setting",
+        query="Which voltage setting must match the illumination unit for the CA-DC40E?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="warning_record",
+        section_path="CAUTION",
+        page_from=1,
+        page_to=1,
+        expected_terms=["set", "voltage", "illumination", "ca-dc40e"],
+        expected_snippet=(
+            "Make sure to set the Voltage Output for the illumination unit of the CA-DC40E light "
+            "controller correctly. Connecting a 12 V unit at 24 V may cause damage."
+        ),
+        generation_method="reviewed_llm:setting alignment",
+        source_metadata={"product_model": "CA-DC40E"},
+    )
+    base_answer = {
+        "confidence": "high",
+        "used_documents": [{"document_id": "doc-1"}],
+        "citations": [{"chunk_id": "chunk-1", "document_id": "doc-1"}],
+        "warnings": [],
+        "followup_questions": [],
+        "insufficient_evidence": False,
+    }
+
+    hazard_only = score_answer_response(
+        case,
+        {**base_answer, "answer": "A 12 V illumination unit at 24 V may be damaged."},
+        use_llm_required_info_judge=False,
+    )
+    aligned = score_answer_response(
+        case,
+        {**base_answer, "answer": "Set Voltage Output correctly to match the illumination unit."},
+        use_llm_required_info_judge=False,
+    )
+
+    assert not hazard_only["passed"]
+    assert hazard_only["term_check"]["material_term_source"] == "required_setting_alignment_terms"
+    assert aligned["passed"]
+
+
 def test_large_retrieval_eval_loads_saved_dataset(tmp_path):
     import importlib.util
     from pathlib import Path
@@ -211,6 +335,42 @@ def test_large_retrieval_eval_fetch_chunks_merges_document_metadata(monkeypatch)
     assert rows[0]["metadata_json"]["manufacturer"] == "KEYENCE"
     assert rows[0]["metadata_json"]["product_family"] == "CV-X Series"
     assert rows[0]["metadata_json"]["product_model"] == "CV-X482"
+
+
+def test_large_retrieval_eval_selects_stable_document_holdout():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    documents = [
+        {"document_id": f"doc-{index}", "filename": f"manual-{index}.pdf"}
+        for index in range(6)
+    ]
+
+    selected = module.select_held_out_documents(documents, count=2, seed=42)
+    reordered = module.select_held_out_documents(list(reversed(documents)), count=2, seed=42)
+
+    assert len(selected) == 2
+    assert [item["document_id"] for item in selected] == [item["document_id"] for item in reordered]
+    assert module.select_held_out_documents(documents, count=0, seed=42) == documents
+
+
+def test_large_retrieval_eval_rejects_oversized_document_holdout():
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "benchmark" / "run_large_retrieval_eval.py"
+    spec = importlib.util.spec_from_file_location("run_large_retrieval_eval", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    with pytest.raises(ValueError, match="exceeds"):
+        module.select_held_out_documents([{"document_id": "doc-1"}], count=2, seed=42)
 
 
 def test_large_retrieval_eval_fetch_chunks_adds_fallback_context_window(monkeypatch):
@@ -820,6 +980,102 @@ def test_answer_response_scoring_accepts_strong_cited_duplicate_manual_evidence(
     assert scored["equivalent_citation_support"]["chunk_ids"] == ["chunk-xgx"]
 
 
+def test_answer_scoring_accepts_exact_duplicate_prose_from_another_indexed_copy():
+    evidence = (
+        "With conventional AI systems, users have to select the images to use for learning "
+        "manually, requiring a certain level of experience and a lot of time. With AI Auto "
+        "Image Selector, the software automatically selects the images for learning, "
+        "eliminating the need for specialized skills and reducing learning time."
+    )
+    case = RetrievalEvalCase(
+        case_id="case-duplicate-ai-selector",
+        query="Does the VS Series AI Auto Image Selector require specialized skills to use?",
+        source_document_id="doc-new",
+        document_version_id="ver-new",
+        source_chunk_id="chunk-new",
+        source_title="VS Series",
+        source_filename="vs-new.pdf",
+        chunk_type="atomic_text",
+        section_path="KEYENCE AI",
+        page_from=11,
+        page_to=11,
+        expected_terms=["automatically selects", "specialized skills"],
+        expected_snippet=evidence,
+        generation_method="unit_test",
+        source_metadata={"product_family": "VS Series"},
+    )
+    duplicate = {
+        "chunk_id": "chunk-old",
+        "source_document_id": "doc-old",
+        "content": evidence,
+        "metadata": {"chunk_type": "atomic_text", "product_family": "A"},
+    }
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "No. The software automatically selects learning images, eliminating the "
+                "need for specialized skills."
+            ),
+            "citations": [{"document_id": "doc-old", "chunk_id": "chunk-old", "pages": [11]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [duplicate],
+    )
+
+    assert scored["passed"] is True
+    assert scored["missing_document_ids"] == []
+    assert scored["equivalent_citation_support"]["chunk_ids"] == ["chunk-old"]
+
+
+def test_answer_scoring_accepts_duplicate_input_terminal_table_row():
+    case = RetrievalEvalCase(
+        case_id="case-input-count",
+        query="How many input terminals does the IV4-G120 provide?",
+        source_document_id="doc-new",
+        document_version_id="ver-new",
+        source_chunk_id="chunk-new",
+        source_title="IV4 Manual",
+        source_filename="iv4-new.pdf",
+        chunk_type="table_record",
+        section_path="Specifications",
+        page_from=484,
+        page_to=484,
+        expected_terms=["8", "IN1", "IN8"],
+        expected_snippet="Model: Number of inputs; IV4-G120: 8 (IN1 to IN8)",
+        generation_method="unit_test",
+        source_metadata={"product_model": "IV4-G600CA"},
+    )
+    duplicate = {
+        "chunk_id": "chunk-old",
+        "source_document_id": "doc-old",
+        "content": (
+            "Column headers: IV4-G120; Row headers: Number of inputs; "
+            "Cell value: 8 (IN1 to IN8); Row: 17; Column: 2"
+        ),
+        "metadata": {"product_model": "IV4-G120", "chunk_type": "table_record"},
+    }
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The IV4-G120 provides 8 input terminals (IN1 to IN8).",
+            "citations": [{"document_id": "doc-old", "chunk_id": "chunk-old", "pages": [446]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [duplicate],
+    )
+
+    assert scored["passed"] is True
+    assert scored["missing_document_ids"] == []
+    assert scored["equivalent_citation_support"]["chunk_ids"] == ["chunk-old"]
+
+
 def test_answer_response_scoring_uses_quantity_from_single_step_expected_snippet():
     case = RetrievalEvalCase(
         case_id="case-ca-en100u-voltage",
@@ -859,6 +1115,78 @@ def test_answer_response_scoring_uses_quantity_from_single_step_expected_snippet
     assert scored["passed"] is True
     assert scored["term_check"]["term_source"] == "case_expected_snippet_quantity_terms"
     assert "24" in scored["term_check"]["matched_terms"]
+
+
+def test_quantity_scoring_requires_numeric_condition_stated_in_question():
+    case = RetrievalEvalCase(
+        case_id="case-temperature-condition",
+        query="What case temperature limit applies to the IV4-G120 if ambient exceeds 40°C?",
+        source_document_id="doc-iv4",
+        document_version_id="ver-iv4",
+        source_chunk_id="chunk-temperature",
+        source_title="IV4 Manual",
+        source_filename="iv4.pdf",
+        chunk_type="atomic_text",
+        section_path="Specifications",
+        page_from=447,
+        page_to=447,
+        expected_terms=["operating", "ambient", "temperature", "exceeds"],
+        expected_snippet=(
+            "If the operating ambient temperature exceeds 40°C, confirm that the case "
+            "temperature does not exceed the rated 65°C."
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_model": "IV4-G120"},
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The IV4-G120 operating ambient temperature is 0 to 50°C.",
+            "citations": [{"document_id": "doc-iv4", "chunk_id": "chunk-temperature"}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert scored["passed"] is False
+    assert scored["term_check"]["material_term_source"] == "quantity_query_terms"
+    assert "40" in scored["term_check"]["material_expected_terms"]
+
+
+def test_answer_text_claiming_missing_evidence_cannot_pass_by_term_overlap():
+    case = RetrievalEvalCase(
+        case_id="case-calibration-effect",
+        query="When does a new master calibration set value take effect?",
+        source_document_id="doc-lrw",
+        document_version_id="ver-lrw",
+        source_chunk_id="chunk-calibration",
+        source_title="LR-W Manual",
+        source_filename="lr-w.pdf",
+        chunk_type="atomic_text",
+        section_path="Calibration",
+        page_from=5,
+        page_to=5,
+        expected_terms=["master", "calibration", "set", "subsequent"],
+        expected_snippet="The changed value affects only subsequent calibrations.",
+        generation_method="unit_test",
+        source_metadata={},
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The provided evidence does not contain when the master calibration set value applies.",
+            "citations": [{"document_id": "doc-lrw", "chunk_id": "chunk-calibration"}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert scored["passed"] is False
+    assert "answer_claims_insufficient_evidence" in scored["failure_reasons"]
 
 
 def test_answer_response_scoring_rejects_cases_without_scorable_answer_terms():
@@ -951,6 +1279,67 @@ def test_answer_response_scoring_can_use_llm_required_information_judge(monkeypa
     assert scored["llm_required_information"]["passed"] is True
 
 
+def test_single_step_llm_judge_uses_complete_retrieved_source_chunk(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-unsupported-firmware",
+        query="What should I do if the controller boots with unsupported firmware?",
+        source_document_id="doc-ljx",
+        document_version_id="ver-ljx",
+        source_chunk_id="chunk-firmware",
+        source_title="LJ-X8000",
+        source_filename="ljx.pdf",
+        chunk_type="table_record",
+        section_path="Troubleshooting",
+        page_from=791,
+        page_to=791,
+        expected_terms=["error", "14301", "messages"],
+        expected_snippet=(
+            "Error Number: 14301; Error Messages: The controller was booted using unsupported "
+            "firmware.; Cause: The controller was started with firmware that"
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_model": "LJ-X8000"},
+    )
+    seen_payload = {}
+
+    def fake_chat_json(**kwargs):
+        seen_payload.update(json.loads(kwargs["messages"][1]["content"]))
+        return (
+            {
+                "contains_required_information": True,
+                "missing_information": [],
+                "reason": "The requested remedy is complete.",
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.chat_json", fake_chat_json)
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Update the firmware to one supported by the controller.",
+            "citations": [{"document_id": "doc-ljx", "chunk_id": "chunk-firmware", "pages": [791]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        [
+            {
+                "chunk_id": "chunk-firmware",
+                "source_document_id": "doc-ljx",
+                "content": (
+                    "Error Number: 14301; Error Messages: The controller booted using unsupported firmware.; "
+                    "Cause: The firmware is unsupported.; Remedy: Update the firmware to one supported by the controller."
+                ),
+            }
+        ],
+        use_llm_required_info_judge=True,
+    )
+
+    assert "Remedy: Update the firmware" in seen_payload["expected_evidence"]
+    assert scored["passed"] is True
+
+
 def test_answer_response_scoring_accepts_explicit_llm_judge_boolean_alias(monkeypatch):
     case = RetrievalEvalCase(
         case_id="case-fan-replacement",
@@ -1034,6 +1423,265 @@ def test_malformed_llm_judge_response_does_not_override_term_score(monkeypatch):
     assert "omitted a boolean verdict" in scored["llm_required_information"]["error"]
 
 
+def test_unexplained_negative_llm_judge_is_unchecked_for_supported_term_score(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-width-mode",
+        query="Which width extraction mode compares against the master image?",
+        source_document_id="doc-iv",
+        document_version_id="ver-iv",
+        source_chunk_id="chunk-width",
+        source_title="IV-HG",
+        source_filename="iv-hg.pdf",
+        chunk_type="table_record",
+        section_path="Width Extraction",
+        page_from=167,
+        page_to=167,
+        expected_terms=["items", "width", "extraction"],
+        expected_snippet="Width Extraction: Master Width compares against the master image.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "IV-HG500CA"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: (
+            {"contains_required_information": False, "missing_information": [], "reason": ""},
+            '{"contains_required_information":false,"missing_information":[],"reason":""}',
+        ),
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "The width extraction mode is Master Width.",
+            "citations": [{"document_id": "doc-iv", "chunk_id": "chunk-width", "pages": [167]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is True
+    assert scored["term_check"]["passed"] is True
+    assert scored["llm_required_information"]["checked"] is False
+    assert "without identifying missing information" in scored["llm_required_information"]["error"]
+
+
+def test_why_answer_requires_causal_terms_from_expected_snippet():
+    case = RetrievalEvalCase(
+        case_id="relay-output-cause",
+        query="Why should I avoid using relay output with the IV-500C sensor input?",
+        source_document_id="doc-iv",
+        document_version_id="v1",
+        source_chunk_id="relay-row",
+        source_title="IV-500C",
+        source_filename="iv-500c.pdf",
+        chunk_type="atomic_text",
+        section_path="Input cables",
+        page_from=6,
+        page_to=6,
+        expected_terms=["cables", "sensor", "connect", "non-contact"],
+        expected_snippet=(
+            "Connect with non-contact output. For relay output, incorrect input may operate due to "
+            "contact bouncing in the system."
+        ),
+        generation_method="unit_test",
+        source_metadata={"product_model": "IV-500C"},
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Connect the sensor input to a non-contact transistor output.",
+            "citations": [{"document_id": "doc-iv", "chunk_id": "relay-row", "pages": [6]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+    )
+
+    assert scored["passed"] is False
+    assert scored["term_check"]["material_expected_terms"] == ["contact", "bouncing"]
+    assert "expected_terms_missing" in scored["failure_reasons"]
+
+
+def test_llm_judge_uses_aligned_retrieved_evidence_when_generated_snippet_is_truncated(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="match-degree-calculation",
+        query="How is the match degree percentage calculated for the CV-X482?",
+        source_document_id="doc-cvx",
+        document_version_id="v1",
+        source_chunk_id="missing-generated-source",
+        source_title="CV-X",
+        source_filename="cv-x.pdf",
+        chunk_type="atomic_text",
+        section_path="Match Degree",
+        page_from=1116,
+        page_to=1116,
+        expected_terms=["match", "degree", "range"],
+        expected_snippet=(
+            "Match Degree is the proportion of parts which match the set outlines. It "
+        ),
+        generation_method="reviewed_llm",
+        source_metadata={"product_model": "CV-X482"},
+    )
+    seen_payload: dict[str, object] = {}
+
+    def fake_chat_json(**kwargs):
+        seen_payload.update(json.loads(kwargs["messages"][1]["content"]))
+        return (
+            {
+                "contains_required_information": True,
+                "missing_information": [],
+                "reason": "The ratio is present.",
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_evals.retrieval_eval.chat_json", fake_chat_json)
+    retrieved = [
+        {
+            "chunk_id": "observed-value",
+            "source_document_id": "doc-cvx",
+            "content": "Match Degree (%): 87.445",
+        },
+        {
+            "chunk_id": "definition-row",
+            "source_document_id": "doc-cvx",
+            "content": (
+                "Match Degree is the proportion of parts which match the set outlines. It is "
+                "calculated from the number of detected outlines and registered outlines."
+            ),
+        },
+    ]
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "It is the proportion of matched parts, calculated from detected outlines "
+                "and registered outlines."
+            ),
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "definition-row", "pages": [1116]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        retrieved_results=retrieved,
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is True
+    assert "registered outlines" in str(seen_payload["expected_evidence"])
+    assert "87.445" not in str(seen_payload["expected_evidence"])
+
+
+def test_grounded_calculation_formula_overrides_unexplained_negative_judge(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="match-degree-formula",
+        query="How is the match degree percentage calculated for the CV-X482?",
+        source_document_id="doc-cvx",
+        document_version_id="v1",
+        source_chunk_id="source-row",
+        source_title="CV-X",
+        source_filename="cv-x.pdf",
+        chunk_type="atomic_text",
+        section_path="Match Degree",
+        page_from=1116,
+        page_to=1116,
+        expected_terms=["Upper Limit", "Lower Limit"],
+        expected_snippet="Match Degree is the proportion of matching parts. It ",
+        generation_method="reviewed_llm",
+        source_metadata={
+            "product_model": "CV-X482",
+            "context_window": (
+                "Current chunk: Match Degree is the proportion of parts that match the set outlines. "
+                "It is calculated from the number of detected outlines and the number of registered outlines."
+            ),
+        },
+    )
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: (
+            {"contains_required_information": False, "missing_information": [], "reason": ""},
+            "{}",
+        ),
+    )
+    retrieved = [
+        {
+            "chunk_id": "source-row",
+            "source_document_id": "doc-cvx",
+            "content": (
+                "Match Degree is calculated from the number of detected outlines and the number "
+                "of registered outlines."
+            ),
+        }
+    ]
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": (
+                "Match degree is the proportion of matching parts, calculated from the ratio of "
+                "detected outlines to registered outlines."
+            ),
+            "citations": [{"document_id": "doc-cvx", "chunk_id": "source-row", "pages": [1116]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        retrieved_results=retrieved,
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is True
+    assert scored["calculation_answer_support"]["passed"] is True
+    assert scored["term_check"]["llm_negative_overridden_by_calculation_support"] is True
+
+
+def test_structural_table_labels_do_not_mask_missing_answer_content(monkeypatch):
+    case = RetrievalEvalCase(
+        case_id="case-uuu",
+        query="What causes the W500 to display uuu?",
+        source_document_id="doc-w500",
+        document_version_id="ver-w500",
+        source_chunk_id="chunk-uuu",
+        source_title="LR-W500",
+        source_filename="w500.pdf",
+        chunk_type="table_record",
+        section_path="",
+        page_from=4,
+        page_to=4,
+        expected_terms=["display", "cause", "excessive"],
+        expected_snippet="Display: uuu; Cause: Displayed when excessive light is received by the sensor.",
+        generation_method="unit_test",
+        source_metadata={"product_model": "W500"},
+    )
+    monkeypatch.setattr(
+        "manuals_rag_evals.retrieval_eval.chat_json",
+        lambda **kwargs: (
+            {"contains_required_information": False, "missing_information": [], "reason": ""},
+            '{"contains_required_information":false}',
+        ),
+    )
+
+    scored = score_answer_response(
+        case,
+        {
+            "answer": "Cause: The display selection is set to OFF.",
+            "citations": [{"document_id": "doc-w500", "chunk_id": "wrong-row", "pages": [4]}],
+            "used_documents": [],
+            "insufficient_evidence": False,
+        },
+        {"passed": True},
+        use_llm_required_info_judge=True,
+    )
+
+    assert scored["passed"] is False
+    assert scored["term_check"]["expected_terms"] == ["excessive"]
+    assert scored["failure_reasons"] == ["expected_terms_missing"]
+
+
 def test_exact_expected_cell_overrides_false_llm_judge_and_prompt_uses_resolved_chunk(monkeypatch):
     case = RetrievalEvalCase(
         case_id="case-fan-replacement",
@@ -1067,7 +1715,11 @@ def test_exact_expected_cell_overrides_false_llm_judge_and_prompt_uses_resolved_
     def fake_chat_json(**kwargs):
         seen_payload.update(json.loads(kwargs["messages"][1]["content"]))
         return (
-            {"contains_required_information": False, "missing_information": [], "reason": ""},
+            {
+                "contains_required_information": False,
+                "missing_information": ["The corrective action is missing."],
+                "reason": "The answer does not provide the required corrective action.",
+            },
             "{}",
         )
 
@@ -5257,6 +5909,8 @@ def test_eval_generation_uses_reviewer_feedback_for_vague_llm_queries(monkeypatc
     assert any("never mention removing or changing a word" in prompt for prompt in prompts if "Review input:" in prompt)
     assert any("single-step instruction snippets" in prompt for prompt in prompts if "Review input:" in prompt)
     assert any("How do I prevent X?" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("multiple values for the same metric" in prompt for prompt in prompts if "Review input:" in prompt)
+    assert any("What torque is required for the bracket?" in prompt for prompt in prompts if "Review input:" in prompt)
     retry_prompts = [
         prompt
         for prompt in prompts
@@ -6314,3 +6968,30 @@ def test_configuration_location_completeness_rejects_raw_context_and_requires_pu
     assert missing_purpose["passed"] is False
     assert "configuration_purpose_missing" in missing_purpose["failure_reasons"]
     assert complete["passed"] is True
+
+
+def test_screen_resolution_is_not_scored_as_configuration_location():
+    case = RetrievalEvalCase(
+        case_id="screen-resolution",
+        query="What screen resolution does the WM-6025 display have?",
+        source_document_id="doc-1",
+        document_version_id="ver-1",
+        source_chunk_id="chunk-1",
+        source_title="Manual",
+        source_filename="manual.pdf",
+        chunk_type="table_record",
+        section_path="Display",
+        page_from=1,
+        page_to=1,
+        expected_terms=["320", "240"],
+        expected_snippet="Model: Resolution; WM-6025: 320 × 240 pixels",
+        generation_method="reviewed_llm",
+        source_metadata={},
+    )
+
+    result = _configuration_location_answer_completeness(
+        case,
+        "Display resolution — WM-6025: 320 × 240 pixels",
+    )
+
+    assert result == {"checked": False, "passed": True, "failure_reasons": []}

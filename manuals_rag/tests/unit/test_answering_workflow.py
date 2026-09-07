@@ -77,8 +77,12 @@ def test_debug_workflow_keeps_stepwise_retrieval_path(monkeypatch):
     monkeypatch.setattr(workflow, "run_dense_search", lambda *_args, **_kwargs: [_result("dense")])
     monkeypatch.setattr(workflow, "run_sparse_search", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(workflow, "run_special_search", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(workflow, "run_table_search", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(workflow, "run_contextual_lexical_search", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(workflow, "fuse_results", lambda _store, result_sets, limit: [item for items in result_sets for item in items])
+    monkeypatch.setattr(workflow, "enrich_candidates_for_rerank", lambda results, _analysis, limit: results[:limit])
     monkeypatch.setattr(workflow, "rerank_results", lambda results, query, limit: results)
+    monkeypatch.setattr(workflow, "_troubleshooting_table_siblings", lambda results, analysis: [])
     monkeypatch.setattr(workflow, "assemble_context", lambda results: results)
 
     result = workflow.build_workflow(include_answer=False).invoke(
