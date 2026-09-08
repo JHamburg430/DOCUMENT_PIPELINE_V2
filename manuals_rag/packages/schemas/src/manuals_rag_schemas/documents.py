@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -80,6 +80,8 @@ class QueryRequest(BaseModel):
     corpus_ids: list[str]
     filters: dict[str, list[str] | bool | str | int] = Field(default_factory=dict)
     response_mode: str = "answer_with_citations"
+    retrieval_orchestrator: Literal["baseline", "langgraph_agent", "llamaindex_agent"] = "baseline"
+    max_retrieval_hops: int = Field(default=4, ge=1, le=8)
     include_source_assets: bool = False
     include_page_images: bool = False
     include_table_images: bool = False

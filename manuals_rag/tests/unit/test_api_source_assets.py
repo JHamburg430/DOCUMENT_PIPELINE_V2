@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from apps.api import main
@@ -6,6 +7,68 @@ from apps.api.main import app
 
 client = TestClient(app)
 USER_HEADERS = {"Authorization": "Bearer user-token"}
+
+
+@pytest.mark.parametrize(
+    ("orchestrator", "attribute"),
+    [
+        ("langgraph_agent", "langgraph_agentic_retriever"),
+        ("llamaindex_agent", "llamaindex_agentic_retriever"),
+    ],
+)
+def test_query_routes_to_selected_agentic_retriever(monkeypatch, orchestrator, attribute):
+    calls = []
+
+    class FakeAgenticRetriever:
+        def invoke(self, payload):
+            calls.append(payload)
+            return {
+                "retrieval_results": [
+                    {
+                        "chunk_id": "chunk-1",
+                        "score": 0.9,
+                        "title": "Manual",
+                        "document_version_id": "ver-1",
+                        "source_document_id": "doc-1",
+                        "pages": [2],
+                        "section_path": ["Serial cables"],
+                        "content": "OP-26487 is a straight serial cable.",
+                        "metadata": {},
+                    }
+                ],
+                "retrieval_trace": {"completed_hops": ["identify", "orientation"]},
+            }
+
+    class FakeAnswer:
+        def model_dump(self):
+            return {
+                "answer": "OP-26487 is straight.",
+                "confidence": "high",
+                "used_documents": [],
+                "citations": [],
+                "warnings": [],
+                "followup_questions": [],
+                "insufficient_evidence": False,
+            }
+
+    monkeypatch.setattr(main, attribute, FakeAgenticRetriever())
+    monkeypatch.setattr(main, "generate_answer", lambda _query, _results: FakeAnswer())
+
+    response = client.post(
+        "/query",
+        headers=USER_HEADERS,
+        json={
+            "query": "Which cable connects the port, then what is its orientation?",
+            "corpus_ids": ["manuals_vendor_keyence"],
+            "retrieval_orchestrator": orchestrator,
+            "max_retrieval_hops": 3,
+        },
+    )
+
+    assert response.status_code == 200
+    assert calls[0]["max_hops"] == 3
+    assert response.json()["retrieval_orchestrator"] == orchestrator
+    assert response.json()["retrieval_trace"]["completed_hops"] == ["identify", "orientation"]
 
 
 def _fake_query_result():

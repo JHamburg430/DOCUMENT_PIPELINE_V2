@@ -13,7 +13,7 @@ Production-oriented document ingestion, retrieval, and grounded answering for te
 - Custom normalization and hierarchical chunking
 - TinyLlama-backed structured metadata extraction with Pydantic validation
 - Hybrid dense+sparse retrieval with reranking
-- LangGraph deterministic query workflow
+- Baseline deterministic query workflow plus bounded LangGraph and LlamaIndex multi-hop retrieval
 - Static web UI served from a dedicated UI container
 
 ## Quick start
@@ -34,3 +34,11 @@ Document metadata extraction is model-backed and should not be replaced with fil
 Saved metadata lives in Postgres in `document_metadata_extractions` and is copied into retrieval chunk metadata for filtering and ranking. Existing corpora can be updated with `manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply`.
 
 Operator inspection is available in Streamlit at `http://127.0.0.1:8601/Document_Metadata`. More detail is in [`docs/architecture/metadata_extraction.md`](docs/architecture/metadata_extraction.md).
+
+## Agentic retrieval comparison
+
+The query API accepts `retrieval_orchestrator=baseline`, `langgraph_agent`, or
+`llamaindex_agent`, plus a bounded `max_retrieval_hops`. Both agent backends use
+the same retrieval tools and control policy so framework comparisons measure
+orchestration overhead rather than different retrieval logic. See
+[`docs/architecture/agentic_retrieval.md`](docs/architecture/agentic_retrieval.md).

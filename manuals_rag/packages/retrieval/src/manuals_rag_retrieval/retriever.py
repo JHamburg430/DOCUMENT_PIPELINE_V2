@@ -4137,6 +4137,118 @@ def retrieve(query: str, corpus_ids: list[str], filters: dict[str, object], limi
     )
 
 
+def _attach_agent_strategy(results: list[SearchResult], strategy: str) -> list[SearchResult]:
+    return [
+        result.model_copy(update={"metadata": {**result.metadata, "agent_retrieval_strategy": strategy}})
+        for result in results
+    ]
+
+
+def retrieve_with_strategy(
+    query: str,
+    corpus_ids: list[str],
+    filters: dict[str, object],
+    *,
+    strategy: str = "hybrid",
+    limit: int = 10,
+) -> list[SearchResult]:
+    """Run one bounded agent-selected retrieval strategy through the shared ranking stack."""
+    request_filters = dict(filters)
+    resolved_filters = build_filters(query, request_filters)
+    if strategy == "hybrid":
+        return _attach_agent_strategy(retrieve(query, corpus_ids, request_filters, limit=limit), strategy)
+    if strategy == "broad":
+        results = _retrieve_once(
+            query,
+            corpus_ids,
+            request_filters,
+            limit=max(limit, 12),
+            force_broad=True,
+            candidate_pool_limit=60,
+        )
+        return _attach_agent_strategy(results[:limit], strategy)
+
+    store = QdrantStore()
+    analysis = analyze_query(query)
+    if strategy == "dense":
+        candidates = run_dense_search(store, query, corpus_ids, resolved_filters, limit=50)
+    elif strategy == "sparse":
+        candidates = run_sparse_search(store, query, corpus_ids, resolved_filters, limit=50)
+    elif strategy == "structural":
+        table = run_table_search(store, query, corpus_ids, resolved_filters, limit=50)
+        table_lexical = run_table_lexical_search(query, corpus_ids, request_filters, analysis, limit=50)
+        contextual = run_contextual_lexical_search(
+            query,
+            corpus_ids,
+            request_filters,
+            analysis,
+            limit=max(20, _contextual_lexical_limit(query)),
+        )
+        candidates = fuse_results(store, [table, table_lexical, contextual], limit=50)
+    else:
+        raise ValueError(f"Unsupported retrieval strategy: {strategy}")
+
+    enriched = enrich_candidates_for_rerank(candidates, analysis, limit=30)
+    reranked = rerank_results(enriched, query, limit=max(limit, 12))
+    assembled = assemble_context(_dedupe_results(reranked, analysis), limit=limit)
+    return _attach_agent_strategy(assembled, strategy)
+
+
+def assemble_agent_context(
+    query: str,
+    hop_results: dict[str, list[SearchResult]],
+    *,
+    limit: int = 10,
+) -> list[SearchResult]:
+    """Fuse hop evidence while reserving coverage for every successful required lookup."""
+    nonempty = [(hop_id, results) for hop_id, results in hop_results.items() if results]
+    if not nonempty:
+        return []
+    source_by_chunk: dict[str, list[str]] = {}
+    for hop_id, results in nonempty:
+        for result in results:
+            source_by_chunk.setdefault(result.chunk_id, []).append(hop_id)
+
+    store = QdrantStore()
+    fused = fuse_results(store, [results for _hop_id, results in nonempty], limit=max(30, limit * 3))
+    analysis = analyze_query(query)
+    # Each hop already passed through its strategy's ranking/enrichment path.
+    # Re-enrichment here would issue unrelated section-neighborhood DB reads and
+    # can erase the cross-hop coverage we are explicitly preserving.
+    reranked = rerank_results(fused, query, limit=max(20, limit * 2))
+    # Hop results are already context-assembled. Running the neighborhood
+    # assembler again can replace a reserved hop with a same-section sibling.
+    assembled = _dedupe_results(reranked, analysis)
+
+    reserved: list[SearchResult] = []
+    seen: set[str] = set()
+    for hop_id, results in nonempty:
+        best = next((result for result in results if result.chunk_id not in seen), None)
+        if best is None:
+            continue
+        reserved.append(best)
+        seen.add(best.chunk_id)
+
+    ordered = [*reserved, *assembled, *(result for _hop_id, results in nonempty for result in results)]
+    final: list[SearchResult] = []
+    for result in ordered:
+        if result.chunk_id in {item.chunk_id for item in final}:
+            continue
+        final.append(
+            result.model_copy(
+                update={
+                    "metadata": {
+                        **result.metadata,
+                        "agent_hops": source_by_chunk.get(result.chunk_id, []),
+                    }
+                }
+            )
+        )
+        if len(final) >= limit:
+            break
+    return final
+
+
 def document_versions_for_results(results: list[SearchResult]) -> list[dict[str, object]]:
     version_ids = tuple(result.document_version_id for result in results)
     if not version_ids:

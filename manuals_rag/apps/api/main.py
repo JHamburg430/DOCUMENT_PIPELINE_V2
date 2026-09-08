@@ -30,6 +30,11 @@ from apps.api.debug import (
     stream_query_debug_events,
 )
 from manuals_rag_answering.workflow import build_workflow
+from manuals_rag_answering.agentic_retrieval import (
+    build_langgraph_agentic_retriever,
+    build_llamaindex_agentic_retriever,
+)
+from manuals_rag_answering.generator import generate_answer
 from manuals_rag_common.config import settings
 from manuals_rag_common.db import execute, fetch_all, fetch_one, json_dumps
 from manuals_rag_common.ids import sha256_bytes
@@ -43,7 +48,7 @@ from manuals_rag_observability.metrics import QUERY_DURATION
 from manuals_rag_parsers.metadata import infer_document_metadata
 from manuals_rag_permissions.auth import Principal, require_role
 from manuals_rag_retrieval.retriever import build_filters, retrieve
-from manuals_rag_schemas.documents import QueryRequest, SourceDocumentCreate
+from manuals_rag_schemas.documents import QueryRequest, SearchResult, SourceDocumentCreate
 
 
 def _storage_object_name(tenant_id: str, sha256: str, filename: str) -> str:
@@ -823,6 +828,8 @@ app.add_middleware(
 )
 
 workflow = build_workflow()
+langgraph_agentic_retriever = build_langgraph_agentic_retriever()
+llamaindex_agentic_retriever = build_llamaindex_agentic_retriever()
 debug_workflow = build_workflow(include_answer=False)
 debug_query_runs: dict[str, dict[str, Any]] = {}
 debug_query_runs_lock = Lock()
@@ -1091,11 +1098,31 @@ def query_documents(
     request: QueryRequest,
     _: Principal = Depends(require_role("end_user", "operator", "admin", "auditor")),
 ) -> JSONResponse:
-    with QUERY_DURATION.labels("full").time():
-        result = workflow.invoke(
-            {"query": request.query, "corpus_ids": request.corpus_ids, "filters": request.filters}
+    if request.retrieval_orchestrator == "baseline":
+        with QUERY_DURATION.labels("full").time():
+            result = workflow.invoke(
+                {"query": request.query, "corpus_ids": request.corpus_ids, "filters": request.filters}
+            )
+        answer = dict(result["answer"])
+    else:
+        agentic_retriever = (
+            langgraph_agentic_retriever
+            if request.retrieval_orchestrator == "langgraph_agent"
+            else llamaindex_agentic_retriever
         )
-    answer = dict(result["answer"])
+        with QUERY_DURATION.labels("full").time():
+            result = agentic_retriever.invoke(
+                {
+                    "query": request.query,
+                    "corpus_ids": request.corpus_ids,
+                    "filters": request.filters,
+                    "max_hops": request.max_retrieval_hops,
+                }
+            )
+            retrieval_results = [SearchResult.model_validate(item) for item in result.get("retrieval_results", [])]
+            answer = generate_answer(request.query, retrieval_results).model_dump()
+        answer["retrieval_orchestrator"] = request.retrieval_orchestrator
+        answer["retrieval_trace"] = result.get("retrieval_trace", {})
     if request.include_source_assets or request.include_page_images or request.include_table_images:
         answer = _attach_source_assets(
             answer,
