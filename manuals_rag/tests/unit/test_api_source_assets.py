@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -69,6 +71,108 @@ def test_query_routes_to_selected_agentic_retriever(monkeypatch, orchestrator, a
     assert calls[0]["max_hops"] == 3
     assert response.json()["retrieval_orchestrator"] == orchestrator
     assert response.json()["retrieval_trace"]["completed_hops"] == ["identify", "orientation"]
+
+
+def test_agentic_query_stream_emits_live_trace_and_final_answer(monkeypatch):
+    class FakeController:
+        def __init__(self, event_callback):
+            self.event_callback = event_callback
+
+    class FakeAgenticRetriever:
+        def __init__(self, controller):
+            self.controller = controller
+
+        def invoke(self, _payload):
+            self.controller.event_callback(
+                {
+                    "event": "plan_completed",
+                    "plan": {"mode": "dependent", "rationale": "Two hops", "hops": []},
+                    "max_hops": 3,
+                }
+            )
+            self.controller.event_callback(
+                {
+                    "event": "hop_completed",
+                    "hop_id": "identify",
+                    "sufficient": True,
+                    "assessment": {"query_term_coverage": 1.0},
+                    "results": [],
+                    "ledger_entry": {},
+                }
+            )
+            return {
+                "retrieval_results": [
+                    {
+                        "chunk_id": "chunk-1",
+                        "score": 0.9,
+                        "title": "Manual",
+                        "document_version_id": "ver-1",
+                        "source_document_id": "doc-1",
+                        "pages": [2],
+                        "section_path": ["Serial cables"],
+                        "content": "OP-26487 is a straight serial cable.",
+                        "metadata": {},
+                    }
+                ],
+                "retrieval_trace": {"completed_hops": ["identify"], "sufficient": True},
+            }
+
+    class FakeAnswer:
+        def model_dump(self):
+            return {
+                "answer": "OP-26487 is straight.",
+                "confidence": "high",
+                "used_documents": [],
+                "citations": [],
+                "warnings": [],
+                "followup_questions": [],
+                "insufficient_evidence": False,
+            }
+
+    monkeypatch.setattr(main, "AgenticRetrievalController", FakeController)
+    monkeypatch.setattr(
+        main,
+        "build_langgraph_agentic_retriever",
+        lambda *, controller: FakeAgenticRetriever(controller),
+    )
+    monkeypatch.setattr(main, "generate_answer", lambda _query, _results: FakeAnswer())
+
+    response = client.post(
+        "/query/stream",
+        headers=USER_HEADERS,
+        json={
+            "query": "Which cable, then what orientation?",
+            "corpus_ids": ["manuals_vendor_keyence"],
+            "retrieval_orchestrator": "langgraph_agent",
+            "max_retrieval_hops": 3,
+        },
+    )
+
+    assert response.status_code == 200
+    events = [json.loads(line) for line in response.text.splitlines()]
+    assert [event["event"] for event in events] == [
+        "run_started",
+        "plan_completed",
+        "hop_completed",
+        "answer_started",
+        "answer_completed",
+        "run_completed",
+    ]
+    assert events[-1]["result"]["answer"] == "OP-26487 is straight."
+
+
+def test_agentic_query_stream_rejects_baseline():
+    response = client.post(
+        "/query/stream",
+        headers=USER_HEADERS,
+        json={
+            "query": "What product is this?",
+            "corpus_ids": ["manuals_vendor_keyence"],
+            "retrieval_orchestrator": "baseline",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def _fake_query_result():

@@ -442,6 +442,7 @@ class AgenticRetrievalController:
         planner: Callable[[str], RetrievalPlan] | None = None,
         refiner: Callable[[RetrievalHop, list[SearchResult]], str] | None = None,
         retriever: Callable[[str, list[str], dict[str, object], RetrievalStrategy, int], list[SearchResult]] | None = None,
+        event_callback: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self.use_llm = use_llm
         self.planner = planner or (lambda query: plan_retrieval(query, use_llm=use_llm))
@@ -453,12 +454,18 @@ class AgenticRetrievalController:
                 query, corpus_ids, filters, strategy=strategy, limit=limit
             )
         )
+        self.event_callback = event_callback
+
+    def _emit(self, event: str, **payload: Any) -> None:
+        if self.event_callback is not None:
+            self.event_callback({"event": event, **payload})
 
     def initialize(self, state: AgenticState) -> AgenticState:
         started_at = float(state.get("started_at") or perf_counter())
         plan = self.planner(state["query"])
         _validate_plan(plan)
         max_hops = max(1, min(int(state.get("max_hops", 4)), 8))
+        self._emit("plan_completed", plan=plan.model_dump(), max_hops=max_hops)
         return {
             **state,
             "started_at": started_at,
@@ -484,6 +491,7 @@ class AgenticRetrievalController:
             None,
         )
         if runnable is None:
+            self._emit("agent_stopped", stop_reason="no_runnable_hop")
             return {**state, "stop_reason": "no_runnable_hop"}
 
         hop = _hop_by_id(state, runnable)
@@ -506,6 +514,18 @@ class AgenticRetrievalController:
                 f"{hop.objective}. Relevant prior-hop identifiers: {', '.join(dependency_anchors[:6])}"
             )
             executed_strategy = "sparse"
+        self._emit(
+            "hop_started",
+            hop_id=hop.hop_id,
+            objective=hop.objective,
+            planned_query=hop.query,
+            executed_query=executed_query,
+            planned_strategy=hop.strategy,
+            strategy=executed_strategy,
+            depends_on=hop.depends_on,
+            dependency_anchors=dependency_anchors,
+            recovery_for=hop.recovery_for,
+        )
         results = self.retriever(
             executed_query,
             state["corpus_ids"],
@@ -544,6 +564,15 @@ class AgenticRetrievalController:
             "chunk_ids": [result.chunk_id for result in results],
             "document_ids": sorted({result.source_document_id for result in results}),
         }
+        self._emit(
+            "hop_completed",
+            hop_id=runnable,
+            sufficient=hop_sufficient,
+            assessment=assessment,
+            result_count=len(results),
+            results=[result.model_dump() for result in results],
+            ledger_entry=ledger[runnable],
+        )
         pending.remove(runnable)
         completed.append(runnable)
         return {
@@ -581,6 +610,13 @@ class AgenticRetrievalController:
                 )
                 plan.hops.append(recovery)
                 pending.insert(0, recovery.hop_id)
+                self._emit(
+                    "recovery_scheduled",
+                    hop_id=recovery.hop_id,
+                    recovery_for=hop.hop_id,
+                    query=recovery.query,
+                    strategy=recovery.strategy,
+                )
                 return {**state, "plan": plan.model_dump(), "pending_hop_ids": pending}
 
         sufficient_ids: set[str] = {
@@ -616,6 +652,15 @@ class AgenticRetrievalController:
             "stop_reason": stop_reason,
             "duration_ms": duration_ms,
         }
+        self._emit(
+            "retrieval_completed",
+            sufficient=all_required_sufficient,
+            stop_reason=stop_reason,
+            duration_ms=duration_ms,
+            result_count=len(final_results),
+            results=[result.model_dump() for result in final_results],
+            trace=trace,
+        )
         return {
             **state,
             "plan": plan.model_dump(),

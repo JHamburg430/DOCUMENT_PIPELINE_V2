@@ -31,6 +31,7 @@ from apps.api.debug import (
 )
 from manuals_rag_answering.workflow import build_workflow
 from manuals_rag_answering.agentic_retrieval import (
+    AgenticRetrievalController,
     build_langgraph_agentic_retriever,
     build_llamaindex_agentic_retriever,
 )
@@ -1131,6 +1132,88 @@ def query_documents(
             include_table_images=request.include_table_images,
         )
     return JSONResponse(answer)
+
+
+def _stream_agentic_query_events(request: QueryRequest):
+    """Run one agent backend in a worker and expose its bounded decisions as NDJSON."""
+    events: queue.Queue[dict[str, Any] | None] = queue.Queue()
+
+    def emit(event: dict[str, Any]) -> None:
+        events.put(event)
+
+    def run() -> None:
+        orchestrator = request.retrieval_orchestrator
+        try:
+            emit(
+                {
+                    "event": "run_started",
+                    "retrieval_orchestrator": orchestrator,
+                    "query": request.query,
+                    "max_hops": request.max_retrieval_hops,
+                }
+            )
+            controller = AgenticRetrievalController(event_callback=emit)
+            factory = (
+                build_langgraph_agentic_retriever
+                if orchestrator == "langgraph_agent"
+                else build_llamaindex_agentic_retriever
+            )
+            with QUERY_DURATION.labels("full").time():
+                result = factory(controller=controller).invoke(
+                    {
+                        "query": request.query,
+                        "corpus_ids": request.corpus_ids,
+                        "filters": request.filters,
+                        "max_hops": request.max_retrieval_hops,
+                    }
+                )
+                retrieval_results = [
+                    SearchResult.model_validate(item)
+                    for item in result.get("retrieval_results", [])
+                ]
+                emit({"event": "answer_started", "evidence_count": len(retrieval_results)})
+                answer = generate_answer(request.query, retrieval_results).model_dump()
+            answer["retrieval_orchestrator"] = orchestrator
+            answer["retrieval_trace"] = result.get("retrieval_trace", {})
+            if request.include_source_assets or request.include_page_images or request.include_table_images:
+                answer = _attach_source_assets(
+                    answer,
+                    [item.model_dump() for item in retrieval_results],
+                    include_page_images=request.include_page_images,
+                    include_table_images=request.include_table_images,
+                )
+            emit({"event": "answer_completed", "answer": answer})
+            emit({"event": "run_completed", "result": answer})
+        except Exception as error:
+            emit(
+                {
+                    "event": "run_failed",
+                    "error": f"{error.__class__.__name__}: {error}",
+                }
+            )
+        finally:
+            events.put(None)
+
+    Thread(target=run, daemon=True).start()
+    while True:
+        event = events.get()
+        if event is None:
+            break
+        yield json.dumps(event, default=str) + "\n"
+
+
+@app.post("/query/stream")
+def stream_agentic_query(
+    request: QueryRequest,
+    _: Principal = Depends(require_role("end_user", "operator", "admin", "auditor")),
+) -> StreamingResponse:
+    if request.retrieval_orchestrator == "baseline":
+        raise HTTPException(status_code=422, detail="Live agent trace requires an agentic retrieval orchestrator.")
+    return StreamingResponse(
+        _stream_agentic_query_events(request),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/search")

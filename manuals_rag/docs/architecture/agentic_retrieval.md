@@ -36,6 +36,19 @@ Set `retrieval_orchestrator` to `baseline`, `langgraph_agent`, or
 completed hops, stop reason, per-hop strategy, queries, evidence chunk IDs, and
 sufficiency assessments.
 
+`POST /query/stream` accepts the same request for either agent backend and
+returns newline-delimited JSON events as the run progresses. Events cover plan
+creation, hop start/completion, evidence assessment, recovery scheduling,
+retrieval completion, answer generation, and terminal success or failure.
+
+## Live Agent Lab
+
+Open the web console at `http://127.0.0.1:8601`, select **Agent Lab**, enter a
+multi-hop question, and choose LangGraph, LlamaIndex, or **Compare both**. The
+comparison view starts both backends concurrently and displays their plans,
+executed queries, strategy changes, per-hop evidence, sufficiency decisions,
+stop reasons, timings, citations, final answers, and event logs while they run.
+
 ## Comparison runner
 
 Run both agent backends against the same frozen plan and query refinements:

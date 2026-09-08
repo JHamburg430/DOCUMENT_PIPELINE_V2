@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260906-stop-answer-failure";
+const ASSET_VERSION = "20260907-agent-lab";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
 const MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"]);
@@ -37,6 +37,11 @@ const state = {
     selectedDocumentIds: new Set(),
     selectedRunId: null,
     selectedStepKey: null,
+  },
+  agentLab: {
+    runs: {},
+    controllers: [],
+    timer: null,
   },
   evalRuntime: null,
 };
@@ -2460,6 +2465,235 @@ async function runQuery() {
   }
 }
 
+function agentBackendLabel(backend) {
+  return backend === "langgraph_agent" ? "LangGraph" : "LlamaIndex";
+}
+
+function agentEventLabel(event) {
+  return {
+    run_started: "Run started",
+    plan_completed: "Plan created",
+    hop_started: "Retrieval started",
+    hop_completed: "Evidence assessed",
+    recovery_scheduled: "Recovery scheduled",
+    retrieval_completed: "Retrieval complete",
+    answer_started: "Answer generation started",
+    answer_completed: "Answer generated",
+    run_completed: "Run complete",
+    run_failed: "Run failed",
+  }[event] || event;
+}
+
+function renderAgentEvidence(results = []) {
+  if (!results.length) return '<div class="empty-state">No evidence returned for this hop.</div>';
+  return `
+    <div class="agent-evidence-list">
+      ${results.slice(0, 10).map((result, index) => `
+        <details class="agent-evidence" ${index === 0 ? "open" : ""}>
+          <summary>
+            <span>${escapeHtml(result.title || result.source_document_id || result.chunk_id)}</span>
+            <span class="model-meta">p. ${escapeHtml((result.pages || []).join(", ") || "—")} · ${Number(result.score || 0).toFixed(3)}</span>
+          </summary>
+          <div class="model-meta">${escapeHtml((result.section_path || []).join(" › "))}</div>
+          <p>${escapeHtml(result.content || "")}</p>
+          <div class="model-meta">Chunk ${escapeHtml(result.chunk_id || "")}</div>
+        </details>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderAgentRun(run) {
+  const elapsed = run.completedAt
+    ? run.completedAt - run.startedAt
+    : performance.now() - run.startedAt;
+  const plan = run.plan || {};
+  const hops = Object.values(run.hops || {});
+  const trace = run.trace || {};
+  const statusClass = run.status === "completed" ? "pass" : run.status === "failed" ? "fail" : "running";
+  return `
+    <article class="panel agent-run-card" data-agent-backend="${escapeHtml(run.backend)}">
+      <div class="section-heading agent-run-heading">
+        <div>
+          <h2>${escapeHtml(agentBackendLabel(run.backend))}</h2>
+          <div class="model-meta">${escapeHtml(plan.mode || "waiting for plan")} · ${escapeHtml(String(Math.max(0, elapsed / 1000).toFixed(1)))}s</div>
+        </div>
+        <span class="status-pill ${statusClass}">${escapeHtml(run.status)}</span>
+      </div>
+      ${plan.hops ? `
+        <section class="agent-plan">
+          <h3>Plan</h3>
+          <p>${escapeHtml(plan.rationale || "No rationale returned.")}</p>
+          <ol>${plan.hops.map((hop) => `<li><strong>${escapeHtml(hop.hop_id)}</strong> · ${escapeHtml(hop.strategy)} · ${escapeHtml(hop.objective)}${hop.depends_on?.length ? ` <span class="model-meta">after ${escapeHtml(hop.depends_on.join(", "))}</span>` : ""}</li>`).join("")}</ol>
+        </section>
+      ` : '<div class="empty-state">Waiting for planner output…</div>'}
+      <section>
+        <h3>Live hops</h3>
+        <div class="agent-hop-list">
+          ${hops.length ? hops.map((hop) => `
+            <details class="agent-hop" ${hop.status === "running" || !hop.renderedOnce ? "open" : ""}>
+              <summary>
+                <span>${escapeHtml(hop.hop_id)} · ${escapeHtml(hop.strategy || "pending")}</span>
+                <span class="badge ${hop.sufficient === true ? "pass" : hop.sufficient === false ? "fail" : ""}">${escapeHtml(hop.status)}${hop.sufficient != null ? ` · ${hop.sufficient ? "sufficient" : "insufficient"}` : ""}</span>
+              </summary>
+              <dl class="agent-hop-meta">
+                <div><dt>Objective</dt><dd>${escapeHtml(hop.objective || "")}</dd></div>
+                <div><dt>Executed query</dt><dd>${escapeHtml(hop.executed_query || hop.query || "")}</dd></div>
+                <div><dt>Strategy</dt><dd>${escapeHtml(hop.strategy || "")}${hop.planned_strategy && hop.planned_strategy !== hop.strategy ? ` (planned ${escapeHtml(hop.planned_strategy)})` : ""}</dd></div>
+                <div><dt>Coverage</dt><dd>${hop.assessment?.query_term_coverage != null ? `${(Number(hop.assessment.query_term_coverage) * 100).toFixed(0)}%` : "—"}</dd></div>
+              </dl>
+              ${renderAgentEvidence(hop.results || [])}
+            </details>
+          `).join("") : '<div class="empty-state">Waiting for the first retrieval hop…</div>'}
+        </div>
+      </section>
+      ${trace.stop_reason ? `
+        <section class="agent-verdict ${trace.sufficient ? "pass" : "fail"}">
+          <strong>${trace.sufficient ? "Evidence sufficient" : "Evidence insufficient"}</strong>
+          <span>${escapeHtml(trace.stop_reason)} · ${escapeHtml(trace.completed_hops?.length || 0)} hop(s) · ${Number(trace.duration_ms || 0).toFixed(0)} ms retrieval</span>
+        </section>
+      ` : ""}
+      <section>
+        <h3>Answer</h3>
+        ${run.answer ? `
+          <p class="answer-text">${escapeHtml(run.answer.answer || "")}</p>
+          ${renderCitations(run.answer.citations || [])}
+          ${run.answer.warnings?.length ? `<div class="warning-box">${renderList(run.answer.warnings)}</div>` : ""}
+        ` : '<div class="empty-state">Answer generation has not completed.</div>'}
+      </section>
+      <details class="agent-event-log">
+        <summary>Event log (${run.events.length})</summary>
+        <ol>${run.events.map((event) => `<li><span class="model-meta">+${((event.receivedAt - run.startedAt) / 1000).toFixed(1)}s</span> ${escapeHtml(agentEventLabel(event.event))}${event.error ? ` · <span class="error-text">${escapeHtml(event.error)}</span>` : ""}</li>`).join("")}</ol>
+      </details>
+    </article>
+  `;
+}
+
+function renderAgentLab() {
+  const runs = Object.values(state.agentLab.runs);
+  const node = $("agent-results");
+  if (!runs.length) {
+    node.innerHTML = '<div class="empty-state">Run a question to compare the agent backends and inspect every retrieval hop.</div>';
+    return;
+  }
+  node.className = `agent-results ${runs.length > 1 ? "compare" : ""}`;
+  node.innerHTML = runs.map(renderAgentRun).join("");
+  runs.forEach((run) => Object.values(run.hops || {}).forEach((hop) => { hop.renderedOnce = true; }));
+  const running = runs.filter((run) => run.status === "running").length;
+  const failed = runs.filter((run) => run.status === "failed").length;
+  const status = $("agent-lab-status");
+  status.textContent = running ? `${running} backend${running === 1 ? "" : "s"} running` : failed ? `${failed} failed` : "Complete";
+  status.className = `status-pill ${running ? "running" : failed ? "fail" : "pass"}`;
+}
+
+function applyAgentEvent(run, event) {
+  event.receivedAt = performance.now();
+  run.events.push(event);
+  if (event.event === "plan_completed") run.plan = event.plan;
+  if (event.event === "hop_started") {
+    run.hops[event.hop_id] = { ...event, status: "running", results: [] };
+  }
+  if (event.event === "hop_completed") {
+    run.hops[event.hop_id] = {
+      ...(run.hops[event.hop_id] || {}),
+      ...(event.ledger_entry || {}),
+      assessment: event.assessment,
+      results: event.results || [],
+      sufficient: event.sufficient,
+      status: "completed",
+    };
+  }
+  if (event.event === "recovery_scheduled") {
+    run.hops[event.hop_id] = { ...event, status: "scheduled", results: [] };
+  }
+  if (event.event === "retrieval_completed") run.trace = event.trace || {};
+  if (event.event === "answer_completed") run.answer = event.answer;
+  if (event.event === "run_completed") {
+    run.answer = event.result || run.answer;
+    run.status = "completed";
+    run.completedAt = event.receivedAt;
+  }
+  if (event.event === "run_failed") {
+    run.status = "failed";
+    run.error = event.error;
+    run.completedAt = event.receivedAt;
+  }
+  renderAgentLab();
+}
+
+async function streamAgentBackend(backend, request, controller) {
+  const run = state.agentLab.runs[backend];
+  try {
+    const response = await apiFetch("/query/stream", {
+      method: "POST",
+      retry: false,
+      signal: controller.signal,
+      body: JSON.stringify({ ...request, retrieval_orchestrator: backend }),
+    });
+    if (!response.body) throw new Error("Streaming response body is unavailable in this browser.");
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.trim()) applyAgentEvent(run, JSON.parse(line));
+      }
+      if (done) break;
+    }
+    if (buffer.trim()) applyAgentEvent(run, JSON.parse(buffer));
+    if (run.status === "running") throw new Error("Agent stream ended without a completion event.");
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    applyAgentEvent(run, { event: "run_failed", error: error.message });
+  }
+}
+
+async function runAgentTest() {
+  const query = $("agent-query").value.trim();
+  if (!query) {
+    $("agent-lab-status").textContent = "Enter a question";
+    $("agent-lab-status").className = "status-pill fail";
+    return;
+  }
+  state.agentLab.controllers.forEach((controller) => controller.abort());
+  state.agentLab.controllers = [];
+  const selected = $("agent-backend").value;
+  const backends = selected === "compare" ? ["langgraph_agent", "llamaindex_agent"] : [selected];
+  const startedAt = performance.now();
+  state.agentLab.runs = Object.fromEntries(backends.map((backend) => [backend, {
+    backend,
+    status: "running",
+    startedAt,
+    completedAt: null,
+    events: [],
+    hops: {},
+    plan: null,
+    trace: null,
+    answer: null,
+  }]));
+  $("run-agent-test").disabled = true;
+  renderAgentLab();
+  const request = {
+    query,
+    corpus_ids: splitList($("agent-corpus").value || DEFAULT_CORPUS),
+    filters: {},
+    response_mode: "answer_with_citations",
+    max_retrieval_hops: Math.max(1, Math.min(8, Number($("agent-max-hops").value || 4))),
+  };
+  const tasks = backends.map((backend) => {
+    const controller = new AbortController();
+    state.agentLab.controllers.push(controller);
+    return streamAgentBackend(backend, request, controller);
+  });
+  await Promise.allSettled(tasks);
+  $("run-agent-test").disabled = false;
+  renderAgentLab();
+}
+
 async function loadHistory() {
   const runs = await apiJson("/runs?limit=50&include_result=false");
   $("history-table").innerHTML = `
@@ -2817,6 +3051,7 @@ async function init() {
   setupTabs();
   setupMatrixControls();
   $("run-query").addEventListener("click", runQuery);
+  $("run-agent-test").addEventListener("click", runAgentTest);
   $("refresh-history").addEventListener("click", loadHistory);
   $("refresh-ingestion").addEventListener("click", loadIngestionStatus);
   $("ingestion-upload").addEventListener("click", uploadIngestionDocuments);

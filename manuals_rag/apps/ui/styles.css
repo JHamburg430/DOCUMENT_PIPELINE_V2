@@ -180,6 +180,7 @@ summary {
 
 #matrix.tab-panel.active,
 #search.tab-panel.active,
+#agent-lab.tab-panel.active,
 #history.tab-panel.active,
 #ingestion.tab-panel.active {
   display: block;
@@ -209,6 +210,149 @@ summary {
 #matrix > .panel,
 #ingestion > .panel {
   width: 100%;
+}
+
+.agent-lab-controls {
+  margin-bottom: 16px;
+}
+
+.agent-control-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(170px, 240px) minmax(150px, 200px) minmax(120px, 150px) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.agent-control-grid label,
+.agent-control-grid button {
+  margin: 0;
+}
+
+.agent-query-field {
+  grid-column: 1 / -1;
+}
+
+.agent-results {
+  display: grid;
+  gap: 16px;
+}
+
+.agent-results.compare {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.agent-run-card {
+  min-width: 0;
+}
+
+.agent-run-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: -14px -14px 12px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.agent-run-heading h2 {
+  margin-bottom: 3px;
+}
+
+.agent-plan {
+  border-left: 3px solid var(--accent);
+  padding: 1px 12px 8px;
+  background: #f8fafc;
+}
+
+.agent-plan p,
+.agent-plan ol {
+  margin: 6px 0;
+}
+
+.agent-plan li {
+  margin: 6px 0;
+}
+
+.agent-hop-list,
+.agent-evidence-list {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-hop,
+.agent-evidence {
+  border: 1px solid var(--line);
+  padding: 10px;
+  background: #fff;
+}
+
+.agent-hop > summary,
+.agent-evidence > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.agent-hop-meta {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.agent-hop-meta > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.agent-hop-meta dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.agent-hop-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.agent-evidence p {
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow: auto;
+  margin: 8px 0;
+  font-size: 0.86rem;
+}
+
+.agent-verdict {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0;
+  padding: 10px;
+  border-left: 4px solid var(--line);
+  background: #f8fafc;
+}
+
+.agent-verdict.pass {
+  border-color: var(--pass);
+}
+
+.agent-verdict.fail {
+  border-color: var(--fail);
+}
+
+.agent-event-log ol {
+  max-height: 220px;
+  overflow: auto;
+  padding-left: 24px;
+}
+
+.agent-event-log li {
+  margin: 5px 0;
 }
 
 .panel h2 {
@@ -317,6 +461,7 @@ summary {
 }
 
 .status-pill.complete,
+.status-pill.pass,
 .badge.pass {
   color: var(--pass);
   border-color: #b8dfc2;
@@ -324,6 +469,7 @@ summary {
 }
 
 .status-pill.error,
+.status-pill.fail,
 .badge.fail {
   color: var(--fail);
   border-color: #efc2bd;
@@ -611,6 +757,14 @@ summary {
 }
 
 @media (max-width: 900px) {
+  .agent-control-grid,
+  .agent-results.compare {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-query-field {
+    grid-column: auto;
+  }
   .matrix-actions,
   .matrix-view-controls {
     grid-template-columns: 1fr;

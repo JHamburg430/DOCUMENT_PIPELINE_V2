@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260906-stop-answer-failure" />
+    <link rel="stylesheet" href="/styles.css?v=20260907-agent-lab" />
   </head>
   <body>
     <main class="app-shell">
@@ -16,6 +16,7 @@
         <nav class="tabs" aria-label="Views">
           <button class="tab active" data-tab="matrix">Eval Matrix</button>
           <button class="tab" data-tab="search">Search</button>
+          <button class="tab" data-tab="agent-lab">Agent Lab</button>
           <button class="tab" data-tab="ingestion">Ingestion</button>
           <button class="tab" data-tab="history">Run History</button>
         </nav>
@@ -145,6 +146,44 @@
         </section>
       </section>
 
+      <section id="agent-lab" class="tab-panel">
+        <section class="panel agent-lab-controls">
+          <div class="section-heading">
+            <div>
+              <h2>Live Agent Retrieval Lab</h2>
+              <p class="muted">Watch planning, strategy selection, dependent-query refinement, evidence sufficiency, recovery, and answer generation as they happen.</p>
+            </div>
+            <span id="agent-lab-status" class="status-pill">Ready</span>
+          </div>
+          <div class="agent-control-grid">
+            <label class="agent-query-field">
+              Multi-hop question
+              <textarea id="agent-query" rows="4">Which cable model connects the LJ-X8000 RS-232C port, then what is that cable's connector orientation?</textarea>
+            </label>
+            <label>
+              Corpus IDs
+              <input id="agent-corpus" value="manuals_vendor_keyence" />
+            </label>
+            <label>
+              Backend
+              <select id="agent-backend">
+                <option value="compare">Compare both</option>
+                <option value="langgraph_agent">LangGraph</option>
+                <option value="llamaindex_agent">LlamaIndex</option>
+              </select>
+            </label>
+            <label>
+              Maximum hops
+              <input id="agent-max-hops" type="number" min="1" max="8" value="4" />
+            </label>
+            <button id="run-agent-test" type="button">Run Live Test</button>
+          </div>
+        </section>
+        <section id="agent-results" class="agent-results" aria-live="polite">
+          <div class="empty-state">Run a question to compare the agent backends and inspect every retrieval hop.</div>
+        </section>
+      </section>
+
       <section id="search" class="tab-panel">
         <section class="split">
           <div class="panel">
@@ -244,6 +283,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260906-stop-answer-failure"></script>
+    <script src="/app.js?v=20260907-agent-lab"></script>
   </body>
 </html>

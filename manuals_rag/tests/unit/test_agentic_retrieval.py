@@ -109,6 +109,41 @@ def test_both_orchestrators_preserve_parallel_document_coverage():
     ]
 
 
+def test_controller_emits_live_plan_hop_and_completion_events():
+    plan = RetrievalPlan(
+        hops=[
+            RetrievalHop(
+                hop_id="lookup",
+                objective="Find ALPHA-1 corrective action",
+                query="ALPHA-1 corrective action",
+                strategy="structural",
+            )
+        ]
+    )
+    events: list[dict] = []
+    controller = AgenticRetrievalController(
+        use_llm=False,
+        planner=lambda _query: plan,
+        retriever=lambda *_args: [
+            _result("alpha", "alpha-doc", "Corrective action: replace the ALPHA-1 fuse.")
+        ],
+        event_callback=events.append,
+    )
+
+    output = _invoke(build_langgraph_agentic_retriever, controller)
+
+    assert output["sufficient"] is True
+    assert [event["event"] for event in events] == [
+        "plan_completed",
+        "hop_started",
+        "hop_completed",
+        "retrieval_completed",
+    ]
+    assert events[1]["executed_query"] == "ALPHA-1 corrective action"
+    assert events[2]["results"][0]["chunk_id"] == "alpha"
+    assert events[3]["trace"]["stop_reason"] == "sufficient"
+
+
 def test_dependent_hop_is_refined_from_prior_evidence():
     plan = RetrievalPlan(
         mode="dependent",
