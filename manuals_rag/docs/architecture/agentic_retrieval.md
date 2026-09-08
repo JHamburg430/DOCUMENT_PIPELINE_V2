@@ -1,18 +1,18 @@
 # Bounded multi-hop retrieval
 
-Manuals RAG exposes two agentic retrieval backends behind the same controller:
+Manuals RAG exposes two agentic retrieval backends over the same retrieval-tool contract:
 
 - LangGraph state graph
 - LlamaIndex Workflow
 
-The shared controller makes their behavior directly comparable. It plans
-single, parallel, or dependent hops; routes each hop to hybrid, structural,
-sparse, dense, or broad retrieval; records an evidence ledger; judges evidence
-sufficiency; and permits one bounded broad recovery per insufficient required
-hop. The loop stops when all required evidence is sufficient, the hop budget is
-exhausted, or no hop can run.
+The controllers are intentionally independent. LangGraph uses an explicit state
+graph with fixed plan dependencies and broad fallback recovery. LlamaIndex uses
+subquestion decomposition, per-subquestion query transformation, query-engine
+tool routing, and alternate-tool recovery. They share only the underlying
+hybrid, structural, sparse, dense, and broad retrieval tools; evidence/result
+schemas; budgets; and evaluation contract.
 
-Dependent hops use evidence discovered by prior hops. Concrete identifiers not
+In both policies, dependent hops use evidence discovered by prior hops. Concrete identifiers not
 already present in the dependency query become anchors for the next query and
 switch generic hybrid retrieval to exact sparse retrieval. Sufficiency requires
 the requested answer signal and the discovered anchor to occur in the same
@@ -39,7 +39,8 @@ sufficiency assessments.
 `POST /query/stream` accepts the same request for either agent backend and
 returns newline-delimited JSON events as the run progresses. Events cover plan
 creation, hop start/completion, evidence assessment, recovery scheduling,
-retrieval completion, answer generation, and terminal success or failure.
+tool selection, retrieval completion, answer generation, and terminal success
+or failure. Every trace identifies its control policy.
 
 ## Live Agent Lab
 
@@ -49,9 +50,16 @@ comparison view starts both backends concurrently and displays their plans,
 executed queries, strategy changes, per-hop evidence, sufficiency decisions,
 stop reasons, timings, citations, final answers, and event logs while they run.
 
+The **Agent Evaluation Matrix** below the live comparison runs a dataset through
+both policies and uses one row per question. Its columns score tool selection,
+candidate recall, document retention, hop/dependency correctness, evidence
+sufficiency, grounded-answer correctness, and latency/token cost. Candidate
+recall and final-context retention are deliberately separate so context loss is
+not misdiagnosed as a search failure.
+
 ## Comparison runner
 
-Run both agent backends against the same frozen plan and query refinements:
+Run both agent backends independently against the same questions and budgets:
 
 ```bash
 python scripts/benchmark/compare_agentic_retrieval.py \
@@ -61,6 +69,7 @@ python scripts/benchmark/compare_agentic_retrieval.py \
   --output /tmp/agentic-retrieval-comparison.json
 ```
 
-Use `--no-llm` for the deterministic planner/refiner fallback. The report keeps
+Use `--no-llm` for each backend's deterministic fallback policy. The report keeps
 baseline, LangGraph, and LlamaIndex retrieval accuracy, sufficiency, latency,
-completed-hop count, result-document coverage, and result equivalence separate.
+completed-hop count, result-document coverage, answers, per-layer agent matrix
+scores, and result equivalence separate.

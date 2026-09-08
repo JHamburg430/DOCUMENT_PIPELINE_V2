@@ -345,6 +345,24 @@ summary {
   border-color: var(--fail);
 }
 
+.agent-matrix-panel {
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+.agent-matrix-grid {
+  min-width: 1320px;
+}
+
+.agent-matrix-grid td:not(:nth-child(2)) {
+  min-width: 132px;
+}
+
+.agent-matrix-grid .matrix-cell {
+  display: inline-block;
+  margin: 0.12rem;
+}
+
 .agent-event-log ol {
   max-height: 220px;
   overflow: auto;

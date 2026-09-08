@@ -83,6 +83,9 @@ RESULT_STAGE_STEPS = {
     "rerank_results",
     "assemble_context",
 }
+AGENT_MATRIX_REPORT = TEST_REPORTS_DIR / "agent_evaluation_matrix_latest.json"
+AGENT_MATRIX_JOBS: dict[str, dict] = {}
+AGENT_MATRIX_LOCK = Lock()
 
 
 class MatrixJobCancelled(RuntimeError):
@@ -105,6 +108,12 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/local/agent-matrix/jobs/"):
+            self._local_agent_matrix_job(parsed.path.rsplit("/", 1)[-1])
+            return
+        if parsed.path == "/local/agent-matrix":
+            self._local_agent_matrix()
+            return
         if parsed.path.startswith("/local/question-matrix/jobs/"):
             self._local_question_matrix_job(parsed.path.rsplit("/", 1)[-1])
             return
@@ -127,6 +136,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/local/agent-matrix/run":
+            self._start_local_agent_matrix_run()
+            return
         if parsed.path == "/local/question-matrix/run":
             self._start_local_question_matrix_run()
             return
@@ -272,6 +284,61 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self._write(payload)
         except Exception as error:
             payload = dumps({"detail": f"Question matrix lookup failed: {error.__class__.__name__}: {error}"}).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
+    def _local_agent_matrix(self) -> None:
+        try:
+            payload = json.dumps(_build_agent_matrix(), default=str).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except Exception as error:
+            payload = dumps({"detail": f"Agent matrix lookup failed: {error.__class__.__name__}: {error}"}).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
+    def _local_agent_matrix_job(self, job_id: str) -> None:
+        with AGENT_MATRIX_LOCK:
+            job = dict(AGENT_MATRIX_JOBS.get(job_id) or {})
+        if not job:
+            self.send_error(404, "Agent matrix job not found")
+            return
+        payload = json.dumps(job, default=str).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self._write(payload)
+
+    def _start_local_agent_matrix_run(self) -> None:
+        try:
+            content_length = int(self.headers.get("Content-Length") or "0")
+            body = self.rfile.read(content_length) if content_length else b"{}"
+            job = _start_agent_matrix_job(json.loads(body.decode("utf-8") or "{}"))
+            payload = json.dumps(job, default=str).encode("utf-8")
+            self.send_response(202)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except ValueError as error:
+            payload = dumps({"detail": str(error)}).encode("utf-8")
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except Exception as error:
+            payload = dumps({"detail": f"Agent matrix run failed to start: {error.__class__.__name__}: {error}"}).encode("utf-8")
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
@@ -443,6 +510,160 @@ def _read_jsonl(path: Path) -> list[dict]:
                 continue
             rows.append(json.loads(text))
     return rows
+
+
+def _build_agent_matrix() -> dict:
+    report = _read_json(AGENT_MATRIX_REPORT) if AGENT_MATRIX_REPORT.exists() else {}
+    dataset_value = str(report.get("dataset") or "tests/fixtures/agentic_dependent_retrieval_eval.jsonl")
+    dataset_path = Path(dataset_value)
+    if not dataset_path.is_absolute():
+        dataset_path = MANUALS_ROOT / dataset_path
+    cases = _read_jsonl(dataset_path) if dataset_path.exists() else []
+    report_items = {str(item.get("case_id") or ""): item for item in report.get("items") or []}
+    rows = []
+    for number, record in enumerate(cases, start=1):
+        case = record.get("case") if isinstance(record.get("case"), dict) else record
+        case_id = str(case.get("case_id") or f"question-{number}")
+        rows.append(
+            {
+                "number": number,
+                "case_id": case_id,
+                "question": case.get("query") or "",
+                "retrieval_task": case.get("retrieval_task") or "",
+                "expected_evidence_count": len(case.get("expected_evidence") or []),
+                "expected_document_count": len(
+                    {
+                        str(case.get("source_document_id") or ""),
+                        *[
+                            str(item.get("source_document_id") or "")
+                            for item in case.get("expected_evidence") or []
+                            if isinstance(item, dict)
+                        ],
+                    }
+                    - {""}
+                ),
+                "result": report_items.get(case_id),
+            }
+        )
+    return {
+        "schema": "manuals-rag-agent-evaluation-matrix-v1",
+        "dataset": str(dataset_path.relative_to(MANUALS_ROOT)) if dataset_path.is_relative_to(MANUALS_ROOT) else str(dataset_path),
+        "generated_at": AGENT_MATRIX_REPORT.stat().st_mtime if AGENT_MATRIX_REPORT.exists() else None,
+        "summary": report.get("summary") or {},
+        "rows": rows,
+        "layers": [
+            "tool_selection",
+            "candidate_recall",
+            "document_retention",
+            "hop_dependencies",
+            "evidence_sufficiency",
+            "grounded_answer",
+            "latency_token_cost",
+        ],
+    }
+
+
+def _start_agent_matrix_job(payload: dict) -> dict:
+    dataset_value = str(payload.get("dataset") or "tests/fixtures/agentic_dependent_retrieval_eval.jsonl")
+    dataset_path = (MANUALS_ROOT / dataset_value).resolve()
+    if not dataset_path.is_relative_to(MANUALS_ROOT) or not dataset_path.exists():
+        raise ValueError("Agent matrix dataset must be an existing file inside the repository.")
+    limit = _as_positive_int(payload.get("limit"), 10, maximum=1000)
+    max_hops = _as_positive_int(payload.get("max_hops"), 4, maximum=8)
+    corpus_id = str(payload.get("corpus_id") or DEFAULT_CORPUS_ID)
+    no_llm = bool(payload.get("no_llm"))
+    with AGENT_MATRIX_LOCK:
+        active = next((job for job in AGENT_MATRIX_JOBS.values() if job.get("status") in {"queued", "running"}), None)
+        if active:
+            raise ValueError(f"Agent matrix job {active['id']} is already running.")
+        job_id = f"agent-matrix-{uuid.uuid4().hex[:12]}"
+        job = {
+            "id": job_id,
+            "status": "queued",
+            "dataset": str(dataset_path.relative_to(MANUALS_ROOT)),
+            "limit": limit,
+            "max_hops": max_hops,
+            "corpus_id": corpus_id,
+            "no_llm": no_llm,
+            "completed_questions": 0,
+            "current_case_id": None,
+            "live_results": {},
+            "error": None,
+            "started_at": None,
+            "completed_at": None,
+        }
+        AGENT_MATRIX_JOBS[job_id] = job
+    Thread(target=_run_agent_matrix_job, args=(job_id, dataset_path), daemon=True).start()
+    return dict(job)
+
+
+def _run_agent_matrix_job(job_id: str, dataset_path: Path) -> None:
+    with AGENT_MATRIX_LOCK:
+        job = AGENT_MATRIX_JOBS[job_id]
+        job["status"] = "running"
+        job["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        snapshot = dict(job)
+    cmd = [
+        sys.executable,
+        str(MANUALS_ROOT / "scripts" / "benchmark" / "compare_agentic_retrieval.py"),
+        "--dataset",
+        str(dataset_path),
+        "--corpus-id",
+        str(snapshot["corpus_id"]),
+        "--limit",
+        str(snapshot["limit"]),
+        "--max-hops",
+        str(snapshot["max_hops"]),
+        "--output",
+        str(AGENT_MATRIX_REPORT),
+        "--progress-jsonl",
+        "--quiet",
+    ]
+    if snapshot.get("no_llm"):
+        cmd.append("--no-llm")
+    try:
+        process = subprocess.Popen(
+            cmd,
+            cwd=MANUALS_ROOT,
+            env={**os.environ, "API_BASE": API_BASE},
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        assert process.stdout is not None
+        for line in process.stdout:
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if event.get("event") != "agent_case_completed":
+                continue
+            with AGENT_MATRIX_LOCK:
+                job = AGENT_MATRIX_JOBS[job_id]
+                job["current_case_id"] = event.get("case_id")
+                job["completed_questions"] = int(event.get("question_number") or 0)
+                job["live_results"] = {
+                    **job.get("live_results", {}),
+                    str(event.get("case_id") or ""): {
+                        "langgraph": event.get("langgraph"),
+                        "llamaindex": event.get("llamaindex"),
+                    },
+                }
+        returncode = process.wait(timeout=MATRIX_JOB_TIMEOUT_SECONDS)
+        if returncode != 0:
+            raise RuntimeError(f"Agent evaluation exited with status {returncode}")
+        with AGENT_MATRIX_LOCK:
+            job = AGENT_MATRIX_JOBS[job_id]
+            job["status"] = "completed"
+            job["current_case_id"] = None
+            job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    except Exception as error:
+        with AGENT_MATRIX_LOCK:
+            job = AGENT_MATRIX_JOBS[job_id]
+            job["status"] = "failed"
+            job["error"] = f"{error.__class__.__name__}: {error}"
+            job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 def _is_active_dataset(dataset: dict) -> bool:

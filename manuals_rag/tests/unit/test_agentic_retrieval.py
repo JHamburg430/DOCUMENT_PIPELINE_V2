@@ -1,10 +1,12 @@
 from manuals_rag_answering.agentic_retrieval import (
     AgenticRetrievalController,
+    LlamaIndexAgenticController,
     RetrievalHop,
     RetrievalPlan,
     build_langgraph_agentic_retriever,
     build_llamaindex_agentic_retriever,
     plan_retrieval,
+    plan_llamaindex_retrieval,
     refine_dependent_query,
 )
 from manuals_rag_schemas.documents import SearchResult
@@ -59,6 +61,18 @@ def test_heuristic_planner_decomposes_troubleshooting_facets():
     assert [hop.hop_id for hop in plan.hops] == ["cause", "corrective_action"]
     assert plan.hops[0].query == "What causes alarm E17 for ZX-9?"
     assert plan.hops[1].query == "How should alarm E17 for ZX-9 be corrected?"
+
+
+def test_backends_have_independent_default_planning_policies():
+    query = "Which cable model connects the port, then what is that cable's orientation?"
+
+    langgraph_plan = plan_retrieval(query, use_llm=False)
+    llamaindex_plan = plan_llamaindex_retrieval(query, use_llm=False)
+
+    assert [hop.hop_id for hop in langgraph_plan.hops] == ["hop_1", "hop_2"]
+    assert [hop.hop_id for hop in llamaindex_plan.hops] == ["subquestion_1", "subquestion_2"]
+    assert llamaindex_plan.rationale.startswith("LlamaIndex subquestion decomposition")
+    assert AgenticRetrievalController(use_llm=False).__class__ is not LlamaIndexAgenticController
 
 
 def test_both_orchestrators_preserve_parallel_document_coverage():

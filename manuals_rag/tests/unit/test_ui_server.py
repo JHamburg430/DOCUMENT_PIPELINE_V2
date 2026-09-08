@@ -216,6 +216,85 @@ def test_eval_matrix_view_is_available():
     assert "#ingestion > .panel" in styles_css
 
 
+def test_agent_evaluation_matrix_view_exposes_independent_backend_layers():
+    app_js = (UI_DIR / "app.js").read_text()
+    index_html = (UI_DIR / "index.html").read_text()
+    styles_css = (UI_DIR / "styles.css").read_text()
+
+    assert "Agent Evaluation Matrix" in index_html
+    assert 'id="run-agent-matrix"' in index_html
+    assert 'id="refresh-agent-matrix"' in index_html
+    assert 'id="agent-matrix-table"' in index_html
+    assert 'id="agent-matrix-detail"' in index_html
+    assert "/local/agent-matrix/run" in app_js
+    assert "/local/agent-matrix/jobs/" in app_js
+    assert "renderAgentMatrix" in app_js
+    assert "LangGraph" in app_js
+    assert "LlamaIndex" in app_js
+    for layer in (
+        "tool_selection",
+        "candidate_recall",
+        "document_retention",
+        "hop_dependencies",
+        "evidence_sufficiency",
+        "grounded_answer",
+        "latency_token_cost",
+    ):
+        assert layer in app_js
+    assert ".agent-matrix-grid" in styles_css
+
+
+def test_agent_evaluation_matrix_joins_question_rows_to_backend_results(monkeypatch, tmp_path):
+    dataset = tmp_path / "agent-cases.jsonl"
+    report = tmp_path / "agent-report.json"
+    case = {
+        "case_id": "dependent-case",
+        "query": "Identify the cable, then find its orientation.",
+        "retrieval_task": "multi_step_retrieval",
+        "source_document_id": "doc-a",
+        "expected_evidence": [
+            {"chunk_id": "identify", "source_document_id": "doc-a"},
+            {"chunk_id": "orientation", "source_document_id": "doc-b"},
+        ],
+    }
+    dataset.write_text(ui_server.json.dumps(case) + "\n", encoding="utf-8")
+    report.write_text(
+        ui_server.json.dumps(
+            {
+                "dataset": str(dataset),
+                "summary": {"langgraph": {"agent_matrix_passed": 1}},
+                "items": [
+                    {
+                        "case_id": "dependent-case",
+                        "langgraph": {"agent_evaluation": {"passed": True}},
+                        "llamaindex": {"agent_evaluation": {"passed": False}},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ui_server, "MANUALS_ROOT", tmp_path)
+    monkeypatch.setattr(ui_server, "AGENT_MATRIX_REPORT", report)
+
+    payload = ui_server._build_agent_matrix()
+
+    assert payload["schema"] == "manuals-rag-agent-evaluation-matrix-v1"
+    assert payload["rows"][0]["question"] == case["query"]
+    assert payload["rows"][0]["expected_evidence_count"] == 2
+    assert payload["rows"][0]["expected_document_count"] == 2
+    assert payload["rows"][0]["result"]["langgraph"]["agent_evaluation"]["passed"] is True
+    assert payload["layers"] == [
+        "tool_selection",
+        "candidate_recall",
+        "document_retention",
+        "hop_dependencies",
+        "evidence_sufficiency",
+        "grounded_answer",
+        "latency_token_cost",
+    ]
+
+
 def test_ingestion_ui_supports_multi_upload_filtering_and_step_details():
     app_js = (UI_DIR / "app.js").read_text()
     index_html = (UI_DIR / "index.html").read_text()

@@ -31,7 +31,6 @@ from apps.api.debug import (
 )
 from manuals_rag_answering.workflow import build_workflow
 from manuals_rag_answering.agentic_retrieval import (
-    AgenticRetrievalController,
     build_langgraph_agentic_retriever,
     build_llamaindex_agentic_retriever,
 )
@@ -1152,14 +1151,13 @@ def _stream_agentic_query_events(request: QueryRequest):
                     "max_hops": request.max_retrieval_hops,
                 }
             )
-            controller = AgenticRetrievalController(event_callback=emit)
             factory = (
                 build_langgraph_agentic_retriever
                 if orchestrator == "langgraph_agent"
                 else build_llamaindex_agentic_retriever
             )
             with QUERY_DURATION.labels("full").time():
-                result = factory(controller=controller).invoke(
+                result = factory(event_callback=emit).invoke(
                     {
                         "query": request.query,
                         "corpus_ids": request.corpus_ids,

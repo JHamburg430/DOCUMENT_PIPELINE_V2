@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260907-agent-lab";
+const ASSET_VERSION = "20260907-agent-matrix";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
 const MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"]);
@@ -42,6 +42,12 @@ const state = {
     runs: {},
     controllers: [],
     timer: null,
+  },
+  agentMatrix: {
+    payload: null,
+    job: null,
+    timer: null,
+    selectedCaseId: null,
   },
   evalRuntime: null,
 };
@@ -2473,6 +2479,7 @@ function agentEventLabel(event) {
   return {
     run_started: "Run started",
     plan_completed: "Plan created",
+    tool_selected: "Retrieval tool selected",
     hop_started: "Retrieval started",
     hop_completed: "Evidence assessed",
     recovery_scheduled: "Recovery scheduled",
@@ -2516,7 +2523,7 @@ function renderAgentRun(run) {
       <div class="section-heading agent-run-heading">
         <div>
           <h2>${escapeHtml(agentBackendLabel(run.backend))}</h2>
-          <div class="model-meta">${escapeHtml(plan.mode || "waiting for plan")} · ${escapeHtml(String(Math.max(0, elapsed / 1000).toFixed(1)))}s</div>
+          <div class="model-meta">${escapeHtml(run.policy || "policy pending")} · ${escapeHtml(plan.mode || "waiting for plan")} · ${escapeHtml(String(Math.max(0, elapsed / 1000).toFixed(1)))}s</div>
         </div>
         <span class="status-pill ${statusClass}">${escapeHtml(run.status)}</span>
       </div>
@@ -2589,6 +2596,7 @@ function renderAgentLab() {
 function applyAgentEvent(run, event) {
   event.receivedAt = performance.now();
   run.events.push(event);
+  if (event.policy) run.policy = event.policy;
   if (event.event === "plan_completed") run.plan = event.plan;
   if (event.event === "hop_started") {
     run.hops[event.hop_id] = { ...event, status: "running", results: [] };
@@ -2692,6 +2700,119 @@ async function runAgentTest() {
   await Promise.allSettled(tasks);
   $("run-agent-test").disabled = false;
   renderAgentLab();
+}
+
+const AGENT_MATRIX_LAYERS = [
+  ["tool_selection", "Tool Select"],
+  ["candidate_recall", "Candidate Recall"],
+  ["document_retention", "Doc Retain"],
+  ["hop_dependencies", "Hop / Dependency"],
+  ["evidence_sufficiency", "Sufficiency"],
+  ["grounded_answer", "Grounded Answer"],
+  ["latency_token_cost", "Latency / Tokens"],
+];
+
+function agentMatrixCell(result, layer) {
+  const backends = [["langgraph", "LG"], ["llamaindex", "LI"]];
+  return backends.map(([backend, label]) => {
+    const cell = result?.[backend]?.agent_evaluation?.cells?.[layer];
+    const status = cell?.status || "blank";
+    return `<span class="matrix-cell ${escapeHtml(status)}" title="${escapeHtml(cell?.detail || `${label} not evaluated`)}">${label} ${escapeHtml(cell?.label || "—")}</span>`;
+  }).join(" ");
+}
+
+function renderAgentMatrix(payload) {
+  state.agentMatrix.payload = payload;
+  $("agent-matrix-dataset").value = payload.dataset || $("agent-matrix-dataset").value;
+  const rows = payload.rows || [];
+  const summary = payload.summary || {};
+  $("agent-matrix-summary").className = "matrix-summary";
+  $("agent-matrix-summary").innerHTML = `
+    <article class="matrix-stat"><span>Questions</span><strong>${rows.length}</strong><small>${escapeHtml(payload.dataset || "")}</small></article>
+    <article class="matrix-stat"><span>LangGraph passed</span><strong>${escapeHtml(summary.langgraph?.agent_matrix_passed ?? "—")}</strong><small>complete agent rows</small></article>
+    <article class="matrix-stat"><span>LlamaIndex passed</span><strong>${escapeHtml(summary.llamaindex?.agent_matrix_passed ?? "—")}</strong><small>complete agent rows</small></article>
+  `;
+  if (!rows.length) {
+    $("agent-matrix-table").innerHTML = '<div class="empty-state">The selected dataset has no questions.</div>';
+    $("agent-matrix-detail").innerHTML = "";
+    return;
+  }
+  $("agent-matrix-table").innerHTML = `
+    <table class="matrix-grid agent-matrix-grid">
+      <thead><tr><th>#</th><th>Question</th>${AGENT_MATRIX_LAYERS.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map((row) => `
+        <tr class="clickable${row.case_id === state.agentMatrix.selectedCaseId ? " selected-row" : ""}" data-agent-matrix-case="${escapeHtml(row.case_id)}">
+          <td>${row.number}</td>
+          <td class="matrix-text-cell"><strong>${escapeHtml(row.question)}</strong><small>${escapeHtml(row.retrieval_task)} · ${row.expected_evidence_count} evidence target(s) · ${row.expected_document_count} document(s)</small></td>
+          ${AGENT_MATRIX_LAYERS.map(([key]) => `<td>${agentMatrixCell(row.result, key)}</td>`).join("")}
+        </tr>
+      `).join("")}</tbody>
+    </table>`;
+  document.querySelectorAll("[data-agent-matrix-case]").forEach((node) => node.addEventListener("click", () => {
+    state.agentMatrix.selectedCaseId = node.dataset.agentMatrixCase;
+    renderAgentMatrix(payload);
+    renderAgentMatrixDetail();
+  }));
+  renderAgentMatrixDetail();
+}
+
+function renderAgentMatrixDetail() {
+  const row = (state.agentMatrix.payload?.rows || []).find((item) => item.case_id === state.agentMatrix.selectedCaseId);
+  if (!row?.result) {
+    $("agent-matrix-detail").innerHTML = row
+      ? '<div class="empty-state">This question has not been evaluated yet.</div>'
+      : "";
+    return;
+  }
+  $("agent-matrix-detail").innerHTML = `
+    <section class="panel">
+      <h3>${escapeHtml(row.question)}</h3>
+      ${["langgraph", "llamaindex"].map((backend) => {
+        const result = row.result[backend] || {};
+        return `<details open><summary><strong>${escapeHtml(backend)}</strong> · ${result.agent_evaluation?.passed ? "PASS" : "FAIL"} · ${Number(result.elapsed_ms || 0).toFixed(0)} ms</summary>
+          <p>${escapeHtml(result.answer?.answer || "No answer")}</p>
+          <dl class="agent-hop-meta">${AGENT_MATRIX_LAYERS.map(([key, label]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(result.agent_evaluation?.cells?.[key]?.detail || "Not scored")}</dd></div>`).join("")}</dl>
+          <details><summary>Trace JSON</summary><pre>${escapeHtml(JSON.stringify(result.trace || {}, null, 2))}</pre></details>
+        </details>`;
+      }).join("")}
+    </section>`;
+}
+
+async function loadAgentMatrix() {
+  try {
+    renderAgentMatrix(await localJson("/local/agent-matrix"));
+  } catch (error) {
+    $("agent-matrix-summary").className = "matrix-summary empty-state";
+    $("agent-matrix-summary").innerHTML = `<div class="error-box">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function pollAgentMatrixJob(jobId) {
+  if (state.agentMatrix.timer) clearTimeout(state.agentMatrix.timer);
+  const job = await localJson(`/local/agent-matrix/jobs/${encodeURIComponent(jobId)}`);
+  state.agentMatrix.job = job;
+  const status = $("agent-matrix-status");
+  status.textContent = [job.status, `${job.completed_questions}/${job.limit}`, job.current_case_id].filter(Boolean).join(" · ");
+  status.className = `status-pill ${job.status === "completed" ? "pass" : job.status === "failed" ? "fail" : "running"}`;
+  if (["queued", "running"].includes(job.status)) {
+    state.agentMatrix.timer = setTimeout(() => pollAgentMatrixJob(jobId).catch(console.error), MATRIX_JOB_POLL_MS);
+    return;
+  }
+  $("run-agent-matrix").disabled = false;
+  await loadAgentMatrix();
+}
+
+async function runAgentMatrix() {
+  $("run-agent-matrix").disabled = true;
+  const job = await localPostJson("/local/agent-matrix/run", {
+    dataset: $("agent-matrix-dataset").value.trim(),
+    limit: Number($("agent-matrix-limit").value || 10),
+    max_hops: Number($("agent-matrix-hops").value || 4),
+    corpus_id: $("agent-matrix-corpus").value.trim() || DEFAULT_CORPUS,
+    no_llm: $("agent-matrix-no-llm").checked,
+  });
+  state.agentMatrix.job = job;
+  await pollAgentMatrixJob(job.id);
 }
 
 async function loadHistory() {
@@ -3021,6 +3142,7 @@ function setupTabs() {
       tab.classList.add("active");
       $(tab.dataset.tab).classList.add("active");
       if (tab.dataset.tab === "matrix") loadQuestionMatrix();
+      if (tab.dataset.tab === "agent-lab") loadAgentMatrix();
       if (tab.dataset.tab === "ingestion") maybePollIngestion();
     });
   });
@@ -3052,6 +3174,12 @@ async function init() {
   setupMatrixControls();
   $("run-query").addEventListener("click", runQuery);
   $("run-agent-test").addEventListener("click", runAgentTest);
+  $("run-agent-matrix").addEventListener("click", () => runAgentMatrix().catch((error) => {
+    $("run-agent-matrix").disabled = false;
+    $("agent-matrix-status").textContent = error.message;
+    $("agent-matrix-status").className = "status-pill fail";
+  }));
+  $("refresh-agent-matrix").addEventListener("click", loadAgentMatrix);
   $("refresh-history").addEventListener("click", loadHistory);
   $("refresh-ingestion").addEventListener("click", loadIngestionStatus);
   $("ingestion-upload").addEventListener("click", uploadIngestionDocuments);
@@ -3075,6 +3203,7 @@ async function init() {
     await loadHistory();
     await loadIngestionStatus();
     await loadQuestionMatrix();
+    await loadAgentMatrix();
     state.ingestionTimer = setInterval(maybePollIngestion, 5000);
     setConnectionStatus(`API connected at ${API_BASE}`);
   } catch (error) {

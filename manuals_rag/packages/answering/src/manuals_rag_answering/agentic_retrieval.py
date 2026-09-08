@@ -109,6 +109,21 @@ Never include an answer or facts not present in the user's question.
 """.strip()
 
 
+LLAMAINDEX_PLANNER_PROMPT = """
+You are a LlamaIndex-style subquestion planner for technical-manual research. Return only JSON.
+Treat every retrieval strategy as a query-engine tool:
+- structural: exact tables, specifications, settings, procedures, and troubleshooting rows;
+- sparse: identifiers, model numbers, alarm codes, and exact phrases;
+- dense: conceptual or paraphrased requests;
+- hybrid: mixed exact and semantic evidence;
+- broad: exploratory discovery when the target is not known yet.
+Create independently answerable subquestions. Use parallel mode when subquestions can run alone and
+dependent mode only when a later subquestion must incorporate an entity discovered earlier. Prefer
+multiple focused subquestions over one compound query, but keep the plan within four hops. Dependencies
+must reference earlier hop_id values. Do not provide the answer or invent manual facts.
+""".strip()
+
+
 def _parallel_scope_plan(query: str) -> RetrievalPlan | None:
     """Recognize a common, document-general comparison shape without an LLM."""
     match = re.match(
@@ -251,6 +266,56 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
         return _heuristic_plan(query)
 
 
+def _llamaindex_heuristic_plan(query: str) -> RetrievalPlan:
+    """Subquestion-oriented fallback that is intentionally independent of LangGraph planning."""
+    base = _heuristic_plan(query)
+    hops: list[RetrievalHop] = []
+    for index, hop in enumerate(base.hops, start=1):
+        strategy = hop.strategy
+        analysis = analyze_query(hop.query)
+        if analysis.product_identifiers:
+            strategy = "sparse"
+        elif set(analysis.query_types).intersection({"configuration", "specification", "troubleshooting", "how_to"}):
+            strategy = "structural"
+        hops.append(
+            hop.model_copy(
+                update={
+                    "hop_id": f"subquestion_{index}",
+                    "strategy": strategy,
+                    "depends_on": [] if not hop.depends_on else [f"subquestion_{index - 1}"],
+                }
+            )
+        )
+    return RetrievalPlan(
+        mode=base.mode,
+        rationale=f"LlamaIndex subquestion decomposition: {base.rationale}",
+        hops=hops,
+    )
+
+
+def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
+    if not use_llm:
+        return _llamaindex_heuristic_plan(query)
+    try:
+        payload, _raw = chat_json(
+            model=settings.ollama_fast_model,
+            messages=[
+                {"role": "system", "content": LLAMAINDEX_PLANNER_PROMPT},
+                {"role": "user", "content": query},
+            ],
+            json_schema=PLAN_SCHEMA,
+            think=False,
+            timeout=45.0,
+            num_predict=700,
+            purpose="llamaindex_subquestion_plan",
+        )
+        plan = RetrievalPlan.model_validate(payload)
+        _validate_plan(plan)
+        return plan
+    except Exception:
+        return _llamaindex_heuristic_plan(query)
+
+
 def _validate_plan(plan: RetrievalPlan) -> None:
     if not plan.hops:
         raise ValueError("Retrieval plan must contain at least one hop.")
@@ -346,6 +411,55 @@ def refine_dependent_query(hop: RetrievalHop, dependency_results: list[SearchRes
         if anchors and not any(anchor.lower() in refined.lower() for anchor in anchors):
             return fallback
         return refined or fallback
+    except Exception:
+        return fallback
+
+
+def refine_llamaindex_subquestion(
+    hop: RetrievalHop,
+    dependency_results: list[SearchResult],
+    *,
+    use_llm: bool = True,
+) -> str:
+    """Apply a LlamaIndex-style query transformation to a dependent subquestion."""
+    if not dependency_results:
+        return hop.query
+    anchors = _dependency_anchors(dependency_results)
+    evidence = _evidence_excerpt(dependency_results)
+    fallback = (
+        f"{hop.query.rstrip(' ?')}; constrain the lookup to {', '.join(anchors[:6])}"
+        if anchors
+        else f"{hop.query}\nSubquestion context: {evidence}"
+    )
+    if not use_llm:
+        return fallback
+    try:
+        payload, _raw = chat_json(
+            model=settings.ollama_fast_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Transform the unresolved subquestion into one standalone query-engine query. "
+                        "Bind it to concrete entities supported by the dependency evidence, preserve the "
+                        "requested answer facet, and do not answer the query."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Subquestion: {hop.query}\nObjective: {hop.objective}\nDependency evidence:\n{evidence}",
+                },
+            ],
+            json_schema=REFINE_SCHEMA,
+            think=False,
+            timeout=45.0,
+            num_predict=240,
+            purpose="llamaindex_query_transform",
+        )
+        transformed = str(payload.get("query") or "").strip()
+        if anchors and not any(anchor.lower() in transformed.lower() for anchor in anchors):
+            return fallback
+        return transformed or fallback
     except Exception:
         return fallback
 
@@ -458,7 +572,7 @@ class AgenticRetrievalController:
 
     def _emit(self, event: str, **payload: Any) -> None:
         if self.event_callback is not None:
-            self.event_callback({"event": event, **payload})
+            self.event_callback({"event": event, "policy": "langgraph_state_graph", **payload})
 
     def initialize(self, state: AgenticState) -> AgenticState:
         started_at = float(state.get("started_at") or perf_counter())
@@ -642,8 +756,10 @@ class AgenticRetrievalController:
         )
         duration_ms = round((perf_counter() - float(state["started_at"])) * 1000, 2)
         trace = {
+            "policy": "langgraph_state_graph",
             "mode": plan.mode,
             "rationale": plan.rationale,
+            "plan": plan.model_dump(),
             "max_hops": state["max_hops"],
             "completed_hops": completed,
             "pending_hops": pending,
@@ -651,6 +767,10 @@ class AgenticRetrievalController:
             "sufficient": all_required_sufficient,
             "stop_reason": stop_reason,
             "duration_ms": duration_ms,
+            "cost": {
+                "retrieval_calls": len(completed),
+                "llm_token_estimate": sum(len(str(item.get("executed_query") or "")) for item in ledger.values()) // 4,
+            },
         }
         self._emit(
             "retrieval_completed",
@@ -677,8 +797,273 @@ class AgenticRetrievalController:
         return "done" if state.get("retrieval_results") is not None else "continue"
 
 
-def build_langgraph_agentic_retriever(*, controller: AgenticRetrievalController | None = None):
-    controller = controller or AgenticRetrievalController()
+class LlamaIndexAgenticController:
+    """Independent subquestion/query-engine policy used by the LlamaIndex workflow."""
+
+    def __init__(
+        self,
+        *,
+        use_llm: bool = True,
+        planner: Callable[[str], RetrievalPlan] | None = None,
+        transformer: Callable[[RetrievalHop, list[SearchResult]], str] | None = None,
+        retriever: Callable[[str, list[str], dict[str, object], RetrievalStrategy, int], list[SearchResult]] | None = None,
+        event_callback: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
+        self.use_llm = use_llm
+        self.planner = planner or (lambda query: plan_llamaindex_retrieval(query, use_llm=use_llm))
+        self.transformer = transformer or (
+            lambda hop, results: refine_llamaindex_subquestion(hop, results, use_llm=use_llm)
+        )
+        self.retriever = retriever or (
+            lambda query, corpus_ids, filters, strategy, limit: retrieve_with_strategy(
+                query, corpus_ids, filters, strategy=strategy, limit=limit
+            )
+        )
+        self.event_callback = event_callback
+
+    def _emit(self, event: str, **payload: Any) -> None:
+        if self.event_callback is not None:
+            self.event_callback({"event": event, "policy": "llamaindex_subquestion", **payload})
+
+    def initialize(self, state: AgenticState) -> AgenticState:
+        started_at = float(state.get("started_at") or perf_counter())
+        plan = self.planner(state["query"])
+        _validate_plan(plan)
+        max_hops = max(1, min(int(state.get("max_hops", 4)), 8))
+        self._emit("plan_completed", plan=plan.model_dump(), max_hops=max_hops)
+        return {
+            **state,
+            "started_at": started_at,
+            "max_hops": max_hops,
+            "plan": plan.model_dump(),
+            "pending_hop_ids": [hop.hop_id for hop in plan.hops],
+            "completed_hop_ids": [],
+            "hop_results": {},
+            "evidence_ledger": {},
+            "sufficient": False,
+            "stop_reason": "",
+        }
+
+    @staticmethod
+    def _route_tool(hop: RetrievalHop, dependency_anchors: list[str]) -> RetrievalStrategy:
+        if hop.recovery_for:
+            return hop.strategy
+        if dependency_anchors:
+            return "sparse"
+        analysis = analyze_query(hop.query)
+        if analysis.product_identifiers:
+            return "sparse"
+        if set(analysis.query_types).intersection({"configuration", "specification", "troubleshooting", "how_to"}):
+            return "structural"
+        return hop.strategy
+
+    def execute_next(self, state: AgenticState) -> AgenticState:
+        pending = list(state.get("pending_hop_ids", []))
+        completed = list(state.get("completed_hop_ids", []))
+        runnable = next(
+            (
+                hop_id
+                for hop_id in pending
+                if all(dependency in completed for dependency in _hop_by_id(state, hop_id).depends_on)
+            ),
+            None,
+        )
+        if runnable is None:
+            self._emit("agent_stopped", stop_reason="no_runnable_subquestion")
+            return {**state, "stop_reason": "no_runnable_subquestion"}
+
+        hop = _hop_by_id(state, runnable)
+        dependency_results = _results_for_ids(state, hop.depends_on)
+        dependency_anchors = _dependency_anchors(dependency_results)
+        executed_query = self.transformer(hop, dependency_results) if hop.depends_on else hop.query
+        executed_strategy = self._route_tool(hop, dependency_anchors)
+        self._emit(
+            "tool_selected",
+            hop_id=hop.hop_id,
+            tool=executed_strategy,
+            reason="dependency anchor routing" if dependency_anchors else "subquestion analysis",
+        )
+        self._emit(
+            "hop_started",
+            hop_id=hop.hop_id,
+            objective=hop.objective,
+            planned_query=hop.query,
+            executed_query=executed_query,
+            planned_strategy=hop.strategy,
+            strategy=executed_strategy,
+            depends_on=hop.depends_on,
+            dependency_anchors=dependency_anchors,
+            recovery_for=hop.recovery_for,
+        )
+        results = self.retriever(
+            executed_query,
+            state["corpus_ids"],
+            state.get("filters", {}),
+            executed_strategy,
+            10,
+        )
+        if hop.recovery_for and not dependency_anchors:
+            original = state.get("evidence_ledger", {}).get(hop.recovery_for, {})
+            dependency_anchors = list((original.get("assessment") or {}).get("dependency_anchors") or [])
+        hop_sufficient, assessment = _assess_hop_evidence(
+            hop.objective,
+            results,
+            dependency_anchors=dependency_anchors,
+        )
+        hop_results = dict(state.get("hop_results", {}))
+        hop_results[runnable] = [result.model_dump() for result in results]
+        ledger = dict(state.get("evidence_ledger", {}))
+        ledger[runnable] = {
+            "objective": hop.objective,
+            "planned_query": hop.query,
+            "executed_query": executed_query,
+            "planned_strategy": hop.strategy,
+            "strategy": executed_strategy,
+            "tool": executed_strategy,
+            "depends_on": hop.depends_on,
+            "required": hop.required,
+            "recovery_for": hop.recovery_for,
+            "sufficient": hop_sufficient,
+            "assessment": assessment,
+            "chunk_ids": [result.chunk_id for result in results],
+            "document_ids": sorted({result.source_document_id for result in results}),
+        }
+        self._emit(
+            "hop_completed",
+            hop_id=runnable,
+            sufficient=hop_sufficient,
+            assessment=assessment,
+            result_count=len(results),
+            results=[result.model_dump() for result in results],
+            ledger_entry=ledger[runnable],
+        )
+        pending.remove(runnable)
+        completed.append(runnable)
+        return {
+            **state,
+            "pending_hop_ids": pending,
+            "completed_hop_ids": completed,
+            "hop_results": hop_results,
+            "evidence_ledger": ledger,
+        }
+
+    def judge(self, state: AgenticState) -> AgenticState:
+        plan = RetrievalPlan.model_validate(state["plan"])
+        completed = list(state.get("completed_hop_ids", []))
+        pending = list(state.get("pending_hop_ids", []))
+        ledger = dict(state.get("evidence_ledger", {}))
+        required = [hop for hop in plan.hops if hop.required and hop.recovery_for is None]
+
+        for hop in required:
+            item = ledger.get(hop.hop_id)
+            already_recovered = any(candidate.recovery_for == hop.hop_id for candidate in plan.hops)
+            if (
+                item
+                and not item.get("sufficient")
+                and not already_recovered
+                and len(completed) + len(pending) < state["max_hops"]
+            ):
+                previous_tool = str(item.get("strategy") or hop.strategy)
+                recovery_tool: RetrievalStrategy = {
+                    "sparse": "dense",
+                    "dense": "sparse",
+                    "structural": "hybrid",
+                    "hybrid": "broad",
+                    "broad": "structural",
+                }.get(previous_tool, "broad")  # type: ignore[assignment]
+                recovery = RetrievalHop(
+                    hop_id=f"{hop.hop_id}_alternate_tool",
+                    objective=hop.objective,
+                    query=str(item.get("executed_query") or hop.query),
+                    strategy=recovery_tool,
+                    required=False,
+                    recovery_for=hop.hop_id,
+                )
+                plan.hops.append(recovery)
+                pending.insert(0, recovery.hop_id)
+                self._emit(
+                    "recovery_scheduled",
+                    hop_id=recovery.hop_id,
+                    recovery_for=hop.hop_id,
+                    query=recovery.query,
+                    strategy=recovery.strategy,
+                    recovery_policy="alternate_query_engine",
+                )
+                return {**state, "plan": plan.model_dump(), "pending_hop_ids": pending}
+
+        sufficient_ids = {hop_id for hop_id, item in ledger.items() if bool(item.get("sufficient"))}
+        for hop in plan.hops:
+            if hop.recovery_for and hop.hop_id in sufficient_ids:
+                sufficient_ids.add(hop.recovery_for)
+        all_required_sufficient = all(hop.hop_id in sufficient_ids for hop in required)
+        exhausted = len(completed) >= state["max_hops"]
+        blocked = bool(state.get("stop_reason"))
+        done = all_required_sufficient or exhausted or blocked or not pending
+        if not done:
+            return {**state, "plan": plan.model_dump(), "pending_hop_ids": pending}
+
+        hop_result_sets = {
+            hop_id: [SearchResult.model_validate(item) for item in items]
+            for hop_id, items in state.get("hop_results", {}).items()
+        }
+        final_results = assemble_agent_context(state["query"], hop_result_sets, limit=10)
+        stop_reason = (
+            "sufficient"
+            if all_required_sufficient
+            else "hop_budget_exhausted"
+            if exhausted
+            else state.get("stop_reason") or "subquestions_exhausted"
+        )
+        duration_ms = round((perf_counter() - float(state["started_at"])) * 1000, 2)
+        trace = {
+            "policy": "llamaindex_subquestion",
+            "mode": plan.mode,
+            "rationale": plan.rationale,
+            "plan": plan.model_dump(),
+            "max_hops": state["max_hops"],
+            "completed_hops": completed,
+            "pending_hops": pending,
+            "evidence_ledger": ledger,
+            "sufficient": all_required_sufficient,
+            "stop_reason": stop_reason,
+            "duration_ms": duration_ms,
+            "cost": {
+                "retrieval_calls": len(completed),
+                "llm_token_estimate": sum(len(str(item.get("executed_query") or "")) for item in ledger.values()) // 4,
+            },
+        }
+        self._emit(
+            "retrieval_completed",
+            sufficient=all_required_sufficient,
+            stop_reason=stop_reason,
+            duration_ms=duration_ms,
+            result_count=len(final_results),
+            results=[result.model_dump() for result in final_results],
+            trace=trace,
+        )
+        return {
+            **state,
+            "plan": plan.model_dump(),
+            "pending_hop_ids": pending,
+            "retrieval_results": [result.model_dump() for result in final_results],
+            "retrieval_trace": trace,
+            "sufficient": all_required_sufficient,
+            "stop_reason": stop_reason,
+            "duration_ms": duration_ms,
+        }
+
+    @staticmethod
+    def should_continue(state: AgenticState) -> str:
+        return "done" if state.get("retrieval_results") is not None else "continue"
+
+
+def build_langgraph_agentic_retriever(
+    *,
+    controller: AgenticRetrievalController | None = None,
+    event_callback: Callable[[dict[str, Any]], None] | None = None,
+    use_llm: bool = True,
+):
+    controller = controller or AgenticRetrievalController(use_llm=use_llm, event_callback=event_callback)
     graph = StateGraph(AgenticState)
     graph.add_node("plan_retrieval", controller.initialize)
     graph.add_node("retrieve_hop", controller.execute_next)
@@ -702,13 +1087,21 @@ def _run_coroutine_sync(awaitable: Any) -> Any:
     raise RuntimeError("Synchronous LlamaIndex retrieval cannot run inside an active event loop.")
 
 
-def build_llamaindex_agentic_retriever(*, controller: AgenticRetrievalController | None = None):
+def build_llamaindex_agentic_retriever(
+    *,
+    controller: AgenticRetrievalController | LlamaIndexAgenticController | None = None,
+    event_callback: Callable[[dict[str, Any]], None] | None = None,
+    use_llm: bool = True,
+):
     try:
         from llama_index.core.workflow import Event, StartEvent, StopEvent, Workflow, step
     except ImportError as exc:  # pragma: no cover - exercised in dependency-failure environments
         raise RuntimeError("LlamaIndex agentic retrieval requires llama-index-core.") from exc
 
-    active_controller = controller or AgenticRetrievalController()
+    active_controller = controller or LlamaIndexAgenticController(
+        use_llm=use_llm,
+        event_callback=event_callback,
+    )
 
     class RetrievalEvent(Event):
         state: dict[str, Any]
@@ -754,26 +1147,12 @@ def compare_agentic_backends(
     use_llm: bool = True,
 ) -> dict[str, Any]:
     outputs: dict[str, Any] = {}
-    shared_plan = plan_retrieval(query, use_llm=use_llm)
-    refinement_cache: dict[tuple[str, tuple[str, ...]], str] = {}
-
-    def shared_refiner(hop: RetrievalHop, results: list[SearchResult]) -> str:
-        key = (hop.hop_id, tuple(result.chunk_id for result in results))
-        if key not in refinement_cache:
-            refinement_cache[key] = refine_dependent_query(hop, results, use_llm=use_llm)
-        return refinement_cache[key]
-
     for backend, factory in (
         ("langgraph", build_langgraph_agentic_retriever),
         ("llamaindex", build_llamaindex_agentic_retriever),
     ):
-        controller = AgenticRetrievalController(
-            use_llm=use_llm,
-            planner=lambda _query: shared_plan.model_copy(deep=True),
-            refiner=shared_refiner,
-        )
         started = perf_counter()
-        state = factory(controller=controller).invoke(
+        state = factory(use_llm=use_llm).invoke(
             {
                 "query": query,
                 "corpus_ids": corpus_ids,

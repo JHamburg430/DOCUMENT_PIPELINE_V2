@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260907-agent-lab" />
+    <link rel="stylesheet" href="/styles.css?v=20260907-agent-matrix" />
   </head>
   <body>
     <main class="app-shell">
@@ -182,6 +182,27 @@
         <section id="agent-results" class="agent-results" aria-live="polite">
           <div class="empty-state">Run a question to compare the agent backends and inspect every retrieval hop.</div>
         </section>
+        <section class="panel agent-matrix-panel">
+          <div class="section-heading">
+            <div>
+              <h2>Agent Evaluation Matrix</h2>
+              <p class="muted">Each row is a test question. Columns isolate tool routing, retrieval coverage, reasoning dependencies, evidence sufficiency, grounded synthesis, and operating cost.</p>
+            </div>
+            <span id="agent-matrix-status" class="status-pill">Not run</span>
+          </div>
+          <div class="matrix-actions">
+            <label>Dataset <input id="agent-matrix-dataset" value="tests/fixtures/agentic_dependent_retrieval_eval.jsonl" /></label>
+            <label>Questions <input id="agent-matrix-limit" type="number" min="1" max="1000" value="10" /></label>
+            <label>Max hops <input id="agent-matrix-hops" type="number" min="1" max="8" value="4" /></label>
+            <label>Corpus <input id="agent-matrix-corpus" value="manuals_vendor_keyence" /></label>
+            <label class="inline-check"><input id="agent-matrix-no-llm" type="checkbox" /><span>Deterministic planners</span></label>
+            <button id="run-agent-matrix" type="button">Run Agent Matrix</button>
+            <button id="refresh-agent-matrix" type="button">Refresh</button>
+          </div>
+          <div id="agent-matrix-summary" class="matrix-summary empty-state">No agent evaluation loaded.</div>
+          <div id="agent-matrix-table"></div>
+          <div id="agent-matrix-detail"></div>
+        </section>
       </section>
 
       <section id="search" class="tab-panel">
@@ -283,6 +304,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260907-agent-lab"></script>
+    <script src="/app.js?v=20260907-agent-matrix"></script>
   </body>
 </html>

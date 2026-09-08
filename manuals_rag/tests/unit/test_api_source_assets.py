@@ -74,23 +74,19 @@ def test_query_routes_to_selected_agentic_retriever(monkeypatch, orchestrator, a
 
 
 def test_agentic_query_stream_emits_live_trace_and_final_answer(monkeypatch):
-    class FakeController:
+    class FakeAgenticRetriever:
         def __init__(self, event_callback):
             self.event_callback = event_callback
 
-    class FakeAgenticRetriever:
-        def __init__(self, controller):
-            self.controller = controller
-
         def invoke(self, _payload):
-            self.controller.event_callback(
+            self.event_callback(
                 {
                     "event": "plan_completed",
                     "plan": {"mode": "dependent", "rationale": "Two hops", "hops": []},
                     "max_hops": 3,
                 }
             )
-            self.controller.event_callback(
+            self.event_callback(
                 {
                     "event": "hop_completed",
                     "hop_id": "identify",
@@ -129,11 +125,10 @@ def test_agentic_query_stream_emits_live_trace_and_final_answer(monkeypatch):
                 "insufficient_evidence": False,
             }
 
-    monkeypatch.setattr(main, "AgenticRetrievalController", FakeController)
     monkeypatch.setattr(
         main,
         "build_langgraph_agentic_retriever",
-        lambda *, controller: FakeAgenticRetriever(controller),
+        lambda *, event_callback: FakeAgenticRetriever(event_callback),
     )
     monkeypatch.setattr(main, "generate_answer", lambda _query, _results: FakeAnswer())
 
