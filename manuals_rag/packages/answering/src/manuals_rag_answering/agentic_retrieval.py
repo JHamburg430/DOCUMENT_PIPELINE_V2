@@ -10,14 +10,14 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 
 from manuals_rag_common.config import settings
-from manuals_rag_common.ollama import chat_json
+from manuals_rag_common.ollama import capture_ollama_usage, chat_json, summarize_ollama_usage
 from manuals_rag_retrieval.query_analysis import analyze_query
 from manuals_rag_retrieval.retriever import (
     assess_evidence_sufficiency,
     assemble_agent_context,
     retrieve_with_strategy,
 )
-from manuals_rag_schemas.documents import SearchResult
+from manuals_rag_schemas.documents import AnswerResponse, SearchResult
 
 
 RetrievalStrategy = Literal["hybrid", "broad", "dense", "sparse", "structural"]
@@ -56,6 +56,34 @@ class AgenticState(TypedDict, total=False):
     sufficient: bool
     started_at: float
     duration_ms: float
+
+
+def insufficient_agent_answer(query: str, trace: dict[str, Any]) -> AnswerResponse:
+    """Return an explicit abstention when the evidence ledger has unresolved claims."""
+    coverage = trace.get("context_assembly") or {}
+    missing = list(coverage.get("missing_required_claims") or [])
+    if not missing:
+        required = trace.get("required_claim_support") or {}
+        missing = [str(hop_id) for hop_id, chunks in required.items() if not chunks]
+    ledger = trace.get("evidence_ledger") or {}
+    gaps = []
+    for hop_id, item in ledger.items():
+        if item.get("required") and not item.get("sufficient"):
+            reason = str((item.get("assessment") or {}).get("gap_reason") or "unsupported")
+            gaps.append(f"{hop_id}: {reason}")
+    detail = ", ".join(gaps or missing) or str(trace.get("stop_reason") or "evidence incomplete")
+    return AnswerResponse(
+        answer=(
+            "I do not have enough directly supported manual evidence to answer this reliably. "
+            "The retrieval agent stopped with unresolved evidence requirements."
+        ),
+        confidence="low",
+        used_documents=[],
+        citations=[],
+        warnings=[f"Agentic synthesis was blocked: {detail}"],
+        followup_questions=[f"Can you narrow the product, model, alarm code, or manual scope for: {query}"],
+        insufficient_evidence=True,
+    )
 
 
 PLAN_SCHEMA: dict[str, Any] = {
@@ -498,54 +526,172 @@ def _assess_hop_evidence(
     *,
     dependency_anchors: list[str] | None = None,
 ) -> tuple[bool, dict[str, Any]]:
-    """Narrow the global query sufficiency contract to the hop's explicit objective."""
+    """Attribute a claim to concrete chunks; never infer support from a result-set collage."""
     base = assess_evidence_sufficiency(query, results)
     payload = base.to_dict()
     if not results:
+        payload.update(
+            {
+                "scope": "claim",
+                "claim_supported": False,
+                "supporting_chunk_ids": [],
+                "supporting_document_ids": [],
+                "missing_claim_facets": ["evidence"],
+                "contradictions": [],
+                "gap_reason": "no_results",
+            }
+        )
         return False, payload
     lowered_query = query.lower()
-    evidence = "\n".join(result.content for result in results).lower()
     anchors = [anchor for anchor in (dependency_anchors or []) if anchor]
-    anchored_results = [
-        result
-        for result in results
-        if any(
-            re.sub(r"[^a-z0-9]", "", anchor.lower())
-            in re.sub(r"[^a-z0-9]", "", result.content.lower())
-            for anchor in anchors
-        )
-    ]
-    scoped_evidence = "\n".join(result.content for result in anchored_results).lower() if anchors else evidence
-    explicit_checks: list[bool] = []
+    facet_patterns: list[tuple[str, str]] = []
     if re.search(r"\b(?:cause|why|reason|due to)\b", lowered_query):
-        explicit_checks.append(bool(re.search(r"\b(?:cause|because|due to|results? from|occurs? when|if)\b", scoped_evidence)))
+        facet_patterns.append(("cause", r"\b(?:cause|because|due to|results? from|occurs? when|if)\b"))
     if re.search(r"\b(?:corrective action|remedy|resolve|fix)\b", lowered_query):
-        explicit_checks.append(
-            bool(re.search(r"\b(?:correct|remedy|resolve|fix|replace|reconnect|restart|check|set|adjust|recalibrat\w*|remove|install|ensure|verify)\b", scoped_evidence))
-        )
+        facet_patterns.append(("corrective_action", r"\b(?:correct|remedy|resolve|fix|replace|reconnect|restart|check|set|adjust|recalibrat\w*|remove|install|ensure|verify)\b"))
     if re.search(r"\b(?:where|menu|screen|tab|section|page)\b", lowered_query):
-        explicit_checks.append(
-            max((len(result.section_path) for result in results), default=0) >= 2
-            or bool(re.search(r"\b(?:menu|screen|tab|section|page|under|within)\b", scoped_evidence))
-        )
+        facet_patterns.append(("location", r"\b(?:menu|screen|tab|section|page|under|within)\b"))
     if re.search(r"\b(?:value|maximum|minimum|range|tolerance|voltage|current|temperature|distance|time)\b", lowered_query):
-        explicit_checks.append(bool(re.search(r"\b\d+(?:\.\d+)?\b", scoped_evidence)))
+        facet_patterns.append(("numeric_value", r"\b\d+(?:\.\d+)?\b"))
     if re.search(r"\b(?:orientation|straight|right[- ]?angle|angled)\b", lowered_query):
-        explicit_checks.append(bool(re.search(r"\b(?:straight|right[- ]?angle|angled|vertical|horizontal)\b", scoped_evidence)))
+        facet_patterns.append(("orientation", r"\b(?:straight|right[- ]?angle|angled|vertical|horizontal)\b"))
     if re.search(r"\b(?:model|part number|catalog(?:ue)? number)\b", lowered_query):
-        explicit_checks.append(bool(re.search(r"\b(?=[a-z0-9:/-]*\d)[a-z][a-z0-9]*(?:[-:/][a-z0-9]+)+\b", scoped_evidence)))
-    coverage_sufficient = (
-        all(explicit_checks) and payload["query_term_coverage"] >= 0.25
-        if explicit_checks
-        else payload["query_term_coverage"] >= 0.4
-    )
-    sufficient = coverage_sufficient and (not anchors or bool(anchored_results))
+        facet_patterns.append(("identifier", r"\b(?=[a-z0-9:/-]*\d)[a-z][a-z0-9]*(?:[-:/][a-z0-9]+)+\b"))
+
+    query_terms = {
+        term
+        for term in re.findall(r"[a-z0-9][a-z0-9:/-]+", lowered_query)
+        if len(term) > 2 and term not in {"what", "which", "where", "when", "then", "that", "this", "with", "from", "does", "should", "about", "into"}
+    }
+    result_assessments: list[dict[str, Any]] = []
+    supporting_results: list[SearchResult] = []
+    missing_by_result: list[list[str]] = []
+    for result in results:
+        searchable = " ".join([result.title, *result.section_path, result.content]).lower()
+        compact = re.sub(r"[^a-z0-9]", "", searchable)
+        anchor_hits = [anchor for anchor in anchors if re.sub(r"[^a-z0-9]", "", anchor.lower()) in compact]
+        facet_hits = [name for name, pattern in facet_patterns if re.search(pattern, searchable)]
+        missing_facets = [name for name, _pattern in facet_patterns if name not in facet_hits]
+        result_terms = set(re.findall(r"[a-z0-9][a-z0-9:/-]+", searchable))
+        term_coverage = len(query_terms.intersection(result_terms)) / max(1, len(query_terms))
+        location_supported = "location" not in missing_facets or len(result.section_path) >= 2
+        if location_supported and "location" in missing_facets:
+            missing_facets.remove("location")
+            facet_hits.append("location")
+        claim_supported = (
+            not missing_facets
+            and (not anchors or bool(anchor_hits))
+            and (term_coverage >= (0.15 if facet_patterns or anchors else 0.3))
+        )
+        if claim_supported:
+            supporting_results.append(result)
+        missing_by_result.append(missing_facets)
+        result_assessments.append(
+            {
+                "chunk_id": result.chunk_id,
+                "document_id": result.source_document_id,
+                "term_coverage": round(term_coverage, 4),
+                "facet_hits": facet_hits,
+                "missing_facets": missing_facets,
+                "dependency_anchor_hits": anchor_hits,
+                "claim_supported": claim_supported,
+            }
+        )
+
+    contradictions: list[str] = []
+    orientations: set[str] = set()
+    for result in supporting_results:
+        content = result.content.lower()
+        if re.search(r"\bstraight\b", content):
+            orientations.add("straight")
+        if re.search(r"\bright[- ]?angle\b|\bangle[dt]?\b", content):
+            orientations.add("right_angle")
+    if len(orientations) > 1:
+        contradictions.append("conflicting_orientation_values")
+
+    missing_claim_facets = []
+    for name, _pattern in facet_patterns:
+        if not any(name in item["facet_hits"] for item in result_assessments):
+            missing_claim_facets.append(name)
+    if anchors and not any(item["dependency_anchor_hits"] for item in result_assessments):
+        missing_claim_facets.append("dependency_binding")
+    sufficient = bool(supporting_results) and not contradictions
     payload["global_sufficient"] = payload["sufficient"]
     payload["sufficient"] = sufficient
-    payload["scope"] = "hop_objective"
+    payload["scope"] = "claim"
+    payload["claim_supported"] = sufficient
     payload["dependency_anchors"] = anchors
-    payload["anchored_chunk_ids"] = [result.chunk_id for result in anchored_results]
+    payload["dependency_bindings"] = {
+        result.chunk_id: item["dependency_anchor_hits"]
+        for result, item in zip(results, result_assessments, strict=True)
+        if item["dependency_anchor_hits"]
+    }
+    payload["supporting_chunk_ids"] = [result.chunk_id for result in supporting_results]
+    payload["supporting_document_ids"] = sorted({result.source_document_id for result in supporting_results})
+    payload["anchored_chunk_ids"] = [item["chunk_id"] for item in result_assessments if item["dependency_anchor_hits"]]
+    payload["result_assessments"] = result_assessments
+    payload["missing_claim_facets"] = missing_claim_facets
+    payload["contradictions"] = contradictions
+    payload["gap_reason"] = (
+        "contradictory_evidence"
+        if contradictions
+        else "missing_dependency_binding"
+        if "dependency_binding" in missing_claim_facets
+        else "missing_claim_facets"
+        if missing_claim_facets
+        else "no_single_chunk_supports_claim"
+        if not supporting_results
+        else ""
+    )
     return sufficient, payload
+
+
+def _resolved_required_support(
+    plan: RetrievalPlan,
+    ledger: dict[str, dict[str, Any]],
+) -> tuple[dict[str, list[str]], list[str]]:
+    support: dict[str, list[str]] = {}
+    missing: list[str] = []
+    for required_hop in (hop for hop in plan.hops if hop.required and hop.recovery_for is None):
+        candidate_ids = [
+            required_hop.hop_id,
+            *[hop.hop_id for hop in plan.hops if hop.recovery_for == required_hop.hop_id],
+        ]
+        supporting_ids: list[str] = []
+        for hop_id in candidate_ids:
+            item = ledger.get(hop_id) or {}
+            if not item.get("sufficient"):
+                continue
+            supporting_ids.extend(
+                str(value)
+                for value in (item.get("assessment") or {}).get("supporting_chunk_ids") or []
+            )
+        support[required_hop.hop_id] = list(dict.fromkeys(supporting_ids))
+        if not support[required_hop.hop_id]:
+            missing.append(required_hop.hop_id)
+    return support, missing
+
+
+def _context_coverage(
+    required_support: dict[str, list[str]],
+    results: list[SearchResult],
+) -> dict[str, Any]:
+    retained = {result.chunk_id for result in results}
+    by_claim = {
+        hop_id: {
+            "supporting_chunk_ids": chunk_ids,
+            "retained_chunk_ids": [chunk_id for chunk_id in chunk_ids if chunk_id in retained],
+            "covered": any(chunk_id in retained for chunk_id in chunk_ids),
+        }
+        for hop_id, chunk_ids in required_support.items()
+    }
+    missing = [hop_id for hop_id, item in by_claim.items() if not item["covered"]]
+    return {
+        "claims": by_claim,
+        "retained_chunk_ids": sorted(retained),
+        "missing_required_claims": missing,
+        "all_required_claims_retained": not missing,
+    }
 
 
 class AgenticRetrievalController:
@@ -706,19 +852,27 @@ class AgenticRetrievalController:
 
         for hop in required:
             item = ledger.get(hop.hop_id)
-            already_recovered = any(candidate.recovery_for == hop.hop_id for candidate in plan.hops)
+            prior_recoveries = [candidate for candidate in plan.hops if candidate.recovery_for == hop.hop_id]
+            recovery_succeeded = any(
+                bool(ledger.get(candidate.hop_id, {}).get("sufficient")) for candidate in prior_recoveries
+            )
             if (
                 item
                 and not item.get("sufficient")
-                and not already_recovered
+                and not recovery_succeeded
+                and len(prior_recoveries) < 2
                 and len(completed) + len(pending) < state["max_hops"]
             ):
+                attempt = len(prior_recoveries) + 1
+                assessment = item.get("assessment") or {}
+                missing_facets = list(assessment.get("missing_claim_facets") or [])
+                gap = ", ".join(missing_facets) or str(assessment.get("gap_reason") or "support")
                 recovery = RetrievalHop(
-                    hop_id=f"{hop.hop_id}_recovery",
+                    hop_id=f"{hop.hop_id}_recovery" if attempt == 1 else f"{hop.hop_id}_recovery_{attempt}",
                     objective=hop.objective,
-                    query=str(item.get("executed_query") or hop.query),
-                    strategy="broad",
-                    depends_on=[],
+                    query=f"{hop.objective}. Retrieve explicit evidence for the missing facet: {gap}.",
+                    strategy="broad" if attempt == 1 else "structural",
+                    depends_on=hop.depends_on,
                     required=False,
                     recovery_for=hop.hop_id,
                 )
@@ -730,16 +884,14 @@ class AgenticRetrievalController:
                     recovery_for=hop.hop_id,
                     query=recovery.query,
                     strategy=recovery.strategy,
+                    recovery_policy="langgraph_gap_directed_backtrack",
+                    attempt=attempt,
+                    missing_facets=missing_facets,
                 )
                 return {**state, "plan": plan.model_dump(), "pending_hop_ids": pending}
 
-        sufficient_ids: set[str] = {
-            hop_id for hop_id, item in ledger.items() if bool(item.get("sufficient"))
-        }
-        for hop in plan.hops:
-            if hop.recovery_for and hop.hop_id in sufficient_ids:
-                sufficient_ids.add(hop.recovery_for)
-        all_required_sufficient = all(hop.hop_id in sufficient_ids for hop in required)
+        required_support, missing_required = _resolved_required_support(plan, ledger)
+        all_required_sufficient = not missing_required
         exhausted = len(completed) >= state["max_hops"]
         blocked = bool(state.get("stop_reason"))
         done = all_required_sufficient or exhausted or blocked or not pending
@@ -750,7 +902,15 @@ class AgenticRetrievalController:
             hop_id: [SearchResult.model_validate(item) for item in items]
             for hop_id, items in state.get("hop_results", {}).items()
         }
-        final_results = assemble_agent_context(state["query"], hop_result_sets, limit=10)
+        final_results = assemble_agent_context(
+            state["query"],
+            hop_result_sets,
+            limit=10,
+            evidence_ledger=ledger,
+            required_hop_ids=[hop.hop_id for hop in required],
+        )
+        context_coverage = _context_coverage(required_support, final_results)
+        all_required_sufficient = all_required_sufficient and context_coverage["all_required_claims_retained"]
         stop_reason = (
             "sufficient" if all_required_sufficient else "hop_budget_exhausted" if exhausted else state.get("stop_reason") or "plan_exhausted"
         )
@@ -764,6 +924,8 @@ class AgenticRetrievalController:
             "completed_hops": completed,
             "pending_hops": pending,
             "evidence_ledger": ledger,
+            "required_claim_support": required_support,
+            "context_assembly": context_coverage,
             "sufficient": all_required_sufficient,
             "stop_reason": stop_reason,
             "duration_ms": duration_ms,
@@ -956,13 +1118,18 @@ class LlamaIndexAgenticController:
 
         for hop in required:
             item = ledger.get(hop.hop_id)
-            already_recovered = any(candidate.recovery_for == hop.hop_id for candidate in plan.hops)
+            prior_recoveries = [candidate for candidate in plan.hops if candidate.recovery_for == hop.hop_id]
+            recovery_succeeded = any(
+                bool(ledger.get(candidate.hop_id, {}).get("sufficient")) for candidate in prior_recoveries
+            )
             if (
                 item
                 and not item.get("sufficient")
-                and not already_recovered
+                and not recovery_succeeded
+                and len(prior_recoveries) < 2
                 and len(completed) + len(pending) < state["max_hops"]
             ):
+                attempt = len(prior_recoveries) + 1
                 previous_tool = str(item.get("strategy") or hop.strategy)
                 recovery_tool: RetrievalStrategy = {
                     "sparse": "dense",
@@ -972,10 +1139,14 @@ class LlamaIndexAgenticController:
                     "broad": "structural",
                 }.get(previous_tool, "broad")  # type: ignore[assignment]
                 recovery = RetrievalHop(
-                    hop_id=f"{hop.hop_id}_alternate_tool",
+                    hop_id=f"{hop.hop_id}_query_engine_retry_{attempt}",
                     objective=hop.objective,
-                    query=str(item.get("executed_query") or hop.query),
+                    query=(
+                        f"{hop.query.rstrip(' ?')} using an alternate query engine; require direct evidence for "
+                        f"{', '.join((item.get('assessment') or {}).get('missing_claim_facets') or ['the answer facet'])}"
+                    ),
                     strategy=recovery_tool,
+                    depends_on=hop.depends_on,
                     required=False,
                     recovery_for=hop.hop_id,
                 )
@@ -987,15 +1158,13 @@ class LlamaIndexAgenticController:
                     recovery_for=hop.hop_id,
                     query=recovery.query,
                     strategy=recovery.strategy,
-                    recovery_policy="alternate_query_engine",
+                    recovery_policy="llamaindex_alternate_query_engine_transform",
+                    attempt=attempt,
                 )
                 return {**state, "plan": plan.model_dump(), "pending_hop_ids": pending}
 
-        sufficient_ids = {hop_id for hop_id, item in ledger.items() if bool(item.get("sufficient"))}
-        for hop in plan.hops:
-            if hop.recovery_for and hop.hop_id in sufficient_ids:
-                sufficient_ids.add(hop.recovery_for)
-        all_required_sufficient = all(hop.hop_id in sufficient_ids for hop in required)
+        required_support, missing_required = _resolved_required_support(plan, ledger)
+        all_required_sufficient = not missing_required
         exhausted = len(completed) >= state["max_hops"]
         blocked = bool(state.get("stop_reason"))
         done = all_required_sufficient or exhausted or blocked or not pending
@@ -1006,7 +1175,15 @@ class LlamaIndexAgenticController:
             hop_id: [SearchResult.model_validate(item) for item in items]
             for hop_id, items in state.get("hop_results", {}).items()
         }
-        final_results = assemble_agent_context(state["query"], hop_result_sets, limit=10)
+        final_results = assemble_agent_context(
+            state["query"],
+            hop_result_sets,
+            limit=10,
+            evidence_ledger=ledger,
+            required_hop_ids=[hop.hop_id for hop in required],
+        )
+        context_coverage = _context_coverage(required_support, final_results)
+        all_required_sufficient = all_required_sufficient and context_coverage["all_required_claims_retained"]
         stop_reason = (
             "sufficient"
             if all_required_sufficient
@@ -1024,6 +1201,8 @@ class LlamaIndexAgenticController:
             "completed_hops": completed,
             "pending_hops": pending,
             "evidence_ledger": ledger,
+            "required_claim_support": required_support,
+            "context_assembly": context_coverage,
             "sufficient": all_required_sufficient,
             "stop_reason": stop_reason,
             "duration_ms": duration_ms,
@@ -1152,15 +1331,23 @@ def compare_agentic_backends(
         ("llamaindex", build_llamaindex_agentic_retriever),
     ):
         started = perf_counter()
-        state = factory(use_llm=use_llm).invoke(
-            {
-                "query": query,
-                "corpus_ids": corpus_ids,
-                "filters": filters,
-                "max_hops": max_hops,
-            }
-        )
+        with capture_ollama_usage() as usage_events:
+            state = factory(use_llm=use_llm).invoke(
+                {
+                    "query": query,
+                    "corpus_ids": corpus_ids,
+                    "filters": filters,
+                    "max_hops": max_hops,
+                }
+            )
         elapsed_ms = round((perf_counter() - started) * 1000, 2)
+        usage = summarize_ollama_usage(usage_events)
+        trace = dict(state.get("retrieval_trace", {}))
+        trace["cost"] = {
+            **dict(trace.get("cost") or {}),
+            **usage,
+            "measured": True,
+        }
         outputs[backend] = {
             "elapsed_ms": elapsed_ms,
             "sufficient": state.get("sufficient", False),
@@ -1170,7 +1357,7 @@ def compare_agentic_backends(
                 {item["source_document_id"] for item in state.get("retrieval_results", [])}
             ),
             "results": list(state.get("retrieval_results", [])),
-            "trace": state.get("retrieval_trace", {}),
+            "trace": trace,
         }
     outputs["equivalent_result_chunks"] = (
         outputs["langgraph"]["result_chunk_ids"] == outputs["llamaindex"]["result_chunk_ids"]

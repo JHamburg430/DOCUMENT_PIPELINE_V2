@@ -39,7 +39,7 @@ def test_agent_evaluation_scores_each_requested_layer():
         results=[{"chunk_id": "orientation", "source_document_id": "doc-a"}],
         answer={
             "answer": "The cable is OP-26487 and it is straight.",
-            "citations": [{"chunk_id": "orientation"}],
+            "citations": [{"chunk_id": "identify"}, {"chunk_id": "orientation"}],
         },
     )
 

@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 import uuid
+from copy import deepcopy
 from json import dumps
 from http.client import RemoteDisconnected
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -86,6 +87,11 @@ RESULT_STAGE_STEPS = {
 AGENT_MATRIX_REPORT = TEST_REPORTS_DIR / "agent_evaluation_matrix_latest.json"
 AGENT_MATRIX_JOBS: dict[str, dict] = {}
 AGENT_MATRIX_LOCK = Lock()
+AGENT_LIVE_JOBS: dict[str, dict] = {}
+AGENT_LIVE_LOCK = Lock()
+AGENT_LIVE_LATEST_ID: str | None = None
+AGENT_LIVE_JOB_LIMIT = 10
+UI_AUTH_TOKEN = os.getenv("MANUALS_RAG_AUTH_TOKEN", "admin-token")
 
 
 class MatrixJobCancelled(RuntimeError):
@@ -108,6 +114,12 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/local/agent-runs/jobs/"):
+            self._local_agent_live_job(parsed.path.rsplit("/", 1)[-1])
+            return
+        if parsed.path == "/local/agent-runs/current":
+            self._local_current_agent_live_job()
+            return
         if parsed.path.startswith("/local/agent-matrix/jobs/"):
             self._local_agent_matrix_job(parsed.path.rsplit("/", 1)[-1])
             return
@@ -136,6 +148,9 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/local/agent-runs/run":
+            self._start_local_agent_live_run()
+            return
         if parsed.path == "/local/agent-matrix/run":
             self._start_local_agent_matrix_run()
             return
@@ -300,6 +315,55 @@ class ManualsRagUiHandler(SimpleHTTPRequestHandler):
             self._write(payload)
         except Exception as error:
             payload = dumps({"detail": f"Agent matrix lookup failed: {error.__class__.__name__}: {error}"}).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+
+    def _local_current_agent_live_job(self) -> None:
+        with AGENT_LIVE_LOCK:
+            job = deepcopy(AGENT_LIVE_JOBS.get(AGENT_LIVE_LATEST_ID) or {})
+        payload = json.dumps({"job": job or None}, default=str).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self._write(payload)
+
+    def _local_agent_live_job(self, job_id: str) -> None:
+        with AGENT_LIVE_LOCK:
+            job = deepcopy(AGENT_LIVE_JOBS.get(job_id) or {})
+        if not job:
+            self.send_error(404, "Agent run job not found")
+            return
+        payload = json.dumps(job, default=str).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self._write(payload)
+
+    def _start_local_agent_live_run(self) -> None:
+        try:
+            content_length = int(self.headers.get("Content-Length") or "0")
+            body = self.rfile.read(content_length) if content_length else b"{}"
+            job = _start_agent_live_job(json.loads(body.decode("utf-8") or "{}"))
+            payload = json.dumps(job, default=str).encode("utf-8")
+            self.send_response(202)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except ValueError as error:
+            payload = dumps({"detail": str(error)}).encode("utf-8")
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self._write(payload)
+        except Exception as error:
+            payload = dumps({"detail": f"Agent run failed to start: {error.__class__.__name__}: {error}"}).encode("utf-8")
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
@@ -514,7 +578,7 @@ def _read_jsonl(path: Path) -> list[dict]:
 
 def _build_agent_matrix() -> dict:
     report = _read_json(AGENT_MATRIX_REPORT) if AGENT_MATRIX_REPORT.exists() else {}
-    dataset_value = str(report.get("dataset") or "tests/fixtures/agentic_dependent_retrieval_eval.jsonl")
+    dataset_value = str(report.get("dataset") or "tests/fixtures/agentic_retrieval_eval_matrix_v1.jsonl")
     dataset_path = Path(dataset_value)
     if not dataset_path.is_absolute():
         dataset_path = MANUALS_ROOT / dataset_path
@@ -530,6 +594,12 @@ def _build_agent_matrix() -> dict:
                 "case_id": case_id,
                 "question": case.get("query") or "",
                 "retrieval_task": case.get("retrieval_task") or "",
+                "agent_case_category": (
+                    (case.get("expected_evidence_graph") or {}).get("category")
+                    or (case.get("source_metadata") or {}).get("agent_case_category")
+                    or "unknown"
+                ),
+                "expected_graph_mode": (case.get("expected_evidence_graph") or {}).get("mode") or "",
                 "expected_evidence_count": len(case.get("expected_evidence") or []),
                 "expected_document_count": len(
                     {
@@ -546,10 +616,13 @@ def _build_agent_matrix() -> dict:
             }
         )
     return {
-        "schema": "manuals-rag-agent-evaluation-matrix-v1",
+        "schema": "manuals-rag-agent-evaluation-matrix-v2",
         "dataset": str(dataset_path.relative_to(MANUALS_ROOT)) if dataset_path.is_relative_to(MANUALS_ROOT) else str(dataset_path),
         "generated_at": AGENT_MATRIX_REPORT.stat().st_mtime if AGENT_MATRIX_REPORT.exists() else None,
         "summary": report.get("summary") or {},
+        "category_summary": report.get("category_summary") or {},
+        "category_counts": report.get("category_counts") or {},
+        "dataset_sha256": report.get("dataset_sha256"),
         "rows": rows,
         "layers": [
             "tool_selection",
@@ -564,7 +637,7 @@ def _build_agent_matrix() -> dict:
 
 
 def _start_agent_matrix_job(payload: dict) -> dict:
-    dataset_value = str(payload.get("dataset") or "tests/fixtures/agentic_dependent_retrieval_eval.jsonl")
+    dataset_value = str(payload.get("dataset") or "tests/fixtures/agentic_retrieval_eval_matrix_v1.jsonl")
     dataset_path = (MANUALS_ROOT / dataset_value).resolve()
     if not dataset_path.is_relative_to(MANUALS_ROOT) or not dataset_path.exists():
         raise ValueError("Agent matrix dataset must be an existing file inside the repository.")
@@ -595,6 +668,145 @@ def _start_agent_matrix_job(payload: dict) -> dict:
         AGENT_MATRIX_JOBS[job_id] = job
     Thread(target=_run_agent_matrix_job, args=(job_id, dataset_path), daemon=True).start()
     return dict(job)
+
+
+def _start_agent_live_job(payload: dict) -> dict:
+    global AGENT_LIVE_LATEST_ID
+    query = str(payload.get("query") or "").strip()
+    if not query:
+        raise ValueError("Agent query is required.")
+    requested_backends = payload.get("backends") or ["langgraph_agent", "llamaindex_agent"]
+    if isinstance(requested_backends, str):
+        requested_backends = [requested_backends]
+    allowed_backends = {"langgraph_agent", "llamaindex_agent"}
+    backends = [str(item) for item in requested_backends if str(item) in allowed_backends]
+    if not backends or len(backends) != len(requested_backends):
+        raise ValueError("Agent backends must be langgraph_agent and/or llamaindex_agent.")
+    corpus_ids = payload.get("corpus_ids") or [DEFAULT_CORPUS_ID]
+    if isinstance(corpus_ids, str):
+        corpus_ids = [item.strip() for item in corpus_ids.split(",") if item.strip()]
+    corpus_ids = [str(item).strip() for item in corpus_ids if str(item).strip()]
+    if not corpus_ids:
+        corpus_ids = [DEFAULT_CORPUS_ID]
+    max_hops = _as_positive_int(payload.get("max_retrieval_hops"), 4, maximum=8)
+    with AGENT_LIVE_LOCK:
+        active = next((job for job in AGENT_LIVE_JOBS.values() if job.get("status") in {"queued", "running"}), None)
+        if active:
+            raise ValueError(f"Agent run {active['id']} is already active; this page can reattach to it.")
+        job_id = f"agent-run-{uuid.uuid4().hex[:12]}"
+        started_epoch = time.time()
+        job = {
+            "id": job_id,
+            "status": "queued",
+            "query": query,
+            "corpus_ids": corpus_ids,
+            "backends": backends,
+            "max_retrieval_hops": max_hops,
+            "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started_epoch)),
+            "started_at_epoch": started_epoch,
+            "completed_at": None,
+            "completed_at_epoch": None,
+            "runs": {
+                backend: {"backend": backend, "status": "queued", "events": [], "error": None}
+                for backend in backends
+            },
+            "error": None,
+        }
+        AGENT_LIVE_JOBS[job_id] = job
+        AGENT_LIVE_LATEST_ID = job_id
+        while len(AGENT_LIVE_JOBS) > AGENT_LIVE_JOB_LIMIT:
+            oldest = next(iter(AGENT_LIVE_JOBS))
+            if oldest == job_id:
+                break
+            AGENT_LIVE_JOBS.pop(oldest, None)
+        snapshot = deepcopy(job)
+    Thread(target=_run_agent_live_job, args=(job_id,), daemon=True).start()
+    return snapshot
+
+
+def _run_agent_live_backend(job_id: str, backend: str, request_payload: dict) -> None:
+    with AGENT_LIVE_LOCK:
+        run = AGENT_LIVE_JOBS[job_id]["runs"][backend]
+        run["status"] = "running"
+    body = json.dumps({**request_payload, "retrieval_orchestrator": backend}).encode("utf-8")
+    request = Request(
+        f"{API_BASE}/query/stream",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {UI_AUTH_TOKEN}",
+            "Content-Type": "application/json",
+            "Accept": "application/x-ndjson",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=900) as response:
+            for raw_line in response:
+                line = raw_line.decode("utf-8", errors="replace").strip()
+                if not line:
+                    continue
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                event["received_at_epoch"] = time.time()
+                with AGENT_LIVE_LOCK:
+                    run = AGENT_LIVE_JOBS[job_id]["runs"][backend]
+                    run["events"].append(event)
+                    if event.get("event") == "run_completed":
+                        run["status"] = "completed"
+                    elif event.get("event") == "run_failed":
+                        run["status"] = "failed"
+                        run["error"] = event.get("error")
+        with AGENT_LIVE_LOCK:
+            run = AGENT_LIVE_JOBS[job_id]["runs"][backend]
+            if run["status"] == "running":
+                run["status"] = "failed"
+                run["error"] = "Agent stream ended without a completion event."
+                run["events"].append({
+                    "event": "run_failed",
+                    "error": run["error"],
+                    "received_at_epoch": time.time(),
+                })
+    except Exception as error:
+        failure = f"{error.__class__.__name__}: {error}"
+        with AGENT_LIVE_LOCK:
+            run = AGENT_LIVE_JOBS[job_id]["runs"][backend]
+            run["status"] = "failed"
+            run["error"] = failure
+            run["events"].append({"event": "run_failed", "error": failure, "received_at_epoch": time.time()})
+
+
+def _run_agent_live_job(job_id: str) -> None:
+    with AGENT_LIVE_LOCK:
+        job = AGENT_LIVE_JOBS[job_id]
+        job["status"] = "running"
+        request_payload = {
+            "query": job["query"],
+            "corpus_ids": job["corpus_ids"],
+            "filters": {},
+            "response_mode": "answer_with_citations",
+            "max_retrieval_hops": job["max_retrieval_hops"],
+        }
+        backends = list(job["backends"])
+    workers = [
+        Thread(target=_run_agent_live_backend, args=(job_id, backend, request_payload), daemon=True)
+        for backend in backends
+    ]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join()
+    completed_epoch = time.time()
+    with AGENT_LIVE_LOCK:
+        job = AGENT_LIVE_JOBS[job_id]
+        job["status"] = "completed" if all(
+            run.get("status") == "completed" for run in job["runs"].values()
+        ) else "failed"
+        job["completed_at_epoch"] = completed_epoch
+        job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(completed_epoch))
+        failures = [run.get("error") for run in job["runs"].values() if run.get("error")]
+        job["error"] = "; ".join(failures) if failures else None
 
 
 def _run_agent_matrix_job(job_id: str, dataset_path: Path) -> None:

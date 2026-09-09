@@ -583,6 +583,7 @@ class RetrievalEvalCase:
     retrieval_task: str = "single_step_retrieval"
     expected_source_chunk_ids: list[str] | None = None
     expected_evidence: list[dict[str, Any]] | None = None
+    expected_evidence_graph: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

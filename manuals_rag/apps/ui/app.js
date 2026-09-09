@@ -2,7 +2,7 @@ const API_BASE = "/api";
 const AUTH = "Bearer admin-token";
 const DEFAULT_CORPUS = "manuals_vendor_keyence";
 const STORAGE_KEY = "manuals-rag-last-eval-result";
-const ASSET_VERSION = "20260907-agent-matrix";
+const ASSET_VERSION = "20260908-agent-sync";
 const MATRIX_GENERATION_DEFAULTS_KEY = "manuals-rag-matrix-generation-defaults";
 const MATRIX_GENERATION_DEFAULT_NUM_CTX = "4096";
 const MATRIX_GENERATION_LEGACY_DEFAULT_NUM_CTX = new Set(["32768"]);
@@ -40,7 +40,7 @@ const state = {
   },
   agentLab: {
     runs: {},
-    controllers: [],
+    job: null,
     timer: null,
   },
   agentMatrix: {
@@ -2593,8 +2593,8 @@ function renderAgentLab() {
   status.className = `status-pill ${running ? "running" : failed ? "fail" : "pass"}`;
 }
 
-function applyAgentEvent(run, event) {
-  event.receivedAt = performance.now();
+function applyAgentEvent(run, event, shouldRender = true) {
+  event.receivedAt ??= performance.now();
   run.events.push(event);
   if (event.policy) run.policy = event.policy;
   if (event.event === "plan_completed") run.plan = event.plan;
@@ -2626,37 +2626,71 @@ function applyAgentEvent(run, event) {
     run.error = event.error;
     run.completedAt = event.receivedAt;
   }
+  if (shouldRender) renderAgentLab();
+}
+
+function hydrateAgentLiveJob(job) {
+  if (!job) return;
+  state.agentLab.job = job;
+  const nowEpoch = Date.now() / 1000;
+  const startedEpoch = Number(job.started_at_epoch || nowEpoch);
+  const startedAt = performance.now() - Math.max(0, nowEpoch - startedEpoch) * 1000;
+  state.agentLab.runs = {};
+  Object.entries(job.runs || {}).forEach(([backend, snapshot]) => {
+    const run = {
+      backend,
+      status: snapshot.status === "queued" ? "running" : snapshot.status,
+      startedAt,
+      completedAt: job.completed_at_epoch
+        ? startedAt + Math.max(0, Number(job.completed_at_epoch) - startedEpoch) * 1000
+        : null,
+      events: [],
+      hops: {},
+      plan: null,
+      trace: null,
+      answer: null,
+      error: snapshot.error || null,
+    };
+    state.agentLab.runs[backend] = run;
+    (snapshot.events || []).forEach((rawEvent) => {
+      const event = { ...rawEvent };
+      event.receivedAt = event.received_at_epoch
+        ? startedAt + Math.max(0, Number(event.received_at_epoch) - startedEpoch) * 1000
+        : performance.now();
+      applyAgentEvent(run, event, false);
+    });
+    if (snapshot.status === "failed" && run.status !== "failed") {
+      applyAgentEvent(run, { event: "run_failed", error: snapshot.error || "Agent run failed." }, false);
+    }
+  });
+  $("agent-query").value = job.query || $("agent-query").value;
+  $("agent-corpus").value = (job.corpus_ids || []).join(", ") || $("agent-corpus").value;
+  $("agent-max-hops").value = job.max_retrieval_hops || $("agent-max-hops").value;
+  $("run-agent-test").disabled = ["queued", "running"].includes(job.status);
   renderAgentLab();
 }
 
-async function streamAgentBackend(backend, request, controller) {
-  const run = state.agentLab.runs[backend];
-  try {
-    const response = await apiFetch("/query/stream", {
-      method: "POST",
-      retry: false,
-      signal: controller.signal,
-      body: JSON.stringify({ ...request, retrieval_orchestrator: backend }),
-    });
-    if (!response.body) throw new Error("Streaming response body is unavailable in this browser.");
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { value, done } = await reader.read();
-      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        if (line.trim()) applyAgentEvent(run, JSON.parse(line));
-      }
-      if (done) break;
-    }
-    if (buffer.trim()) applyAgentEvent(run, JSON.parse(buffer));
-    if (run.status === "running") throw new Error("Agent stream ended without a completion event.");
-  } catch (error) {
-    if (error.name === "AbortError") return;
-    applyAgentEvent(run, { event: "run_failed", error: error.message });
+async function pollAgentLiveJob(jobId) {
+  if (state.agentLab.timer) clearTimeout(state.agentLab.timer);
+  const job = await localJson(`/local/agent-runs/jobs/${encodeURIComponent(jobId)}`);
+  hydrateAgentLiveJob(job);
+  if (["queued", "running"].includes(job.status)) {
+    state.agentLab.timer = setTimeout(() => pollAgentLiveJob(jobId).catch((error) => {
+      $("agent-lab-status").textContent = `Sync pending: ${error.message}`;
+      $("agent-lab-status").className = "status-pill running";
+    }), MATRIX_JOB_POLL_MS);
+    return;
+  }
+  state.agentLab.timer = null;
+  $("run-agent-test").disabled = false;
+}
+
+async function loadAgentLiveJob() {
+  const payload = await localJson("/local/agent-runs/current");
+  if (!payload.job) return;
+  hydrateAgentLiveJob(payload.job);
+  if (["queued", "running"].includes(payload.job.status)) {
+    await pollAgentLiveJob(payload.job.id);
   }
 }
 
@@ -2667,8 +2701,6 @@ async function runAgentTest() {
     $("agent-lab-status").className = "status-pill fail";
     return;
   }
-  state.agentLab.controllers.forEach((controller) => controller.abort());
-  state.agentLab.controllers = [];
   const selected = $("agent-backend").value;
   const backends = selected === "compare" ? ["langgraph_agent", "llamaindex_agent"] : [selected];
   const startedAt = performance.now();
@@ -2685,21 +2717,14 @@ async function runAgentTest() {
   }]));
   $("run-agent-test").disabled = true;
   renderAgentLab();
-  const request = {
+  const job = await localPostJson("/local/agent-runs/run", {
     query,
     corpus_ids: splitList($("agent-corpus").value || DEFAULT_CORPUS),
-    filters: {},
-    response_mode: "answer_with_citations",
+    backends,
     max_retrieval_hops: Math.max(1, Math.min(8, Number($("agent-max-hops").value || 4))),
-  };
-  const tasks = backends.map((backend) => {
-    const controller = new AbortController();
-    state.agentLab.controllers.push(controller);
-    return streamAgentBackend(backend, request, controller);
   });
-  await Promise.allSettled(tasks);
-  $("run-agent-test").disabled = false;
-  renderAgentLab();
+  hydrateAgentLiveJob(job);
+  await pollAgentLiveJob(job.id);
 }
 
 const AGENT_MATRIX_LAYERS = [
@@ -2726,11 +2751,13 @@ function renderAgentMatrix(payload) {
   $("agent-matrix-dataset").value = payload.dataset || $("agent-matrix-dataset").value;
   const rows = payload.rows || [];
   const summary = payload.summary || {};
+  const categoryCounts = payload.category_counts || {};
   $("agent-matrix-summary").className = "matrix-summary";
   $("agent-matrix-summary").innerHTML = `
     <article class="matrix-stat"><span>Questions</span><strong>${rows.length}</strong><small>${escapeHtml(payload.dataset || "")}</small></article>
     <article class="matrix-stat"><span>LangGraph passed</span><strong>${escapeHtml(summary.langgraph?.agent_matrix_passed ?? "—")}</strong><small>complete agent rows</small></article>
     <article class="matrix-stat"><span>LlamaIndex passed</span><strong>${escapeHtml(summary.llamaindex?.agent_matrix_passed ?? "—")}</strong><small>complete agent rows</small></article>
+    <article class="matrix-stat"><span>Coverage</span><strong>${Object.keys(categoryCounts).length || "—"}</strong><small>${escapeHtml(Object.entries(categoryCounts).map(([key, value]) => `${key}: ${value}`).join(" · ") || "categories pending")}</small></article>
   `;
   if (!rows.length) {
     $("agent-matrix-table").innerHTML = '<div class="empty-state">The selected dataset has no questions.</div>';
@@ -2739,10 +2766,11 @@ function renderAgentMatrix(payload) {
   }
   $("agent-matrix-table").innerHTML = `
     <table class="matrix-grid agent-matrix-grid">
-      <thead><tr><th>#</th><th>Question</th>${AGENT_MATRIX_LAYERS.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join("")}</tr></thead>
+      <thead><tr><th>#</th><th>Category</th><th>Question</th>${AGENT_MATRIX_LAYERS.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join("")}</tr></thead>
       <tbody>${rows.map((row) => `
         <tr class="clickable${row.case_id === state.agentMatrix.selectedCaseId ? " selected-row" : ""}" data-agent-matrix-case="${escapeHtml(row.case_id)}">
           <td>${row.number}</td>
+          <td><span class="status-pill">${escapeHtml(row.agent_case_category)}</span><small>${escapeHtml(row.expected_graph_mode)}</small></td>
           <td class="matrix-text-cell"><strong>${escapeHtml(row.question)}</strong><small>${escapeHtml(row.retrieval_task)} · ${row.expected_evidence_count} evidence target(s) · ${row.expected_document_count} document(s)</small></td>
           ${AGENT_MATRIX_LAYERS.map(([key]) => `<td>${agentMatrixCell(row.result, key)}</td>`).join("")}
         </tr>
@@ -2767,6 +2795,7 @@ function renderAgentMatrixDetail() {
   $("agent-matrix-detail").innerHTML = `
     <section class="panel">
       <h3>${escapeHtml(row.question)}</h3>
+      <p class="muted">${escapeHtml(row.agent_case_category)} · expected ${escapeHtml(row.expected_graph_mode || "unspecified")} evidence graph</p>
       ${["langgraph", "llamaindex"].map((backend) => {
         const result = row.result[backend] || {};
         return `<details open><summary><strong>${escapeHtml(backend)}</strong> · ${result.agent_evaluation?.passed ? "PASS" : "FAIL"} · ${Number(result.elapsed_ms || 0).toFixed(0)} ms</summary>
@@ -2849,14 +2878,20 @@ async function loadHistory() {
 async function recoverAfterPageReturn() {
   if (document.visibilityState && document.visibilityState !== "visible") return;
   try {
-    await loadHistory();
-    if (document.querySelector(".tab.active")?.dataset.tab === "matrix") {
+    const activeTab = document.querySelector(".tab.active")?.dataset.tab;
+    if (activeTab === "matrix") {
       await loadQuestionMatrix();
     }
-    if (document.querySelector(".tab.active")?.dataset.tab === "ingestion") {
+    if (activeTab === "agent-lab") {
+      await Promise.all([loadAgentMatrix(), loadAgentLiveJob()]);
+    }
+    if (activeTab === "ingestion") {
       await loadIngestionStatus();
     }
-    setConnectionStatus(`API connected at ${API_BASE}`);
+    if (activeTab === "history") {
+      await loadHistory();
+    }
+    setConnectionStatus("UI synchronized");
   } catch (error) {
     setConnectionStatus(`API reconnect pending: ${error.message}`, isTransientFetchError(error) ? "idle" : "error");
   }
@@ -3142,8 +3177,12 @@ function setupTabs() {
       tab.classList.add("active");
       $(tab.dataset.tab).classList.add("active");
       if (tab.dataset.tab === "matrix") loadQuestionMatrix();
-      if (tab.dataset.tab === "agent-lab") loadAgentMatrix();
+      if (tab.dataset.tab === "agent-lab") {
+        loadAgentMatrix();
+        loadAgentLiveJob().catch(console.error);
+      }
       if (tab.dataset.tab === "ingestion") maybePollIngestion();
+      if (tab.dataset.tab === "history") loadHistory();
     });
   });
 }
@@ -3173,7 +3212,11 @@ async function init() {
   setupTabs();
   setupMatrixControls();
   $("run-query").addEventListener("click", runQuery);
-  $("run-agent-test").addEventListener("click", runAgentTest);
+  $("run-agent-test").addEventListener("click", () => runAgentTest().catch((error) => {
+    $("run-agent-test").disabled = false;
+    $("agent-lab-status").textContent = error.message;
+    $("agent-lab-status").className = "status-pill fail";
+  }));
   $("run-agent-matrix").addEventListener("click", () => runAgentMatrix().catch((error) => {
     $("run-agent-matrix").disabled = false;
     $("agent-matrix-status").textContent = error.message;
@@ -3199,16 +3242,16 @@ async function init() {
     visibleIds.forEach((id) => (allSelected ? state.ingestion.selectedDocumentIds.delete(id) : state.ingestion.selectedDocumentIds.add(id)));
     renderIngestion();
   });
-  try {
-    await loadHistory();
-    await loadIngestionStatus();
-    await loadQuestionMatrix();
-    await loadAgentMatrix();
-    state.ingestionTimer = setInterval(maybePollIngestion, 5000);
-    setConnectionStatus(`API connected at ${API_BASE}`);
-  } catch (error) {
-    setConnectionStatus(`API error: ${error.message}`, "error");
-  }
+  setConnectionStatus("UI ready · synchronizing active views");
+  state.ingestionTimer = setInterval(maybePollIngestion, 5000);
+  Promise.allSettled([loadQuestionMatrix(), loadAgentLiveJob()]).then((results) => {
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure) {
+      setConnectionStatus(`View sync pending: ${failure.reason?.message || failure.reason}`, "idle");
+      return;
+    }
+    setConnectionStatus("UI synchronized");
+  });
 }
 
 window.addEventListener("online", recoverAfterPageReturn);
