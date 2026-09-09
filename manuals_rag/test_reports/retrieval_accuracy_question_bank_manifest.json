@@ -209,7 +209,7 @@
       }
     },
     "manual_jsonl_inspection": "Inspected both visible answers, every citation, and cited returned content in retrieval_eval_20260904_120705. The positive directly states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the later-header control returns insufficient evidence and no citations.",
-    "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
+    "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Reconcile the dirty manifest without erasing durable coverage/history, then bind every requested error/model/side and evidence role to the same authoritative supporting row/chunk. Require exact-row positives plus wrong-error, sibling-row, cross-role, reversed-order, missing-side, neighboring-token, and mixed-higher-score negatives for both backends, followed by the focused/full gates, runtime-load proof, and manually inspected actual-API positive/negative answers and citations. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
     "scope": "retrieval_eval_20260904_120705 is a validation-only two-case rerun after a general requested-model answer-selector correction; active coverage and dataset ledger unchanged. Direct wrong-model API probes are diagnostic/not-clean."
   },
   "answer_grounding_sibling_rows_11_12": {
@@ -798,7 +798,7 @@
       "insufficient_evidence": 1
     },
     "manual_jsonl_inspection": "Inspected both 120705 payloads, every citation, and cited returned content. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The later-header control returns insufficient evidence with no citations.",
-    "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
+    "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Reconcile the dirty manifest without erasing durable coverage/history, then bind every requested error/model/side and evidence role to the same authoritative supporting row/chunk. Require exact-row positives plus wrong-error, sibling-row, cross-role, reversed-order, missing-side, neighboring-token, and mixed-higher-score negatives for both backends, followed by the focused/full gates, runtime-load proof, and manually inspected actual-API positive/negative answers and citations. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
     "latest_clean_run": "retrieval_eval_20260904_120705 FTP Connection Error positive only"
   },
   "constraints": {
@@ -9089,12 +9089,12 @@
       "removal_result": "not attempted; no worktree was selected",
       "registry_check": "108 total registrations; 107 absent/prunable; all 92 accuracy-owned registrations are absent; only the dirty primary checkout exists on disk",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
-      "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 1030 user/concurrent paths",
+      "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 1010 user/concurrent paths",
       "post_removal_registry_check": "not applicable; no removal attempted",
       "post_removal_path_check": "not applicable; no removal attempted",
       "post_removal_git_status_check": "not applicable; no removal attempted",
-      "timestamp": "2026-09-09T00:00:00Z",
-      "tracking_method": "tracking-only commit assembled from origin/main 5840cf6 with an isolated Git index; no worktree created",
+      "timestamp": "2026-09-09T05:00:00Z",
+      "tracking_method": "tracking-only commit assembled from origin/main 87c9484 with an isolated Git index; no worktree created",
       "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
     },
     "dataset_ledger_extension_containment": {
@@ -9220,12 +9220,12 @@
       "removal_result": "not attempted; no worktree was selected",
       "registry_check": "108 total registrations; 107 absent/prunable; all 92 accuracy-owned registrations are absent; only the dirty primary checkout exists on disk",
       "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
-      "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 1030 user/concurrent paths",
+      "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 1010 user/concurrent paths",
       "post_removal_registry_check": "not applicable; no removal attempted",
       "post_removal_path_check": "not applicable; no removal attempted",
       "post_removal_git_status_check": "not applicable; no removal attempted",
-      "timestamp": "2026-09-09T00:00:00Z",
-      "tracking_method": "tracking-only commit assembled from origin/main 5840cf6 with an isolated Git index; no worktree created",
+      "timestamp": "2026-09-09T05:00:00Z",
+      "tracking_method": "tracking-only commit assembled from origin/main 87c9484 with an isolated Git index; no worktree created",
       "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
     }
   },
@@ -9316,7 +9316,7 @@
       ]
     }
   ],
-  "next_target": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
+  "next_target": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Reconcile the dirty manifest without erasing durable coverage/history, then bind every requested error/model/side and evidence role to the same authoritative supporting row/chunk. Require exact-row positives plus wrong-error, sibling-row, cross-role, reversed-order, missing-side, neighboring-token, and mixed-higher-score negatives for both backends, followed by the focused/full gates, runtime-load proof, and manually inspected actual-API positive/negative answers and citations. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
   "partial_claim_citation_pruning_containment": {
     "actual_api_control": {
       "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -10279,7 +10279,7 @@
         }
       },
       "manual_jsonl_inspection": "Inspected both visible answers, every citation, and cited returned content in retrieval_eval_20260904_120705. The positive directly states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the later-header control returns insufficient evidence and no citations.",
-      "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
+      "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Reconcile the dirty manifest without erasing durable coverage/history, then bind every requested error/model/side and evidence role to the same authoritative supporting row/chunk. Require exact-row positives plus wrong-error, sibling-row, cross-role, reversed-order, missing-side, neighboring-token, and mixed-higher-score negatives for both backends, followed by the focused/full gates, runtime-load proof, and manually inspected actual-API positive/negative answers and citations. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
       "scope": "retrieval_eval_20260904_120705 is a validation-only two-case rerun after a general requested-model answer-selector correction; active coverage and dataset ledger unchanged. Direct wrong-model API probes are diagnostic/not-clean."
     },
     "answer_grounding_sibling_rows_15_16": {
@@ -10657,7 +10657,7 @@
         "insufficient_evidence": 1
       },
       "manual_jsonl_inspection": "Inspected both 120705 payloads, every citation, and cited returned content. The positive states the FTP-server-failed cause and cites exact pipe parent 38d26f5e with null quote span; the cited chunk directly supports the claim. The later-header control returns insufficient evidence with no citations.",
-      "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
+      "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Reconcile the dirty manifest without erasing durable coverage/history, then bind every requested error/model/side and evidence role to the same authoritative supporting row/chunk. Require exact-row positives plus wrong-error, sibling-row, cross-role, reversed-order, missing-side, neighboring-token, and mixed-higher-score negatives for both backends, followed by the focused/full gates, runtime-load proof, and manually inspected actual-API positive/negative answers and citations. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
       "latest_clean_run": "retrieval_eval_20260904_120705 FTP Connection Error positive only"
     },
     "current_answer_failure_categories": {
@@ -12915,12 +12915,12 @@
         "removal_result": "not attempted; no worktree was selected",
         "registry_check": "108 total registrations; 107 absent/prunable; all 92 accuracy-owned registrations are absent; only the dirty primary checkout exists on disk",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
-        "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 1030 user/concurrent paths",
+        "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 1010 user/concurrent paths",
         "post_removal_registry_check": "not applicable; no removal attempted",
         "post_removal_path_check": "not applicable; no removal attempted",
         "post_removal_git_status_check": "not applicable; no removal attempted",
-        "timestamp": "2026-09-09T00:00:00Z",
-        "tracking_method": "tracking-only commit assembled from origin/main 5840cf6 with an isolated Git index; no worktree created",
+        "timestamp": "2026-09-09T05:00:00Z",
+        "tracking_method": "tracking-only commit assembled from origin/main 87c9484 with an isolated Git index; no worktree created",
         "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
       },
       "dataset_ledger_extension_containment": {
@@ -13046,12 +13046,12 @@
         "removal_result": "not attempted; no worktree was selected",
         "registry_check": "108 total registrations; 107 absent/prunable; all 92 accuracy-owned registrations are absent; only the dirty primary checkout exists on disk",
         "path_check": "/tmp/manuals_rag_accuracy_20260901 and /tmp/manuals_rag_accuracy_20260902_tvhwHN/manuals_rag are absent",
-        "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 1030 user/concurrent paths",
+        "git_status_check": "dirty primary checkout preserved without job mutation; inspection snapshot had 1010 user/concurrent paths",
         "post_removal_registry_check": "not applicable; no removal attempted",
         "post_removal_path_check": "not applicable; no removal attempted",
         "post_removal_git_status_check": "not applicable; no removal attempted",
-        "timestamp": "2026-09-09T00:00:00Z",
-        "tracking_method": "tracking-only commit assembled from origin/main 5840cf6 with an isolated Git index; no worktree created",
+        "timestamp": "2026-09-09T05:00:00Z",
+        "tracking_method": "tracking-only commit assembled from origin/main 87c9484 with an isolated Git index; no worktree created",
         "blocker": "No registered accuracy-owned worktree exists on disk and accumulated permission-denied cleanup blockers prohibit replacement creation; production/eval work stopped fail-closed."
       }
     },
@@ -13144,7 +13144,7 @@
       }
     ],
     "multi_step_questions": 108,
-    "next_target": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
+    "next_target": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Reconcile the dirty manifest without erasing durable coverage/history, then bind every requested error/model/side and evidence role to the same authoritative supporting row/chunk. Require exact-row positives plus wrong-error, sibling-row, cross-role, reversed-order, missing-side, neighboring-token, and mixed-higher-score negatives for both backends, followed by the focused/full gates, runtime-load proof, and manually inspected actual-API positive/negative answers and citations. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
     "partial_claim_citation_pruning_containment": {
       "actual_api_control": {
         "limitation": "This run does not add a fabricated unsupported-extra-clause public-API injection. Loaded-runtime unit controls prove the changed fallback path; public API proof for synthetic bad generated clauses would require an approved general harness.",
@@ -13181,7 +13181,7 @@
       ],
       "updated_at": "2026-08-27T05:00:54Z"
     },
-    "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
+    "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Reconcile the dirty manifest without erasing durable coverage/history, then bind every requested error/model/side and evidence role to the same authoritative supporting row/chunk. Require exact-row positives plus wrong-error, sibling-row, cross-role, reversed-order, missing-side, neighboring-token, and mixed-higher-score negatives for both backends, followed by the focused/full gates, runtime-load proof, and manually inspected actual-API positive/negative answers and citations. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
     "retrieval_current_failure_categories": {},
     "run_exclusions": [
       {
@@ -14069,17 +14069,17 @@
     "total_questions": 209,
     "unresolved_guardrail_findings": [
       {
-        "finding": "Guardrail commit 96b78a7 and the latest audit through 2026-09-08T19:44:40-04:00 confirm that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
-        "guardrail_commit": "96b78a7",
-        "guardrail_timestamp": "2026-09-08T19:44:40-04:00",
+        "finding": "Guardrail commit 87c9484 and the latest audit at 2026-09-09T04:42:11Z confirm that Error 30109 requested-row/evidence binding remains unresolved: every requested error/model/side and evidence role must bind to the same authoritative supporting row/chunk before agent evidence-gating work can be accepted.",
+        "guardrail_commit": "87c9484",
+        "guardrail_timestamp": "2026-09-09T04:42:11Z",
         "severity": "needs_fix",
         "status": "blocked_fail_closed_no_registered_accuracy_worktree",
         "evidence": [
-          "Guardrail reproduced wrong-neighbor selection/citation and mixed higher-score suppression against exact durable accuracy commit 5840cf6.",
-          "The required registered accuracy-owned worktrees are absent; 107 of 108 registrations are absent/prunable and only the dirty primary checkout is present.",
+          "Latest guardrail audit against durable origin/main confirmed the existing requested-row/evidence binding defect remains unresolved.",
+          "All 92 registered accuracy-owned worktree paths are absent; only the dirty primary checkout exists on disk.",
           "Dedicated job API 127.0.0.1:9193 is unavailable; unrelated 127.0.0.1:8600 was not used as accuracy evidence."
         ],
-        "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree, reconcile the dirty manifest without erasing durable coverage/history, then bind requested-model compatibility to authoritative source identity and the exact supporting row before optional production work."
+        "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree, reconcile the dirty manifest without erasing durable coverage/history, then bind every requested error/model/side and evidence role to the same authoritative supporting row/chunk before optional production work."
       },
       {
         "finding": "Guardrail commit b9d4c9e found that c01314f single-step troubleshooting answer selection accepted a source row whose product/model conflicts with the model explicitly requested by the user.",
@@ -15736,9 +15736,9 @@
         "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
       }
     ],
-    "updated_at": "2026-09-09T00:00:00Z"
+    "updated_at": "2026-09-09T05:00:00Z"
   },
-  "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Then correct or safely revert the nearby-model selector by binding requested-model compatibility to authoritative source identity and the exact supporting row; run exact-model positive plus neighboring-token wrong-model, wrong-model-only, prefix-collision, absent-authoritative-model, and higher-score sibling negatives, followed by focused/full gates, runtime-load proof, and actual API positive/negative inspection. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
+  "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree without creating another serial throwaway path. Reconcile the dirty manifest without erasing durable coverage/history, then bind every requested error/model/side and evidence role to the same authoritative supporting row/chunk. Require exact-row positives plus wrong-error, sibling-row, cross-role, reversed-order, missing-side, neighboring-token, and mixed-higher-score negatives for both backends, followed by the focused/full gates, runtime-load proof, and manually inspected actual-API positive/negative answers and citations. Preserve retrieval_eval_20260904_120705, all diagnostics/exclusions, the Error 30109 ledger, and the dirty primary checkout.",
   "retrieval_current_failure_categories": {},
   "run_exclusions": [
     {
@@ -16625,17 +16625,17 @@
   "schema": "manuals_rag.retrieval_accuracy_question_bank_manifest.v1",
   "unresolved_guardrail_findings": [
     {
-      "finding": "Guardrail commit 96b78a7 and the latest audit through 2026-09-08T19:44:40-04:00 confirm that the requested-model selector still accepts a wrong-model structured row when neighboring content mentions the requested model, and can reject valid exact-model evidence when a higher-scored wrong-model row is also present.",
-      "guardrail_commit": "96b78a7",
-      "guardrail_timestamp": "2026-09-08T19:44:40-04:00",
+      "finding": "Guardrail commit 87c9484 and the latest audit at 2026-09-09T04:42:11Z confirm that Error 30109 requested-row/evidence binding remains unresolved: every requested error/model/side and evidence role must bind to the same authoritative supporting row/chunk before agent evidence-gating work can be accepted.",
+      "guardrail_commit": "87c9484",
+      "guardrail_timestamp": "2026-09-09T04:42:11Z",
       "severity": "needs_fix",
       "status": "blocked_fail_closed_no_registered_accuracy_worktree",
       "evidence": [
-        "Guardrail reproduced wrong-neighbor selection/citation and mixed higher-score suppression against exact durable accuracy commit 5840cf6.",
-        "The required registered accuracy-owned worktrees are absent; 107 of 108 registrations are absent/prunable and only the dirty primary checkout is present.",
+        "Latest guardrail audit against durable origin/main confirmed the existing requested-row/evidence binding defect remains unresolved.",
+        "All 92 registered accuracy-owned worktree paths are absent; only the dirty primary checkout exists on disk.",
         "Dedicated job API 127.0.0.1:9193 is unavailable; unrelated 127.0.0.1:8600 was not used as accuracy evidence."
       ],
-      "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree, reconcile the dirty manifest without erasing durable coverage/history, then bind requested-model compatibility to authoritative source identity and the exact supporting row before optional production work."
+      "remaining": "Establish exactly one safe reusable registered accuracy-owned worktree, reconcile the dirty manifest without erasing durable coverage/history, then bind every requested error/model/side and evidence role to the same authoritative supporting row/chunk before optional production work."
     },
     {
       "finding": "Guardrail commit b9d4c9e found that c01314f single-step troubleshooting answer selection accepted a source row whose product/model conflicts with the model explicitly requested by the user.",
@@ -18292,5 +18292,5 @@
       "remaining": "Continue the retrieval_eval_20260903_030603 answer-grounding target; the guardrail tracking inconsistency is resolved."
     }
   ],
-  "updated_at": "2026-09-09T00:00:00Z"
+  "updated_at": "2026-09-09T05:00:00Z"
 }
