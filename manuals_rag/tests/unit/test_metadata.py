@@ -1,5 +1,8 @@
+import pytest
+
 from manuals_rag_parsers.metadata import (
     LIST_FIELD_INSTRUCTIONS,
+    MetadataExtractionIncomplete,
     MetadataExtraction,
     MetadataSourceSegment,
     infer_document_metadata,
@@ -218,3 +221,231 @@ def test_metadata_segment_packing_covers_the_full_document():
     batches = pack_metadata_source_segments(segments, max_chars=80)
     pages = [segment.page_from for batch in batches for segment in batch]
     assert pages == list(range(1, 8))
+
+
+def test_scalar_metadata_normalizes_array_shape_dates_and_kind_synonyms(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: ([{"title": "Release Notes", "document_kind": "release_notes", "revision_date": "2025/04/22", "effective_date": "null"}], "[]"),
+    )
+
+    metadata = infer_document_metadata("release.pdf", "Release Notes\n2025/04/22")
+
+    assert metadata.document_kind.value == "release_note"
+    assert metadata.revision_date.isoformat() == "2025-04-22"
+    assert metadata.effective_date == metadata.revision_date
+
+
+def test_scoped_metadata_retries_and_accepts_top_level_array_and_entity_alias(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="CV-X Manual"),
+    )
+    calls = 0
+
+    def fake_chat_json(**kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return ("truncated", "truncated")
+        return (
+            [
+                {
+                    "entity": "CV-X482",
+                    "entity_type": "product_model",
+                    "relation": "primary_product",
+                    "evidence": "CV-X482 vision controller",
+                    "confidence": 0.97,
+                }
+            ],
+            "[]",
+        )
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        "cvx.pdf",
+        [MetadataSourceSegment("CV-X482 vision controller", 1, 1)],
+    )
+
+    assert calls == 2
+    assert metadata.routing_product_models == ["CV-X482"]
+    assert metadata.product_model == "CV-X482"
+
+
+def test_version_bearing_batch_gets_focused_completeness_pass(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="Compatibility"),
+    )
+    purposes = []
+
+    def fake_chat_json(**kwargs):
+        purposes.append(kwargs["purpose"])
+        if kwargs["purpose"] == "metadata_extraction.scoped_entities":
+            return ({"entities": []}, "{}")
+        return (
+            {
+                "entities": [
+                    {
+                        "value": "3.14",
+                        "kind": "firmware_version",
+                        "relation": "applies_to",
+                        "subject": "LJ-V7001",
+                        "source_quote": "LJ-V7001 firmware version 3.14 or later",
+                        "confidence": 0.96,
+                    },
+                    {
+                        "value": "3.1",
+                        "kind": "software_version",
+                        "relation": "external_reference",
+                        "subject": "TwinCAT",
+                        "source_quote": "TwinCAT software version 3.1 is required",
+                        "confidence": 0.94,
+                    },
+                ]
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        "compatibility.pdf",
+        [
+            MetadataSourceSegment(
+                "LJ-V7001 firmware version 3.14 or later. TwinCAT software version 3.1 is required.",
+                44,
+                44,
+            )
+        ],
+    )
+
+    assert "metadata_extraction.version_applicability" in purposes
+    assert metadata.firmware_applicability[0]["subject"] == "LJ-V7001"
+    assert metadata.software_applicability == []
+    assert any(
+        item["kind"] == "software_version" and item["relation"] == "external_reference"
+        for item in metadata.metadata_evidence
+    )
+
+
+def test_unresolved_critical_version_batch_fails_instead_of_silently_degrading(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="Compatibility"),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: ({"entities": []}, "{}"),
+    )
+
+    with pytest.raises(MetadataExtractionIncomplete, match="missing grounded"):
+        infer_document_metadata_from_segments(
+            "compatibility.pdf",
+            [MetadataSourceSegment("Controller firmware version 5.0 or later is required.", 8, 8)],
+        )
+
+
+def test_repeated_footer_document_code_cannot_become_routing_product(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(
+            product_model="CV-X UM_A",
+            product_models=["CV-X UM_A"],
+            document_kind="manual",
+            title="CV-X Manual",
+        ),
+    )
+
+    def fake_chat_json(**kwargs):
+        return (
+            {
+                "entities": [
+                    {
+                        "value": "CV-X UM_A",
+                        "kind": "product_model",
+                        "relation": "primary_product",
+                        "source_quote": "CV-X UM_A",
+                        "confidence": 0.99,
+                    },
+                    {
+                        "value": "CV-X482",
+                        "kind": "product_model",
+                        "relation": "applies_to",
+                        "source_quote": "CV-X482 vision controller",
+                        "confidence": 0.95,
+                    },
+                ]
+            },
+            "{}",
+        )
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        "cvx.pdf",
+        [
+            MetadataSourceSegment(f"CV-X UM_A\nPage {page}\n" + ("CV-X482 vision controller" if page == 1 else ""), page, page)
+            for page in range(1, 5)
+        ],
+    )
+
+    assert metadata.routing_product_models == ["CV-X482"]
+    assert metadata.product_model != "CV-X UM_A"
+    assert "CVXUMA" not in metadata.normalized_identifier_aliases
+
+
+def test_exhausted_malformed_scoped_batch_is_quarantined(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="Manual"),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: ("truncated", "truncated"),
+    )
+
+    with pytest.raises(MetadataExtractionIncomplete, match="exhausted retries"):
+        infer_document_metadata_from_segments("manual.pdf", [MetadataSourceSegment("ordinary setup text", 1, 1)])
+
+
+def test_truncated_large_batch_is_bisected_and_recovered(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="Manual"),
+    )
+
+    def fake_chat_json(**kwargs):
+        source = kwargs["messages"][1]["content"]
+        has_a = "A-100 controller" in source
+        has_b = "B-200 controller" in source
+        if has_a and has_b:
+            return ("truncated", "truncated")
+        entities = []
+        if has_a:
+            entities.append(
+                {
+                    "value": "A-100",
+                    "kind": "product_model",
+                    "relation": "applies_to",
+                    "source_quote": "A-100 controller",
+                    "confidence": 0.95,
+                }
+            )
+        if has_b:
+            entities.append(
+                {
+                    "value": "B-200",
+                    "kind": "product_model",
+                    "relation": "applies_to",
+                    "source_quote": "B-200 controller",
+                    "confidence": 0.95,
+                }
+            )
+        return ({"entities": entities}, "{}")
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        "manual.pdf",
+        [MetadataSourceSegment("A-100 controller\n" + "x" * 2200 + "\nB-200 controller", 1, 1)],
+    )
+
+    assert metadata.routing_product_models == ["A-100", "B-200"]

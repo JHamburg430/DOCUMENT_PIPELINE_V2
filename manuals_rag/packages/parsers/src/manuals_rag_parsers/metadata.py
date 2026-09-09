@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from datetime import date
+from datetime import date, datetime
 import logging
 import re
 from typing import Any
@@ -64,6 +64,34 @@ SCOPED_METADATA_RELATIONS = {
     "document_revision",
 }
 DEFAULT_METADATA_SEGMENT_CHARS = 12000
+METADATA_EXTRACTION_ATTEMPTS = 3
+PRIMARY_ENTITY_MIN_CONFIDENCE = 0.8
+
+DOCUMENT_KIND_ALIASES = {
+    "user_manual": "manual",
+    "user_guide": "manual",
+    "instruction_manual": "manual",
+    "release_notes": "release_note",
+    "release_notes_document": "release_note",
+    "data_sheet": "datasheet",
+    "specification_sheet": "spec_sheet",
+}
+
+VERSION_SIGNAL_PATTERNS = {
+    "firmware_version": re.compile(
+        r"\b(?:firmware|fw)\b.{0,80}?\b(?:v(?:er(?:sion)?)?\.?\s*)?\d+(?:\.\d+){0,3}\b",
+        re.IGNORECASE | re.DOTALL,
+    ),
+    "software_version": re.compile(
+        r"\b(?:software|application|tool|studio|explorer|twincat|sysmac)\b.{0,80}?"
+        r"\b(?:v(?:er(?:sion)?)?\.?\s*)\d+(?:\.\d+){0,3}\b",
+        re.IGNORECASE | re.DOTALL,
+    ),
+}
+
+
+class MetadataExtractionIncomplete(RuntimeError):
+    """Raised when critical metadata evidence cannot be extracted safely."""
 
 
 @dataclass(frozen=True)
@@ -109,13 +137,26 @@ class ScopedMetadataCandidate(BaseModel):
     relation: str = "mentioned"
     subject: str | None = None
     source_quote: str
-    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    confidence: float = Field(ge=0.0, le=1.0)
 
     @model_validator(mode="before")
     @classmethod
     def _accept_entity_type_alias(cls, value: Any) -> Any:
-        if isinstance(value, dict) and "kind" not in value and "entity_type" in value:
-            return {**value, "kind": value["entity_type"]}
+        if isinstance(value, dict):
+            normalized = dict(value)
+            if "value" not in normalized:
+                for alias in ("name", "entity"):
+                    if normalized.get(alias) not in (None, ""):
+                        normalized["value"] = normalized[alias]
+                        break
+            if "kind" not in normalized and "entity_type" in normalized:
+                normalized["kind"] = normalized["entity_type"]
+            if "source_quote" not in normalized:
+                for alias in ("quote", "evidence"):
+                    if normalized.get(alias) not in (None, ""):
+                        normalized["source_quote"] = normalized[alias]
+                        break
+            return normalized
         return value
 
 
@@ -168,7 +209,7 @@ class MetadataExtraction(BaseModel):
     @field_validator("revision_date", "effective_date", mode="before")
     @classmethod
     def _coerce_optional_date(cls, value: Any) -> Any:
-        if value in (None, ""):
+        if value in (None, "") or str(value).strip().casefold() in {"null", "none", "unknown", "n/a"}:
             return None
         return value
 
@@ -182,11 +223,27 @@ class ScalarMetadataExtraction(BaseModel):
     revision_date: date | None = None
     effective_date: date | None = None
 
+    @field_validator("document_kind", mode="before")
+    @classmethod
+    def _normalize_document_kind(cls, value: Any) -> Any:
+        if value in (None, ""):
+            return DocumentKind.manual
+        normalized = re.sub(r"[^a-z0-9]+", "_", str(value).strip().casefold()).strip("_")
+        return DOCUMENT_KIND_ALIASES.get(normalized, normalized)
+
     @field_validator("revision_date", "effective_date", mode="before")
     @classmethod
     def _coerce_optional_date(cls, value: Any) -> Any:
-        if value in (None, ""):
+        if value in (None, "") or str(value).strip().casefold() in {"null", "none", "unknown", "n/a"}:
             return None
+        if isinstance(value, date):
+            return value
+        normalized = str(value).strip()
+        for pattern in ("%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%Y.%m.%d"):
+            try:
+                return datetime.strptime(normalized, pattern).date()
+            except ValueError:
+                continue
         return value
 
 
@@ -250,7 +307,8 @@ def _scoped_prompt_messages(filename: str, text: str) -> list[dict[str, str]]:
                 "Do not infer an entity from a filename or from general knowledge. "
                 "Classify references to another controller, PLC, accessory, example vendor, or host software "
                 "as external_reference unless the excerpt explicitly says it applies to the manual's primary product. "
-                "Never attach a firmware or software version to a product unless the quote establishes that scope."
+                "Never attach a firmware or software version to a product unless the quote establishes that scope. "
+                "Every entity must include a calibrated confidence from 0 to 1; do not use a fixed default."
             ),
         },
         {
@@ -263,6 +321,30 @@ def _scoped_prompt_messages(filename: str, text: str) -> list[dict[str, str]]:
                 "external_reference, mentioned, document_revision. For firmware_version and software_version, subject "
                 "must name the product or software that the quote binds the version to; omit the entity if scope is unclear. "
                 "Use primary_manufacturer or primary_product only when the excerpt explicitly identifies the document owner/product."
+            ),
+        },
+    ]
+
+
+def _version_prompt_messages(filename: str, text: str, expected_kinds: set[str]) -> list[dict[str, str]]:
+    labels = ", ".join(sorted(expected_kinds))
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You extract version applicability from a page-aware manual excerpt. Return only JSON. "
+                "Extract every explicit firmware/software version statement, including minimums, maximums, "
+                "unsupported ranges, requirements, and external PLC/controller dependencies. Each item needs an "
+                "exact source_quote, a subject, a calibrated confidence, and the correct relationship. "
+                "External product requirements must use external_reference. Do not invent a subject."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"FILENAME (context only; not evidence): {filename}\n\n{text}\n\n"
+                f"The source has lexical signals for: {labels}. Return all grounded firmware_version and "
+                "software_version entities. Use relation applies_to, compatible_with, external_reference, or mentioned."
             ),
         },
     ]
@@ -340,20 +422,46 @@ def _scalar_metadata_schema() -> dict[str, Any]:
     return schema
 
 
+def _normalize_object_response(parsed: Any, *, collection_key: str | None = None) -> dict[str, Any]:
+    """Tolerate common model JSON shape drift without weakening field validation."""
+    if isinstance(parsed, dict):
+        if collection_key and collection_key not in parsed:
+            for alias in ("items", "results", "metadata", "entities"):
+                if isinstance(parsed.get(alias), list):
+                    return {collection_key: parsed[alias]}
+        return parsed
+    if isinstance(parsed, list):
+        if collection_key:
+            return {collection_key: parsed}
+        if len(parsed) == 1 and isinstance(parsed[0], dict):
+            return parsed[0]
+    raise ValueError(f"Expected a JSON object, received {type(parsed).__name__}")
+
+
 def _extract_scalar_metadata(filename: str, text: str) -> ScalarMetadataExtraction:
-    try:
-        parsed, _raw = chat_json(
-            model=settings.ollama_metadata_model,
-            messages=_scalar_prompt_messages(filename, text),
-            json_schema=_scalar_metadata_schema(),
-            think=False,
-            purpose="metadata_extraction",
-            num_predict=240,
-        )
-        return ScalarMetadataExtraction.model_validate(parsed)
-    except Exception as exc:
-        logger.warning("Scalar metadata extraction failed for %s; using empty scalar metadata: %s", filename, exc)
-        return ScalarMetadataExtraction(title=_normalize_title(filename))
+    last_error: Exception | None = None
+    for attempt in range(1, METADATA_EXTRACTION_ATTEMPTS + 1):
+        try:
+            parsed, _raw = chat_json(
+                model=settings.ollama_metadata_model,
+                messages=_scalar_prompt_messages(filename, text),
+                json_schema=_scalar_metadata_schema(),
+                think=False,
+                purpose="metadata_extraction",
+                num_predict=320,
+            )
+            return ScalarMetadataExtraction.model_validate(_normalize_object_response(parsed))
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "Scalar metadata extraction attempt %s/%s failed for %s: %s",
+                attempt,
+                METADATA_EXTRACTION_ATTEMPTS,
+                filename,
+                exc,
+            )
+    logger.warning("Scalar metadata extraction exhausted retries for %s; using filename title: %s", filename, last_error)
+    return ScalarMetadataExtraction(title=_normalize_title(filename))
 
 
 def _value_is_grounded(value: str, source: str) -> bool:
@@ -416,20 +524,34 @@ def _ground_date(value: date | None, filename: str, text: str) -> date | None:
 
 
 def _extract_list_field(field_name: str, filename: str, text: str) -> list[str]:
-    try:
-        parsed, _raw = chat_json(
-            model=settings.ollama_metadata_model,
-            messages=_list_prompt_messages(field_name, filename, text),
-            json_schema=_list_field_schema(field_name),
-            think=False,
-            purpose=f"metadata_extraction.{field_name}",
-            num_predict=160,
-        )
-    except Exception as exc:
-        logger.warning("List metadata extraction failed for %s field=%s; using empty list: %s", filename, field_name, exc)
-        return []
-    values = MetadataExtraction._coerce_list(parsed.get(field_name))
-    return _dedupe_preserve_order(_ground_values(field_name, values, filename, text))
+    last_error: Exception | None = None
+    for attempt in range(1, METADATA_EXTRACTION_ATTEMPTS + 1):
+        try:
+            parsed, _raw = chat_json(
+                model=settings.ollama_metadata_model,
+                messages=_list_prompt_messages(field_name, filename, text),
+                json_schema=_list_field_schema(field_name),
+                think=False,
+                purpose=f"metadata_extraction.{field_name}",
+                num_predict=240,
+            )
+            if isinstance(parsed, list):
+                parsed = {field_name: parsed}
+            normalized = _normalize_object_response(parsed)
+            values = MetadataExtraction._coerce_list(normalized.get(field_name))
+            return _dedupe_preserve_order(_ground_values(field_name, values, filename, text))
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "List metadata extraction attempt %s/%s failed for %s field=%s: %s",
+                attempt,
+                METADATA_EXTRACTION_ATTEMPTS,
+                filename,
+                field_name,
+                exc,
+            )
+    logger.warning("List metadata extraction exhausted retries for %s field=%s: %s", filename, field_name, last_error)
+    return []
 
 
 def _extract_metadata_with_model(filename: str, text: str) -> MetadataExtraction:
@@ -559,25 +681,49 @@ def _quote_location(quote: str, segments: list[MetadataSourceSegment]) -> Metada
     return None
 
 
-def _extract_scoped_metadata(
+def _expected_version_kinds(segments: list[MetadataSourceSegment]) -> set[str]:
+    source = "\n".join(segment.text for segment in segments)
+    return {kind for kind, pattern in VERSION_SIGNAL_PATTERNS.items() if pattern.search(source)}
+
+
+def _call_scoped_model(
     filename: str,
+    messages: list[dict[str, str]],
+    *,
+    purpose: str,
+) -> ScopedMetadataExtraction:
+    last_error: Exception | None = None
+    for attempt in range(1, METADATA_EXTRACTION_ATTEMPTS + 1):
+        try:
+            parsed, _raw = chat_json(
+                model=settings.ollama_metadata_model,
+                messages=messages,
+                json_schema=_scoped_metadata_schema(),
+                think=False,
+                purpose=purpose,
+                num_predict=1800,
+            )
+            normalized = _normalize_object_response(parsed, collection_key="entities")
+            return ScopedMetadataExtraction.model_validate(normalized)
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "Scoped metadata extraction attempt %s/%s failed for %s purpose=%s: %s",
+                attempt,
+                METADATA_EXTRACTION_ATTEMPTS,
+                filename,
+                purpose,
+                exc,
+            )
+    raise MetadataExtractionIncomplete(
+        f"Scoped metadata extraction exhausted retries for {filename} purpose={purpose}: {last_error}"
+    )
+
+
+def _ground_scoped_candidates(
+    extraction: ScopedMetadataExtraction,
     segments: list[MetadataSourceSegment],
 ) -> list[dict[str, Any]]:
-    rendered = "\n\n".join(_segment_text(segment) for segment in segments)
-    try:
-        parsed, _raw = chat_json(
-            model=settings.ollama_metadata_model,
-            messages=_scoped_prompt_messages(filename, rendered),
-            json_schema=_scoped_metadata_schema(),
-            think=False,
-            purpose="metadata_extraction.scoped_entities",
-            num_predict=1200,
-        )
-        extraction = ScopedMetadataExtraction.model_validate(parsed)
-    except Exception as exc:
-        logger.warning("Scoped metadata extraction failed for %s; skipping batch: %s", filename, exc)
-        return []
-
     external_subjects = {
         _compact_identifier(candidate.value)
         for candidate in extraction.entities
@@ -621,6 +767,78 @@ def _extract_scoped_metadata(
     return grounded
 
 
+def _bisect_metadata_segments(
+    segments: list[MetadataSourceSegment],
+) -> tuple[list[MetadataSourceSegment], list[MetadataSourceSegment]] | None:
+    if len(segments) > 1:
+        midpoint = len(segments) // 2
+        return segments[:midpoint], segments[midpoint:]
+    if not segments or len(segments[0].text) < 2000:
+        return None
+    segment = segments[0]
+    midpoint = len(segment.text) // 2
+    newline = segment.text.rfind("\n", 0, midpoint)
+    if newline < midpoint // 2:
+        newline = segment.text.find("\n", midpoint)
+    split_at = newline if newline >= 0 else midpoint
+    if split_at <= 0 or split_at >= len(segment.text):
+        return None
+    return (
+        [replace(segment, text=segment.text[:split_at])],
+        [replace(segment, text=segment.text[split_at:])],
+    )
+
+
+def _extract_scoped_metadata(
+    filename: str,
+    segments: list[MetadataSourceSegment],
+    *,
+    _split_depth: int = 0,
+) -> list[dict[str, Any]]:
+    rendered = "\n\n".join(_segment_text(segment) for segment in segments)
+    try:
+        extraction = _call_scoped_model(
+            filename,
+            _scoped_prompt_messages(filename, rendered),
+            purpose="metadata_extraction.scoped_entities",
+        )
+        grounded = _ground_scoped_candidates(extraction, segments)
+        expected_versions = _expected_version_kinds(segments)
+        found_versions = {item["kind"] for item in grounded if item["kind"] in expected_versions}
+        missing_versions = expected_versions - found_versions
+        if missing_versions:
+            focused = _call_scoped_model(
+                filename,
+                _version_prompt_messages(filename, rendered, missing_versions),
+                purpose="metadata_extraction.version_applicability",
+            )
+            grounded.extend(_ground_scoped_candidates(focused, segments))
+            found_versions = {item["kind"] for item in grounded if item["kind"] in expected_versions}
+            missing_versions = expected_versions - found_versions
+        if missing_versions:
+            raise MetadataExtractionIncomplete(
+                f"Version-bearing batch for {filename} is missing grounded {sorted(missing_versions)} evidence"
+            )
+        return _dedupe_evidence(grounded)
+    except MetadataExtractionIncomplete:
+        split = _bisect_metadata_segments(segments) if _split_depth < 5 else None
+        if split is not None:
+            logger.warning(
+                "Bisecting failed metadata batch for %s at depth %s (%s source characters)",
+                filename,
+                _split_depth + 1,
+                len(rendered),
+            )
+            left, right = split
+            return _dedupe_evidence(
+                _extract_scoped_metadata(filename, left, _split_depth=_split_depth + 1)
+                + _extract_scoped_metadata(filename, right, _split_depth=_split_depth + 1)
+            )
+        raise
+    except Exception as exc:
+        raise MetadataExtractionIncomplete(f"Scoped metadata extraction failed for {filename}: {exc}") from exc
+
+
 def _dedupe_evidence(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
     deduped: list[dict[str, Any]] = []
     seen: set[tuple[str, str, str, str, int | None]] = set()
@@ -639,11 +857,44 @@ def _dedupe_evidence(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return deduped
 
 
-def _first_primary(evidence: list[dict[str, Any]], kind: str, relation: str) -> str | None:
+def _repeated_short_line_values(segments: list[MetadataSourceSegment]) -> set[str]:
+    pages_by_line: dict[str, set[int | None]] = {}
+    for segment in segments:
+        for raw_line in segment.text.splitlines():
+            line = " ".join(raw_line.split()).strip()
+            if not line or len(line) > 100:
+                continue
+            pages_by_line.setdefault(line.casefold(), set()).add(segment.page_from)
+    repeated_lines = {line for line, pages in pages_by_line.items() if len(pages) >= 3}
+    return {_compact_identifier(line) for line in repeated_lines if _compact_identifier(line)}
+
+
+def _unsafe_routing_value(value: str, *, repeated_lines: set[str]) -> bool:
+    stripped = value.strip()
+    compact = _compact_identifier(stripped)
+    if not compact or "_" in stripped or stripped.casefold().endswith(".pdf"):
+        return True
+    if compact in repeated_lines:
+        return True
+    if re.search(r"(?:^|[-_ ])(?:UM|IM|RM|MANUAL)(?:[-_ ]?[A-Z])?$", stripped, re.IGNORECASE):
+        return True
+    return False
+
+
+def _first_primary(
+    evidence: list[dict[str, Any]],
+    kind: str,
+    relation: str,
+    *,
+    repeated_lines: set[str] | None = None,
+) -> str | None:
+    repeated_lines = repeated_lines or set()
     matches = [
         item
         for item in evidence
         if item.get("kind") == kind and item.get("relation") == relation and item.get("grounded") is True
+        and float(item.get("confidence") or 0.0) >= PRIMARY_ENTITY_MIN_CONFIDENCE
+        and not (kind in {"product_model", "part_number"} and _unsafe_routing_value(str(item.get("value") or ""), repeated_lines=repeated_lines))
     ]
     if not matches:
         return None
@@ -651,7 +902,13 @@ def _first_primary(evidence: list[dict[str, Any]], kind: str, relation: str) -> 
     return str(matches[0]["value"])
 
 
-def _values_for_routing(evidence: list[dict[str, Any]], kind: str) -> list[str]:
+def _values_for_routing(
+    evidence: list[dict[str, Any]],
+    kind: str,
+    *,
+    repeated_lines: set[str] | None = None,
+) -> list[str]:
+    repeated_lines = repeated_lines or set()
     allowed_relations = {"primary_product", "applies_to", "compatible_with", "accessory_for", "mentioned"}
     if kind == "company":
         allowed_relations.add("primary_manufacturer")
@@ -662,6 +919,8 @@ def _values_for_routing(evidence: list[dict[str, Any]], kind: str) -> list[str]:
             if item.get("kind") == kind
             and item.get("relation") in allowed_relations
             and item.get("grounded") is True
+            and float(item.get("confidence") or 0.0) >= PRIMARY_ENTITY_MIN_CONFIDENCE
+            and not (kind in {"product_model", "part_number"} and _unsafe_routing_value(str(item.get("value") or ""), repeated_lines=repeated_lines))
         ]
     )
 
@@ -684,6 +943,7 @@ def _applicability_records(evidence: list[dict[str, Any]], kind: str) -> list[di
         and item.get("relation") != "external_reference"
         and item.get("subject")
         and item.get("grounded") is True
+        and float(item.get("confidence") or 0.0) >= PRIMARY_ENTITY_MIN_CONFIDENCE
     ]
 
 
@@ -737,30 +997,49 @@ def infer_document_metadata_from_segments(
         evidence.extend(_extract_scoped_metadata(filename, batch))
     scoped_evidence = _dedupe_evidence(evidence)
     evidence = _dedupe_evidence(scoped_evidence + _base_metadata_evidence(base, nonempty))
+    repeated_lines = _repeated_short_line_values(nonempty)
 
-    verified_product_models = _values_for_routing(scoped_evidence, "product_model")
-    verified_part_numbers = _values_for_routing(scoped_evidence, "part_number")
+    verified_product_models = _values_for_routing(scoped_evidence, "product_model", repeated_lines=repeated_lines)
+    verified_part_numbers = _values_for_routing(scoped_evidence, "part_number", repeated_lines=repeated_lines)
     verified_protocols = [value.lower() for value in _values_for_routing(scoped_evidence, "protocol")]
-    product_models = _dedupe_preserve_order(base.product_models + verified_product_models)
+    safe_base_product_models = [
+        value
+        for value in base.product_models
+        if not _unsafe_routing_value(value, repeated_lines=repeated_lines)
+    ]
+    product_models = _dedupe_preserve_order(safe_base_product_models + verified_product_models)
     product_families = _dedupe_preserve_order(base.product_families + _values_for_routing(scoped_evidence, "product_family"))
     part_numbers = _dedupe_preserve_order(base.part_numbers + verified_part_numbers)
     devices = _dedupe_preserve_order(base.devices + _values_for_routing(scoped_evidence, "device"))
     protocols = _dedupe_preserve_order(base.protocol_terms + verified_protocols)
-    routing_product_models = verified_product_models or ([base.product_model] if base.product_model else [])
-    routing_part_numbers = verified_part_numbers or base.part_numbers
-    routing_protocols = verified_protocols or base.protocol_terms
+    # Schema-v2 routing is evidence-gated. Legacy flat values remain searchable metadata,
+    # but cannot become hard-routing keys without scoped, high-confidence evidence.
+    routing_product_models = verified_product_models
+    routing_part_numbers = verified_part_numbers
+    routing_protocols = verified_protocols
     identifiers = routing_product_models + routing_part_numbers + routing_protocols
     normalized_aliases = _dedupe_preserve_order(
         [alias for value in identifiers for alias in (value, _compact_identifier(value)) if alias]
     )
 
-    primary_manufacturer = _first_primary(evidence, "company", "primary_manufacturer")
-    primary_product = _first_primary(evidence, "product_model", "primary_product")
+    primary_manufacturer = _first_primary(scoped_evidence, "company", "primary_manufacturer")
+    primary_product = _first_primary(
+        scoped_evidence,
+        "product_model",
+        "primary_product",
+        repeated_lines=repeated_lines,
+    )
+    selected_product = primary_product or (verified_product_models[0] if verified_product_models else None)
+    if selected_product is None and base.product_model and not _unsafe_routing_value(
+        base.product_model,
+        repeated_lines=repeated_lines,
+    ):
+        selected_product = base.product_model
     return replace(
         base,
         manufacturer=primary_manufacturer or base.manufacturer,
         companies=_dedupe_preserve_order(base.companies + _values_for_routing(evidence, "company")),
-        product_model=primary_product or base.product_model,
+        product_model=selected_product,
         product_models=product_models,
         product_family=base.product_family or (product_families[0] if product_families else None),
         product_families=product_families,
