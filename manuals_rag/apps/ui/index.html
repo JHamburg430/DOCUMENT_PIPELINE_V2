@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manuals RAG Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260907-agent-matrix" />
+    <link rel="stylesheet" href="/styles.css?v=20260908-agent-sync" />
   </head>
   <body>
     <main class="app-shell">
@@ -191,9 +191,9 @@
             <span id="agent-matrix-status" class="status-pill">Not run</span>
           </div>
           <div class="matrix-actions">
-            <label>Dataset <input id="agent-matrix-dataset" value="tests/fixtures/agentic_dependent_retrieval_eval.jsonl" /></label>
-            <label>Questions <input id="agent-matrix-limit" type="number" min="1" max="1000" value="10" /></label>
-            <label>Max hops <input id="agent-matrix-hops" type="number" min="1" max="8" value="4" /></label>
+            <label>Dataset <input id="agent-matrix-dataset" value="tests/fixtures/agentic_retrieval_eval_matrix_v1.jsonl" /></label>
+            <label>Questions <input id="agent-matrix-limit" type="number" min="1" max="1000" value="48" /></label>
+            <label>Max hops <input id="agent-matrix-hops" type="number" min="1" max="8" value="6" /></label>
             <label>Corpus <input id="agent-matrix-corpus" value="manuals_vendor_keyence" /></label>
             <label class="inline-check"><input id="agent-matrix-no-llm" type="checkbox" /><span>Deterministic planners</span></label>
             <button id="run-agent-matrix" type="button">Run Agent Matrix</button>
@@ -304,6 +304,6 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=20260907-agent-matrix"></script>
+    <script src="/app.js?v=20260908-agent-sync"></script>
   </body>
 </html>

@@ -244,6 +244,71 @@ def test_agent_evaluation_matrix_view_exposes_independent_backend_layers():
     assert ".agent-matrix-grid" in styles_css
 
 
+def test_agent_live_runs_are_server_owned_and_reattachable(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def __iter__(self):
+            return iter(
+                [
+                    b'{"event":"plan_completed","policy":"test-policy","plan":{"mode":"single","hops":[]}}\n',
+                    b'{"event":"run_completed","result":{"answer":"done"}}\n',
+                ]
+            )
+
+    def fake_urlopen(request, timeout):
+        requests.append(loads(request.data))
+        assert timeout == 900
+        return FakeResponse()
+
+    monkeypatch.setattr(ui_server, "urlopen", fake_urlopen)
+    with ui_server.AGENT_LIVE_LOCK:
+        ui_server.AGENT_LIVE_JOBS.clear()
+        monkeypatch.setattr(ui_server, "AGENT_LIVE_LATEST_ID", None)
+
+    job = ui_server._start_agent_live_job(
+        {
+            "query": "Find the component, then its tolerance.",
+            "corpus_ids": ["manuals"],
+            "backends": ["langgraph_agent", "llamaindex_agent"],
+            "max_retrieval_hops": 3,
+        }
+    )
+    deadline = monotonic() + 2
+    while monotonic() < deadline:
+        with ui_server.AGENT_LIVE_LOCK:
+            snapshot = ui_server.deepcopy(ui_server.AGENT_LIVE_JOBS[job["id"]])
+        if snapshot["status"] not in {"queued", "running"}:
+            break
+        sleep(0.01)
+
+    assert snapshot["status"] == "completed"
+    assert {request["retrieval_orchestrator"] for request in requests} == {
+        "langgraph_agent",
+        "llamaindex_agent",
+    }
+    assert all(run["status"] == "completed" for run in snapshot["runs"].values())
+    assert all(run["events"][-1]["event"] == "run_completed" for run in snapshot["runs"].values())
+    assert ui_server.AGENT_LIVE_LATEST_ID == job["id"]
+
+
+def test_agent_lab_reattaches_without_browser_owned_api_stream():
+    app_js = (UI_DIR / "app.js").read_text()
+
+    assert "/local/agent-runs/run" in app_js
+    assert "/local/agent-runs/current" in app_js
+    assert "pollAgentLiveJob" in app_js
+    assert "hydrateAgentLiveJob" in app_js
+    assert "state.agentLab.controllers" not in app_js
+    assert 'setConnectionStatus("UI synchronized")' in app_js
+
+
 def test_agent_evaluation_matrix_joins_question_rows_to_backend_results(monkeypatch, tmp_path):
     dataset = tmp_path / "agent-cases.jsonl"
     report = tmp_path / "agent-report.json"
@@ -279,7 +344,7 @@ def test_agent_evaluation_matrix_joins_question_rows_to_backend_results(monkeypa
 
     payload = ui_server._build_agent_matrix()
 
-    assert payload["schema"] == "manuals-rag-agent-evaluation-matrix-v1"
+    assert payload["schema"] == "manuals-rag-agent-evaluation-matrix-v2"
     assert payload["rows"][0]["question"] == case["query"]
     assert payload["rows"][0]["expected_evidence_count"] == 2
     assert payload["rows"][0]["expected_document_count"] == 2

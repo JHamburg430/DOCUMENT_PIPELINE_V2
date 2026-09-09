@@ -4199,8 +4199,10 @@ def assemble_agent_context(
     hop_results: dict[str, list[SearchResult]],
     *,
     limit: int = 10,
+    evidence_ledger: dict[str, dict[str, object]] | None = None,
+    required_hop_ids: list[str] | None = None,
 ) -> list[SearchResult]:
-    """Fuse hop evidence while reserving coverage for every successful required lookup."""
+    """Fuse hop evidence while reserving the chunks that actually support required claims."""
     nonempty = [(hop_id, results) for hop_id, results in hop_results.items() if results]
     if not nonempty:
         return []
@@ -4220,14 +4222,50 @@ def assemble_agent_context(
     # assembler again can replace a reserved hop with a same-section sibling.
     assembled = _dedupe_results(reranked, analysis)
 
+    ledger = evidence_ledger or {}
+    required = set(required_hop_ids or [])
+    recovery_by_target: dict[str, list[str]] = {}
+    for hop_id, entry in ledger.items():
+        recovery_for = str(entry.get("recovery_for") or "")
+        if recovery_for:
+            recovery_by_target.setdefault(recovery_for, []).append(hop_id)
+
     reserved: list[SearchResult] = []
     seen: set[str] = set()
+    support_reasons: dict[str, list[str]] = {}
+    for target_id in required or {hop_id for hop_id, _results in nonempty}:
+        candidate_hops = [target_id, *recovery_by_target.get(target_id, [])]
+        support_ids: list[str] = []
+        for candidate_hop in candidate_hops:
+            assessment = dict((ledger.get(candidate_hop, {}).get("assessment") or {}))
+            support_ids.extend(str(value) for value in assessment.get("supporting_chunk_ids") or [])
+        for chunk_id in dict.fromkeys(support_ids):
+            result = next(
+                (
+                    item
+                    for candidate_hop in candidate_hops
+                    for item in hop_results.get(candidate_hop, [])
+                    if item.chunk_id == chunk_id
+                ),
+                None,
+            )
+            if result is None or result.chunk_id in seen:
+                continue
+            reserved.append(result)
+            seen.add(result.chunk_id)
+            support_reasons.setdefault(result.chunk_id, []).append(f"required_claim:{target_id}")
+
+    # Preserve a representative result only for hops without an attributed
+    # support chunk. This keeps exploratory evidence available without letting
+    # it displace claim-level support.
     for hop_id, results in nonempty:
-        best = next((result for result in results if result.chunk_id not in seen), None)
-        if best is None:
+        if any(hop_id in reason for reasons in support_reasons.values() for reason in reasons):
             continue
-        reserved.append(best)
-        seen.add(best.chunk_id)
+        best = next((result for result in results if result.chunk_id not in seen), None)
+        if best is not None:
+            reserved.append(best)
+            seen.add(best.chunk_id)
+            support_reasons.setdefault(best.chunk_id, []).append(f"hop_representative:{hop_id}")
 
     ordered = [*reserved, *assembled, *(result for _hop_id, results in nonempty for result in results)]
     final: list[SearchResult] = []
@@ -4240,6 +4278,7 @@ def assemble_agent_context(
                     "metadata": {
                         **result.metadata,
                         "agent_hops": source_by_chunk.get(result.chunk_id, []),
+                        "agent_context_reasons": support_reasons.get(result.chunk_id, ["cross_hop_rank"]),
                     }
                 }
             )

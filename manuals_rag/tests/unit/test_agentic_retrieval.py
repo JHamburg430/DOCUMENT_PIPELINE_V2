@@ -8,6 +8,8 @@ from manuals_rag_answering.agentic_retrieval import (
     plan_retrieval,
     plan_llamaindex_retrieval,
     refine_dependent_query,
+    insufficient_agent_answer,
+    _assess_hop_evidence,
 )
 from manuals_rag_schemas.documents import SearchResult
 
@@ -383,3 +385,102 @@ def test_dependent_sufficiency_requires_answer_signal_with_anchor():
     assert output["evidence_ledger"]["find_orientation"]["sufficient"] is False
     assert output["evidence_ledger"]["find_orientation"]["assessment"]["dependency_anchors"] == ["OP-26487"]
     assert output["evidence_ledger"]["find_orientation_recovery"]["sufficient"] is True
+
+
+def test_claim_sufficiency_rejects_cross_chunk_keyword_collage():
+    sufficient, assessment = _assess_hop_evidence(
+        "Find OP-26487 connector orientation",
+        [
+            _result("anchor", "doc-a", "OP-26487 is the serial cable model."),
+            _result("facet", "doc-b", "An unrelated connector is straight."),
+        ],
+        dependency_anchors=["OP-26487"],
+    )
+
+    assert sufficient is False
+    assert assessment["supporting_chunk_ids"] == []
+    assert assessment["gap_reason"] == "no_single_chunk_supports_claim"
+
+
+def test_context_reserves_attributed_support_instead_of_first_result():
+    plan = RetrievalPlan(
+        hops=[
+            RetrievalHop(
+                hop_id="lookup",
+                objective="Find ALPHA-1 corrective action",
+                query="ALPHA-1 corrective action",
+                strategy="structural",
+            )
+        ]
+    )
+    controller = AgenticRetrievalController(
+        use_llm=False,
+        planner=lambda _query: plan,
+        retriever=lambda *_args: [
+            _result("distractor", "doc-a", "ALPHA-1 alarm overview."),
+            _result("support", "doc-a", "Corrective action: replace the ALPHA-1 fuse."),
+        ],
+    )
+
+    output = _invoke(build_langgraph_agentic_retriever, controller)
+
+    assert output["sufficient"] is True
+    assert output["retrieval_results"][0]["chunk_id"] == "support"
+    assert output["retrieval_results"][0]["metadata"]["agent_context_reasons"] == [
+        "required_claim:lookup"
+    ]
+    assert output["retrieval_trace"]["context_assembly"]["all_required_claims_retained"] is True
+
+
+def test_insufficient_ledger_blocks_synthesis_with_explicit_abstention():
+    answer = insufficient_agent_answer(
+        "What is the unsupported value?",
+        {
+            "stop_reason": "hop_budget_exhausted",
+            "evidence_ledger": {
+                "value": {
+                    "required": True,
+                    "sufficient": False,
+                    "assessment": {"gap_reason": "missing_claim_facets"},
+                }
+            },
+        },
+    )
+
+    assert answer.insufficient_evidence is True
+    assert answer.citations == []
+    assert "blocked" in answer.warnings[0].lower()
+
+
+def test_llamaindex_policy_uses_its_own_alternate_query_engine_recovery():
+    plan = RetrievalPlan(
+        hops=[
+            RetrievalHop(
+                hop_id="subquestion_1",
+                objective="Find ALPHA-1 corrective action",
+                query="ALPHA-1 corrective action",
+                strategy="sparse",
+            )
+        ]
+    )
+    tools: list[str] = []
+
+    def retrieve(_query, _corpus_ids, _filters, strategy, _limit):
+        tools.append(strategy)
+        return [] if strategy == "sparse" else [
+            _result("support", "doc-a", "Corrective action: replace the ALPHA-1 fuse.")
+        ]
+
+    controller = LlamaIndexAgenticController(
+        use_llm=False,
+        planner=lambda _query: plan,
+        retriever=retrieve,
+    )
+    output = _invoke(build_llamaindex_agentic_retriever, controller, max_hops=2)
+
+    assert tools == ["sparse", "dense"]
+    assert output["sufficient"] is True
+    assert output["retrieval_trace"]["completed_hops"] == [
+        "subquestion_1",
+        "subquestion_1_query_engine_retry_1",
+    ]

@@ -33,6 +33,7 @@ from manuals_rag_answering.workflow import build_workflow
 from manuals_rag_answering.agentic_retrieval import (
     build_langgraph_agentic_retriever,
     build_llamaindex_agentic_retriever,
+    insufficient_agent_answer,
 )
 from manuals_rag_answering.generator import generate_answer
 from manuals_rag_common.config import settings
@@ -40,7 +41,14 @@ from manuals_rag_common.db import execute, fetch_all, fetch_one, json_dumps
 from manuals_rag_common.ids import sha256_bytes
 from manuals_rag_common.ingestion_progress import ensure_ingestion_step_table, initialize_ingestion_steps
 from manuals_rag_common.logging import configure_logging
-from manuals_rag_common.ollama import build_chat_payload, ensure_model_loaded, extract_chat_content, recent_ollama_calls
+from manuals_rag_common.ollama import (
+    build_chat_payload,
+    capture_ollama_usage,
+    ensure_model_loaded,
+    extract_chat_content,
+    recent_ollama_calls,
+    summarize_ollama_usage,
+)
 from manuals_rag_common.queue import enqueue, redis_client
 from manuals_rag_common.storage import ObjectStore
 from manuals_rag_evals.retrieval_eval import RetrievalEvalCase, build_eval_cases_from_chunks, score_search_results, tokenize
@@ -1110,7 +1118,7 @@ def query_documents(
             if request.retrieval_orchestrator == "langgraph_agent"
             else llamaindex_agentic_retriever
         )
-        with QUERY_DURATION.labels("full").time():
+        with QUERY_DURATION.labels("full").time(), capture_ollama_usage() as usage_events:
             result = agentic_retriever.invoke(
                 {
                     "query": request.query,
@@ -1120,7 +1128,14 @@ def query_documents(
                 }
             )
             retrieval_results = [SearchResult.model_validate(item) for item in result.get("retrieval_results", [])]
-            answer = generate_answer(request.query, retrieval_results).model_dump()
+            answer = (
+                generate_answer(request.query, retrieval_results)
+                if result.get("sufficient", (result.get("retrieval_trace") or {}).get("sufficient"))
+                else insufficient_agent_answer(request.query, result.get("retrieval_trace", {}))
+            ).model_dump()
+        trace = dict(result.get("retrieval_trace", {}))
+        trace["cost"] = {**dict(trace.get("cost") or {}), **summarize_ollama_usage(usage_events), "measured": True}
+        result["retrieval_trace"] = trace
         answer["retrieval_orchestrator"] = request.retrieval_orchestrator
         answer["retrieval_trace"] = result.get("retrieval_trace", {})
     if request.include_source_assets or request.include_page_images or request.include_table_images:
@@ -1156,7 +1171,7 @@ def _stream_agentic_query_events(request: QueryRequest):
                 if orchestrator == "langgraph_agent"
                 else build_llamaindex_agentic_retriever
             )
-            with QUERY_DURATION.labels("full").time():
+            with QUERY_DURATION.labels("full").time(), capture_ollama_usage() as usage_events:
                 result = factory(event_callback=emit).invoke(
                     {
                         "query": request.query,
@@ -1169,8 +1184,21 @@ def _stream_agentic_query_events(request: QueryRequest):
                     SearchResult.model_validate(item)
                     for item in result.get("retrieval_results", [])
                 ]
-                emit({"event": "answer_started", "evidence_count": len(retrieval_results)})
-                answer = generate_answer(request.query, retrieval_results).model_dump()
+                emit(
+                    {
+                        "event": "answer_started",
+                        "evidence_count": len(retrieval_results),
+                        "synthesis_allowed": bool(result.get("sufficient", (result.get("retrieval_trace") or {}).get("sufficient"))),
+                    }
+                )
+                answer = (
+                    generate_answer(request.query, retrieval_results)
+                    if result.get("sufficient", (result.get("retrieval_trace") or {}).get("sufficient"))
+                    else insufficient_agent_answer(request.query, result.get("retrieval_trace", {}))
+                ).model_dump()
+            trace = dict(result.get("retrieval_trace", {}))
+            trace["cost"] = {**dict(trace.get("cost") or {}), **summarize_ollama_usage(usage_events), "measured": True}
+            result["retrieval_trace"] = trace
             answer["retrieval_orchestrator"] = orchestrator
             answer["retrieval_trace"] = result.get("retrieval_trace", {})
             if request.include_source_assets or request.include_page_images or request.include_table_images:

@@ -1,0 +1,29 @@
+{
+  "schema": "manuals-rag-agent-eval-bank-manifest-v1",
+  "dataset": "tests/fixtures/agentic_retrieval_eval_matrix_v1.jsonl",
+  "dataset_sha256": "8c9d5fd74d79b4db4a7158802a9d5c028df9e66ec9c190c77e2a2b280580aea5",
+  "case_count": 48,
+  "holdout_contract": "prospective_document_holdout",
+  "holdout_note": "These document IDs are frozen as an agent-evaluation set. They must not drive question-specific retrieval patches after this manifest. Because some source cases predate this freeze, this is a prospective holdout rather than a claim of historical non-exposure.",
+  "categories": {
+    "single_hop_control": 6,
+    "parallel_multi_part": 8,
+    "dependent_multi_hop": 15,
+    "cross_document": 10,
+    "entity_resolution": 3,
+    "exact_structured_lookup": 5,
+    "unanswerable": 1
+  },
+  "held_out_document_ids": [
+    "036c91eb-df6d-4aa0-b576-d0e5be3a16d6",
+    "0e98f5f9-c4ee-4f48-bc6e-74bf398d3c9f",
+    "20fa9d9f-b166-4669-ab8a-1eb9d71f5113",
+    "58e02d4c-c6bc-424c-a3c0-c7706759602e",
+    "599c5822-664e-430d-9015-c2462a9373ec",
+    "8086e290-7093-48d3-9efc-fcc88f9fb1c1",
+    "857c0518-4b3a-42e2-97c9-211ab24163b6",
+    "9224d20b-6866-480b-9d00-f98adbda3bee",
+    "ab3b1b4c-ca3a-4e0b-9ec4-6e29c686dfcf",
+    "d0f2314c-86f0-4fcb-adc8-564e29f3152c"
+  ]
+}
