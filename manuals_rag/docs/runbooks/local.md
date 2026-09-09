@@ -10,7 +10,7 @@
 
 ## Metadata Extraction
 
-The local metadata extractor expects Ollama to have `tinyllama:1.1b` available. The stack sets `OLLAMA_METADATA_MODEL=tinyllama:1.1b` for the API and workers.
+The local metadata extractor expects Ollama to have `qwen3.5:9b` available. The stack sets `OLLAMA_METADATA_MODEL=qwen3.5:9b` for the API and workers.
 
 To backfill extracted metadata for existing parsed documents and refresh retrieval payloads:
 
@@ -19,7 +19,7 @@ PYTHONPATH=manuals_rag/packages/parsers/src:manuals_rag/packages/schemas/src:man
 POSTGRES_DSN=postgresql://manuals:manuals@127.0.0.1:5433/manuals_rag \
 REDIS_URL=redis://127.0.0.1:6379/0 \
 OLLAMA_URL=http://127.0.0.1:11434 \
-OLLAMA_METADATA_MODEL=tinyllama:1.1b \
+OLLAMA_METADATA_MODEL=qwen3.5:9b \
 python \
 manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply
 ```

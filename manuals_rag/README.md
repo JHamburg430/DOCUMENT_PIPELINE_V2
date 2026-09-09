@@ -11,7 +11,7 @@ Production-oriented document ingestion, retrieval, and grounded answering for te
 - Redis queueing and coordination
 - Docling-first parsing with a PyMuPDF fallback for local bootstrap
 - Custom normalization and hierarchical chunking
-- TinyLlama-backed structured metadata extraction with Pydantic validation
+- Qwen3.5-backed structured metadata extraction with Pydantic validation and page-aware evidence grounding
 - Hybrid dense+sparse retrieval with reranking
 - Baseline deterministic query workflow plus bounded LangGraph and LlamaIndex multi-hop retrieval
 - Static web UI served from a dedicated UI container
@@ -29,9 +29,9 @@ This repository follows the target layout from `.AGENT.md` under [`manuals_rag`]
 
 ## Metadata extraction
 
-Document metadata extraction is model-backed and should not be replaced with filename or text-pattern heuristics. The current local model is `tinyllama:1.1b` through Ollama, configured by `OLLAMA_METADATA_MODEL`.
+Document metadata extraction is model-backed and should not be replaced with filename or text-pattern heuristics. The current local model is `qwen3.5:9b` through Ollama, configured by `OLLAMA_METADATA_MODEL`.
 
-Saved metadata lives in Postgres in `document_metadata_extractions` and is copied into retrieval chunk metadata for filtering and ranking. Existing corpora can be updated with `manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply`.
+Saved metadata lives in Postgres in `document_metadata_extractions` and is copied into retrieval chunk metadata for filtering and ranking. Extraction covers the full document in page-aware batches and records grounded quotes, page/section provenance, scoped firmware/software applicability, and normalized identifier aliases. Existing corpora can be updated independently of parsing with `manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply`.
 
 Operator inspection is available in Streamlit at `http://127.0.0.1:8601/Document_Metadata`. More detail is in [`docs/architecture/metadata_extraction.md`](docs/architecture/metadata_extraction.md).
 

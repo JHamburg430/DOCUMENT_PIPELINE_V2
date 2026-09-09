@@ -17,7 +17,7 @@ from manuals_rag_common.storage import ObjectStore
 from manuals_rag_normalizers.normalize import normalize_nodes
 from manuals_rag_observability.metrics import INGEST_DURATION, PARSE_FAILURES
 from manuals_rag_parsers.docling_parser import parse_document
-from manuals_rag_parsers.metadata import infer_document_metadata
+from manuals_rag_parsers.metadata import MetadataSourceSegment, infer_document_metadata_from_segments
 from manuals_rag_schemas.enums import NodeType
 
 log = logging.getLogger(__name__)
@@ -63,7 +63,28 @@ def _metadata_extraction_payload(metadata: object) -> dict[str, object]:
         "document_kind": getattr(metadata, "document_kind").value,
         "revision_date": getattr(metadata, "revision_date").isoformat() if getattr(metadata, "revision_date") else None,
         "effective_date": getattr(metadata, "effective_date").isoformat() if getattr(metadata, "effective_date") else None,
+        "metadata_schema_version": getattr(metadata, "metadata_schema_version"),
+        "metadata_evidence": getattr(metadata, "metadata_evidence"),
+        "normalized_identifier_aliases": getattr(metadata, "normalized_identifier_aliases"),
+        "routing_product_models": getattr(metadata, "routing_product_models"),
+        "routing_part_numbers": getattr(metadata, "routing_part_numbers"),
+        "routing_protocol_terms": getattr(metadata, "routing_protocol_terms"),
+        "firmware_applicability": getattr(metadata, "firmware_applicability"),
+        "software_applicability": getattr(metadata, "software_applicability"),
     }
+
+
+def _metadata_source_segments(nodes: list[object]) -> list[MetadataSourceSegment]:
+    return [
+        MetadataSourceSegment(
+            text=str(getattr(node, "text_normalized", "") or getattr(node, "text_raw", "")),
+            page_from=getattr(node, "page_from", None),
+            page_to=getattr(node, "page_to", None),
+            section_path=tuple(getattr(node, "section_path_json", []) or []),
+        )
+        for node in nodes
+        if str(getattr(node, "text_normalized", "") or getattr(node, "text_raw", "")).strip()
+    ]
 
 
 def _put_once(store: ObjectStore, bucket: str, object_name: str, data: bytes, content_type: str) -> str:
@@ -234,8 +255,10 @@ def process_job(job: dict[str, str]) -> None:
         current_step = "metadata"
         start_ingestion_step(run_id, current_step)
         table_extraction_used = any(node.node_type == NodeType.table for node in normalized)
-        combined_text = "\n\n".join(node.text_normalized or node.text_raw for node in normalized[:20])
-        inferred_metadata = infer_document_metadata(document["source_filename"], combined_text)
+        inferred_metadata = infer_document_metadata_from_segments(
+            document["source_filename"],
+            _metadata_source_segments(normalized),
+        )
         metadata = {
             "tenant_id": document["tenant_id"],
             "corpus_id": document["corpus_id"],
@@ -253,6 +276,13 @@ def process_job(job: dict[str, str]) -> None:
             "parameters": inferred_metadata.parameters,
             "document_menu_labels": inferred_metadata.menu_labels,
             "document_topics": inferred_metadata.document_topics,
+            "metadata_schema_version": inferred_metadata.metadata_schema_version,
+            "normalized_identifier_aliases": inferred_metadata.normalized_identifier_aliases,
+            "routing_product_models": inferred_metadata.routing_product_models,
+            "routing_part_numbers": inferred_metadata.routing_part_numbers,
+            "routing_protocol_terms": inferred_metadata.routing_protocol_terms,
+            "firmware_applicability": inferred_metadata.firmware_applicability,
+            "software_applicability": inferred_metadata.software_applicability,
             "language": document["language"],
             "visibility_scope": document["visibility_scope"],
             "permissions_tags": document["permissions_tags"] or [],

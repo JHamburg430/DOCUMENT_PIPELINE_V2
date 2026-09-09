@@ -193,6 +193,13 @@ def analyze_query(query: str) -> QueryAnalysis:
             continue
         model_matches.append((match.start(), match.group(0)))
         model_match_spans.append(match.span())
+    compact_protocols = {"RS232", "RS232C", "RS485", "TCPIP", "UDPV4", "IPV4", "IPV6"}
+    for match in re.finditer(r"\b[A-Z]{2,5}\d{3,8}[A-Z]?\b", query):
+        identifier = match.group(0)
+        if identifier in compact_protocols:
+            continue
+        model_matches.append((match.start(), identifier))
+        model_match_spans.append(match.span())
     for match in re.finditer(
         r"\b(?:on|for|with|using)\s+(?:the\s+)?(?P<model>[A-Z]{1,5}\d{2,8})\b"
         r"|\bthe\s+(?P<article_model>[A-Z]{1,5}\d{2,8})\b(?!\s+(?:alarm|error|fault|code)\b)",

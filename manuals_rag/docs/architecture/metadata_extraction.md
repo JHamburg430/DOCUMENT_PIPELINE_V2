@@ -1,8 +1,8 @@
 # Metadata Extraction
 
-Document-level metadata is extracted by a small local Ollama model, not by filename or text-pattern heuristics. The current default model is `tinyllama:1.1b`, configured with `OLLAMA_METADATA_MODEL`.
+Document-level metadata is extracted by a local Ollama model, not by filename or text-pattern heuristics. The current default model is `qwen3.5:9b`, configured with `OLLAMA_METADATA_MODEL`.
 
-The extraction implementation lives in `packages/parsers/src/manuals_rag_parsers/metadata.py`. It uses Pydantic models to constrain the response shape and then applies source-grounding and validation before the values are persisted or copied onto chunk metadata.
+The extraction implementation lives in `packages/parsers/src/manuals_rag_parsers/metadata.py`. It uses Pydantic models to constrain the response shape and then applies source-grounding and validation before the values are persisted or copied onto chunk metadata. Ingestion now processes the complete normalized document in page-aware batches; it no longer limits document metadata to the first 20 logical nodes.
 
 ## Extracted Fields
 
@@ -15,8 +15,18 @@ The extractor produces document-level fields for:
 - Protocol terms
 - Settings, parameters, menu labels, and document topics
 - Title, document kind, revision date, and effective date
+- Normalized punctuation-insensitive identifier aliases
+- Grounded firmware and software applicability records
+- A page/section/quote evidence ledger with entity relationship and subject scope
 
-TinyLlama is intentionally treated as unreliable output infrastructure. Invalid JSON or invalid list-field responses are non-fatal and are downgraded to empty values for that field. Grounding and validation then remove common hallucinations, copied filenames, protocol mistakes, and generic non-entity terms.
+The stored schema is versioned with `metadata_schema_version`. Version 2 retains the original flat fields for compatibility and adds:
+
+- `metadata_evidence`: exact source quote, page range, section path, relation, subject, confidence, and grounding status
+- `routing_product_models`, `routing_part_numbers`, and `routing_protocol_terms`: scoped values suitable for routing
+- `normalized_identifier_aliases`: canonical and punctuation-insensitive forms such as `CV-X482` and `CVX482`
+- `firmware_applicability` and `software_applicability`: subject-bound records; external PLC/controller examples are retained in evidence but excluded from applicability
+
+Model output is intentionally treated as unreliable infrastructure. Invalid JSON or invalid responses are non-fatal. Scoped values are accepted only when the model supplies an exact quote that can be found in the same page-aware source batch, and firmware/software versions require an explicit subject. This removes hallucinated values and prevents firmware belonging to an external PLC from being treated as applicable to the manual's primary product.
 
 ## Storage
 
@@ -45,7 +55,7 @@ PYTHONPATH=manuals_rag/packages/parsers/src:manuals_rag/packages/schemas/src:man
 POSTGRES_DSN=postgresql://manuals:manuals@127.0.0.1:5433/manuals_rag \
 REDIS_URL=redis://127.0.0.1:6379/0 \
 OLLAMA_URL=http://127.0.0.1:11434 \
-OLLAMA_METADATA_MODEL=tinyllama:1.1b \
+OLLAMA_METADATA_MODEL=qwen3.5:9b \
 /home/john/Desktop/Programming/Document_Pipeline/.venv/bin/python \
 manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply
 ```
@@ -53,7 +63,9 @@ manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply
 Useful options:
 
 - `--limit N` restricts the number of documents processed.
-- `--node-limit N` controls how many leading logical nodes are sent to the metadata model.
+- The default processes every logical node in page-aware batches.
+- `--segment-chars N` controls the maximum source characters in each scoped extraction call.
+- `--node-limit N` is a diagnostic-only cap and reduces metadata recall.
 - `--no-enqueue-embed` updates Postgres without queueing embedding refresh jobs.
 
 Backfill reports are written to `manuals_rag/test_reports/document_metadata_backfill_*.json`.

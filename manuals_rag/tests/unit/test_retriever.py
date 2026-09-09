@@ -2756,6 +2756,50 @@ def test_exact_model_identifier_uses_wider_metadata_candidate_pool():
     assert retriever._metadata_selection_limit(general_analysis) == retriever.DOCUMENT_METADATA_SELECTION_LIMIT
 
 
+def test_exact_identifier_prefers_scoped_aliases_over_unscoped_mentions():
+    cvx_analysis = analyze_query("How do I configure CVX482?")
+    external_plc_analysis = analyze_query("How do I configure KV-7500?")
+    hits = [
+        {
+            "source_document_id": "doc-cvx",
+            "payload": {
+                "product_model": "CV-X482",
+                "product_models": ["CV-X482", "KV-7500"],
+                "routing_product_models": ["CV-X482"],
+                "routing_part_numbers": [],
+                "normalized_identifier_aliases": ["CV-X482", "CVX482"],
+            },
+        }
+    ]
+
+    assert retriever._exact_identifier_document_ids(hits, cvx_analysis) == ["doc-cvx"]
+    assert retriever._exact_identifier_document_ids(hits, external_plc_analysis) == []
+
+
+def test_document_metadata_text_omits_external_evidence_from_schema_v2_routing():
+    store = object.__new__(QdrantStore)
+    text = store._document_metadata_text(
+        {
+            "title": "CV-X manual",
+            "source_filename": "cvx.pdf",
+            "manufacturer": "KEYENCE",
+            "product_model": "CV-X482",
+            "document_kind": "manual",
+            "metadata_json": {
+                "metadata_schema_version": 2,
+                "routing_product_models": ["CV-X482"],
+                "normalized_identifier_aliases": ["CVX482"],
+                "metadata_evidence": [
+                    {"value": "KV-7500", "relation": "external_reference", "source_quote": "external PLC"}
+                ],
+            },
+        }
+    )
+
+    assert "CVX482" in text
+    assert "KV-7500" not in text
+
+
 def test_document_metadata_index_aggregates_generic_chunk_metadata_signals():
     document = {"metadata_json": {"product_models": ["Series-100"]}}
     chunk_rows = [

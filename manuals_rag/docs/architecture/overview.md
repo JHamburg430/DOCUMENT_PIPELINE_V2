@@ -21,4 +21,4 @@ Document selection must stay general: use metadata embeddings, sparse metadata s
 
 Answers are required to carry citations and may abstain when evidence is weak.
 
-Document-level metadata extraction is a model-backed pipeline, not a filename or text-pattern heuristic pass. The current extractor uses Ollama with `tinyllama:1.1b`, Pydantic response validation, source grounding, and persistence in Postgres. See [metadata_extraction.md](metadata_extraction.md) for the source-of-truth implementation notes, backfill command, and Streamlit inspection path.
+Document-level metadata extraction is a model-backed pipeline, not a filename or text-pattern heuristic pass. The current extractor uses Ollama with `qwen3.5:9b`, Pydantic response validation, page-aware source grounding, subject-scoped applicability, and persistence in Postgres. See [metadata_extraction.md](metadata_extraction.md) for the source-of-truth implementation notes, backfill command, and Streamlit inspection path.
