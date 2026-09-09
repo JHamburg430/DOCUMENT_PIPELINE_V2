@@ -11,7 +11,7 @@ from uuid import uuid4
 from manuals_rag_common.config import settings
 from manuals_rag_common.db import execute, fetch_all, json_dumps
 from manuals_rag_common.queue import enqueue
-from manuals_rag_parsers.metadata import infer_document_metadata
+from manuals_rag_parsers.metadata import MetadataSourceSegment, infer_document_metadata_from_segments
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -66,19 +66,29 @@ def _documents(limit: int | None = None) -> list[dict[str, Any]]:
     return fetch_all(query, params)
 
 
-def _document_excerpt(version_id: str, *, node_limit: int) -> str:
+def _document_segments(version_id: str, *, node_limit: int | None = None) -> list[MetadataSourceSegment]:
+    limit_clause = " limit %s" if node_limit is not None else ""
+    params: tuple[Any, ...] = (version_id, node_limit) if node_limit is not None else (version_id,)
     rows = fetch_all(
-        """
-        select text_normalized, text_raw
+        f"""
+        select text_normalized, text_raw, page_from, page_to, section_path_json
         from logical_nodes
         where document_version_id = %s
           and coalesce(text_normalized, text_raw, '') <> ''
         order by ordinal
-        limit %s
+        {limit_clause}
         """,
-        (version_id, node_limit),
+        params,
     )
-    return "\n\n".join(str(row["text_normalized"] or row["text_raw"] or "") for row in rows)
+    return [
+        MetadataSourceSegment(
+            text=str(row["text_normalized"] or row["text_raw"] or ""),
+            page_from=row.get("page_from"),
+            page_to=row.get("page_to"),
+            section_path=tuple(row.get("section_path_json") or []),
+        )
+        for row in rows
+    ]
 
 
 def _metadata_payload(metadata: Any) -> dict[str, Any]:
@@ -106,6 +116,13 @@ def _chunk_metadata_payload(metadata: dict[str, Any]) -> dict[str, Any]:
         "document_menu_labels": metadata["menu_labels"],
         "document_topics": metadata["document_topics"],
         "revision_date": metadata["revision_date"],
+        "metadata_schema_version": metadata["metadata_schema_version"],
+        "normalized_identifier_aliases": metadata["normalized_identifier_aliases"],
+        "routing_product_models": metadata["routing_product_models"],
+        "routing_part_numbers": metadata["routing_part_numbers"],
+        "routing_protocol_terms": metadata["routing_protocol_terms"],
+        "firmware_applicability": metadata["firmware_applicability"],
+        "software_applicability": metadata["software_applicability"],
     }
 
 
@@ -192,15 +209,27 @@ def main() -> None:
     parser.add_argument("--apply", action="store_true", help="Persist metadata changes. Without this, only reports extracted metadata.")
     parser.add_argument("--no-enqueue-embed", action="store_true", help="Do not enqueue embed jobs after updating chunk metadata.")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of documents.")
-    parser.add_argument("--node-limit", type=int, default=20, help="Logical nodes to include in each metadata excerpt.")
+    parser.add_argument(
+        "--node-limit",
+        type=int,
+        default=None,
+        help="Optional diagnostic cap. By default the full document is enriched; limiting nodes reduces metadata recall.",
+    )
+    parser.add_argument("--segment-chars", type=int, default=12000, help="Maximum source characters per page-aware model call.")
     args = parser.parse_args()
 
     _ensure_metadata_table()
     results: list[BackfillResult] = []
     for document in _documents(limit=args.limit):
         try:
-            excerpt = _document_excerpt(str(document["version_id"]), node_limit=args.node_limit)
-            metadata = _metadata_payload(infer_document_metadata(str(document["source_filename"]), excerpt))
+            segments = _document_segments(str(document["version_id"]), node_limit=args.node_limit)
+            metadata = _metadata_payload(
+                infer_document_metadata_from_segments(
+                    str(document["source_filename"]),
+                    segments,
+                    max_segment_chars=args.segment_chars,
+                )
+            )
             chunk_count = 0
             embed_enqueued = False
             if args.apply:

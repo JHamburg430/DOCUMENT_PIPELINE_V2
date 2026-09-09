@@ -184,12 +184,22 @@ def _exact_identifier_document_ids(
     matched: list[str] = []
     for hit in metadata_hits:
         payload = hit.get("payload") if isinstance(hit.get("payload"), dict) else {}
-        values = [
-            payload.get("product_model"),
-            *(payload.get("product_models") or []),
-            *(payload.get("devices") or []),
-            *(payload.get("part_numbers") or []),
-        ]
+        has_scoped_routing = any(
+            key in payload for key in ("routing_product_models", "routing_part_numbers", "normalized_identifier_aliases")
+        )
+        if has_scoped_routing:
+            values = [
+                *(payload.get("routing_product_models") or []),
+                *(payload.get("routing_part_numbers") or []),
+                *(payload.get("normalized_identifier_aliases") or []),
+            ]
+        else:
+            values = [
+                payload.get("product_model"),
+                *(payload.get("product_models") or []),
+                *(payload.get("devices") or []),
+                *(payload.get("part_numbers") or []),
+            ]
         compact_values = {_compact_identifier(str(value)) for value in values if str(value or "").strip()}
         document_id = str(hit.get("source_document_id") or "")
         if document_id and expected in compact_values and document_id not in matched:

@@ -21,6 +21,12 @@ DOCUMENT_METADATA_SIGNAL_KEYS = (
     "document_topics",
     "menu_labels",
     "protocol_terms",
+    "normalized_identifier_aliases",
+    "routing_product_models",
+    "routing_part_numbers",
+    "routing_protocol_terms",
+    "firmware_applicability",
+    "software_applicability",
 )
 
 

@@ -33,7 +33,7 @@ class Settings:
     minio_bucket_artifacts: str = os.getenv("MINIO_BUCKET_ARTIFACTS", "manuals-artifacts")
     ollama_url: str = os.getenv("OLLAMA_URL", "http://host.docker.internal:11434")
     ollama_embed_model: str = os.getenv("OLLAMA_EMBED_MODEL", "qwen3-embedding:0.6b")
-    ollama_metadata_model: str = os.getenv("OLLAMA_METADATA_MODEL", "tinyllama:1.1b")
+    ollama_metadata_model: str = os.getenv("OLLAMA_METADATA_MODEL", "qwen3.5:9b")
     ollama_fast_model: str = os.getenv("OLLAMA_FAST_MODEL", "qwen3.5:4b")
     ollama_answer_model: str = os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b")
     ollama_answer_num_predict: int = int(os.getenv("OLLAMA_ANSWER_NUM_PREDICT", "1024"))

@@ -531,6 +531,12 @@ class QdrantStore:
                         "product_families",
                         "devices",
                         "part_numbers",
+                        "normalized_identifier_aliases",
+                        "routing_product_models",
+                        "routing_part_numbers",
+                        "routing_protocol_terms",
+                        "firmware_applicability",
+                        "software_applicability",
                         "settings",
                         "parameters",
                         "document_topics",
@@ -564,6 +570,12 @@ class QdrantStore:
             self._metadata_value_text(payload.get("product_families", "")).strip(),
             self._metadata_value_text(payload.get("devices", "")).strip(),
             self._metadata_value_text(payload.get("part_numbers", "")).strip(),
+            self._metadata_value_text(payload.get("normalized_identifier_aliases", "")).strip(),
+            self._metadata_value_text(payload.get("routing_product_models", "")).strip(),
+            self._metadata_value_text(payload.get("routing_part_numbers", "")).strip(),
+            self._metadata_value_text(payload.get("routing_protocol_terms", "")).strip(),
+            self._metadata_value_text(payload.get("firmware_applicability", "")).strip(),
+            self._metadata_value_text(payload.get("software_applicability", "")).strip(),
             self._metadata_value_text(payload.get("settings", "")).strip(),
             self._metadata_value_text(payload.get("parameters", "")).strip(),
             str(payload.get("manufacturer", "")).strip(),
@@ -587,6 +599,25 @@ class QdrantStore:
 
     def _document_metadata_text(self, document: dict[str, Any]) -> str:
         metadata_json = dict(document.get("metadata_json") or {})
+        if int(metadata_json.get("metadata_schema_version") or 1) >= 2:
+            metadata_json = {
+                key: metadata_json.get(key)
+                for key in (
+                    "routing_product_models",
+                    "routing_part_numbers",
+                    "routing_protocol_terms",
+                    "normalized_identifier_aliases",
+                    "product_family",
+                    "product_families",
+                    "settings",
+                    "parameters",
+                    "menu_labels",
+                    "document_topics",
+                    "firmware_applicability",
+                    "software_applicability",
+                )
+                if metadata_json.get(key) not in (None, "", [], {})
+            }
         parts = [
             str(document.get("title") or ""),
             str(document.get("title") or ""),

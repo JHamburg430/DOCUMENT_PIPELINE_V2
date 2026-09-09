@@ -1,9 +1,17 @@
-from manuals_rag_parsers.metadata import LIST_FIELD_INSTRUCTIONS, infer_document_metadata
+from manuals_rag_parsers.metadata import (
+    LIST_FIELD_INSTRUCTIONS,
+    MetadataExtraction,
+    MetadataSourceSegment,
+    infer_document_metadata,
+    infer_document_metadata_from_segments,
+    pack_metadata_source_segments,
+)
+from manuals_rag_common.config import settings
 
 
 def test_infer_document_metadata_from_model_response(monkeypatch):
     def fake_chat_json(**kwargs):
-        assert kwargs["model"] == "tinyllama:1.1b"
+        assert kwargs["model"] == settings.ollama_metadata_model
         assert kwargs["purpose"].startswith("metadata_extraction")
         assert "properties" in kwargs["json_schema"]
         return (
@@ -99,3 +107,114 @@ def test_metadata_prompt_examples_are_vendor_neutral():
     assert "lj-x" not in instruction_text
     assert "ca-en" not in instruction_text
     assert "op-88310" not in instruction_text
+
+
+def test_page_aware_metadata_preserves_scope_aliases_and_late_evidence(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(
+            manufacturer="Intel",
+            companies=["Intel", "KEYENCE"],
+            product_model="CV-X482",
+            product_models=["CV-X482"],
+            document_kind="manual",
+            title="CV-X Manual",
+        ),
+    )
+
+    def fake_chat_json(**kwargs):
+        assert kwargs["purpose"] == "metadata_extraction.scoped_entities"
+        source = kwargs["messages"][1]["content"]
+        entities = []
+        if "CV-X482 vision controller" in source:
+            entities.extend(
+                [
+                    {
+                        "value": "KEYENCE",
+                        "kind": "company",
+                        "relation": "primary_manufacturer",
+                        "source_quote": "KEYENCE CV-X482 vision controller",
+                        "confidence": 0.99,
+                    },
+                    {
+                        "value": "CV-X482",
+                        "kind": "product_model",
+                        "relation": "primary_product",
+                        "source_quote": "KEYENCE CV-X482 vision controller",
+                        "confidence": 0.99,
+                    },
+                ]
+            )
+        if "OP-42284" in source:
+            entities.append(
+                {
+                    "value": "OP-42284",
+                    "kind": "part_number",
+                    "relation": "accessory_for",
+                    "subject": "CV-X482",
+                    "source_quote": "Use cable OP-42284 with CV-X482.",
+                    "confidence": 0.95,
+                }
+            )
+        if "firmware 6.0" in source:
+            entities.append(
+                {
+                    "value": "6.0",
+                    "kind": "firmware_version",
+                    "relation": "applies_to",
+                    "subject": "CV-X482",
+                    "source_quote": "CV-X482 firmware 6.0 or later is required.",
+                    "confidence": 0.98,
+                }
+            )
+        if "KV-7500 firmware 2.1" in source:
+            entities.extend(
+                [
+                    {
+                        "value": "KV-7500",
+                        "kind": "device",
+                        "relation": "external_reference",
+                        "source_quote": "The external KV-7500 firmware 2.1 example uses the PLC.",
+                        "confidence": 0.98,
+                    },
+                    {
+                        "value": "2.1",
+                        "kind": "firmware_version",
+                        "relation": "applies_to",
+                        "subject": "KV-7500",
+                        "source_quote": "The external KV-7500 firmware 2.1 example uses the PLC.",
+                        "confidence": 0.98,
+                    },
+                ]
+            )
+        return ({"entities": entities}, "{}")
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        "cvx_manual.pdf",
+        [
+            MetadataSourceSegment("Intel Ethernet adapter example. KEYENCE CV-X482 vision controller", 1, 1, ("Introduction",)),
+            MetadataSourceSegment("Use cable OP-42284 with CV-X482.", 80, 80, ("Accessories",)),
+            MetadataSourceSegment("CV-X482 firmware 6.0 or later is required.", 120, 120, ("Compatibility",)),
+            MetadataSourceSegment("The external KV-7500 firmware 2.1 example uses the PLC.", 121, 121, ("PLC example",)),
+        ],
+        max_segment_chars=100,
+    )
+
+    assert metadata.metadata_schema_version == 2
+    assert metadata.manufacturer == "KEYENCE"
+    assert metadata.product_model == "CV-X482"
+    assert metadata.routing_product_models == ["CV-X482"]
+    assert metadata.routing_part_numbers == ["OP-42284"]
+    assert "CVX482" in metadata.normalized_identifier_aliases
+    assert "OP42284" in metadata.normalized_identifier_aliases
+    assert metadata.firmware_applicability[0]["subject"] == "CV-X482"
+    assert all(item["version"] != "2.1" for item in metadata.firmware_applicability)
+    assert any(item["page_from"] == 80 for item in metadata.metadata_evidence)
+
+
+def test_metadata_segment_packing_covers_the_full_document():
+    segments = [MetadataSourceSegment(f"page {page} " + "x" * 30, page, page) for page in range(1, 8)]
+    batches = pack_metadata_source_segments(segments, max_chars=80)
+    pages = [segment.page_from for batch in batches for segment in batch]
+    assert pages == list(range(1, 8))
