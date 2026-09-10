@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
+import json
 import logging
 import re
 from typing import Any
@@ -39,6 +40,29 @@ PROTOCOL_TERMS = {
     "io-link",
     "canopen",
     "cc-link",
+    "ethernet",
+    "poe",
+    "bluetooth",
+}
+
+PROTOCOL_ALIASES = {
+    "ethernetip": "ethernet/ip",
+    "ethercat": "ethercat",
+    "profinet": "profinet",
+    "modbus": "modbus",
+    "tcpip": "tcp/ip",
+    "udp": "udp",
+    "rs232": "rs-232",
+    "rs232c": "rs-232c",
+    "rs422": "rs-422",
+    "rs485": "rs-485",
+    "usb": "usb",
+    "iolink": "io-link",
+    "canopen": "canopen",
+    "cclink": "cc-link",
+    "ethernet": "ethernet",
+    "poe": "poe",
+    "bluetooth": "bluetooth",
 }
 
 SCOPED_METADATA_KINDS = {
@@ -63,7 +87,11 @@ SCOPED_METADATA_RELATIONS = {
     "mentioned",
     "document_revision",
 }
-DEFAULT_METADATA_SEGMENT_CHARS = 12000
+DEFAULT_METADATA_SEGMENT_CHARS = 3000
+MAX_FLAT_LIST_ITEMS = 12
+MAX_SCOPED_ENTITIES = 10
+MIN_SCOPED_SPLIT_CHARS = 500
+METADATA_NUM_CTX = 8192
 METADATA_EXTRACTION_ATTEMPTS = 3
 PRIMARY_ENTITY_MIN_CONFIDENCE = 0.8
 
@@ -75,17 +103,22 @@ DOCUMENT_KIND_ALIASES = {
     "release_notes_document": "release_note",
     "data_sheet": "datasheet",
     "specification_sheet": "spec_sheet",
+    "product_specification": "spec_sheet",
+    "product_specifications": "spec_sheet",
+    "technical_specification": "spec_sheet",
+    "technical_specifications": "spec_sheet",
+    "product_brochure": "brochure",
 }
 
 VERSION_SIGNAL_PATTERNS = {
     "firmware_version": re.compile(
         r"\b(?:firmware|fw)\b.{0,80}?\b(?:v(?:er(?:sion)?)?\.?\s*)?\d+(?:\.\d+){0,3}\b",
-        re.IGNORECASE | re.DOTALL,
+        re.IGNORECASE,
     ),
     "software_version": re.compile(
         r"\b(?:software|application|tool|studio|explorer|twincat|sysmac)\b.{0,80}?"
         r"\b(?:v(?:er(?:sion)?)?\.?\s*)\d+(?:\.\d+){0,3}\b",
-        re.IGNORECASE | re.DOTALL,
+        re.IGNORECASE,
     ),
 }
 
@@ -145,17 +178,88 @@ class ScopedMetadataCandidate(BaseModel):
         if isinstance(value, dict):
             normalized = dict(value)
             if "value" not in normalized:
-                for alias in ("name", "entity"):
+                for alias in (
+                    "name",
+                    "entity",
+                    "entity_value",
+                    "identifier",
+                    "model",
+                    "version",
+                ):
                     if normalized.get(alias) not in (None, ""):
                         normalized["value"] = normalized[alias]
                         break
+                if "value" not in normalized:
+                    for key, candidate in normalized.items():
+                        key_normalized = re.sub(r"[^a-z0-9]+", "_", str(key).casefold()).strip("_")
+                        if (
+                            candidate not in (None, "")
+                            and isinstance(candidate, (str, int, float))
+                            and (key_normalized.endswith("_value") or key_normalized in {"entity_name", "item"})
+                        ):
+                            normalized["value"] = candidate
+                            break
             if "kind" not in normalized and "entity_type" in normalized:
                 normalized["kind"] = normalized["entity_type"]
             if "source_quote" not in normalized:
-                for alias in ("quote", "evidence"):
+                for alias in (
+                    "quote",
+                    "evidence",
+                    "evidence_quote",
+                    "evidence_text",
+                    "source_text",
+                    "source_excerpt",
+                    "excerpt",
+                ):
                     if normalized.get(alias) not in (None, ""):
                         normalized["source_quote"] = normalized[alias]
                         break
+                if "source_quote" not in normalized:
+                    for key, candidate in normalized.items():
+                        key_normalized = re.sub(r"[^a-z0-9]+", "_", str(key).casefold()).strip("_")
+                        if (
+                            candidate not in (None, "")
+                            and isinstance(candidate, str)
+                            and ("quote" in key_normalized or "evidence" in key_normalized or key_normalized.endswith("_excerpt"))
+                        ):
+                            normalized["source_quote"] = candidate
+                            break
+            if "value" not in normalized and isinstance(normalized.get("source_quote"), str):
+                quote = str(normalized["source_quote"]).casefold()
+                excluded = {
+                    "entity_type",
+                    "kind",
+                    "relation",
+                    "relationship",
+                    "subject",
+                    "source_quote",
+                    "confidence",
+                    "score",
+                }
+                candidates: list[tuple[int, str | int | float]] = []
+                for key, candidate in normalized.items():
+                    key_normalized = re.sub(r"[^a-z0-9]+", "_", str(key).casefold()).strip("_")
+                    if key_normalized in excluded or not isinstance(candidate, (str, int, float)):
+                        continue
+                    rendered = str(candidate).strip()
+                    if rendered and rendered.casefold() in quote:
+                        candidates.append((len(rendered), candidate))
+                if candidates:
+                    normalized["value"] = min(candidates, key=lambda item: item[0])[1]
+            if "relation" not in normalized and normalized.get("relationship") not in (None, ""):
+                normalized["relation"] = normalized["relationship"]
+            if "confidence" not in normalized and normalized.get("score") not in (None, ""):
+                normalized["confidence"] = normalized["score"]
+            confidence = normalized.get("confidence")
+            if isinstance(confidence, str):
+                rendered_confidence = confidence.strip()
+                if rendered_confidence.endswith("%"):
+                    try:
+                        normalized["confidence"] = float(rendered_confidence[:-1]) / 100.0
+                    except ValueError:
+                        pass
+            elif isinstance(confidence, (int, float)) and 1 < confidence <= 100:
+                normalized["confidence"] = float(confidence) / 100.0
             return normalized
         return value
 
@@ -229,7 +333,35 @@ class ScalarMetadataExtraction(BaseModel):
         if value in (None, ""):
             return DocumentKind.manual
         normalized = re.sub(r"[^a-z0-9]+", "_", str(value).strip().casefold()).strip("_")
-        return DOCUMENT_KIND_ALIASES.get(normalized, normalized)
+        aliased = DOCUMENT_KIND_ALIASES.get(normalized)
+        if aliased:
+            return aliased
+        words = set(normalized.split("_"))
+        if "release" in words and ({"note", "notes"} & words):
+            return "release_note"
+        if ({"data", "datasheet"} & words) and ({"sheet", "datasheet"} & words):
+            return "datasheet"
+        if {"specification", "specifications", "spec"} & words:
+            return "spec_sheet"
+        if "brochure" in words:
+            return "brochure"
+        if "troubleshooting" in words:
+            return "troubleshooting_guide"
+        if "installation" in words:
+            return "installation_guide"
+        if "service" in words:
+            return "service_guide"
+        if "setup" in words:
+            return "setup_guide"
+        if "safety" in words:
+            return "safety_bulletin"
+        if "parts" in words and ({"catalog", "catalogue"} & words):
+            return "parts_catalog"
+        if {"catalog", "catalogue"} & words:
+            return "parts_catalog"
+        if {"manual", "handbook", "guide"} & words:
+            return "manual"
+        return normalized
 
     @field_validator("revision_date", "effective_date", mode="before")
     @classmethod
@@ -309,6 +441,7 @@ def _scoped_prompt_messages(filename: str, text: str) -> list[dict[str, str]]:
                 "as external_reference unless the excerpt explicitly says it applies to the manual's primary product. "
                 "Never attach a firmware or software version to a product unless the quote establishes that scope. "
                 "Every entity must include a calibrated confidence from 0 to 1; do not use a fixed default."
+                f" Return at most {MAX_SCOPED_ENTITIES} highest-value distinct entities from this excerpt."
             ),
         },
         {
@@ -356,6 +489,14 @@ def _scoped_metadata_schema() -> dict[str, Any]:
     entity_schema = schema.get("$defs", {}).get("ScopedMetadataCandidate")
     if isinstance(entity_schema, dict):
         entity_schema["additionalProperties"] = False
+        properties = entity_schema.get("properties", {})
+        if isinstance(properties.get("kind"), dict):
+            properties["kind"]["enum"] = sorted(SCOPED_METADATA_KINDS)
+        if isinstance(properties.get("relation"), dict):
+            properties["relation"]["enum"] = sorted(SCOPED_METADATA_RELATIONS)
+    entities_schema = schema.get("properties", {}).get("entities")
+    if isinstance(entities_schema, dict):
+        entities_schema["maxItems"] = MAX_SCOPED_ENTITIES
     return schema
 
 
@@ -401,7 +542,8 @@ def _list_prompt_messages(field_name: str, filename: str, text: str) -> list[dic
                 f"Field: {field_name}\n"
                 f"Instruction: {LIST_FIELD_INSTRUCTIONS[field_name]}\n\n"
                 f"{_source_text(filename, text)}\n\n"
-                f"Return JSON only with the key {field_name}."
+                f"Return JSON only with the key {field_name}. Return at most {MAX_FLAT_LIST_ITEMS} "
+                "highest-value distinct items. Keep every item concise."
             ),
         },
     ]
@@ -411,7 +553,13 @@ def _list_field_schema(field_name: str) -> dict[str, Any]:
     return {
         "type": "object",
         "additionalProperties": False,
-        "properties": {field_name: {"type": "array", "items": {"type": "string"}}},
+        "properties": {
+            field_name: {
+                "type": "array",
+                "items": {"type": "string", "maxLength": 160},
+                "maxItems": MAX_FLAT_LIST_ITEMS,
+            }
+        },
         "required": [field_name],
     }
 
@@ -449,6 +597,7 @@ def _extract_scalar_metadata(filename: str, text: str) -> ScalarMetadataExtracti
                 think=False,
                 purpose="metadata_extraction",
                 num_predict=320,
+                num_ctx=METADATA_NUM_CTX,
             )
             return ScalarMetadataExtraction.model_validate(_normalize_object_response(parsed))
         except Exception as exc:
@@ -533,7 +682,8 @@ def _extract_list_field(field_name: str, filename: str, text: str) -> list[str]:
                 json_schema=_list_field_schema(field_name),
                 think=False,
                 purpose=f"metadata_extraction.{field_name}",
-                num_predict=240,
+                num_predict=1024,
+                num_ctx=METADATA_NUM_CTX,
             )
             if isinstance(parsed, list):
                 parsed = {field_name: parsed}
@@ -686,6 +836,46 @@ def _expected_version_kinds(segments: list[MetadataSourceSegment]) -> set[str]:
     return {kind for kind, pattern in VERSION_SIGNAL_PATTERNS.items() if pattern.search(source)}
 
 
+def _deterministic_version_evidence(
+    segments: list[MetadataSourceSegment],
+    expected_kinds: set[str],
+) -> list[dict[str, Any]]:
+    """Recover explicit same-line version statements without inferring applicability."""
+    patterns: dict[str, re.Pattern[str]] = {}
+    if "software_version" in expected_kinds:
+        patterns["software_version"] = re.compile(
+            r"(?P<subject>[A-Za-z][A-Za-z0-9+_.-]*(?:\s+[A-Za-z][A-Za-z0-9+_.-]*){0,3})"
+            r"\s*Ver(?:sion)?\.?\s*(?P<version>\d+(?:\.\d+){0,3})\b",
+            re.IGNORECASE,
+        )
+    recovered: list[dict[str, Any]] = []
+    for segment in segments:
+        for raw_line in segment.text.splitlines():
+            line = " ".join(raw_line.split()).strip()
+            for kind, pattern in patterns.items():
+                for match in pattern.finditer(line):
+                    subject = " ".join(match.group("subject").split()).strip(" |,;:")
+                    version = match.group("version")
+                    if not subject or not version:
+                        continue
+                    recovered.append(
+                        {
+                            "value": version,
+                            "kind": kind,
+                            "relation": "mentioned",
+                            "subject": subject,
+                            "source_quote": line[:500],
+                            "page_from": segment.page_from,
+                            "page_to": segment.page_to,
+                            "section_path": list(segment.section_path),
+                            "confidence": 0.95,
+                            "grounded": True,
+                            "source": "deterministic_explicit_version",
+                        }
+                    )
+    return _dedupe_evidence(recovered)
+
+
 def _call_scoped_model(
     filename: str,
     messages: list[dict[str, str]],
@@ -701,7 +891,8 @@ def _call_scoped_model(
                 json_schema=_scoped_metadata_schema(),
                 think=False,
                 purpose=purpose,
-                num_predict=1800,
+                num_predict=3000,
+                num_ctx=METADATA_NUM_CTX,
             )
             normalized = _normalize_object_response(parsed, collection_key="entities")
             return ScopedMetadataExtraction.model_validate(normalized)
@@ -715,6 +906,8 @@ def _call_scoped_model(
                 purpose,
                 exc,
             )
+            if isinstance(exc, json.JSONDecodeError):
+                break
     raise MetadataExtractionIncomplete(
         f"Scoped metadata extraction exhausted retries for {filename} purpose={purpose}: {last_error}"
     )
@@ -747,6 +940,18 @@ def _ground_scoped_candidates(
         subject = candidate.subject.strip() if candidate.subject else None
         if kind in {"firmware_version", "software_version"} and not subject:
             continue
+        if relation in {"applies_to", "compatible_with", "accessory_for"}:
+            if subject and subject.casefold() in {"product", "device", "system", "manual"}:
+                continue
+            if subject and not _value_is_grounded(subject, quote):
+                continue
+        if kind == "firmware_version" and not re.search(r"\b(?:firmware|fw|version)\b", quote, re.IGNORECASE):
+            continue
+        if kind == "software_version" and not (
+            re.search(r"\b(?:software|version|ver\.?|studio|explorer|twincat|sysmac)\b", quote, re.IGNORECASE)
+            or (subject and _value_is_grounded(subject, quote) and re.search(r"\d", quote))
+        ):
+            continue
         if kind in {"firmware_version", "software_version"} and _compact_identifier(subject or "") in external_subjects:
             relation = "external_reference"
         grounded.append(
@@ -773,7 +978,7 @@ def _bisect_metadata_segments(
     if len(segments) > 1:
         midpoint = len(segments) // 2
         return segments[:midpoint], segments[midpoint:]
-    if not segments or len(segments[0].text) < 2000:
+    if not segments or len(segments[0].text) < MIN_SCOPED_SPLIT_CHARS:
         return None
     segment = segments[0]
     midpoint = len(segment.text) // 2
@@ -813,6 +1018,10 @@ def _extract_scoped_metadata(
                 purpose="metadata_extraction.version_applicability",
             )
             grounded.extend(_ground_scoped_candidates(focused, segments))
+            found_versions = {item["kind"] for item in grounded if item["kind"] in expected_versions}
+            missing_versions = expected_versions - found_versions
+        if missing_versions:
+            grounded.extend(_deterministic_version_evidence(segments, missing_versions))
             found_versions = {item["kind"] for item in grounded if item["kind"] in expected_versions}
             missing_versions = expected_versions - found_versions
         if missing_versions:
@@ -874,11 +1083,153 @@ def _unsafe_routing_value(value: str, *, repeated_lines: set[str]) -> bool:
     compact = _compact_identifier(stripped)
     if not compact or "_" in stripped or stripped.casefold().endswith(".pdf"):
         return True
+    if "|" in stripped or re.search(r"\b(?:KA|WW)-(?:C\d+-)?(?:US|GB)\b", stripped, re.IGNORECASE):
+        return True
     if compact in repeated_lines:
         return True
     if re.search(r"(?:^|[-_ ])(?:UM|IM|RM|MANUAL)(?:[-_ ]?[A-Z])?$", stripped, re.IGNORECASE):
         return True
     return False
+
+
+def _canonical_routing_identifier(value: str, *, repeated_lines: set[str]) -> str | None:
+    """Return one exact identifier from a model-produced phrase, or reject it."""
+    stripped = value.strip()
+    if _unsafe_routing_value(stripped, repeated_lines=repeated_lines):
+        if "|" not in stripped:
+            return None
+        stripped = stripped.rsplit("|", 1)[-1].strip()
+    stripped = re.sub(r"\s*\([^)]*\)\s*$", "", stripped).strip()
+    if "/" in stripped and stripped.casefold() not in {"ethernet/ip", "tcp/ip"}:
+        return None
+    matches = re.findall(
+        r"(?<![A-Z0-9])(?:[A-Z]{1,8}(?:[-:][A-Z0-9]+)+|[A-Z]{1,8}[A-Z-]*\d+[A-Z0-9-]*)(?![A-Z0-9])",
+        stripped.upper(),
+    )
+    matches = [
+        match.strip("-:")
+        for match in matches
+        if any(char.isalpha() for char in match)
+        and (
+            any(char.isdigit() for char in match)
+            or re.fullmatch(r"[A-Z]{2,4}-[A-Z]{1,2}", match) is not None
+        )
+    ]
+    if len(matches) != 1:
+        return None
+    candidate = matches[0]
+    if re.search(r"\b(?:KA|WW)-(?:C\d+-)?(?:US|GB)\b", candidate, re.IGNORECASE):
+        return None
+    return candidate
+
+
+def _expand_routing_identifiers(value: str, *, repeated_lines: set[str]) -> list[str]:
+    """Expand compact grouped model notation such as SR-2000/1000 and CV-X302/X322."""
+    if "/" not in value:
+        candidate = _canonical_routing_identifier(value, repeated_lines=repeated_lines)
+        return [candidate] if candidate else []
+    raw_parts = [part.strip().strip("()[]{}.,;") for part in value.split("/") if part.strip()]
+    if not raw_parts:
+        return []
+    first = _canonical_routing_identifier(raw_parts[0], repeated_lines=repeated_lines)
+    if first is None:
+        return []
+    expanded = [first]
+    prefix_match = re.match(r"^(.*-)([A-Z]?\d[A-Z0-9-]*)$", first)
+    prefix = prefix_match.group(1) if prefix_match else ""
+    for raw_part in raw_parts[1:]:
+        candidate = None
+        if prefix and "-" not in raw_part and re.fullmatch(r"[A-Z]?\d[A-Z0-9-]*", raw_part.upper()):
+            candidate = _canonical_routing_identifier(prefix + raw_part, repeated_lines=set())
+        if candidate is None:
+            candidate = _canonical_routing_identifier(raw_part, repeated_lines=set())
+        if candidate:
+            expanded.append(candidate)
+    return _dedupe_preserve_order(expanded)
+
+
+def _canonical_protocol(value: str) -> str | None:
+    cleaned = re.sub(r"[™®©]", "", value)
+    compact = _compact_identifier(cleaned).casefold()
+    if compact.startswith("bluetooth"):
+        return "bluetooth"
+    if compact.startswith("usb"):
+        return "usb"
+    return PROTOCOL_ALIASES.get(compact)
+
+
+def _filename_grounded_identifier_evidence(
+    filename: str,
+    segments: list[MetadataSourceSegment],
+) -> list[dict[str, Any]]:
+    """Recover upload-identity identifiers only when the same text is grounded near the document front."""
+    stem = filename.rsplit(".", 1)[0]
+    candidates = _dedupe_preserve_order(
+        re.findall(r"(?<![A-Za-z0-9])(?:[A-Za-z][A-Za-z0-9]{0,7}(?:-[A-Za-z0-9]+)+)(?![A-Za-z0-9])", stem)
+    )
+    evidence: list[dict[str, Any]] = []
+    for candidate in candidates:
+        is_short_series_code = re.fullmatch(r"[A-Za-z]{2,4}-[A-Za-z]{1,2}", candidate) is not None
+        if (
+            not any(char.isdigit() for char in candidate)
+            and not is_short_series_code
+        ) or re.search(r"^(?:AS|L|C|CM|IM|SG|RM)-?\d*$", candidate, re.IGNORECASE):
+            continue
+        candidate_compact = _compact_identifier(candidate)
+        located: MetadataSourceSegment | None = None
+        quote: str | None = None
+        for segment in segments:
+            if segment.page_from is None or segment.page_from > 3:
+                continue
+            for line in segment.text.splitlines():
+                line_identifiers = _expand_routing_identifiers(line, repeated_lines=set())
+                if candidate_compact and (
+                    candidate_compact in _compact_identifier(line)
+                    or candidate_compact in {_compact_identifier(item) for item in line_identifiers}
+                ):
+                    located = segment
+                    quote = " ".join(line.split())[:500]
+                    break
+            if located is not None:
+                break
+        if located is None or quote is None:
+            continue
+        evidence.append(
+            {
+                "value": candidate.upper(),
+                "kind": "part_number" if candidate.upper().startswith("OP-") else "product_model",
+                "relation": "accessory_for" if candidate.upper().startswith("OP-") else "primary_product",
+                "subject": None,
+                "source_quote": quote,
+                "page_from": located.page_from,
+                "page_to": located.page_to,
+                "section_path": list(located.section_path),
+                "confidence": 0.92,
+                "grounded": True,
+                "source": "upload_identity_page_grounded",
+            }
+        )
+    return evidence
+
+
+def _plausible_company_name(value: str) -> bool:
+    """Reject identifiers and prose that the model occasionally labels as companies."""
+    stripped = " ".join(value.split()).strip(" |,.;:")
+    if not stripped or len(stripped) > 100 or any(char.isdigit() for char in stripped):
+        return False
+    if _canonical_routing_identifier(stripped, repeated_lines=set()) is not None:
+        return False
+    words = stripped.split()
+    if words[0].casefold() in {"a", "an", "the", "based", "following", "this", "these", "using"}:
+        return False
+    if sum(len(word.strip(".,")) == 1 for word in words) >= max(3, len(words) // 2):
+        return False
+    legal_markers = {
+        "corp", "corporation", "company", "co", "inc", "incorporated", "ltd", "limited",
+        "llc", "gmbh", "ag", "plc", "electric", "electronics", "automation", "industries",
+    }
+    normalized_words = {re.sub(r"[^a-z]", "", word.casefold()) for word in words}
+    return bool(normalized_words & legal_markers) or (len(words) == 1 and stripped.isupper()) or len(words) >= 2
 
 
 def _first_primary(
@@ -898,7 +1249,22 @@ def _first_primary(
     ]
     if not matches:
         return None
-    matches.sort(key=lambda item: (-float(item.get("confidence") or 0.0), int(item.get("page_from") or 10**9)))
+    if kind == "company":
+        matches = [item for item in matches if _plausible_company_name(str(item.get("value") or ""))]
+        if not matches:
+            return None
+        trusted_markers = ("copyright", "all rights reserved", "www.", "warrant")
+        trusted = [
+            item for item in matches
+            if any(marker in str(item.get("source_quote") or "").casefold() for marker in trusted_markers)
+        ]
+        if trusted:
+            matches = trusted
+        else:
+            matches = [item for item in matches if int(item.get("page_from") or 10**9) <= 3]
+            if not matches:
+                return None
+    matches.sort(key=lambda item: (int(item.get("page_from") or 10**9), -float(item.get("confidence") or 0.0)))
     return str(matches[0]["value"])
 
 
@@ -909,23 +1275,76 @@ def _values_for_routing(
     repeated_lines: set[str] | None = None,
 ) -> list[str]:
     repeated_lines = repeated_lines or set()
-    allowed_relations = {"primary_product", "applies_to", "compatible_with", "accessory_for", "mentioned"}
+    allowed_relations = {"primary_product", "applies_to", "compatible_with", "accessory_for"}
+    if kind not in {"product_model", "part_number"}:
+        allowed_relations.add("mentioned")
     if kind == "company":
         allowed_relations.add("primary_manufacturer")
-    return _dedupe_preserve_order(
-        [
-            str(item["value"])
-            for item in evidence
-            if item.get("kind") == kind
-            and item.get("relation") in allowed_relations
-            and item.get("grounded") is True
-            and float(item.get("confidence") or 0.0) >= PRIMARY_ENTITY_MIN_CONFIDENCE
-            and not (kind in {"product_model", "part_number"} and _unsafe_routing_value(str(item.get("value") or ""), repeated_lines=repeated_lines))
-        ]
-    )
+    routed: list[str] = []
+    for item in evidence:
+        if (
+            item.get("kind") != kind
+            or item.get("relation") not in allowed_relations
+            or item.get("grounded") is not True
+            or float(item.get("confidence") or 0.0) < PRIMARY_ENTITY_MIN_CONFIDENCE
+        ):
+            continue
+        if (
+            kind == "product_model"
+            and item.get("relation") == "primary_product"
+            and item.get("source") != "upload_identity_page_grounded"
+            and int(item.get("page_from") or 10**9) > 3
+        ):
+            continue
+        value = str(item.get("value") or "")
+        if kind == "company" and not _plausible_company_name(value):
+            continue
+        if kind in {"product_model", "part_number"}:
+            value_repeated_lines = set() if item.get("source") == "upload_identity_page_grounded" else repeated_lines
+            expanded_values = _expand_routing_identifiers(value, repeated_lines=value_repeated_lines)
+            routed.extend(expanded_values)
+            continue
+        elif kind == "protocol":
+            value = _canonical_protocol(value) or ""
+        if value:
+            routed.append(value)
+    return _dedupe_preserve_order(routed)
 
 
-def _applicability_records(evidence: list[dict[str, Any]], kind: str) -> list[dict[str, Any]]:
+def _family_identifiers_for_routing(
+    evidence: list[dict[str, Any]],
+    *,
+    repeated_lines: set[str],
+) -> list[str]:
+    routed: list[str] = []
+    for item in evidence:
+        if (
+            item.get("kind") != "product_family"
+            or item.get("relation") not in {"primary_product", "applies_to", "compatible_with"}
+            or item.get("grounded") is not True
+            or float(item.get("confidence") or 0.0) < PRIMARY_ENTITY_MIN_CONFIDENCE
+        ):
+            continue
+        if item.get("relation") == "primary_product" and int(item.get("page_from") or 10**9) > 3:
+            continue
+        routed.extend(_expand_routing_identifiers(str(item.get("value") or ""), repeated_lines=repeated_lines))
+    return _dedupe_preserve_order(routed)
+
+
+def _applicability_records(
+    evidence: list[dict[str, Any]],
+    kind: str,
+    *,
+    applicable_subjects: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    subject_aliases = {_compact_identifier(value) for value in (applicable_subjects or []) if value}
+    def subject_is_product_identifier(item: dict[str, Any]) -> bool:
+        subject = str(item.get("subject") or "")
+        return (
+            _compact_identifier(subject) in subject_aliases
+            or _canonical_routing_identifier(subject, repeated_lines=set()) is not None
+        )
+
     return [
         {
             "version": item["value"],
@@ -940,8 +1359,9 @@ def _applicability_records(evidence: list[dict[str, Any]], kind: str) -> list[di
         }
         for item in evidence
         if item.get("kind") == kind
-        and item.get("relation") != "external_reference"
+        and item.get("relation") in {"applies_to", "compatible_with"}
         and item.get("subject")
+        and (kind != "firmware_version" or subject_is_product_identifier(item))
         and item.get("grounded") is True
         and float(item.get("confidence") or 0.0) >= PRIMARY_ENTITY_MIN_CONFIDENCE
     ]
@@ -995,11 +1415,15 @@ def infer_document_metadata_from_segments(
     evidence: list[dict[str, Any]] = []
     for batch in pack_metadata_source_segments(nonempty, max_chars=max_segment_chars):
         evidence.extend(_extract_scoped_metadata(filename, batch))
-    scoped_evidence = _dedupe_evidence(evidence)
+    scoped_evidence = _dedupe_evidence(evidence + _filename_grounded_identifier_evidence(filename, nonempty))
     evidence = _dedupe_evidence(scoped_evidence + _base_metadata_evidence(base, nonempty))
     repeated_lines = _repeated_short_line_values(nonempty)
 
     verified_product_models = _values_for_routing(scoped_evidence, "product_model", repeated_lines=repeated_lines)
+    verified_family_identifiers = _family_identifiers_for_routing(
+        scoped_evidence,
+        repeated_lines=repeated_lines,
+    )
     verified_part_numbers = _values_for_routing(scoped_evidence, "part_number", repeated_lines=repeated_lines)
     verified_protocols = [value.lower() for value in _values_for_routing(scoped_evidence, "protocol")]
     safe_base_product_models = [
@@ -1014,7 +1438,7 @@ def infer_document_metadata_from_segments(
     protocols = _dedupe_preserve_order(base.protocol_terms + verified_protocols)
     # Schema-v2 routing is evidence-gated. Legacy flat values remain searchable metadata,
     # but cannot become hard-routing keys without scoped, high-confidence evidence.
-    routing_product_models = verified_product_models
+    routing_product_models = _dedupe_preserve_order(verified_product_models + verified_family_identifiers)
     routing_part_numbers = verified_part_numbers
     routing_protocols = verified_protocols
     identifiers = routing_product_models + routing_part_numbers + routing_protocols
@@ -1029,15 +1453,26 @@ def infer_document_metadata_from_segments(
         "primary_product",
         repeated_lines=repeated_lines,
     )
-    selected_product = primary_product or (verified_product_models[0] if verified_product_models else None)
+    upload_identity_models = [
+        str(item["value"])
+        for item in scoped_evidence
+        if item.get("source") == "upload_identity_page_grounded" and item.get("kind") == "product_model"
+    ]
+    selected_product = (
+        upload_identity_models[0]
+        if upload_identity_models
+        else primary_product or (verified_product_models[0] if verified_product_models else None)
+    )
     if selected_product is None and base.product_model and not _unsafe_routing_value(
         base.product_model,
         repeated_lines=repeated_lines,
     ):
-        selected_product = base.product_model
+        located_base_product = _quote_location(base.product_model, nonempty)
+        if located_base_product is not None and int(located_base_product.page_from or 10**9) <= 3:
+            selected_product = base.product_model
     return replace(
         base,
-        manufacturer=primary_manufacturer or base.manufacturer,
+        manufacturer=primary_manufacturer or "Unknown",
         companies=_dedupe_preserve_order(base.companies + _values_for_routing(evidence, "company")),
         product_model=selected_product,
         product_models=product_models,
@@ -1052,6 +1487,10 @@ def infer_document_metadata_from_segments(
         routing_product_models=routing_product_models,
         routing_part_numbers=routing_part_numbers,
         routing_protocol_terms=routing_protocols,
-        firmware_applicability=_applicability_records(scoped_evidence, "firmware_version"),
+        firmware_applicability=_applicability_records(
+            scoped_evidence,
+            "firmware_version",
+            applicable_subjects=routing_product_models + product_families,
+        ),
         software_applicability=_applicability_records(scoped_evidence, "software_version"),
     )

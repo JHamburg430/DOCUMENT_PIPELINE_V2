@@ -114,7 +114,13 @@ def _inject_thinking_directive(model: str, messages: list[dict[str, str]], think
     return updated
 
 
-def _chat_options(model: str, *, json_mode: bool, num_predict: int | None = None) -> dict[str, Any]:
+def _chat_options(
+    model: str,
+    *,
+    json_mode: bool,
+    num_predict: int | None = None,
+    num_ctx: int | None = None,
+) -> dict[str, Any]:
     family = model_family(model)
     if family == "qwen":
         if json_mode:
@@ -123,6 +129,8 @@ def _chat_options(model: str, *, json_mode: bool, num_predict: int | None = None
             options = {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "presence_penalty": 1.5}
         if num_predict is not None:
             options["num_predict"] = num_predict
+        if num_ctx is not None:
+            options["num_ctx"] = num_ctx
         return options
     if json_mode:
         options = {"temperature": 0.0}
@@ -130,6 +138,8 @@ def _chat_options(model: str, *, json_mode: bool, num_predict: int | None = None
         options = {}
     if num_predict is not None:
         options["num_predict"] = num_predict
+    if num_ctx is not None:
+        options["num_ctx"] = num_ctx
     return options
 
 
@@ -142,12 +152,18 @@ def build_chat_payload(
     keep_alive: str | None = DEFAULT_KEEP_ALIVE,
     stream: bool = False,
     num_predict: int | None = None,
+    num_ctx: int | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "model": model,
         "messages": _inject_thinking_directive(model, messages, think),
         "stream": stream,
-        "options": _chat_options(model, json_mode=json_schema is not None, num_predict=num_predict),
+        "options": _chat_options(
+            model,
+            json_mode=json_schema is not None,
+            num_predict=num_predict,
+            num_ctx=num_ctx,
+        ),
     }
     if keep_alive is not None:
         payload["keep_alive"] = keep_alive
@@ -223,6 +239,7 @@ def _post_chat(
     keep_alive: str | None = DEFAULT_KEEP_ALIVE,
     purpose: str | None = None,
     num_predict: int | None = None,
+    num_ctx: int | None = None,
 ) -> dict[str, Any]:
     loaded_before = sorted(_loaded_models(client))
     request_payload = build_chat_payload(
@@ -232,6 +249,7 @@ def _post_chat(
         think=think,
         keep_alive=keep_alive,
         num_predict=num_predict,
+        num_ctx=num_ctx,
     )
     _record_call(
         {
@@ -277,6 +295,7 @@ def _post_chat_stream(
     purpose: str | None = None,
     on_token: Any | None = None,
     num_predict: int | None = None,
+    num_ctx: int | None = None,
 ) -> dict[str, Any]:
     loaded_before = sorted(_loaded_models(client))
     request_payload = build_chat_payload(
@@ -287,6 +306,7 @@ def _post_chat_stream(
         keep_alive=keep_alive,
         stream=True,
         num_predict=num_predict,
+        num_ctx=num_ctx,
     )
     _record_call(
         {
@@ -353,6 +373,7 @@ def chat_json(
     keep_alive: str = DEFAULT_KEEP_ALIVE,
     purpose: str | None = None,
     num_predict: int | None = None,
+    num_ctx: int | None = None,
 ) -> tuple[dict[str, Any], str]:
     with httpx.Client(base_url=settings.ollama_url, timeout=max(timeout, load_timeout)) as client:
         ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose)
@@ -366,6 +387,7 @@ def chat_json(
                 keep_alive=keep_alive,
                 purpose=purpose,
                 num_predict=num_predict,
+                num_ctx=num_ctx,
             )
         except Exception as exc:
             logger.warning("Ollama chat_json failed for model=%s; reloading and retrying once: %s", model, exc)
@@ -380,6 +402,7 @@ def chat_json(
                 keep_alive=keep_alive,
                 purpose=purpose,
                 num_predict=num_predict,
+                num_ctx=num_ctx,
             )
     content = extract_chat_content(body)
     return json.loads(content or "{}"), content
@@ -397,6 +420,7 @@ def chat_json_stream(
     keep_alive: str = DEFAULT_KEEP_ALIVE,
     purpose: str | None = None,
     num_predict: int | None = None,
+    num_ctx: int | None = None,
 ) -> tuple[dict[str, Any], str]:
     with httpx.Client(base_url=settings.ollama_url, timeout=max(timeout, load_timeout)) as client:
         ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose)
@@ -410,6 +434,7 @@ def chat_json_stream(
             purpose=purpose,
             on_token=on_token,
             num_predict=num_predict,
+            num_ctx=num_ctx,
         )
     content = extract_chat_content(body)
     return json.loads(content or "{}"), content
@@ -425,6 +450,7 @@ def chat_text(
     keep_alive: str = DEFAULT_KEEP_ALIVE,
     purpose: str | None = None,
     num_predict: int | None = None,
+    num_ctx: int | None = None,
 ) -> tuple[str, dict[str, Any]]:
     with httpx.Client(base_url=settings.ollama_url, timeout=max(timeout, load_timeout)) as client:
         ensure_model_loaded(client=client, model=model, keep_alive=keep_alive, purpose=purpose)
@@ -437,6 +463,7 @@ def chat_text(
                 keep_alive=keep_alive,
                 purpose=purpose,
                 num_predict=num_predict,
+                num_ctx=num_ctx,
             )
         except Exception as exc:
             logger.warning("Ollama chat_text failed for model=%s; reloading and retrying once: %s", model, exc)
@@ -450,5 +477,6 @@ def chat_text(
                 keep_alive=keep_alive,
                 purpose=purpose,
                 num_predict=num_predict,
+                num_ctx=num_ctx,
             )
     return extract_chat_content(body), body
