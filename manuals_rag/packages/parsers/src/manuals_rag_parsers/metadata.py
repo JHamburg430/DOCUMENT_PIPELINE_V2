@@ -4,9 +4,12 @@ from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 import json
 import logging
+import operator
 import re
-from typing import Any
+from typing import Annotated, Any, Literal, TypedDict
 
+from langgraph.graph import END, START, StateGraph
+from langgraph.types import Send
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from manuals_rag_common.config import settings
@@ -96,6 +99,10 @@ METADATA_EXTRACTION_ATTEMPTS = 3
 PRIMARY_ENTITY_MIN_CONFIDENCE = 0.8
 TITLE_PAGE_LIMIT = 2
 TITLE_SOURCE_MAX_CHARS = 12000
+CLAIM_VERIFICATION_BATCH_SIZE = 8
+METADATA_MAP_MAX_CONCURRENCY = 2
+MAX_HARVESTED_CANDIDATES = 80
+METADATA_PIPELINE_VERSION = "evidence_map_reduce_verify_v1"
 
 DOCUMENT_KIND_ALIASES = {
     "user_manual": "manual",
@@ -118,7 +125,7 @@ VERSION_SIGNAL_PATTERNS = {
         re.IGNORECASE,
     ),
     "software_version": re.compile(
-        r"\b(?:software|application|tool|studio|explorer|twincat|sysmac)\b.{0,80}?"
+        r"\b(?:software|application|tool|studio|explorer)\b.{0,80}?"
         r"\b(?:v(?:er(?:sion)?)?\.?\s*)\d+(?:\.\d+){0,3}\b",
         re.IGNORECASE,
     ),
@@ -156,6 +163,8 @@ class DocumentMetadata:
     routing_protocol_terms: list[str] = field(default_factory=list)
     firmware_applicability: list[dict[str, Any]] = field(default_factory=list)
     software_applicability: list[dict[str, Any]] = field(default_factory=list)
+    metadata_claims: list[dict[str, Any]] = field(default_factory=list)
+    metadata_pipeline_version: str = "legacy"
 
 
 @dataclass(frozen=True)
@@ -164,6 +173,25 @@ class MetadataSourceSegment:
     page_from: int | None = None
     page_to: int | None = None
     section_path: tuple[str, ...] = ()
+
+
+class MetadataClaim(BaseModel):
+    """Framework-neutral, evidence-bearing intermediate metadata record."""
+
+    value: str
+    normalized_value: str
+    kind: str
+    relation: str
+    subject: str | None = None
+    source_quote: str
+    page_from: int | None = None
+    page_to: int | None = None
+    section_path: list[str] = Field(default_factory=list)
+    source_method: str
+    verification_status: Literal["confirmed", "probable", "unresolved", "conflicting", "rejected"]
+    confidence: float = Field(ge=0.0, le=1.0)
+    grounded: bool = True
+    support_pages: list[int] = Field(default_factory=list)
 
 
 class ScopedMetadataCandidate(BaseModel):
@@ -202,7 +230,7 @@ class ScopedMetadataCandidate(BaseModel):
                             normalized["value"] = candidate
                             break
             if "kind" not in normalized:
-                for alias in ("entity_type", "type"):
+                for alias in ("entity_kind", "entity_type", "type"):
                     if normalized.get(alias) not in (None, ""):
                         normalized["kind"] = normalized[alias]
                         break
@@ -472,7 +500,12 @@ def _title_prompt_messages(text: str) -> list[dict[str, str]]:
     ]
 
 
-def _scoped_prompt_messages(filename: str, text: str) -> list[dict[str, str]]:
+def _scoped_prompt_messages(
+    filename: str,
+    text: str,
+    harvested_candidates: list[dict[str, Any]] | None = None,
+) -> list[dict[str, str]]:
+    candidate_json = json.dumps(harvested_candidates or [], ensure_ascii=False)
     return [
         {
             "role": "system",
@@ -484,19 +517,79 @@ def _scoped_prompt_messages(filename: str, text: str) -> list[dict[str, str]]:
                 "as external_reference unless the excerpt explicitly says it applies to the manual's primary product. "
                 "Never attach a firmware or software version to a product unless the quote establishes that scope. "
                 "Every entity must include a calibrated confidence from 0 to 1; do not use a fixed default."
+                " A deterministic candidate harvester supplies recall-oriented candidates. Classify candidates only "
+                "when the excerpt supports them. You may add an omitted value only by copying it exactly from the excerpt."
                 f" Return at most {MAX_SCOPED_ENTITIES} highest-value distinct entities from this excerpt."
             ),
         },
         {
             "role": "user",
             "content": (
-                f"FILENAME (context only; not evidence): {filename}\n\n{text}\n\n"
+                f"FILENAME (context only; not evidence): {filename}\n\n"
+                f"HARVESTED CANDIDATES (untrusted until classified):\n{candidate_json}\n\n{text}\n\n"
                 "Extract only high-value routing metadata. Allowed kinds: company, product_family, product_model, "
                 "device, part_number, protocol, firmware_version, software_name, software_version, document_revision. "
                 "Allowed relations: primary_manufacturer, primary_product, applies_to, compatible_with, accessory_for, "
                 "external_reference, mentioned, document_revision. For firmware_version and software_version, subject "
                 "must name the product or software that the quote binds the version to; omit the entity if scope is unclear. "
                 "Use primary_manufacturer or primary_product only when the excerpt explicitly identifies the document owner/product."
+            ),
+        },
+    ]
+
+
+def _verification_prompt_messages(
+    filename: str,
+    claims: list[dict[str, Any]],
+    segments: list[MetadataSourceSegment],
+) -> list[dict[str, str]]:
+    evidence_windows: list[str] = []
+    for claim in claims:
+        quote = str(claim.get("source_quote") or "")
+        located = _quote_location(quote, segments)
+        if located is None:
+            continue
+        text = located.text
+        offset = text.casefold().find(quote.casefold())
+        if offset < 0:
+            window = text[:1200]
+        else:
+            window = text[max(0, offset - 400) : offset + len(quote) + 400]
+        rendered = _segment_text(replace(located, text=window))
+        if rendered not in evidence_windows:
+            evidence_windows.append(rendered)
+    source = "\n\n".join(evidence_windows)
+    candidate_payload = [
+        {
+            key: claim.get(key)
+            for key in ("value", "kind", "relation", "subject", "source_quote")
+        }
+        for claim in claims
+    ]
+    for candidate in candidate_payload:
+        # Required by the shared structured-output schema. This value is deliberately
+        # ignored; publication confidence is derived from verifier agreement and evidence.
+        candidate["confidence"] = 1.0
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You independently verify grounded metadata claims. Return only the subset that is fully supported, "
+                "using exactly the supplied value, kind, relation, subject, and source_quote. Reject a claim when the "
+                "quote does not prove the typed relationship, its subject is ambiguous, a version qualifier is lost, "
+                "or an external/example device is classified as the primary product. A specification-table row "
+                "explicitly labelled Model is direct primary-product evidence unless nearby text identifies it as an "
+                "accessory or example. An opening-page publisher/manufacturer heading is direct manufacturer evidence "
+                "when the same page describes the primary model. Do not repair or add claims."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"FILENAME (context only; not evidence): {filename}\n\n"
+                f"SOURCE EVIDENCE:\n{source}\n\n"
+                f"CLAIMS TO VERIFY:\n{json.dumps(candidate_payload, ensure_ascii=False)}\n\n"
+                "Return an entities array containing only fully supported claims, copied exactly."
             ),
         },
     ]
@@ -692,6 +785,17 @@ def _value_is_grounded(value: str, source: str) -> bool:
     return bool(normalized_value) and normalized_value in normalized_source
 
 
+def _identifier_is_grounded(value: str, source: str) -> bool:
+    stripped = value.strip()
+    if not stripped:
+        return False
+    return re.search(
+        rf"(?<![A-Za-z0-9]){re.escape(stripped)}(?![A-Za-z0-9])",
+        source,
+        re.IGNORECASE,
+    ) is not None
+
+
 def _ground_values(field_name: str, values: list[str], filename: str, text: str) -> list[str]:
     if field_name not in GROUNDED_LIST_FIELDS:
         return values
@@ -861,6 +965,53 @@ def _segment_text(segment: MetadataSourceSegment) -> str:
     return f"{header}\n{segment.text.strip()}"
 
 
+def harvest_metadata_candidates(segments: list[MetadataSourceSegment]) -> list[dict[str, Any]]:
+    """Harvest broad, corpus-general candidates before asking the model to classify them."""
+    candidates: list[dict[str, Any]] = []
+    identifier_pattern = re.compile(
+        r"(?<![A-Za-z0-9])(?:[A-Z]{1,8}(?:[-:][A-Z0-9]{1,16})+|[A-Z]{1,8}[A-Z-]*\d+[A-Z0-9-]*)(?![A-Za-z0-9])"
+    )
+    version_pattern = re.compile(
+        r"\b(?:firmware|software|version|ver\.?|revision|rev\.?)\b[^\n]{0,100}?\b\d+(?:\.\d+){0,3}\b",
+        re.IGNORECASE,
+    )
+    protocol_pattern = re.compile(
+        r"\b(?:EtherNet/IP|EtherCAT|PROFINET|Modbus|TCP/IP|UDP|RS[- ]?232C?|RS[- ]?422|RS[- ]?485|"
+        r"IO[- ]?Link|CANopen|CC[- ]?Link|Bluetooth|USB|PoE)\b",
+        re.IGNORECASE,
+    )
+    seen: set[tuple[str, str, int | None]] = set()
+    for segment in segments:
+        for raw_line in segment.text.splitlines():
+            quote = " ".join(raw_line.split()).strip()
+            if not quote:
+                continue
+            for kind, pattern in (
+                ("identifier", identifier_pattern),
+                ("version_statement", version_pattern),
+                ("protocol", protocol_pattern),
+            ):
+                for match in pattern.finditer(quote):
+                    value = match.group(0).strip()
+                    fingerprint = (kind, _compact_identifier(value), segment.page_from)
+                    if not value or fingerprint in seen:
+                        continue
+                    seen.add(fingerprint)
+                    candidates.append(
+                        {
+                            "candidate_kind": kind,
+                            "value": value,
+                            "source_quote": quote[:240],
+                            "page_from": segment.page_from,
+                            "page_to": segment.page_to,
+                            "section_path": list(segment.section_path),
+                        }
+                    )
+                    if len(candidates) >= MAX_HARVESTED_CANDIDATES:
+                        return candidates
+    return candidates
+
+
 def pack_metadata_source_segments(
     segments: list[MetadataSourceSegment],
     *,
@@ -1011,6 +1162,8 @@ def _ground_scoped_candidates(
             or not _value_is_grounded(value, quote)
         ):
             continue
+        if kind in {"product_model", "part_number"} and not _identifier_is_grounded(value, quote):
+            continue
         subject = candidate.subject.strip() if candidate.subject else None
         if kind in {"firmware_version", "software_version"} and not subject:
             continue
@@ -1022,7 +1175,7 @@ def _ground_scoped_candidates(
         if kind == "firmware_version" and not re.search(r"\b(?:firmware|fw|version)\b", quote, re.IGNORECASE):
             continue
         if kind == "software_version" and not (
-            re.search(r"\b(?:software|version|ver\.?|studio|explorer|twincat|sysmac)\b", quote, re.IGNORECASE)
+            re.search(r"\b(?:software|application|tool|version|ver\.?|studio|explorer)\b", quote, re.IGNORECASE)
             or (subject and _value_is_grounded(subject, quote) and re.search(r"\d", quote))
         ):
             continue
@@ -1078,7 +1231,7 @@ def _extract_scoped_metadata(
     try:
         extraction = _call_scoped_model(
             filename,
-            _scoped_prompt_messages(filename, rendered),
+            _scoped_prompt_messages(filename, rendered, harvest_metadata_candidates(segments)),
             purpose="metadata_extraction.scoped_entities",
         )
         grounded = _ground_scoped_candidates(extraction, segments)
@@ -1140,6 +1293,141 @@ def _dedupe_evidence(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return deduped
 
 
+def _claim_fingerprint(item: dict[str, Any]) -> tuple[str, str, str, str, str]:
+    return (
+        str(item.get("kind") or "").casefold(),
+        _compact_identifier(str(item.get("value") or "")),
+        str(item.get("relation") or "").casefold(),
+        _compact_identifier(str(item.get("subject") or "")),
+        " ".join(str(item.get("source_quote") or "").casefold().split()),
+    )
+
+
+def _claim_group_key(item: dict[str, Any]) -> tuple[str, str, str, str]:
+    """Group equivalent page claims while retaining distinct relationships."""
+    return (
+        str(item.get("kind") or "").casefold(),
+        _normalized_claim_value(item),
+        str(item.get("relation") or "").casefold(),
+        _compact_identifier(str(item.get("subject") or "")),
+    )
+
+
+def _normalized_claim_value(item: dict[str, Any]) -> str:
+    value = str(item.get("value") or "")
+    if item.get("kind") in {"product_model", "part_number", "product_family", "protocol"}:
+        return _compact_identifier(value)
+    return " ".join(value.casefold().split())
+
+
+def _claim_scope_key(item: dict[str, Any]) -> tuple[str, str, str]:
+    kind = str(item.get("kind") or "")
+    subject = (
+        _compact_identifier(str(item.get("subject") or ""))
+        if kind in {"firmware_version", "software_version"}
+        else ""
+    )
+    return kind, _normalized_claim_value(item), subject
+
+
+def reconcile_metadata_claims(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Reduce page claims into a document ledger without product-specific knowledge."""
+    groups: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
+    for item in evidence:
+        groups.setdefault(_claim_group_key(item), []).append(item)
+    reduced: list[dict[str, Any]] = []
+    for items in groups.values():
+        representative = dict(items[0])
+        pages = sorted(
+            {
+                int(item["page_from"])
+                for item in items
+                if item.get("page_from") is not None
+            }
+        )
+        representative["support_pages"] = pages
+        representative["source_method"] = str(
+            representative.pop(
+                "source",
+                representative.get("source_method", "page_aware_model_extraction"),
+            )
+        )
+        representative["normalized_value"] = _normalized_claim_value(representative)
+        representative["verification_status"] = "unresolved"
+        representative["confidence"] = 0.45 if representative.get("grounded") is True else 0.0
+        reduced.append(representative)
+
+    relations_by_entity: dict[tuple[str, str, str], set[str]] = {}
+    for item in reduced:
+        key = _claim_scope_key(item)
+        relations_by_entity.setdefault(key, set()).add(str(item.get("relation") or ""))
+    for item in reduced:
+        key = _claim_scope_key(item)
+        relations = relations_by_entity[key]
+        if "external_reference" in relations and relations & {"primary_product", "applies_to", "compatible_with"}:
+            item["verification_status"] = "conflicting"
+    return reduced
+
+
+def _segments_for_claims(
+    claims: list[dict[str, Any]],
+    segments: list[MetadataSourceSegment],
+) -> list[MetadataSourceSegment]:
+    pages = {claim.get("page_from") for claim in claims}
+    selected = [segment for segment in segments if segment.page_from in pages]
+    return selected or segments
+
+
+def verify_metadata_claims(
+    filename: str,
+    claims: list[dict[str, Any]],
+    segments: list[MetadataSourceSegment],
+) -> list[dict[str, Any]]:
+    """Independently verify typed relationships and derive confidence from evidence."""
+    verified: list[dict[str, Any]] = []
+    for offset in range(0, len(claims), CLAIM_VERIFICATION_BATCH_SIZE):
+        batch = claims[offset : offset + CLAIM_VERIFICATION_BATCH_SIZE]
+        local_segments = _segments_for_claims(batch, segments)
+        accepted: set[tuple[str, str, str, str, str]] = set()
+        verification_completed = False
+        try:
+            extraction = _call_scoped_model(
+                filename,
+                _verification_prompt_messages(filename, batch, local_segments),
+                purpose="metadata_extraction.claim_verification",
+            )
+            accepted_evidence = _ground_scoped_candidates(extraction, local_segments)
+            accepted = {_claim_fingerprint(item) for item in accepted_evidence}
+            verification_completed = True
+        except MetadataExtractionIncomplete as exc:
+            logger.warning("Claim verification failed safely for %s: %s", filename, exc)
+
+        for claim in batch:
+            item = dict(claim)
+            if item.get("verification_status") == "conflicting":
+                item["confidence"] = 0.35
+            elif _claim_fingerprint(item) in accepted:
+                score = 0.80
+                if len(item.get("support_pages") or []) > 1:
+                    score += 0.05
+                if item.get("subject") and _value_is_grounded(
+                    str(item["subject"]), str(item.get("source_quote") or "")
+                ):
+                    score += 0.05
+                if int(item.get("page_from") or 10**9) <= TITLE_PAGE_LIMIT:
+                    score += 0.05
+                item["verification_status"] = "confirmed"
+                item["confidence"] = min(score, 1.0)
+            elif verification_completed:
+                item["verification_status"] = "rejected"
+                item["confidence"] = 0.0
+            else:
+                item["verification_status"] = "unresolved"
+                item["confidence"] = min(float(item.get("confidence") or 0.0), 0.45)
+            verified.append(MetadataClaim.model_validate(item).model_dump())
+    return verified
+
+
 def _repeated_short_line_values(segments: list[MetadataSourceSegment]) -> set[str]:
     pages_by_line: dict[str, set[int | None]] = {}
     for segment in segments:
@@ -1157,7 +1445,7 @@ def _unsafe_routing_value(value: str, *, repeated_lines: set[str]) -> bool:
     compact = _compact_identifier(stripped)
     if not compact or "_" in stripped or stripped.casefold().endswith(".pdf"):
         return True
-    if "|" in stripped or re.search(r"\b(?:KA|WW)-(?:C\d+-)?(?:US|GB)\b", stripped, re.IGNORECASE):
+    if "|" in stripped:
         return True
     if compact in repeated_lines:
         return True
@@ -1174,6 +1462,9 @@ def _canonical_routing_identifier(value: str, *, repeated_lines: set[str]) -> st
             return None
         stripped = stripped.rsplit("|", 1)[-1].strip()
     stripped = re.sub(r"\s*\([^)]*\)\s*$", "", stripped).strip()
+    stripped = re.sub(r"\s+(?:series|family)$", "", stripped, flags=re.IGNORECASE).strip()
+    if re.search(r"\s", stripped):
+        return None
     if "/" in stripped and stripped.casefold() not in {"ethernet/ip", "tcp/ip"}:
         return None
     matches = re.findall(
@@ -1192,8 +1483,6 @@ def _canonical_routing_identifier(value: str, *, repeated_lines: set[str]) -> st
     if len(matches) != 1:
         return None
     candidate = matches[0]
-    if re.search(r"\b(?:KA|WW)-(?:C\d+-)?(?:US|GB)\b", candidate, re.IGNORECASE):
-        return None
     return candidate
 
 
@@ -1247,7 +1536,7 @@ def _filename_grounded_identifier_evidence(
         if (
             not any(char.isdigit() for char in candidate)
             and not is_short_series_code
-        ) or re.search(r"^(?:AS|L|C|CM|IM|SG|RM)-?\d*$", candidate, re.IGNORECASE):
+        ):
             continue
         candidate_compact = _compact_identifier(candidate)
         located: MetadataSourceSegment | None = None
@@ -1258,7 +1547,7 @@ def _filename_grounded_identifier_evidence(
             for line in segment.text.splitlines():
                 line_identifiers = _expand_routing_identifiers(line, repeated_lines=set())
                 if candidate_compact and (
-                    candidate_compact in _compact_identifier(line)
+                    _identifier_is_grounded(candidate, line)
                     or candidate_compact in {_compact_identifier(item) for item in line_identifiers}
                 ):
                     located = segment
@@ -1272,13 +1561,13 @@ def _filename_grounded_identifier_evidence(
             {
                 "value": candidate.upper(),
                 "kind": "part_number" if candidate.upper().startswith("OP-") else "product_model",
-                "relation": "accessory_for" if candidate.upper().startswith("OP-") else "primary_product",
+                "relation": "mentioned",
                 "subject": None,
                 "source_quote": quote,
                 "page_from": located.page_from,
                 "page_to": located.page_to,
                 "section_path": list(located.section_path),
-                "confidence": 0.92,
+                "confidence": 0.45,
                 "grounded": True,
                 "source": "upload_identity_page_grounded",
             }
@@ -1318,6 +1607,7 @@ def _first_primary(
         item
         for item in evidence
         if item.get("kind") == kind and item.get("relation") == relation and item.get("grounded") is True
+        and item.get("verification_status", "confirmed") == "confirmed"
         and float(item.get("confidence") or 0.0) >= PRIMARY_ENTITY_MIN_CONFIDENCE
         and not (kind in {"product_model", "part_number"} and _unsafe_routing_value(str(item.get("value") or ""), repeated_lines=repeated_lines))
     ]
@@ -1360,13 +1650,14 @@ def _values_for_routing(
             item.get("kind") != kind
             or item.get("relation") not in allowed_relations
             or item.get("grounded") is not True
+            or item.get("verification_status", "confirmed") != "confirmed"
             or float(item.get("confidence") or 0.0) < PRIMARY_ENTITY_MIN_CONFIDENCE
         ):
             continue
         if (
             kind == "product_model"
             and item.get("relation") == "primary_product"
-            and item.get("source") != "upload_identity_page_grounded"
+            and (item.get("source_method") or item.get("source")) != "upload_identity_page_grounded"
             and int(item.get("page_from") or 10**9) > 3
         ):
             continue
@@ -1374,7 +1665,11 @@ def _values_for_routing(
         if kind == "company" and not _plausible_company_name(value):
             continue
         if kind in {"product_model", "part_number"}:
-            value_repeated_lines = set() if item.get("source") == "upload_identity_page_grounded" else repeated_lines
+            value_repeated_lines = (
+                set()
+                if (item.get("source_method") or item.get("source")) == "upload_identity_page_grounded"
+                else repeated_lines
+            )
             expanded_values = _expand_routing_identifiers(value, repeated_lines=value_repeated_lines)
             routed.extend(expanded_values)
             continue
@@ -1396,6 +1691,7 @@ def _family_identifiers_for_routing(
             item.get("kind") != "product_family"
             or item.get("relation") not in {"primary_product", "applies_to", "compatible_with"}
             or item.get("grounded") is not True
+            or item.get("verification_status", "confirmed") != "confirmed"
             or float(item.get("confidence") or 0.0) < PRIMARY_ENTITY_MIN_CONFIDENCE
         ):
             continue
@@ -1437,6 +1733,7 @@ def _applicability_records(
         and item.get("subject")
         and (kind != "firmware_version" or subject_is_product_identifier(item))
         and item.get("grounded") is True
+        and item.get("verification_status", "confirmed") == "confirmed"
         and float(item.get("confidence") or 0.0) >= PRIMARY_ENTITY_MIN_CONFIDENCE
     ]
 
@@ -1519,30 +1816,20 @@ def _select_document_title(
     return _normalize_title(filename), None
 
 
-def infer_document_metadata_from_segments(
-    filename: str,
+def _materialize_verified_metadata(
+    base: DocumentMetadata,
+    selected_title: str,
+    printed_title_evidence: dict[str, Any] | None,
+    claims: list[dict[str, Any]],
     segments: list[MetadataSourceSegment],
-    *,
-    max_segment_chars: int = DEFAULT_METADATA_SEGMENT_CHARS,
 ) -> DocumentMetadata:
-    """Extract flat compatibility fields plus grounded, scoped metadata from the whole document."""
-    nonempty = [segment for segment in segments if segment.text.strip()]
-    if not nonempty:
-        return infer_document_metadata(filename, "")
-    opening_segments = _opening_page_segments(nonempty)
-    front_text = "\n\n".join(_segment_text(segment) for segment in opening_segments)[:DEFAULT_METADATA_SEGMENT_CHARS]
-    base = infer_document_metadata(filename, front_text)
-    selected_title, printed_title_evidence = _select_document_title(filename, base.title, nonempty)
-    evidence: list[dict[str, Any]] = []
-    for batch in pack_metadata_source_segments(nonempty, max_chars=max_segment_chars):
-        evidence.extend(_extract_scoped_metadata(filename, batch))
-    scoped_evidence = _dedupe_evidence(evidence + _filename_grounded_identifier_evidence(filename, nonempty))
+    scoped_evidence = claims
     evidence = _dedupe_evidence(
         scoped_evidence
-        + _base_metadata_evidence(base, nonempty)
+        + _base_metadata_evidence(base, segments)
         + ([printed_title_evidence] if printed_title_evidence else [])
     )
-    repeated_lines = _repeated_short_line_values(nonempty)
+    repeated_lines = _repeated_short_line_values(segments)
 
     verified_product_models = _values_for_routing(scoped_evidence, "product_model", repeated_lines=repeated_lines)
     verified_family_identifiers = _family_identifiers_for_routing(
@@ -1578,23 +1865,9 @@ def infer_document_metadata_from_segments(
         "primary_product",
         repeated_lines=repeated_lines,
     )
-    upload_identity_models = [
-        str(item["value"])
-        for item in scoped_evidence
-        if item.get("source") == "upload_identity_page_grounded" and item.get("kind") == "product_model"
-    ]
-    selected_product = (
-        upload_identity_models[0]
-        if upload_identity_models
-        else primary_product or (verified_product_models[0] if verified_product_models else None)
+    selected_product = primary_product or (
+        verified_product_models[0] if verified_product_models else None
     )
-    if selected_product is None and base.product_model and not _unsafe_routing_value(
-        base.product_model,
-        repeated_lines=repeated_lines,
-    ):
-        located_base_product = _quote_location(base.product_model, nonempty)
-        if located_base_product is not None and int(located_base_product.page_from or 10**9) <= 3:
-            selected_product = base.product_model
     return replace(
         base,
         title=selected_title,
@@ -1619,4 +1892,149 @@ def infer_document_metadata_from_segments(
             applicable_subjects=routing_product_models + product_families,
         ),
         software_applicability=_applicability_records(scoped_evidence, "software_version"),
+        metadata_claims=scoped_evidence,
+        metadata_pipeline_version=METADATA_PIPELINE_VERSION,
     )
+
+
+class MetadataWorkflowState(TypedDict, total=False):
+    filename: str
+    segments: list[MetadataSourceSegment]
+    max_segment_chars: int
+    batches: list[list[MetadataSourceSegment]]
+    batch: list[MetadataSourceSegment]
+    base: DocumentMetadata
+    selected_title: str
+    printed_title_evidence: dict[str, Any] | None
+    mapped_evidence: Annotated[list[dict[str, Any]], operator.add]
+    claims: list[dict[str, Any]]
+    verified_claims: list[dict[str, Any]]
+    result: DocumentMetadata
+
+
+def _prepare_metadata_workflow(state: MetadataWorkflowState) -> dict[str, Any]:
+    segments = [segment for segment in state["segments"] if segment.text.strip()]
+    opening_segments = _opening_page_segments(segments)
+    front_text = "\n\n".join(_segment_text(segment) for segment in opening_segments)[
+        :DEFAULT_METADATA_SEGMENT_CHARS
+    ]
+    base = infer_document_metadata(state["filename"], front_text)
+    selected_title, printed_title_evidence = _select_document_title(
+        state["filename"], base.title, segments
+    )
+    return {
+        "segments": segments,
+        "base": base,
+        "selected_title": selected_title,
+        "printed_title_evidence": printed_title_evidence,
+        "batches": pack_metadata_source_segments(
+            segments, max_chars=state["max_segment_chars"]
+        ),
+        "mapped_evidence": [],
+    }
+
+
+def _dispatch_metadata_batches(state: MetadataWorkflowState) -> list[Send]:
+    return [
+        Send("map_metadata_batch", {"filename": state["filename"], "batch": batch})
+        for batch in state["batches"]
+    ]
+
+
+def _map_metadata_batch(state: MetadataWorkflowState) -> dict[str, Any]:
+    return {
+        "mapped_evidence": _extract_scoped_metadata(state["filename"], state["batch"])
+    }
+
+
+def _reduce_metadata_claims(state: MetadataWorkflowState) -> dict[str, Any]:
+    mapped = sorted(
+        state.get("mapped_evidence", []),
+        key=lambda item: (
+            int(item.get("page_from") or 10**9),
+            str(item.get("kind") or ""),
+            _compact_identifier(str(item.get("value") or "")),
+            str(item.get("relation") or ""),
+        ),
+    )
+    evidence = _dedupe_evidence(
+        mapped
+        + _filename_grounded_identifier_evidence(state["filename"], state["segments"])
+    )
+    return {"claims": reconcile_metadata_claims(evidence)}
+
+
+def _verify_metadata_workflow_claims(state: MetadataWorkflowState) -> dict[str, Any]:
+    verified_claims = verify_metadata_claims(
+        state["filename"], state["claims"], state["segments"]
+    )
+    expected_version_kinds = _expected_version_kinds(state["segments"])
+    confirmed_version_kinds = {
+        str(item.get("kind") or "")
+        for item in verified_claims
+        if item.get("verification_status") == "confirmed"
+        and item.get("grounded") is True
+    }
+    missing_version_kinds = expected_version_kinds - confirmed_version_kinds
+    if missing_version_kinds:
+        raise MetadataExtractionIncomplete(
+            f"Independent verification for {state['filename']} rejected or could not resolve "
+            f"all grounded {sorted(missing_version_kinds)} claims"
+        )
+    return {"verified_claims": verified_claims}
+
+
+def _publish_metadata_workflow(state: MetadataWorkflowState) -> dict[str, Any]:
+    return {
+        "result": _materialize_verified_metadata(
+            state["base"],
+            state["selected_title"],
+            state.get("printed_title_evidence"),
+            state["verified_claims"],
+            state["segments"],
+        )
+    }
+
+
+def build_metadata_extraction_graph() -> Any:
+    builder = StateGraph(MetadataWorkflowState)
+    builder.add_node("prepare", _prepare_metadata_workflow)
+    builder.add_node("map_metadata_batch", _map_metadata_batch)
+    builder.add_node("reduce_claims", _reduce_metadata_claims)
+    builder.add_node("verify_claims", _verify_metadata_workflow_claims)
+    builder.add_node("publish", _publish_metadata_workflow)
+    builder.add_edge(START, "prepare")
+    builder.add_conditional_edges("prepare", _dispatch_metadata_batches, ["map_metadata_batch"])
+    builder.add_edge("map_metadata_batch", "reduce_claims")
+    builder.add_edge("reduce_claims", "verify_claims")
+    builder.add_edge("verify_claims", "publish")
+    builder.add_edge("publish", END)
+    return builder.compile()
+
+
+_METADATA_EXTRACTION_GRAPH: Any | None = None
+
+
+def infer_document_metadata_from_segments(
+    filename: str,
+    segments: list[MetadataSourceSegment],
+    *,
+    max_segment_chars: int = DEFAULT_METADATA_SEGMENT_CHARS,
+) -> DocumentMetadata:
+    """Run evidence-first Map–Reduce–Verify extraction over a whole document."""
+    nonempty = [segment for segment in segments if segment.text.strip()]
+    if not nonempty:
+        return infer_document_metadata(filename, "")
+    global _METADATA_EXTRACTION_GRAPH
+    if _METADATA_EXTRACTION_GRAPH is None:
+        _METADATA_EXTRACTION_GRAPH = build_metadata_extraction_graph()
+    output = _METADATA_EXTRACTION_GRAPH.invoke(
+        {
+            "filename": filename,
+            "segments": nonempty,
+            "max_segment_chars": max_segment_chars,
+            "mapped_evidence": [],
+        },
+        config={"max_concurrency": METADATA_MAP_MAX_CONCURRENCY},
+    )
+    return output["result"]

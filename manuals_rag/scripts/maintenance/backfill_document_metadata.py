@@ -117,6 +117,7 @@ def _chunk_metadata_payload(metadata: dict[str, Any]) -> dict[str, Any]:
         "document_topics": metadata["document_topics"],
         "revision_date": metadata["revision_date"],
         "metadata_schema_version": metadata["metadata_schema_version"],
+        "metadata_pipeline_version": metadata.get("metadata_pipeline_version", "legacy"),
         "normalized_identifier_aliases": metadata["normalized_identifier_aliases"],
         "routing_product_models": metadata["routing_product_models"],
         "routing_part_numbers": metadata["routing_part_numbers"],
@@ -215,7 +216,7 @@ def main() -> None:
         default=None,
         help="Optional diagnostic cap. By default the full document is enriched; limiting nodes reduces metadata recall.",
     )
-    parser.add_argument("--segment-chars", type=int, default=12000, help="Maximum source characters per page-aware model call.")
+    parser.add_argument("--segment-chars", type=int, default=3000, help="Maximum source characters per page-aware model call.")
     args = parser.parse_args()
 
     _ensure_metadata_table()

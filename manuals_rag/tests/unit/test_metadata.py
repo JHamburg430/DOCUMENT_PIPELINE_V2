@@ -4,6 +4,7 @@ import pytest
 
 from manuals_rag_parsers.metadata import (
     LIST_FIELD_INSTRUCTIONS,
+    METADATA_PIPELINE_VERSION,
     METADATA_NUM_CTX,
     MetadataExtractionIncomplete,
     MetadataExtraction,
@@ -20,9 +21,13 @@ from manuals_rag_parsers.metadata import (
     _ground_scoped_candidates,
     _plausible_company_name,
     _values_for_routing,
+    build_metadata_extraction_graph,
+    harvest_metadata_candidates,
     infer_document_metadata,
     infer_document_metadata_from_segments,
     pack_metadata_source_segments,
+    reconcile_metadata_claims,
+    verify_metadata_claims,
 )
 from manuals_rag_common.config import settings
 
@@ -142,6 +147,12 @@ def test_page_aware_metadata_preserves_scope_aliases_and_late_evidence(monkeypat
     )
 
     def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "metadata_extraction.document_title":
+            return ({"title": "KEYENCE CV-X482 vision controller"}, "{}")
+        if kwargs["purpose"] == "metadata_extraction.claim_verification":
+            content = kwargs["messages"][1]["content"]
+            claims = json.loads(content.split("CLAIMS TO VERIFY:\n", 1)[1].split("\n\n", 1)[0])
+            return ({"entities": claims}, "{}")
         assert kwargs["purpose"] == "metadata_extraction.scoped_entities"
         source = kwargs["messages"][1]["content"]
         entities = []
@@ -248,6 +259,17 @@ def test_scoped_metadata_accepts_type_and_entity_aliases():
         "confidence": 0.95,
     }]})
     assert extraction.entities[0].value == "CV-X482"
+
+
+def test_scoped_metadata_accepts_entity_kind_alias():
+    extraction = ScopedMetadataExtraction.model_validate({"entities": [{
+        "value": "AX-420",
+        "entity_kind": "product_model",
+        "relation": "primary_product",
+        "source_quote": "AX-420 controller",
+        "confidence": 0.95,
+    }]})
+    assert extraction.entities[0].kind == "product_model"
     assert extraction.entities[0].kind == "product_model"
 
 
@@ -350,9 +372,13 @@ def test_filename_identifier_requires_matching_front_page_evidence(monkeypatch):
         [MetadataSourceSegment("LJ-X8000 Communication Command Manual", 1, 1)],
     )
 
-    assert metadata.routing_product_models == ["LJ-X8000"]
-    assert metadata.product_model == "LJ-X8000"
-    assert any(item["source"] == "upload_identity_page_grounded" for item in metadata.metadata_evidence)
+    assert metadata.routing_product_models == []
+    assert metadata.product_model is None
+    assert any(
+        item.get("source_method") == "upload_identity_page_grounded"
+        and item["relation"] == "mentioned"
+        for item in metadata.metadata_evidence
+    )
 
 
 def test_noisy_filename_title_is_replaced_by_grounded_opening_page_title(monkeypatch):
@@ -480,10 +506,10 @@ def test_scoped_metadata_retries_and_accepts_top_level_array_and_entity_alias(mo
         [MetadataSourceSegment("CV-X482 vision controller", 1, 1)],
     )
 
-    assert calls == 2
+    assert calls == 3
     assert metadata.routing_product_models == ["CV-X482"]
     assert metadata.product_model == "CV-X482"
-    assert metadata.metadata_evidence[0]["confidence"] == pytest.approx(0.97)
+    assert metadata.metadata_evidence[0]["confidence"] == pytest.approx(0.85)
 
 
 def test_scoped_metadata_splits_immediately_after_deterministic_json_error(monkeypatch):
@@ -642,6 +668,10 @@ def test_truncated_large_batch_is_bisected_and_recovered(monkeypatch):
     )
 
     def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "metadata_extraction.claim_verification":
+            content = kwargs["messages"][1]["content"]
+            claims = json.loads(content.split("CLAIMS TO VERIFY:\n", 1)[1].split("\n\n", 1)[0])
+            return ({"entities": claims}, "{}")
         source = kwargs["messages"][1]["content"]
         has_a = "A-100 controller" in source
         has_b = "B-200 controller" in source
@@ -677,3 +707,207 @@ def test_truncated_large_batch_is_bisected_and_recovered(monkeypatch):
     )
 
     assert metadata.routing_product_models == ["A-100", "B-200"]
+
+
+def test_candidate_harvester_preserves_page_section_and_quote():
+    candidates = harvest_metadata_candidates(
+        [
+            MetadataSourceSegment(
+                "Controller AX-420 requires firmware version 3.14 and supports EtherCAT.",
+                42,
+                42,
+                ("Compatibility", "Controller"),
+            )
+        ]
+    )
+
+    assert any(item["value"] == "AX-420" for item in candidates)
+    assert any(item["candidate_kind"] == "version_statement" for item in candidates)
+    assert any(item["value"].casefold() == "ethercat" for item in candidates)
+    assert all(item["page_from"] == 42 for item in candidates)
+    assert all(item["section_path"] == ["Compatibility", "Controller"] for item in candidates)
+    assert all("AX-420" in item["source_quote"] for item in candidates)
+
+
+def test_reducer_merges_alias_equivalent_claims_across_pages():
+    claims = reconcile_metadata_claims(
+        [
+            {
+                "value": "CV-X482",
+                "kind": "product_model",
+                "relation": "primary_product",
+                "source_quote": "CV-X482 controller",
+                "page_from": 1,
+                "grounded": True,
+            },
+            {
+                "value": "CVX482",
+                "kind": "product_model",
+                "relation": "primary_product",
+                "source_quote": "CVX482 settings",
+                "page_from": 8,
+                "grounded": True,
+            },
+        ]
+    )
+
+    assert len(claims) == 1
+    assert claims[0]["support_pages"] == [1, 8]
+    assert claims[0]["normalized_value"] == "CVX482"
+
+
+def test_reducer_marks_contradictory_scope_as_conflicting():
+    evidence = [
+        {
+            "value": "PLC-900",
+            "kind": "product_model",
+            "relation": relation,
+            "subject": None,
+            "source_quote": "PLC-900 controller",
+            "page_from": page,
+            "grounded": True,
+        }
+        for relation, page in (("primary_product", 1), ("external_reference", 9))
+    ]
+
+    claims = reconcile_metadata_claims(evidence)
+
+    assert {claim["verification_status"] for claim in claims} == {"conflicting"}
+
+
+def test_independent_verifier_controls_routing_and_derives_confidence(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="ZX-900 Manual"),
+    )
+
+    def fake_chat_json(**kwargs):
+        purpose = kwargs["purpose"]
+        if purpose == "metadata_extraction.scoped_entities":
+            return (
+                {
+                    "entities": [
+                        {
+                            "value": "ZX-900",
+                            "kind": "product_model",
+                            "relation": "primary_product",
+                            "source_quote": "ZX-900 Manual",
+                            "confidence": 0.01,
+                        }
+                    ]
+                },
+                "{}",
+            )
+        if purpose == "metadata_extraction.claim_verification":
+            content = kwargs["messages"][1]["content"]
+            claims = json.loads(content.split("CLAIMS TO VERIFY:\n", 1)[1].split("\n\n", 1)[0])
+            return ({"entities": claims}, "{}")
+        raise AssertionError(purpose)
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        "opaque_upload.pdf",
+        [MetadataSourceSegment("ZX-900 Manual", 1, 1, ("Cover",))],
+    )
+
+    assert metadata.metadata_pipeline_version == METADATA_PIPELINE_VERSION
+    assert metadata.routing_product_models == ["ZX-900"]
+    claim = next(item for item in metadata.metadata_claims if item["value"] == "ZX-900")
+    assert claim["verification_status"] == "confirmed"
+    assert claim["confidence"] == pytest.approx(0.85)
+
+
+def test_successful_verifier_rejection_is_distinct_from_unresolved_failure(monkeypatch):
+    claims = reconcile_metadata_claims(
+        [
+            {
+                "value": "ZX-900",
+                "kind": "product_model",
+                "relation": "primary_product",
+                "source_quote": "ZX-900 is an external example controller.",
+                "page_from": 8,
+                "grounded": True,
+            }
+        ]
+    )
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: ({"entities": []}, "{}"),
+    )
+
+    verified = verify_metadata_claims(
+        "manual.pdf",
+        claims,
+        [MetadataSourceSegment("ZX-900 is an external example controller.", 8, 8)],
+    )
+
+    assert verified[0]["verification_status"] == "rejected"
+    assert verified[0]["confidence"] == 0.0
+
+
+def test_filename_prefix_collision_cannot_create_identity_or_routing(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="MOD-500 Manual"),
+    )
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata.chat_json",
+        lambda **kwargs: ({"entities": []}, "{}"),
+    )
+
+    metadata = infer_document_metadata_from_segments(
+        "MOD-5_manual.pdf",
+        [MetadataSourceSegment("MOD-500 Manual", 1, 1)],
+    )
+
+    assert metadata.product_model is None
+    assert metadata.routing_product_models == []
+    assert not any(item.get("value") == "MOD-5" for item in metadata.metadata_claims)
+
+
+def test_langgraph_workflow_compiles():
+    assert build_metadata_extraction_graph() is not None
+
+
+def test_workflow_fails_when_verifier_rejects_all_version_claims(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="Controller Manual"),
+    )
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "metadata_extraction.scoped_entities":
+            return (
+                {
+                    "entities": [
+                        {
+                            "value": "3.14",
+                            "kind": "firmware_version",
+                            "relation": "applies_to",
+                            "subject": "ZX-900",
+                            "source_quote": "ZX-900 firmware version 3.14 or later is required.",
+                            "confidence": 0.9,
+                        }
+                    ]
+                },
+                "{}",
+            )
+        if kwargs["purpose"] == "metadata_extraction.claim_verification":
+            return ({"entities": []}, "{}")
+        raise AssertionError(kwargs["purpose"])
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+
+    with pytest.raises(MetadataExtractionIncomplete, match="Independent verification"):
+        infer_document_metadata_from_segments(
+            "opaque_upload.pdf",
+            [
+                MetadataSourceSegment("Controller Manual", 1, 1, ("Cover",)),
+                MetadataSourceSegment(
+                    "ZX-900 firmware version 3.14 or later is required.",
+                    10,
+                    10,
+                    ("Compatibility",),
+                ),
+            ],
+        )

@@ -22,12 +22,14 @@ def test_qwen_payload_disables_thinking_and_uses_json_schema():
         json_schema={"type": "object"},
         think=False,
         num_predict=-1,
+        num_ctx=8192,
     )
     assert payload["think"] is False
     assert payload["format"] == {"type": "object"}
     assert payload["messages"][0]["content"].endswith("/no_think")
     assert payload["options"]["presence_penalty"] == 1.5
     assert payload["options"]["num_predict"] == -1
+    assert payload["options"]["num_ctx"] == 8192
 
 
 def test_gpt_oss_payload_omits_think_control():

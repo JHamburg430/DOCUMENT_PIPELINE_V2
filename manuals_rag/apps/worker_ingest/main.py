@@ -71,6 +71,8 @@ def _metadata_extraction_payload(metadata: object) -> dict[str, object]:
         "routing_protocol_terms": getattr(metadata, "routing_protocol_terms"),
         "firmware_applicability": getattr(metadata, "firmware_applicability"),
         "software_applicability": getattr(metadata, "software_applicability"),
+        "metadata_claims": getattr(metadata, "metadata_claims"),
+        "metadata_pipeline_version": getattr(metadata, "metadata_pipeline_version"),
     }
 
 
@@ -277,6 +279,7 @@ def process_job(job: dict[str, str]) -> None:
             "document_menu_labels": inferred_metadata.menu_labels,
             "document_topics": inferred_metadata.document_topics,
             "metadata_schema_version": inferred_metadata.metadata_schema_version,
+            "metadata_pipeline_version": inferred_metadata.metadata_pipeline_version,
             "normalized_identifier_aliases": inferred_metadata.normalized_identifier_aliases,
             "routing_product_models": inferred_metadata.routing_product_models,
             "routing_part_numbers": inferred_metadata.routing_part_numbers,

@@ -15,8 +15,10 @@ if str(ROOT) not in sys.path:
 
 from manuals_rag_common.config import settings
 from manuals_rag_parsers.metadata import (
+    METADATA_PIPELINE_VERSION,
     MetadataSourceSegment,
     _compact_identifier,
+    _expected_version_kinds,
     _quote_location,
     infer_document_metadata_from_segments,
 )
@@ -54,16 +56,18 @@ class ComparisonResult:
 def _qualified_routing_evidence(metadata: dict[str, Any], kind: str) -> set[str]:
     return {
         _compact_identifier(str(item.get("value") or ""))
-        for item in metadata.get("metadata_evidence") or []
+        for item in metadata.get("metadata_claims") or []
         if item.get("kind") == kind
         and item.get("relation") in {"primary_product", "applies_to", "compatible_with", "accessory_for"}
         and item.get("grounded") is True
+        and item.get("verification_status") == "confirmed"
         and float(item.get("confidence") or 0.0) >= 0.8
     }
 
 
 def _audit(metadata: dict[str, Any], segments: list[MetadataSourceSegment]) -> dict[str, Any]:
     evidence = metadata.get("metadata_evidence") or []
+    claims = metadata.get("metadata_claims") or []
     ungrounded = [
         item
         for item in evidence
@@ -100,11 +104,35 @@ def _audit(metadata: dict[str, Any], segments: list[MetadataSourceSegment]) -> d
         or item.get("grounded") is not True
         or float(item.get("confidence") or 0.0) < 0.8
     ]
+    expected_version_kinds = _expected_version_kinds(segments)
+    confirmed_version_kinds = {
+        str(item.get("kind") or "")
+        for item in claims
+        if item.get("kind") in {"firmware_version", "software_version"}
+        and item.get("verification_status") == "confirmed"
+        and item.get("grounded") is True
+    }
+    missing_version_kinds = sorted(expected_version_kinds - confirmed_version_kinds)
     checks = {
         "schema_v2": metadata.get("metadata_schema_version") == 2,
+        "map_reduce_verify_pipeline": metadata.get("metadata_pipeline_version") == METADATA_PIPELINE_VERSION,
+        "has_independently_confirmed_claims": any(
+            item.get("verification_status") == "confirmed" for item in claims
+        ),
         "all_evidence_grounded": not ungrounded,
         "all_routing_values_evidence_gated": not any(routing_without_evidence.values()),
+        "no_conflicting_claim_controls_routing": not any(
+            _compact_identifier(str(item.get("value") or ""))
+            in {
+                *map(_compact_identifier, metadata.get("routing_product_models") or []),
+                *map(_compact_identifier, metadata.get("routing_part_numbers") or []),
+                *map(_compact_identifier, metadata.get("routing_protocol_terms") or []),
+            }
+            and item.get("verification_status") == "conflicting"
+            for item in claims
+        ),
         "all_applicability_scoped": not malformed_applicability,
+        "version_signals_have_confirmed_claims": not missing_version_kinds,
         "title_grounded_on_opening_pages": bool(
             any(
                 item.get("kind") == "document_title"
@@ -118,9 +146,17 @@ def _audit(metadata: dict[str, Any], segments: list[MetadataSourceSegment]) -> d
         "passed": all(checks.values()),
         "checks": checks,
         "evidence_count": len(evidence),
+        "claim_count": len(claims),
+        "claim_status_counts": {
+            status: sum(item.get("verification_status") == status for item in claims)
+            for status in ("confirmed", "probable", "unresolved", "conflicting", "rejected")
+        },
         "ungrounded_evidence": ungrounded,
         "routing_without_evidence": routing_without_evidence,
         "malformed_applicability": malformed_applicability,
+        "expected_version_kinds": sorted(expected_version_kinds),
+        "confirmed_version_kinds": sorted(confirmed_version_kinds),
+        "missing_version_kinds": missing_version_kinds,
         "routing_product_models": metadata.get("routing_product_models") or [],
         "routing_part_numbers": metadata.get("routing_part_numbers") or [],
         "routing_protocol_terms": metadata.get("routing_protocol_terms") or [],
@@ -132,7 +168,7 @@ def _audit(metadata: dict[str, Any], segments: list[MetadataSourceSegment]) -> d
 def main() -> None:
     parser = argparse.ArgumentParser(description="Dry-run metadata extraction on a fixed difficult-document set.")
     parser.add_argument("--filename", action="append", dest="filenames")
-    parser.add_argument("--segment-chars", type=int, default=12000)
+    parser.add_argument("--segment-chars", type=int, default=3000)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
