@@ -239,6 +239,18 @@ def test_metadata_segment_packing_covers_the_full_document():
     assert pages == list(range(1, 8))
 
 
+def test_scoped_metadata_accepts_type_and_entity_aliases():
+    extraction = ScopedMetadataExtraction.model_validate({"entities": [{
+        "entity": "CV-X482",
+        "type": "product_model",
+        "relation": "primary_product",
+        "source_quote": "CV-X482 vision controller",
+        "confidence": 0.95,
+    }]})
+    assert extraction.entities[0].value == "CV-X482"
+    assert extraction.entities[0].kind == "product_model"
+
+
 def test_metadata_bisection_splits_dense_single_segment_below_legacy_threshold():
     segment = MetadataSourceSegment("field | value\n" * 80, 7, 7, ("Specifications",))
     split = _bisect_metadata_segments([segment])

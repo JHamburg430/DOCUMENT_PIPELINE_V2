@@ -201,8 +201,11 @@ class ScopedMetadataCandidate(BaseModel):
                         ):
                             normalized["value"] = candidate
                             break
-            if "kind" not in normalized and "entity_type" in normalized:
-                normalized["kind"] = normalized["entity_type"]
+            if "kind" not in normalized:
+                for alias in ("entity_type", "type"):
+                    if normalized.get(alias) not in (None, ""):
+                        normalized["kind"] = normalized[alias]
+                        break
             if "source_quote" not in normalized:
                 for alias in (
                     "quote",
