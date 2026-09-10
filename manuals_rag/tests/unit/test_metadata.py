@@ -343,6 +343,67 @@ def test_filename_identifier_requires_matching_front_page_evidence(monkeypatch):
     assert any(item["source"] == "upload_identity_page_grounded" for item in metadata.metadata_evidence)
 
 
+def test_noisy_filename_title_is_replaced_by_grounded_opening_page_title(monkeypatch):
+    noisy_filename = "AS_103012_LineScan_C_611J12_KA_US_2073_3.pdf"
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="spec_sheet", title=noisy_filename),
+    )
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "metadata_extraction.document_title":
+            assert "FILENAME" not in kwargs["messages"][1]["content"]
+            assert "Overview" in kwargs["messages"][1]["content"]
+            assert "Later appendix" not in kwargs["messages"][1]["content"]
+            return ({"title": "Automatic Inspection of Defects, Uneven Surfaces, and Contamination"}, "{}")
+        return ({"entities": []}, "{}")
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        noisy_filename,
+        [
+            MetadataSourceSegment(
+                "Automatic Inspection of Defects, Uneven Surfaces, and Contamination\nXG-X Series",
+                1,
+                1,
+            ),
+            MetadataSourceSegment("Later appendix", 6, 6),
+            MetadataSourceSegment("Overview", 2, 2),
+            MetadataSourceSegment("Unrelated Section Heading", 3, 3),
+        ],
+    )
+
+    assert metadata.title == "Automatic Inspection of Defects, Uneven Surfaces, and Contamination"
+    title_evidence = [item for item in metadata.metadata_evidence if item["kind"] == "document_title"]
+    assert len(title_evidence) == 1
+    assert title_evidence[0]["page_from"] == 1
+    assert title_evidence[0]["source"] == "opening_page_title"
+
+
+def test_title_selection_does_not_use_a_later_section_heading(monkeypatch):
+    monkeypatch.setattr(
+        "manuals_rag_parsers.metadata._extract_metadata_with_model",
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="Advanced Configuration"),
+    )
+
+    def fake_chat_json(**kwargs):
+        if kwargs["purpose"] == "metadata_extraction.document_title":
+            return ({"publication_title": "Vision System User's Manual"}, "{}")
+        return ({"entities": []}, "{}")
+
+    monkeypatch.setattr("manuals_rag_parsers.metadata.chat_json", fake_chat_json)
+    metadata = infer_document_metadata_from_segments(
+        "opaque_4815162342.pdf",
+        [
+            MetadataSourceSegment("Vision System User's Manual", 1, 1),
+            MetadataSourceSegment("Contents", 2, 2),
+            MetadataSourceSegment("Advanced Configuration", 3, 3),
+        ],
+    )
+
+    assert metadata.title == "Vision System User's Manual"
+
+
 def test_scalar_metadata_normalizes_array_shape_dates_and_kind_synonyms(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_parsers.metadata.chat_json",
@@ -379,7 +440,7 @@ def test_scalar_metadata_normalizes_product_kind_variants(monkeypatch, raw_kind,
 def test_scoped_metadata_retries_and_accepts_top_level_array_and_entity_alias(monkeypatch):
     monkeypatch.setattr(
         "manuals_rag_parsers.metadata._extract_metadata_with_model",
-        lambda filename, text: MetadataExtraction(document_kind="manual", title="CV-X Manual"),
+        lambda filename, text: MetadataExtraction(document_kind="manual", title="CV-X482 vision controller"),
     )
     calls = 0
 

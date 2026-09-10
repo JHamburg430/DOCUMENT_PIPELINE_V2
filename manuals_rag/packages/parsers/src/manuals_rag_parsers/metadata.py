@@ -94,6 +94,8 @@ MIN_SCOPED_SPLIT_CHARS = 500
 METADATA_NUM_CTX = 8192
 METADATA_EXTRACTION_ATTEMPTS = 3
 PRIMARY_ENTITY_MIN_CONFIDENCE = 0.8
+TITLE_PAGE_LIMIT = 2
+TITLE_SOURCE_MAX_CHARS = 12000
 
 DOCUMENT_KIND_ALIASES = {
     "user_manual": "manual",
@@ -379,6 +381,23 @@ class ScalarMetadataExtraction(BaseModel):
         return value
 
 
+class TitleMetadataExtraction(BaseModel):
+    title: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_title_aliases(cls, value: Any) -> Any:
+        if value is None:
+            return {"title": None}
+        normalized = _normalize_object_response(value)
+        if normalized.get("title") in (None, ""):
+            for alias in ("document_title", "publication_title", "manual_title"):
+                if normalized.get(alias) not in (None, ""):
+                    normalized["title"] = normalized[alias]
+                    break
+        return normalized
+
+
 def infer_document_kind(filename: str) -> DocumentKind:
     extraction = _extract_scalar_metadata(filename=filename, text="")
     return extraction.document_kind
@@ -415,6 +434,7 @@ def _scalar_prompt_messages(filename: str, text: str) -> list[dict[str, str]]:
             "content": (
                 "You are a metadata classification function. Return only JSON matching the schema. "
                 "Use null for unknown scalar values. Do not invent identifiers. "
+                "For title, copy the publication title printed in TEXT; never use or rewrite FILENAME as the title. "
                 "document_kind must use the enum value from the schema."
             ),
         },
@@ -425,6 +445,26 @@ def _scalar_prompt_messages(filename: str, text: str) -> list[dict[str, str]]:
                 "Classify title, document_kind, manufacturer, primary product_family, primary product_model, "
                 "revision_date, and effective_date. Return JSON only."
             ),
+        },
+    ]
+
+
+def _title_prompt_messages(text: str) -> list[dict[str, str]]:
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You identify the title printed on the opening pages of a technical publication. "
+                "Return a JSON object with exactly one title field. "
+                "Copy the document's overarching publication title exactly, joining wrapped title lines with spaces. "
+                "If there is no formal title, use the most prominent descriptive heading on the first page. "
+                "Do not choose a section heading, feature caption, footer, document code, revision string, or page number. "
+                "Use null only when neither opening page contains any meaningful title or cover heading."
+            ),
+        },
+        {
+            "role": "user",
+            "content": f"OPENING PAGES:\n{text}\n\nReturn the printed publication title as title, or null.",
         },
     ]
 
@@ -613,6 +653,36 @@ def _extract_scalar_metadata(filename: str, text: str) -> ScalarMetadataExtracti
     return ScalarMetadataExtraction(title=_normalize_title(filename))
 
 
+def _extract_printed_title(text: str) -> str | None:
+    last_error: Exception | None = None
+    for attempt in range(1, METADATA_EXTRACTION_ATTEMPTS + 1):
+        try:
+            parsed, _raw = chat_json(
+                model=settings.ollama_metadata_model,
+                messages=_title_prompt_messages(text),
+                json_schema=TitleMetadataExtraction.model_json_schema(),
+                think=False,
+                purpose="metadata_extraction.document_title",
+                num_predict=160,
+                num_ctx=METADATA_NUM_CTX,
+            )
+            candidate = TitleMetadataExtraction.model_validate(parsed).title
+            if candidate is None:
+                return None
+            candidate = " ".join(candidate.split()).strip()
+            return candidate if _value_is_grounded(candidate, text) else None
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "Printed title extraction attempt %s/%s failed: %s",
+                attempt,
+                METADATA_EXTRACTION_ATTEMPTS,
+                exc,
+            )
+    logger.warning("Printed title extraction exhausted retries: %s", last_error)
+    return None
+
+
 def _value_is_grounded(value: str, source: str) -> bool:
     normalized_value = " ".join(value.casefold().split())
     normalized_source = " ".join(source.casefold().split())
@@ -740,7 +810,8 @@ def _to_document_metadata(filename: str, text: str, extraction: MetadataExtracti
     product_family = product_families[0] if product_families else None
     if product_family is None and extraction.product_family and extraction.product_family not in product_models:
         product_family = extraction.product_family if _value_is_grounded(extraction.product_family, _source_text(filename, text)) else None
-    title = (extraction.title or _normalize_title(filename)).strip()
+    proposed_title = " ".join((extraction.title or "").split()).strip()
+    title = proposed_title if proposed_title and _value_is_grounded(proposed_title, text) else _normalize_title(filename)
     revision_date = _ground_date(extraction.revision_date, filename, text)
     effective_date = _ground_date(extraction.effective_date, filename, text)
     return DocumentMetadata(
@@ -1400,6 +1471,51 @@ def _base_metadata_evidence(base: DocumentMetadata, segments: list[MetadataSourc
     return evidence
 
 
+def _opening_page_segments(segments: list[MetadataSourceSegment]) -> list[MetadataSourceSegment]:
+    """Return all text blocks belonging to the first two physical pages present."""
+    page_keys = sorted({segment.page_from for segment in segments if segment.page_from is not None})[
+        :TITLE_PAGE_LIMIT
+    ]
+    if not page_keys:
+        return segments[:]
+    return [segment for segment in segments if segment.page_from in page_keys]
+
+
+def _title_evidence(title: str, segments: list[MetadataSourceSegment]) -> dict[str, Any] | None:
+    located = _quote_location(title, segments)
+    if located is None:
+        return None
+    return {
+        "value": title,
+        "kind": "document_title",
+        "relation": "printed_title",
+        "subject": None,
+        "source_quote": title,
+        "page_from": located.page_from,
+        "page_to": located.page_to,
+        "section_path": list(located.section_path),
+        "confidence": 0.95,
+        "grounded": True,
+        "source": "opening_page_title",
+    }
+
+
+def _select_document_title(
+    filename: str,
+    proposed_title: str,
+    segments: list[MetadataSourceSegment],
+) -> tuple[str, dict[str, Any] | None]:
+    opening_segments = _opening_page_segments(segments)
+    opening_text = "\n\n".join(_segment_text(segment) for segment in opening_segments)[:TITLE_SOURCE_MAX_CHARS]
+    proposed = " ".join(proposed_title.split()).strip()
+    if proposed and _value_is_grounded(proposed, opening_text):
+        return proposed, _title_evidence(proposed, opening_segments)
+    printed_title = _extract_printed_title(opening_text) if opening_text else None
+    if printed_title:
+        return printed_title, _title_evidence(printed_title, opening_segments)
+    return _normalize_title(filename), None
+
+
 def infer_document_metadata_from_segments(
     filename: str,
     segments: list[MetadataSourceSegment],
@@ -1410,13 +1526,19 @@ def infer_document_metadata_from_segments(
     nonempty = [segment for segment in segments if segment.text.strip()]
     if not nonempty:
         return infer_document_metadata(filename, "")
-    front_text = "\n\n".join(_segment_text(segment) for segment in nonempty)[:DEFAULT_METADATA_SEGMENT_CHARS]
+    opening_segments = _opening_page_segments(nonempty)
+    front_text = "\n\n".join(_segment_text(segment) for segment in opening_segments)[:DEFAULT_METADATA_SEGMENT_CHARS]
     base = infer_document_metadata(filename, front_text)
+    selected_title, printed_title_evidence = _select_document_title(filename, base.title, nonempty)
     evidence: list[dict[str, Any]] = []
     for batch in pack_metadata_source_segments(nonempty, max_chars=max_segment_chars):
         evidence.extend(_extract_scoped_metadata(filename, batch))
     scoped_evidence = _dedupe_evidence(evidence + _filename_grounded_identifier_evidence(filename, nonempty))
-    evidence = _dedupe_evidence(scoped_evidence + _base_metadata_evidence(base, nonempty))
+    evidence = _dedupe_evidence(
+        scoped_evidence
+        + _base_metadata_evidence(base, nonempty)
+        + ([printed_title_evidence] if printed_title_evidence else [])
+    )
     repeated_lines = _repeated_short_line_values(nonempty)
 
     verified_product_models = _values_for_routing(scoped_evidence, "product_model", repeated_lines=repeated_lines)
@@ -1472,6 +1594,7 @@ def infer_document_metadata_from_segments(
             selected_product = base.product_model
     return replace(
         base,
+        title=selected_title,
         manufacturer=primary_manufacturer or "Unknown",
         companies=_dedupe_preserve_order(base.companies + _values_for_routing(evidence, "company")),
         product_model=selected_product,
