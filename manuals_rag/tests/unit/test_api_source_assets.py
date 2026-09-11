@@ -23,6 +23,12 @@ USER_HEADERS = {"Authorization": "Bearer user-token"}
 def test_query_routes_to_selected_agentic_retriever(monkeypatch, orchestrator, attribute):
     calls = []
 
+    monkeypatch.setattr(
+        main,
+        "settings",
+        SimpleNamespace(**{**vars(main.settings), "agentic_retrieval_enabled": True}),
+    )
+
     class FakeAgenticRetriever:
         def invoke(self, payload):
             calls.append(payload)
@@ -113,6 +119,12 @@ def test_agentic_runtime_budget_clamps_invalid_environment_value(monkeypatch):
 
 
 def test_agentic_query_stream_emits_live_trace_and_final_answer(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "settings",
+        SimpleNamespace(**{**vars(main.settings), "agentic_retrieval_enabled": True}),
+    )
+
     class FakeAgenticRetriever:
         def __init__(self, event_callback):
             self.event_callback = event_callback

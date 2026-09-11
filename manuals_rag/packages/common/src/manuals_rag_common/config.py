@@ -45,7 +45,7 @@ class Settings:
     )
     ollama_answer_model: str = os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b")
     ollama_answer_num_predict: int = int(os.getenv("OLLAMA_ANSWER_NUM_PREDICT", "1024"))
-    agentic_retrieval_enabled: bool = _as_bool(os.getenv("AGENTIC_RETRIEVAL_ENABLED"), True)
+    agentic_retrieval_enabled: bool = _as_bool(os.getenv("AGENTIC_RETRIEVAL_ENABLED"), False)
     agentic_retrieval_max_seconds: float = float(os.getenv("AGENTIC_RETRIEVAL_MAX_SECONDS", "180"))
     agentic_retrieval_planner_timeout_seconds: float = float(
         os.getenv("AGENTIC_RETRIEVAL_PLANNER_TIMEOUT_SECONDS", "45")
