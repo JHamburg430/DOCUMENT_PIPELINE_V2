@@ -53,7 +53,12 @@ from manuals_rag_common.ollama import (
 from manuals_rag_common.queue import enqueue, redis_client
 from manuals_rag_common.storage import ObjectStore
 from manuals_rag_evals.retrieval_eval import RetrievalEvalCase, build_eval_cases_from_chunks, score_search_results, tokenize
-from manuals_rag_observability.metrics import QUERY_DURATION
+from manuals_rag_observability.metrics import (
+    AGENTIC_RETRIEVAL_CLAIMS,
+    AGENTIC_RETRIEVAL_HOPS,
+    AGENTIC_RETRIEVAL_RUNS,
+    QUERY_DURATION,
+)
 from manuals_rag_parsers.metadata import infer_document_metadata
 from manuals_rag_permissions.auth import Principal, require_role
 from manuals_rag_retrieval.retriever import build_filters, retrieve
@@ -1007,6 +1012,33 @@ debug_query_runs: dict[str, dict[str, Any]] = {}
 debug_query_runs_lock = Lock()
 
 
+def _agentic_max_seconds(request: QueryRequest) -> float:
+    configured = float(request.max_retrieval_seconds or settings.agentic_retrieval_max_seconds)
+    return max(5.0, min(configured, 300.0))
+
+
+def _require_agentic_retrieval_enabled(request: QueryRequest) -> None:
+    if request.retrieval_orchestrator != "baseline" and not settings.agentic_retrieval_enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="Agentic retrieval is disabled by the production rollout switch.",
+        )
+
+
+def _record_agentic_trace(orchestrator: str, trace: dict[str, Any]) -> None:
+    outcome = str(trace.get("stop_reason") or "unknown")
+    AGENTIC_RETRIEVAL_RUNS.labels(orchestrator, outcome).inc()
+    completed_hops = list(trace.get("completed_hops") or [])
+    AGENTIC_RETRIEVAL_HOPS.labels(orchestrator).observe(len(completed_hops))
+    for item in (trace.get("evidence_ledger") or {}).values():
+        trust_state = str((item.get("assessment") or {}).get("trust_state") or "unknown")
+        AGENTIC_RETRIEVAL_CLAIMS.labels(orchestrator, trust_state).inc()
+
+
+def _record_agentic_failure(orchestrator: str) -> None:
+    AGENTIC_RETRIEVAL_RUNS.labels(orchestrator, "controller_error").inc()
+
+
 def _set_debug_query_run(run_id: str, payload: dict[str, Any]) -> None:
     with debug_query_runs_lock:
         current = dict(debug_query_runs.get(run_id, {}))
@@ -1270,6 +1302,7 @@ def query_documents(
     request: QueryRequest,
     _: Principal = Depends(require_role("end_user", "operator", "admin", "auditor")),
 ) -> JSONResponse:
+    _require_agentic_retrieval_enabled(request)
     if request.retrieval_orchestrator == "baseline":
         with QUERY_DURATION.labels("full").time():
             result = workflow.invoke(
@@ -1282,23 +1315,29 @@ def query_documents(
             if request.retrieval_orchestrator == "langgraph_agent"
             else llamaindex_agentic_retriever
         )
-        with QUERY_DURATION.labels("full").time(), capture_ollama_usage() as usage_events:
-            result = agentic_retriever.invoke(
-                {
-                    "query": request.query,
-                    "corpus_ids": request.corpus_ids,
-                    "filters": request.filters,
-                    "max_hops": request.max_retrieval_hops,
-                }
-            )
-            retrieval_results = [SearchResult.model_validate(item) for item in result.get("retrieval_results", [])]
-            retrieval_trace = result.get("retrieval_trace", {})
-            answer = (
-                _generate_agentic_answer(request.query, retrieval_results, retrieval_trace)
-                if result.get("sufficient", retrieval_trace.get("sufficient"))
-                else insufficient_agent_answer(request.query, retrieval_trace)
-            ).model_dump()
+        try:
+            with QUERY_DURATION.labels("full").time(), capture_ollama_usage() as usage_events:
+                result = agentic_retriever.invoke(
+                    {
+                        "query": request.query,
+                        "corpus_ids": request.corpus_ids,
+                        "filters": request.filters,
+                        "max_hops": request.max_retrieval_hops,
+                        "max_seconds": _agentic_max_seconds(request),
+                    }
+                )
+                retrieval_results = [SearchResult.model_validate(item) for item in result.get("retrieval_results", [])]
+                retrieval_trace = result.get("retrieval_trace", {})
+                answer = (
+                    _generate_agentic_answer(request.query, retrieval_results, retrieval_trace)
+                    if result.get("sufficient", retrieval_trace.get("sufficient"))
+                    else insufficient_agent_answer(request.query, retrieval_trace)
+                ).model_dump()
+        except Exception:
+            _record_agentic_failure(request.retrieval_orchestrator)
+            raise
         trace = dict(result.get("retrieval_trace", {}))
+        _record_agentic_trace(request.retrieval_orchestrator, trace)
         trace["cost"] = {**dict(trace.get("cost") or {}), **summarize_ollama_usage(usage_events), "measured": True}
         result["retrieval_trace"] = trace
         answer["retrieval_orchestrator"] = request.retrieval_orchestrator
@@ -1329,6 +1368,7 @@ def _stream_agentic_query_events(request: QueryRequest):
                     "retrieval_orchestrator": orchestrator,
                     "query": request.query,
                     "max_hops": request.max_retrieval_hops,
+                    "max_seconds": _agentic_max_seconds(request),
                 }
             )
             factory = (
@@ -1343,6 +1383,7 @@ def _stream_agentic_query_events(request: QueryRequest):
                         "corpus_ids": request.corpus_ids,
                         "filters": request.filters,
                         "max_hops": request.max_retrieval_hops,
+                        "max_seconds": _agentic_max_seconds(request),
                     }
                 )
                 retrieval_results = [
@@ -1363,6 +1404,7 @@ def _stream_agentic_query_events(request: QueryRequest):
                     else insufficient_agent_answer(request.query, retrieval_trace)
                 ).model_dump()
             trace = dict(result.get("retrieval_trace", {}))
+            _record_agentic_trace(orchestrator, trace)
             trace["cost"] = {**dict(trace.get("cost") or {}), **summarize_ollama_usage(usage_events), "measured": True}
             result["retrieval_trace"] = trace
             answer["retrieval_orchestrator"] = orchestrator
@@ -1377,6 +1419,7 @@ def _stream_agentic_query_events(request: QueryRequest):
             emit({"event": "answer_completed", "answer": answer})
             emit({"event": "run_completed", "result": answer})
         except Exception as error:
+            _record_agentic_failure(orchestrator)
             emit(
                 {
                     "event": "run_failed",
@@ -1399,6 +1442,7 @@ def stream_agentic_query(
     request: QueryRequest,
     _: Principal = Depends(require_role("end_user", "operator", "admin", "auditor")),
 ) -> StreamingResponse:
+    _require_agentic_retrieval_enabled(request)
     if request.retrieval_orchestrator == "baseline":
         raise HTTPException(status_code=422, detail="Live agent trace requires an agentic retrieval orchestrator.")
     return StreamingResponse(

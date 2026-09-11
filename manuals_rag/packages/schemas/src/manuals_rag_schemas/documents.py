@@ -82,6 +82,7 @@ class QueryRequest(BaseModel):
     response_mode: str = "answer_with_citations"
     retrieval_orchestrator: Literal["baseline", "langgraph_agent", "llamaindex_agent"] = "baseline"
     max_retrieval_hops: int = Field(default=4, ge=1, le=8)
+    max_retrieval_seconds: float | None = Field(default=None, ge=5, le=300)
     include_source_assets: bool = False
     include_page_images: bool = False
     include_table_images: bool = False

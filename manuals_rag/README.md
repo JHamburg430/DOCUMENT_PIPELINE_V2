@@ -31,7 +31,7 @@ This repository follows the target layout from `.AGENT.md` under [`manuals_rag`]
 
 Document metadata extraction is model-backed and should not be replaced with filename or text-pattern heuristics. The current local model is `qwen3.5:9b` through Ollama, configured by `OLLAMA_METADATA_MODEL`.
 
-Saved metadata lives in Postgres in `document_metadata_extractions` and is copied into retrieval chunk metadata for filtering and ranking. Extraction covers the full document in page-aware batches and records grounded quotes, page/section provenance, scoped firmware/software applicability, and normalized identifier aliases. Existing corpora can be updated independently of parsing with `manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply`.
+Saved metadata lives in Postgres in `document_metadata_extractions` and is copied into retrieval chunk metadata for filtering and ranking. Extraction covers the full document in page-aware batches and records grounded quotes, page/section provenance, scoped firmware/software applicability, and normalized identifier aliases. Existing corpora can be updated independently of parsing with `manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply --all`; production deployments should follow the staged metadata MRV rollout runbook.
 
 Operator inspection is available in Streamlit at `http://127.0.0.1:8601/Document_Metadata`. More detail is in [`docs/architecture/metadata_extraction.md`](docs/architecture/metadata_extraction.md).
 

@@ -57,6 +57,7 @@ class AgenticState(TypedDict, total=False):
     corpus_ids: list[str]
     filters: dict[str, object]
     max_hops: int
+    max_seconds: float
     plan: dict[str, Any]
     pending_hop_ids: list[str]
     completed_hop_ids: list[str]
@@ -443,7 +444,7 @@ def plan_retrieval(query: str, *, use_llm: bool = True) -> RetrievalPlan:
             ],
             json_schema=PLAN_SCHEMA,
             think=False,
-            timeout=45.0,
+            timeout=max(1.0, min(settings.agentic_retrieval_planner_timeout_seconds, 120.0)),
             num_predict=700,
             purpose="agentic_retrieval_plan",
         )
@@ -499,7 +500,7 @@ def plan_llamaindex_retrieval(query: str, *, use_llm: bool = True) -> RetrievalP
             ],
             json_schema=PLAN_SCHEMA,
             think=False,
-            timeout=45.0,
+            timeout=max(1.0, min(settings.agentic_retrieval_planner_timeout_seconds, 120.0)),
             num_predict=700,
             purpose="llamaindex_subquestion_plan",
         )
@@ -597,7 +598,7 @@ def refine_dependent_query(hop: RetrievalHop, dependency_results: list[SearchRes
             ],
             json_schema=REFINE_SCHEMA,
             think=False,
-            timeout=45.0,
+            timeout=max(1.0, min(settings.agentic_retrieval_planner_timeout_seconds, 120.0)),
             num_predict=240,
             purpose="agentic_retrieval_refine",
         )
@@ -646,7 +647,7 @@ def refine_llamaindex_subquestion(
             ],
             json_schema=REFINE_SCHEMA,
             think=False,
-            timeout=45.0,
+            timeout=max(1.0, min(settings.agentic_retrieval_planner_timeout_seconds, 120.0)),
             num_predict=240,
             purpose="llamaindex_query_transform",
         )
@@ -924,7 +925,7 @@ def verify_retrieval_claim(
                 ],
                 json_schema=EVIDENCE_VERIFICATION_SCHEMA,
                 think=False,
-                timeout=90.0,
+                timeout=max(1.0, min(settings.agentic_retrieval_verifier_timeout_seconds, 180.0)),
                 num_predict=700,
                 purpose="agentic_retrieval.verify_claim",
             )
@@ -1128,6 +1129,10 @@ class AgenticRetrievalController:
         )
         self.event_callback = event_callback
 
+    @staticmethod
+    def _runtime_exhausted(state: AgenticState) -> bool:
+        return perf_counter() - float(state["started_at"]) >= float(state["max_seconds"])
+
     def _emit(self, event: str, **payload: Any) -> None:
         if self.event_callback is not None:
             self.event_callback(
@@ -1144,11 +1149,21 @@ class AgenticRetrievalController:
         plan = self.planner(state["query"])
         _validate_plan(plan)
         max_hops = max(1, min(int(state.get("max_hops", 4)), 8))
-        self._emit("plan_completed", plan=plan.model_dump(), max_hops=max_hops)
+        max_seconds = max(
+            5.0,
+            min(float(state.get("max_seconds", settings.agentic_retrieval_max_seconds)), 300.0),
+        )
+        self._emit(
+            "plan_completed",
+            plan=plan.model_dump(),
+            max_hops=max_hops,
+            max_seconds=max_seconds,
+        )
         return {
             **state,
             "started_at": started_at,
             "max_hops": max_hops,
+            "max_seconds": max_seconds,
             "plan": plan.model_dump(),
             "pending_hop_ids": [hop.hop_id for hop in plan.hops],
             "completed_hop_ids": [],
@@ -1159,6 +1174,9 @@ class AgenticRetrievalController:
         }
 
     def execute_next(self, state: AgenticState) -> AgenticState:
+        if self._runtime_exhausted(state):
+            self._emit("agent_stopped", stop_reason="runtime_budget_exhausted")
+            return {**state, "stop_reason": "runtime_budget_exhausted"}
         pending = list(state.get("pending_hop_ids", []))
         completed = list(state.get("completed_hop_ids", []))
         runnable = next(
@@ -1205,13 +1223,18 @@ class AgenticRetrievalController:
             dependency_anchors=dependency_anchors,
             recovery_for=hop.recovery_for,
         )
-        results = self.retriever(
-            executed_query,
-            state["corpus_ids"],
-            state.get("filters", {}),
-            executed_strategy,
-            10,
-        )
+        retrieval_error: str | None = None
+        try:
+            results = self.retriever(
+                executed_query,
+                state["corpus_ids"],
+                state.get("filters", {}),
+                executed_strategy,
+                max(1, min(settings.agentic_retrieval_result_limit, 50)),
+            )
+        except Exception as exc:
+            results = []
+            retrieval_error = f"{type(exc).__name__}: {exc}"
         if hop.recovery_for and not dependency_anchors:
             original_assessment = state.get("evidence_ledger", {}).get(hop.recovery_for, {}).get("assessment", {})
             dependency_anchors = list(original_assessment.get("dependency_anchors") or [])
@@ -1226,6 +1249,9 @@ class AgenticRetrievalController:
             results,
             dependency_anchors=dependency_anchors,
         )
+        if retrieval_error:
+            assessment["retrieval_error"] = retrieval_error
+            assessment["gap_reason"] = "retrieval_error"
         verification = self.verifier(hop, executed_query, results, assessment)
         assessment["preliminary_sufficient"] = preliminary_sufficient
         assessment["verification"] = verification
@@ -1294,6 +1320,9 @@ class AgenticRetrievalController:
         pending = list(state.get("pending_hop_ids", []))
         ledger = dict(state.get("evidence_ledger", {}))
         required = [hop for hop in plan.hops if hop.required and hop.recovery_for is None]
+        runtime_exhausted = self._runtime_exhausted(state)
+        if runtime_exhausted:
+            state = {**state, "stop_reason": "runtime_budget_exhausted"}
 
         for hop in required:
             item = ledger.get(hop.hop_id)
@@ -1302,7 +1331,8 @@ class AgenticRetrievalController:
                 bool(ledger.get(candidate.hop_id, {}).get("sufficient")) for candidate in prior_recoveries
             )
             if (
-                item
+                not runtime_exhausted
+                and item
                 and not item.get("sufficient")
                 and not recovery_succeeded
                 and len(prior_recoveries) < 2
@@ -1350,7 +1380,7 @@ class AgenticRetrievalController:
         final_results = assemble_agent_context(
             state["query"],
             hop_result_sets,
-            limit=10,
+            limit=max(1, min(settings.agentic_retrieval_result_limit, 50)),
             evidence_ledger=ledger,
             required_hop_ids=[hop.hop_id for hop in required],
         )
@@ -1368,6 +1398,7 @@ class AgenticRetrievalController:
             "rationale": plan.rationale,
             "plan": plan.model_dump(),
             "max_hops": state["max_hops"],
+            "max_seconds": state["max_seconds"],
             "completed_hops": completed,
             "pending_hops": pending,
             "evidence_ledger": ledger,
@@ -1440,6 +1471,10 @@ class LlamaIndexAgenticController:
         )
         self.event_callback = event_callback
 
+    @staticmethod
+    def _runtime_exhausted(state: AgenticState) -> bool:
+        return perf_counter() - float(state["started_at"]) >= float(state["max_seconds"])
+
     def _emit(self, event: str, **payload: Any) -> None:
         if self.event_callback is not None:
             self.event_callback(
@@ -1456,11 +1491,21 @@ class LlamaIndexAgenticController:
         plan = self.planner(state["query"])
         _validate_plan(plan)
         max_hops = max(1, min(int(state.get("max_hops", 4)), 8))
-        self._emit("plan_completed", plan=plan.model_dump(), max_hops=max_hops)
+        max_seconds = max(
+            5.0,
+            min(float(state.get("max_seconds", settings.agentic_retrieval_max_seconds)), 300.0),
+        )
+        self._emit(
+            "plan_completed",
+            plan=plan.model_dump(),
+            max_hops=max_hops,
+            max_seconds=max_seconds,
+        )
         return {
             **state,
             "started_at": started_at,
             "max_hops": max_hops,
+            "max_seconds": max_seconds,
             "plan": plan.model_dump(),
             "pending_hop_ids": [hop.hop_id for hop in plan.hops],
             "completed_hop_ids": [],
@@ -1488,6 +1533,9 @@ class LlamaIndexAgenticController:
         return hop.strategy
 
     def execute_next(self, state: AgenticState) -> AgenticState:
+        if self._runtime_exhausted(state):
+            self._emit("agent_stopped", stop_reason="runtime_budget_exhausted")
+            return {**state, "stop_reason": "runtime_budget_exhausted"}
         pending = list(state.get("pending_hop_ids", []))
         completed = list(state.get("completed_hop_ids", []))
         runnable = next(
@@ -1525,13 +1573,18 @@ class LlamaIndexAgenticController:
             dependency_anchors=dependency_anchors,
             recovery_for=hop.recovery_for,
         )
-        results = self.retriever(
-            executed_query,
-            state["corpus_ids"],
-            state.get("filters", {}),
-            executed_strategy,
-            10,
-        )
+        retrieval_error: str | None = None
+        try:
+            results = self.retriever(
+                executed_query,
+                state["corpus_ids"],
+                state.get("filters", {}),
+                executed_strategy,
+                max(1, min(settings.agentic_retrieval_result_limit, 50)),
+            )
+        except Exception as exc:
+            results = []
+            retrieval_error = f"{type(exc).__name__}: {exc}"
         if hop.recovery_for and not dependency_anchors:
             original = state.get("evidence_ledger", {}).get(hop.recovery_for, {})
             dependency_anchors = list((original.get("assessment") or {}).get("dependency_anchors") or [])
@@ -1540,6 +1593,9 @@ class LlamaIndexAgenticController:
             results,
             dependency_anchors=dependency_anchors,
         )
+        if retrieval_error:
+            assessment["retrieval_error"] = retrieval_error
+            assessment["gap_reason"] = "retrieval_error"
         verification = self.verifier(hop, executed_query, results, assessment)
         assessment["preliminary_sufficient"] = preliminary_sufficient
         assessment["verification"] = verification
@@ -1609,6 +1665,9 @@ class LlamaIndexAgenticController:
         pending = list(state.get("pending_hop_ids", []))
         ledger = dict(state.get("evidence_ledger", {}))
         required = [hop for hop in plan.hops if hop.required and hop.recovery_for is None]
+        runtime_exhausted = self._runtime_exhausted(state)
+        if runtime_exhausted:
+            state = {**state, "stop_reason": "runtime_budget_exhausted"}
 
         for hop in required:
             item = ledger.get(hop.hop_id)
@@ -1617,7 +1676,8 @@ class LlamaIndexAgenticController:
                 bool(ledger.get(candidate.hop_id, {}).get("sufficient")) for candidate in prior_recoveries
             )
             if (
-                item
+                not runtime_exhausted
+                and item
                 and not item.get("sufficient")
                 and not recovery_succeeded
                 and len(prior_recoveries) < 2
@@ -1672,7 +1732,7 @@ class LlamaIndexAgenticController:
         final_results = assemble_agent_context(
             state["query"],
             hop_result_sets,
-            limit=10,
+            limit=max(1, min(settings.agentic_retrieval_result_limit, 50)),
             evidence_ledger=ledger,
             required_hop_ids=[hop.hop_id for hop in required],
         )
@@ -1694,6 +1754,7 @@ class LlamaIndexAgenticController:
             "rationale": plan.rationale,
             "plan": plan.model_dump(),
             "max_hops": state["max_hops"],
+            "max_seconds": state["max_seconds"],
             "completed_hops": completed,
             "pending_hops": pending,
             "evidence_ledger": ledger,

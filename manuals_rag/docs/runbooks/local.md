@@ -21,7 +21,7 @@ REDIS_URL=redis://127.0.0.1:6379/0 \
 OLLAMA_URL=http://127.0.0.1:11434 \
 OLLAMA_METADATA_MODEL=qwen3.5:9b \
 python \
-manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply
+manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply --all
 ```
 
 The backfill writes `document_metadata_extractions`, merges metadata into `retrieval_chunks.metadata_json`, and queues embed jobs unless `--no-enqueue-embed` is passed.

@@ -203,6 +203,75 @@ def test_controller_emits_live_plan_hop_and_completion_events():
     assert events[4]["trace"]["pipeline"] == "evidence_map_reduce_verify_v1"
 
 
+def test_agent_stops_safely_when_runtime_budget_is_exhausted(monkeypatch):
+    plan = RetrievalPlan(
+        hops=[
+            RetrievalHop(
+                hop_id="lookup",
+                objective="Find ALPHA-1 corrective action",
+                query="ALPHA-1 corrective action",
+            )
+        ]
+    )
+    controller = AgenticRetrievalController(
+        use_llm=False,
+        planner=lambda _query: plan,
+        retriever=lambda *_args: (_ for _ in ()).throw(AssertionError("retrieval must not run")),
+    )
+    ticks = iter([100.0, 106.0])
+    monkeypatch.setattr(
+        "manuals_rag_answering.agentic_retrieval.perf_counter",
+        lambda: next(ticks, 106.0),
+    )
+
+    output = build_langgraph_agentic_retriever(controller=controller).invoke(
+        {
+            "query": "ALPHA-1 corrective action",
+            "corpus_ids": ["manuals"],
+            "filters": {},
+            "max_hops": 4,
+            "max_seconds": 5,
+        }
+    )
+
+    assert output["sufficient"] is False
+    assert output["stop_reason"] == "runtime_budget_exhausted"
+    assert output["retrieval_trace"]["max_seconds"] == 5.0
+    assert output["retrieval_results"] == []
+
+
+def test_retrieval_failure_is_contained_in_claim_ledger():
+    plan = RetrievalPlan(
+        hops=[
+            RetrievalHop(
+                hop_id="lookup",
+                objective="Find ALPHA-1 corrective action",
+                query="ALPHA-1 corrective action",
+            )
+        ]
+    )
+    controller = AgenticRetrievalController(
+        use_llm=False,
+        planner=lambda _query: plan,
+        retriever=lambda *_args: (_ for _ in ()).throw(RuntimeError("qdrant unavailable")),
+    )
+
+    output = build_langgraph_agentic_retriever(controller=controller).invoke(
+        {
+            "query": "ALPHA-1 corrective action",
+            "corpus_ids": ["manuals"],
+            "filters": {},
+            "max_hops": 1,
+        }
+    )
+
+    assessment = output["retrieval_trace"]["evidence_ledger"]["lookup"]["assessment"]
+    assert output["sufficient"] is False
+    assert output["stop_reason"] == "hop_budget_exhausted"
+    assert assessment["gap_reason"] == "verification_unresolved"
+    assert assessment["retrieval_error"] == "RuntimeError: qdrant unavailable"
+
+
 def test_verifier_rejects_model_citations_that_were_not_retrieved(monkeypatch):
     hop = RetrievalHop(
         hop_id="lookup",

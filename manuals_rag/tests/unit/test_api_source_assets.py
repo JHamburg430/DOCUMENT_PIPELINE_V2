@@ -1,6 +1,8 @@
 import json
+from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from apps.api import main
@@ -64,13 +66,50 @@ def test_query_routes_to_selected_agentic_retriever(monkeypatch, orchestrator, a
             "corpus_ids": ["manuals_vendor_keyence"],
             "retrieval_orchestrator": orchestrator,
             "max_retrieval_hops": 3,
+            "max_retrieval_seconds": 12,
         },
     )
 
     assert response.status_code == 200
     assert calls[0]["max_hops"] == 3
+    assert calls[0]["max_seconds"] == 12.0
     assert response.json()["retrieval_orchestrator"] == orchestrator
     assert response.json()["retrieval_trace"]["completed_hops"] == ["identify", "orientation"]
+
+
+def test_agentic_retrieval_kill_switch_does_not_block_baseline(monkeypatch):
+    monkeypatch.setattr(main, "settings", SimpleNamespace(agentic_retrieval_enabled=False))
+
+    main._require_agentic_retrieval_enabled(
+        main.QueryRequest(query="ordinary lookup", corpus_ids=["manuals"], retrieval_orchestrator="baseline")
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        main._require_agentic_retrieval_enabled(
+            main.QueryRequest(
+                query="multi-step lookup",
+                corpus_ids=["manuals"],
+                retrieval_orchestrator="langgraph_agent",
+            )
+        )
+
+    assert exc_info.value.status_code == 503
+
+
+def test_agentic_runtime_budget_is_api_bounded():
+    with pytest.raises(ValueError):
+        main.QueryRequest(query="lookup", corpus_ids=["manuals"], max_retrieval_seconds=4)
+    with pytest.raises(ValueError):
+        main.QueryRequest(query="lookup", corpus_ids=["manuals"], max_retrieval_seconds=301)
+
+
+def test_agentic_runtime_budget_clamps_invalid_environment_value(monkeypatch):
+    monkeypatch.setattr(main, "settings", SimpleNamespace(agentic_retrieval_max_seconds=-10))
+    request = main.QueryRequest(query="lookup", corpus_ids=["manuals"])
+
+    assert main._agentic_max_seconds(request) == 5.0
+
+    monkeypatch.setattr(main, "settings", SimpleNamespace(agentic_retrieval_max_seconds=999))
+    assert main._agentic_max_seconds(request) == 300.0
 
 
 def test_agentic_query_stream_emits_live_trace_and_final_answer(monkeypatch):

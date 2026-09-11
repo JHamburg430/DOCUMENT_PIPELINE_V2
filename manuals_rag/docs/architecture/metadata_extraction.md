@@ -79,8 +79,14 @@ REDIS_URL=redis://127.0.0.1:6379/0 \
 OLLAMA_URL=http://127.0.0.1:11434 \
 OLLAMA_METADATA_MODEL=qwen3.5:9b \
 /home/john/Desktop/Programming/Document_Pipeline/.venv/bin/python \
-manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply
+manuals_rag/scripts/maintenance/backfill_document_metadata.py --apply --all
 ```
+
+Production rollout should stage persistence with `--no-enqueue-embed`, run the
+persisted metadata audit, then promote only current metadata with
+`--enqueue-current`. Mutating runs require explicit document scope, a limit, or
+`--all`; current document/pipeline pairs resume by skipping unless `--force` is
+used. See the [production rollout runbook](../runbooks/metadata_mrv_production_rollout.md).
 
 Useful options:
 
@@ -90,6 +96,10 @@ Useful options:
 - `--segment-chars N` controls the maximum source characters in each scoped extraction call (default `3000`, matching ingestion).
 - `--node-limit N` is a diagnostic-only cap and reduces metadata recall.
 - `--no-enqueue-embed` updates Postgres without queueing embedding refresh jobs.
+- `--enqueue-current` promotes already-persisted current metadata to embedding refresh without re-extraction.
+- `--max-failures N` bounds document failures before abort (default `3`; zero disables the limit).
+- `--checkpoint-every N` controls durable report checkpoints (default `1`).
+- `--force` deliberately repeats current-pipeline extraction and should not be used during normal resume.
 
 Backfill reports are written to `manuals_rag/test_reports/document_metadata_backfill_*.json`.
 

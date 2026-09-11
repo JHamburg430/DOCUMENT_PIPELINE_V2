@@ -50,7 +50,8 @@ evidence item. Successful recovery evidence is available to downstream hops.
   "query": "Which cable connects the RS-232C port, then what is its connector orientation?",
   "corpus_ids": ["manuals_vendor_keyence"],
   "retrieval_orchestrator": "langgraph_agent",
-  "max_retrieval_hops": 4
+  "max_retrieval_hops": 4,
+  "max_retrieval_seconds": 180
 }
 ```
 
@@ -59,6 +60,14 @@ Set `retrieval_orchestrator` to `baseline`, `langgraph_agent`, or
 completed hops, stop reason, per-hop strategy, queries, evidence chunk IDs, and
 sufficiency assessments, context-retention decisions, recovery effectiveness,
 and measured Ollama prompt/completion token and duration counters.
+
+Production controls are configured with `AGENTIC_RETRIEVAL_ENABLED`,
+`AGENTIC_RETRIEVAL_MAX_SECONDS`, `AGENTIC_RETRIEVAL_PLANNER_TIMEOUT_SECONDS`,
+`AGENTIC_RETRIEVAL_VERIFIER_TIMEOUT_SECONDS`, and
+`AGENTIC_RETRIEVAL_RESULT_LIMIT`. Retrieval-tool failures remain claim-local and
+cannot unlock synthesis. Prometheus exports terminal outcomes, verifier trust
+states, and completed-hop distributions. See the
+[production rollout runbook](../runbooks/metadata_mrv_production_rollout.md).
 
 `POST /query/stream` accepts the same request for either agent backend and
 returns newline-delimited JSON events as the run progresses. Events cover plan

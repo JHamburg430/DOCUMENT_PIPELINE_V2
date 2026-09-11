@@ -45,6 +45,15 @@ class Settings:
     )
     ollama_answer_model: str = os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b")
     ollama_answer_num_predict: int = int(os.getenv("OLLAMA_ANSWER_NUM_PREDICT", "1024"))
+    agentic_retrieval_enabled: bool = _as_bool(os.getenv("AGENTIC_RETRIEVAL_ENABLED"), True)
+    agentic_retrieval_max_seconds: float = float(os.getenv("AGENTIC_RETRIEVAL_MAX_SECONDS", "180"))
+    agentic_retrieval_planner_timeout_seconds: float = float(
+        os.getenv("AGENTIC_RETRIEVAL_PLANNER_TIMEOUT_SECONDS", "45")
+    )
+    agentic_retrieval_verifier_timeout_seconds: float = float(
+        os.getenv("AGENTIC_RETRIEVAL_VERIFIER_TIMEOUT_SECONDS", "90")
+    )
+    agentic_retrieval_result_limit: int = int(os.getenv("AGENTIC_RETRIEVAL_RESULT_LIMIT", "10"))
     ollama_eval_model: str = os.getenv("OLLAMA_EVAL_MODEL", os.getenv("OLLAMA_ANSWER_MODEL", "qwen3.5:9b"))
     ollama_eval_question_model: str = os.getenv("OLLAMA_EVAL_QUESTION_MODEL", "qwen3.5:27b")
     ollama_eval_question_num_ctx: int = int(os.getenv("OLLAMA_EVAL_QUESTION_NUM_CTX", "32768"))
